@@ -48,6 +48,8 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<RoomMuteEntity>? RoomMutes { get; set; }
 
+    public DbSet<RoomRaidProtectionEntity>? RoomRaidProtections { get; set; }
+
     public DbSet<RoomRightEntity>? RoomRights { get; set; }
 
     public DbSet<RoomEntryLogEntity>? RoomEntryLogs { get; set; }

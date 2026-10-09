@@ -1317,6 +1317,14 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.GetFlatControllersMessageEvent, new GetFlatControllersMessageParser() },
             { MessageEvent.GetRoomSettingsMessageEvent, new GetRoomSettingsMessageParser() },
+            {
+                MessageEvent.GetRaidProtectionSettingsMessageEvent,
+                new GetRaidProtectionSettingsMessageParser()
+            },
+            {
+                MessageEvent.SaveRaidProtectionSettingsMessageEvent,
+                new SaveRaidProtectionSettingsMessageParser()
+            },
             { MessageEvent.SaveRoomSettingsMessageEvent, new SaveRoomSettingsMessageParser() },
             {
                 MessageEvent.UpdateRoomCategoryAndTradeSettingsMessageEvent,
@@ -4550,6 +4558,24 @@ public class Revision20260909 : IRevision
                 typeof(RoomSettingsDataEventMessageComposer),
                 new RoomSettingsDataEventMessageComposerSerializer(
                     MessageComposer.RoomSettingsDataMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionCapabilityMessageComposer),
+                new RaidProtectionCapabilityMessageComposerSerializer(
+                    MessageComposer.RaidProtectionCapabilityMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionSettingsMessageComposer),
+                new RaidProtectionSettingsMessageComposerSerializer(
+                    MessageComposer.RaidProtectionSettingsMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionSettingsResultMessageComposer),
+                new RaidProtectionSettingsResultMessageComposerSerializer(
+                    MessageComposer.RaidProtectionSettingsResultMessageComposer
                 )
             },
             {

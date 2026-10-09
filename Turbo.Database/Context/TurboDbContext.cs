@@ -109,6 +109,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<RoomMuteEntity> RoomMutes { get; init; }
 
+    public DbSet<RoomRaidProtectionEntity> RoomRaidProtections { get; init; }
+
     public DbSet<RoomRightEntity> RoomRights { get; init; }
 
     public DbSet<RoomEntryLogEntity> RoomEntryLogs { get; init; }

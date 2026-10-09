@@ -394,6 +394,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   206EE1E3: ApplyWiredVariableMenuOperationAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableBinding, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Enums.Wired.WiredVariableMenuOperationType, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableValue, System.Threading.CancellationToken) -> Task<bool>
   0589D3D4: BanPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Enums.RoomBanDurationType, System.Threading.CancellationToken) -> Task<bool>
   1A97184C: BreedPetsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Pets.Enums.PetBreedingAction, int, int, System.Threading.CancellationToken) -> Task<bool>
+  9708DE8B: CanManageRaidProtectionAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
   DC1B543C: CancelEventAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   9057F93F: CancelNestBreedingAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   F8F69E06: ChangeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<bool>
@@ -434,6 +435,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   565213AB: GetItemSnapshotByIdAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot?>
   2F89C06F: GetMapSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomMapSnapshot>
   210B1547: GetOccupiedTilesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomTilePositionSnapshot>>
+  92BF3A69: GetRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsSnapshot?>
   F20AC600: GetRoomFilterWordsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<string>?>
   978D5192: GetRoomPopulationAsync(System.Threading.CancellationToken) -> Task<int>
   AA15EF0E: GetRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSnapshot?>
@@ -501,6 +503,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   1C740797: RespectPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   4CF16EE3: RingDoorbellAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
   8300F4FE: SaveFloorPlanAsync(Turbo.Primitives.Action.ActionContext, string, Turbo.Primitives.Rooms.Snapshots.Mapping.FloorPlanPropertiesSnapshot?, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
+  B6DB48CF: SaveRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSaveResultSnapshot>
   8DC218E2: SaveRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSaveResultSnapshot>
   A6B181EC: SelectPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   B2E682BF: SendChatFromPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.RoomChatType, string, int, System.Threading.CancellationToken, int, string?) -> Task<bool>

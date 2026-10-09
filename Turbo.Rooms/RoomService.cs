@@ -673,6 +673,21 @@ internal sealed partial class RoomService(
                 ct
             )
             .ConfigureAwait(false);
+
+        // After the entry info: the client takes this only for the room it has entered, which
+        // that message is what tells it, and shows Room info's raid protection button on it.
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new RaidProtectionCapabilityMessageComposer
+                {
+                    RoomId = roomId,
+                    CanManage = await room.CanManageRaidProtectionAsync(roomCtx, ct)
+                        .ConfigureAwait(false),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 
     public async Task ClickTileAsync(

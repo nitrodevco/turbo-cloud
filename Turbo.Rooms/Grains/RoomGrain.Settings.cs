@@ -243,6 +243,7 @@ public sealed partial class RoomGrain
         await dbCtx.RoomRights.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomBans.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomMutes.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomRaidProtections.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomRatings.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomEvents.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomEntryLogs.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
