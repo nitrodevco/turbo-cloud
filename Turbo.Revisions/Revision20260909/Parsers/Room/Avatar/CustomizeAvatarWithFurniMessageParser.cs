@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Avatar;
 
 internal class CustomizeAvatarWithFurniMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new CustomizeAvatarWithFurniMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new CustomizeAvatarWithFurniMessage { ObjectId = packet.PopInt() };
 }

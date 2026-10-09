@@ -121,6 +121,8 @@ public class SSOTicketMessageHandler(
         var effectsTask = _grainFactory.GetPlayerEffectGrain(playerId).GetEffectsAsync(ct);
         // The clothing they own, which the avatar editor offers them besides what everyone has.
         var ownedClothingTask = clothing.GetOwnedAsync(playerId, ct);
+        // The clothing furni they have bound, which the client puts on without asking again.
+        var boundClothingTask = clothing.GetBoundFurnitureNamesAsync(playerId, ct);
 
         await Task.WhenAll(
                 settingsTask,
@@ -128,7 +130,8 @@ public class SSOTicketMessageHandler(
                 clubGiftsTask,
                 welcomeMessageTask,
                 effectsTask,
-                ownedClothingTask
+                ownedClothingTask,
+                boundClothingTask
             )
             .ConfigureAwait(false);
 
@@ -207,7 +210,7 @@ public class SSOTicketMessageHandler(
                 new FigureSetIdsEventMessageComposer
                 {
                     FigureSetIds = [.. (await ownedClothingTask.ConfigureAwait(false)).Order()],
-                    BoundFurnitureNames = [],
+                    BoundFurnitureNames = await boundClothingTask.ConfigureAwait(false),
                 },
                 ct
             )

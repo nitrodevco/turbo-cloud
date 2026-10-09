@@ -6,12 +6,14 @@ using Microsoft.Extensions.Options;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Runtime;
@@ -76,6 +78,15 @@ public sealed class RoomObjectLogicProvider(
             && Array.IndexOf(FurnitureGameTimerLogic.CLASSNAMES, timer.Definition.Name) >= 0
         )
             logicType = FurnitureGameTimerLogic.LOGIC_NAME;
+
+        // Clothing furni are known by their furnidata specialtype (figure_purchasable_set), which
+        // hotels set without a logic of their own.
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem clothing
+            && clothing.Definition.FurniCategory == FurnitureCategory.FigurePurchasableSet
+        )
+            logicType = FurniturePurchasableClothingLogic.LOGIC_NAME;
 
         // A highscore board is known by its classname (highscore_perteam*2 and so on).
         if (

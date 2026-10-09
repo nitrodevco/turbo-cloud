@@ -89,6 +89,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
     public DbSet<PlayerFigureSetEntity> PlayerFigureSets { get; init; }
+    public DbSet<PlayerBoundClothingEntity> PlayerBoundClothing { get; init; }
 
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
