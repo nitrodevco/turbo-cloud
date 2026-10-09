@@ -271,6 +271,33 @@ longer publishes them.
 - **The panel** draws catalog, furniture and badge pictures from the same variables
   (`docs/admin-panel.md`).
 
+## Hotel view
+
+The reception players land in is built by the client from its `landing.view.*` external variables,
+and the words on it from the external texts. The panel's **Hotel view** page edits both, as the
+client reads them (nitro-react's `HotelViewWidgets.ts`, after Flash's `WidgetContainerLayout`):
+
+| Tab | What it edits |
+| --- | --- |
+| **Preview** | Nothing: the reception on a 1600 by 900 window at the time chosen, and what each slot shows then. A slot clicked opens it. |
+| **Slots** | The five widget slots (`landing.view.dynamic.slot.<n>.*`): the widget each holds; for a container (`widgetcontainer`), the schedule of promos it shows (`.conf`, `date,code;...`); for a promo of its own (`generic`), that promo; the headings over slots 4 and 5, and whether slots 2 and 3 line up. |
+| **Promos** | The promos schedules name, each under a code (`landing.view.<code>.widget`, `.conf`, `.layout`): its picture and where it and the column sit, and the column's headings, text, buttons, links and countdowns. Each element's words are an external text, edited beside it. Promos are made, copied and removed here; removing one takes it out of the schedules. |
+| **Backgrounds** | The six background layers (`landing.view.<layer>.uri` and `.visible`) and sets of them under a code that `landing.view.bgtiming` switches to from a time on. A set's layer left empty keeps the picture of the set before it, as the client does. |
+| **Look** | The colour and etching of every widget's text (`landing.view.common.*`), the panes' widths and the bonus rare's picture. |
+| **All variables** | Every `landing.view.*` variable as JSON, for what the other tabs have no form for. |
+
+- **Times** in schedules are UTC, as the server reads them (`ReceptionSchedule`): from each time on,
+  its code shows, until a later one starts. The server answers the client's `GetCurrentTimingCode`
+  and `GetSecondsUntil` from them; nothing else is kept.
+- **Pictures** are addresses, shown beside the field as the client would load them;
+  `${image.library.url}` is the client's image library. The panel doesn't host pictures.
+- **Saving.** Changes stay in the panel until **Save**, then go together as one change set
+  (`IHotelViewService`, `PUT /api/gamedata/hotel-view`), variables and texts alike, and roll back
+  as one from the history. Only `landing.view.*` variables can be saved there. Players see the
+  change when they next load the client.
+- Widgets Nitro doesn't draw yet (the catalogue promos, daily quest, ...) can be chosen; players see
+  the slot empty, and the panel says so.
+
 ## Setting it up in production (Ploi)
 
 The files are served under `/gamedata/` on a site that already has a domain and a certificate,
@@ -350,8 +377,8 @@ loading the old build after a change.
 
 | Node | Gives |
 | --- | --- |
-| `admin.gamedata.view` | The **Gamedata** page: releases, reviews, definitions, variables, files and history. |
-| `gamedata.manage` | Checking Habbo, taking in updates, editing definitions and variables, importing a client config, rebuilding and rolling back; giving and taking players' clothing. |
+| `admin.gamedata.view` | The **Gamedata** page: releases, reviews, definitions, variables, files and history; and the **Hotel view** page. |
+| `gamedata.manage` | Checking Habbo, taking in updates, editing definitions, variables and the hotel view, importing a client config, rebuilding and rolling back; giving and taking players' clothing. |
 | `figure.any` | Wearing any clothing and colour, whatever the figure data says of club, sale or selection. |
 
 ## Known limits

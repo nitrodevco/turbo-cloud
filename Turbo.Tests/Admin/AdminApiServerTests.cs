@@ -177,6 +177,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IGamedataTextService),
                 typeof(IGamedataProductService),
                 typeof(IGamedataVariableService),
+                typeof(IHotelViewService),
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),

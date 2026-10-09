@@ -403,7 +403,7 @@ internal sealed class GamedataVariableService(
     }
 
     /// <summary>A key the hotel can keep: not empty, not too long.</summary>
-    private static string CheckKey(string key)
+    internal static string CheckKey(string key)
     {
         key = key.Trim();
 
@@ -468,7 +468,7 @@ internal sealed class GamedataVariableService(
             File = file,
         };
 
-    private static VariableState State(GamedataVariableEntity row) =>
+    internal static VariableState State(GamedataVariableEntity row) =>
         new(row.Value, row.SettingPath, row.LinkedFile);
 
     private async Task<VariablePlan> PlanAsync(
@@ -525,7 +525,7 @@ internal sealed class GamedataVariableService(
         return plan;
     }
 
-    private static GamedataChangeEntity Change(
+    internal static GamedataChangeEntity Change(
         string key,
         VariableState? before,
         VariableState? after,
@@ -554,7 +554,7 @@ internal sealed class GamedataVariableService(
     }
 
     /// <summary>What a variable holds: its value, and the setting or file it follows, if any.</summary>
-    private sealed record VariableState(string Value, string? Setting, string? File);
+    internal sealed record VariableState(string Value, string? Setting, string? File);
 
     private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 

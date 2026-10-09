@@ -13,6 +13,7 @@ using Turbo.Admin.Catalog;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
+using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -34,6 +35,7 @@ internal sealed class GamedataEndpoints(
     IGamedataTextService texts,
     IGamedataProductService products,
     IGamedataVariableService variables,
+    IHotelViewService hotelView,
     IGamedataFigureService figures,
     IPlayerClothingService clothing,
     AdminCatalogQueries catalog,
@@ -81,6 +83,9 @@ internal sealed class GamedataEndpoints(
         group.MapDelete("/variables", DeleteVariableAsync);
         group.MapPost("/variables/import/preview", VariablePreviewAsync);
         group.MapPost("/variables/import", VariableImportAsync);
+        group.MapGet("/hotel-view", HotelViewAsync);
+        group.MapPost("/hotel-view/texts", HotelViewTextsAsync);
+        group.MapPut("/hotel-view", SaveHotelViewAsync);
         group.MapGet("/products/import", ProductPreviewAsync);
         group.MapPost("/products/import/{versionId:int}", ProductImportAsync);
         group.MapGet(
@@ -823,6 +828,62 @@ internal sealed class GamedataEndpoints(
                             changeSet = await variables
                                 .ImportAsync(
                                     request.Json ?? string.Empty,
+                                    AdminIdentity.Of(http).PlayerId,
+                                    ct
+                                )
+                                .ConfigureAwait(false),
+                        }
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
+        );
+
+    private async Task<IResult> HotelViewAsync(HttpContext http, CancellationToken ct) =>
+        Results.Ok(
+            new
+            {
+                variables = await hotelView.GetVariablesAsync(ct).ConfigureAwait(false),
+                canManage = await CanManageAsync(http, ct).ConfigureAwait(false),
+            }
+        );
+
+    private async Task<IResult> HotelViewTextsAsync(
+        HotelViewTextsRequest request,
+        CancellationToken ct
+    ) =>
+        Results.Ok(
+            new
+            {
+                texts = await hotelView.GetTextsAsync(request.Keys ?? [], ct).ConfigureAwait(false),
+            }
+        );
+
+    private Task<IResult> SaveHotelViewAsync(
+        HotelViewSaveRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        new
+                        {
+                            changeSet = await hotelView
+                                .SaveAsync(
+                                    new HotelViewEdit
+                                    {
+                                        Variables = request.Variables ?? [],
+                                        Texts = request.Texts ?? [],
+                                    },
                                     AdminIdentity.Of(http).PlayerId,
                                     ct
                                 )

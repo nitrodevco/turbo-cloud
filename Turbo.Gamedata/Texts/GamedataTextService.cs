@@ -499,7 +499,7 @@ internal sealed class GamedataTextService(
         return habbo == previous ? null : FurnitureImportAction.Keep;
     }
 
-    private static GamedataChangeEntity Change(
+    internal static GamedataChangeEntity Change(
         GamedataRecordType type,
         string key,
         string? before,
@@ -514,7 +514,7 @@ internal sealed class GamedataTextService(
             After = after is null ? null : Record(key, after),
         };
 
-    private static GamedataChangeEntity WithId(GamedataChangeEntity change, int id)
+    internal static GamedataChangeEntity WithId(GamedataChangeEntity change, int id)
     {
         change.RecordId = id;
 

@@ -11,6 +11,7 @@ using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
+using Turbo.Gamedata.HotelView;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
@@ -61,6 +62,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataTextService, GamedataTextService>();
         services.AddSingleton<IGamedataProductService, GamedataProductService>();
         services.AddSingleton<IGamedataVariableService, GamedataVariableService>();
+        services.AddSingleton<IHotelViewService, HotelViewService>();
         services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();
         services.AddSingleton<IFigureDataProvider, FigureDataProvider>();

@@ -864,6 +864,13 @@ Everything else in the panel uses each command's own permission. The console run
 commands typed in the hotel. Room commands (`kick`, `mute`, ...) need a room, so the console
 can't run them.
 
+## Hotel view
+
+The **Hotel view** page edits the reception players land in: its backgrounds and their timed sets,
+the five widget slots, the promos their schedules show and the words on them, with a preview at any
+time. It needs `admin.gamedata.view` to look and `gamedata.manage` to save; a save is one change set
+in the gamedata history. `docs/gamedata.md` has the details.
+
 ## Server settings
 
 The **Settings** page lists every option of every config section: its value, where that comes
