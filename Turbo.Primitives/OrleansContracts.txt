@@ -96,6 +96,18 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildDirectoryGra
   FD93DFF5: ReloadAsync(System.Threading.CancellationToken) -> Task
   DF1ACF34: SearchByNameAsync(string, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildSummarySnapshot>>
 
+interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildForumGrain")] Turbo.Primitives.Guilds.Grains.IGuildForumGrain [Version(0)]
+  657B9014: ModerateMessageAsync(Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task
+  106ACC11: ModerateThreadAsync(Turbo.Primitives.Players.PlayerId, int, int, System.Threading.CancellationToken) -> Task
+  91010CE9: OpenAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
+  8E1FEF29: PostAsync(Turbo.Primitives.Players.PlayerId, int, string, string, System.Threading.CancellationToken) -> Task
+  1D5EB296: SendForumAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
+  951E8F4F: SendMessagesAsync(Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task
+  6DD54C79: SendThreadAsync(Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task
+  63E8658F: SendThreadsAsync(Turbo.Primitives.Players.PlayerId, int, int, System.Threading.CancellationToken) -> Task
+  730C41D4: UpdateSettingsAsync(Turbo.Primitives.Players.PlayerId, int, int, int, int, System.Threading.CancellationToken) -> Task
+  7B31B286: UpdateThreadAsync(Turbo.Primitives.Players.PlayerId, int, bool, bool, System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Turbo.Primitives.Guilds.Grains.IGuildGrain [Version(0)]
   E9A1A943: ApproveAllRequestsAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   A84DE798: ApproveRequestAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
@@ -110,6 +122,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Tur
   57C83AD5: JoinChatAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   BF359D60: KickAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   47AD88BE: LeaveChatAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
+  A63F7590: OnForumOpenedAsync(System.Threading.CancellationToken) -> Task
   F4566792: RejectRequestAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   D734CC0F: SendChatMessageAsync(Turbo.Primitives.Players.PlayerId, string, string, string, string, System.Threading.CancellationToken) -> Task<bool>
   0C08C9E1: SetAdminAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
@@ -122,6 +135,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Tur
   3E1CB06F: UpdateColorsAsync(Turbo.Primitives.Players.PlayerId, int, int, System.Threading.CancellationToken) -> Task<bool>
   869F229D: UpdateIdentityAsync(Turbo.Primitives.Players.PlayerId, string, string, System.Threading.CancellationToken) -> Task<bool>
   38446350: UpdateSettingsAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Guilds.Enums.GuildType, Turbo.Primitives.Guilds.Enums.GuildRightsLevel, System.Threading.CancellationToken) -> Task<bool>
+
+interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IPlayerGuildForumGrain")] Turbo.Primitives.Guilds.Grains.IPlayerGuildForumGrain [Version(0)]
+  753AC74A: MarkReadAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Forums.Snapshots.GuildForumReadMarkerSnapshot>, System.Threading.CancellationToken) -> Task
+  7472D283: SendForumsListAsync(int, int, int, System.Threading.CancellationToken) -> Task
+  267657C9: SendUnreadForumsCountAsync(System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain")] Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain [Version(0)]
   1846B7B7: GetMessageAsync(System.Threading.CancellationToken) -> Task<string>

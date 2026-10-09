@@ -1,13 +1,17 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Groupforums;
-using Turbo.Primitives.Messages.Outgoing.Groupforums;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Groupforums;
 
-public class GetUnreadForumsCountMessageHandler : IMessageHandler<GetUnreadForumsCountMessage>
+public class GetUnreadForumsCountMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<GetUnreadForumsCountMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         GetUnreadForumsCountMessage message,
         MessageContext ctx,
@@ -17,13 +21,9 @@ public class GetUnreadForumsCountMessageHandler : IMessageHandler<GetUnreadForum
         if (ctx.PlayerId <= 0)
             return;
 
-        // No group has a forum until the forum ship lands (GuildSummarySnapshot.HasForum), so
-        // none can hold an unread message. The client polls this at login and every
-        // groupforum.poll.period and keeps its last answer, so it is answered rather than left.
-        await ctx.SendComposerAsync(
-                new UnreadForumsCountMessageComposer { UnreadForumsCount = 0 },
-                ct
-            )
+        await _grainFactory
+            .GetPlayerGuildForumGrain(ctx.PlayerId)
+            .SendUnreadForumsCountAsync(ct)
             .ConfigureAwait(false);
     }
 }

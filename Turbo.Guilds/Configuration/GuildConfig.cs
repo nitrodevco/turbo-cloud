@@ -69,4 +69,30 @@ public class GuildConfig
     /// loaded while anyone listens, so it must stay under the silo's idle collection age.
     /// </summary>
     public int ChatListenerCheckMs { get; init; } = 300000;
+
+    /// <summary>
+    /// Most rows of a forum list, thread list or message page sent at once; the client asks for
+    /// 20 (AS3 GroupForumController).
+    /// </summary>
+    public int ForumPageSize { get; init; } = 20;
+
+    /// <summary>
+    /// Shortest time between two posts by one player in one forum; the client waits 30 seconds
+    /// itself (AS3 ComposeMessageView, groupforum.compose.post_cooldown).
+    /// </summary>
+    public int ForumPostCooldownMs { get; init; } = 30000;
+
+    /// <summary>
+    /// Shortest subject and message: the client refuses 10 characters or fewer
+    /// (ComposeMessageView, groupforum.compose.subject_too_short / message_too_short).
+    /// </summary>
+    public int ForumSubjectMinLength { get; init; } = 11;
+
+    public int ForumMessageMinLength { get; init; } = 11;
+
+    /// <summary>
+    /// The window the Most Active and Most Viewed lists count over: "in last 7 days"
+    /// (groupforum.view.forums_description.0 / .1).
+    /// </summary>
+    public int ForumActivityDays { get; init; } = 7;
 }

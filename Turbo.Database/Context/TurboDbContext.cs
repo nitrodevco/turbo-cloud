@@ -119,6 +119,14 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
 
+    public DbSet<GuildForumEntity> GuildForums { get; init; }
+
+    public DbSet<GuildForumThreadEntity> GuildForumThreads { get; init; }
+
+    public DbSet<GuildForumMessageEntity> GuildForumMessages { get; init; }
+
+    public DbSet<GuildForumReadMarkerEntity> GuildForumReadMarkers { get; init; }
+
     public DbSet<CfhReportEntity> CfhReports { get; init; }
 
     public DbSet<CfhReportChatLineEntity> CfhReportChatLines { get; init; }

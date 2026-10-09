@@ -262,6 +262,7 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
 
         List<GuildEntity> guilds;
         List<(int GuildEntityId, int Members)> memberCounts;
+        HashSet<int> forumGuildIds;
         GuildEditorDataSnapshot editorData;
 
         try
@@ -269,6 +270,13 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             guilds = await dbCtx.Guilds.AsNoTracking().ToListAsync(ct);
+            forumGuildIds =
+            [
+                .. await dbCtx
+                    .GuildForums.AsNoTracking()
+                    .Select(x => x.GuildEntityId)
+                    .ToListAsync(ct),
+            ];
             memberCounts =
             [
                 .. (
@@ -295,9 +303,10 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
 
         foreach (var guild in guilds)
         {
-            // No group has a forum until the forum ship lands; the client draws no forum link
-            // for a group that says false, which is the truth rather than a stub.
-            var summary = guild.ToSummarySnapshot(editorData, hasForum: false);
+            var summary = guild.ToSummarySnapshot(
+                editorData,
+                hasForum: forumGuildIds.Contains(guild.Id)
+            );
 
             _state.SummaryByGuildId[guild.Id] = summary;
             _state.GuildIdByRoomId[guild.RoomEntityId] = guild.Id;

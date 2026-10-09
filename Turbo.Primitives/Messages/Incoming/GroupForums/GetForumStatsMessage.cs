@@ -2,4 +2,7 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Groupforums;
 
-public record GetForumStatsMessage : IMessageEvent { }
+public record GetForumStatsMessage : IMessageEvent
+{
+    public required int GroupId { get; init; }
+}

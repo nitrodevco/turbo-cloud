@@ -190,7 +190,8 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
 
         var editorData = await _grainFactory.GetGuildDirectoryGrain().GetEditorDataAsync(ct);
 
-        // No group has a forum until the forum ship lands.
-        _state.Guild = entity.ToSnapshot(editorData, hasForum: false);
+        var hasForum = await dbCtx.GuildForums.AnyAsync(x => x.GuildEntityId == GuildId.Value, ct);
+
+        _state.Guild = entity.ToSnapshot(editorData, hasForum);
     }
 }

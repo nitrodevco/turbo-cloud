@@ -174,6 +174,16 @@ public static class GrainFactoryExtensions
     public static IGuildGrain GetGuildGrain(this IGrainFactory factory, GuildId guildId) =>
         factory.GetGrain<IGuildGrain>((long)guildId.Value);
 
+    public static IGuildForumGrain GetGuildForumGrain(
+        this IGrainFactory factory,
+        GuildId guildId
+    ) => factory.GetGrain<IGuildForumGrain>(guildId.Value);
+
+    public static IPlayerGuildForumGrain GetPlayerGuildForumGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerGuildForumGrain>(playerId.Value);
+
     public static IPlayerGuildGrain GetPlayerGuildGrain(
         this IGrainFactory factory,
         PlayerId playerId

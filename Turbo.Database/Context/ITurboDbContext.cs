@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
@@ -56,6 +57,14 @@ public interface ITurboDbContext : IDisposable
     public DbSet<PlayerDailyTaskEntity>? PlayerDailyTasks { get; set; }
 
     public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
+
+    public DbSet<GuildForumEntity>? GuildForums { get; set; }
+
+    public DbSet<GuildForumThreadEntity>? GuildForumThreads { get; set; }
+
+    public DbSet<GuildForumMessageEntity>? GuildForumMessages { get; set; }
+
+    public DbSet<GuildForumReadMarkerEntity>? GuildForumReadMarkers { get; set; }
 
     public DbSet<CfhReportEntity>? CfhReports { get; set; }
 
