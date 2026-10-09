@@ -313,4 +313,62 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
 
         parts.Should().Equal("1 2 4", "1 1 7", "1 9 2", null);
     }
+
+    [Fact]
+    public async Task CfhTopics_AreTheEvidencedSet_AndATopicAHotelChangedIsKept()
+    {
+        RequireServer();
+        await using var db = Context();
+        await db.Database.MigrateAsync("20261009114100_AddCfhReportSources", Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE `cfh_topics` SET `enabled` = 0 WHERE `id` = 14",
+            Ct
+        );
+
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        var topics = await db.CfhTopics.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct);
+
+        topics
+            .Select(x => x.Category)
+            .Distinct()
+            .Should()
+            .BeEquivalentTo(
+                "sexual_content",
+                "pii_meeting_irl",
+                "scamming",
+                "trolling_bad_behavior",
+                "violent_behavior",
+                "game_interruption",
+                "unlawful_activity"
+            );
+        topics.Select(x => x.Name).Should().OnlyHaveUniqueItems();
+        topics
+            .Where(x => x.Id != 14)
+            .Select(x => (x.Id, x.Name, x.Consequence))
+            .Should()
+            .Contain((12, "bullying", ""))
+            .And.Contain((13, "habbo_name", ""))
+            .And.Contain((34, "inappropiate_room_group_event", ""))
+            .And.Contain((39, "topic_39", ""));
+        topics
+            .Where(x => x.Id != 14)
+            .Should()
+            .OnlyContain(x =>
+                x.Consequence == ""
+                && (
+                    x.Name == "topic_" + x.Id
+                    || x.Name == "bullying"
+                    || x.Name == "habbo_name"
+                    || x.Name == "inappropiate_room_group_event"
+                )
+            );
+        topics.Select(x => x.Id).Should().NotContain([4, 5, 24, 25, 26, 27, 28, 36, 37, 41]);
+        topics
+            .Single(x => x.Id == 14)
+            .Should()
+            .Match<Turbo.Database.Entities.Moderation.CfhTopicEntity>(x =>
+                x.Name == "swearing" && !x.Enabled
+            );
+    }
 }
