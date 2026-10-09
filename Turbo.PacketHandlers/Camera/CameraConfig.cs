@@ -33,4 +33,19 @@ public sealed class CameraConfig
 
     /// <summary>Room thumbnails per player per day (<c>ThumbnailStatusMessage.isRenderLimitHit</c>).</summary>
     public int ThumbnailLimitPerDay { get; init; } = 50;
+
+    /// <summary>What runs the renderer (<see cref="CameraRenderer"/>); empty leaves the render JSON undrawn.</summary>
+    public string RendererCommand { get; init; } = "node";
+
+    /// <summary>The renderer script, relative to the server's folder: it gets the JSON path, the PNG path, <c>--cache</c> and <c>--furni-url</c>.</summary>
+    public string RendererScript { get; init; } = "tools/camera-renderer/render.mjs";
+
+    /// <summary>Where the renderer keeps the furniture bundles it downloaded, relative to the server's folder.</summary>
+    public string RendererCacheDirectory { get; init; } = "camera/cache";
+
+    /// <summary>The furniture bundles (the client's <c>asset.urls.furni</c>, <c>%libname%</c> for the library); empty uses the script's default.</summary>
+    public string RendererFurniUrl { get; init; } = "";
+
+    /// <summary>How long one render may take before it is killed and the photo stays undrawn.</summary>
+    public int RendererTimeoutMilliseconds { get; init; } = 15000;
 }

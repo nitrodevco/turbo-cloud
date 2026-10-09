@@ -15,5 +15,6 @@ public sealed class PacketHandlersModule : IHostPluginModule
             builder.Configuration.GetSection(CameraConfig.SECTION_NAME)
         );
         services.AddSingleton<CameraPhotoStore>();
+        services.AddSingleton<CameraRenderer>();
     }
 }

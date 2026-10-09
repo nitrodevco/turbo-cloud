@@ -62,20 +62,33 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
         await File.WriteAllTextAsync(Path.Combine(folder, $"{id}.json"), json, ct)
             .ConfigureAwait(false);
 
-        var photo = new CameraPhoto(id, $"{_config.StorageUrlPrefix}{id}.png", DateTime.UtcNow);
+        var photo = new CameraPhoto(
+            id,
+            $"{_config.StorageUrlPrefix}{id}.png",
+            DateTime.UtcNow,
+            Path.Combine(folder, $"{id}.json"),
+            Path.Combine(folder, $"{id}.png")
+        );
 
         _lastPhotos[playerId] = photo;
 
         return photo;
     }
 
-    public async Task SaveThumbnailAsync(int roomId, string json, CancellationToken ct)
+    /// <summary>Writes the thumbnail's render data; the JSON and PNG paths the renderer draws between.</summary>
+    public async Task<(string JsonPath, string PngPath)> SaveThumbnailAsync(
+        int roomId,
+        string json,
+        CancellationToken ct
+    )
     {
         var folder = Path.Combine(_config.StoragePath, "thumbnails");
+        var jsonPath = Path.Combine(folder, $"{roomId}.json");
 
         Directory.CreateDirectory(folder);
-        await File.WriteAllTextAsync(Path.Combine(folder, $"{roomId}.json"), json, ct)
-            .ConfigureAwait(false);
+        await File.WriteAllTextAsync(jsonPath, json, ct).ConfigureAwait(false);
+
+        return (jsonPath, Path.Combine(folder, $"{roomId}.png"));
     }
 
     public CameraPhoto? GetLastPhoto(int playerId) =>
@@ -95,5 +108,11 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
     public void MarkPublished(int playerId) => _lastPublished[playerId] = DateTime.UtcNow;
 }
 
-/// <summary>A stored photo render: its id, the url the client loads it from, and when it was taken.</summary>
-public sealed record CameraPhoto(string Id, string Url, DateTime CreatedAt);
+/// <summary>A stored photo render: its id, the url the client loads it from, when it was taken, and its JSON and PNG files.</summary>
+public sealed record CameraPhoto(
+    string Id,
+    string Url,
+    DateTime CreatedAt,
+    string JsonPath,
+    string PngPath
+);
