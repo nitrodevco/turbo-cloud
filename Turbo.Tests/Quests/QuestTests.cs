@@ -185,6 +185,75 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task The_tracker_asking_after_a_quest_is_done_gets_the_campaigns_next_quest()
+    {
+        await Grain().AcceptAsync(FIRST_BADGE, Ct);
+        await Grain().RecordAsync(QuestTypes.WEAR_BADGE, "W2601", Ct);
+        var sentBefore = Sent<QuestMessageComposer>().Count();
+
+        await Grain().OpenTrackerAsync(Ct);
+
+        Sent<QuestMessageComposer>()
+            .Skip(sentBefore)
+            .Select(x => (x.Quest.Id, x.Quest.Accepted))
+            .Should()
+            .Equal((SECOND_BADGE, true));
+        _db.CreateDbContext()
+            .PlayerQuests.Single(x => x.QuestEntityId == SECOND_BADGE)
+            .Accepted.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task The_tracker_asking_after_a_campaigns_last_quest_gets_nothing()
+    {
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+        var sentBefore = Sent<QuestMessageComposer>().Count();
+
+        await Grain().OpenTrackerAsync(Ct);
+
+        Sent<QuestMessageComposer>().Skip(sentBefore).Should().BeEmpty();
+        _db.CreateDbContext().PlayerQuests.Should().NotContain(x => x.Accepted);
+    }
+
+    [Fact]
+    public async Task The_tracker_asking_while_a_quest_is_being_done_gets_that_quest()
+    {
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        await Grain().OpenTrackerAsync(Ct);
+
+        Sent<QuestMessageComposer>()
+            .Last()
+            .Quest.Should()
+            .Match<Turbo.Primitives.Quests.Snapshots.QuestSnapshot>(x =>
+                x.Id == PET_FOOD && x.Accepted && x.CompletedSteps == 1
+            );
+    }
+
+    [Fact]
+    public async Task OpenQuestTracker_asks_the_players_quests_for_the_tracker()
+    {
+        var harness = new PacketHarness();
+
+        await harness.SendAsync(
+            PacketHarness.Incoming("OpenQuestTrackerMessageEvent"),
+            [],
+            playerId: PLAYER
+        );
+
+        harness
+            .Fakes.Log.Of(nameof(IPlayerQuestGrain.OpenTrackerAsync))
+            .Should()
+            .ContainSingle()
+            .Which.Key.Should()
+            .Be((long)PLAYER);
+    }
+
+    [Fact]
     public async Task A_campaign_done_is_listed_as_done()
     {
         await Grain().AcceptAsync(PET_FOOD, Ct);

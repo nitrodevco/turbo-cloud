@@ -362,6 +362,22 @@ public sealed class GuildForumTests : IDisposable
     }
 
     [Fact]
+    public async Task A_forum_whose_group_was_deleted_serves_nothing()
+    {
+        var thread = await PostThreadAsync(MEMBER, "A first subject");
+        var forum = await ForumAsync();
+
+        await forum.OnGuildDeletedAsync(Ct);
+        await forum.SendForumAsync(MEMBER, Ct);
+        await forum.SendThreadsAsync(MEMBER, 0, 20, Ct);
+        await forum.SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
+
+        Sent<ForumDataMessageComposer>(MEMBER).Should().BeEmpty();
+        Sent<ForumThreadsMessageComposer>(MEMBER).Should().BeEmpty();
+        Sent<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task A_hidden_message_keeps_its_text_from_members_but_not_from_moderators()
     {
         var thread = await PostThreadAsync(MEMBER, "A first subject");
