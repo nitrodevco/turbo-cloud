@@ -73,7 +73,7 @@ public interface IGamedataVariableService
     /// <summary>
     /// What importing the config (a JSON object, as <c>nitro-config.json</c>) would do, removing the
     /// variables it lacks when asked. Throws <see cref="System.ArgumentException"/> when it isn't a
-    /// JSON object.
+    /// JSON object, or asks to remove with no keys of its own.
     /// </summary>
     public Task<VariableImportPreview> PreviewImportAsync(
         string json,
@@ -83,8 +83,10 @@ public interface IGamedataVariableService
 
     /// <summary>
     /// Takes in every key of the config, added or changed. The hotel's other variables stay, or with
-    /// <paramref name="removeMissing"/> are removed; a variable that follows a setting or a file
-    /// stays either way. Null when the hotel already had everything; otherwise the change set made.
+    /// <paramref name="removeMissing"/> are removed; a variable that follows a setting or a file,
+    /// and the reception's (<c>landing.view.*</c>), stay either way. A config with no keys can't
+    /// remove (<see cref="System.ArgumentException"/>). Null when the hotel already had
+    /// everything; otherwise the change set made.
     /// </summary>
     public Task<GamedataChangeSetSnapshot?> ImportAsync(
         string json,
