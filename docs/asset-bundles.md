@@ -1,12 +1,12 @@
 # Asset bundles
 
-The client draws furniture, avatar effects and pets from `.nitro` bundles: a zip holding the
+The client draws furniture, clothing, avatar effects and pets from `.nitro` bundles: a zip holding the
 library's asset data (`<name>.json`), its packed images (`<name>.png`) and their frames
 (`<name>_spritesheet.json`). The hotel takes them from Habbo: a **sync** downloads each library
 Habbo has that the hotel lacks, or has an older revision of, and converts it (`Turbo.Assets`,
 `NitroConverter`). The bundles are kept on this server, and **published** to where the client loads
 them: a folder on this server, or an FTP, FTPS or SFTP server. The admin panel's **Assets** page
-does all of this, and checks the bundles against the hotel's furniture, effects and pets.
+does all of this, and checks the bundles against the hotel's furniture, clothing, effects and pets.
 
 ## Where bundles are kept
 
@@ -18,6 +18,7 @@ serves it, so it can itself be served, or published as it is:
 | Furniture | `bundled/furniture/<name>.nitro` | the classname without its `*N` colour | `furni.asset.url` |
 | Effect | `bundled/effects/<lib>.nitro` | the effect map's `lib` | `avatar.asset.effect.url` |
 | Pet | `bundled/pet/<name>.nitro` | the name `pet.configuration` lists | `pet.asset.url` |
+| Figure (clothing) | `bundled/figures/<lib>.nitro` | the figure map's `lib` (`hh_human_body`, `shirt_U_...`) | `avatar.asset.url` |
 
 Each bundle has a row in `asset_bundles`: its kind and name, the revision it was taken at, where it
 came from (`habbo` or `upload`), its SHA-1 and size, the ids that load it (the effects sharing an
@@ -39,17 +40,21 @@ A sync (`Turbo.Gamedata/Assets`):
      `<lib>.swf`).
    - **Pets**, from `pet.configuration`: each name, its type being its place in the list, at the
      client revision.
+   - **Clothing**, from `figuremap.xml` (`GordonFileUrl` too): each `<lib id revision>`, but
+     `hh_pets` and `hh_human_fx`, which are drawn from elsewhere, as nitro-studio skips them.
 3. Skips what is up to date: a library whose row has the same revision and a file, or failed at that
    revision in a way that won't pass (Habbo has no file, the file doesn't convert). An **upload is
    never replaced** by a sync.
 4. Downloads the rest (`DownloadConcurrency` at once, retried as the gamedata client retries) and
-   converts it (`ConvertConcurrency` at once): furniture and pets as they are, effects as `fx`. A
+   converts it (`ConvertConcurrency` at once): furniture and pets as they are, effects as `fx`,
+   clothing as `figure`. A
    download that failed is tried again on the next sync; a 404 or 403 is not, until the revision
    changes.
 
 A Habbo check (the timer, or **Check now** on the Gamedata page) starts a sync when
 `Turbo:Assets:SyncAfterCheck` is on and none is running. The first sync on an empty folder takes the
-whole hotel: about 14,000 furniture libraries, which takes a while and several GB.
+whole hotel: about 14,000 furniture and 2,000 clothing libraries, which takes a while and several
+GB.
 
 ## Publishing
 
@@ -109,8 +114,8 @@ Each lists how many, and up to `CheckSampleLimit` of them.
 ## Admin API
 
 Under `/api/assets`. Reading needs `admin.gamedata.view`; changing needs `gamedata.manage` as well.
-Kinds are `furniture`, `effect` and `pet`; protocols `folder`, `ftp`, `ftps`, `sftp`. Times are UTC.
-A refusal is the panel's usual `{ "error": "..." }` with 400, 404 or 409.
+Kinds are `furniture`, `effect`, `pet` and `figure`; protocols `folder`, `ftp`, `ftps`, `sftp`. Times are UTC.
+A refusal is the panel's usual `{ "message": "..." }` (`AdminResults.Error`) with 400, 404 or 409.
 
 **Job** (`AssetJob`): `{ id, kind: "sync"|"publish", title, status: "running"|"done"|"failed"|"canceled",
 phase, total, done, failed, log: string[], error, result, playerId, startedAt, finishedAt }`. One job
@@ -139,7 +144,7 @@ runs at a time; starting another while one runs is 409.
 
 `AssetBundle`: `{ kind, name, revision, source: "habbo"|"upload", hash, size, ids: number[], error,
 updatedAt, used }`. `used` is whether the hotel names it: a furniture definition for furniture, a
-breed's type for a pet; an effect is always used.
+breed's type for a pet; an effect and a clothing library are always used.
 
 `AssetTarget`: `{ id, name, protocol, host, port, user, hasPassword, remotePath, publicUrl,
 allowSelfSigned, hostKey, pending, lastPublish }`. `pending` is how many bundles it lacks or holds an

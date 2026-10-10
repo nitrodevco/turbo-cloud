@@ -8,7 +8,8 @@ namespace Turbo.Primitives.Gamedata;
 
 /// <summary>
 /// Where the bundles are kept: a folder laid out as an asset host serves it
-/// (<c>bundled/furniture/&lt;name&gt;.nitro</c>, <c>bundled/effects/...</c>, <c>bundled/pet/...</c>),
+/// (<c>bundled/furniture/&lt;name&gt;.nitro</c>, <c>bundled/effects/...</c>, <c>bundled/pet/...</c>,
+/// <c>bundled/figures/...</c>),
 /// with a row per bundle in <c>asset_bundles</c> saying what is known of it. Files are written
 /// whole or not at all, so a reader never sees half of one.
 /// </summary>

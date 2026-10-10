@@ -36,6 +36,7 @@ internal sealed partial class AssetBundleStore(
             AssetBundleKind.Furniture => "bundled/furniture",
             AssetBundleKind.Effect => "bundled/effects",
             AssetBundleKind.Pet => "bundled/pet",
+            AssetBundleKind.Figure => "bundled/figures",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 

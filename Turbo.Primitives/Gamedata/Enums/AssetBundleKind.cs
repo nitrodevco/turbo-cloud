@@ -11,4 +11,10 @@ public enum AssetBundleKind
 
     /// <summary>A pet type's library, named as <c>pet.configuration</c> lists it (<c>bundled/pet</c>).</summary>
     Pet = 2,
+
+    /// <summary>
+    /// A clothing library (<c>hh_human_body</c>, <c>shirt_U_...</c>), named as the figure map's
+    /// <c>lib</c>; the parts figuredata's sets use are drawn from it (<c>bundled/figures</c>).
+    /// </summary>
+    Figure = 3,
 }
