@@ -13,6 +13,9 @@ namespace Turbo.Database.Entities.Assets;
 public class AssetPublishTargetEntity : TurboEntity
 {
     public const int NAME_MAX_LENGTH = 64;
+    public const int HOST_MAX_LENGTH = 255;
+    public const int USER_MAX_LENGTH = 128;
+    public const int PATH_MAX_LENGTH = 512;
 
     [Column("name")]
     [MaxLength(NAME_MAX_LENGTH)]
@@ -22,7 +25,7 @@ public class AssetPublishTargetEntity : TurboEntity
     public required AssetPublishProtocol Protocol { get; set; }
 
     [Column("host")]
-    [MaxLength(255)]
+    [MaxLength(HOST_MAX_LENGTH)]
     public string Host { get; set; } = "";
 
     /// <summary>Zero for the protocol's own port (21, 22).</summary>
@@ -30,7 +33,7 @@ public class AssetPublishTargetEntity : TurboEntity
     public int Port { get; set; }
 
     [Column("user")]
-    [MaxLength(128)]
+    [MaxLength(USER_MAX_LENGTH)]
     public string User { get; set; } = "";
 
     /// <summary>The password, sealed; null when it has none.</summary>
@@ -39,12 +42,12 @@ public class AssetPublishTargetEntity : TurboEntity
 
     /// <summary>The folder the asset host serves from, where <c>bundled/...</c> goes; a path on this server for a folder target.</summary>
     [Column("remote_path")]
-    [MaxLength(512)]
+    [MaxLength(PATH_MAX_LENGTH)]
     public string RemotePath { get; set; } = "";
 
     /// <summary>Where the client reaches what is published there (<c>https://assets.example.com</c>), for the addresses the panel shows.</summary>
     [Column("public_url")]
-    [MaxLength(512)]
+    [MaxLength(PATH_MAX_LENGTH)]
     public string PublicUrl { get; set; } = "";
 
     /// <summary>FTPS only: accept a certificate that does not check out, for a server with its own.</summary>
