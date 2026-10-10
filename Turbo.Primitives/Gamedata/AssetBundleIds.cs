@@ -41,9 +41,6 @@ public static class AssetBundleIds
 
         return sorted.Count == 0
             ? null
-            : string.Join(
-                SEPARATOR,
-                sorted.Select(x => x.ToString(CultureInfo.InvariantCulture))
-            );
+            : string.Join(SEPARATOR, sorted.Select(x => x.ToString(CultureInfo.InvariantCulture)));
     }
 }

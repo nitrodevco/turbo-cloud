@@ -56,7 +56,12 @@ public sealed class AssetBundleServiceTests : IDisposable
         Bundle(AssetBundleKind.Furniture, "chair");
         Bundle(AssetBundleKind.Furniture, "old_thing");
         Bundle(AssetBundleKind.Furniture, "ghost", file: false);
-        Bundle(AssetBundleKind.Furniture, "broken", hash: false, error: "Habbo has no file at its address.");
+        Bundle(
+            AssetBundleKind.Furniture,
+            "broken",
+            hash: false,
+            error: "Habbo has no file at its address."
+        );
         Bundle(AssetBundleKind.Effect, "Dance1", ids: "1,5");
         Bundle(AssetBundleKind.Pet, "dog", ids: "0");
         Bundle(AssetBundleKind.Pet, "cat", ids: "1");
@@ -83,7 +88,8 @@ public sealed class AssetBundleServiceTests : IDisposable
     {
         var checks = (await _service.GetChecksAsync(Ct)).ToDictionary(x => x.Id);
 
-        checks.Keys.Should()
+        checks
+            .Keys.Should()
             .Equal(
                 "furniture-missing",
                 "file-missing",
@@ -154,13 +160,21 @@ public sealed class AssetBundleServiceTests : IDisposable
 
         failed.Items.Single().Name.Should().Be("broken");
 
-        var pets = await _service.ListAsync(AssetBundleKind.Pet, null, AssetBundleStatusFilter.All, 0, Ct);
+        var pets = await _service.ListAsync(
+            AssetBundleKind.Pet,
+            null,
+            AssetBundleStatusFilter.All,
+            0,
+            Ct
+        );
 
         pets.Items.Select(x => (x.Name, x.Used)).Should().Equal(("cat", false), ("dog", true));
         (await _service.ListAsync(null, "5", AssetBundleStatusFilter.All, 0, Ct))
             .Items.Single()
             .Should()
-            .Match<AssetBundleSnapshot>(x => x.Name == "Dance1" && x.Ids.SequenceEqual(new[] { 1, 5 }));
+            .Match<AssetBundleSnapshot>(x =>
+                x.Name == "Dance1" && x.Ids.SequenceEqual(new[] { 1, 5 })
+            );
         (await _service.ListAsync(null, "hh_", AssetBundleStatusFilter.All, 0, Ct))
             .Items.Single()
             .Used.Should()
@@ -179,7 +193,8 @@ public sealed class AssetBundleServiceTests : IDisposable
             Ct
         );
 
-        uploaded.Should()
+        uploaded
+            .Should()
             .Match<AssetBundleSnapshot>(x =>
                 x.Name == "lamp"
                 && x.Source == AssetBundleSource.Upload
@@ -191,7 +206,8 @@ public sealed class AssetBundleServiceTests : IDisposable
         var detail = await _service.GetAsync(AssetBundleKind.Furniture, "lamp", Ct);
 
         detail!.Path.Should().Be("bundled/furniture/lamp.nitro");
-        detail.Files.Select(x => x.Name)
+        detail
+            .Files.Select(x => x.Name)
             .Should()
             .BeEquivalentTo("test_box.json", "test_box.png", "test_box_spritesheet.json");
 
@@ -216,7 +232,9 @@ public sealed class AssetBundleServiceTests : IDisposable
     [Fact]
     public async Task An_upload_over_a_Habbo_library_keeps_its_ids_and_a_nitro_is_kept_as_it_is()
     {
-        var nitro = Turbo.Assets.Conversion.NitroConverter.Convert(NitroConverterTests.Swf()).Write();
+        var nitro = Turbo
+            .Assets.Conversion.NitroConverter.Convert(NitroConverterTests.Swf())
+            .Write();
 
         var uploaded = await _service.UploadAsync(
             AssetBundleKind.Effect,
@@ -288,7 +306,9 @@ public sealed class AssetBundleServiceTests : IDisposable
                 .Store.WriteAsync(
                     kind,
                     name,
-                    Turbo.Assets.Conversion.NitroConverter.Convert(NitroConverterTests.Swf()).Write(),
+                    Turbo
+                        .Assets.Conversion.NitroConverter.Convert(NitroConverterTests.Swf())
+                        .Write(),
                     CancellationToken.None
                 )
                 .GetAwaiter()

@@ -283,13 +283,11 @@ internal sealed class AssetEndpoints(
 
     private async Task<IResult> ChecksAsync(CancellationToken ct) =>
         Results.Ok(
-            new AssetChecksResponse(
-                [
-                    .. (await bundles.GetChecksAsync(ct).ConfigureAwait(false)).Select(
-                        AssetCheckResponse.From
-                    ),
-                ]
-            )
+            new AssetChecksResponse([
+                .. (await bundles.GetChecksAsync(ct).ConfigureAwait(false)).Select(
+                    AssetCheckResponse.From
+                ),
+            ])
         );
 
     /// <summary>A change by someone who holds <c>gamedata.manage</c>.</summary>

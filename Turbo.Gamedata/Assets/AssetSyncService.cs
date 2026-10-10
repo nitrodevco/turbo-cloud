@@ -168,7 +168,11 @@ internal sealed class AssetSyncService(
             if (await habbo.GetFileAsync(url, ct).ConfigureAwait(false) is { } file)
                 return parse(file);
 
-            logger.LogWarning("Habbo has no {Map} at {Url}; its libraries are not synced", map, url);
+            logger.LogWarning(
+                "Habbo has no {Map} at {Url}; its libraries are not synced",
+                map,
+                url
+            );
             progress.Log($"Habbo has no {map} at {url}; its libraries are skipped.");
         }
         catch (HttpRequestException ex)
@@ -235,7 +239,9 @@ internal sealed class AssetSyncService(
                 invalid,
                 phase
             );
-            context.Progress.Log($"{invalid} {phase.ToLowerInvariant()} names can't be bundles' and were skipped.");
+            context.Progress.Log(
+                $"{invalid} {phase.ToLowerInvariant()} names can't be bundles' and were skipped."
+            );
         }
 
         context.Progress.Step(phase, todo.Count);
@@ -430,7 +436,8 @@ internal sealed class AssetSyncService(
         if (outcomes.Count == 0)
             return;
 
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(CancellationToken.None)
+        var dbCtx = await dbCtxFactory
+            .CreateDbContextAsync(CancellationToken.None)
             .ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
@@ -516,14 +523,7 @@ internal sealed class AssetSyncService(
             {
                 x.Kind,
                 x.Name,
-                Known = new Known(
-                    x.Revision,
-                    x.Source,
-                    x.Hash != null,
-                    x.Error,
-                    x.Retry,
-                    x.Ids
-                ),
+                Known = new Known(x.Revision, x.Source, x.Hash != null, x.Error, x.Retry, x.Ids),
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);

@@ -48,7 +48,9 @@ internal sealed class AssetBundleChecks(
             .ToListAsync(ct)
             .ConfigureAwait(false);
         // By kind and name, so each check lists what it found in that order.
-        var bundles = rows.OrderBy(x => x.Kind).ThenBy(x => x.Name, StringComparer.Ordinal).ToList();
+        var bundles = rows.OrderBy(x => x.Kind)
+            .ThenBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
         var usage = await AssetBundleUsage.LoadAsync(dbCtx, ct).ConfigureAwait(false);
         var effectParams = await dbCtx
             .CatalogProducts.AsNoTracking()
@@ -129,8 +131,7 @@ internal sealed class AssetBundleChecks(
                 "Furniture bundles no definition names. They do no harm; they are only kept and published.",
                 bundles
                     .Where(x =>
-                        x.Kind == AssetBundleKind.Furniture
-                        && !usage.IsUsed(x.Kind, x.Name, x.Ids)
+                        x.Kind == AssetBundleKind.Furniture && !usage.IsUsed(x.Kind, x.Name, x.Ids)
                     )
                     .Select(x => x.Name),
                 AssetBundleKind.Furniture,

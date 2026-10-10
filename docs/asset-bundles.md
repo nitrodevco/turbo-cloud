@@ -49,7 +49,9 @@ A sync (`Turbo.Gamedata/Assets`):
    converts it (`ConvertConcurrency` at once): furniture and pets as they are, effects as `fx`,
    clothing as `figure`. A
    download that failed is tried again on the next sync; a 404 or 403 is not, until the revision
-   changes.
+   changes. A library whose newer revision fails keeps the file of the one before. Habbo's maps
+   (`figuremap.xml`, `effectmap.xml`) that are missing or unreadable leave that kind out of the
+   sync, logged, rather than failing it.
 
 A Habbo check (the timer, or **Check now** on the Gamedata page) starts a sync when
 `Turbo:Assets:SyncAfterCheck` is on and none is running. The first sync on an empty folder takes the
@@ -123,7 +125,7 @@ runs at a time; starting another while one runs is 409.
 
 | Call | Answer |
 | --- | --- |
-| `GET /assets` | `{ directory, canManage, kinds: [ { kind, bundles, failed, bytes } ], job: AssetJob \| null, checks: { errors, warnings }, targets }` |
+| `GET /assets` | `{ directory, canManage, kinds: [ { kind, bundles, failed, bytes } ], job: AssetJob \| null, checks: { errors, warnings }, targets }`. `bundles` and `bytes` count the bundles with a file; `checks` counts the checks that found something, by severity; `targets` the publish targets. |
 | `GET /assets/bundles?kind=&q=&status=&page=` | `{ items: [ AssetBundle ], total, pageSize }`. `status` is `all`, `ok`, `failed` or `unused`; `q` matches the name, or an id. `page` from 0. |
 | `GET /assets/bundles/{kind}/{name}` | `AssetBundle` and `{ path, files: [ { name, size } ] }`, what the zip holds. |
 | `GET /assets/bundles/{kind}/{name}/file` | The `.nitro` file. |

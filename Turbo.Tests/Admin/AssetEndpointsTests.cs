@@ -77,6 +77,16 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
             }
         );
 
+        _db.Insert(
+            new AssetPublishTargetEntity
+            {
+                Id = 1,
+                Name = "Live",
+                Protocol = AssetPublishProtocol.Folder,
+                RemotePath = "/srv/assets",
+            }
+        );
+
         (_server, _, _) = AdminApiServerTests.Build(
             $"http://127.0.0.1:{_port}",
             _fakes,
@@ -99,7 +109,11 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
     {
         await _server.StartAsync(Ct);
 
-        var uploaded = await SendAsync(HttpMethod.Post, "/api/assets/bundles", Upload("lamp.swf", "furniture"));
+        var uploaded = await SendAsync(
+            HttpMethod.Post,
+            "/api/assets/bundles",
+            Upload("lamp.swf", "furniture")
+        );
 
         uploaded.StatusCode.Should().Be(HttpStatusCode.OK);
         var bundle = await JsonAsync(uploaded);
@@ -156,7 +170,7 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
 
         var overview = await JsonAsync(await SendAsync(HttpMethod.Get, "/api/assets"));
         overview.GetProperty("canManage").GetBoolean().Should().BeTrue();
-        overview.GetProperty("targets").GetInt32().Should().Be(0);
+        overview.GetProperty("targets").GetInt32().Should().Be(1);
         overview.GetProperty("job").ValueKind.Should().Be(JsonValueKind.Null);
         overview.GetProperty("checks").GetProperty("warnings").GetInt32().Should().Be(2);
         overview

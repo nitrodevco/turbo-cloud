@@ -37,7 +37,12 @@ public interface IAssetBundleService
     Task<string?> GetFilePathAsync(AssetBundleKind kind, string name, CancellationToken ct);
 
     /// <summary>Deletes a bundle's row and file; false when there was none.</summary>
-    Task<bool> DeleteAsync(AssetBundleKind kind, string name, PlayerId player, CancellationToken ct);
+    Task<bool> DeleteAsync(
+        AssetBundleKind kind,
+        string name,
+        PlayerId player,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Keeps <paramref name="data"/> as an uploaded bundle: an SWF or a <c>.hab</c> converted, a

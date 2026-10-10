@@ -41,8 +41,7 @@ internal sealed class AssetBundleService(
     private const string SWF = ".swf";
     private const string HAB = ".hab";
 
-    public long UploadMaxBytes =>
-        Math.Max(1L, config.Value.UploadMaxMegabytes) * 1024 * 1024;
+    public long UploadMaxBytes => Math.Max(1L, config.Value.UploadMaxMegabytes) * 1024 * 1024;
 
     public async Task<AssetOverview> GetOverviewAsync(CancellationToken ct)
     {
@@ -134,11 +133,7 @@ internal sealed class AssetBundleService(
                     })
                     .ToListAsync(ct)
                     .ConfigureAwait(false)
-            )
-                .Where(x => !usage.IsUsed(x.Kind, x.Name, x.Ids))
-                .OrderBy(x => x.Kind)
-                .ThenBy(x => x.Name, StringComparer.Ordinal)
-                .ToList();
+            ).Where(x => !usage.IsUsed(x.Kind, x.Name, x.Ids)).OrderBy(x => x.Kind).ThenBy(x => x.Name, StringComparer.Ordinal).ToList();
             var ids = unused.Skip(skip).Take(pageSize).Select(x => x.Id).ToList();
             var byId = (
                 await dbCtx
@@ -191,9 +186,7 @@ internal sealed class AssetBundleService(
 
         return new AssetBundleDetail
         {
-            Bundle = row.ToSnapshot(
-                await IsUsedAsync(dbCtx, row, ct).ConfigureAwait(false)
-            ),
+            Bundle = row.ToSnapshot(await IsUsedAsync(dbCtx, row, ct).ConfigureAwait(false)),
             Path = store.PathOf(kind, name),
             Files = row.Hash is null ? [] : FilesOf(kind, name),
         };
@@ -343,12 +336,7 @@ internal sealed class AssetBundleService(
         };
 
     /// <summary>The upload as the bundle to keep: a library converted, a <c>.nitro</c> as it is once it reads.</summary>
-    private static byte[] ToBundle(
-        AssetBundleKind kind,
-        string name,
-        string extension,
-        byte[] data
-    )
+    private static byte[] ToBundle(AssetBundleKind kind, string name, string extension, byte[] data)
     {
         try
         {
@@ -381,9 +369,7 @@ internal sealed class AssetBundleService(
 
         if (!string.IsNullOrEmpty(text))
         {
-            if (
-                int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id)
-            )
+            if (int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
             {
                 // Wrapped in separators, an id matches whole wherever it is in the list.
                 var separator = AssetBundleIds.SEPARATOR.ToString();
@@ -465,7 +451,12 @@ internal sealed class AssetBundleService(
         }
         catch (InvalidDataException ex)
         {
-            logger.LogWarning(ex, "The asset bundle {Kind} {Name} is not a readable zip", kind, name);
+            logger.LogWarning(
+                ex,
+                "The asset bundle {Kind} {Name} is not a readable zip",
+                kind,
+                name
+            );
 
             return [];
         }

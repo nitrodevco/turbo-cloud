@@ -212,9 +212,7 @@ public sealed class AssetSyncTests : IDisposable
             .Requests.Where(x => x.EndsWith(".swf", StringComparison.Ordinal))
             .Should()
             .Equal($"{FURNI}/1/poster.swf");
-        (await RowsAsync())[(AssetBundleKind.Furniture, "chair")]
-            .Hash.Should()
-            .Be(chair.Hash);
+        (await RowsAsync())[(AssetBundleKind.Furniture, "chair")].Hash.Should().Be(chair.Hash);
     }
 
     [Fact]
@@ -307,9 +305,7 @@ public sealed class AssetSyncTests : IDisposable
     {
         await using var db = _db.CreateDbContext();
 
-        return await db
-            .AssetBundles.AsNoTracking()
-            .ToDictionaryAsync(x => (x.Kind, x.Name), Ct);
+        return await db.AssetBundles.AsNoTracking().ToDictionaryAsync(x => (x.Kind, x.Name), Ct);
     }
 
     /// <summary>Habbo's hosts: what it serves by address, 404 for the rest; each request recorded.</summary>
@@ -342,7 +338,10 @@ public sealed class AssetSyncTests : IDisposable
                 await hold.WaitAsync(cancellationToken);
 
             return _files.TryGetValue(url, out var data)
-                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(data) }
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(data),
+                }
                 : new HttpResponseMessage(HttpStatusCode.NotFound);
         }
     }

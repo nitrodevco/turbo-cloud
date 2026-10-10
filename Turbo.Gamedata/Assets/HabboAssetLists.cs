@@ -74,9 +74,7 @@ internal static class HabboAssetLists
                 if (name.Length == 0)
                     continue;
 
-                var revision = item.TryGetProperty("revision", out var value)
-                    ? IntOf(value)
-                    : 0;
+                var revision = item.TryGetProperty("revision", out var value) ? IntOf(value) : 0;
 
                 revisions[name] = Math.Max(revisions.GetValueOrDefault(name), revision);
             }
@@ -202,7 +200,9 @@ internal static class HabboAssetLists
             if (name.Length == 0 || pets.Any(x => x.Name == name))
                 continue;
 
-            pets.Add(new HabboLibrary(AssetBundleKind.Pet, name, revision, AssetBundleIds.Format([type])));
+            pets.Add(
+                new HabboLibrary(AssetBundleKind.Pet, name, revision, AssetBundleIds.Format([type]))
+            );
         }
 
         return pets;

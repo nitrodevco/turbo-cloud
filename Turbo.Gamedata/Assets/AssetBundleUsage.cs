@@ -31,10 +31,7 @@ internal sealed class AssetBundleUsage
     /// <summary>The pet types with breeds.</summary>
     public HashSet<int> PetTypes { get; }
 
-    public static async Task<AssetBundleUsage> LoadAsync(
-        TurboDbContext dbCtx,
-        CancellationToken ct
-    )
+    public static async Task<AssetBundleUsage> LoadAsync(TurboDbContext dbCtx, CancellationToken ct)
     {
         var names = await dbCtx
             .FurnitureDefinitions.AsNoTracking()
