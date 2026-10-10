@@ -3,7 +3,10 @@
 // thumbnails/<roomId>.json) into the PNG the client loads (stories.image_url_base + photos/<id>.png).
 //
 //   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>]
-//                   [--external-url <url prefix>]...
+//                   [--external-url <url prefix>]... [--small]
+//
+// --small also writes <out>_small.png at half the size: a photo poster on a wall loads that copy
+// (FurnitureExternalImageVisualization.buildThumbnailUrl), and without it the poster is blank.
 //
 // What is drawn, far to near (the highest z first, as the client sorts them):
 //   - the planes: each a flat quad in its colour (the first is the background over the whole viewport);
@@ -29,11 +32,13 @@ const positional = [];
 let cacheDir = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.cache');
 let furniUrl = 'https://images.nitrodev.co/bundled/furniture/%libname%.nitro';
 const externalUrls = [];
+let writeSmall = false;
 
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--cache') cacheDir = args[++i];
     else if (args[i] === '--furni-url') furniUrl = args[++i];
     else if (args[i] === '--external-url') externalUrls.push(new URL(args[++i]));
+    else if (args[i] === '--small') writeSmall = true;
     else positional.push(args[i]);
 }
 
@@ -173,6 +178,32 @@ const encodePng = (width, height, rgba) => {
         chunk('IDAT', deflateSync(raw)),
         chunk('IEND', Buffer.alloc(0)),
     ]);
+};
+
+/** Half the size, each pixel the average of the two-by-two block it covers. */
+const halve = (width, height, rgba) => {
+    const w = Math.max(1, width >> 1), h = Math.max(1, height >> 1);
+    const out = new Uint8Array(w * h * 4);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            for (let c = 0; c < 4; c++) {
+                let sum = 0, n = 0;
+
+                for (let dy = 0; dy < 2; dy++) {
+                    for (let dx = 0; dx < 2; dx++) {
+                        const sx = x * 2 + dx, sy = y * 2 + dy;
+
+                        if (sx < width && sy < height) { sum += rgba[(sy * width + sx) * 4 + c]; n++; }
+                    }
+                }
+
+                out[(y * w + x) * 4 + c] = Math.round(sum / n);
+            }
+        }
+    }
+
+    return { width: w, height: h, data: out };
 };
 
 // ---------- zip (.nitro) ----------
@@ -441,6 +472,12 @@ const render = async () => {
 
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, encodePng(width, height, canvas.data));
+
+    if (writeSmall) {
+        const small = halve(width, height, canvas.data);
+
+        writeFileSync(outPath.replace(/\.png$/, '') + '_small.png', encodePng(small.width, small.height, small.data));
+    }
     console.log(`${outPath}: ${width}x${height}, ${planes.length} planes, ${drawn}/${sprites.length} sprites${skipped.length ? `, skipped ${skipped.join(' ')}` : ''}`);
 };
 

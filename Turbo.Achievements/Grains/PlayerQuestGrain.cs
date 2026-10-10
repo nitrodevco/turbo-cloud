@@ -105,6 +105,50 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         );
     }
 
+    public async Task OpenTrackerAsync(CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var data = await LoadAsync(dbCtx, ct);
+
+        if (
+            data.Rows.Values.FirstOrDefault(x => x.Accepted) is { } accepted
+            && data.Quests.TryGetValue(accepted.QuestEntityId, out var doing)
+        )
+        {
+            await _grainFactory.SendComposerToPlayerAsync(
+                _playerId,
+                new QuestMessageComposer { Quest = data.Snapshot(doing, Now) },
+                ct
+            );
+
+            return;
+        }
+
+        // The client asks after a quest is completed, from the completed dialog's "Next quest" or
+        // when no dialog is shown, and keeps its tracker only if a Quest comes back: the campaign
+        // goes on with its next quest (inference: the dialog's button has no other quest to mean).
+        var last = data
+            .Rows.Values.Where(x =>
+                x.CompletedAt is not null && data.Quests.ContainsKey(x.QuestEntityId)
+            )
+            .MaxBy(x => x.CompletedAt);
+
+        if (last is null)
+            return;
+
+        var campaign = data.Campaigns.First(x =>
+            x.Id == data.Quests[last.QuestEntityId].CampaignEntityId
+        );
+
+        if (
+            data.Current(campaign) is not { } next
+            || (data.Rows.TryGetValue(next.Id, out var row) && row.CompletedAt is not null)
+        )
+            return;
+
+        await AcceptAsync(next.Id, ct);
+    }
+
     public async Task RejectAsync(int questId, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);

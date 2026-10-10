@@ -647,6 +647,14 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
         return new GuildForumAccess(rank.Result, staff.Result);
     }
 
+    public Task OnGuildDeletedAsync(CancellationToken ct)
+    {
+        _state.Forum = null;
+        DeactivateOnIdle();
+
+        return Task.CompletedTask;
+    }
+
     /// <summary>The viewer's access when they may read the forum; otherwise refused and null.</summary>
     private async Task<GuildForumAccess?> ReaderAsync(PlayerId viewer, CancellationToken ct)
     {

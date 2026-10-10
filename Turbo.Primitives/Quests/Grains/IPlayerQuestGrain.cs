@@ -20,6 +20,13 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     Task RejectAsync(int questId, CancellationToken ct);
 
     /// <summary>
+    /// The tracker asks for the quest to show after one is completed (OpenQuestTracker): the one
+    /// being done, else the next of the campaign last completed in, which is accepted. Nothing
+    /// when that campaign is done; the tracker then hides.
+    /// </summary>
+    Task OpenTrackerAsync(CancellationToken ct);
+
+    /// <summary>
     /// Counts an action towards the quest the player is doing, when it is of that type (and, for
     /// a quest with a target, that value). Sends the progress, or QuestCompleted and the reward.
     /// </summary>

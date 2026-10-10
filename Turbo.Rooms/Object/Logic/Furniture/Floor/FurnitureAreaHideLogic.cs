@@ -63,6 +63,47 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
+    /// <summary>
+    /// A state set from outside the hider's own toggle (wired's toggle and match-to-snapshot,
+    /// a furni placed by wired) switches it like a click does: written as the state alone, the
+    /// server hid the area while the clients went on drawing it.
+    /// </summary>
+    public override async Task SetStateAsync(int state, bool refresh = true)
+    {
+        if (StuffData is not INumberStuffData numbers)
+        {
+            await base.SetStateAsync(state, refresh);
+
+            return;
+        }
+
+        var values = Enumerable.Range(0, INVERT_INDEX + 1).Select(numbers.ValueAt).ToArray();
+
+        values[STATE_INDEX] = state == ON ? ON : OFF;
+
+        await ApplyAsync(values, refresh);
+    }
+
+    /// <summary>
+    /// Placed while on (it keeps its state in the inventory): the clients are told the area and
+    /// lose what it hides, as when it is switched on.
+    /// </summary>
+    public override async Task OnPlaceAsync(ActionContext ctx, CancellationToken ct)
+    {
+        await base.OnPlaceAsync(ctx, ct);
+
+        if (GetActiveArea() is not { } area)
+            return;
+
+        // What was hidden before this hider stood here.
+        _detached = true;
+        var hiddenBefore = FurniModule.GetHiddenItemIds();
+        _detached = false;
+
+        await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });
+        await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, ct);
+    }
+
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         if (StuffData is not INumberStuffData numbers || !await HasRightsAsync(ctx))
@@ -133,6 +174,14 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         return !_detached && area is { On: true } ? area : null;
     }
 
+    /// <summary>In a room again, it hides again.</summary>
+    public override Task OnAttachAsync(CancellationToken ct)
+    {
+        _detached = false;
+
+        return base.OnAttachAsync(ct);
+    }
+
     /// <summary>Picked up while on: the clients fill the hole again and see what it hid.</summary>
     public override async Task OnDetachAsync(CancellationToken ct)
     {
@@ -192,11 +241,11 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     /// Stores new settings and tells the room: the area itself, then the furni it now hides or
     /// shows again (Habbo: "Fixed floor furni not appearing after revealed by area hider").
     /// </summary>
-    private async Task ApplyAsync(int[] values)
+    private async Task ApplyAsync(int[] values, bool refresh = true)
     {
         var hiddenBefore = FurniModule.GetHiddenItemIds();
 
-        await SetNumberDataAsync(values);
+        await SetNumberDataAsync(values, refresh);
 
         if (ToSnapshot() is { } area)
             await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });

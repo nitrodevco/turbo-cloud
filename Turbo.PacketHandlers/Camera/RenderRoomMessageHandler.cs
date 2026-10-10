@@ -42,7 +42,10 @@ public class RenderRoomMessageHandler(
                 .SavePhotoAsync(ctx.PlayerId.Value, json, ct)
                 .ConfigureAwait(false);
 
-            await renderer.RenderAsync(photo.JsonPath, photo.PngPath, ct).ConfigureAwait(false);
+            // With its small copy: bought, the photo is a poster, and a poster draws that one.
+            await renderer
+                .RenderAsync(photo.JsonPath, photo.PngPath, ct, withSmall: true)
+                .ConfigureAwait(false);
             url = photo.Url;
         }
 
