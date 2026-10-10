@@ -21,7 +21,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The game's content: achievements, badges, the navigator's categories, groups, pets and bots. For staff with <c>admin.content.view</c>;
+/// The game's content: achievements, badges, the navigator's categories, groups, pets, bots and currencies. For staff with <c>admin.content.view</c>;
 /// changing anything needs <c>content.manage</c> as well.
 /// <para>
 /// An achievement is published through its catalog (<see cref="IAchievementCatalog.ImportAsync"/>):
@@ -36,6 +36,7 @@ internal sealed partial class ContentEndpoints(
     AdminNavigatorEditor navigator,
     AdminGroupQueries groups,
     AdminPetBotEditor petsAndBots,
+    AdminCurrencyEditor currencies,
     ILogger<ContentEndpoints> logger
 )
 {
@@ -171,6 +172,51 @@ internal sealed partial class ContentEndpoints(
                     ct,
                     async () =>
                         Saved(await groups.SaveColorAsync(id, request, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapGet(
+            "/currencies",
+            async (CancellationToken ct) =>
+                Results.Ok(await currencies.ListAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost(
+            "/currencies",
+            (CurrencyRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await currencies
+                                .SaveAsync(0, request, Actor(http), ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPut(
+            "/currencies/{id:int}",
+            (int id, CurrencyRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await currencies
+                                .SaveAsync(id, request, Actor(http), ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/currencies/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Removed(
+                            await currencies.DeleteAsync(id, Actor(http), ct).ConfigureAwait(false)
+                        )
                 )
         );
         group.MapGet(

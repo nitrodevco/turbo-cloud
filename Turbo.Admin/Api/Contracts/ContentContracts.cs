@@ -210,3 +210,29 @@ public sealed record BotStaffEditRequest(
     bool? FreeRoam,
     AvatarDanceType? Dance
 );
+
+/// <summary>
+/// A currency type: its name (as <c>:give</c> takes it), its type (<c>credits</c>, <c>silver</c>,
+/// <c>emeralds</c>, <c>activity_points</c>) and activity point number, whether it is on, and what
+/// uses it: players holding it, catalog offers priced in it, vouchers giving it.
+/// </summary>
+public sealed record CurrencyItem(
+    int Id,
+    string Name,
+    string Type,
+    int? ActivityPointType,
+    bool Enabled,
+    int Holders,
+    int Offers,
+    int Vouchers
+);
+
+public sealed record CurrencyListResponse(List<CurrencyItem> Items);
+
+/// <summary>A currency to add or change; leaving <c>Enabled</c> out keeps it as it was (on, for a new one).</summary>
+public sealed record CurrencyRequest(
+    string? Name,
+    string? Type,
+    int? ActivityPointType,
+    bool? Enabled
+);

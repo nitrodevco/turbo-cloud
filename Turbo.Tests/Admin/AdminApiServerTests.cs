@@ -191,6 +191,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Navigator.INavigatorProvider),
                 typeof(Turbo.Primitives.Pets.Providers.IPetBreedProvider),
                 typeof(Turbo.Primitives.Pets.Providers.IPetSpeechProvider),
+                typeof(Turbo.Primitives.Players.Providers.ICurrencyTypeProvider),
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
@@ -218,6 +219,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminGroupQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminPetBotEditor>();
+        services.AddSingleton<Turbo.Admin.Content.AdminCurrencyEditor>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
