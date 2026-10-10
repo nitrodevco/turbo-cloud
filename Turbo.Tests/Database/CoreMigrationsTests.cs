@@ -70,11 +70,12 @@ public sealed class CoreMigrationsTests
         // A deleted_at the database stamps on every write made every row look deleted, and the
         // queries that skipped deleted rows found nothing.
         columns.Should().NotContain(x => x.Column == "deleted_at");
+        // An asset bundle's is set by the sync and shown in the panel's list.
         columns
             .Where(x => x.Column == "updated_at")
             .Select(x => x.Table)
             .Should()
-            .BeEquivalentTo(["players", "player_subscriptions"]);
+            .BeEquivalentTo(["players", "player_subscriptions", "asset_bundles"]);
     }
 
     [Fact]
