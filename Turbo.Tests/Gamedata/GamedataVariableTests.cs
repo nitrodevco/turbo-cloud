@@ -306,7 +306,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task an_import_asked_to_remove_the_keys_the_config_lacks_but_not_linked_ones()
+    public async Task an_import_asked_to_remove_the_keys_the_config_lacks_but_not_linked_or_reception_ones()
     {
         var hotel = Hotel(PUBLIC_URL);
 
@@ -314,6 +314,19 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         await hotel.Variables.SaveAsync("gone", "1", STAFF, Ct);
         await hotel.Variables.SaveAsync("kept", "1", STAFF, Ct);
         await hotel.Variables.LinkAsync("hotel.name", "Test:Hotel:Name", null, STAFF, Ct);
+        // The reception's, kept by the Hotel view page.
+        await hotel.Variables.SaveAsync(
+            "landing.view.dynamic.slot.1.widget",
+            "\"promo\"",
+            STAFF,
+            Ct
+        );
+        await hotel.Variables.SaveAsync(
+            "next.limited.rare.countdown.widget.disabled",
+            "true",
+            STAFF,
+            Ct
+        );
 
         const string CONFIG = """{ "kept": 1, "added": true }""";
 
@@ -322,6 +335,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         var preview = await hotel.Variables.PreviewImportAsync(CONFIG, true, Ct);
 
         preview.Removed.Should().Equal("gone");
+        preview.RemovedCount.Should().Be(1);
         preview.Added.Should().Be(1);
 
         var set = await hotel.Variables.ImportAsync(CONFIG, true, STAFF, Ct);
@@ -334,6 +348,8 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                 "kept",
                 "added",
                 "hotel.name",
+                "landing.view.dynamic.slot.1.widget",
+                "next.limited.rare.countdown.widget.disabled",
                 "furnituredata.url",
                 "productdata.url",
                 "gamedata.urls.externalTexts",
@@ -346,6 +362,61 @@ public sealed class GamedataVariableTests : IAsyncDisposable
 
         rolledBack["gone"]!.GetValue<int>().Should().Be(1);
         rolledBack.ContainsKey("added").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task a_config_with_no_keys_cant_remove_the_hotels_variables()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("socket.url", "\"wss://x\"", STAFF, Ct);
+
+        var preview = () => hotel.Variables.PreviewImportAsync("{}", true, Ct);
+        var import = () => hotel.Variables.ImportAsync("{}", true, STAFF, Ct);
+
+        await preview.Should().ThrowAsync<ArgumentException>();
+        await import.Should().ThrowAsync<ArgumentException>();
+        (await VariablesAsync(hotel)).Variables.Should().ContainKey("socket.url");
+    }
+
+    [Fact]
+    public async Task the_preview_lists_removals_up_to_its_limit_and_counts_them_all()
+    {
+        var hotel = Hotel(previewLimit: 2);
+
+        foreach (var key in new[] { "a", "b", "c", "kept" })
+            await hotel.Variables.SaveAsync(key, "1", STAFF, Ct);
+
+        var preview = await hotel.Variables.PreviewImportAsync("{ \"kept\": 1 }", true, Ct);
+
+        preview.Removed.Should().Equal("a", "b");
+        preview.RemovedCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task a_key_differing_only_in_case_is_another_variable()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        SeedAddresses();
+
+        await hotel.Variables.SetFileKeyAsync(
+            GamedataFiles.FURNITURE_DATA,
+            "FurnitureData.url",
+            STAFF,
+            Ct
+        );
+
+        var file = (await VariablesAsync(hotel)).Variables;
+
+        file.Select(x => x.Key).Should().Contain(["FurnitureData.url", "furnituredata.url"]);
+        file["furnituredata.url"]!
+            .GetValue<string>()
+            .Should()
+            .Be($"{PUBLIC_URL}/gamedata/furnidata_json/0");
+        (await hotel.Variables.GetFileKeysAsync(Ct))[GamedataFiles.FURNITURE_DATA]
+            .Should()
+            .Equal("FurnitureData.url");
     }
 
     [Fact]
@@ -566,9 +637,11 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             .Be("Own name");
     }
 
-    private HotelGamedata Hotel(string publicUrl = "")
+    private HotelGamedata Hotel(string publicUrl = "", int previewLimit = 500)
     {
-        var config = Options.Create(new GamedataConfig { PublicUrl = publicUrl });
+        var config = Options.Create(
+            new GamedataConfig { PublicUrl = publicUrl, PreviewItemLimit = previewLimit }
+        );
         var writes = new GamedataWriteLock();
         var files = new GamedataFileService(
             _catalog.Db,

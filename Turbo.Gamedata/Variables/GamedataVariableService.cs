@@ -11,6 +11,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.HotelView;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -453,7 +454,8 @@ internal sealed class GamedataVariableService(
                     }),
             ],
             Truncated = plan.Items.Count > limit,
-            Removed = [.. plan.Removed.Select(x => x.Key)],
+            Removed = [.. plan.Removed.Take(limit).Select(x => x.Key)],
+            RemovedCount = plan.Removed.Count,
         };
     }
 
@@ -620,6 +622,13 @@ internal sealed class GamedataVariableService(
     )
     {
         var incoming = ExternalVariablesFile.Parse(json);
+
+        if (removeMissing && incoming.Count == 0)
+            throw new ArgumentException(
+                "A config with no keys can't remove the hotel's variables: it would remove them all.",
+                nameof(json)
+            );
+
         var query = dbCtx.GamedataVariables.AsQueryable();
 
         if (!tracked)
@@ -663,17 +672,26 @@ internal sealed class GamedataVariableService(
         plan.Items.Reverse();
         plan.Skipped.Reverse();
 
-        // What the config lacks, but not what follows a setting or a file: the hotel writes those.
+        // What the config lacks, but not what follows a setting or a file (the hotel writes those)
+        // nor the reception's, which the Hotel view page keeps and a client config rarely carries.
         if (removeMissing)
             plan.Removed.AddRange(
                 ours.Values.Where(x =>
-                        !seen.Contains(x.Key) && x.SettingPath is null && x.LinkedFile is null
+                        !seen.Contains(x.Key)
+                        && x.SettingPath is null
+                        && x.LinkedFile is null
+                        && !IsHotelView(x.Key)
                     )
                     .OrderBy(x => x.Key, StringComparer.Ordinal)
             );
 
         return plan;
     }
+
+    /// <summary>One of the reception's variables, kept by the Hotel view page.</summary>
+    private static bool IsHotelView(string key) =>
+        key.StartsWith(HotelViewService.PREFIX, StringComparison.Ordinal)
+        || HotelViewService.OTHER_KEYS.Contains(key, StringComparer.Ordinal);
 
     internal static GamedataChangeEntity Change(
         string key,

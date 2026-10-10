@@ -247,8 +247,9 @@ longer publishes them.
   **Import** a whole config (paste or upload a `nitro-config.json`). An import adds the keys the
   hotel lacks and changes those that differ; the hotel's other variables stay, unless **Remove the
   hotel's variables the config doesn't have** is ticked: then those are removed too, listed in the
-  review first. A variable that follows a setting or a file is never removed. Every edit and import
-  is a change set and rolls back like any other.
+  review first. A variable that follows a setting or a file is never removed, nor the reception's
+  (`landing.view.*` and the others the Hotel view page keeps), and a config with no keys can't
+  remove anything. Every edit and import is a change set and rolls back like any other.
 - **A variable can follow something** instead of holding a value of its own. **Link** it on the
   Variables tab, and the file writes what it follows, built again whenever that changes:
   - **a server setting** (`Turbo:Web:HotelName`, say): its value configured now, so saving the

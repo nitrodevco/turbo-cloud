@@ -30,9 +30,14 @@ public sealed record VariableImportPreview
     public required bool Truncated { get; init; }
 
     /// <summary>
-    /// The hotel's variables the config lacks, removed when asked; empty otherwise. One that
-    /// follows a setting or a file is never among them.
+    /// The hotel's variables the config lacks, removed when asked; empty otherwise. Listed up to
+    /// the preview's limit, <see cref="RemovedCount"/> counting them all. One that follows a
+    /// setting or a file, or one of the reception's (<c>landing.view.*</c>), is never among them.
     /// </summary>
     [Id(6)]
     public ImmutableArray<string> Removed { get; init; } = [];
+
+    /// <summary>Every variable the import would remove, listed or not.</summary>
+    [Id(7)]
+    public int RemovedCount { get; init; }
 }
