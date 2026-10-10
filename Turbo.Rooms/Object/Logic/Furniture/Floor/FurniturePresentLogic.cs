@@ -29,8 +29,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// <para>
 /// Nothing leaves the present until the opening has played, so a present picked up or a room
 /// unloaded meanwhile is still whole; it is drawn wrapped again whenever it is next loaded.
-/// A badge a staff gift gives (<see cref="PresentStorage.BadgeCode"/>) is given as the opening
-/// starts, as Habbo's badge notice comes before its card.
+/// A badge a staff gift gives (<see cref="PresentStorage.BadgeCode"/>) comes out with what it
+/// holds, just before its card, as Habbo's badge notice does. Given as the opening started, it was
+/// kept by a player who picked the present up before it opened, and the present, still whole,
+/// gave it again to everyone it was traded to.
 /// </para>
 /// </summary>
 [RoomObjectLogic(PresentData.LOGIC_NAME)]
@@ -69,9 +71,6 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         _opening = true;
 
         await SetStateAsync(PresentStates.OPENING);
-
-        // Habbo's staff gift says "you got a new badge" a moment into the glow, before the card.
-        await GiveBadgeAsync(ctx, ct);
 
         TimerSystem.Schedule(
             _ctx.ObjectId,
@@ -174,6 +173,9 @@ public class FurniturePresentLogic : FurnitureFloorLogic
                 );
             }
         }
+
+        // Habbo's staff gift says "you got a new badge" before the card.
+        await GiveBadgeAsync(ctx, ct);
 
         await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,

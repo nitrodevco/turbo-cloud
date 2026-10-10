@@ -156,6 +156,35 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task A_reward_the_wallet_refuses_leaves_the_quest_to_be_paid_on_the_next_step()
+    {
+        var refused = true;
+
+        _fakes.Handlers["CreditAsync"] = _ =>
+            Task.FromResult(refused ? WalletCreditResult.Rejected : WalletCreditResult.Applied);
+
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        Sent<QuestCompletedMessageComposer>().Should().BeEmpty();
+        _db.CreateDbContext()
+            .PlayerQuests.Single()
+            .Should()
+            .Match<PlayerQuestEntity>(x => x.Accepted && x.CompletedAt == null);
+
+        refused = false;
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        Single<QuestCompletedMessageComposer>().Quest.Id.Should().Be(PET_FOOD);
+        _fakes
+            .Log.Of("CreditAsync")
+            .Select(x => x.Args[2])
+            .Should()
+            .Equal($"quest:{PET_FOOD}", $"quest:{PET_FOOD}");
+    }
+
+    [Fact]
     public async Task A_campaign_done_is_listed_as_done()
     {
         await Grain().AcceptAsync(PET_FOOD, Ct);

@@ -162,12 +162,12 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
             return;
         }
 
-        row.Accepted = false;
-        row.CompletedAt = now;
-        await dbCtx.SaveChangesAsync(ct);
-
+        // Paid before it is marked done, as a daily task is: the credit's reference makes a retry
+        // pay once, and a quest saved as done before a credit that failed was never paid at all.
+        // A credit refused or thrown leaves it on its last step, to be paid on the next one.
         if (quest.RewardAmount > 0)
-            await _grainFactory
+        {
+            var credit = await _grainFactory
                 .GetPlayerWalletGrain(_playerId)
                 .CreditAsync(
                     CurrencyKind.ActivityPoints(quest.ActivityPointType),
@@ -175,6 +175,24 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
                     $"{CREDIT_REFERENCE_PREFIX}{quest.Id}",
                     ct
                 );
+
+            if (credit == WalletCreditResult.Rejected)
+            {
+                _logger.LogError(
+                    "Quest {QuestId} of player {PlayerId} could not pay {Amount} of activity point type {Type}; it stays on its last step",
+                    quest.Id,
+                    _playerId,
+                    quest.RewardAmount,
+                    quest.ActivityPointType
+                );
+
+                return;
+            }
+        }
+
+        row.Accepted = false;
+        row.CompletedAt = now;
+        await dbCtx.SaveChangesAsync(ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,
