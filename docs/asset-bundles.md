@@ -34,7 +34,15 @@ A sync (`Turbo.Gamedata/Assets`):
    `flash.client.url`) and the pet list (`pet.configuration`).
 2. Lists what Habbo has:
    - **Furniture**, from Habbo's furnidata: each asset name, at the highest revision any item of it
-     has. The file is `Turbo:Gamedata:FurnitureFileUrl`.
+     has. The file is `Turbo:Gamedata:FurnitureFileUrl`. Two kinds are loaded under names
+     furnidata doesn't list, as nitro-studio lists them (`FurnitureAssetNames`):
+     - **Posters.** Furnidata's one `poster` item has no file; each placed poster carries its id
+       and the client loads `poster<id>` (`poster5`) at the `poster` item's revision. The ids are
+       those Habbo's external texts name (`poster_<id>_name` or `_desc`); an id with a text but no
+       file (Habbo has a few) fails as any 404 does. The `poster` definition counts as having a
+       bundle once any poster has one.
+     - **Campaign versions** (`ads_cheetos_camp` for `ads_cheetos`, about fifty), each at its
+       furniture's revision, and used while the hotel has that furniture.
    - **Effects**, from `effectmap.xml`: each library, with the effect ids that use it and the highest
      revision. Files and the map are `Turbo:Assets:GordonFileUrl` (`{name}` is `effectmap.xml`, or
      `<lib>.swf`).

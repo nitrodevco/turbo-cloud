@@ -65,6 +65,7 @@ internal sealed class AssetBundleChecks(
             .Where(x => x.Kind == AssetBundleKind.Furniture)
             .Select(x => x.Name)
             .ToHashSet(StringComparer.Ordinal);
+        var hasPosters = furnitureWithFile.Any(FurnitureAssetNames.IsPoster);
         var effectIds = IdsOf(withFile, AssetBundleKind.Effect);
         var petTypes = IdsOf(withFile, AssetBundleKind.Pet);
         var soldEffects = effectParams
@@ -80,7 +81,12 @@ internal sealed class AssetBundleChecks(
                 "Furniture without a bundle",
                 "Furniture definitions whose asset has no bundle: the client draws a placeholder.",
                 usage
-                    .Furniture.Where(x => x.Length > 0 && !furnitureWithFile.Contains(x))
+                    .Furniture.Where(x =>
+                        x.Length > 0
+                        && !furnitureWithFile.Contains(x)
+                        // The one poster item is drawn from each poster's own bundle.
+                        && !(x == FurnitureAssetNames.POSTER && hasPosters)
+                    )
                     .Order(StringComparer.Ordinal)
             ),
             Check(

@@ -132,6 +132,41 @@ public sealed class AssetBundleServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Posters_and_campaign_versions_count_for_the_furniture_they_stand_in_for()
+    {
+        // The poster item has no bundle of its own: each poster's stands in for it, as an ad
+        // campaign's version is used while the hotel has the furniture it is a version of.
+        _catalog.AddDefinition(21, "ads_cheetos");
+        Bundle(AssetBundleKind.Furniture, "poster5");
+        Bundle(AssetBundleKind.Furniture, "ads_cheetos_camp");
+
+        var checks = (await _service.GetChecksAsync(Ct)).ToDictionary(x => x.Id);
+
+        checks["furniture-missing"].Count.Should().Be(3, "lamp, pet5 and ads_cheetos; not poster");
+        checks["furniture-unused"].Count.Should().Be(3, "old_thing, ghost and broken only");
+
+        var unused = await _service.ListAsync(
+            AssetBundleKind.Furniture,
+            null,
+            AssetBundleStatusFilter.Unused,
+            0,
+            Ct
+        );
+
+        unused.Total.Should().Be(3);
+
+        var all = await _service.ListAsync(
+            AssetBundleKind.Furniture,
+            "poster5",
+            AssetBundleStatusFilter.All,
+            0,
+            Ct
+        );
+
+        all.Items.Single().Used.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task The_list_filters_by_status_and_says_which_the_hotel_uses()
     {
         var unused = await _service.ListAsync(null, null, AssetBundleStatusFilter.Unused, 0, Ct);

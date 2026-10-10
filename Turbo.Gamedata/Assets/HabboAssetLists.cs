@@ -45,9 +45,12 @@ internal static class HabboAssetLists
 
     /// <summary>
     /// Each furniture asset furnidata names (its classname without the <c>*N</c> colour), at the
-    /// highest revision any of its items has.
+    /// highest revision any of its items has; then, as the client loads them
+    /// (<see cref="FurnitureAssetNames"/>), each campaign alias at its furniture's revision, and each
+    /// of <paramref name="posterIds"/> as <c>poster&lt;id&gt;</c> at the <c>poster</c> item's
+    /// revision, in place of <c>poster</c>, which has no file.
     /// </summary>
-    public static List<HabboLibrary> Furniture(byte[] furnidata)
+    public static List<HabboLibrary> Furniture(byte[] furnidata, IReadOnlyCollection<int> posterIds)
     {
         using var document = JsonDocument.Parse(furnidata);
         var revisions = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -78,6 +81,18 @@ internal static class HabboAssetLists
 
                 revisions[name] = Math.Max(revisions.GetValueOrDefault(name), revision);
             }
+        }
+
+        foreach (var (source, alias) in FurnitureAssetNames.ALIASES)
+        {
+            if (revisions.TryGetValue(source, out var revision))
+                revisions[alias] = revision;
+        }
+
+        if (revisions.Remove(FurnitureAssetNames.POSTER, out var posterRevision))
+        {
+            foreach (var id in posterIds)
+                revisions[$"{FurnitureAssetNames.POSTER}{id}"] = posterRevision;
         }
 
         return

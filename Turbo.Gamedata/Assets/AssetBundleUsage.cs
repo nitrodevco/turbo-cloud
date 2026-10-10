@@ -13,7 +13,8 @@ namespace Turbo.Gamedata.Assets;
 
 /// <summary>
 /// What the hotel names, and so which bundles it uses: the asset names of its furniture
-/// definitions (a definition's name without its <c>*N</c> colour) and the pet types its breeds
+/// definitions (a definition's name without its <c>*N</c> colour), with the posters and campaign
+/// versions of what it has (<see cref="FurnitureAssetNames"/>), and the pet types its breeds
 /// are of. An effect or clothing bundle is always used: the client may be asked for any effect,
 /// and figuredata names clothing by part, not by library.
 /// </summary>
@@ -56,7 +57,8 @@ internal sealed class AssetBundleUsage
     public bool IsUsed(AssetBundleKind kind, string name, string? ids) =>
         kind switch
         {
-            AssetBundleKind.Furniture => Furniture.Contains(name),
+            AssetBundleKind.Furniture => Furniture.Contains(name)
+                || FurnitureAssetNames.SourceOf(name) is { } source && Furniture.Contains(source),
             AssetBundleKind.Pet => AssetBundleIds.Parse(ids).Any(PetTypes.Contains),
             _ => true,
         };

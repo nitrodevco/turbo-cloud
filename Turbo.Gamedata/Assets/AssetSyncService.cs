@@ -92,6 +92,35 @@ internal sealed class AssetSyncService(
         }
     }
 
+    /// <summary>
+    /// The poster ids Habbo's external texts name. Without the texts, no poster is listed and the
+    /// rest of the sync goes on: the posters come with the next sync that reads them.
+    /// </summary>
+    private async Task<IReadOnlyCollection<int>> PosterIdsAsync(
+        string domain,
+        IAssetJobProgress progress,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var ids = FurnitureAssetNames.PosterIds(
+                await habbo.GetExternalTextsAsync(domain, ct).ConfigureAwait(false)
+            );
+
+            progress.Log($"Habbo's texts name {ids.Length} posters.");
+
+            return ids;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Habbo's external texts could not be read for its posters");
+            progress.Log($"Posters left out: Habbo's texts could not be read ({ex.Message}).");
+
+            return [];
+        }
+    }
+
     private async Task<string> RunAsync(IAssetJobProgress progress, CancellationToken ct)
     {
         progress.Step("Listing", 0);
@@ -107,7 +136,8 @@ internal sealed class AssetSyncService(
         progress.Log($"habbo.{domain} serves client revision {revision}.");
 
         var furniture = HabboAssetLists.Furniture(
-            await habbo.GetFurnitureDataAsync(domain, ct).ConfigureAwait(false)
+            await habbo.GetFurnitureDataAsync(domain, ct).ConfigureAwait(false),
+            await PosterIdsAsync(domain, progress, ct).ConfigureAwait(false)
         );
         var figures = await ListFromMapAsync(
                 domain,

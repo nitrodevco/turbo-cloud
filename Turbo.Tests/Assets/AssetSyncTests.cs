@@ -31,6 +31,7 @@ public sealed class AssetSyncTests : IDisposable
 {
     private const string VARIABLES = "https://www.habbo.com/gamedata/external_variables/0";
     private const string FURNIDATA = "https://www.habbo.com/gamedata/furnidata_json/0";
+    private const string TEXTS = "https://www.habbo.com/gamedata/external_flash_texts/0";
     private const string FURNI = "https://images.habbo.com/dcr/hof_furni";
     private const string GORDON = "https://images.habbo.com/gordon/flash-assets-PRODUCTION-1";
 
@@ -69,6 +70,8 @@ public sealed class AssetSyncTests : IDisposable
                 { "classname": "chair*2", "revision": 7 },
                 { "classname": "gone", "revision": 3 },
                 { "classname": "kept", "revision": 9 },
+                { "classname": "lamp", "revision": 2 },
+                { "classname": "ads_cheetos", "revision": 4 },
                 { "classname": "bad name", "revision": 1 }
               ] },
               "wallitemtypes": { "furnitype": [
@@ -78,7 +81,15 @@ public sealed class AssetSyncTests : IDisposable
             """
         );
         _habbo.Serve($"{FURNI}/7/chair.swf", NitroConverterTests.Swf());
-        _habbo.Serve($"{FURNI}/1/poster.swf", "<html><body>Access denied</body></html>");
+        _habbo.Serve($"{FURNI}/2/lamp.swf", "<html><body>Access denied</body></html>");
+        _habbo.Serve($"{FURNI}/4/ads_cheetos.swf", NitroConverterTests.Swf());
+        _habbo.Serve($"{FURNI}/4/ads_cheetos_camp.swf", NitroConverterTests.Swf());
+        // Posters 5 and 12 have texts; only 5 has a file, as some of Habbo's don't.
+        _habbo.Serve(
+            TEXTS,
+            "poster_5_name=Five\nposter_5_desc=The fifth\nposter_12_desc=Twelve\nposterize=no\n"
+        );
+        _habbo.Serve($"{FURNI}/1/poster5.swf", NitroConverterTests.Swf());
         _habbo.Serve($"{FURNI}/9/kept.swf", NitroConverterTests.Swf());
         _habbo.Serve(
             $"{GORDON}/effectmap.xml",
@@ -136,7 +147,7 @@ public sealed class AssetSyncTests : IDisposable
         var first = await RunAsync();
 
         first.Status.Should().Be(AssetJobStatus.Done, first.Error);
-        first.Result.Should().Be("5 converted, 4 failed, 0 up to date, 1 uploads kept");
+        first.Result.Should().Be("8 converted, 5 failed, 0 up to date, 1 uploads kept");
         first.Phase.Should().Be("Pets");
 
         var rows = await RowsAsync();
@@ -160,9 +171,26 @@ public sealed class AssetSyncTests : IDisposable
             .Match<AssetBundleEntity>(x =>
                 x.Error == "Habbo has no file at its address." && !x.Retry && x.Hash == null
             );
-        rows[(AssetBundleKind.Furniture, "poster")]
+        rows[(AssetBundleKind.Furniture, "lamp")]
             .Should()
             .Match<AssetBundleEntity>(x => x.Error != null && x.Retry && x.Hash == null);
+
+        // The one poster item has no file: each poster its texts name is a bundle of its own, at
+        // the poster item's revision, as the client loads it.
+        rows.Should().NotContainKey((AssetBundleKind.Furniture, "poster"));
+        _habbo.Requests.Should().NotContain($"{FURNI}/1/poster.swf");
+        rows[(AssetBundleKind.Furniture, "poster5")]
+            .Should()
+            .Match<AssetBundleEntity>(x => x.Revision == "1" && x.Hash != null);
+        rows[(AssetBundleKind.Furniture, "poster12")]
+            .Should()
+            .Match<AssetBundleEntity>(x => x.Hash == null && !x.Retry);
+        rows.Should().NotContainKey((AssetBundleKind.Furniture, "posterize"));
+
+        // A campaign's version is taken under its own name, at its furniture's revision.
+        rows[(AssetBundleKind.Furniture, "ads_cheetos_camp")]
+            .Should()
+            .Match<AssetBundleEntity>(x => x.Revision == "4" && x.Hash != null);
         rows.Should().NotContainKey((AssetBundleKind.Furniture, "bad name"));
 
         // Effects by library with the effects using it; pets by name with their type.
@@ -207,11 +235,11 @@ public sealed class AssetSyncTests : IDisposable
 
         var second = await RunAsync();
 
-        second.Result.Should().Be("0 converted, 1 failed, 8 up to date, 1 uploads kept");
+        second.Result.Should().Be("0 converted, 1 failed, 12 up to date, 1 uploads kept");
         _habbo
             .Requests.Where(x => x.EndsWith(".swf", StringComparison.Ordinal))
             .Should()
-            .Equal($"{FURNI}/1/poster.swf");
+            .Equal($"{FURNI}/2/lamp.swf");
         (await RowsAsync())[(AssetBundleKind.Furniture, "chair")].Hash.Should().Be(chair.Hash);
     }
 
