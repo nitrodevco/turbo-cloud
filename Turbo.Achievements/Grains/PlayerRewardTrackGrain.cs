@@ -257,6 +257,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 
         RowOf(trackId);
         progress.Claimed.Add(prizeId);
+        progress.FurnitureGiven.Remove(prizeId);
         await SaveAsync([trackId], ct);
 
         return RewardTrackClaimResult.Success;
@@ -375,9 +376,19 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
             case ProductDisplayType.FloorItem
             or ProductDisplayType.WallItem when prize.FurnitureDefinitionId is { } definitionId:
             {
+                // Unlike a credit or a badge, a second grant is a second item, so each one given is
+                // saved before the next: a claim that failed part way gives only the rest on retry.
                 var inventory = _grainFactory.GetInventoryGrain(_state.PlayerId);
+                var progress = ProgressOf(track.Id);
 
-                for (var i = 0; i < prize.Amount; i++)
+                RowOf(track.Id);
+
+                for (
+                    var given = progress.FurnitureGiven.GetValueOrDefault(prize.Id);
+                    given < prize.Amount;
+                    given++
+                )
+                {
                     if (await inventory.GrantFurnitureAsync(definitionId, null, ct) is null)
                     {
                         _logger.LogError(
@@ -389,6 +400,10 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 
                         return false;
                     }
+
+                    progress.FurnitureGiven[prize.Id] = given + 1;
+                    await SaveAsync([track.Id], ct);
+                }
 
                 return true;
             }

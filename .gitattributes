@@ -18,3 +18,6 @@
 # Keep Windows endings for Windows-specific stuff
 *.sln          text eol=crlf
 *.bat          text eol=crlf
+
+# Binary fixtures
+*.swf          binary

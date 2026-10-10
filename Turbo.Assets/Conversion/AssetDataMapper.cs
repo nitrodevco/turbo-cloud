@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,12 +10,12 @@ namespace Turbo.Assets.Conversion;
 
 /// <summary>
 /// A library's XML documents as the asset data a <c>.nitro</c> carries (nitro-api's <c>IAssetData</c>):
-/// the index, manifest, assets, logic and visualization, and the palettes' colours. The JSON is
+/// the index, manifest, animation (an avatar effect's), assets, logic and visualization, and the
+/// palettes' colours. The JSON is
 /// written as the studio's converter wrote it - its keys in the same order, a value it would leave
 /// out left out, a number it could not read <c>null</c> - since the client reads what it wrote.
 /// <para>
-/// Not mapped yet: the <c>animation</c> document (avatar effects) and <c>room_visualization</c>
-/// (the room library).
+/// Not mapped: <c>room_visualization</c>, which only the room library has.
 /// </para>
 /// </summary>
 public static class AssetDataMapper
@@ -47,6 +48,10 @@ public static class AssetDataMapper
 
         if (Parse(library.GetXml("manifest")) is { } manifest)
             MapManifest(manifest, output);
+
+        // After the manifest, before the assets, so its key lands where the studio's did.
+        if (Parse(library.GetXml("animation")) is { Name.LocalName: "animation" } animation)
+            output["animations"] = new JsonArray(MapEffectAnimation(animation));
 
         var assets =
             Parse(library.GetXml($"{type}_assets")) ?? Parse(library.GetXml($"{type}_room_assets"));
@@ -127,6 +132,190 @@ public static class AssetDataMapper
 
             output["aliases"] = list;
         }
+    }
+
+    // ------------------------------------------------------------------ animation
+
+    /// <summary>
+    /// An avatar effect's <c>&lt;animation&gt;</c> (the client's <c>AnimationData</c>): its sprites,
+    /// frames, avatar layering and overrides. A list is written only when the element has one.
+    /// </summary>
+    private static JsonObject MapEffectAnimation(XElement animation)
+    {
+        var output = new JsonObject();
+
+        SetText(output, "name", animation, "name");
+        SetText(output, "desc", animation, "desc");
+
+        if (Attr(animation, "resetOnToggle") is { } reset)
+            output["resetOnToggle"] = reset == "true";
+
+        SetList(
+            output,
+            "directions",
+            animation,
+            "direction",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetInt(item, "offset", x, "offset");
+
+                return item;
+            }
+        );
+        SetList(output, "shadows", animation, "shadow", x => Ids(x));
+        SetList(
+            output,
+            "adds",
+            animation,
+            "add",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetText(item, "id", x, "id");
+                SetText(item, "align", x, "align");
+                SetText(item, "blend", x, "blend");
+                SetInt(item, "ink", x, "ink");
+                SetText(item, "base", x, "base");
+
+                return item;
+            }
+        );
+        SetList(output, "removes", animation, "remove", x => Ids(x));
+        SetList(output, "sprites", animation, "sprite", MapEffectSprite);
+        SetList(output, "frames", animation, "frame", MapEffectFrame);
+        SetList(
+            output,
+            "avatars",
+            animation,
+            "avatar",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetText(item, "background", x, "background");
+                SetText(item, "foreground", x, "foreground");
+                SetInt(item, "ink", x, "ink");
+
+                return item;
+            }
+        );
+        SetList(
+            output,
+            "overrides",
+            animation,
+            "override",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetText(item, "name", x, "name");
+                SetText(item, "override", x, "override");
+                SetList(item, "frames", x, "frame", MapEffectFrame);
+
+                return item;
+            }
+        );
+
+        return output;
+    }
+
+    private static JsonObject MapEffectSprite(XElement sprite)
+    {
+        var output = new JsonObject();
+
+        SetText(output, "id", sprite, "id");
+        SetInt(output, "directions", sprite, "directions");
+        SetText(output, "member", sprite, "member");
+        SetInt(output, "ink", sprite, "ink");
+        SetInt(output, "staticY", sprite, "staticY");
+        SetList(
+            output,
+            "directionList",
+            sprite,
+            "direction",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetInt(item, "id", x, "id");
+                SetInt(item, "dx", x, "dx");
+                SetInt(item, "dy", x, "dy");
+                SetInt(item, "dz", x, "dz");
+
+                return item;
+            }
+        );
+
+        return output;
+    }
+
+    private static JsonObject MapEffectFrame(XElement frame)
+    {
+        var output = new JsonObject();
+
+        SetInt(output, "repeats", frame, "repeats");
+        SetList(output, "fxs", frame, "fx", MapEffectFramePart);
+        SetList(output, "bodyparts", frame, "bodypart", MapEffectFramePart);
+
+        return output;
+    }
+
+    private static JsonObject MapEffectFramePart(XElement part)
+    {
+        var output = new JsonObject();
+
+        SetText(output, "id", part, "id");
+        SetInt(output, "frame", part, "frame");
+        SetText(output, "base", part, "base");
+        SetText(output, "action", part, "action");
+        SetInt(output, "dx", part, "dx");
+        SetInt(output, "dy", part, "dy");
+        SetInt(output, "dz", part, "dz");
+        SetInt(output, "dd", part, "dd");
+        SetList(
+            output,
+            "items",
+            part,
+            "item",
+            x =>
+            {
+                var item = new JsonObject();
+
+                SetText(item, "id", x, "id");
+                SetText(item, "base", x, "base");
+
+                return item;
+            }
+        );
+
+        return output;
+    }
+
+    private static JsonObject Ids(XElement element)
+    {
+        var output = new JsonObject();
+
+        SetText(output, "id", element, "id");
+
+        return output;
+    }
+
+    /// <summary>The <paramref name="child"/> elements mapped, under <paramref name="key"/> - only when there is one.</summary>
+    private static void SetList(
+        JsonObject output,
+        string key,
+        XElement element,
+        string child,
+        Func<XElement, JsonObject> map
+    )
+    {
+        var children = element.Elements(child).ToList();
+
+        if (children.Count > 0)
+            output[key] = new JsonArray([.. children.Select(x => (JsonNode?)map(x))]);
     }
 
     // ------------------------------------------------------------------ assets

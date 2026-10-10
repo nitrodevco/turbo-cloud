@@ -46,6 +46,23 @@ public sealed class CameraConfig
     /// <summary>The furniture bundles (the client's <c>asset.urls.furni</c>, <c>%libname%</c> for the library); empty uses the script's default.</summary>
     public string RendererFurniUrl { get; init; } = "";
 
+    /// <summary>
+    /// The url prefixes an external image in a render (a sprite named <c>http...</c>: an image
+    /// library picture, a group badge, another photo) may be fetched from, each ending in <c>/</c>.
+    /// The render data is the client's, so any other url is left undrawn rather than fetched by
+    /// the server; empty draws no external image.
+    /// </summary>
+    public string[] RendererExternalImageUrls { get; init; } = [];
+
+    /// <summary>
+    /// The most render data, inflated, a photo or thumbnail may be: a render is a list of sprites,
+    /// a few hundred KB at most, so more is not the client's and is refused before it is held whole.
+    /// </summary>
+    public int MaxRenderDataBytes { get; init; } = 2 * 1024 * 1024;
+
+    /// <summary>Renders run at once across the server; past it a render waits, within its timeout.</summary>
+    public int MaxConcurrentRenders { get; init; } = 2;
+
     /// <summary>How long one render may take before it is killed and the photo stays undrawn.</summary>
     public int RendererTimeoutMilliseconds { get; init; } = 15000;
 }
