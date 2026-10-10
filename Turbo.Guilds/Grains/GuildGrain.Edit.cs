@@ -207,6 +207,27 @@ internal sealed partial class GuildGrain
                 .ToListAsync(ct);
 
             dbCtx.GuildMembers.RemoveRange(members);
+
+            // The forum goes with the group. Its row would be cascaded, but its threads, messages
+            // and read markers hang off the group id alone and would outlive it.
+            dbCtx.GuildForumMessages.RemoveRange(
+                await dbCtx
+                    .GuildForumMessages.Where(x => x.GuildEntityId == GuildId.Value)
+                    .ToListAsync(ct)
+            );
+            dbCtx.GuildForumThreads.RemoveRange(
+                await dbCtx
+                    .GuildForumThreads.Where(x => x.GuildEntityId == GuildId.Value)
+                    .ToListAsync(ct)
+            );
+            dbCtx.GuildForumReadMarkers.RemoveRange(
+                await dbCtx
+                    .GuildForumReadMarkers.Where(x => x.GuildEntityId == GuildId.Value)
+                    .ToListAsync(ct)
+            );
+            dbCtx.GuildForums.RemoveRange(
+                await dbCtx.GuildForums.Where(x => x.GuildEntityId == GuildId.Value).ToListAsync(ct)
+            );
             dbCtx.Guilds.Remove(entity);
 
             await dbCtx.SaveChangesAsync(ct);
@@ -232,6 +253,18 @@ internal sealed partial class GuildGrain
             .LogAndForget(
                 _logger,
                 "return the homeroom furni of deleted group {GuildId}",
+                guild.GuildId.Value
+            );
+
+        // The forum grain still holds the forum it read, and would go on serving its threads.
+        // Told rather than awaited, as the homeroom is: a forum request may be waiting on this
+        // grain, and this grain waiting on it would hold both until the call timed out.
+        _grainFactory
+            .GetGuildForumGrain(guild.GuildId)
+            .OnGuildDeletedAsync(CancellationToken.None)
+            .LogAndForget(
+                _logger,
+                "close the forum of deleted group {GuildId}",
                 guild.GuildId.Value
             );
 

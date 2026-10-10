@@ -99,6 +99,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildDirectoryGra
 interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildForumGrain")] Turbo.Primitives.Guilds.Grains.IGuildForumGrain [Version(0)]
   657B9014: ModerateMessageAsync(Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task
   106ACC11: ModerateThreadAsync(Turbo.Primitives.Players.PlayerId, int, int, System.Threading.CancellationToken) -> Task
+  92A3C4EF: OnGuildDeletedAsync(System.Threading.CancellationToken) -> Task
   91010CE9: OpenAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   8E1FEF29: PostAsync(Turbo.Primitives.Players.PlayerId, int, string, string, System.Threading.CancellationToken) -> Task
   1D5EB296: SendForumAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
@@ -398,6 +399,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGr
 
 interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerQuestGrain")] Turbo.Primitives.Quests.Grains.IPlayerQuestGrain [Version(0)]
   8CD37FD0: AcceptAsync(int, System.Threading.CancellationToken) -> Task
+  C1293542: OpenTrackerAsync(System.Threading.CancellationToken) -> Task
   647EC69A: RecordAsync(string, string, System.Threading.CancellationToken) -> Task
   8EA13D68: RejectAsync(int, System.Threading.CancellationToken) -> Task
   D97351A0: SendQuestsAsync(bool, System.Threading.CancellationToken) -> Task

@@ -68,4 +68,7 @@ public interface IGuildForumGrain : IGrainWithIntegerKey
         int moderatePermission,
         CancellationToken ct
     );
+
+    /// <summary>The group was deleted, its forum with it: the grain forgets the forum it held.</summary>
+    Task OnGuildDeletedAsync(CancellationToken ct);
 }

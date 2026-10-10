@@ -210,6 +210,49 @@ public sealed class GroupStaffTests : IDisposable
     }
 
     [Fact]
+    public async Task Deleting_a_group_takes_its_forum_and_closes_the_forum_grain()
+    {
+        _db.Insert(new GuildForumEntity { GuildEntityId = GROUP });
+        _db.Insert(
+            new GuildForumThreadEntity
+            {
+                Id = 1,
+                GuildEntityId = GROUP,
+                PlayerEntityId = ALICE,
+                Subject = "A first subject",
+            }
+        );
+        _db.Insert(
+            new GuildForumMessageEntity
+            {
+                GuildEntityId = GROUP,
+                ThreadEntityId = 1,
+                ForumMessageId = 1,
+                ThreadIndex = 0,
+                PlayerEntityId = ALICE,
+                Text = "A message long enough",
+            }
+        );
+        _db.Insert(new GuildForumReadMarkerEntity { PlayerEntityId = BOB, GuildEntityId = GROUP });
+
+        var group = await GroupAsync();
+
+        (await group.StaffDeleteAsync(STAFF, Ct)).Should().BeTrue();
+
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
+
+        dbCtx.GuildForums.Should().BeEmpty();
+        dbCtx.GuildForumThreads.Should().BeEmpty();
+        dbCtx.GuildForumMessages.Should().BeEmpty();
+        dbCtx.GuildForumReadMarkers.Should().BeEmpty();
+        _fakes
+            .Log.Of(nameof(IGuildForumGrain.OnGuildDeletedAsync))
+            .Where(x => x.Interface == typeof(IGuildForumGrain))
+            .Should()
+            .ContainSingle();
+    }
+
+    [Fact]
     public async Task A_badge_is_put_back_to_the_editors_default()
     {
         ImmutableArray<GuildBadgePartSnapshot> defaults =

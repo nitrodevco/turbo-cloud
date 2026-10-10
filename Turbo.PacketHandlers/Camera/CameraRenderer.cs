@@ -21,8 +21,17 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
     private readonly CameraConfig _config = config.Value;
     private readonly SemaphoreSlim _slots = new(Math.Max(1, config.Value.MaxConcurrentRenders));
 
-    /// <summary>True when the PNG exists afterwards; false (logged) when the renderer is off, missing, failed or timed out.</summary>
-    public async Task<bool> RenderAsync(string jsonPath, string pngPath, CancellationToken ct)
+    /// <summary>
+    /// True when the PNG exists afterwards; false (logged) when the renderer is off, missing,
+    /// failed or timed out. <paramref name="withSmall"/> also writes the half-size
+    /// <c>&lt;name&gt;_small.png</c> a photo poster on a wall is drawn from.
+    /// </summary>
+    public async Task<bool> RenderAsync(
+        string jsonPath,
+        string pngPath,
+        CancellationToken ct,
+        bool withSmall = false
+    )
     {
         if (string.IsNullOrWhiteSpace(_config.RendererCommand))
             return false;
@@ -63,6 +72,9 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
             info.ArgumentList.Add("--furni-url");
             info.ArgumentList.Add(_config.RendererFurniUrl);
         }
+
+        if (withSmall)
+            info.ArgumentList.Add("--small");
 
         foreach (var url in _config.RendererExternalImageUrls)
         {
