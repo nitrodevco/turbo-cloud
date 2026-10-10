@@ -81,12 +81,12 @@ public sealed class CoreMigrationsTests
 
     /// <summary>
     /// EF leaves a column out of an INSERT while it holds its CLR default (0, false, an enum's
-    /// first member), so the database default applies instead. For a value type that default is
-    /// a real choice (a muted volume, a raid action of "kick"), so a column with a database
-    /// default must always be written, and a new entity must start at that same default.
+    /// first member, null), so the database default applies instead. For a value type that is a
+    /// real choice (a muted volume, a raid action of "kick", a badge in no slot), so a column with
+    /// a database default must always be written.
     /// </summary>
     [Fact]
-    public void AValueTypeColumnWithADatabaseDefaultIsAlwaysWritten_AndANewEntityStartsAtIt()
+    public void AValueTypeColumnWithADatabaseDefaultIsAlwaysWritten()
     {
         using var db = OfflineContext();
 
@@ -95,7 +95,6 @@ public sealed class CoreMigrationsTests
             .SelectMany(entity => entity.GetProperties())
             .Where(property =>
                 property.ClrType.IsValueType
-                && Nullable.GetUnderlyingType(property.ClrType) is null
                 && property.GetDefaultValue() is not null
                 && !property.IsPrimaryKey()
                 // A created_at is MySQL's to stamp (CURRENT_TIMESTAMP), never the code's.
