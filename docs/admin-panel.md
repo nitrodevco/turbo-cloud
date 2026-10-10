@@ -494,6 +494,17 @@ that Builders Club furni was placed from. Limited series themselves are not undo
 sells from them at once. The history is kept in memory: a publish or a restart starts it afresh,
 and the 500 newest steps are kept.
 
+**Backups.** The **Backups** view keeps copies of the catalog to go back to. **Back up now** saves
+every page, offer, product and featured item as they are saved at that moment, published or not,
+under a name (or the time it was taken). **Roll back** puts the catalog back as a backup has it,
+ids and order included. It is one step in the history: it can be undone, and players get it when
+you publish. Before it changes anything, the catalog it replaces is backed up as *Before rolling
+back to …*, so you can still go back after a publish or a restart. A rollback is refused, with
+why, when the catalog is already as the backup has it, when it would take away an offer that sells
+a limited series or that Builders Club furni was placed from, or when the backup sells furniture or
+uses a currency the hotel no longer has. Limited series themselves are not in a backup. Backups are
+kept in the database (`catalog_backups`) until deleted.
+
 **Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
 only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
 and pets are left out, since their builders sell them. The list narrows by name, furni line and
@@ -534,6 +545,8 @@ New offers cost what you set. Rares made new start on hidden pages, to be priced
 step to undo, and nothing goes live until you publish.
 
 Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and `/discard`;
+`GET` and `POST /api/catalog/backups` (a `name`), `POST /api/catalog/backups/{id}/rollback` and
+`DELETE /api/catalog/backups/{id}`;
 `GET /api/catalog/audit/unoffered` (`scope` = `missing` or `hidden`, `q`, `line`, `category`,
 `page`, `size`) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
 (definition ids and one price) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;

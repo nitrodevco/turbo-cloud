@@ -40,6 +40,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PetNutritionOperationEntity> PetNutritionOperations { get; init; }
     public DbSet<PetRespectOperationEntity> PetRespectOperations { get; init; }
 
+    public DbSet<CatalogBackupEntity> CatalogBackups { get; init; }
+
     public DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
     public DbSet<CatalogFeaturedItemEntity> CatalogFeaturedItems { get; init; }

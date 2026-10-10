@@ -84,13 +84,16 @@ internal sealed class CatalogEditStep(string label, PlayerId editor, DateTime at
 /// </summary>
 internal static class CatalogEditJournal
 {
-    private static readonly HashSet<Type> Journaled =
+    /// <summary>The journaled tables, each before the tables whose rows name its rows.</summary>
+    public static readonly IReadOnlyList<Type> Tables =
     [
         typeof(CatalogPageEntity),
         typeof(CatalogOfferEntity),
         typeof(CatalogProductEntity),
         typeof(CatalogFeaturedItemEntity),
     ];
+
+    private static readonly HashSet<Type> Journaled = [.. Tables];
 
     /// <summary>Set by the database when a row is made, and never compared.</summary>
     private const string CREATED_AT = nameof(TurboEntity.CreatedAt);
@@ -164,6 +167,37 @@ internal static class CatalogEditJournal
 
         return changes;
     }
+
+    /// <summary>Every journaled row as it is saved now.</summary>
+    public static async Task<Dictionary<CatalogRow, CatalogRowImage>> ReadAllAsync(
+        TurboDbContext db,
+        CancellationToken ct
+    )
+    {
+        var rows = new Dictionary<CatalogRow, CatalogRowImage>();
+
+        Add(await db.CatalogPages.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
+        Add(await db.CatalogOffers.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
+        Add(await db.CatalogProducts.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
+        Add(await db.CatalogFeaturedItems.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
+
+        return rows;
+
+        void Add<T>(List<T> entities)
+            where T : TurboEntity
+        {
+            var entityType = db.Model.FindEntityType(typeof(T))!;
+
+            foreach (var entity in entities)
+                rows[new CatalogRow(typeof(T), entity.Id)] = Image(entityType, entity);
+        }
+    }
+
+    /// <summary>Whether a row is as an image says, but for when it was made.</summary>
+    public static bool Same(CatalogRowImage left, CatalogRowImage right) =>
+        left
+            .Values.Where(x => x.Key != CREATED_AT)
+            .All(x => ValueEquals(x.Value, right.Values.GetValueOrDefault(x.Key)));
 
     /// <summary>
     /// Puts every row of a step back as <paramref name="towardsBefore"/> says - to how it was
@@ -417,7 +451,7 @@ internal static class CatalogEditJournal
     private static CatalogRowImage Image(PropertyValues values) =>
         new(values.Properties.ToDictionary(x => x.Name, x => Copy(values[x])));
 
-    private static CatalogRowImage Image(IEntityType type, object entity) =>
+    public static CatalogRowImage Image(IEntityType type, object entity) =>
         new(
             type.GetProperties()
                 .ToDictionary(x => x.Name, x => Copy(x.PropertyInfo?.GetValue(entity)))
@@ -426,12 +460,6 @@ internal static class CatalogEditJournal
     /// <summary>A value to keep: a list (a page's images and texts) is copied, so a later edit can't change it.</summary>
     private static object? Copy(object? value) =>
         value is List<string> list ? new List<string>(list) : value;
-
-    /// <summary>Whether a row is as an image says, but for when it was made.</summary>
-    private static bool Same(CatalogRowImage left, CatalogRowImage right) =>
-        left
-            .Values.Where(x => x.Key != CREATED_AT)
-            .All(x => ValueEquals(x.Value, right.Values.GetValueOrDefault(x.Key)));
 
     private static bool ValueEquals(object? left, object? right) =>
         left is IEnumerable a and not string && right is IEnumerable b and not string

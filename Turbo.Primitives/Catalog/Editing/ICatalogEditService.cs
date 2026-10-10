@@ -137,4 +137,25 @@ public interface ICatalogEditService
     Task<CatalogEditResult> RemoveLimitedAsync(PlayerId editor, int offerId, CancellationToken ct);
 
     Task<CatalogPublishResult> PublishAsync(PlayerId editor, CancellationToken ct);
+
+    /// <summary>The catalog's backups, the newest first.</summary>
+    Task<IReadOnlyList<CatalogBackupSummary>> GetBackupsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Keeps a copy of the saved catalog - its pages, offers, products and featured items, as
+    /// they are now, published or not - named <paramref name="name"/>, or after when it was
+    /// taken when that is blank. Its id is the backup's.
+    /// </summary>
+    Task<CatalogEditResult> BackupAsync(PlayerId editor, string? name, CancellationToken ct);
+
+    /// <summary>
+    /// Puts the saved catalog back as a backup has it, ids included, as one step that can be
+    /// undone and goes live when published; the catalog it replaces is backed up first. Limited
+    /// series stay as they are, and the rollback is refused, with why, when it would take away
+    /// what one sells from or what Builders Club furni was placed from, or names furniture or a
+    /// currency that is gone.
+    /// </summary>
+    Task<CatalogEditResult> RollbackAsync(PlayerId editor, int backupId, CancellationToken ct);
+
+    Task<CatalogEditResult> DeleteBackupAsync(PlayerId editor, int backupId, CancellationToken ct);
 }

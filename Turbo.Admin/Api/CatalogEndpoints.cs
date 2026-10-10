@@ -20,9 +20,10 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The catalog editor: reading the tree, a page, the front page's featured items and the
-/// furniture, for staff with <c>admin.catalog.view</c>; changing pages, offers and featured items
-/// and publishing, for those who also hold <c>catalog.manage</c>. The changes are <see cref="ICatalogEditService"/>'s, which checks them.
+/// The catalog editor: reading the tree, a page, the front page's featured items, the furniture
+/// and the backups, for staff with <c>admin.catalog.view</c>; changing pages, offers and featured
+/// items, publishing, and taking, rolling back to and deleting backups, for those who also hold
+/// <c>catalog.manage</c>. The changes are <see cref="ICatalogEditService"/>'s, which checks them.
 /// </summary>
 internal sealed class CatalogEndpoints(
     IGrainFactory grainFactory,
@@ -75,6 +76,10 @@ internal sealed class CatalogEndpoints(
             (HttpContext http, CancellationToken ct) =>
                 HistoryStepAsync(http, ct, editor.DiscardAsync)
         );
+        group.MapGet("/backups", BackupsAsync);
+        group.MapPost("/backups", BackupAsync);
+        group.MapPost("/backups/{id:int}/rollback", RollbackAsync);
+        group.MapDelete("/backups/{id:int}", DeleteBackupAsync);
         group.MapGet("/audit/unoffered", UnofferedAsync);
         group.MapGet(
             "/audit/duplicates",
@@ -305,6 +310,60 @@ internal sealed class CatalogEndpoints(
             ? Results.Ok(HistoryResponse())
             : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
     }
+
+    private async Task<IResult> BackupsAsync(CancellationToken ct)
+    {
+        var backups = await editor.GetBackupsAsync(ct).ConfigureAwait(false);
+        var takers = backups.Select(x => x.TakenBy).Distinct().ToList();
+        var names =
+            takers.Count == 0
+                ? null
+                : await grainFactory
+                    .GetPlayerDirectoryGrain()
+                    .GetPlayerNamesAsync(takers, ct)
+                    .ConfigureAwait(false);
+
+        return Results.Ok(
+            new CatalogBackupsResponse([
+                .. backups.Select(x => new CatalogBackupItem(
+                    x.Id,
+                    x.Name,
+                    x.TakenBy.Value,
+                    names?.GetValueOrDefault(x.TakenBy),
+                    x.TakenAtUtc,
+                    x.Automatic,
+                    x.Pages,
+                    x.Offers,
+                    x.Products,
+                    x.FeaturedItems
+                )),
+            ])
+        );
+    }
+
+    private Task<IResult> BackupAsync(
+        CatalogBackupRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) => ManageAsync(http, ct, who => editor.BackupAsync(who, request.Name, ct));
+
+    /// <summary>A rollback; refused with 409, as an undo is, when the catalog has moved on from under it.</summary>
+    private async Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct)
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        var result = await editor
+            .RollbackAsync(AdminIdentity.Of(http).PlayerId, id, ct)
+            .ConfigureAwait(false);
+
+        return result.Saved
+            ? Results.Ok(HistoryResponse())
+            : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
+    }
+
+    private Task<IResult> DeleteBackupAsync(int id, HttpContext http, CancellationToken ct) =>
+        ManageAsync(http, ct, who => editor.DeleteBackupAsync(who, id, ct));
 
     private async Task<IResult> UnofferedAsync(
         string? scope,

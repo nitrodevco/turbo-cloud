@@ -1,4 +1,3 @@
-using System.Text;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
@@ -46,32 +45,7 @@ public sealed class CatalogEditHistoryTests : IDisposable
 
     public void Dispose() => _catalog.Dispose();
 
-    /// <summary>Every journaled row, column by column but for when it was made, in id order.</summary>
-    private string Snapshot()
-    {
-        using var db = _catalog.Db.CreateDbContext();
-        var text = new StringBuilder();
-
-        foreach (var x in db.CatalogPages.AsNoTracking().OrderBy(x => x.Id))
-            text.AppendLine(
-                $"page {x.Id} {x.ParentEntityId} {x.Localization} {x.Name} {x.Icon} {x.Layout} {x.SortOrder} {x.Display} [{string.Join('|', x.ImageData ?? [])}] [{string.Join('|', x.TextData ?? [])}]"
-            );
-
-        foreach (var x in db.CatalogOffers.AsNoTracking().OrderBy(x => x.Id))
-            text.AppendLine(
-                $"offer {x.Id} {x.CatalogPageEntityId} {x.LocalizationId} {x.CostCredits} {x.CostCurrency} {x.CurrencyTypeId} {x.CanGift} {x.CanBundle} {x.ClubLevel} {x.Visible} {x.SortOrder}"
-            );
-
-        foreach (var x in db.CatalogProducts.AsNoTracking().OrderBy(x => x.Id))
-            text.AppendLine(
-                $"product {x.Id} {x.CatalogOfferEntityId} {x.ProductType} {x.FurnitureDefinitionEntityId} {x.ExtraParam} {x.Quantity}"
-            );
-
-        foreach (var x in db.CatalogFeaturedItems.AsNoTracking().OrderBy(x => x.Id))
-            text.AppendLine($"featured {x.Id} {x.Position} {x.Title} {x.Type} {x.Value}");
-
-        return text.ToString();
-    }
+    private string Snapshot() => _catalog.Rows();
 
     private CatalogPageEntity PageRow(int id)
     {
