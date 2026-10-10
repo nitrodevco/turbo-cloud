@@ -209,7 +209,7 @@ public sealed class NitroConverterTests
     /// and again as <c>_64_b_0_0</c>; an empty icon; and - when <paramref name="twoAlike"/> - the
     /// same picture as a separate image, <c>_64_c_0_0</c>, with an asset of its own.
     /// </summary>
-    private static byte[] Swf(bool twoAlike = false)
+    internal static byte[] Swf(bool twoAlike = false)
     {
         var assets = twoAlike
             ? ASSETS.Replace(

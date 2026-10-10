@@ -7,16 +7,19 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Gamedata.Habbo;
 
 /// <summary>
 /// Asks Habbo for a new release every <see cref="GamedataConfig.ReleaseCheckMinutes"/>, from
 /// startup on. It only finds releases: the panel shows one waiting, and staff take it in after
-/// looking at what it changes. Each silo checks; a release found twice is kept once.
+/// looking at what it changes. Each silo checks; a release found twice is kept once. A check that
+/// answered goes on to sync the asset bundles (<see cref="IAssetSyncService.StartAfterCheck"/>).
 /// </summary>
 internal sealed class HabboReleaseWatcher(
     IHabboReleaseService releases,
+    IAssetSyncService assets,
     IOptions<GamedataConfig> config,
     ILogger<HabboReleaseWatcher> logger
 ) : BackgroundService
@@ -60,6 +63,9 @@ internal sealed class HabboReleaseWatcher(
                     "New Habbo external texts found ({Count}); they wait to be imported in the admin panel",
                     result.Texts.TextCount
                 );
+
+            // The timer is no player's: a sync it starts is the server's own (player 0).
+            assets.StartAfterCheck(PlayerId.Parse(0));
         }
         catch (HttpRequestException ex)
         {

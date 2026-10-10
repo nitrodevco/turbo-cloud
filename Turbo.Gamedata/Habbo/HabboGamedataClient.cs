@@ -145,7 +145,14 @@ internal sealed class HabboGamedataClient(
     /// A furniture's asset file; null when Habbo has none at that address (a 404), which happens
     /// for furniture it lists but no longer serves.
     /// </summary>
-    public async Task<byte[]?> GetFurnitureFileAsync(string url, CancellationToken ct)
+    public Task<byte[]?> GetFurnitureFileAsync(string url, CancellationToken ct) =>
+        GetFileAsync(url, ct);
+
+    /// <summary>
+    /// A file on Habbo's hosts (a client library, the effect map); null when Habbo has none at that
+    /// address (a 404 or 403). Anything else that fails throws once the retries are spent.
+    /// </summary>
+    public async Task<byte[]?> GetFileAsync(string url, CancellationToken ct)
     {
         try
         {

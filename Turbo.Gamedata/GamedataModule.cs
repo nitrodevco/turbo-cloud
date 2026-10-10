@@ -73,6 +73,9 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataImportJobs, FurnitureImportJobs>();
         services.AddSingleton<IAssetBundleStore, AssetBundleStore>();
         services.AddSingleton<IAssetJobs, AssetJobs>();
+        services.AddSingleton<AssetBundleChecks>();
+        services.AddSingleton<IAssetBundleService, AssetBundleService>();
+        services.AddSingleton<IAssetSyncService, AssetSyncService>();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<GamedataServer>();
     }

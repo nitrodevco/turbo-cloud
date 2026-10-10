@@ -28,6 +28,7 @@ namespace Turbo.Admin.Api;
 internal sealed class GamedataEndpoints(
     IGrainFactory grainFactory,
     IHabboReleaseService releases,
+    IAssetSyncService assetSync,
     IGamedataFurnitureService furniture,
     IGamedataFileService files,
     IGamedataHistoryService history,
@@ -174,7 +175,11 @@ internal sealed class GamedataEndpoints(
             {
                 try
                 {
-                    return Results.Ok(await releases.CheckAsync(ct).ConfigureAwait(false));
+                    var result = await releases.CheckAsync(ct).ConfigureAwait(false);
+
+                    assetSync.StartAfterCheck(AdminIdentity.Of(http).PlayerId);
+
+                    return Results.Ok(result);
                 }
                 catch (HttpRequestException ex)
                 {
