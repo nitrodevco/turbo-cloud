@@ -36,7 +36,7 @@ namespace Turbo.Rooms.Grains;
 /// <summary>
 /// The write buffer of one room, so database writes never hold up the room's turn. Buffered and
 /// flushed: the room hands over what changed, a timer writes it, and deactivation writes what
-/// is left. A write that fails keeps its rows queued up to the configured caps. Pet care
+/// is left. A write that fails keeps its rows queued for the next tick. Pet care
 /// operations are the write-through exception: their pet mutation and achievement receipt commit
 /// together, then their result is merged into any buffered pet snapshot before it is returned.
 /// </summary>
@@ -879,10 +879,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         {
             _logger.LogError(
                 ex,
-                "Failed to flush {Count} dirty bots for room {RoomId}",
+                "Failed to flush {Count} dirty bots for room {RoomId}; they stay queued",
                 batch.Count,
                 roomId
             );
+            foreach (var bot in batch)
+                _state.DirtyBots.TryAdd(bot.Id, bot);
 
             return false;
         }
@@ -930,6 +932,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         foreach (var item in batch)
             _state.DirtyItems.Remove(item.ObjectId);
 
+        // Read, not taken: a pickup's mark is cleared only once its write has landed.
+        var removed = batch
+            .Select(x => x.ObjectId)
+            .Where(_state.RemovedItemIds.Contains)
+            .ToHashSet();
+
         try
         {
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -958,7 +966,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 e.Property(x => x.PlayerEntityId).IsModified = true;
 
                 // A removed item leaves the room; anything else is written as standing in it.
-                dbEntity.RoomEntityId = _state.RemovedItemIds.Remove(item.ObjectId)
+                dbEntity.RoomEntityId = removed.Contains(item.ObjectId)
                     ? null
                     : _state.RoomId.Value;
 
@@ -967,16 +975,28 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             await dbCtx.SaveChangesAsync(ct);
 
+            // The enqueues interleave with this write: an item queued again meanwhile keeps the
+            // mark its newer change gave it.
+            foreach (var itemId in removed)
+            {
+                if (!_state.DirtyItems.ContainsKey(itemId))
+                    _state.RemovedItemIds.Remove(itemId);
+            }
+
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Failed to flush {Count} dirty furniture items for room {RoomId}",
+                "Failed to flush {Count} dirty furniture items for room {RoomId}; they stay queued",
                 batch.Length,
                 _state.RoomId
             );
+
+            // Queued again for the next tick, unless the room has queued something newer since.
+            foreach (var item in batch)
+                _state.DirtyItems.TryAdd(item.ObjectId, item);
 
             return false;
         }
