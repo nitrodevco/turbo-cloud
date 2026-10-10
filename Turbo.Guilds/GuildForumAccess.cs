@@ -50,20 +50,19 @@ internal readonly record struct GuildForumAccess(GuildMemberRank? Rank, bool IsS
     /// <summary>
     /// Whether the player may move a post from <paramref name="current"/> to
     /// <paramref name="requested"/>: a forum moderator hides with 10 and restores, staff also
-    /// hide with 20 and alone restore what staff hid (AS3 GroupForumController).
+    /// hide with 20 and alone restore what staff hid (AS3 GroupForumController). What staff hid
+    /// only staff move at all, or a moderator could hide it with 10 and then restore their own hide.
     /// </summary>
     public bool MayModerate(
         GuildForumState current,
         int requested,
         GuildForumPermission moderate
     ) =>
-        (GuildForumState)requested switch
+        (current != GuildForumState.HiddenByStaff || IsStaff)
+        && (GuildForumState)requested switch
         {
             GuildForumState.HiddenByStaff => IsStaff,
-            GuildForumState.HiddenByAdmin => Can(moderate),
-            GuildForumState.Restored => current == GuildForumState.HiddenByStaff
-                ? IsStaff
-                : Can(moderate),
+            GuildForumState.HiddenByAdmin or GuildForumState.Restored => Can(moderate),
             _ => false,
         };
 }

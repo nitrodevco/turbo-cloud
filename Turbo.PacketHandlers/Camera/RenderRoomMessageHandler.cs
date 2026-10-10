@@ -11,7 +11,8 @@ namespace Turbo.PacketHandlers.Camera;
 /// The photo lab's Preview: the render data is kept as the player's last photo, drawn into its PNG
 /// (<see cref="CameraRenderer"/>) and its url sent back (<c>CameraStorageUrlMessage</c>); an empty
 /// url past the day's limit, or for data that is not a render, is the client's
-/// <c>camera.render.count.info</c>.
+/// <c>camera.render.count.info</c>. The render counts before it is inflated, so data that is not
+/// a render is refused within the day's limit too.
 /// </summary>
 public class RenderRoomMessageHandler(
     CameraPhotoStore store,
@@ -30,12 +31,11 @@ public class RenderRoomMessageHandler(
         if (ctx.PlayerId <= 0)
             return;
 
-        var json = CameraPhotoStore.Inflate(message.Data);
         var url = string.Empty;
 
         if (
-            json is not null
-            && store.TryCount(ctx.PlayerId.Value, "photo", _config.RenderLimitPerDay)
+            store.TryCount(ctx.PlayerId.Value, "photo", _config.RenderLimitPerDay)
+            && store.Inflate(message.Data) is { } json
         )
         {
             var photo = await store

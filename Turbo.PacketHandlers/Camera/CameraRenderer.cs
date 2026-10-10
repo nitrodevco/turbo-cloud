@@ -13,11 +13,13 @@ namespace Turbo.PacketHandlers.Camera;
 /// PNG the client loads, by running the renderer command of <see cref="CameraConfig"/>
 /// (<c>tools/camera-renderer/render.mjs</c> by default) with the JSON and PNG paths. The client
 /// asks for the picture as soon as <c>CameraStorageUrlMessage</c> arrives, so a render is awaited,
-/// bounded by <see cref="CameraConfig.RendererTimeoutMilliseconds"/>.
+/// bounded by <see cref="CameraConfig.RendererTimeoutMilliseconds"/>, waiting included: at most
+/// <see cref="CameraConfig.MaxConcurrentRenders"/> run at once.
 /// </summary>
 public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<CameraRenderer> logger)
 {
     private readonly CameraConfig _config = config.Value;
+    private readonly SemaphoreSlim _slots = new(Math.Max(1, config.Value.MaxConcurrentRenders));
 
     /// <summary>True when the PNG exists afterwards; false (logged) when the renderer is off, missing, failed or timed out.</summary>
     public async Task<bool> RenderAsync(string jsonPath, string pngPath, CancellationToken ct)
@@ -62,16 +64,37 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
             info.ArgumentList.Add(_config.RendererFurniUrl);
         }
 
+        foreach (var url in _config.RendererExternalImageUrls)
+        {
+            info.ArgumentList.Add("--external-url");
+            info.ArgumentList.Add(url);
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        timeout.CancelAfter(_config.RendererTimeoutMilliseconds);
+
+        try
+        {
+            await _slots.WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Camera renderer busy for longer than {Timeout} ms; {Png} not drawn",
+                _config.RendererTimeoutMilliseconds,
+                pngPath
+            );
+
+            return false;
+        }
+
         try
         {
             using var process = Process.Start(info);
 
             if (process is null)
                 return false;
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-            timeout.CancelAfter(_config.RendererTimeoutMilliseconds);
 
             var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
             var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
@@ -121,6 +144,10 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
             );
 
             return false;
+        }
+        finally
+        {
+            _slots.Release();
         }
     }
 }
