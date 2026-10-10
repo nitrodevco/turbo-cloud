@@ -33,11 +33,22 @@ public sealed record FloorItem(
     int OwnerId
 );
 
-/// <summary>The walkable floor as the server sent it: -1 for no tile, else height × 256.</summary>
+/// <summary>
+/// The floor as the server sent it: -1 for no tile, else height × 256 with bit 14 set where
+/// furniture blocks stacking.
+/// </summary>
 public sealed record HeightMap(int Width, int Length, short[] Heights)
 {
+    private const short STACKING_BLOCKED = 1 << 14;
+
+    /// <summary>A tile to walk to: part of the room, and not under furniture that blocks stacking.</summary>
     public bool IsTile(int x, int y) =>
-        x >= 0 && y >= 0 && x < Width && y < Length && Heights[y * Width + x] >= 0;
+        x >= 0
+        && y >= 0
+        && x < Width
+        && y < Length
+        && Heights[y * Width + x] >= 0
+        && (Heights[y * Width + x] & STACKING_BLOCKED) == 0;
 }
 
 /// <summary>The decoded floor plan: the model text and the camera fields after it.</summary>

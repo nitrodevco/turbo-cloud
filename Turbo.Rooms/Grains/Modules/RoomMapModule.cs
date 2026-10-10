@@ -345,7 +345,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         _roomGrain._state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? NO_ITEM;
 
         var prevEncoded = _roomGrain._state.TileEncodedHeights[id];
-        var nextEncoded = EncodeHeight(nextHeight, nextFlags.Has(RoomTileFlags.StackBlocked));
+        var nextEncoded = EncodeHeight(nextHeight, nextFlags);
 
         if (prevEncoded != nextEncoded)
         {
@@ -401,9 +401,15 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         };
     }
 
-    private static short EncodeHeight(Altitude height, bool stackingBlocked)
+    /// <summary>
+    /// A tile as the client's stacking height map reads it (<c>HeightMapMessageParser</c>): -1 for no
+    /// tile at all, else the height × 256 in the low 14 bits with bit 14 set where nothing may be
+    /// stacked. A stacking blocked tile keeps its height: the client checks a moved furni's new tiles
+    /// against it and stands avatars on it.
+    /// </summary>
+    private static short EncodeHeight(Altitude height, RoomTileFlags flags)
     {
-        if (height < Altitude.Zero || stackingBlocked)
+        if (height < Altitude.Zero || flags.Has(RoomTileFlags.Disabled))
             return -1;
 
         int stackingMask = 1 << 14;
@@ -417,6 +423,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
             raw = heightMask;
 
         int value = raw;
+
+        if (flags.Has(RoomTileFlags.StackBlocked))
+            value |= stackingMask;
 
         value &= 0x7FFF;
 
@@ -444,10 +453,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
                     ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
 
                 tileHeights[id] = height;
-                tileEncodedHeights[id] = EncodeHeight(
-                    height,
-                    flags.Has(RoomTileFlags.StackBlocked)
-                );
+                tileEncodedHeights[id] = EncodeHeight(height, flags);
                 tileFlags[id] = flags;
                 tileHighestFloorItems[id] = NO_ITEM;
                 tileFloorStacks[id] = [];

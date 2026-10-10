@@ -437,7 +437,8 @@ public class BotDecoderRoundTripTests
     [Fact]
     public void HeightMap_DecodesEveryTile()
     {
-        short[] heights = [-1, 0, 256, 512, -1, 0];
+        // 0x4100: a tile at height 1 under furniture that blocks stacking.
+        short[] heights = [-1, 0, 256, 512, 0x4100, 0];
         var (_, reader) = Serialize(
             new HeightMapMessageComposer
             {
@@ -454,6 +455,7 @@ public class BotDecoderRoundTripTests
         Assert.Equal(heights, map.Heights);
         Assert.False(map.IsTile(0, 0));
         Assert.True(map.IsTile(1, 0));
+        Assert.False(map.IsTile(1, 1));
         Assert.Equal(0, reader.Remaining);
     }
 
