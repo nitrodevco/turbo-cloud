@@ -253,6 +253,30 @@ public class GroupForumPacketTests
     }
 
     [Fact]
+    public void a_read_marker_count_larger_than_the_packet_reads_only_the_markers_sent()
+    {
+        // A count of two billion with one marker behind it: sized from the count, the list alone
+        // would be gigabytes before a single marker is read.
+        var markers = (UpdateForumReadMarkerMessage)
+            PacketHarness.Parse(
+                PacketHarness.Incoming("UpdateForumReadMarkerMessageEvent"),
+                PacketHarness.Payload(w => w.Int(int.MaxValue).Int(10).Int(4).Bool(false))
+            );
+
+        Assert.Equal(
+            [
+                new GuildForumReadMarkerSnapshot
+                {
+                    GroupId = 10,
+                    LastReadMessageId = 4,
+                    MarkAll = false,
+                },
+            ],
+            markers.Markers
+        );
+    }
+
+    [Fact]
     public async Task requests_reach_the_forum_and_the_players_forums()
     {
         var harness = new PacketHarness();

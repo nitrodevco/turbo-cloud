@@ -3,12 +3,18 @@
 // thumbnails/<roomId>.json) into the PNG the client loads (stories.image_url_base + photos/<id>.png).
 //
 //   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>]
+//                   [--external-url <url prefix>]...
 //
 // What is drawn, far to near (the highest z first, as the client sorts them):
 //   - the planes: each a flat quad in its colour (the first is the background over the whole viewport);
 //   - the sprites: furniture assets looked up in the hotel's .nitro bundles (the CDN url the client's
-//     asset.urls.furni gives, cached under --cache), external images (http...), with the sprite's
-//     alpha, colour tint, flipH and additive blend.
+//     asset.urls.furni gives, cached under --cache), external images (http...) under one of the
+//     --external-url prefixes, with the sprite's alpha, colour tint, flipH and additive blend.
+//
+// The render data is the client's, so nothing in it is trusted: an external image is fetched only
+// from a prefix the hotel named (none by default), a library name is a plain file name, and the
+// canvas, the images decoded and the bytes downloaded are capped, so a crafted render can neither
+// reach other hosts nor run the server out of memory.
 // Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): avatars
 // (the client sends `avatar_<id>` only - the port has no figure sprite list), plane textures and
 // masks (the client sends none), the lab's filters.
@@ -22,12 +28,23 @@ const args = process.argv.slice(2);
 const positional = [];
 let cacheDir = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.cache');
 let furniUrl = 'https://images.nitrodev.co/bundled/furniture/%libname%.nitro';
+const externalUrls = [];
 
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--cache') cacheDir = args[++i];
     else if (args[i] === '--furni-url') furniUrl = args[++i];
+    else if (args[i] === '--external-url') externalUrls.push(new URL(args[++i]));
     else positional.push(args[i]);
 }
+
+// The client's viewfinder is a few hundred pixels a side (twice that zoomed); anything larger is
+// not a photo.
+const MAX_CANVAS_SIDE = 2048;
+const MAX_ITEMS = 5000;
+const MAX_IMAGE_PIXELS = 4096 * 4096;
+const MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
+const MAX_EXTERNAL_BYTES = 4 * 1024 * 1024;
+const LIBRARY_NAME = /^[A-Za-z0-9_-]+$/;
 
 const [ inPath, outPath ] = positional;
 
@@ -80,6 +97,7 @@ const decodePng = (buf) => {
     }
 
     if (bitDepth !== 8 || interlace !== 0) throw new Error(`unsupported png: depth ${bitDepth} interlace ${interlace}`);
+    if (!width || !height || width * height > MAX_IMAGE_PIXELS) throw new Error(`png too large: ${width}x${height}`);
 
     const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[colorType];
     const raw = inflateSync(Buffer.concat(idat));
@@ -195,16 +213,27 @@ const readZip = (buf) => {
 
 const bundles = new Map();
 
-const fetchBytes = async (url, cacheName) => {
+/** The body of a GET, refused past maxBytes; redirects are refused, so an allowed host cannot point elsewhere. */
+const fetchBytes = async (url, maxBytes, cacheName) => {
     const cachePath = cacheName ? join(cacheDir, cacheName) : null;
 
     if (cachePath && existsSync(cachePath)) return readFileSync(cachePath);
 
-    const response = await fetch(url);
+    const response = await fetch(url, { redirect: 'error' });
 
     if (!response.ok) throw new Error(`${response.status} ${url}`);
+    if (Number(response.headers.get('content-length') ?? 0) > maxBytes) throw new Error(`too large: ${url}`);
 
-    const bytes = Buffer.from(await response.arrayBuffer());
+    const chunks = [];
+    let total = 0;
+
+    for await (const chunk of response.body) {
+        total += chunk.length;
+        if (total > maxBytes) throw new Error(`too large: ${url}`);
+        chunks.push(chunk);
+    }
+
+    const bytes = Buffer.concat(chunks);
 
     if (cachePath) {
         mkdirSync(cacheDir, { recursive: true });
@@ -221,7 +250,7 @@ const loadBundle = async (lib) => {
     let bundle = null;
 
     try {
-        const entries = readZip(await fetchBytes(furniUrl.replace('%libname%', lib), `${lib}.nitro`));
+        const entries = readZip(await fetchBytes(furniUrl.replace('%libname%', lib), MAX_BUNDLE_BYTES, `${lib}.nitro`));
         let assets = {}, frames = {}, image = null;
 
         for (const [ name, bytes ] of Object.entries(entries)) {
@@ -270,6 +299,24 @@ const getAssetImage = (bundle, assetName) => {
     }
 
     return { width: frame.w, height: frame.h, data: out };
+};
+
+/** The url of an external image when it lies under one of the --external-url prefixes, else null. */
+const allowedExternalUrl = (name) => {
+    let url;
+
+    try {
+        url = new URL(name);
+    } catch {
+        return null;
+    }
+
+    if (url.username || url.password) return null;
+
+    const allowed = externalUrls.some(prefix =>
+        url.protocol === prefix.protocol && url.host === prefix.host && url.pathname.startsWith(prefix.pathname));
+
+    return allowed ? url : null;
 };
 
 // ---------- drawing ----------
@@ -341,9 +388,14 @@ const render = async () => {
     const background = planes[0];
 
     if (!background?.cornerPoints?.length) throw new Error('no background plane');
+    if (planes.length + sprites.length > MAX_ITEMS) throw new Error(`too many items: ${planes.length + sprites.length}`);
 
-    const width = Math.max(...background.cornerPoints.map(p => p.x));
-    const height = Math.max(...background.cornerPoints.map(p => p.y));
+    const width = Math.round(Math.max(...background.cornerPoints.map(p => Number(p.x))));
+    const height = Math.round(Math.max(...background.cornerPoints.map(p => Number(p.y))));
+
+    if (!(width > 0 && width <= MAX_CANVAS_SIDE && height > 0 && height <= MAX_CANVAS_SIDE)) {
+        throw new Error(`canvas out of range: ${width}x${height}`);
+    }
     const canvas = { width, height, data: new Uint8Array(width * height * 4) };
     const items = [
         ...planes.map(plane => ({ z: plane.z, plane })),
@@ -359,15 +411,17 @@ const render = async () => {
         let image = null;
 
         if (name.startsWith('http')) {
+            const url = allowedExternalUrl(name);
+
             try {
-                image = decodePng(await fetchBytes(name));
+                if (url) image = decodePng(await fetchBytes(url, MAX_EXTERNAL_BYTES));
             } catch (err) {
                 console.error(`external ${name}: ${err.message}`);
             }
         } else {
             const match = name.match(/^(.+?)_(64|32)_/);
 
-            if (match) {
+            if (match && LIBRARY_NAME.test(match[1])) {
                 const bundle = await loadBundle(match[1]);
 
                 if (bundle) image = getAssetImage(bundle, name);

@@ -107,6 +107,20 @@ public sealed class SessionGateway(
         if (observer is null)
             return;
 
+        // A connection is one player's for its life. Binding it to another would leave the first
+        // bound to it with no way out: online for good, and sent the second player's composers.
+        if (_sessionToPlayer.TryGetValue(key, out var bound) && bound != playerId)
+        {
+            _logger.LogWarning(
+                "Session {SessionKey} of player {PlayerId} asked to log in as player {OtherPlayerId}; refused",
+                key,
+                bound,
+                playerId
+            );
+
+            return;
+        }
+
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         _sessionToPlayer[key] = playerId;

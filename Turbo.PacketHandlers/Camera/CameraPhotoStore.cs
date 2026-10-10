@@ -22,16 +22,30 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
         new();
     private readonly ConcurrentDictionary<int, DateTime> _lastPublished = new();
 
-    /// <summary>The render data's JSON, or null when it is not zlib data.</summary>
-    public static string? Inflate(byte[] data)
+    /// <summary>
+    /// The render data's JSON, or null when it is not zlib data or inflates past
+    /// <see cref="CameraConfig.MaxRenderDataBytes"/>: a few KB of zlib can inflate to gigabytes,
+    /// so it is read in pieces and given up on at the limit rather than read to the end.
+    /// </summary>
+    public string? Inflate(byte[] data)
     {
         try
         {
             using var input = new MemoryStream(data);
             using var zlib = new ZLibStream(input, CompressionMode.Decompress);
-            using var reader = new StreamReader(zlib, Encoding.UTF8);
+            using var output = new MemoryStream();
+            var buffer = new byte[81920];
+            int read;
 
-            return reader.ReadToEnd();
+            while ((read = zlib.Read(buffer)) > 0)
+            {
+                if (output.Length + read > _config.MaxRenderDataBytes)
+                    return null;
+
+                output.Write(buffer, 0, read);
+            }
+
+            return Encoding.UTF8.GetString(output.GetBuffer(), 0, (int)output.Length);
         }
         catch (InvalidDataException)
         {

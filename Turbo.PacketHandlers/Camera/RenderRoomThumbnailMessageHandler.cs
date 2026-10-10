@@ -39,24 +39,30 @@ public class RenderRoomThumbnailMessageHandler(
             .GetRoomGrain(ctx.RoomId)
             .GetControllerLevelAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);
-        var json =
-            level >= RoomControllerType.Owner ? CameraPhotoStore.Inflate(message.Data) : null;
+        var limitHit = false;
+        string? json = null;
+
+        // Counted before it is inflated, so data that is not a render is refused within the limit too.
+        if (level >= RoomControllerType.Owner)
+        {
+            limitHit = !store.TryCount(
+                ctx.PlayerId.Value,
+                "thumbnail",
+                _config.ThumbnailLimitPerDay
+            );
+
+            if (!limitHit)
+                json = store.Inflate(message.Data);
+        }
 
         if (json is null)
         {
             await ctx.SendComposerAsync(
-                    new ThumbnailStatusMessageComposer { IsOk = false, IsRenderLimitHit = false },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            return;
-        }
-
-        if (!store.TryCount(ctx.PlayerId.Value, "thumbnail", _config.ThumbnailLimitPerDay))
-        {
-            await ctx.SendComposerAsync(
-                    new ThumbnailStatusMessageComposer { IsOk = false, IsRenderLimitHit = true },
+                    new ThumbnailStatusMessageComposer
+                    {
+                        IsOk = false,
+                        IsRenderLimitHit = limitHit,
+                    },
                     ct
                 )
                 .ConfigureAwait(false);

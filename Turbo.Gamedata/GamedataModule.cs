@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Assets;
+using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Files;
@@ -76,6 +77,9 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<AssetBundleChecks>();
         services.AddSingleton<IAssetBundleService, AssetBundleService>();
         services.AddSingleton<IAssetSyncService, AssetSyncService>();
+        services.AddSingleton<AssetPasswordSealer>();
+        services.AddSingleton<PublishConnections>();
+        services.AddSingleton<IAssetPublishService, AssetPublishService>();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<GamedataServer>();
     }
