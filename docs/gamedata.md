@@ -186,10 +186,13 @@ unpacked.
 `NitroConverter.Convert` turns any of them into the `.nitro` bundle the client loads. It is the
 studio's converter ported to C#, and writes what that converter wrote:
 
-- **Asset data** (`AssetDataMapper`): the index, manifest, assets, logic and visualization documents
-  and palette colours, filtered to the sizes the client draws (`AssetDataFilter`). Keys come in the
-  same order, numbers are read and written as JavaScript reads and writes them, and a value it would
-  leave out is left out.
+- **Asset data** (`AssetDataMapper`): the index, manifest, animation, assets, logic and
+  visualization documents and palette colours, filtered to the sizes the client draws
+  (`AssetDataFilter`). Keys come in the same order, numbers are read and written as JavaScript reads
+  and writes them, and a value it would leave out is left out.
+- **Avatar effects** (asset type `fx`): the `animation` document becomes the `animations` the
+  client's effects play (sprites, frames of effect and body parts, avatar layering, overrides), and
+  the effect's assets are kept at every size but its `sh_` shadows, as for clothing (`figure`).
 - **Images**: SWF bitmaps (lossless, JPEG with alpha) decoded with SkiaSharp and kept as
   unpremultiplied bytes, never redrawn.
 - **The sheet** (`SpriteSheetPacker`): the images the assets use, trimmed of transparent edges,
@@ -198,9 +201,10 @@ studio's converter ported to C#, and writes what that converter wrote:
 - **A `.nitro`** is taken as it is.
 
 It was checked against the studio's converter on 79 of Habbo's libraries (furniture, pets,
-clothing): the asset data is byte for byte the same, and every frame has the same name, trim and
-pixels. Not ported yet: the `animation` document (avatar effects) and `room_visualization` (the room
-library). The sheets pack differently, which the client does not see.
+clothing), and on all 252 of Habbo's effect libraries: the asset data is byte for byte the same, and
+every frame has the same name, trim and pixels (for the effects, the same name, trim and size). Not
+ported: `room_visualization`, which only the room library has. The sheets pack differently, which
+the client does not see.
 
 ## Serving the files
 

@@ -177,6 +177,7 @@ public sealed class NitroConverterTests
     [InlineData(1.1125, "1.1125")]
     [InlineData(1e21, "1e+21")]
     [InlineData(123456789012345678d, "123456789012345680")]
+    [InlineData(-0d, "0")]
     public void numbers_are_written_as_javascript_writes_them(double value, string expected) =>
         JsValues.Number(value)!.ToJsonString().Should().Be(expected);
 

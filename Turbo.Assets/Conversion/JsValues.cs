@@ -113,6 +113,10 @@ internal static class JsValues
         if (value is not { } number || !double.IsFinite(number))
             return null;
 
+        // JSON.stringify writes -0 (parseInt("-0")) as 0; .NET would write -0.
+        if (number == 0)
+            number = 0;
+
         // Whole numbers below 1e15 write alike either way (.NET turns to an exponent past them).
         if (number == Math.Floor(number) && Math.Abs(number) < 1e15)
             return JsonValue.Create(number);
