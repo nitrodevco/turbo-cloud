@@ -66,6 +66,7 @@ internal sealed class GamedataEndpoints(
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
         group.MapPost("/furniture/habbo-values", TakeHabboValuesAsync);
         group.MapPost("/files/{file}/build", RebuildAsync);
+        group.MapPut("/files/{file}/key", SetFileKeyAsync);
         group.MapGet("/texts/import", TextPreviewAsync);
         group.MapPost("/texts/import/{versionId:int}", TextImportAsync);
         group.MapGet(
@@ -159,6 +160,7 @@ internal sealed class GamedataEndpoints(
                 productData.File,
                 figureData.File,
                 externalVariables.File,
+                await variables.GetFileKeysAsync(ct).ConfigureAwait(false),
                 await CanManageAsync(http, ct).ConfigureAwait(false)
             )
         );
@@ -315,6 +317,37 @@ internal sealed class GamedataEndpoints(
                 GamedataFiles.IsKnown(file)
                     ? Results.Ok((await files.RebuildAsync(file, ct).ConfigureAwait(false)).File)
                     : Results.NotFound()
+        );
+
+    private Task<IResult> SetFileKeyAsync(
+        string file,
+        FileKeyRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        await variables
+                            .SetFileKeyAsync(
+                                file,
+                                request.Key ?? string.Empty,
+                                AdminIdentity.Of(http).PlayerId,
+                                ct
+                            )
+                            .ConfigureAwait(false)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
         );
 
     private async Task<IResult> TextPreviewAsync(int? versionId, CancellationToken ct) =>
@@ -799,7 +832,11 @@ internal sealed class GamedataEndpoints(
                 {
                     return Results.Ok(
                         await variables
-                            .PreviewImportAsync(request.Json ?? string.Empty, ct)
+                            .PreviewImportAsync(
+                                request.Json ?? string.Empty,
+                                request.RemoveMissing,
+                                ct
+                            )
                             .ConfigureAwait(false)
                     );
                 }
@@ -828,6 +865,7 @@ internal sealed class GamedataEndpoints(
                             changeSet = await variables
                                 .ImportAsync(
                                     request.Json ?? string.Empty,
+                                    request.RemoveMissing,
                                     AdminIdentity.Of(http).PlayerId,
                                     ct
                                 )

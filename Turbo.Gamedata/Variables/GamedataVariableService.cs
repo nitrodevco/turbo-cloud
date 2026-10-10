@@ -205,27 +205,9 @@ internal sealed class GamedataVariableService(
             row.LinkedFile = null;
         }
         else if (linked is not null)
-        {
-            // Its own value stays, written while there is no public address; a new one starts at
-            // the file's address that never changes.
-            if (before is null || before.Setting is not null)
-                row.Value = ExternalVariablesFile.StableAddress(_config.PublicUrl, linked);
-
-            row.SettingPath = null;
-            row.LinkedFile = linked;
-        }
+            Follow(row, linked, before);
         else
-        {
-            // Unlinked, it keeps what it was: the setting's value, or the file's address that never
-            // changes rather than one by hash that is pruned in time.
-            row.Value =
-                row.SettingPath is { } was ? settings.GetValue(was) ?? row.Value
-                : row.LinkedFile is { } wasFile && !string.IsNullOrWhiteSpace(_config.PublicUrl)
-                    ? ExternalVariablesFile.StableAddress(_config.PublicUrl, wasFile)
-                : row.Value;
-            row.SettingPath = null;
-            row.LinkedFile = null;
-        }
+            Unlink(row);
 
         var after = State(row);
 
@@ -259,6 +241,146 @@ internal sealed class GamedataVariableService(
             .ConfigureAwait(false);
 
         return Entry(row.Key, row.Value, row.SettingPath, row.LinkedFile, addresses);
+    }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetFileKeysAsync(
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var linked = await dbCtx
+            .GamedataVariables.AsNoTracking()
+            .Where(x => x.LinkedFile != null)
+            .Select(x => new { x.Key, x.LinkedFile })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return ExternalVariablesFile.LINKABLE.ToDictionary(
+            file => file,
+            IReadOnlyList<string> (file) =>
+                [
+                    .. linked
+                        .Where(x => x.LinkedFile == file)
+                        .Select(x => x.Key)
+                        .Order(StringComparer.Ordinal),
+                ],
+            StringComparer.Ordinal
+        );
+    }
+
+    public Task<VariableEntrySnapshot> SetFileKeyAsync(
+        string file,
+        string key,
+        PlayerId player,
+        CancellationToken ct
+    ) => writes.RunAsync(() => SetFileKeyLockedAsync(file, key, player, ct), ct);
+
+    private async Task<VariableEntrySnapshot> SetFileKeyLockedAsync(
+        string file,
+        string key,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        key = CheckKey(key);
+        file = CheckFile(file);
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var rows = await dbCtx
+            .GamedataVariables.Where(x => x.Key == key || x.LinkedFile == file)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var row = rows.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.Ordinal));
+        var changes = new List<(GamedataVariableEntity Row, VariableState? Before)>();
+
+        foreach (var other in rows.Where(x => x != row && x.LinkedFile == file))
+        {
+            changes.Add((other, State(other)));
+            Unlink(other);
+        }
+
+        var before = row is null ? null : State(row);
+
+        if (row is null)
+        {
+            row = new GamedataVariableEntity { Key = key, Value = "null" };
+            dbCtx.GamedataVariables.Add(row);
+        }
+
+        Follow(row, file, before);
+
+        if (before != State(row))
+            changes.Add((row, before));
+
+        if (changes.Count > 0)
+        {
+            var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            await using var txScope = tx.ConfigureAwait(false);
+
+            // The rows first, so the changes can name the id of one just added.
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            dbCtx.GamedataChangeSets.Add(
+                new GamedataChangeSetEntity
+                {
+                    Kind = GamedataChangeKind.Edit,
+                    Summary = Truncate(
+                        $"Set the variable {key} to carry the address of {file}",
+                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
+                    ),
+                    PlayerEntityId = player.Value,
+                    Changes =
+                    [
+                        .. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id)),
+                    ],
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+
+            files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        }
+
+        var addresses = await ExternalVariablesFile
+            .AddressesAsync(files, _config.PublicUrl, ct)
+            .ConfigureAwait(false);
+
+        return Entry(row.Key, row.Value, row.SettingPath, row.LinkedFile, addresses);
+    }
+
+    /// <summary>
+    /// A variable following the file's address. Its own value stays, written while there is no
+    /// public address; a new one, or one that followed a setting, starts at the file's address that
+    /// never changes.
+    /// </summary>
+    private void Follow(GamedataVariableEntity row, string file, VariableState? before)
+    {
+        if (before is null || before.Setting is not null)
+            row.Value = ExternalVariablesFile.StableAddress(_config.PublicUrl, file);
+
+        row.SettingPath = null;
+        row.LinkedFile = file;
+    }
+
+    /// <summary>
+    /// A variable following nothing, keeping what it was: the setting's value, or the file's address
+    /// that never changes rather than one by hash that is pruned in time.
+    /// </summary>
+    private void Unlink(GamedataVariableEntity row)
+    {
+        row.Value =
+            row.SettingPath is { } was ? settings.GetValue(was) ?? row.Value
+            : row.LinkedFile is { } wasFile && !string.IsNullOrWhiteSpace(_config.PublicUrl)
+                ? ExternalVariablesFile.StableAddress(_config.PublicUrl, wasFile)
+            : row.Value;
+        row.SettingPath = null;
+        row.LinkedFile = null;
     }
 
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct) =>
@@ -297,12 +419,17 @@ internal sealed class GamedataVariableService(
         return true;
     }
 
-    public async Task<VariableImportPreview> PreviewImportAsync(string json, CancellationToken ct)
+    public async Task<VariableImportPreview> PreviewImportAsync(
+        string json,
+        bool removeMissing,
+        CancellationToken ct
+    )
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var plan = await PlanAsync(dbCtx, json, tracked: false, ct).ConfigureAwait(false);
+        var plan = await PlanAsync(dbCtx, json, removeMissing, tracked: false, ct)
+            .ConfigureAwait(false);
         var limit = Math.Max(0, _config.PreviewItemLimit);
 
         return new VariableImportPreview
@@ -326,17 +453,20 @@ internal sealed class GamedataVariableService(
                     }),
             ],
             Truncated = plan.Items.Count > limit,
+            Removed = [.. plan.Removed.Select(x => x.Key)],
         };
     }
 
     public Task<GamedataChangeSetSnapshot?> ImportAsync(
         string json,
+        bool removeMissing,
         PlayerId player,
         CancellationToken ct
-    ) => writes.RunAsync(() => ImportLockedAsync(json, player, ct), ct);
+    ) => writes.RunAsync(() => ImportLockedAsync(json, removeMissing, player, ct), ct);
 
     private async Task<GamedataChangeSetSnapshot?> ImportLockedAsync(
         string json,
+        bool removeMissing,
         PlayerId player,
         CancellationToken ct
     )
@@ -344,9 +474,10 @@ internal sealed class GamedataVariableService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var plan = await PlanAsync(dbCtx, json, tracked: true, ct).ConfigureAwait(false);
+        var plan = await PlanAsync(dbCtx, json, removeMissing, tracked: true, ct)
+            .ConfigureAwait(false);
 
-        if (plan.Items.Count == 0)
+        if (plan.Items.Count == 0 && plan.Removed.Count == 0)
             return null;
 
         var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
@@ -372,6 +503,8 @@ internal sealed class GamedataVariableService(
             }
         }
 
+        dbCtx.GamedataVariables.RemoveRange(plan.Removed);
+
         // The rows first, so the changes can name the ids of the ones just added.
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -379,11 +512,17 @@ internal sealed class GamedataVariableService(
         {
             Kind = GamedataChangeKind.Edit,
             Summary = Truncate(
-                $"Imported {plan.Items.Count} variables from a client config",
+                plan.Removed.Count == 0
+                    ? $"Imported {plan.Items.Count} variables from a client config"
+                    : $"Imported {plan.Items.Count} variables from a client config and removed {plan.Removed.Count} it lacks",
                 GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
             ),
             PlayerEntityId = player.Value,
-            Changes = [.. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id))],
+            Changes =
+            [
+                .. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id)),
+                .. plan.Removed.Select(x => Change(x.Key, State(x), null, x.Id)),
+            ],
         };
 
         dbCtx.GamedataChangeSets.Add(changeSet);
@@ -392,9 +531,10 @@ internal sealed class GamedataVariableService(
         await tx.CommitAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Player {PlayerId} imported {Count} external variables",
+            "Player {PlayerId} imported {Count} external variables and removed {Removed}",
             player.Value,
-            plan.Items.Count
+            plan.Items.Count,
+            plan.Removed.Count
         );
 
         files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
@@ -474,6 +614,7 @@ internal sealed class GamedataVariableService(
     private async Task<VariablePlan> PlanAsync(
         TurboDbContext dbCtx,
         string json,
+        bool removeMissing,
         bool tracked,
         CancellationToken ct
     )
@@ -522,6 +663,15 @@ internal sealed class GamedataVariableService(
         plan.Items.Reverse();
         plan.Skipped.Reverse();
 
+        // What the config lacks, but not what follows a setting or a file: the hotel writes those.
+        if (removeMissing)
+            plan.Removed.AddRange(
+                ours.Values.Where(x =>
+                        !seen.Contains(x.Key) && x.SettingPath is null && x.LinkedFile is null
+                    )
+                    .OrderBy(x => x.Key, StringComparer.Ordinal)
+            );
+
         return plan;
     }
 
@@ -569,6 +719,8 @@ internal sealed class GamedataVariableService(
         public List<VariablePlanItem> Items { get; } = [];
 
         public List<string> Skipped { get; } = [];
+
+        public List<GamedataVariableEntity> Removed { get; } = [];
 
         public int Unchanged { get; set; }
     }

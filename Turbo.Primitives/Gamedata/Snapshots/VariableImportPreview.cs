@@ -28,4 +28,11 @@ public sealed record VariableImportPreview
 
     [Id(5)]
     public required bool Truncated { get; init; }
+
+    /// <summary>
+    /// The hotel's variables the config lacks, removed when asked; empty otherwise. One that
+    /// follows a setting or a file is never among them.
+    /// </summary>
+    [Id(6)]
+    public ImmutableArray<string> Removed { get; init; } = [];
 }

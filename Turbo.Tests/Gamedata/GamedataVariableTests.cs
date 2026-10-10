@@ -201,6 +201,50 @@ public sealed class GamedataVariableTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task a_files_key_can_be_changed_moving_its_address_and_rolls_back_as_one()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        SeedAddresses();
+
+        var furniture = await hotel.Files.GetCurrentAsync(GamedataFiles.FURNITURE_DATA, Ct);
+        var byHash = $"{PUBLIC_URL}/gamedata/furnidata_json/{furniture.File.Hash}";
+
+        var set = await hotel.Variables.SetFileKeyAsync(
+            GamedataFiles.FURNITURE_DATA,
+            "furni.url",
+            STAFF,
+            Ct
+        );
+
+        set.File.Should().Be(GamedataFiles.FURNITURE_DATA);
+
+        var after = (await VariablesAsync(hotel)).Variables;
+
+        after["furni.url"]!.GetValue<string>().Should().Be(byHash);
+        // The key it had keeps the address that never changes.
+        after["furnituredata.url"]!
+            .GetValue<string>()
+            .Should()
+            .Be($"{PUBLIC_URL}/gamedata/furnidata_json/0");
+        var keys = await hotel.Variables.GetFileKeysAsync(Ct);
+
+        keys[GamedataFiles.FURNITURE_DATA].Should().Equal("furni.url");
+        keys[GamedataFiles.PRODUCT_DATA].Should().Equal("productdata.url");
+
+        var change = (await hotel.History.ListAsync(0, Ct))[0];
+
+        change.ChangeCount.Should().Be(2);
+
+        await hotel.History.RollbackAsync(change.Id, STAFF, Ct);
+
+        var rolledBack = (await VariablesAsync(hotel)).Variables;
+
+        rolledBack.ContainsKey("furni.url").Should().BeFalse();
+        rolledBack["furnituredata.url"]!.GetValue<string>().Should().Be(byHash);
+    }
+
+    [Fact]
     public async Task without_a_public_address_a_variable_following_a_file_writes_its_own_value()
     {
         var hotel = Hotel();
@@ -242,6 +286,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
 
         var preview = await hotel.Variables.PreviewImportAsync(
             """{ "furnituredata.url": "https://x", "socket.url": "wss://y" }""",
+            false,
             Ct
         );
 
@@ -258,6 +303,49 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         var save = () => Hotel().Variables.SaveAsync(key, value, STAFF, Ct);
 
         await save.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task an_import_asked_to_remove_the_keys_the_config_lacks_but_not_linked_ones()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        SeedAddresses();
+        await hotel.Variables.SaveAsync("gone", "1", STAFF, Ct);
+        await hotel.Variables.SaveAsync("kept", "1", STAFF, Ct);
+        await hotel.Variables.LinkAsync("hotel.name", "Test:Hotel:Name", null, STAFF, Ct);
+
+        const string CONFIG = """{ "kept": 1, "added": true }""";
+
+        (await hotel.Variables.PreviewImportAsync(CONFIG, false, Ct)).Removed.Should().BeEmpty();
+
+        var preview = await hotel.Variables.PreviewImportAsync(CONFIG, true, Ct);
+
+        preview.Removed.Should().Equal("gone");
+        preview.Added.Should().Be(1);
+
+        var set = await hotel.Variables.ImportAsync(CONFIG, true, STAFF, Ct);
+
+        set!.ChangeCount.Should().Be(2);
+        (await VariablesAsync(hotel))
+            .Variables.Select(x => x.Key)
+            .Should()
+            .BeEquivalentTo(
+                "kept",
+                "added",
+                "hotel.name",
+                "furnituredata.url",
+                "productdata.url",
+                "gamedata.urls.externalTexts",
+                "figuredata.url"
+            );
+
+        await hotel.History.RollbackAsync(set.Id, STAFF, Ct);
+
+        var rolledBack = (await VariablesAsync(hotel)).Variables;
+
+        rolledBack["gone"]!.GetValue<int>().Should().Be(1);
+        rolledBack.ContainsKey("added").Should().BeFalse();
     }
 
     [Fact]
@@ -279,13 +367,13 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             }
             """;
 
-        var preview = await hotel.Variables.PreviewImportAsync(CONFIG, Ct);
+        var preview = await hotel.Variables.PreviewImportAsync(CONFIG, false, Ct);
 
         preview.Added.Should().Be(2);
         preview.Updated.Should().Be(1);
         preview.Unchanged.Should().Be(1);
 
-        var set = await hotel.Variables.ImportAsync(CONFIG, STAFF, Ct);
+        var set = await hotel.Variables.ImportAsync(CONFIG, false, STAFF, Ct);
 
         (await VariablesAsync(hotel))
             .Variables.ToDictionary(x => x.Key, x => x.Value!.ToJsonString())
@@ -300,7 +388,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                     ["twice"] = "\"last\"",
                 }
             );
-        (await hotel.Variables.ImportAsync(CONFIG, STAFF, Ct)).Should().BeNull();
+        (await hotel.Variables.ImportAsync(CONFIG, false, STAFF, Ct)).Should().BeNull();
 
         await hotel.History.RollbackAsync(set!.Id, STAFF, Ct);
 
@@ -342,8 +430,8 @@ public sealed class GamedataVariableTests : IAsyncDisposable
     {
         var hotel = Hotel();
 
-        var notJson = () => hotel.Variables.PreviewImportAsync("socket.url=wss://x", Ct);
-        var notObject = () => hotel.Variables.ImportAsync("[1, 2]", STAFF, Ct);
+        var notJson = () => hotel.Variables.PreviewImportAsync("socket.url=wss://x", false, Ct);
+        var notObject = () => hotel.Variables.ImportAsync("[1, 2]", false, STAFF, Ct);
 
         await notJson.Should().ThrowAsync<ArgumentException>();
         await notObject.Should().ThrowAsync<ArgumentException>();
@@ -447,11 +535,12 @@ public sealed class GamedataVariableTests : IAsyncDisposable
 
         var preview = await hotel.Variables.PreviewImportAsync(
             """{ "hotel.name": "Imported" }""",
+            false,
             Ct
         );
 
         preview.Skipped.Should().Equal("hotel.name");
-        (await hotel.Variables.ImportAsync("""{ "hotel.name": "Imported" }""", STAFF, Ct))
+        (await hotel.Variables.ImportAsync("""{ "hotel.name": "Imported" }""", false, STAFF, Ct))
             .Should()
             .BeNull();
     }

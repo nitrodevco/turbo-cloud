@@ -245,8 +245,10 @@ longer publishes them.
   `true`, `120`, `[1, 2]`). Keys are case-sensitive, as they are to the client.
 - **Staff** edit them under **Gamedata > Variables**: search, add, change and remove a variable, or
   **Import** a whole config (paste or upload a `nitro-config.json`). An import adds the keys the
-  hotel lacks and changes those that differ; the hotel's other variables stay. Every edit and
-  import is a change set and rolls back like any other.
+  hotel lacks and changes those that differ; the hotel's other variables stay, unless **Remove the
+  hotel's variables the config doesn't have** is ticked: then those are removed too, listed in the
+  review first. A variable that follows a setting or a file is never removed. Every edit and import
+  is a change set and rolls back like any other.
 - **A variable can follow something** instead of holding a value of its own. **Link** it on the
   Variables tab, and the file writes what it follows, built again whenever that changes:
   - **a server setting** (`Turbo:Web:HotelName`, say): its value configured now, so saving the
@@ -262,6 +264,10 @@ longer publishes them.
   `figuredata.url` and `gamedata.urls.externalTexts` to theirs, keeping any value they had as the
   one written while there is no `PublicUrl`, and adding them at `/gamedata/<file>/0` when they were
   missing. To serve one from elsewhere (a CDN), give it a value of its own.
+- **A file's client setting can be changed** on **Gamedata > Overview**, under **Files the client
+  loads**, for a client that reads its address under another key: the key chosen follows the file
+  (added if the hotel lacks it), and the key that did before is unlinked, keeping the file's `/0`
+  address. One change set, rolled back as one (`PUT /api/gamedata/files/<file>/key`).
 - **Following stops** when a variable is given a value of its own, or on **Unlink**, which keeps
   what it was: a setting's value, or a file's `/0` address (it redirects to the current build; an
   address by hash is pruned in time). An import leaves a variable that follows something alone.

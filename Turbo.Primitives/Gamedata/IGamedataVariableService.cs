@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -44,22 +45,50 @@ public interface IGamedataVariableService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// The variables that follow each file's address, by file: every file a variable can follow,
+    /// with no keys for one nothing follows.
+    /// </summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetFileKeysAsync(
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Makes the variable under this key the one that carries the file's address: it follows the
+    /// file (added when there is none), and every other variable that did is unlinked, keeping the
+    /// file's address that never changes. One change set. Throws
+    /// <see cref="System.ArgumentException"/> for an empty or overlong key, or a file no variable
+    /// can follow.
+    /// </summary>
+    public Task<VariableEntrySnapshot> SetFileKeyAsync(
+        string file,
+        string key,
+        PlayerId player,
+        CancellationToken ct
+    );
+
     /// <summary>Removes a variable; false when there is none.</summary>
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct);
 
     /// <summary>
-    /// What importing the config (a JSON object, as <c>nitro-config.json</c>) would do. Throws
-    /// <see cref="System.ArgumentException"/> when it isn't a JSON object.
+    /// What importing the config (a JSON object, as <c>nitro-config.json</c>) would do, removing the
+    /// variables it lacks when asked. Throws <see cref="System.ArgumentException"/> when it isn't a
+    /// JSON object.
     /// </summary>
-    public Task<VariableImportPreview> PreviewImportAsync(string json, CancellationToken ct);
+    public Task<VariableImportPreview> PreviewImportAsync(
+        string json,
+        bool removeMissing,
+        CancellationToken ct
+    );
 
     /// <summary>
-    /// Takes in every key of the config, added or changed; the hotel's other variables stay, and so
-    /// does a variable that follows a setting or a file. Null
-    /// when the hotel already had everything; otherwise the change set made.
+    /// Takes in every key of the config, added or changed. The hotel's other variables stay, or with
+    /// <paramref name="removeMissing"/> are removed; a variable that follows a setting or a file
+    /// stays either way. Null when the hotel already had everything; otherwise the change set made.
     /// </summary>
     public Task<GamedataChangeSetSnapshot?> ImportAsync(
         string json,
+        bool removeMissing,
         PlayerId player,
         CancellationToken ct
     );
