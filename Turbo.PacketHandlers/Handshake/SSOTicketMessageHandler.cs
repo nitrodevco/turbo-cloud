@@ -53,6 +53,10 @@ public class SSOTicketMessageHandler(
         CancellationToken ct
     )
     {
+        // A connection logs in once; a second ticket on it is not a way to become someone else.
+        if (ctx.PlayerId > 0)
+            return;
+
         var ticket = message.SSO;
         var playerId = await _authService
             .GetPlayerIdFromTicketAsync(ticket, ct)

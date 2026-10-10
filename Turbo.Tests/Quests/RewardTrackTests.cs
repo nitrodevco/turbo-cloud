@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -5,6 +6,7 @@ using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
@@ -322,6 +324,59 @@ public sealed class RewardTrackTests : IDisposable
         credit.Args[0].Should().Be(CurrencyKind.ActivityPoints(0));
         credit.Args[1].Should().Be(5);
         credit.Args[2].Should().Be("rewardtrack:introduction:duckets");
+    }
+
+    [Fact]
+    public async Task A_furniture_prize_that_fails_part_way_gives_only_the_rest_when_claimed_again()
+    {
+        _config
+            .Tracks[0]
+            .Prizes.Add(
+                new()
+                {
+                    Id = "chairs",
+                    RequiredPoints = 10,
+                    ProductType = ProductDisplayType.FloorItem,
+                    FurnitureDefinitionId = 42,
+                    Amount = 3,
+                }
+            );
+
+        var given = 0;
+        var failed = false;
+
+        _fakes.Handlers["GrantFurnitureAsync"] = _ =>
+        {
+            // The second item fails once, as a database timeout would.
+            if (given == 1 && !failed)
+            {
+                failed = true;
+
+                throw new TimeoutException("inventory did not answer");
+            }
+
+            given++;
+
+            return Task.FromResult<FurnitureItemSnapshot?>(
+                (FurnitureItemSnapshot)
+                    RuntimeHelpers.GetUninitializedObject(typeof(FurnitureItemSnapshot))
+            );
+        };
+
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+
+        var first = () => grain.ClaimPrizeAsync(TRACK, "chairs", Ct);
+        await first.Should().ThrowAsync<TimeoutException>();
+
+        await grain.ClaimPrizeAsync(TRACK, "chairs", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "chairs", Ct);
+
+        given.Should().Be(3, "the prize is three chairs, however many tries it took");
+        Sent<RewardTrackClaimResultMessageComposer>()
+            .Select(x => x.Result)
+            .Should()
+            .Equal(RewardTrackClaimResult.Success, RewardTrackClaimResult.AlreadyClaimed);
     }
 
     [Fact]

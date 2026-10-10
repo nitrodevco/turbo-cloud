@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,11 @@ namespace Turbo.Networking.Session;
 /// ordinary close path (<see cref="SessionGateway.RemoveSessionAsync"/>) takes the player out of
 /// their room and offline. A connection that never logged in is not pinged, so it is closed once
 /// it has been silent that long too.
+///
+/// The connections are checked side by side, and a Ping that cannot be sent within one interval
+/// closes its connection: a client that keeps sending but stops reading fills its socket, its
+/// sends wait on one another, and checking connections one after another let that one stall the
+/// heartbeat for every other connection in the hotel.
 /// </summary>
 internal sealed class SessionHeartbeat(
     NetworkingConfig config,
@@ -93,26 +99,35 @@ internal sealed class SessionHeartbeat(
     {
         var silentSince =
             DateTime.UtcNow - TimeSpan.FromMilliseconds(_config.SessionTimeoutMilliseconds);
+        var checks = new List<Task>();
 
         foreach (var session in _sessionGateway.GetSessions())
         {
-            if (session.Connection.IsClosed)
-                continue;
+            if (!session.Connection.IsClosed)
+                checks.Add(CheckEachAsync(session, silentSince, ct));
+        }
 
-            // Each connection on its own: one that fails to close must not keep the rest from
-            // being checked.
-            try
-            {
-                await CheckAsync(session, silentSince, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogError(
-                    ex,
-                    "Session heartbeat failed for session {SessionKey}",
-                    session.SessionKey
-                );
-            }
+        await Task.WhenAll(checks).ConfigureAwait(false);
+    }
+
+    // Each connection on its own: one that fails to close must not keep the rest from being checked.
+    private async Task CheckEachAsync(
+        ISessionContext session,
+        DateTime silentSince,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await CheckAsync(session, silentSince, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "Session heartbeat failed for session {SessionKey}",
+                session.SessionKey
+            );
         }
     }
 
@@ -141,7 +156,30 @@ internal sealed class SessionHeartbeat(
 
         // Only a logged-in client is set up to answer; before the handshake finishes a Ping would
         // reach one that cannot read it yet.
-        if (_sessionGateway.GetPlayerId(session.SessionKey) > 0)
-            await session.SendComposerAsync(PING, ct).ConfigureAwait(false);
+        if (_sessionGateway.GetPlayerId(session.SessionKey) <= 0)
+            return;
+
+        using var ping = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        ping.CancelAfter(_config.PingIntervalMilliseconds);
+
+        try
+        {
+            await session.SendComposerAsync(PING, ping.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogInformation(
+                "Closing session {SessionKey}: a Ping could not be sent within {Interval} ms",
+                session.SessionKey,
+                _config.PingIntervalMilliseconds
+            );
+
+            await session
+                .CloseSessionAsync(
+                    $"heartbeat send stalled for {_config.PingIntervalMilliseconds} ms"
+                )
+                .ConfigureAwait(false);
+        }
     }
 }
