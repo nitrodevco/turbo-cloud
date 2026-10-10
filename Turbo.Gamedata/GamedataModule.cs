@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Gamedata.Api;
+using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Files;
@@ -38,6 +39,9 @@ public sealed class GamedataModule : IHostPluginModule
         services.Configure<GamedataConfig>(
             builder.Configuration.GetSection(GamedataConfig.SECTION_NAME)
         );
+        services.Configure<AssetBundleConfig>(
+            builder.Configuration.GetSection(AssetBundleConfig.SECTION_NAME)
+        );
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpClient(
@@ -67,6 +71,8 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();
         services.AddSingleton<IFigureDataProvider, FigureDataProvider>();
         services.AddSingleton<IGamedataImportJobs, FurnitureImportJobs>();
+        services.AddSingleton<IAssetBundleStore, AssetBundleStore>();
+        services.AddSingleton<IAssetJobs, AssetJobs>();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<GamedataServer>();
     }

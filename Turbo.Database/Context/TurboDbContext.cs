@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Admin;
+using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
@@ -55,6 +56,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HabboReleaseEntity> HabboReleases { get; init; }
     public DbSet<HabboFurnitureEntity> HabboFurniture { get; init; }
     public DbSet<HabboFurnitureAssetEntity> HabboFurnitureAssets { get; init; }
+    public DbSet<AssetBundleEntity> AssetBundles { get; init; }
+    public DbSet<AssetPublishTargetEntity> AssetPublishTargets { get; init; }
+    public DbSet<AssetPublishedFileEntity> AssetPublishedFiles { get; init; }
+    public DbSet<AssetPublishEntity> AssetPublishes { get; init; }
     public DbSet<HabboTextVersionEntity> HabboTextVersions { get; init; }
     public DbSet<HabboTextEntity> HabboTexts { get; init; }
     public DbSet<GamedataTextEntity> GamedataTexts { get; init; }
