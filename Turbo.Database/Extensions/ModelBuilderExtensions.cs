@@ -39,7 +39,19 @@ public static class ModelBuilderExtensions
                 {
                     // If this is an enum, HasDefaultValue(enumValue) is fine
                     // provided the property is mapped as enum (or has a converter).
-                    entity.Property(prop.Name).HasDefaultValue(constAttr.Value);
+                    var property = entity.Property(prop.Name).HasDefaultValue(constAttr.Value);
+
+                    // A value type's CLR default (0, false, an enum's first member) is a real
+                    // value, but EF leaves a column holding it out of an INSERT so the database
+                    // default can apply: a room's first raid setting saved as "kick" (0) was
+                    // stored as the default "temporary ban". EF always writes these instead; the
+                    // property's initializer carries the default, and the database default is
+                    // for rows written outside EF.
+                    if (
+                        prop.PropertyType.IsValueType
+                        && Nullable.GetUnderlyingType(prop.PropertyType) is null
+                    )
+                        property.ValueGeneratedNever();
                 }
 
                 // 3) Optional: enum storage guidance (int/long/string)

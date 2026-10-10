@@ -218,6 +218,35 @@ public sealed class RaidProtectionSettingsTests : IDisposable
             .Be(RaidSensitivityType.Low);
     }
 
+    /// <summary>
+    /// Kick and low sensitivity are each their type's first member (0). A room's first save
+    /// creates its row, and a 0 left out of that insert was stored as the column's default.
+    /// </summary>
+    [Fact]
+    public async Task A_first_save_of_kick_at_low_sensitivity_is_what_the_window_shows_next()
+    {
+        var room = Room();
+
+        var saved = await room.Room.SaveRaidProtectionSettingsAsync(
+            Owner,
+            Update() with
+            {
+                DetectionSensitivity = (int)RaidSensitivityType.Low,
+                ActionType = (int)RaidActionType.Kick,
+                GuardSensitivity = (int)RaidSensitivityType.Low,
+            },
+            Ct
+        );
+
+        saved.Result.Should().Be(RaidProtectionSaveResultType.Saved);
+
+        var shown = await Room().Room.GetRaidProtectionSettingsAsync(Owner, Ct);
+
+        shown!.DetectionSensitivity.Should().Be(RaidSensitivityType.Low);
+        shown.ActionType.Should().Be(RaidActionType.Kick);
+        shown.GuardSensitivity.Should().Be(RaidSensitivityType.Low);
+    }
+
     [Fact]
     public async Task Nobody_may_manage_it_while_the_hotel_has_it_off()
     {

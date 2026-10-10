@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,6 +77,34 @@ public sealed class CoreMigrationsTests
             .Select(x => x.Table)
             .Should()
             .BeEquivalentTo(["players", "player_subscriptions", "asset_bundles"]);
+    }
+
+    /// <summary>
+    /// EF leaves a column out of an INSERT while it holds its CLR default (0, false, an enum's
+    /// first member), so the database default applies instead. For a value type that default is
+    /// a real choice (a muted volume, a raid action of "kick"), so a column with a database
+    /// default must always be written, and a new entity must start at that same default.
+    /// </summary>
+    [Fact]
+    public void AValueTypeColumnWithADatabaseDefaultIsAlwaysWritten_AndANewEntityStartsAtIt()
+    {
+        using var db = OfflineContext();
+
+        var dropped = db
+            .Model.GetEntityTypes()
+            .SelectMany(entity => entity.GetProperties())
+            .Where(property =>
+                property.ClrType.IsValueType
+                && Nullable.GetUnderlyingType(property.ClrType) is null
+                && property.GetDefaultValue() is not null
+                && !property.IsPrimaryKey()
+                // A created_at is MySQL's to stamp (CURRENT_TIMESTAMP), never the code's.
+                && property.GetValueGenerationStrategy() == MySqlValueGenerationStrategy.None
+                && property.ValueGenerated != ValueGenerated.Never
+            )
+            .Select(property => $"{property.DeclaringType.DisplayName()}.{property.Name}");
+
+        dropped.Should().BeEmpty("EF would store the database default in place of the CLR default");
     }
 
     [Fact]
