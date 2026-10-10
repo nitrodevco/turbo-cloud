@@ -1,7 +1,8 @@
 # Admin panel
 
 The admin panel lets staff run the hotel from a browser. It has a live dashboard, a room finder,
-a permission editor, a console for operator commands, and a page for managing staff passkeys. Staff sign in with a **passkey only**:
+a permission editor, a console for operator commands, and staff passkeys, and works as well on a
+phone as on a desktop. Staff sign in with a **passkey only**:
 there are no passwords.
 
 It comes in two parts:
@@ -35,6 +36,31 @@ repository records only which panel commit goes with it.
 
 The Turbo server's Ploi deploy doesn't need the panel. The panel's own Ploi site deploys from its
 own repository.
+
+## Finding your way
+
+The sidebar (from a laptop up) groups the panel's places in sections. Pages alike share one place
+and show as tabs along its header:
+
+| Section | Place | Its tabs |
+| --- | --- | --- |
+|  | **Overview** | the dashboard, Performance |
+| Community | **Players**, **Rooms** | |
+| Shop | **Catalog** | Editor, Audit (furni not sold, furni sold twice), Generate, Backups, Vouchers, Songs |
+| World | **Hotel view**, **Content**, **Gamedata** | their own |
+| Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
+| Staff | **Logs** | Command log, Chat log |
+| Server | **Settings**, **Console** | |
+
+You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
+down) and who is online sit at the top of the sidebar; click it for the hotel controls.
+
+On a phone or a tablet a bar along the bottom holds the most used places, the search in the
+middle, and **Menu**, which shows every place as a tile with your account, the theme and signing
+out. The hotel's state is the pill in each page's header. Questions before something can't be
+undone open as a sheet from the bottom.
+
+`Ctrl K` (or `/`) searches everything, and `g` then a letter goes to a page; `?` lists the keys.
 
 ## Setting it up locally
 
@@ -212,7 +238,7 @@ A session lasts 12 hours. Signing out, a server restart, or losing `admin.panel`
 
 1. Give them access: `perm user <name> set admin.panel`, at the console or with an in-game
    `:perm` command.
-2. Make their setup link: on the panel's **Staff** page, enter their name. In the hotel, an admin
+2. Make their setup link: under **Access**, on the **Staff passkeys** tab, enter their name. In the hotel, an admin
    can use `:adminsetup <name>` instead.
 3. Send them the link privately. It works **once**, for **24 hours**. Whoever opens it first
    creates the passkey that signs in as them.
@@ -225,7 +251,7 @@ lock them out.
 
 There is no "forgot password". When someone loses their only passkey:
 
-1. An admin with `admin.passkeys.reset` makes them a new link on the **Staff** page. The page
+1. An admin with `admin.passkeys.reset` makes them a new link on **Access → Staff passkeys**. The page
    says it's a **reset**.
 2. They open it and create a new passkey. **All their old passkeys are removed**, so a lost or
    stolen device can no longer sign in.
@@ -235,8 +261,9 @@ and remove the lost one on the Account page.
 
 ## Hotel controls
 
-The dashboard has a **Hotel controls** card for acting on the whole hotel. Each tab only appears
-if you hold the node behind it:
+The **hotel controls** act on the whole hotel. They open from the hotel's state at the top of
+the sidebar, or the pill in a phone's header, on any page; the dashboard also shows them beside
+the busiest rooms. Each tab only appears if you hold the node behind it:
 
 | Tab | Node | What it does |
 | --- | --- | --- |
@@ -256,7 +283,7 @@ online are not shown it. It keeps its line breaks, and can be up to 4000 charact
 
 ## Performance
 
-Everyone who can sign in gets a **Performance** page: how this server has been running over the
+Everyone who can sign in gets a **Performance** tab under **Overview**: how this server has been running over the
 last hour, six hours or day. It has charts (each with a table view) of:
 
 | Chart | What it is |
@@ -374,8 +401,10 @@ Use the console for them.
 
 ## Catalog
 
-Staff with `admin.catalog.view` get a **Catalog** page. Its header has four views: **Editor**,
-**Missing furni**, **Duplicates** and **Generate**. The editor is in three columns:
+Staff with `admin.catalog.view` get a **Catalog** page. Its header's tabs are **Editor**,
+**Audit** (switching between **Not sold**, the missing furni, and **Sold twice**, the duplicates),
+**Generate** and **Backups**, then **Vouchers** and **Songs**, which are pages of their own. The
+editor is in three columns:
 
 - **The page tree** on the left, as the client's navigator shows it: tabs as section rows, a guide
   line per level, the front page, hidden pages and pages in the Builders Club catalog marked, and
@@ -855,7 +884,7 @@ passkey; they add more while signed in instead.
 | Node | Allows |
 | --- | --- |
 | `admin.panel` | Signing in to the panel. Checked on every request, so removing it locks the person out at once. |
-| `admin.passkeys.reset` | Making setup and reset links for other players (the Staff page, `:adminsetup <name>`), within the rule above. |
+| `admin.passkeys.reset` | Making setup and reset links for other players (Access → Staff passkeys, `:adminsetup <name>`), within the rule above. |
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
@@ -919,8 +948,12 @@ It needs `admin.content.view` to look and `content.manage` to change anything.
 
 The **Hotel view** page edits the reception players land in: its backgrounds and their timed sets,
 the five widget slots, the promos their schedules show and the words on them, with a preview at any
-time. It needs `admin.gamedata.view` to look and `gamedata.manage` to save; a save is one change set
-in the gamedata history. `docs/gamedata.md` has the details.
+time. Its tabs are **Preview**, **Layout** (slots, backgrounds, look and widgets), **Promos and
+news** (promos, articles), **Campaigns** (community goals, bonus rare, expiring pages) and
+**Advanced** (every variable). Each view says how it saves: the layout, promos and variables wait
+for **Save** and are one change set together; articles and campaigns save as you go. It needs
+`admin.gamedata.view` to look and `gamedata.manage` to save; a save is one change set in the
+gamedata history. `docs/gamedata.md` has the details.
 
 ## Server settings
 
@@ -1039,7 +1072,7 @@ in the parameter instead of an id works for that preview only: the disk itself n
 
 ## Vouchers
 
-The **Vouchers** page (`g u`) manages codes players type in the catalogue's voucher box for
+The **Vouchers** tab of the catalog (`g u`) manages codes players type in the catalogue's voucher box for
 credits, another currency, furniture and a badge, in any mix. A player redeems a voucher once;
 **Uses in all** limits how many players may, and it is never exceeded, even with two silos redeeming
 at the same moment. **Make many** makes a batch that gives the same, each with its own random code
