@@ -263,9 +263,11 @@ and remove the lost one on the Account page.
 
 The **hotel controls** act on the whole hotel. They open from the hotel's state at the top of
 the sidebar, or the pill in a phone's header, on any page; the dashboard also shows them beside
-the busiest rooms. Each tab only appears if you hold the node behind it:
+the busiest rooms. Each is a tile that says how it stands (maintenance starting at 12:30, the
+welcome message off); pick one and its form opens under the tiles. While a countdown runs, its
+control opens first. A control only appears if you hold the node behind it:
 
-| Tab | Node | What it does |
+| Control | Node | What it does |
 | --- | --- | --- |
 | Hotel alert | `command.hotelalert` | A pop-up for everyone online. |
 | Maintenance | `command.maintenance` | Counts down (now, 5, 10 or 30 minutes), then sends home everyone without the bypass and keeps them out. **End maintenance** appears while it is scheduled or on. |
