@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Orleans;
 
@@ -17,12 +18,14 @@ namespace Turbo.Admin.Content;
 /// <summary>
 /// The hotel's groups as staff look them up, and the parts and colours players build group
 /// badges from. A group is changed through its grain; a part or colour is added or changed here
-/// and the group directory reads them again. Part and colour ids are written into badge codes,
+/// and the group directory reads them again, as does the badge imager's
+/// <see cref="GamedataFiles.BADGE_PARTS"/>. Part and colour ids are written into badge codes,
 /// so they are only ever added: a file or a colour changes, its id never does.
 /// </summary>
 public sealed partial class AdminGroupQueries(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    IGamedataFileService files
 )
 {
     public const int PAGE_SIZE = 25;
@@ -198,6 +201,7 @@ public sealed partial class AdminGroupQueries(
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
         await grainFactory.GetGuildDirectoryGrain().ReloadAsync(ct).ConfigureAwait(false);
+        files.Invalidate(GamedataFiles.BADGE_PARTS);
 
         return row.Id;
     }
@@ -248,6 +252,7 @@ public sealed partial class AdminGroupQueries(
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
         await grainFactory.GetGuildDirectoryGrain().ReloadAsync(ct).ConfigureAwait(false);
+        files.Invalidate(GamedataFiles.BADGE_PARTS);
 
         return row.Id;
     }

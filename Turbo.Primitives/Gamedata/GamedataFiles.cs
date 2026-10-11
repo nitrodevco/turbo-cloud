@@ -30,6 +30,12 @@ public static class GamedataFiles
     /// </summary>
     public const string EXTERNAL_VARIABLES = "external_variables";
 
+    /// <summary>
+    /// The group badge parts and badge palette, which the badge imager reads a badge code with.
+    /// Habbo has no such file: its imager holds its own table.
+    /// </summary>
+    public const string BADGE_PARTS = "badgeparts_json";
+
     public static readonly IReadOnlyList<string> ALL =
     [
         FURNITURE_DATA,
@@ -37,6 +43,7 @@ public static class GamedataFiles
         EXTERNAL_TEXTS,
         FIGURE_DATA,
         EXTERNAL_VARIABLES,
+        BADGE_PARTS,
     ];
 
     public static bool IsKnown(string file) =>
@@ -45,7 +52,8 @@ public static class GamedataFiles
                 or PRODUCT_DATA
                 or EXTERNAL_TEXTS
                 or FIGURE_DATA
-                or EXTERNAL_VARIABLES;
+                or EXTERNAL_VARIABLES
+                or BADGE_PARTS;
 
     /// <summary>The name Habbo's <c>hashes</c> gives the file.</summary>
     public static string HashesName(string file) =>

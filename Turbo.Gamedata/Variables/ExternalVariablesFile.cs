@@ -31,6 +31,7 @@ internal static class ExternalVariablesFile
         GamedataFiles.PRODUCT_DATA,
         GamedataFiles.EXTERNAL_TEXTS,
         GamedataFiles.FIGURE_DATA,
+        GamedataFiles.BADGE_PARTS,
     ];
 
     // The file is served as JSON, never into a page, so text is written as it is: an apostrophe

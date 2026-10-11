@@ -8,6 +8,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Guilds;
 using Turbo.Guilds.Configuration;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
@@ -288,7 +289,11 @@ public sealed class GroupStaffTests : IDisposable
             }
         );
 
-        var queries = new AdminGroupQueries(_db, _fakes.Create<IGrainFactory>());
+        var queries = new AdminGroupQueries(
+            _db,
+            _fakes.Create<IGrainFactory>(),
+            _fakes.Create<IGamedataFileService>()
+        );
 
         await queries.SavePartAsync(
             0,
@@ -310,6 +315,11 @@ public sealed class GroupStaffTests : IDisposable
             .Which.Should()
             .Be(editor.Colors[0] with { ColorId = 1, Color = "ff8800" });
         _fakes.Log.Of("ReloadAsync").Should().HaveCount(2);
+        _fakes
+            .Log.Of(nameof(IGamedataFileService.Invalidate))
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(GamedataFiles.BADGE_PARTS, GamedataFiles.BADGE_PARTS);
 
         var bad = () =>
             queries.SaveColorAsync(

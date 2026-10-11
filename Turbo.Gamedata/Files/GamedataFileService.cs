@@ -15,6 +15,7 @@ using Turbo.Database.Extensions;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Furniture;
+using Turbo.Gamedata.Guilds;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
@@ -147,6 +148,7 @@ internal sealed class GamedataFileService(
                 GamedataFiles.PRODUCT_DATA => await ProductDataAsync(dbCtx, ct)
                     .ConfigureAwait(false),
                 GamedataFiles.FIGURE_DATA => await FigureDataAsync(dbCtx, ct).ConfigureAwait(false),
+                GamedataFiles.BADGE_PARTS => await BadgePartsAsync(dbCtx, ct).ConfigureAwait(false),
                 GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesAsync(
                         dbCtx,
                         ((ExternalVariablesFile.Inputs)inputs!).Addresses,
@@ -281,6 +283,20 @@ internal sealed class GamedataFileService(
         }
 
         return (FigureDataFile.Write(records), records.Count(x => x.Item1 == FigureRecordKind.Set));
+    }
+
+    private static async Task<(byte[] Content, int Count)> BadgePartsAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    )
+    {
+        var parts = await dbCtx
+            .GuildBadgeParts.AsNoTracking()
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var colors = await dbCtx.GuildColors.AsNoTracking().ToListAsync(ct).ConfigureAwait(false);
+
+        return (BadgePartsFile.Write(parts, colors), parts.Count);
     }
 
     private static async Task<(byte[] Content, int Count)> ExternalTextsAsync(

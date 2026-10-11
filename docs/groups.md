@@ -39,7 +39,11 @@ Name, description, a badge built from parts, and two colours. The badge is a str
 client never draws itself: it hands the code to an external imager
 (`group.badge.url` = `.../habbo-imaging/badge/%imagerdata%.gif`) and shows the result. So the
 server's whole responsibility for a badge is generating a stable code from the parts the client
-picked.
+picked - and telling the imager what the code's ids mean: the gamedata file `badgeparts_json`
+(`/gamedata/badgeparts_json/0`) is every part by its code id and the badge palette, built from
+the same rows `GuildEditorData` sends and rebuilt when staff change a part or colour. nitro's
+imager (`packages/nitro-imager`, `IMAGER_BADGE_PARTS`) reads it; a variable can follow its
+address like any other file's.
 
 A badge is five layers: one base and four symbols. Each layer is a `(partId, colorId, position)`
 triple, and the client sends them as a flat int array in that order. The parts and the colours
