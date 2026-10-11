@@ -118,6 +118,24 @@ public sealed class LoginTicketTests : IDisposable
         (await _login.GetPlayerIdFromTicketAsync(issued.Ticket, Ct)).Should().Be(0);
     }
 
+    /// <summary>
+    /// The table holds only a hash of an issued ticket: a copy of it (a leaked dump, a read-only
+    /// SQL injection) logs nobody in, not even by presenting the stored value itself.
+    /// </summary>
+    [Fact]
+    public async Task AnIssuedTicket_IsStoredOnlyAsItsHash_AndTheHashDoesNotLogIn()
+    {
+        var issued = await _tickets.IssueAsync(ALICE, null, true, Ct);
+
+        string stored;
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            stored = (await db.SecurityTickets.SingleAsync(Ct)).Ticket;
+
+        stored.Should().NotContain(issued.Ticket);
+        (await _login.GetPlayerIdFromTicketAsync(stored, Ct)).Should().Be(0);
+        (await _login.GetPlayerIdFromTicketAsync(issued.Ticket, Ct)).Should().Be(ALICE);
+    }
+
     [Fact]
     public async Task ATicketWrittenBeforeTicketsCouldExpire_WorksAsBefore()
     {

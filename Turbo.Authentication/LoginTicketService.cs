@@ -13,7 +13,8 @@ namespace Turbo.Authentication;
 
 /// <summary>
 /// <see cref="ILoginTicketService"/> over <c>security_tickets</c>, one row a player. A ticket is
-/// 32 random bytes as hex, so it can't be guessed; it is not bound to an address.
+/// 32 random bytes as hex, so it can't be guessed; it is not bound to an address. Only its hash is
+/// stored: the ticket itself is returned once, to whoever issued it.
 /// </summary>
 public sealed class LoginTicketService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -48,7 +49,7 @@ public sealed class LoginTicketService(
                 new SecurityTicketEntity
                 {
                     PlayerEntityId = player.Value,
-                    Ticket = ticket,
+                    Ticket = SecurityTicketEntity.Hash(ticket),
                     IpAddress = string.Empty,
                     IsLocked = reusable,
                     ExpiresAt = expires,
@@ -58,7 +59,7 @@ public sealed class LoginTicketService(
         }
         else
         {
-            row.Ticket = ticket;
+            row.Ticket = SecurityTicketEntity.Hash(ticket);
             row.IpAddress = string.Empty;
             row.IsLocked = reusable;
             row.ExpiresAt = expires;

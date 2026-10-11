@@ -108,13 +108,13 @@ public sealed class OwnerBootstrap(
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var name = owner.Name.Trim().ToLowerInvariant();
+        var name = PlayerNames.Key(owner.Name);
         var discordId = owner.DiscordId.Trim();
 
         var found = await db
             .Players.AsNoTracking()
             .Where(x =>
-                (name.Length > 0 && x.Name.ToLower() == name)
+                (name.Length > 0 && x.NameKey == name)
                 || (
                     discordId.Length > 0
                     && db.PlayerDiscordLinks.Any(l =>

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Commands;
 
@@ -49,7 +50,7 @@ public sealed class AdminCommandLogQueries(
                 ? id
                 : await db
                     .Players.AsNoTracking()
-                    .Where(x => x.Name == who)
+                    .Where(x => x.NameKey == PlayerNames.Key(who))
                     .Select(x => (int?)x.Id)
                     .FirstOrDefaultAsync(ct)
                     .ConfigureAwait(false);

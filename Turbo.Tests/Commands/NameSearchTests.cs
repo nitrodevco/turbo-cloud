@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Furniture;
 using Turbo.Furniture.Configuration;
 using Turbo.Players;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
@@ -60,6 +61,24 @@ public class NameSearchTests : IDisposable
             .Should()
             .Equal("albert", "Alfred", "Alice");
         (await directory.SearchNamesAsync("al", 2, CancellationToken.None)).Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// A name is looked up by its key, not by the database's collation: SQLite compares case
+    /// exactly, as PostgreSQL does, and the lookup only relied on MySQL ignoring it.
+    /// </summary>
+    [Fact]
+    public async Task A_player_is_found_by_name_whatever_its_case_on_a_case_sensitive_database()
+    {
+        Player(1, "Alice");
+        var directory = Directory();
+        var state = RoomHarness.GetField(directory, "_state")!;
+        var names = state.GetType().GetProperty("Names")!;
+        RoomHarness.SetMember(state, "Names", Activator.CreateInstance(names.PropertyType, 100));
+
+        (await directory.GetPlayerIdAsync("aLICE", CancellationToken.None))
+            .Should()
+            .Be(PlayerId.Parse(1));
     }
 
     [Fact]

@@ -61,9 +61,9 @@ public sealed class PlayerAccountService(
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var lower = name.ToLowerInvariant();
+        var key = PlayerNames.Key(name);
 
-        if (await db.Players.AnyAsync(x => x.Name.ToLower() == lower, ct).ConfigureAwait(false))
+        if (await db.Players.AnyAsync(x => x.NameKey == key, ct).ConfigureAwait(false))
             return NewPlayerResult.Refused($"There is already a player called {name}.");
 
         var entity = new PlayerEntity
