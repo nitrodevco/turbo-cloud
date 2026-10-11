@@ -58,9 +58,9 @@ public sealed class WebAccounts(
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var lower = name.Trim().ToLowerInvariant();
+        var key = PlayerNames.Key(name);
 
-        return await db.Players.AnyAsync(x => x.Name.ToLower() == lower, ct).ConfigureAwait(false);
+        return await db.Players.AnyAsync(x => x.NameKey == key, ct).ConfigureAwait(false);
     }
 
     /// <summary>A hotel name to offer the Discord account: theirs, fitted to the rules and free.</summary>
@@ -83,7 +83,7 @@ public sealed class WebAccounts(
         {
             var names = await db
                 .Players.AsNoTracking()
-                .Where(x => x.Name.ToLower().StartsWith(start))
+                .Where(x => x.NameKey.StartsWith(start))
                 .Select(x => x.Name)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);

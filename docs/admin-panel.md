@@ -742,8 +742,10 @@ A ticket logs in *as* the player, so it is the account. You can issue one for yo
 player whose every permission you hold, the same rule as passkey setup links. A reusable ticket
 that never runs out is a standing login; the card warns you, so keep it like a password.
 
-Tickets are 32 random bytes and aren't tied to an address. Tickets written by something else (a
-CMS, the load-test bots) work as before: without an end time, a plain one is used up by its first
+Tickets are 32 random bytes and aren't tied to an address. The server stores only a SHA-256 hash
+of each ticket it issues (`sha256:…` in `security_tickets.ticket`), so a copy of the table logs
+nobody in; that is also why the card can't show the ticket again. Tickets written by something
+else (a CMS, the load-test bots) are stored as written and work as before: without an end time, a plain one is used up by its first
 login and a reusable ("locked") one never is. A plain ticket can only ever log in once, even if two
 logins race with it.
 

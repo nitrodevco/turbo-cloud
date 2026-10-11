@@ -138,12 +138,13 @@ internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         // StartsWith becomes LIKE 'prefix%', with the prefix's own wildcards escaped, which the
-        // unique index on the name answers without reading the table. The column's collation is
-        // case-insensitive, as GetPlayerIdAsync relies on.
+        // unique index on the name key answers without reading the table, ignoring case on
+        // every database.
+        var key = PlayerNames.Key(prefix);
         var names = await dbCtx
             .Players.AsNoTracking()
-            .Where(x => x.Name.StartsWith(prefix))
-            .OrderBy(x => x.Name)
+            .Where(x => x.NameKey.StartsWith(key))
+            .OrderBy(x => x.NameKey)
             .Select(x => x.Name)
             .Take(limit)
             .ToListAsync(ct);
@@ -165,12 +166,12 @@ internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        // Plain equality, so the unique index on the name answers it. The column's collation
-        // is case-insensitive (utf8mb4 *_ci), which is what the lookup needs; lowering both
-        // sides compared the same way but read every row.
+        // Plain equality on the name key, so its unique index answers it and case is ignored on
+        // every database; lowering the name column instead read every row.
+        var key = PlayerNames.Key(name);
         var player = await dbCtx
             .Players.AsNoTracking()
-            .Where(x => x.Name == name)
+            .Where(x => x.NameKey == key)
             .Select(x => new { x.Id, x.Name })
             .FirstOrDefaultAsync(ct);
 

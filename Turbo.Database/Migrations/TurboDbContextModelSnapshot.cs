@@ -5041,6 +5041,12 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("name_key");
+
                     b.Property<int>("PetRespectsLeft")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -5083,7 +5089,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("NameKey")
                         .IsUnique();
 
                     b.ToTable("players");

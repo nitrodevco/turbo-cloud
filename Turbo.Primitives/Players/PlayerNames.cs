@@ -35,7 +35,14 @@ public static partial class PlayerNames
             : null;
     }
 
-    /// <summary>Whether two names are the same name, as the database's collation compares them.</summary>
+    /// <summary>
+    /// What makes a name unique and what it is looked up by: <c>players.name_key</c>. Computed
+    /// here rather than left to the database's collation, which MySQL, MariaDB and PostgreSQL
+    /// each compare differently (case, accents, trailing spaces).
+    /// </summary>
+    public static string Key(string name) => name.Trim().ToLowerInvariant();
+
+    /// <summary>Whether two names are the same name, as <see cref="Key"/> compares them.</summary>
     public static bool Same(string left, string right) =>
-        string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
+        string.Equals(Key(left), Key(right), StringComparison.Ordinal);
 }
