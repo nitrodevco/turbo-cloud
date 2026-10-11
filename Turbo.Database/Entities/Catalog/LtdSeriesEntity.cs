@@ -12,7 +12,7 @@ namespace Turbo.Database.Entities.Catalog;
 [Table(TABLE)]
 public class LtdSeriesEntity : TurboEntity
 {
-    /// <summary>The table, which the raffle's row lock names in SQL.</summary>
+    /// <summary>The table's name.</summary>
     public const string TABLE = "catalog_ltd_series";
 
     /// <summary>

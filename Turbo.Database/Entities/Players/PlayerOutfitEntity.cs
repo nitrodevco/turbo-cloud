@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Players;
 [Index(nameof(PlayerEntityId), nameof(SlotId), IsUnique = true)]
 public class PlayerOutfitEntity : TurboEntity
 {
-    public const int FIGURE_MAX_LENGTH = 100;
+    public const int FIGURE_MAX_LENGTH = PlayerEntity.FIGURE_MAX_LENGTH;
 
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }

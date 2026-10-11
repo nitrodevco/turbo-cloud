@@ -11,11 +11,14 @@ using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Database.Migrations;
+using Turbo.Operations;
+using Turbo.Operations.Configuration;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Wallet;
@@ -379,6 +382,67 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// The retention job's batched deletes, oldest first, run as PostgreSQL runs them: a delete
+    /// limited to a batch is SQL each provider writes its own way.
+    /// </summary>
+    [Fact]
+    public async Task TheRetentionJob_RemovesOldRowsABatchAtATime()
+    {
+        RequireServer();
+        await using (var db = Context())
+        {
+            await Migrator().MigrateAsync(db, "core", null, Ct);
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO room_chat_logs (room_id, player_id, message, created_at)
+                SELECT 1, 1, 'old', now() - interval '400 days' FROM generate_series(1, 5);
+                INSERT INTO room_chat_logs (room_id, player_id, message, created_at)
+                VALUES (1, 1, 'recent', now());
+                INSERT INTO player_respects (id, giver_id, receiver_id, status, receiver_total, created_at)
+                VALUES (gen_random_uuid(), 1, 2, 0, 0, now() - interval '400 days'),
+                       (gen_random_uuid(), 1, 2, 1, 1, now() - interval '400 days');
+                """,
+                Ct
+            );
+        }
+
+        var removed = await new DataRetentionService(
+            new Factory(this),
+            Options.Create(new RetentionConfig { BatchSize = 2 }),
+            TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<DataRetentionService>.Instance
+        ).PurgeAsync(Ct);
+
+        await using var check = Context();
+        (await check.Chatlogs.Select(x => x.Message).ToListAsync(Ct)).Should().Equal("recent");
+        (await check.PlayerRespects.Select(x => x.Status).ToListAsync(Ct))
+            .Should()
+            .Equal(RespectStatus.Pending);
+        removed["room chat lines"].Should().Be(5);
+    }
+
+    /// <summary>
+    /// A name the game matches without regard to case is unique without regard to case: two
+    /// songs "abc" and "ABC" are one song to the jukebox, a currency "Credits" is credits.
+    /// </summary>
+    [Fact]
+    public async Task NamesMatchedWithoutCase_AreUniqueWithoutCase()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        var currency = () =>
+            db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO catalog_currency_types (name, type, activity_point_type, enabled) "
+                    + "VALUES ('Credits', 4, 99, true)",
+                Ct
+            );
+
+        await currency.Should().ThrowAsync<PostgresException>().Where(x => x.SqlState == "23505");
+    }
+
+    /// <summary>
     /// A new hotel is playable once migrated: a room can be made on any of the standard models,
     /// each opening onto a tile a player can stand on; the catalog has a root to build on and sells
     /// Habbo Club; credits, duckets and diamonds exist; the navigator has its tabs and categories.
@@ -460,9 +524,9 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         // three, not the history, and the planner should know there is a history to avoid.
         await db.Database.ExecuteSqlRawAsync(
             """
-            INSERT INTO players (id, name, name_key, figure, gender, status)
-            SELECT g, 'p' || g, 'p' || g, 'hd-180-1', 0, 0 FROM generate_series(1, 3) g;
-            INSERT INTO messenger_messages (sender_id, receiver_id, message, sent_at, delivered)
+            INSERT INTO players (id, name, name_key, figure, gender)
+            SELECT g, 'p' || g, 'p' || g, 'hd-180-1', 0 FROM generate_series(1, 3) g;
+            INSERT INTO messenger_messages (sender_id, receiver_id, message, created_at, delivered)
             SELECT 2 + (g % 2), 1, 'hi', now() - g * interval '1 minute', g > 3
             FROM generate_series(1, 20000) g;
             ANALYZE messenger_messages;
@@ -473,26 +537,26 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         (
             await PlanAsync(
                 db,
-                db.HumanRespectOperations.Where(x => !x.Completed && !x.Rejected)
-                    .OrderBy(x => x.OperationId)
+                db.PlayerRespects.Where(x => x.Status == RespectStatus.Pending)
+                    .OrderBy(x => x.Id)
                     .Take(50)
             )
         )
             .Should()
-            .Contain("ix_player_respect_operations_operation_id");
+            .Contain("ix_player_respects_id");
         (
             await PlanAsync(
                 db,
-                db.PetRespectOperations.Where(x => !x.Completed && !x.Rejected)
-                    .OrderBy(x => x.OperationId)
+                db.PetRespects.Where(x => x.Status == RespectStatus.Pending)
+                    .OrderBy(x => x.Id)
                     .Take(50)
             )
         )
             .Should()
-            .Contain("ix_pet_respect_operations_operation_id");
+            .Contain("ix_pet_respects_id");
         (await PlanAsync(db, db.AchievementFacts.Where(x => !x.Processed).Select(x => x.PlayerId)))
             .Should()
-            .Contain("ix_achievement_facts_player_id");
+            .Contain("ix_achievement_facts_player_id_id");
         (
             await PlanAsync(
                 db,
@@ -521,13 +585,13 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                         && !x.Delivered
                         && friends.Contains(x.SenderPlayerEntityId)
                     )
-                    .OrderByDescending(x => x.Timestamp)
+                    .OrderByDescending(x => x.CreatedAt)
                     .ThenByDescending(x => x.Id)
                     .Take(50)
             )
         )
             .Should()
-            .Contain("ix_messenger_messages_receiver_id_sent_at");
+            .Contain("ix_messenger_messages_receiver_id_created_at");
         // The friend search: a prefix of a name's key, which the C collation lets a b-tree serve
         // as a range; in a language collation the whole index is read and filtered.
         (
@@ -617,14 +681,22 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         await using var db = Context();
         await Migrator().MigrateAsync(db, "core", null, Ct);
         await db.Database.ExecuteSqlRawAsync(
-            "INSERT INTO players (name, name_key, figure, gender, status, updated_at) "
-                + "VALUES ('alice', 'alice', 'hd-180-1', 0, 0, TIMESTAMPTZ '2020-01-01 00:00:00+00')",
+            "INSERT INTO players (id, name, name_key, figure, gender) VALUES (1, 'alice', 'alice', 'hd-180-1', 0);"
+                + "INSERT INTO player_subscriptions (player_id, subscription_type, total_days_subscribed, "
+                + "purchased_days_subscribed, furni_limit, updated_at) "
+                + "VALUES (1, 0, 0, 0, 0, TIMESTAMPTZ '2020-01-01 00:00:00+00')",
             Ct
         );
 
-        await db.Players.ExecuteUpdateAsync(set => set.SetProperty(x => x.RespectPoints, 5), Ct);
+        await db.PlayerSubscriptions.ExecuteUpdateAsync(
+            set => set.SetProperty(x => x.TotalDaysSubscribed, 31),
+            Ct
+        );
 
-        var updated = await db.Players.AsNoTracking().Select(x => x.UpdatedAt).SingleAsync(Ct);
+        var updated = await db
+            .PlayerSubscriptions.AsNoTracking()
+            .Select(x => x.UpdatedAt)
+            .SingleAsync(Ct);
         updated.Should().BeAfter(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     }
 }

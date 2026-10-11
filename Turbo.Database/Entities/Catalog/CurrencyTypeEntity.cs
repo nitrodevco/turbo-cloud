@@ -14,7 +14,7 @@ namespace Turbo.Database.Entities.Catalog;
 public class CurrencyTypeEntity : TurboEntity
 {
     [Column("name")]
-    public required string? Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("type")]
     public required CurrencyType CurrencyType { get; set; }

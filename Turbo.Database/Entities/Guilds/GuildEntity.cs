@@ -18,7 +18,6 @@ namespace Turbo.Database.Entities.Guilds;
 [Table("guilds")]
 [Index(nameof(RoomEntityId), IsUnique = true)]
 [Index(nameof(PlayerEntityId))]
-[Index(nameof(Name))]
 public class GuildEntity : TurboEntity
 {
     public const int NAME_MAX_LENGTH = 30;

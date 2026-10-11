@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,9 @@ namespace Turbo.Database.Entities.Hotel;
 public class CommunityGoalEntity : TurboEntity
 {
     public const int CODE_MAX_LENGTH = 64;
-    public const int LIST_MAX_LENGTH = 255;
+
+    /// <summary>The most prize bands a goal has.</summary>
+    public const int REWARD_BANDS_MAX = 50;
 
     [Column("code")]
     [StringLength(CODE_MAX_LENGTH)]
@@ -35,15 +38,13 @@ public class CommunityGoalEntity : TurboEntity
     [Column("ends_at")]
     public DateTime EndsAt { get; set; }
 
-    /// <summary>The scores its levels are reached at, rising, comma-separated.</summary>
+    /// <summary>The scores its levels are reached at, rising.</summary>
     [Column("level_scores")]
-    [StringLength(LIST_MAX_LENGTH)]
-    public required string LevelScores { get; set; }
+    public List<int> LevelScores { get; set; } = [];
 
-    /// <summary>The last rank of each prize band, rising, comma-separated.</summary>
+    /// <summary>The last rank of each prize band, rising.</summary>
     [Column("reward_ranks")]
-    [StringLength(LIST_MAX_LENGTH)]
-    public required string RewardRanks { get; set; }
+    public List<int> RewardRanks { get; set; } = [];
 
     [Column("side_one_page_id")]
     public int? SideOnePageId { get; set; }

@@ -11,7 +11,6 @@ namespace Turbo.Database.Entities.Moderation;
 /// </summary>
 [Comment("A word of the hotel's filter, kept out of everything players type (see IWordFilter).")]
 [Table("moderation_filter_words")]
-[Index(nameof(Word), IsUnique = true)]
 public class FilterWordEntity : TurboEntity
 {
     public const int WORD_MAX_LENGTH = 64;

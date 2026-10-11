@@ -34,7 +34,7 @@ public static class RoomEntityExtensions
             Ranking = 0,
             CategoryId = entity.NavigatorCategoryEntityId ?? -1,
             Tags = [.. entity.Tags],
-            AllowBlocking = entity.AllowBlocking,
+            AllowWalkThrough = entity.AllowWalkThrough,
             AllowPets = entity.AllowPets,
             AllowPetsEat = entity.AllowPetsEat,
             StaffPick = entity.StaffPick,

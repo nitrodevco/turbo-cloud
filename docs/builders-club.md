@@ -150,7 +150,7 @@ New table, one row per player and subscription type:
 ```text
 player_subscriptions
   id, player_id, subscription_type, expires_at, first_subscribed_at,
-  total_days_subscribed, periods_purchased, furni_limit
+  total_days_subscribed, purchased_days_subscribed, furni_limit, updated_at
 ```
 
 - `SubscriptionType { HabboClub = 0, BuildersClub = 1 }` in
@@ -169,8 +169,8 @@ In `Turbo.Players/Grains/`, keyed by player id, **write-through**, shaped like
 - `GetAsync(SubscriptionType, ct)` — snapshot carrying `SecondsLeft`, `SecondsLeftWithGrace`,
   `FurniLimit` and `MaxFurniLimit`.
 - `ExtendAsync(SubscriptionType, days, ct)` — adds days from `max(now, expires_at)`, bumps
-  `periods_purchased` and `total_days_subscribed`, and raises `furni_limit` by the configured
-  step, clamped to the configured maximum.
+  `total_days_subscribed`, raises `furni_limit` by the configured step (clamped to the configured
+  maximum), and records the grant in `player_subscription_grants`.
 - `HasActiveAsync(SubscriptionType, ct)` — the cheap predicate for room entry and for the wired
   `@is_hc` variable, which `AGENTS.md` listed as reserved for want of this system (phase 6).
 

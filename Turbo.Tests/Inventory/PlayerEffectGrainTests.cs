@@ -47,7 +47,6 @@ public sealed class PlayerEffectGrainTests : IDisposable
                 Name = "effects",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
     }
@@ -777,7 +776,6 @@ public sealed class PlayerEffectGrainTests : IDisposable
                 Name = "someone-else",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Female,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(

@@ -66,7 +66,6 @@ public sealed class GroupStaffTests : IDisposable
                     Name = name,
                     Figure = "hd-180-1",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
 
@@ -96,7 +95,7 @@ public sealed class GroupStaffTests : IDisposable
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -171,6 +170,54 @@ public sealed class GroupStaffTests : IDisposable
         (await group.StaffRenameAsync(STAFF, "   ", "x", Ct))
             .Should()
             .BeFalse("a group needs a name");
+    }
+
+    /// <summary>
+    /// "Member since" is the day a request was approved. The member list showed the day the
+    /// row was written, which for a request is the day it was asked, however long it waited.
+    /// </summary>
+    [Fact]
+    public async Task A_member_approved_today_is_a_member_since_today_not_since_they_asked()
+    {
+        const int CAROL = 4;
+        _db.Insert(
+            new PlayerEntity
+            {
+                Id = CAROL,
+                Name = "carol",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+            }
+        );
+        _db.Insert(
+            new GuildMemberEntity
+            {
+                Id = 4,
+                GuildEntityId = GROUP,
+                PlayerEntityId = CAROL,
+                Rank = GuildMemberRank.Requested,
+                IsFavourite = false,
+                CreatedAt = DateTime.UtcNow.AddDays(-10),
+            }
+        );
+        var group = await GroupAsync();
+
+        (await group.ApproveRequestAsync(new PlayerId(OWNER), new PlayerId(CAROL), Ct))
+            .Should()
+            .NotBeNull();
+        var page = await group.GetMembersPageAsync(
+            new PlayerId(OWNER),
+            0,
+            "carol",
+            GuildMemberSearchType.All,
+            Ct
+        );
+
+        page!
+            .Members.Should()
+            .ContainSingle()
+            .Which.MemberSince.Should()
+            .BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
     }
 
     [Fact]

@@ -46,7 +46,6 @@ public sealed class DailyTaskTests : IDisposable
                 Name = "daily-tasks",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(Definition(EXPLORE, "1734011389107_G", DailyTaskTypes.EXPLORE, "", 2, 10));
@@ -263,7 +262,7 @@ public sealed class DailyTaskTests : IDisposable
             Id = id,
             Code = code,
             QuestType = type,
-            Target = target,
+            Targets = [.. target.Split(',', StringSplitOptions.RemoveEmptyEntries)],
             RequiredRepeats = repeats,
             RewardAmount = duckets,
         };

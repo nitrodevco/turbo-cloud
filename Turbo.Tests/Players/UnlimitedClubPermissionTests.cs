@@ -68,7 +68,6 @@ public sealed class UnlimitedClubPermissionTests : IDisposable
                 Name = "builder",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
     }

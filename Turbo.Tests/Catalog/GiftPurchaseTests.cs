@@ -276,7 +276,7 @@ public sealed class GiftPurchaseTests : IDisposable
             BadgesRank = 0,
             IsOnline = true,
             CreatedAt = DateTime.UnixEpoch,
-            LastUpdated = DateTime.UnixEpoch,
+            LastSeen = DateTime.UnixEpoch,
             RespectPoints = 0,
             RespectsLeft = 0,
             PetRespectsLeft = 0,

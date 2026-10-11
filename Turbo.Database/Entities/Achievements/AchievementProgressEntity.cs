@@ -15,18 +15,20 @@ namespace Turbo.Database.Entities.Achievements;
 )]
 [Table("achievement_progress")]
 [PrimaryKey(nameof(PlayerId), nameof(AchievementId))]
-// Recovery looks for players with an undelivered award across every player.
-[Index(nameof(PendingDelivery), nameof(PlayerId))]
+// Recovery looks for players with an undelivered award across every player: a partial index on
+// player_id where pending_delivery (TurboDbContext).
 public sealed class AchievementProgressEntity
 {
     public int PlayerId { get; set; }
     public int AchievementId { get; set; }
     public long Value { get; set; }
     public long ForwardAdjustment { get; set; }
-    public long Streak { get; set; }
 
-    [Column("last_day")]
-    public DateTime? LastDayUtc { get; set; }
+    /// <summary>A calendar-streak achievement's run of consecutive UTC days, up to <see cref="LastStreakDay"/>.</summary>
+    public long CurrentStreak { get; set; }
+
+    /// <summary>The last UTC day a calendar streak counted.</summary>
+    public DateOnly? LastStreakDay { get; set; }
 
     /// <summary>The highest level the progress qualifies for. Each level above <see cref="CompletedLevel"/> is an open award.</summary>
     public int EarnedLevel { get; set; }

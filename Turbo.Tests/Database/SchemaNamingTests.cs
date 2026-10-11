@@ -110,7 +110,7 @@ public sealed partial class SchemaNamingTests
 
     /// <summary>
     /// Every table says what it holds, as a comment a database tool shows beside it, so someone
-    /// browsing the schema needn't read the code to know what player_respect_operations is.
+    /// browsing the schema needn't read the code to know what player_respect_changes is.
     /// </summary>
     [Fact]
     public void EveryTableSaysWhatItHolds()

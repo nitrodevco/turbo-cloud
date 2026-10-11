@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,8 +16,8 @@ public class PlayerBadgeEntity : TurboEntity
     [Column("badge_code")]
     public required string BadgeCode { get; set; }
 
+    /// <summary>The profile slot it is worn in, from 1; null when it is not worn.</summary>
     [Column("slot_id")]
-    [DefaultValue(0)]
     public int? SlotId { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]

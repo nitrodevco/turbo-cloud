@@ -39,7 +39,6 @@ public sealed class SongDirectoryGrainTests : IDisposable
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(

@@ -97,7 +97,18 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
             {
                 // PostgreSQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
                 foreach (var property in entityType.GetProperties())
+                {
                     property.SetCollation(null);
+
+                    // PostgreSQL's inet is a type SQLite hasn't; it keeps the address as text.
+                    if (property.ClrType == typeof(System.Net.IPAddress))
+                        property.SetValueConverter(
+                            new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<
+                                System.Net.IPAddress,
+                                string
+                            >(x => x.ToString(), x => System.Net.IPAddress.Parse(x))
+                        );
+                }
 
                 if (entityType.FindProperty(nameof(TurboEntity.CreatedAt)) is not { } createdAt)
                     continue;

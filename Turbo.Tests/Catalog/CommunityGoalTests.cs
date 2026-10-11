@@ -53,7 +53,6 @@ public sealed class CommunityGoalTests : IDisposable
                     Name = name,
                     Figure = $"hd-180-{id}",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
 

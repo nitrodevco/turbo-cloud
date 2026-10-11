@@ -14,7 +14,9 @@ public sealed class AchievementProjectionEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public int PlayerId { get; set; }
     public int Score { get; set; }
-    public int EarnedLevels { get; set; }
+
+    /// <summary>Levels completed across every achievement, as the profile and the leaderboard show.</summary>
+    public int CompletedLevels { get; set; }
     public bool PublicationPending { get; set; }
 
     /// <summary>
@@ -29,5 +31,5 @@ public sealed class AchievementProjectionEntity
     /// source to value. A state fact is only recorded again when its value moved, so a login that
     /// changes nothing writes nothing. A handful of entries per player at most.
     /// </summary>
-    public string ObservedState { get; set; } = "";
+    public string ObservedState { get; set; } = "{}";
 }

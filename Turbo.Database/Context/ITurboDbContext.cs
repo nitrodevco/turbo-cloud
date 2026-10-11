@@ -92,7 +92,7 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<NavigatorEventCategoryEntity>? NavigatorEventCategories { get; set; }
 
-    public DbSet<PlayerChatStyleEntity>? PlayerChatStyles { get; set; }
+    public DbSet<ChatStyleEntity>? ChatStyles { get; set; }
 
     public DbSet<PlayerChatStyleOwnedEntity>? PlayerOwnedChatStyles { get; set; }
 

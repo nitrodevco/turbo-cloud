@@ -61,7 +61,7 @@ Levels deliver strictly in order, so there is no row per level. A level that is 
 
 Membership state needs no table of its own. Every grant covers exactly its days with no overlap and nothing shortens a membership, so time spent as a member is `total_days_subscribed` minus what is left of the current run, and purchased days are `purchased_days_subscribed`. The badge a player holds for an achievement is found from the badge family (the code without its level suffix), so no entitlement table is kept.
 
-`player_respect_operations`, `player_respect_receipts`, `pet_respect_operations` and `pet_nutrition_operations` make respect and pet care durable on their own: they guard quota and double credit and let recovery resume a half-finished action. They are created by their own migration, `AddRespectAndPetOperationJournals`. Achievements only attach a fact to the same transaction.
+`player_respects`, `player_respect_changes`, `pet_respects` and `pet_feedings` make respect and pet care durable on their own: they guard quota and double credit and let recovery resume a half-finished action (see "Respects, step by step" in `docs/database.md`). Achievements only attach a fact to the same transaction.
 
 ## Definitions and extensions
 

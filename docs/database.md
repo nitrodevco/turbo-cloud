@@ -210,7 +210,82 @@ domain. Times end in `_at` (every time is UTC, so no name says so), foreign keys
 Every table carries a comment saying what it holds (`[Comment]` on its entity), which pgAdmin,
 DBeaver and `\d+` show beside it; `EveryTableSaysWhatItHolds` fails for a new table without one.
 A string column is `text` unless its domain has a real limit, which it then declares with
-`[MaxLength]`. A list is a `text[]` (a room's tags), not a comma-joined string.
+`[MaxLength]`. A list is an array (`text[]` for a room's tags, `integer[]` for a goal's scores),
+not a comma-joined string. A day is a `date`, a moment a `timestamptz`. A state is one enum column
+(`player_respects.status`), not two booleans that could both be true. A rule the game keeps is kept
+by the database too, as a CHECK, a unique index or a foreign key, so a row written from the panel,
+a script or a plugin can't break it: a name and its lookup key always agree, a badge is worn in a
+slot from 1 or not at all, a voucher is never used past its limit, a serial is sold once, a player
+is on one quest at a time.
+
+## Records of what happened
+
+Most tables hold how things stand now. These hold how they got there, each written in the same
+transaction as the change it records, so the record and the change can't disagree:
+
+| Table | One row per | Answers |
+| --- | --- | --- |
+| `player_currency_ledger` | change to a balance, with its reason, detail and the balance it left | "my credits vanished", a disputed charge, a duplicated reward |
+| `furniture_transfers` | furni changing owner in a trade (or a trade undone) | "my rare was taken", a duplicated item |
+| `catalog_ltd_entries` | raffle entry or sale of an LTD, with the serial won | who owns which serial; no serial is sold twice |
+| `player_subscription_grants` | extension of a membership: days, bought or given, until when | a disputed purchase, a gift |
+| `player_logins` | session: address (through a trusted proxy), machine id, when it ended | a banned player's other accounts |
+| `player_respects` | respect given, and whether it went through | respect farming between accounts |
+| `wired_chest_transactions` | deposit or withdrawal at a wired chest | what went into and out of a chest |
+
+`players.last_seen_at` is the end of the player's last session. It is kept on the player as well
+as in `player_logins`, so "last seen" survives the login log being trimmed.
+
+### Respects, step by step
+
+A respect changes two players, each owned by their own grain, so it can't be one transaction. It
+is done in steps that can each be repeated safely:
+
+1. A row in `player_respects` is written with a new id and `status` pending, before anyone changes.
+2. The giver's grain spends one of today's respects and writes a `player_respect_changes` row
+   (`kind` spent) in the same transaction.
+3. The receiver's grain adds to their total and writes a `player_respect_changes` row (`kind`
+   received) in the same transaction.
+4. The respect becomes given (or refused, if the giver had none left), with the achievement facts.
+
+If the server stops between steps, the recovery service finds the pending respect and runs it
+again. A step already done finds its `player_respect_changes` row and does nothing, so nobody is
+charged or credited twice. A scratch for a pet (`pet_respects`) is the same, and a pet fed
+(`pet_feedings`) is one step, written with the pet's new nutrition.
+
+## What the hotel keeps, and for how long
+
+Under UK and EU data protection law (storage limitation, as the ICO explains it) a record about a
+person is kept only as long as its purpose needs, and there is no fixed period: each kind needs a
+purpose and a period. `Turbo:Retention` sets each in days (0 keeps it for good), and
+`DataRetentionService` removes older rows every hour, oldest first and a batch at a time, so it
+never holds a long lock.
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `ChatDays` | 90 | room chat and private messages: the evidence a report is checked against |
+| `RoomEntryDays` | 90 | who entered which room |
+| `LoginDays` | 180 | logins with address and machine: finding a banned player's other accounts |
+| `CurrencyLedgerDays` | 365 | disputed charges, refunds, duplicated rewards |
+| `FurnitureTransferDays` | 730 | tracing an item a player says was taken |
+| `CommandLogDays` | 365 | what staff did, and when |
+| `RespectDays` | 90 | spotting respect farming |
+| `ReceiptDays` | 30 | records that only make a retried action safe |
+| `DailyTaskDays` | 30 | daily tasks of past days |
+| `WiredChestDays` | 180 | a chest's deposit and withdrawal log |
+| `ClosedReportDays` | 365 | calls for help, once closed |
+| `ExpiredRoomSanctionDays` | 7 | room bans and mutes that have run out |
+| `EndedRoomEventDays` | 30 | room events that have ended |
+| `AssetPublishDays` | 180 | asset publish runs |
+| `AutomaticCatalogBackupsKept` | 20 | catalogue backups taken before a restore (ones made by hand are kept) |
+
+A hotel that needs longer, or shorter, sets its own, and says so in its privacy notice. A
+pending respect is never removed; the permission audit, sanctions and subscription grants are
+kept for good.
+
+`Turbo:Networking:TrustedProxies` lists the proxies whose `X-Forwarded-For` is believed (by default
+the server itself, for nginx on the same machine). Behind any other proxy, add its address, or every
+login will be recorded from the proxy.
 
 ## Searching text
 

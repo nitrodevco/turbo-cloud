@@ -31,7 +31,6 @@ public sealed class PlayerSettingsPersistenceTests : IDisposable
                 Name = "player",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 

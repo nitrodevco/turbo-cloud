@@ -42,7 +42,6 @@ public sealed class RoomLastActiveTests : IDisposable
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -71,7 +70,7 @@ public sealed class RoomLastActiveTests : IDisposable
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -117,7 +116,7 @@ public sealed class RoomLastActiveTests : IDisposable
                     BadgesRank = 0,
                     IsOnline = true,
                     CreatedAt = DateTime.UtcNow,
-                    LastUpdated = DateTime.UtcNow,
+                    LastSeen = DateTime.UtcNow,
                     RespectPoints = 0,
                     RespectsLeft = 0,
                     PetRespectsLeft = 0,

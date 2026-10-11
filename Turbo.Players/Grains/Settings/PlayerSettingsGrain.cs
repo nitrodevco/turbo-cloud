@@ -382,7 +382,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         var ownedChatStyleIds = await dbCtx
             .PlayerOwnedChatStyles.AsNoTracking()
             .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
-            .Select(x => x.ChatStyle.ClientStyleId)
+            .Select(x => x.ChatStyleId)
             .ToListAsync(ct);
 
         _state.OwnedChatStyleIds = ownedChatStyleIds.ToFrozenSet();

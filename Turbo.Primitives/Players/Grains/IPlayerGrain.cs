@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -9,6 +10,12 @@ namespace Turbo.Primitives.Players.Grains;
 public interface IPlayerGrain : IGrainWithIntegerKey
 {
     public Task SetOnlineStatusAsync(bool flag, CancellationToken ct);
+
+    /// <summary>
+    /// Records where the session that just opened came from: the address and the machine id,
+    /// either of which may be unknown.
+    /// </summary>
+    public Task RecordLoginOriginAsync(string? address, string? machineId, CancellationToken ct);
     public Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct);
 
     /// <summary>
@@ -29,11 +36,11 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     public Task<int> ReceiveRespectAsync(CancellationToken ct);
 
     /// <summary>Durably reserves a respect with an idempotent participant receipt.</summary>
-    public Task<bool> SpendRespectOperationAsync(string operationId, CancellationToken ct);
-    public Task<bool> SpendPetRespectOperationAsync(string operationId, CancellationToken ct);
+    public Task<bool> SpendRespectOperationAsync(Guid respectId, CancellationToken ct);
+    public Task<bool> SpendPetRespectOperationAsync(Guid respectId, CancellationToken ct);
 
     /// <summary>Durably applies the recipient's part of a respect operation once.</summary>
-    public Task<int> ReceiveRespectOperationAsync(string operationId, CancellationToken ct);
+    public Task<int> ReceiveRespectOperationAsync(Guid respectId, CancellationToken ct);
 
     /// <summary>Refills today's respects if a replenish is available; false otherwise.</summary>
     public Task<bool> ReplenishRespectAsync(CancellationToken ct);

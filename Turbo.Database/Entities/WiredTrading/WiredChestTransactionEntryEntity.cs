@@ -36,7 +36,8 @@ public class WiredChestTransactionEntryEntity
     [Column("is_wall_item")]
     public bool IsWallItem { get; set; }
 
-    [Column("type_id")]
+    /// <summary>The furni's sprite id, which the client calls the item's type.</summary>
+    [Column("sprite_id")]
     public int TypeId { get; set; }
 
     [Column("poster_id")]

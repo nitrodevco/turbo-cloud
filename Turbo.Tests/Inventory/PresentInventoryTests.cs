@@ -187,6 +187,44 @@ public sealed class PresentInventoryTests : IDisposable
             .Be("receiver");
     }
 
+    /// <summary>
+    /// A trade moves each furni to its new owner and records it: which furni, what it was, from
+    /// whom, to whom. Nothing recorded a trade, so a player who said an item was taken could not
+    /// be answered.
+    /// </summary>
+    [Fact]
+    public async Task A_traded_furni_is_recorded_changing_hands()
+    {
+        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), Ct);
+        var present = (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single();
+
+        (
+            await NewInventory(RECEIVER)
+                .TransferFurnitureAsync(
+                    [present.ItemId],
+                    TRADED_TO,
+                    FurnitureTransferReason.Trade,
+                    Ct
+                )
+        )
+            .Should()
+            .BeTrue();
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.FurnitureTransfers.SingleAsync(Ct))
+            .Should()
+            .BeEquivalentTo(
+                new
+                {
+                    FurnitureId = present.ItemId.Value,
+                    DefinitionId = PRESENT,
+                    FromPlayerId = RECEIVER,
+                    ToPlayerId = TRADED_TO,
+                    Reason = FurnitureTransferReason.Trade,
+                }
+            );
+    }
+
     [Fact]
     public async Task APresentThatChangedHands_OpensIntoItsNewOwnersInventory()
     {
@@ -299,7 +337,6 @@ public sealed class PresentInventoryTests : IDisposable
                 Name = name,
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 

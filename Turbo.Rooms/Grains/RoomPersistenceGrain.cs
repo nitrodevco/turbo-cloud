@@ -23,6 +23,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
@@ -395,7 +396,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     }
 
     public async Task<PetNutritionOperationResult> ApplyPetNutritionOperationAsync(
-        string operationId,
+        Guid feedingId,
         int petId,
         PlayerId ownerId,
         PlayerId supplierId,
@@ -405,7 +406,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        ValidateOperationId(operationId);
+        ValidateOperationId(feedingId);
         if (
             petId <= 0
             || ownerId.Value <= 0
@@ -420,13 +421,10 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         var roomId = _state.RoomId.Value;
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var previous = await db.PetNutritionOperations.SingleOrDefaultAsync(
-            x => x.OperationId == operationId,
-            ct
-        );
+        var previous = await db.PetFeedings.SingleOrDefaultAsync(x => x.Id == feedingId, ct);
         if (previous is not null)
         {
-            EnsureSameNutritionOperation(
+            EnsureSameFeeding(
                 previous,
                 roomId,
                 petId,
@@ -436,15 +434,17 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 requestedNutrition,
                 maxNutrition
             );
-            if (!previous.Completed)
-                throw new InvalidOperationException("Pet nutrition operation is not complete.");
             MergePetNutrition(
                 previous.PetId,
-                previous.BaseNutrition,
+                previous.NutritionBefore,
                 previous.NutritionAfter,
                 replay: true
             );
-            return new() { Nutrition = previous.NutritionAfter, ActualGain = previous.ActualGain };
+            return new()
+            {
+                Nutrition = previous.NutritionAfter,
+                ActualGain = previous.NutritionAfter - previous.NutritionBefore,
+            };
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -460,28 +460,27 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         var actualGain = Math.Min(requestedNutrition, Math.Max(0, maxNutrition - baseNutrition));
         var nutritionAfter = checked(baseNutrition + actualGain);
         pet.Nutrition = nutritionAfter;
-        var operation = new PetNutritionOperationEntity
-        {
-            OperationId = operationId,
-            RoomId = roomId,
-            PetId = petId,
-            OwnerId = ownerId.Value,
-            SupplierId = supplierId.Value,
-            BaseNutrition = baseNutrition,
-            RequestedNutrition = requestedNutrition,
-            MaxNutrition = maxNutrition,
-            NutritionAfter = nutritionAfter,
-            ActualGain = actualGain,
-            Completed = true,
-        };
-        db.PetNutritionOperations.Add(operation);
+        db.PetFeedings.Add(
+            new PetFeedingEntity
+            {
+                Id = feedingId,
+                RoomId = roomId,
+                PetId = petId,
+                OwnerId = ownerId.Value,
+                FedById = supplierId.Value,
+                NutritionBefore = baseNutrition,
+                NutritionOffered = requestedNutrition,
+                NutritionMax = maxNutrition,
+                NutritionAfter = nutritionAfter,
+            }
+        );
         if (actualGain > 0 && supplierId.Value > 0)
             _achievementFacts.Record(
                 db,
                 supplierId,
                 new()
                 {
-                    OperationId = $"pet-nutrition:{operationId}:supplied",
+                    OperationId = $"pet-nutrition:{feedingId:N}:supplied",
                     Source = AchievementSources.NUTRITION,
                     OccurredAtUtc = DateTime.UtcNow,
                     Amount = actualGain,
@@ -495,7 +494,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     }
 
     public async Task<PetRespectOperationResult> ApplyPetRespectOperationAsync(
-        string operationId,
+        Guid respectId,
         PlayerId actorId,
         int petId,
         PlayerId ownerId,
@@ -503,60 +502,54 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        ValidateOperationId(operationId);
+        ValidateOperationId(respectId);
         if (actorId.Value <= 0 || petId <= 0 || ownerId.Value <= 0 || baseRespect < 0)
             throw new ArgumentOutOfRangeException(nameof(petId), "Invalid pet respect operation.");
 
         var roomId = _state.RoomId.Value;
         await using (var admissionDb = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
-            var operation = await admissionDb.PetRespectOperations.SingleOrDefaultAsync(
-                x => x.OperationId == operationId,
+            var respect = await admissionDb.PetRespects.SingleOrDefaultAsync(
+                x => x.Id == respectId,
                 ct
             );
-            if (operation is null)
+            if (respect is null)
             {
-                operation = new PetRespectOperationEntity
+                respect = new PetRespectEntity
                 {
-                    OperationId = operationId,
+                    Id = respectId,
                     RoomId = roomId,
-                    ActorId = actorId.Value,
+                    GiverId = actorId.Value,
                     PetId = petId,
                     OwnerId = ownerId.Value,
-                    BaseRespect = baseRespect,
+                    RespectBefore = baseRespect,
+                    Status = RespectStatus.Pending,
                 };
-                admissionDb.PetRespectOperations.Add(operation);
+                admissionDb.PetRespects.Add(respect);
                 await admissionDb.SaveChangesAsync(ct);
             }
             else
             {
-                EnsureSamePetRespectOperation(
-                    operation,
-                    roomId,
-                    actorId,
-                    petId,
-                    ownerId,
-                    baseRespect
-                );
-                if (operation.Rejected)
+                EnsureSamePetRespect(respect, roomId, actorId, petId, ownerId, baseRespect);
+                if (respect.Status == RespectStatus.Refused)
                     return new() { Accepted = false };
-                if (operation.Completed)
+                if (respect.Status == RespectStatus.Given)
                 {
-                    MergePetRespect(petId, operation.ResultRespect);
-                    return new() { Accepted = true, Respect = operation.ResultRespect };
+                    MergePetRespect(petId, respect.RespectAfter);
+                    return new() { Accepted = true, Respect = respect.RespectAfter };
                 }
             }
         }
 
         var spent = await _grainFactory
             .GetPlayerGrain(actorId)
-            .SpendPetRespectOperationAsync(operationId, ct);
+            .SpendPetRespectOperationAsync(respectId, ct);
         if (!spent)
         {
             await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-            var operation = await GetPetRespectOperationAsync(
+            var respect = await GetPetRespectAsync(
                 db,
-                operationId,
+                respectId,
                 roomId,
                 actorId,
                 petId,
@@ -564,11 +557,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 baseRespect,
                 ct
             );
-            operation.Rejected = true;
+            respect.Status = RespectStatus.Refused;
             await db.SaveChangesAsync(ct);
             _logger.LogWarning(
-                "Pet respect operation {OperationId} from player {ActorId} to pet {PetId} was rejected because no pet respect remained",
-                operationId,
+                "Pet respect {RespectId} from player {ActorId} to pet {PetId} was refused because no pet respect remained",
+                respectId,
                 actorId,
                 petId
             );
@@ -578,9 +571,9 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         await using (var db = await _dbCtxFactory.CreateDbContextAsync(ct))
         await using (var transaction = await db.Database.BeginTransactionAsync(ct))
         {
-            var operation = await GetPetRespectOperationAsync(
+            var respect = await GetPetRespectAsync(
                 db,
-                operationId,
+                respectId,
                 roomId,
                 actorId,
                 petId,
@@ -588,14 +581,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 baseRespect,
                 ct
             );
-            if (operation.Rejected)
-                throw new InvalidOperationException(
-                    "A spent pet respect operation is marked rejected."
-                );
-            if (operation.Completed)
+            if (respect.Status == RespectStatus.Refused)
+                throw new InvalidOperationException("A spent pet respect is marked refused.");
+            if (respect.Status == RespectStatus.Given)
             {
-                MergePetRespect(petId, operation.ResultRespect);
-                return new() { Accepted = true, Respect = operation.ResultRespect };
+                MergePetRespect(petId, respect.RespectAfter);
+                return new() { Accepted = true, Respect = respect.RespectAfter };
             }
 
             var pet = await db.Pets.SingleOrDefaultAsync(
@@ -615,7 +606,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 actorId,
                 new()
                 {
-                    OperationId = $"pet-respect:{operationId}:given",
+                    OperationId = $"pet-respect:{respectId:N}:given",
                     Source = AchievementSources.PET_RESPECT_GIVEN,
                     OccurredAtUtc = occurredAt,
                 }
@@ -625,13 +616,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 ownerId,
                 new()
                 {
-                    OperationId = $"pet-respect:{operationId}:received",
+                    OperationId = $"pet-respect:{respectId:N}:received",
                     Source = AchievementSources.PET_RESPECT_RECEIVED,
                     OccurredAtUtc = occurredAt,
                 }
             );
-            operation.Completed = true;
-            operation.ResultRespect = resultRespect;
+            respect.Status = RespectStatus.Given;
+            respect.RespectAfter = resultRespect;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             MergePetRespect(petId, resultRespect);
@@ -639,15 +630,14 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         }
     }
 
-    private static void ValidateOperationId(string operationId)
+    private static void ValidateOperationId(Guid id)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-        if (operationId.Length > 100)
-            throw new ArgumentException("Pet operation id is too long.", nameof(operationId));
+        if (id == Guid.Empty)
+            throw new ArgumentException("A pet care operation needs an id.", nameof(id));
     }
 
-    private static void EnsureSameNutritionOperation(
-        PetNutritionOperationEntity operation,
+    private static void EnsureSameFeeding(
+        PetFeedingEntity feeding,
         int roomId,
         int petId,
         PlayerId ownerId,
@@ -658,21 +648,19 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         if (
-            operation.RoomId != roomId
-            || operation.PetId != petId
-            || operation.OwnerId != ownerId.Value
-            || operation.SupplierId != supplierId.Value
-            || operation.BaseNutrition != baseNutrition
-            || operation.RequestedNutrition != requestedNutrition
-            || operation.MaxNutrition != maxNutrition
+            feeding.RoomId != roomId
+            || feeding.PetId != petId
+            || feeding.OwnerId != ownerId.Value
+            || feeding.FedById != supplierId.Value
+            || feeding.NutritionBefore != baseNutrition
+            || feeding.NutritionOffered != requestedNutrition
+            || feeding.NutritionMax != maxNutrition
         )
-            throw new InvalidOperationException(
-                "Pet nutrition operation id is bound to different input."
-            );
+            throw new InvalidOperationException("The feeding id is bound to different input.");
     }
 
-    private static void EnsureSamePetRespectOperation(
-        PetRespectOperationEntity operation,
+    private static void EnsureSamePetRespect(
+        PetRespectEntity respect,
         int roomId,
         PlayerId actorId,
         int petId,
@@ -681,20 +669,18 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         if (
-            operation.RoomId != roomId
-            || operation.ActorId != actorId.Value
-            || operation.PetId != petId
-            || operation.OwnerId != ownerId.Value
-            || operation.BaseRespect != baseRespect
+            respect.RoomId != roomId
+            || respect.GiverId != actorId.Value
+            || respect.PetId != petId
+            || respect.OwnerId != ownerId.Value
+            || respect.RespectBefore != baseRespect
         )
-            throw new InvalidOperationException(
-                "Pet respect operation id is bound to different input."
-            );
+            throw new InvalidOperationException("The pet respect id is bound to different input.");
     }
 
-    private static async Task<PetRespectOperationEntity> GetPetRespectOperationAsync(
+    private static async Task<PetRespectEntity> GetPetRespectAsync(
         TurboDbContext db,
-        string operationId,
+        Guid respectId,
         int roomId,
         PlayerId actorId,
         int petId,
@@ -703,12 +689,9 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        var operation = await db.PetRespectOperations.SingleAsync(
-            x => x.OperationId == operationId,
-            ct
-        );
-        EnsureSamePetRespectOperation(operation, roomId, actorId, petId, ownerId, baseRespect);
-        return operation;
+        var respect = await db.PetRespects.SingleAsync(x => x.Id == respectId, ct);
+        EnsureSamePetRespect(respect, roomId, actorId, petId, ownerId, baseRespect);
+        return respect;
     }
 
     private void MergePetNutrition(int petId, int baseNutrition, int nutritionAfter, bool replay)

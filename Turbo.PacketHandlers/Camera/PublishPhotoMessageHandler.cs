@@ -64,6 +64,7 @@ public class PublishPhotoMessageHandler(
                             Amount = _config.PublishDucketPrice,
                         },
                     },
+                    new WalletChange(WalletChangeReason.Camera, $"publish photo {photo.Id}"),
                     ct
                 )
                 .ConfigureAwait(false);

@@ -44,7 +44,7 @@ public sealed class AdminNotificationQueriesTests : IDisposable
 
         _db.Insert(Log(10, ALICE, "ban", "moderator", "refused", NOW.AddHours(-1)));
         _db.Insert(Log(11, ALICE, "kick", "bob", "room_level", NOW.AddHours(-3)));
-        _db.Insert(Log(12, 0, "shutdown", "", "refused", NOW.AddHours(-4)));
+        _db.Insert(Log(12, null, "shutdown", "", "refused", NOW.AddHours(-4)));
         _db.Insert(Log(13, MOD, "ban", "alice", "completed", NOW.AddHours(-5)));
         _db.Insert(Log(14, ALICE, "ban", "moderator", "refused", NOW.AddDays(-9)));
 
@@ -144,7 +144,6 @@ public sealed class AdminNotificationQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static PlayerSanctionEntity Ban(
@@ -167,7 +166,7 @@ public sealed class AdminNotificationQueriesTests : IDisposable
 
     private static CommandLogEntity Log(
         int id,
-        int playerId,
+        int? playerId,
         string command,
         string arguments,
         string outcome,
@@ -177,7 +176,6 @@ public sealed class AdminNotificationQueriesTests : IDisposable
         {
             Id = id,
             PlayerEntityId = playerId,
-            RoomEntityId = 0,
             Command = command,
             Arguments = arguments,
             Outcome = outcome,

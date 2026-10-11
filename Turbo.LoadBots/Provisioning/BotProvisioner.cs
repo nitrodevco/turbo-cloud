@@ -33,7 +33,6 @@ public sealed class BotProvisioner(
 )
 {
     private const string TICKET_PREFIX = "loadbot-";
-    private const string TICKET_IP = "127.0.0.1";
 
     // A handful of looks so a room full of bots is not a room full of clones.
     private static readonly string[] FIGURES =
@@ -78,7 +77,6 @@ public sealed class BotProvisioner(
                 Motto = "Load test bot",
                 Figure = FIGURES[i % FIGURES.Length],
                 Gender = i % 3 == 0 ? AvatarGenderType.Female : AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             };
 
             db.Players.Add(player);
@@ -137,7 +135,7 @@ public sealed class BotProvisioner(
         {
             if (existing.TryGetValue(id, out var ticket))
             {
-                ticket.IsLocked = true;
+                ticket.Reusable = true;
 
                 continue;
             }
@@ -150,8 +148,7 @@ public sealed class BotProvisioner(
                     Ticket =
                         TICKET_PREFIX
                         + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24)),
-                    IpAddress = TICKET_IP,
-                    IsLocked = true,
+                    Reusable = true,
                 }
             );
         }

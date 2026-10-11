@@ -24,7 +24,7 @@ public class NavigatorFlatCategoryEntity : TurboEntity
     public required bool Visible { get; set; }
 
     [Column("automatic")]
-    [DefaultValue(true)] // TODO hmm
+    [DefaultValue(false)]
     public required bool Automatic { get; set; }
 
     [Column("automatic_category")]

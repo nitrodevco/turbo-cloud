@@ -36,7 +36,6 @@ public sealed class LoginTicketTests : IDisposable
                 Name = "alice",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _tickets = new LoginTicketService(_db, _clock);
@@ -145,7 +144,6 @@ public sealed class LoginTicketTests : IDisposable
                 Id = 1,
                 PlayerEntityId = ALICE,
                 Ticket = "from-the-cms",
-                IpAddress = "127.0.0.1",
                 PlayerEntity = null!,
             }
         );

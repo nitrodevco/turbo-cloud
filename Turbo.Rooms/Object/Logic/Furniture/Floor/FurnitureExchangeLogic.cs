@@ -40,7 +40,12 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         var credited = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .CreditAsync(CurrencyKind.Credits, credits, ct);
+            .CreditAsync(
+                CurrencyKind.Credits,
+                credits,
+                new WalletChange(WalletChangeReason.Exchange, _ctx.Definition.Name),
+                ct
+            );
 
         if (!credited)
             return Reject(ctx, interaction, "wallet refused the credit");

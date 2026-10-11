@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,14 @@ public class GuildMemberEntity : TurboEntity
     [Column("is_favourite")]
     [DefaultValue(false)]
     public required bool IsFavourite { get; set; }
+
+    /// <summary>
+    /// When they became a member, which the member list shows as "member since"; null while
+    /// the row is a request or a block. <c>created_at</c> is when the row was first written,
+    /// often a request made days before it was approved.
+    /// </summary>
+    [Column("joined_at")]
+    public DateTime? JoinedAt { get; set; }
 
     [ForeignKey(nameof(GuildEntityId))]
     public GuildEntity? GuildEntity { get; set; }

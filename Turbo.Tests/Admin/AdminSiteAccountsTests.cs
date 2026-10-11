@@ -124,7 +124,6 @@ public sealed class AdminSiteAccountsTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static WebSessionEntity Session(int id, int playerId, DateTime expires) =>

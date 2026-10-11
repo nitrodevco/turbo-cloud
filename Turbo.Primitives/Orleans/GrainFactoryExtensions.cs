@@ -343,7 +343,12 @@ public static class GrainFactoryExtensions
             {
                 // Not the caller's token: a refund that has started must not be abandoned.
                 await wallet
-                    .CreditAsync(debit.CurrencyKind, debit.Amount, CancellationToken.None)
+                    .CreditAsync(
+                        debit.CurrencyKind,
+                        debit.Amount,
+                        new WalletChange(WalletChangeReason.Refund, what),
+                        CancellationToken.None
+                    )
                     .ConfigureAwait(false);
             }
             catch (Exception ex)

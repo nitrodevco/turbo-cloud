@@ -23,11 +23,13 @@ public class CommandLogEntity : TurboLogEntity
     public const int ARGUMENTS_MAX_LENGTH = 255;
     public const int OUTCOME_MAX_LENGTH = 16;
 
+    /// <summary>The room it was used in; null from the console or the panel.</summary>
     [Column("room_id")]
-    public required int RoomEntityId { get; set; }
+    public int? RoomEntityId { get; set; }
 
+    /// <summary>Who used it; null for the console.</summary>
     [Column("player_id")]
-    public required int PlayerEntityId { get; set; }
+    public int? PlayerEntityId { get; set; }
 
     [Column("command")]
     [StringLength(COMMAND_MAX_LENGTH)]

@@ -124,7 +124,6 @@ public sealed class AdminNavigatorEditorTests : IDisposable
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -152,7 +151,7 @@ public sealed class AdminNavigatorEditorTests : IDisposable
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 ThicknessWall = RoomThicknessType.Normal,

@@ -22,7 +22,6 @@ public class AssetBundleEntity : TurboEntity
 {
     public const int NAME_MAX_LENGTH = 128;
     public const int ERROR_MAX_LENGTH = 512;
-    public const int IDS_MAX_LENGTH = 1024;
 
     [Column("kind")]
     public required AssetBundleKind Kind { get; set; }
@@ -55,7 +54,6 @@ public class AssetBundleEntity : TurboEntity
     /// type. Null for a furniture, which is found by its name.
     /// </summary>
     [Column("ids")]
-    [MaxLength(IDS_MAX_LENGTH)]
     public string? Ids { get; set; }
 
     [Column("error")]

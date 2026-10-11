@@ -39,7 +39,6 @@ public sealed class AchievementPersistenceTests : IDisposable
                 Name = "achievement-persistence",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _fakes.Handlers[nameof(IBadgeDirectoryGrain.GetInfoAsync)] = call =>

@@ -109,6 +109,12 @@ public class SSOTicketMessageHandler(
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
 
+        // Where the session came from, for staff looking for a player's other accounts.
+        await _grainFactory
+            .GetPlayerGrain(playerId)
+            .RecordLoginOriginAsync(ctx.ClientAddress?.ToString(), ctx.MachineId, ct)
+            .ConfigureAwait(false);
+
         // Five reads from five different grains, none depending on another, so they are asked
         // side by side and awaited where their answers are sent. The composers still go out in
         // the order below.

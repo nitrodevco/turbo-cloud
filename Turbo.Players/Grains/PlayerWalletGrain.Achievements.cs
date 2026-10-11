@@ -55,6 +55,13 @@ internal sealed partial class PlayerWalletGrain
             return false;
         balance.Amount += amount;
         balance.PendingRewardAmount = checked(balance.PendingRewardAmount + amount);
+        RecordChange(
+            db,
+            typeId,
+            amount,
+            balance.Amount,
+            new WalletChange(WalletChangeReason.Achievement, awardKey)
+        );
         db.AchievementWalletReceipts.Add(
             new()
             {

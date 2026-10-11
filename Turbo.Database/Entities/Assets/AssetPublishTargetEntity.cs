@@ -34,7 +34,7 @@ public class AssetPublishTargetEntity : TurboEntity
     [Column("port")]
     public int Port { get; set; }
 
-    [Column("user")]
+    [Column("username")]
     [MaxLength(USER_MAX_LENGTH)]
     public string User { get; set; } = "";
 

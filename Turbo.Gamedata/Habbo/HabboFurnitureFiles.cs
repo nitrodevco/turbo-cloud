@@ -211,8 +211,6 @@ internal sealed class HabboFurnitureFiles(
             var info = FurnitureAssetReader.Read(data, asset);
 
             row.States = info.States;
-            row.LogicType = Truncate(info.Logic, 64);
-            row.VisualizationType = Truncate(info.Visualization, 64);
             row.Info = JsonSerializer.Serialize(info, JSON);
         }
         catch (AssetFormatException ex)
@@ -271,8 +269,6 @@ internal sealed class HabboFurnitureFiles(
             if (byKey.TryGetValue((row.AssetName, row.Revision), out var known))
             {
                 known.States = row.States;
-                known.LogicType = row.LogicType;
-                known.VisualizationType = row.VisualizationType;
                 known.Info = row.Info;
                 known.Error = row.Error;
                 known.Retry = row.Retry;

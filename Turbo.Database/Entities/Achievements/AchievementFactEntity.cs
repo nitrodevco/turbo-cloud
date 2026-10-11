@@ -9,7 +9,6 @@ namespace Turbo.Database.Entities.Achievements;
     "Things players did that count toward achievements, waiting to be or already turned into progress."
 )]
 [Table("achievement_facts")]
-[Index(nameof(PlayerId), nameof(Processed), nameof(Id))]
 [Index(nameof(PlayerId), nameof(OperationId), IsUnique = true)]
 public sealed class AchievementFactEntity
 {

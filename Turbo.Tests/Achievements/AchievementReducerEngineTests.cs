@@ -137,8 +137,8 @@ public class AchievementReducerEngineTests
             maxDistinctValues: 10
         );
 
-        Assert.Equal(1, progress.Streak);
-        Assert.Equal(firstDay, progress.LastDayUtc);
+        Assert.Equal(1, progress.CurrentStreak);
+        Assert.Equal(DateOnly.FromDateTime(firstDay), progress.LastStreakDay);
 
         AchievementReducerEngine.Apply(
             progress,
@@ -146,7 +146,7 @@ public class AchievementReducerEngineTests
             Fact(occurredAtUtc: firstDay.AddDays(1)),
             maxDistinctValues: 10
         );
-        Assert.Equal(2, progress.Streak);
+        Assert.Equal(2, progress.CurrentStreak);
         Assert.Equal(2, progress.Value);
     }
 
@@ -176,7 +176,7 @@ public class AchievementReducerEngineTests
             maxDistinctValues: 10
         );
 
-        Assert.Equal(1, progress.Streak);
+        Assert.Equal(1, progress.CurrentStreak);
         Assert.Equal(2, progress.Value);
     }
 

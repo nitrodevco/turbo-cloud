@@ -86,8 +86,9 @@ public sealed class GiveCommand(
             async (player, token) =>
             {
                 var wallet = grainFactory.GetPlayerWalletGrain(player.Id);
+                var why = new WalletChange(WalletChangeReason.Staff, $"by {ctx.Executor.Name}");
                 return arguments.Amount > 0
-                    ? await wallet.CreditRewardAsync(kind, arguments.Amount, token)
+                    ? await wallet.CreditRewardAsync(kind, arguments.Amount, why, token)
                     : (
                         await wallet.TryDebitAsync(
                             [
@@ -97,6 +98,7 @@ public sealed class GiveCommand(
                                     Amount = -arguments.Amount,
                                 },
                             ],
+                            why,
                             token
                         )
                     ).Succeeded;

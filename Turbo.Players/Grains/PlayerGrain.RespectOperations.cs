@@ -3,38 +3,27 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Players.Grains;
 
 internal sealed partial class PlayerGrain
 {
-    public async Task<bool> SpendRespectOperationAsync(string operationId, CancellationToken ct) =>
-        await SpendRespectQuotaAsync(operationId, false, ct);
+    public async Task<bool> SpendRespectOperationAsync(Guid respectId, CancellationToken ct) =>
+        await SpendRespectQuotaAsync(respectId, false, ct);
 
-    public async Task<bool> SpendPetRespectOperationAsync(
-        string operationId,
-        CancellationToken ct
-    ) => await SpendRespectQuotaAsync(operationId, true, ct);
+    public async Task<bool> SpendPetRespectOperationAsync(Guid respectId, CancellationToken ct) =>
+        await SpendRespectQuotaAsync(respectId, true, ct);
 
-    private async Task<bool> SpendRespectQuotaAsync(
-        string operationId,
-        bool pet,
-        CancellationToken ct
-    )
+    private async Task<bool> SpendRespectQuotaAsync(Guid respectId, bool pet, CancellationToken ct)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-        if (operationId.Length > 100)
-            throw new ArgumentException("Respect operation id too long.", nameof(operationId));
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var kind = pet ? RespectReceiptKinds.PET_SPEND : RespectReceiptKinds.SPEND;
-        var receipt = await db.HumanRespectParticipantReceipts.FindAsync(
-            [PlayerId.Value, operationId, kind],
-            ct
-        );
-        if (receipt is not null)
-            return receipt.Accepted;
+        var kind = pet ? RespectChangeKind.PetSpent : RespectChangeKind.Spent;
+        var change = await db.PlayerRespectChanges.FindAsync([respectId, kind], ct);
+        if (change is not null)
+            return change.Accepted;
         var entity = await db.Players.SingleAsync(x => x.Id == PlayerId.Value, ct);
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (entity.RespectResetDate != today)
         {
             entity.RespectResetDate = today;
@@ -50,14 +39,14 @@ internal sealed partial class PlayerGrain
             else
                 entity.RespectsLeft--;
         }
-        db.HumanRespectParticipantReceipts.Add(
+        db.PlayerRespectChanges.Add(
             new()
             {
-                PlayerId = PlayerId.Value,
-                OperationId = operationId,
+                RespectId = respectId,
                 Kind = kind,
+                PlayerId = PlayerId.Value,
                 Accepted = accepted,
-                ResultTotal = pet ? entity.PetRespectsLeft : entity.RespectsLeft,
+                TotalAfter = pet ? entity.PetRespectsLeft : entity.RespectsLeft,
             }
         );
         await db.SaveChangesAsync(ct);
@@ -68,28 +57,25 @@ internal sealed partial class PlayerGrain
         return accepted;
     }
 
-    public async Task<int> ReceiveRespectOperationAsync(string operationId, CancellationToken ct)
+    public async Task<int> ReceiveRespectOperationAsync(Guid respectId, CancellationToken ct)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-        if (operationId.Length > 100)
-            throw new ArgumentException("Respect operation id too long.", nameof(operationId));
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var receipt = await db.HumanRespectParticipantReceipts.FindAsync(
-            [PlayerId.Value, operationId, RespectReceiptKinds.RECEIVE],
+        var change = await db.PlayerRespectChanges.FindAsync(
+            [respectId, RespectChangeKind.Received],
             ct
         );
-        if (receipt is not null)
-            return receipt.ResultTotal;
+        if (change is not null)
+            return change.TotalAfter;
         var entity = await db.Players.SingleAsync(x => x.Id == PlayerId.Value, ct);
         entity.RespectPoints = checked(entity.RespectPoints + 1);
-        db.HumanRespectParticipantReceipts.Add(
+        db.PlayerRespectChanges.Add(
             new()
             {
+                RespectId = respectId,
+                Kind = RespectChangeKind.Received,
                 PlayerId = PlayerId.Value,
-                OperationId = operationId,
-                Kind = RespectReceiptKinds.RECEIVE,
                 Accepted = true,
-                ResultTotal = entity.RespectPoints,
+                TotalAfter = entity.RespectPoints,
             }
         );
         await db.SaveChangesAsync(ct);

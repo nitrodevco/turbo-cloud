@@ -169,6 +169,23 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 ? _state.Series.RaffleWindowSeconds
                 : _config.LtdRaffle.DefaultBufferSeconds;
 
+        // One per customer counts what they bought outright as well as what they won.
+        if (_config.LtdRaffle.LimitOnePerCustomer)
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            var alreadyWon = await dbCtx.LtdRaffleEntries.AnyAsync(
+                e =>
+                    e.SeriesEntityId == _state.Series.Id
+                    && e.PlayerEntityId == playerId.Value
+                    && e.Result == LtdEntryResult.Won,
+                ct
+            );
+
+            if (alreadyWon)
+                return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
+        }
+
         if (buffer <= 0 || _state.RaffleFinished)
         {
             var instantWin = await TryFinalizeWinnerAsync(playerId, null, false, ct);
@@ -177,28 +194,12 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 : LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SoldOut);
         }
 
-        if (_config.LtdRaffle.LimitOnePerCustomer)
-        {
-            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            var alreadyWon = await dbCtx.LtdRaffleEntries.AnyAsync(
-                e =>
-                    e.SeriesEntityId == _state.Series.Id
-                    && e.PlayerEntityId == playerId
-                    && e.Result == "won",
-                ct
-            );
-
-            if (alreadyWon)
-                return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
-        }
-
         if (_state.CurrentBatchEntries.ContainsKey(playerId))
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyInQueue);
 
         if (_state.CurrentBatchId == null)
         {
-            _state.CurrentBatchId = Guid.NewGuid().ToString();
+            _state.CurrentBatchId = Guid.CreateVersion7();
             _state.IsInBufferPeriod = true;
             _raffleTimer = this.RegisterGrainTimer<object?>(
                 static async (self, ct) =>
@@ -216,7 +217,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RaffleProcessing);
 
         _state.CurrentBatchEntries[playerId] = await CalculateWeightAsync(playerId, ct);
-        await PersistEntryAsync(playerId, _state.CurrentBatchId, ct);
+        await PersistEntryAsync(playerId, _state.CurrentBatchId.Value, ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
             playerId,
@@ -224,7 +225,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             CancellationToken.None
         );
 
-        return LtdRaffleEntryResult.Succeeded(_state.CurrentBatchId);
+        return LtdRaffleEntryResult.Succeeded(_state.CurrentBatchId.Value.ToString());
     }
 
     private async Task ExecuteRaffleAsync(CancellationToken ct)
@@ -281,7 +282,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     e.BatchId == batchId && loserIds.Contains(e.PlayerEntityId)
                 )
                 .ExecuteUpdateAsync(u =>
-                    u.SetProperty(e => e.Result, "lost")
+                    u.SetProperty(e => e.Result, LtdEntryResult.Lost)
                         .SetProperty(e => e.ProcessedAt, DateTime.UtcNow)
                 );
         }
@@ -291,7 +292,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
     private async Task<bool> TryFinalizeWinnerAsync(
         int playerId,
-        string? batchId,
+        Guid? batchId,
         bool isRaffle,
         CancellationToken ct
     )
@@ -307,14 +308,9 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
         try
         {
-            // The table's name is the entity's own constant, so a rename can't leave this behind.
             var series = await dbCtx
-                .LtdSeries.FromSqlRaw(
-                    "SELECT * FROM " + LtdSeriesEntity.TABLE + " WHERE id = {0} FOR UPDATE",
-                    _state.SeriesId
-                )
-                .OrderBy(x => x.Id)
-                .FirstOrDefaultAsync();
+                .LtdSeries.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == _state.SeriesId);
 
             if (series is not { RemainingQuantity: > 0 })
                 return false;
@@ -339,7 +335,14 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             var debits = offer.ToDebitRequests(1);
             var debitResult = await _grainFactory
                 .GetPlayerWalletGrain(playerId)
-                .TryDebitAsync(debits, ct);
+                .TryDebitAsync(
+                    debits,
+                    new WalletChange(
+                        WalletChangeReason.CatalogPurchase,
+                        $"LTD series {series.Id}, offer {offer.Id}"
+                    ),
+                    ct
+                );
 
             if (!debitResult.Succeeded)
             {
@@ -350,26 +353,45 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             charged = debits;
 
             var serial = _config.LtdRaffle.RandomizeSerials
-                ? (await GetAvailableSerialsAsync(dbCtx, series))[
-                    Random.Shared.Next(series.RemainingQuantity)
-                ]
+                ? await PickAvailableSerialAsync(dbCtx, series)
                 : (series.TotalQuantity - series.RemainingQuantity) + 1;
 
-            series.RemainingQuantity--;
+            // One taken from the stock only while there is one: the grain sells a series one
+            // buyer at a time, and this holds even if two servers ever did. The serial's unique
+            // index refuses one sold twice.
+            var taken = await dbCtx
+                .LtdSeries.Where(x => x.Id == series.Id && x.RemainingQuantity > 0)
+                .ExecuteUpdateAsync(
+                    u => u.SetProperty(x => x.RemainingQuantity, x => x.RemainingQuantity - 1),
+                    ct
+                );
 
-            if (batchId != null)
-            {
-                var entry = await dbCtx
+            if (taken != 1)
+                throw new InvalidOperationException("The series sold out during the sale.");
+
+            // The serial is recorded whether it was drawn or sold outright, so it is never
+            // drawn or sold again.
+            var entry = batchId is null
+                ? null
+                : await dbCtx
                     .LtdRaffleEntries.OrderBy(e => e.Id)
                     .FirstOrDefaultAsync(e => e.BatchId == batchId && e.PlayerEntityId == playerId);
 
-                if (entry != null)
+            if (entry is null)
+            {
+                entry = new LtdRaffleEntryEntity
                 {
-                    entry.Result = "won";
-                    entry.SerialNumber = serial;
-                    entry.ProcessedAt = DateTime.UtcNow;
-                }
+                    SeriesEntityId = series.Id,
+                    PlayerEntityId = playerId,
+                    BatchId = batchId,
+                    Result = LtdEntryResult.Won,
+                };
+                dbCtx.LtdRaffleEntries.Add(entry);
             }
+
+            entry.Result = LtdEntryResult.Won;
+            entry.SerialNumber = serial;
+            entry.ProcessedAt = DateTime.UtcNow;
 
             await dbCtx.SaveChangesAsync();
             await tx.CommitAsync();
@@ -431,12 +453,23 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         }
     }
 
-    private async Task<List<int>> GetAvailableSerialsAsync(TurboDbContext db, LtdSeriesEntity s)
+    private static async Task<int> PickAvailableSerialAsync(TurboDbContext db, LtdSeriesEntity s)
+    {
+        var available = await GetAvailableSerialsAsync(db, s);
+
+        if (available.Count == 0)
+            throw new InvalidOperationException("Every serial of the series is sold.");
+
+        return available[Random.Shared.Next(available.Count)];
+    }
+
+    private static async Task<List<int>> GetAvailableSerialsAsync(
+        TurboDbContext db,
+        LtdSeriesEntity s
+    )
     {
         var usedSerials = await db
-            .LtdRaffleEntries.Where(e =>
-                e.SeriesEntityId == s.Id && e.Result == "won" && e.SerialNumber != null
-            )
+            .LtdRaffleEntries.Where(e => e.SeriesEntityId == s.Id && e.SerialNumber != null)
             .Select(e => e.SerialNumber!.Value)
             .ToListAsync();
 
@@ -611,7 +644,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         );
     }
 
-    private async Task PersistEntryAsync(int playerId, string batchId, CancellationToken ct)
+    private async Task PersistEntryAsync(int playerId, Guid batchId, CancellationToken ct)
     {
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
@@ -621,8 +654,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 SeriesEntityId = _state.SeriesId,
                 PlayerEntityId = playerId,
                 BatchId = batchId,
-                EnteredAt = DateTime.UtcNow,
-                Result = "pending",
+                Result = LtdEntryResult.Pending,
             }
         );
 

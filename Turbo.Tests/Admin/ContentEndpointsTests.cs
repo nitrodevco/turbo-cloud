@@ -60,7 +60,6 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
                     Name = name,
                     Figure = "hd-180-1",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
 

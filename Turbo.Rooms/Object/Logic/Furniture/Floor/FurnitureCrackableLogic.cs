@@ -294,7 +294,12 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (reward.Credits > 0)
             await _roomGrain
                 ._grainFactory.GetPlayerWalletGrain(recipient)
-                .CreditAsync(CurrencyKind.Credits, reward.Credits, ct);
+                .CreditAsync(
+                    CurrencyKind.Credits,
+                    reward.Credits,
+                    new WalletChange(WalletChangeReason.Crackable, _ctx.Definition.Name),
+                    ct
+                );
 
         if (string.IsNullOrWhiteSpace(reward.Furni))
             return;

@@ -249,7 +249,11 @@ public class FurnitureRentableSpaceLogic(
 
         var result = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .TryDebitAsync(debits, ct);
+            .TryDebitAsync(
+                debits,
+                new WalletChange(WalletChangeReason.RentableSpace, $"furni {_ctx.ObjectId}"),
+                ct
+            );
 
         return result.Succeeded ? debits : null;
     }

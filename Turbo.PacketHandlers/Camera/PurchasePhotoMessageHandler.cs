@@ -78,7 +78,11 @@ public class PurchasePhotoMessageHandler(
         {
             var result = await grainFactory
                 .GetPlayerWalletGrain(ctx.PlayerId)
-                .TryDebitAsync(debits, ct)
+                .TryDebitAsync(
+                    debits,
+                    new WalletChange(WalletChangeReason.Camera, $"photo {photo.Id}"),
+                    ct
+                )
                 .ConfigureAwait(false);
 
             if (!result.Succeeded)

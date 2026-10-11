@@ -31,7 +31,7 @@ public sealed record MessengerFriendDto
             FollowingAllowed = snapshot.IsOnline,
             // Offline friends are sent messages too; see PlayerMessengerGrain.SendInitAsync.
             PersistedMessageUser = true,
-            LastAccess = snapshot.LastUpdated.ToString(
+            LastAccess = snapshot.LastSeen.ToString(
                 LAST_ACCESS_FORMAT,
                 CultureInfo.InvariantCulture
             ),

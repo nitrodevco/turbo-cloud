@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Networking;
@@ -63,8 +64,9 @@ internal sealed partial class InventoryGrain
     public Task<bool> TransferFurnitureAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        FurnitureTransferReason reason,
         CancellationToken ct
-    ) => FurniModule.TransferAsync(itemIds, toPlayerId, ct);
+    ) => FurniModule.TransferAsync(itemIds, toPlayerId, reason, ct);
 
     public Task ReceiveFurnitureAsync(
         ImmutableArray<FurnitureItemSnapshot> items,

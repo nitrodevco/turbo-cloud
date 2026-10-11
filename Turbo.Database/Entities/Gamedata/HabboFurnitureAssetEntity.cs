@@ -30,14 +30,6 @@ public class HabboFurnitureAssetEntity : TurboEntity
     [Column("states")]
     public int States { get; set; }
 
-    [Column("logic_type")]
-    [MaxLength(64)]
-    public string? LogicType { get; set; }
-
-    [Column("visualization_type")]
-    [MaxLength(64)]
-    public string? VisualizationType { get; set; }
-
     /// <summary>Everything read from the file (<c>FurnitureAssetInfo</c>), as JSON.</summary>
     [Column("info", TypeName = "text")]
     public string? Info { get; set; }

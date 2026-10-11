@@ -43,7 +43,7 @@ public class FurnitureDefinitionEntity : TurboEntity
     public int TotalStates { get; set; }
 
     [Column("width")]
-    [DefaultValue(0)]
+    [DefaultValue(1)]
     public required int Width { get; set; } // columns
 
     [Column("length")]

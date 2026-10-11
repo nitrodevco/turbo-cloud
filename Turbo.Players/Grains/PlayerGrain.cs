@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
@@ -96,9 +98,12 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetOnlineStatusAsync(bool flag, CancellationToken ct)
     {
-        // A session opening is a login: the profile's "last login" counts from it.
+        // A session opening is a login: the profile's "last login" counts from it. Closing one
+        // is when the player was last seen.
         if (flag)
             await RecordLoginAsync(ct);
+        else if (_state.IsOnline)
+            await RecordLogoutAsync(ct);
         _state.IsOnline = flag;
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
@@ -195,6 +200,55 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
 
+    public async Task RecordLoginOriginAsync(
+        string? address,
+        string? machineId,
+        CancellationToken ct
+    )
+    {
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        db.PlayerLogins.Add(
+            new PlayerLoginEntity
+            {
+                PlayerEntityId = PlayerId.Value,
+                IpAddress = IPAddress.TryParse(address, out var ip) ? ip : null,
+                MachineId = machineId is { Length: > PlayerLogins.MACHINE_ID_MAX_LENGTH }
+                    ? machineId[..PlayerLogins.MACHINE_ID_MAX_LENGTH]
+                    : machineId,
+            }
+        );
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>The end of a session: when the player was last seen, and their open login ended.</summary>
+    private async Task RecordLogoutAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+
+        try
+        {
+            await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            await db
+                .Players.Where(x => x.Id == PlayerId.Value)
+                .ExecuteUpdateAsync(up => up.SetProperty(x => x.LastSeenAt, now), ct);
+            await db
+                .PlayerLogins.Where(x =>
+                    x.PlayerEntityId == PlayerId.Value && x.LoggedOutAt == null
+                )
+                .ExecuteUpdateAsync(up => up.SetProperty(x => x.LoggedOutAt, now), ct);
+        }
+        catch (Exception ex)
+        {
+            // A logout is going ahead whatever; the stamp is a record of it, not a step of it.
+            _logger.LogWarning(ex, "Could not record the logout of player {PlayerId}", PlayerId);
+        }
+
+        _state.LastSeenAtUtc = now;
+    }
+
     /// <summary>
     /// Stamps the login time, written at once and alone (the rest of the row is this grain's to
     /// write on its own schedule). Its login fact commits in the same transaction, before
@@ -267,10 +321,10 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             .AchievementProjections.AsNoTracking()
             .SingleOrDefaultAsync(x => x.PlayerId == _state.PlayerId.Value, ct);
         _state.AchievementScore = achievements?.Score ?? 0;
-        _state.AchievementLevel = achievements?.EarnedLevels ?? 0;
+        _state.AchievementLevel = achievements?.CompletedLevels ?? 0;
         _state.CreatedAt = entity.CreatedAt;
-        _state.LastUpdated = entity.UpdatedAt;
         _state.LastLoginAtUtc = entity.LastLoginAt;
+        _state.LastSeenAtUtc = entity.LastSeenAt;
         _state.RespectPoints = entity.RespectPoints;
         _state.RespectsLeft = entity.RespectsLeft;
         _state.PetRespectsLeft = entity.PetRespectsLeft;
@@ -307,6 +361,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             .ExecuteUpdateAsync(
                 up =>
                     up.SetProperty(p => p.Name, snapshot.Name)
+                        .SetProperty(p => p.NameKey, PlayerNames.Key(snapshot.Name))
                         .SetProperty(p => p.Motto, snapshot.Motto)
                         .SetProperty(p => p.Figure, snapshot.Figure)
                         .SetProperty(p => p.Gender, snapshot.Gender)
@@ -337,8 +392,13 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             await dbCtx.SaveChangesAsync(ct);
             await transaction!.CommitAsync(ct);
         }
-        _state.LastUpdated = DateTime.UtcNow;
     }
+
+    /// <summary>Now while online; else the end of the last session, or its start for a session the server stopped mid-way.</summary>
+    private DateTime LastSeenUtc =>
+        _state.IsOnline
+            ? DateTime.UtcNow
+            : _state.LastSeenAtUtc ?? _state.LastLoginAtUtc ?? _state.CreatedAt;
 
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
         Task.FromResult(
@@ -353,7 +413,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 BadgesRank = _state.BadgesRank,
                 IsOnline = _state.IsOnline,
                 CreatedAt = _state.CreatedAt,
-                LastUpdated = _state.LastUpdated,
+                LastSeen = LastSeenUtc,
                 RespectPoints = _state.RespectPoints,
                 RespectsLeft = _state.RespectsLeft,
                 PetRespectsLeft = _state.PetRespectsLeft,
@@ -419,7 +479,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     /// </summary>
     private void ResetDailyRespectIfDue()
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         if (_state.RespectResetDate == today)
             return;
@@ -494,9 +554,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 IsOnline = _state.IsOnline,
                 Guilds = [],
                 // ExtendedProfileWindowCtrl shows "-" for -1: a player who never logged in.
-                LastAccessSinceInSeconds = _state.LastLoginAtUtc is { } lastLogin
-                    ? (int)Math.Max(0, (DateTime.UtcNow - lastLogin).TotalSeconds)
-                    : -1,
+                LastAccessSinceInSeconds = _state.LastLoginAtUtc is null
+                    ? -1
+                    : (int)Math.Max(0, (DateTime.UtcNow - LastSeenUtc).TotalSeconds),
                 OpenProfileWindow = true,
                 IsHidden = false,
                 AccountLevel = 1,

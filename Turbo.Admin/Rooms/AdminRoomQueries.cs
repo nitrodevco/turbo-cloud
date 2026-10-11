@@ -205,8 +205,7 @@ public sealed class AdminRoomQueries(
             room.TradeType.ToString(),
             room.AllowPets,
             room.AllowPetsEat,
-            // Stored as AllowBlocking, read as walk-through, as the settings dialog does.
-            room.AllowBlocking,
+            room.AllowWalkThrough,
             room.ModSettings.WhoCanMute.ToString(),
             room.ModSettings.WhoCanKick.ToString(),
             room.ModSettings.WhoCanBan.ToString(),

@@ -51,7 +51,6 @@ public sealed class ProductFurniGrantTests : IDisposable
                 Name = "buyer",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 

@@ -3,11 +3,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Server.Host;
 using SuperSocket.WebSocket;
+using SuperSocket.WebSocket.Server;
+using Turbo.Networking.Configuration;
 using Turbo.Networking.Package;
+using Turbo.Networking.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 
@@ -26,6 +30,9 @@ public static class SuperSocketHostBuilderExtensions
                 {
                     var gateway = sp.GetRequiredService<ISessionGateway>();
                     var revisionManager = sp.GetRequiredService<IRevisionManager>();
+                    var trustedProxies = ClientAddresses.Parse(
+                        sp.GetService<IOptions<NetworkingConfig>>()?.Value.TrustedProxies ?? []
+                    );
                     var logger =
                         sp.GetService<ILoggerFactory>()?.CreateLogger("Turbo.Networking.Session")
                         ?? NullLogger.Instance;
@@ -37,6 +44,15 @@ public static class SuperSocketHostBuilderExtensions
                             if (session is ISessionContext ctx)
                             {
                                 ctx.SetRevisionId(revisionManager.DefaultRevisionId);
+                                ctx.SetClientAddress(
+                                    ClientAddresses.Resolve(
+                                        session.RemoteEndPoint,
+                                        (session as WebSocketSession)
+                                            ?.HttpHeader
+                                            ?.Items["X-Forwarded-For"],
+                                        trustedProxies
+                                    )
+                                );
 
                                 await gateway
                                     .AddSessionAsync(ctx.SessionKey, ctx)

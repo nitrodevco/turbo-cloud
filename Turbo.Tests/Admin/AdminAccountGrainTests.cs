@@ -37,7 +37,6 @@ public sealed class AdminAccountGrainTests : IDisposable
                 Name = "staff",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 

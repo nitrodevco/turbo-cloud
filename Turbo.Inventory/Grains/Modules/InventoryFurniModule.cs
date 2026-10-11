@@ -545,6 +545,7 @@ internal sealed class InventoryFurniModule(
     public async Task<bool> TransferAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        FurnitureTransferReason reason,
         CancellationToken ct
     )
     {
@@ -619,6 +620,18 @@ internal sealed class InventoryFurniModule(
                 return false;
             }
 
+            dbCtx.FurnitureTransfers.AddRange(
+                items.Select(x => new FurnitureTransferEntity
+                {
+                    FurnitureId = x.ItemId.Value,
+                    DefinitionId = x.Definition.Id,
+                    FromPlayerId = PlayerId.Value,
+                    ToPlayerId = toPlayerId.Value,
+                    Reason = reason,
+                })
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
 

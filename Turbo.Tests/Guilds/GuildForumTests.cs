@@ -61,7 +61,6 @@ public sealed class GuildForumTests : IDisposable
                     Name = $"player{id}",
                     Figure = $"hd-180-{id}",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
 
@@ -91,7 +90,7 @@ public sealed class GuildForumTests : IDisposable
                     DoorMode = RoomDoorModeType.Open,
                     PlayersMax = 25,
                     HideWalls = false,
-                    AllowBlocking = false,
+                    AllowWalkThrough = false,
                     WallHeight = -1,
                     ThicknessWall = RoomThicknessType.Normal,
                     ThicknessFloor = RoomThicknessType.Normal,

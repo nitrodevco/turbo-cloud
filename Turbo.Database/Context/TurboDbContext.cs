@@ -36,10 +36,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AchievementAuditEntity> AchievementAudit { get; init; }
     public DbSet<AchievementWalletReceiptEntity> AchievementWalletReceipts { get; init; }
     public DbSet<WalletCreditReceiptEntity> WalletCreditReceipts { get; init; }
-    public DbSet<HumanRespectOperationEntity> HumanRespectOperations { get; init; }
-    public DbSet<HumanRespectParticipantReceiptEntity> HumanRespectParticipantReceipts { get; init; }
-    public DbSet<PetNutritionOperationEntity> PetNutritionOperations { get; init; }
-    public DbSet<PetRespectOperationEntity> PetRespectOperations { get; init; }
+    public DbSet<PlayerRespectEntity> PlayerRespects { get; init; }
+    public DbSet<PlayerRespectChangeEntity> PlayerRespectChanges { get; init; }
+    public DbSet<PetFeedingEntity> PetFeedings { get; init; }
+    public DbSet<PetRespectEntity> PetRespects { get; init; }
 
     public DbSet<CatalogBackupEntity> CatalogBackups { get; init; }
 
@@ -93,6 +93,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerUnseenItemEntity> PlayerUnseenItems { get; init; }
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
+    public DbSet<PlayerCurrencyLedgerEntity> PlayerCurrencyLedger { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
     public DbSet<PlayerFigureSetEntity> PlayerFigureSets { get; init; }
@@ -101,6 +102,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
     public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
+    public DbSet<PlayerSubscriptionGrantEntity> PlayerSubscriptionGrants { get; init; }
+    public DbSet<PlayerLoginEntity> PlayerLogins { get; init; }
+    public DbSet<FurnitureTransferEntity> FurnitureTransfers { get; init; }
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerBonusRareProgressEntity> PlayerBonusRareProgress { get; init; }
@@ -178,7 +182,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<NavigatorEventCategoryEntity> NavigatorEventCategories { get; init; }
 
-    public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
+    public DbSet<ChatStyleEntity> ChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
@@ -289,14 +293,14 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         // The recovery timer reads the rows still pending every few seconds. A partial index holds
         // only those, so it stays a handful of entries however large the table grows; a scan of
         // the whole table measured over a second a tick at 2-3 million rows.
-        mb.Entity<HumanRespectOperationEntity>()
-            .HasIndex(x => x.OperationId, "ix_player_respect_operations_pending")
-            .HasFilter("NOT completed AND NOT rejected");
-        mb.Entity<PetRespectOperationEntity>()
-            .HasIndex(x => x.OperationId, "ix_pet_respect_operations_pending")
-            .HasFilter("NOT completed AND NOT rejected");
+        mb.Entity<PlayerRespectEntity>()
+            .HasIndex(x => x.Id, "ix_player_respects_pending")
+            .HasFilter("status = 0");
+        mb.Entity<PetRespectEntity>()
+            .HasIndex(x => x.Id, "ix_pet_respects_pending")
+            .HasFilter("status = 0");
         mb.Entity<AchievementFactEntity>()
-            .HasIndex(x => x.PlayerId, "ix_achievement_facts_unprocessed")
+            .HasIndex(x => new { x.PlayerId, x.Id }, "ix_achievement_facts_unprocessed")
             .HasFilter("NOT processed");
         mb.Entity<AchievementProjectionEntity>()
             .HasIndex(x => x.PlayerId, "ix_achievement_projections_publication_pending")
@@ -310,12 +314,121 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         // A login replays the messages it hasn't been given, newest first: only undelivered ones.
         mb.Entity<MessengerMessageEntity>()
             .HasIndex(
-                x => new { x.ReceiverPlayerEntityId, x.Timestamp },
+                x => new { x.ReceiverPlayerEntityId, x.CreatedAt },
                 "ix_messenger_messages_undelivered"
             )
             .HasFilter("NOT delivered");
         // Moderators search chat by any part of a line (lower(message) LIKE '%...%'), which no
         // b-tree can serve; the baseline adds a trigram index on lower(message) for it.
+        // A serial of an LTD series is sold once.
+        mb.Entity<LtdRaffleEntryEntity>()
+            .HasIndex(x => new { x.SeriesEntityId, x.SerialNumber })
+            .IsUnique()
+            .HasFilter("serial_number IS NOT NULL");
+
+        // A page with no images or texts has an empty list, never a missing one.
+        mb.Entity<CatalogPageEntity>().Property(x => x.ImageData).HasDefaultValueSql("'{}'");
+        mb.Entity<CatalogPageEntity>().Property(x => x.TextData).HasDefaultValueSql("'{}'");
+
+        // Not worn is null, never 0, so "is it worn" has one answer.
+        mb.Entity<PlayerBadgeEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint("ck_player_badges_slot_id", "slot_id IS NULL OR slot_id > 0")
+            );
+
+        // Rules the code keeps, kept by the database too, so a write from anywhere (the panel, a
+        // script, a plugin) cannot leave a row the game reads wrongly.
+        mb.Entity<PlayerQuestEntity>()
+            .HasIndex(x => x.PlayerEntityId, "ix_player_quests_accepted")
+            .IsUnique()
+            .HasFilter("accepted");
+        mb.Entity<GuildMemberEntity>()
+            .HasIndex(x => x.PlayerEntityId, "ix_guild_members_favourite")
+            .IsUnique()
+            .HasFilter("is_favourite");
+        mb.Entity<LtdSeriesEntity>()
+            .HasIndex(x => x.CatalogProductEntityId, "ix_catalog_ltd_series_active")
+            .IsUnique()
+            .HasFilter("is_active");
+        mb.Entity<LtdSeriesEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_ltd_series_quantity",
+                    "remaining_quantity >= 0 AND remaining_quantity <= total_quantity"
+                )
+            );
+        // A series' raffle entries and serials are the record of who owns which piece; deleting
+        // the product or its page must not take them.
+        mb.Entity<LtdSeriesEntity>()
+            .HasOne(x => x.CatalogProduct)
+            .WithMany()
+            .HasForeignKey(x => x.CatalogProductEntityId)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CurrencyTypeEntity>()
+            .HasIndex(x => new { x.CurrencyType, x.ActivityPointType })
+            .IsUnique()
+            .AreNullsDistinct(false);
+        mb.Entity<CurrencyTypeEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_currency_types_activity_point_type",
+                    "(type = 4) = (activity_point_type IS NOT NULL)"
+                )
+            );
+        mb.Entity<CatalogOfferEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_offers_currency",
+                    "cost_currency = 0 OR currency_type_id IS NOT NULL"
+                )
+            );
+        mb.Entity<VoucherEntity>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "ck_vouchers_uses",
+                    "uses >= 0 AND (max_uses IS NULL OR (max_uses >= 1 AND uses <= max_uses))"
+                );
+                t.HasCheckConstraint(
+                    "ck_vouchers_amounts",
+                    "credits >= 0 AND currency_amount >= 0 AND furniture_quantity >= 0 "
+                        + "AND (currency_amount = 0 OR currency_type_id IS NOT NULL)"
+                );
+            });
+        mb.Entity<WiredChestEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_wired_chests_amounts",
+                    "coins >= 0 AND capacity_level >= 0"
+                )
+            );
+        mb.Entity<BonusRareCampaignEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_bonus_rare_campaigns_window",
+                    "ends_at > starts_at AND credits_required > 0"
+                )
+            );
+        mb.Entity<GamedataVariableEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_gamedata_variables_source",
+                    "setting_path IS NULL OR linked_file IS NULL"
+                )
+            );
+
+        // Queries that run often enough to want their own index.
+        mb.Entity<BuildersClubFurnitureEntity>().HasIndex(x => x.CatalogOfferEntityId);
+        mb.Entity<GuildForumMessageEntity>().HasIndex(x => new { x.GuildEntityId, x.CreatedAt });
+        mb.Entity<GuildForumMessageEntity>()
+            .HasIndex(x => new { x.GuildEntityId, x.PlayerEntityId });
+        mb.Entity<CommandLogEntity>().HasIndex(x => new { x.Outcome, x.Id });
+        mb.Entity<RoomEntryLogEntity>().HasIndex(x => new { x.PlayerEntityId, x.CreatedAt });
+        mb.Entity<PlayerEntity>().HasIndex(x => x.LastLoginAt);
+        mb.Entity<AchievementProgressEntity>()
+            .HasIndex(x => x.PlayerId, "ix_achievement_progress_pending_delivery")
+            .HasFilter("pending_delivery");
+
         mb.HasPostgresExtension("pg_trgm");
 
         // What the code already holds to, held by the database too, so a bug or a hand edit
@@ -335,6 +448,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         // Names are looked up by their key, by equality and by prefix (the friend search). In the
         // byte-order C collation a b-tree serves a prefix LIKE; in a language collation it can't.
         mb.Entity<PlayerEntity>().Property(x => x.NameKey).UseCollation("C");
+        // The key is the name lowered (names are ASCII), so a write that changes one and not
+        // the other is refused rather than leaving a player no lookup finds.
+        mb.Entity<PlayerEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint("ck_players_name_key", "name_key = lower(trim(name))")
+            );
 
         foreach (var fk in mb.Model.GetEntityTypes().SelectMany(x => x.GetForeignKeys()))
             if (

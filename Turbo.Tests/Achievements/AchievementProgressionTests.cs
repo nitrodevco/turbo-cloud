@@ -39,7 +39,6 @@ public sealed class AchievementProgressionTests : IDisposable
                 Name = "progression-test",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
                 CreatedAt = DateTime.UtcNow.AddDays(-10),
             }
         );
@@ -146,7 +145,7 @@ public sealed class AchievementProgressionTests : IDisposable
         );
         var projection = await db.AchievementProjections.SingleAsync(Ct);
         Assert.Equal(30, projection.Score);
-        Assert.Equal(3, projection.EarnedLevels);
+        Assert.Equal(3, projection.CompletedLevels);
         Assert.True((await db.AchievementFacts.SingleAsync(Ct)).Processed);
     }
 
@@ -271,7 +270,7 @@ public sealed class AchievementProgressionTests : IDisposable
         {
             Assert.Equal(6, await db.AchievementProgress.SumAsync(x => x.CompletedLevel, Ct));
             Assert.Equal(60, (await db.AchievementProjections.SingleAsync(Ct)).Score);
-            Assert.Equal(6, (await db.AchievementProjections.SingleAsync(Ct)).EarnedLevels);
+            Assert.Equal(6, (await db.AchievementProjections.SingleAsync(Ct)).CompletedLevels);
         }
     }
 
@@ -691,9 +690,9 @@ public sealed class AchievementProgressionTests : IDisposable
         {
             var projection = await db.AchievementProjections.SingleAsync(Ct);
             Assert.Equal(60, projection.Score);
-            Assert.Equal(6, projection.EarnedLevels);
+            Assert.Equal(6, projection.CompletedLevels);
             projection.Score = 999;
-            projection.EarnedLevels = 1;
+            projection.CompletedLevels = 1;
             await db.SaveChangesAsync(Ct);
         }
 
@@ -702,7 +701,7 @@ public sealed class AchievementProgressionTests : IDisposable
         await using var check = await _database.CreateDbContextAsync(Ct);
         var repaired = await check.AchievementProjections.SingleAsync(Ct);
         Assert.Equal(60, repaired.Score);
-        Assert.Equal(6, repaired.EarnedLevels);
+        Assert.Equal(6, repaired.CompletedLevels);
         var published = _fakes
             .Log.Calls.Where(x => x.Method == "SetAchievementTotalsAsync")
             .Select(x => ((int)x.Args[0]!, (int)x.Args[1]!))

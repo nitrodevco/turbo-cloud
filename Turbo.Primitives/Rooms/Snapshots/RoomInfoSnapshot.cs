@@ -30,7 +30,7 @@ public record RoomInfoSnapshot : RoomSummarySnapshot
     public required ImmutableArray<string> Tags { get; init; } = [];
 
     [Id(7)]
-    public required bool AllowBlocking { get; init; } = false;
+    public required bool AllowWalkThrough { get; init; } = false;
 
     [Id(8)]
     public required bool AllowPets { get; init; } = false;

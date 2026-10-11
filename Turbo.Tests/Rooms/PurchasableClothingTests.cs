@@ -127,7 +127,6 @@ public class PurchasableClothingTests
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         db.Insert(

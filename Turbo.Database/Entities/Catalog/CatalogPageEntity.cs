@@ -31,11 +31,13 @@ public class CatalogPageEntity : TurboEntity
     [MaxLength(50)]
     public required string Layout { get; set; }
 
+    /// <summary>The layout's images, in the order the layout places them; empty for none.</summary>
     [Column("image_data")]
-    public List<string>? ImageData { get; set; } = null!;
+    public List<string> ImageData { get; set; } = [];
 
+    /// <summary>The layout's texts, in the order the layout places them; empty for none.</summary>
     [Column("text_data")]
-    public List<string>? TextData { get; set; } = null!;
+    public List<string> TextData { get; set; } = [];
 
     [Column("sort_order")]
     [DefaultValue(0)]

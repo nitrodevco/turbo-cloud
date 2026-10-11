@@ -7,6 +7,7 @@ using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
 using Turbo.Players;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Respect;
 using Turbo.Tests.Support;
@@ -16,7 +17,7 @@ namespace Turbo.Tests.Achievements;
 
 public sealed class HumanRespectOperationGrainTests : IDisposable
 {
-    private const string OPERATION_ID = "human-respect-test-1";
+    private static readonly Guid OPERATION_ID = TestIds.Of("human-respect-test-1");
     private const int ACTOR_ID = 101;
     private const int TARGET_ID = 202;
     private readonly SqliteDb _db = new();
@@ -44,10 +45,9 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
         fakes.Log.Of(nameof(IPlayerGrain.SpendRespectOperationAsync)).Should().HaveCount(1);
         fakes.Log.Of(nameof(IPlayerGrain.ReceiveRespectOperationAsync)).Should().HaveCount(1);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        var operation = await db.HumanRespectOperations.SingleAsync(Ct);
-        operation.Completed.Should().BeTrue();
-        operation.Rejected.Should().BeFalse();
-        operation.ResultTotal.Should().Be(37);
+        var respect = await db.PlayerRespects.SingleAsync(Ct);
+        respect.Status.Should().Be(RespectStatus.Given);
+        respect.ReceiverTotal.Should().Be(37);
         var facts = await db.AchievementFacts.OrderBy(x => x.PlayerId).ToListAsync(Ct);
         facts.Should().HaveCount(2);
         facts
@@ -73,7 +73,7 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
         fakes.Log.Of(nameof(IPlayerGrain.SpendRespectOperationAsync)).Should().HaveCount(1);
         fakes.Log.Of(nameof(IPlayerGrain.ReceiveRespectOperationAsync)).Should().BeEmpty();
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.HumanRespectOperations.SingleAsync(Ct)).Rejected.Should().BeTrue();
+        (await db.PlayerRespects.SingleAsync(Ct)).Status.Should().Be(RespectStatus.Refused);
         (await db.AchievementFacts.CountAsync(Ct)).Should().Be(0);
     }
 
@@ -88,13 +88,13 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
         );
         await using (var db = await _db.CreateDbContextAsync(Ct))
         {
-            Assert.False((await db.HumanRespectOperations.SingleAsync(Ct)).Completed);
+            Assert.Equal(RespectStatus.Pending, (await db.PlayerRespects.SingleAsync(Ct)).Status);
             Assert.Equal(0, await db.AchievementFacts.CountAsync(Ct));
         }
         var (recovered, _) = CreateGrain(OPERATION_ID, acceptedSpend: true, targetTotal: 37);
         Assert.True((await recovered.ExecuteAsync(ACTOR_ID, TARGET_ID, Ct)).Accepted);
         await using var after = await _db.CreateDbContextAsync(Ct);
-        Assert.True((await after.HumanRespectOperations.SingleAsync(Ct)).Completed);
+        Assert.Equal(RespectStatus.Given, (await after.PlayerRespects.SingleAsync(Ct)).Status);
         Assert.Equal(2, await after.AchievementFacts.CountAsync(Ct));
     }
 
@@ -102,13 +102,12 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
     public async Task ReusingOperationIdForDifferentParticipantsIsRejectedBeforeParticipantCalls()
     {
         _db.Insert(
-            new HumanRespectOperationEntity
+            new PlayerRespectEntity
             {
-                OperationId = OPERATION_ID,
-                ActorId = ACTOR_ID,
-                TargetId = TARGET_ID,
-                Completed = false,
-                Rejected = false,
+                Id = OPERATION_ID,
+                GiverId = ACTOR_ID,
+                ReceiverId = TARGET_ID,
+                Status = RespectStatus.Pending,
             }
         );
         var (grain, fakes) = CreateGrain(OPERATION_ID, acceptedSpend: true, targetTotal: 1);
@@ -121,14 +120,17 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
     }
 
     private (IHumanRespectOperationGrain Grain, Fakes Fakes) CreateGrain(
-        string operationId,
+        Guid operationId,
         bool acceptedSpend,
         int targetTotal
     )
     {
         var fakes = new Fakes();
         fakes.Handlers["get_GrainId"] = _ =>
-            GrainId.Create(GrainType.Create("human-respect-operation"), IdSpan.Create(operationId));
+            GrainId.Create(
+                GrainType.Create("human-respect-operation"),
+                IdSpan.Create(operationId.ToString("N"))
+            );
         fakes.Handlers[nameof(IPlayerGrain.SpendRespectOperationAsync)] = _ =>
             Task.FromResult(acceptedSpend);
         fakes.Handlers[nameof(IPlayerGrain.ReceiveRespectOperationAsync)] = _ =>
@@ -145,7 +147,7 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
             "_facts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
-        RoomHarness.SetField(grain, "_operationId", operationId);
+        RoomHarness.SetField(grain, "_respectId", operationId);
         return ((IHumanRespectOperationGrain)grain, fakes);
     }
 }

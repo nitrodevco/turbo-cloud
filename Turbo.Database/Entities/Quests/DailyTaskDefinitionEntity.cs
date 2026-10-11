@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -9,7 +10,7 @@ namespace Turbo.Database.Entities.Quests;
 /// <summary>
 /// A daily task a player can be given. <see cref="Code"/> names the client's
 /// <c>dailytask.&lt;code&gt;.*</c> texts and image; <see cref="QuestType"/> is one of
-/// <c>DailyTaskTypes</c> and says what counts, with <see cref="Target"/> its comma-separated furni
+/// <c>DailyTaskTypes</c> and says what counts, with <see cref="Targets"/> the furni
 /// definition names for a find task. One reward per task, as every official task shows.
 /// </summary>
 [Comment("A daily task a player can be given.")]
@@ -25,9 +26,9 @@ public class DailyTaskDefinitionEntity : TurboEntity
     [StringLength(32)]
     public required string QuestType { get; set; }
 
-    [Column("target")]
-    [StringLength(512)]
-    public string Target { get; set; } = "";
+    /// <summary>A find task's furni names, any of which counts; empty for other kinds.</summary>
+    [Column("targets")]
+    public List<string> Targets { get; set; } = [];
 
     [Column("required_repeats")]
     [DefaultValue(1)]

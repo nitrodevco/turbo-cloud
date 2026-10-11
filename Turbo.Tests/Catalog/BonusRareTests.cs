@@ -54,7 +54,6 @@ public sealed class BonusRareTests : IDisposable
                 Name = "buyer",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _catalog.AddDefinition(REWARD, "bonusbag_test");

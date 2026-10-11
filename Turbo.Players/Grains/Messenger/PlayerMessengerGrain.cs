@@ -982,10 +982,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             SenderPlayerEntityId = _state.PlayerId.Value,
             ReceiverPlayerEntityId = recipientId.Value,
             Message = text,
-            Timestamp = now,
+            CreatedAt = now,
             Delivered = online,
-            SenderPlayerEntity = null!,
-            ReceiverPlayerEntity = null!,
         };
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
@@ -1418,7 +1416,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (!string.IsNullOrEmpty(beforeMessageId))
         {
             if (
-                !int.TryParse(
+                !long.TryParse(
                     beforeMessageId,
                     NumberStyles.None,
                     CultureInfo.InvariantCulture,
@@ -1429,7 +1427,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
             var cursor = await query
                 .Where(x => x.Id == cursorId)
-                .Select(x => new { x.Id, x.Timestamp })
+                .Select(x => new { x.Id, x.CreatedAt })
                 .FirstOrDefaultAsync(ct);
 
             if (cursor is null)
@@ -1438,23 +1436,33 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             // Rows written in the same instant are told apart by id, so a page boundary never
             // drops or repeats one.
             query = query.Where(x =>
-                x.Timestamp < cursor.Timestamp
-                || (x.Timestamp == cursor.Timestamp && x.Id < cursor.Id)
+                x.CreatedAt < cursor.CreatedAt
+                || (x.CreatedAt == cursor.CreatedAt && x.Id < cursor.Id)
             );
         }
 
         var rows = await query
-            .OrderByDescending(x => x.Timestamp)
+            .OrderByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
             .Take(_playerConfig.MessengerHistoryPageSize)
             .Select(x => new MessageHistoryEntrySnapshot
             {
                 SenderId = PlayerId.Parse(x.SenderPlayerEntityId),
-                SenderName = x.SenderPlayerEntity.Name,
-                SenderFigure = x.SenderPlayerEntity.Figure,
+                SenderName =
+                    dbCtx
+                        .Players.Where(p => p.Id == x.SenderPlayerEntityId)
+                        .Select(p => p.Name)
+                        .FirstOrDefault()
+                    ?? string.Empty,
+                SenderFigure =
+                    dbCtx
+                        .Players.Where(p => p.Id == x.SenderPlayerEntityId)
+                        .Select(p => p.Figure)
+                        .FirstOrDefault()
+                    ?? string.Empty,
                 Message = x.Message,
                 MessageId = x.Id.ToString(CultureInfo.InvariantCulture),
-                SentAtUtc = x.Timestamp,
+                SentAtUtc = x.CreatedAt,
             })
             .ToListAsync(ct);
 
@@ -1667,7 +1675,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 && !x.Delivered
                 && friendIds.Contains(x.SenderPlayerEntityId)
             )
-            .OrderByDescending(x => x.Timestamp)
+            .OrderByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
             .Take(_playerConfig.MessengerOfflineReplayLimit)
             .Select(x => new
@@ -1675,9 +1683,17 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 x.Id,
                 x.SenderPlayerEntityId,
                 x.Message,
-                x.Timestamp,
-                SenderName = x.SenderPlayerEntity.Name,
-                SenderFigure = x.SenderPlayerEntity.Figure,
+                x.CreatedAt,
+                SenderName = dbCtx
+                    .Players.Where(p => p.Id == x.SenderPlayerEntityId)
+                    .Select(p => p.Name)
+                    .FirstOrDefault()
+                    ?? string.Empty,
+                SenderFigure = dbCtx
+                    .Players.Where(p => p.Id == x.SenderPlayerEntityId)
+                    .Select(p => p.Figure)
+                    .FirstOrDefault()
+                    ?? string.Empty,
             })
             .ToListAsync(ct);
 
@@ -1693,7 +1709,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                     {
                         ChatId = x.SenderPlayerEntityId,
                         Message = x.Message,
-                        SecondsSinceSent = (int)(now - x.Timestamp).TotalSeconds,
+                        SecondsSinceSent = (int)(now - x.CreatedAt).TotalSeconds,
                         MessageId = x.Id.ToString(CultureInfo.InvariantCulture),
                         ConfirmationId = 0,
                         SenderId = PlayerId.Parse(x.SenderPlayerEntityId),
@@ -1929,10 +1945,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 // FriendCategories.addFriend uses for every offline friend itself.
                 CategoryId = x.MessengerCategoryEntityId ?? 0,
                 Motto = x.FriendPlayerEntity.Motto ?? string.Empty,
-                LastAccess = x.FriendPlayerEntity.UpdatedAt.ToString(
-                    MessengerFriendDto.LAST_ACCESS_FORMAT,
-                    CultureInfo.InvariantCulture
-                ),
+                LastAccess = (
+                    x.FriendPlayerEntity.LastSeenAt
+                    ?? x.FriendPlayerEntity.LastLoginAt
+                    ?? x.FriendPlayerEntity.CreatedAt
+                ).ToString(MessengerFriendDto.LAST_ACCESS_FORMAT, CultureInfo.InvariantCulture),
                 RealName = string.Empty,
                 FacebookId = string.Empty,
                 // Messages to an offline friend are kept and delivered at their next login, so

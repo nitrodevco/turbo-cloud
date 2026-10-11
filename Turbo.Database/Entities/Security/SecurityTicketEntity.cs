@@ -8,7 +8,9 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Security;
 
-[Comment("The ticket a player's client logs in with, stored as its hash; one per player.")]
+[Comment(
+    "The ticket a player's client logs in with, stored as its hash; one per player, created_at is when it was issued."
+)]
 [Table("auth_login_tickets")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 [Index(nameof(Ticket), IsUnique = true)]
@@ -25,13 +27,10 @@ public class SecurityTicketEntity : TurboEntity
     [Column("ticket")]
     public required string Ticket { get; set; }
 
-    [Column("ip_address")]
-    public required string IpAddress { get; set; }
-
-    /// <summary>Reusable: a login does not use it up.</summary>
-    [Column("is_locked")]
+    /// <summary>A login does not use it up; otherwise the first login does.</summary>
+    [Column("reusable")]
     [DefaultValue(false)]
-    public bool IsLocked { get; set; }
+    public bool Reusable { get; set; }
 
     /// <summary>When it stops working; null for never, as a ticket written before this had.</summary>
     [Column("expires_at")]

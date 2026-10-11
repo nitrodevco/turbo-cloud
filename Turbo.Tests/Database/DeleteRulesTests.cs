@@ -42,7 +42,6 @@ public sealed class DeleteRulesTests : IDisposable
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -179,6 +178,42 @@ public sealed class DeleteRulesTests : IDisposable
         (await db.PlayerSettings.SingleAsync(Ct)).HomeRoomId.Should().BeNull();
     }
 
+    /// <summary>A room's own floor plan goes with it; it was left behind, a model nothing used.</summary>
+    [Fact]
+    public async Task A_deleted_rooms_own_floor_plan_goes_with_it()
+    {
+        const int CUSTOM = 2;
+        _db.Insert(
+            new RoomModelEntity
+            {
+                Id = CUSTOM,
+                Name = $"room_{ROOM}",
+                Model = "000\r000",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.North,
+                Enabled = true,
+                Custom = true,
+            }
+        );
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            (await db.Rooms.SingleAsync(Ct)).RoomModelEntityId = CUSTOM;
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var room = new LiveRoomHarness();
+        RoomHarness.SetField(room.Room, "_dbCtxFactory", _db);
+
+        (await room.Room.PrepareRoomDeletionAsync(ActionContext.CreateForPlayer(OWNER, ROOM), Ct))
+            .Should()
+            .NotBeNull();
+        await room.Room.CompleteRoomDeletionAsync(Ct);
+
+        await using var after = await _db.CreateDbContextAsync(Ct);
+        (await after.RoomModels.Select(x => x.Name).ToListAsync(Ct)).Should().Equal("model_a");
+    }
+
     private async Task DeletingRefused<T>(
         Func<Turbo.Database.Context.TurboDbContext, IQueryable<T>> rows
     )
@@ -213,7 +248,7 @@ public sealed class DeleteRulesTests : IDisposable
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = false,
+            AllowWalkThrough = false,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

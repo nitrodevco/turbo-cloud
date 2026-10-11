@@ -52,6 +52,12 @@ public class OperationsConfig
     /// </summary>
     public int CfhMaxOpenReports { get; init; } = 3;
 
+    /// <summary>
+    /// How long an open call for help counts against <see cref="CfhMaxOpenReports"/>. Staff may
+    /// never get to a report, and a player whose reports nobody closed could never report again.
+    /// </summary>
+    public int CfhOpenReportHours { get; init; } = 24;
+
     /// <summary>The most chat lines kept with one call for help.</summary>
     public int CfhMaxChatLines { get; init; } = 50;
 

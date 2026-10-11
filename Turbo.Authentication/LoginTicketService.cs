@@ -38,34 +38,29 @@ public sealed class LoginTicketService(
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var row = await db
-            .SecurityTickets.FirstOrDefaultAsync(x => x.PlayerEntityId == player.Value, ct)
+        // One ticket a player: the one they had stops working as this one is written, and the
+        // row is new so its created_at says when this ticket was issued.
+        var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var transactionScope = transaction.ConfigureAwait(false);
+
+        await db
+            .SecurityTickets.Where(x => x.PlayerEntityId == player.Value)
+            .ExecuteDeleteAsync(ct)
             .ConfigureAwait(false);
 
-        // One ticket a player: the one they had stops working as this one is written.
-        if (row is null)
-        {
-            db.SecurityTickets.Add(
-                new SecurityTicketEntity
-                {
-                    PlayerEntityId = player.Value,
-                    Ticket = SecurityTicketEntity.Hash(ticket),
-                    IpAddress = string.Empty,
-                    IsLocked = reusable,
-                    ExpiresAt = expires,
-                    PlayerEntity = null!,
-                }
-            );
-        }
-        else
-        {
-            row.Ticket = SecurityTicketEntity.Hash(ticket);
-            row.IpAddress = string.Empty;
-            row.IsLocked = reusable;
-            row.ExpiresAt = expires;
-        }
+        db.SecurityTickets.Add(
+            new SecurityTicketEntity
+            {
+                PlayerEntityId = player.Value,
+                Ticket = SecurityTicketEntity.Hash(ticket),
+                Reusable = reusable,
+                ExpiresAt = expires,
+                PlayerEntity = null!,
+            }
+        );
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
 
         return new LoginTicketIssued(ticket, expires, reusable);
     }
@@ -78,7 +73,7 @@ public sealed class LoginTicketService(
         var row = await db
             .SecurityTickets.AsNoTracking()
             .Where(x => x.PlayerEntityId == player.Value)
-            .Select(x => new { x.ExpiresAt, x.IsLocked })
+            .Select(x => new { x.ExpiresAt, x.Reusable })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
@@ -86,7 +81,7 @@ public sealed class LoginTicketService(
             ? null
             : new LoginTicketStatus(
                 row.ExpiresAt,
-                row.IsLocked,
+                row.Reusable,
                 row.ExpiresAt is { } at && at <= timeProvider.GetUtcNow().UtcDateTime
             );
     }

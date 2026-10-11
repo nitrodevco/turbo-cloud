@@ -149,10 +149,20 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         entity.TotalDaysSubscribed += days;
         if (purchased)
             entity.PurchasedDaysSubscribed += days;
-        entity.PeriodsPurchased++;
 
         if (subscriptionType == SubscriptionType.BuildersClub)
             entity.FurniLimit = NextFurniLimit(entity.FurniLimit);
+
+        dbCtx.PlayerSubscriptionGrants.Add(
+            new PlayerSubscriptionGrantEntity
+            {
+                PlayerEntityId = PlayerId.Value,
+                SubscriptionType = subscriptionType,
+                Days = days,
+                Purchased = purchased,
+                ExpiresAt = entity.ExpiresAt.Value,
+            }
+        );
 
         if (subscriptionType == SubscriptionType.HabboClub)
         {
@@ -368,7 +378,6 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                 ExpiresAt = row.ExpiresAt is { } bought && bought > until ? bought : until,
                 TotalDaysSubscribed = row.TotalDaysSubscribed,
                 PurchasedDaysSubscribed = row.PurchasedDaysSubscribed,
-                PeriodsPurchased = row.PeriodsPurchased,
                 FurniLimit = Math.Max(
                     row.FurniLimit,
                     _subscriptionConfig.BuildersClubMaxFurniLimit

@@ -17,7 +17,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
 {
     public const int NAME_MAX_LENGTH = 32;
     public const int MOTTO_MAX_LENGTH = 128;
-    public const int FIGURE_MAX_LENGTH = 279;
+    public const int FIGURE_MAX_LENGTH = PlayerEntity.FIGURE_MAX_LENGTH;
     public const int CHAT_TEXT_MAX_LENGTH = 2000;
 
     [Column("player_id")]
@@ -72,7 +72,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool AutoChat { get; set; }
 
-    [Column("chat_delay")]
+    [Column("chat_delay_seconds")]
     [DefaultValue(0)]
     public int ChatDelaySeconds { get; set; }
 
@@ -80,7 +80,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool MixSentences { get; set; }
 
-    [Column("dance")]
+    [Column("dance_type")]
     [DefaultValue(AvatarDanceType.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public AvatarDanceType DanceType { get; set; }

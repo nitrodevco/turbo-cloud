@@ -138,7 +138,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         var debitRequests = offer.ToDebitRequests(quantity);
 
-        await DebitAsync(debitRequests, ct);
+        await DebitAsync(debitRequests, $"offer {offer.Id}", ct);
 
         try
         {
@@ -640,7 +640,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         var debitRequests = offer.ToDebitRequests(1);
 
-        await DebitAsync(debitRequests, ct);
+        await DebitAsync(debitRequests, $"offer {offer.Id}", ct);
 
         RoomEventSnapshot? created = null;
 
@@ -694,14 +694,22 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     }
 
     /// <summary>Takes the price, or throws the refusal the client shows for a short balance.</summary>
-    private async Task DebitAsync(List<WalletDebitRequest> debitRequests, CancellationToken ct)
+    private async Task DebitAsync(
+        List<WalletDebitRequest> debitRequests,
+        string what,
+        CancellationToken ct
+    )
     {
         if (debitRequests.Count == 0)
             return;
 
         var result = await _grainFactory
             .GetPlayerWalletGrain(this.GetPlayerId())
-            .TryDebitAsync(debitRequests, ct);
+            .TryDebitAsync(
+                debitRequests,
+                new WalletChange(WalletChangeReason.CatalogPurchase, what),
+                ct
+            );
 
         if (!result.Succeeded)
             throw CreateInsufficientBalanceException(result);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -160,11 +161,8 @@ namespace Turbo.Database.Migrations
                     achievement_id = table.Column<int>(type: "integer", nullable: false),
                     value = table.Column<long>(type: "bigint", nullable: false),
                     forward_adjustment = table.Column<long>(type: "bigint", nullable: false),
-                    streak = table.Column<long>(type: "bigint", nullable: false),
-                    last_day = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
+                    current_streak = table.Column<long>(type: "bigint", nullable: false),
+                    last_streak_day = table.Column<DateOnly>(type: "date", nullable: true),
                     earned_level = table.Column<int>(type: "integer", nullable: false),
                     completed_level = table.Column<int>(type: "integer", nullable: false),
                     score_earned = table.Column<int>(type: "integer", nullable: false),
@@ -201,7 +199,7 @@ namespace Turbo.Database.Migrations
                 {
                     player_id = table.Column<int>(type: "integer", nullable: false),
                     score = table.Column<int>(type: "integer", nullable: false),
-                    earned_levels = table.Column<int>(type: "integer", nullable: false),
+                    completed_levels = table.Column<int>(type: "integer", nullable: false),
                     publication_pending = table.Column<bool>(type: "boolean", nullable: false),
                     reconciled_stamp = table.Column<string>(
                         type: "character varying(64)",
@@ -268,11 +266,7 @@ namespace Turbo.Database.Migrations
                         nullable: true
                     ),
                     size = table.Column<long>(type: "bigint", nullable: false),
-                    ids = table.Column<string>(
-                        type: "character varying(1024)",
-                        maxLength: 1024,
-                        nullable: true
-                    ),
+                    ids = table.Column<string>(type: "text", nullable: true),
                     error = table.Column<string>(
                         type: "character varying(512)",
                         maxLength: 512,
@@ -318,7 +312,7 @@ namespace Turbo.Database.Migrations
                         nullable: false
                     ),
                     port = table.Column<int>(type: "integer", nullable: false),
-                    user = table.Column<string>(
+                    username = table.Column<string>(
                         type: "character varying(128)",
                         maxLength: 128,
                         nullable: false
@@ -461,6 +455,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_catalog_bonus_rare_campaigns", x => x.id);
+                    table.CheckConstraint(
+                        "ck_catalog_bonus_rare_campaigns_window",
+                        "ends_at > starts_at AND credits_required > 0"
+                    );
                 },
                 comment: "A bonus rare campaign: a furniture given for every CreditsRequired credits a player brings in, counted as Source says."
             );
@@ -475,7 +473,7 @@ namespace Turbo.Database.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    name = table.Column<string>(type: "text", nullable: true),
+                    name = table.Column<string>(type: "text", nullable: false),
                     type = table.Column<int>(type: "integer", nullable: false),
                     activity_point_type = table.Column<int>(type: "integer", nullable: true),
                     enabled = table.Column<bool>(
@@ -492,6 +490,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_catalog_currency_types", x => x.id);
+                    table.CheckConstraint(
+                        "ck_catalog_currency_types_activity_point_type",
+                        "(type = 4) = (activity_point_type IS NOT NULL)"
+                    );
                 },
                 comment: "The currencies a hotel has (credits, duckets, diamonds, ...) and how the client knows them."
             );
@@ -568,8 +570,16 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: "default_3x3"
                     ),
-                    image_data = table.Column<List<string>>(type: "text[]", nullable: true),
-                    text_data = table.Column<List<string>>(type: "text[]", nullable: true),
+                    image_data = table.Column<List<string>>(
+                        type: "text[]",
+                        nullable: false,
+                        defaultValueSql: "'{}'"
+                    ),
+                    text_data = table.Column<List<string>>(
+                        type: "text[]",
+                        nullable: false,
+                        defaultValueSql: "'{}'"
+                    ),
                     sort_order = table.Column<int>(
                         type: "integer",
                         nullable: false,
@@ -620,7 +630,7 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: 0
                     ),
-                    width = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    width = table.Column<int>(type: "integer", nullable: false, defaultValue: 1),
                     length = table.Column<int>(type: "integer", nullable: false, defaultValue: 1),
                     stack_height = table.Column<double>(
                         type: "double precision",
@@ -732,6 +742,34 @@ namespace Turbo.Database.Migrations
                     table.PrimaryKey("pk_furniture_definitions", x => x.id);
                 },
                 comment: "The hotel's furni: one row per item class, with its size, behaviour (logic) and how it may be used."
+            );
+
+            migrationBuilder.CreateTable(
+                name: "furniture_transfers",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    furniture_id = table.Column<int>(type: "integer", nullable: false),
+                    definition_id = table.Column<int>(type: "integer", nullable: false),
+                    from_player_id = table.Column<int>(type: "integer", nullable: false),
+                    to_player_id = table.Column<int>(type: "integer", nullable: false),
+                    reason = table.Column<byte>(type: "smallint", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_furniture_transfers", x => x.id);
+                },
+                comment: "A furni changing owner between players: which, from whom, to whom, and why."
             );
 
             migrationBuilder.CreateTable(
@@ -935,6 +973,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_gamedata_variables", x => x.id);
+                    table.CheckConstraint(
+                        "ck_gamedata_variables_source",
+                        "setting_path IS NULL OR linked_file IS NULL"
+                    );
                 },
                 comment: "One of the client's external variables, the configuration it loads from the gamedata host: its key, and its value as JSON (\"text\", true, 120, [1, 2])."
             );
@@ -1133,16 +1175,6 @@ namespace Turbo.Database.Migrations
                     ),
                     revision = table.Column<int>(type: "integer", nullable: false),
                     states = table.Column<int>(type: "integer", nullable: false),
-                    logic_type = table.Column<string>(
-                        type: "character varying(64)",
-                        maxLength: 64,
-                        nullable: true
-                    ),
-                    visualization_type = table.Column<string>(
-                        type: "character varying(64)",
-                        maxLength: 64,
-                        nullable: true
-                    ),
                     info = table.Column<string>(type: "text", nullable: true),
                     error = table.Column<string>(
                         type: "character varying(512)",
@@ -1364,17 +1396,7 @@ namespace Turbo.Database.Migrations
                 name: "hotel_chat_styles",
                 columns: table => new
                 {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    client_style_id = table.Column<int>(
-                        type: "integer",
-                        nullable: false,
-                        defaultValue: 0
-                    ),
+                    id = table.Column<int>(type: "integer", nullable: false),
                     name = table.Column<string>(
                         type: "character varying(64)",
                         maxLength: 64,
@@ -1404,11 +1426,6 @@ namespace Turbo.Database.Migrations
                         type: "boolean",
                         nullable: false,
                         defaultValue: false
-                    ),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
                     ),
                 },
                 constraints: table =>
@@ -1442,16 +1459,8 @@ namespace Turbo.Database.Migrations
                         type: "timestamp with time zone",
                         nullable: false
                     ),
-                    level_scores = table.Column<string>(
-                        type: "character varying(255)",
-                        maxLength: 255,
-                        nullable: false
-                    ),
-                    reward_ranks = table.Column<string>(
-                        type: "character varying(255)",
-                        maxLength: 255,
-                        nullable: false
-                    ),
+                    level_scores = table.Column<List<int>>(type: "integer[]", nullable: false),
+                    reward_ranks = table.Column<List<int>>(type: "integer[]", nullable: false),
                     side_one_page_id = table.Column<int>(type: "integer", nullable: true),
                     side_two_page_id = table.Column<int>(type: "integer", nullable: true),
                     created_at = table.Column<DateTime>(
@@ -1557,6 +1566,33 @@ namespace Turbo.Database.Migrations
                     table.PrimaryKey("pk_hotel_settings", x => x.id);
                 },
                 comment: "One setting for the whole hotel that staff change while it runs, such as the welcome message, by its key."
+            );
+
+            migrationBuilder.CreateTable(
+                name: "messenger_messages",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    sender_id = table.Column<int>(type: "integer", nullable: false),
+                    receiver_id = table.Column<int>(type: "integer", nullable: false),
+                    message = table.Column<string>(type: "text", nullable: false),
+                    delivered = table.Column<bool>(type: "boolean", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_messenger_messages", x => x.id);
+                },
+                comment: "Private messages between friends, and whether each has been delivered."
             );
 
             migrationBuilder.CreateTable(
@@ -1686,8 +1722,8 @@ namespace Turbo.Database.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    room_id = table.Column<int>(type: "integer", nullable: false),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    room_id = table.Column<int>(type: "integer", nullable: true),
+                    player_id = table.Column<int>(type: "integer", nullable: true),
                     command = table.Column<string>(
                         type: "character varying(32)",
                         maxLength: 32,
@@ -1838,7 +1874,7 @@ namespace Turbo.Database.Migrations
                     automatic = table.Column<bool>(
                         type: "boolean",
                         nullable: false,
-                        defaultValue: true
+                        defaultValue: false
                     ),
                     automatic_category = table.Column<string>(type: "text", nullable: true),
                     global_category = table.Column<string>(type: "text", nullable: true),
@@ -1910,7 +1946,7 @@ namespace Turbo.Database.Migrations
                 columns: table => new
                 {
                     id = table
-                        .Column<int>(type: "integer", nullable: false)
+                        .Column<long>(type: "bigint", nullable: false)
                         .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -2023,24 +2059,18 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "pet_nutrition_operations",
+                name: "pet_feedings",
                 columns: table => new
                 {
-                    operation_id = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     room_id = table.Column<int>(type: "integer", nullable: false),
                     pet_id = table.Column<int>(type: "integer", nullable: false),
                     owner_id = table.Column<int>(type: "integer", nullable: false),
-                    supplier_id = table.Column<int>(type: "integer", nullable: false),
-                    base_nutrition = table.Column<int>(type: "integer", nullable: false),
-                    requested_nutrition = table.Column<int>(type: "integer", nullable: false),
-                    max_nutrition = table.Column<int>(type: "integer", nullable: false),
+                    fed_by_id = table.Column<int>(type: "integer", nullable: false),
+                    nutrition_before = table.Column<int>(type: "integer", nullable: false),
+                    nutrition_offered = table.Column<int>(type: "integer", nullable: false),
+                    nutrition_max = table.Column<int>(type: "integer", nullable: false),
                     nutrition_after = table.Column<int>(type: "integer", nullable: false),
-                    actual_gain = table.Column<int>(type: "integer", nullable: false),
-                    completed = table.Column<bool>(type: "boolean", nullable: false),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -2049,28 +2079,27 @@ namespace Turbo.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_pet_nutrition_operations", x => x.operation_id);
+                    table.PrimaryKey("pk_pet_feedings", x => x.id);
                 },
-                comment: "Pet feeding and drinking, one row per action, so a retry never feeds twice."
+                comment: "A pet eating or drinking, written with the pet's new nutrition so a retry never feeds twice."
             );
 
             migrationBuilder.CreateTable(
-                name: "pet_respect_operations",
+                name: "pet_respects",
                 columns: table => new
                 {
-                    operation_id = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     room_id = table.Column<int>(type: "integer", nullable: false),
-                    actor_id = table.Column<int>(type: "integer", nullable: false),
+                    giver_id = table.Column<int>(type: "integer", nullable: false),
                     pet_id = table.Column<int>(type: "integer", nullable: false),
                     owner_id = table.Column<int>(type: "integer", nullable: false),
-                    base_respect = table.Column<int>(type: "integer", nullable: false),
-                    rejected = table.Column<bool>(type: "boolean", nullable: false),
-                    completed = table.Column<bool>(type: "boolean", nullable: false),
-                    result_respect = table.Column<int>(type: "integer", nullable: false),
+                    respect_before = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<byte>(
+                        type: "smallint",
+                        nullable: false,
+                        defaultValue: (byte)0
+                    ),
+                    respect_after = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -2079,9 +2108,9 @@ namespace Turbo.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_pet_respect_operations", x => x.operation_id);
+                    table.PrimaryKey("pk_pet_respects", x => x.id);
                 },
-                comment: "Respect given to pets (scratches), one row per action, so a retry never counts twice."
+                comment: "One scratch a player gave a pet: who, which pet, and whether it went through."
             );
 
             migrationBuilder.CreateTable(
@@ -2114,19 +2143,25 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "player_respect_operations",
+                name: "player_currency_ledger",
                 columns: table => new
                 {
-                    operation_id = table.Column<string>(
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    currency_type_id = table.Column<int>(type: "integer", nullable: false),
+                    change = table.Column<int>(type: "integer", nullable: false),
+                    balance_after = table.Column<int>(type: "integer", nullable: false),
+                    reason = table.Column<byte>(type: "smallint", nullable: false),
+                    detail = table.Column<string>(
                         type: "character varying(100)",
                         maxLength: 100,
-                        nullable: false
+                        nullable: true
                     ),
-                    actor_id = table.Column<int>(type: "integer", nullable: false),
-                    target_id = table.Column<int>(type: "integer", nullable: false),
-                    rejected = table.Column<bool>(type: "boolean", nullable: false),
-                    completed = table.Column<bool>(type: "boolean", nullable: false),
-                    result_total = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -2135,28 +2170,54 @@ namespace Turbo.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_player_respect_operations", x => x.operation_id);
+                    table.PrimaryKey("pk_player_currency_ledger", x => x.id);
                 },
-                comment: "One respect one player gave another."
+                comment: "Every change to a player's balance: how much, why, and the balance it left."
             );
 
             migrationBuilder.CreateTable(
-                name: "player_respect_receipts",
+                name: "player_logins",
                 columns: table => new
                 {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     player_id = table.Column<int>(type: "integer", nullable: false),
-                    operation_id = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
+                    ip_address = table.Column<IPAddress>(type: "inet", nullable: true),
+                    machine_id = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
                     ),
-                    kind = table.Column<string>(
-                        type: "character varying(16)",
-                        maxLength: 16,
-                        nullable: false
+                    logged_out_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
                     ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_player_logins", x => x.id);
+                },
+                comment: "A session a player opened: from which address and machine, and when it ended."
+            );
+
+            migrationBuilder.CreateTable(
+                name: "player_respect_changes",
+                columns: table => new
+                {
+                    respect_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    kind = table.Column<byte>(type: "smallint", nullable: false),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
                     accepted = table.Column<bool>(type: "boolean", nullable: false),
-                    result_total = table.Column<int>(type: "integer", nullable: false),
+                    total_after = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -2166,16 +2227,68 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey(
-                        "pk_player_respect_receipts",
-                        x => new
-                        {
-                            x.player_id,
-                            x.operation_id,
-                            x.kind,
-                        }
+                        "pk_player_respect_changes",
+                        x => new { x.respect_id, x.kind }
                     );
                 },
-                comment: "One player's side of a respect: the spend from the giver, or the credit to the receiver (and a pet scratch's spend)."
+                comment: "What a respect did to one player's counters, written with the change so it is never made twice."
+            );
+
+            migrationBuilder.CreateTable(
+                name: "player_respects",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    giver_id = table.Column<int>(type: "integer", nullable: false),
+                    receiver_id = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<byte>(
+                        type: "smallint",
+                        nullable: false,
+                        defaultValue: (byte)0
+                    ),
+                    receiver_total = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_player_respects", x => x.id);
+                },
+                comment: "One respect one player gave another: who, when, and whether it went through."
+            );
+
+            migrationBuilder.CreateTable(
+                name: "player_subscription_grants",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    subscription_type = table.Column<int>(type: "integer", nullable: false),
+                    days = table.Column<int>(type: "integer", nullable: false),
+                    purchased = table.Column<bool>(type: "boolean", nullable: false),
+                    expires_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_player_subscription_grants", x => x.id);
+                },
+                comment: "Every time a player's subscription was extended: how many days, bought or given, and until when."
             );
 
             migrationBuilder.CreateTable(
@@ -2216,7 +2329,7 @@ namespace Turbo.Database.Migrations
                         ),
                     name = table.Column<string>(type: "text", nullable: false),
                     name_key = table.Column<string>(type: "text", nullable: false, collation: "C"),
-                    motto = table.Column<string>(type: "text", nullable: true),
+                    motto = table.Column<string>(type: "text", nullable: false, defaultValue: ""),
                     figure = table.Column<string>(
                         type: "character varying(279)",
                         maxLength: 279,
@@ -2224,7 +2337,6 @@ namespace Turbo.Database.Migrations
                         defaultValue: "hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64"
                     ),
                     gender = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    status = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
                     respect_points = table.Column<int>(
                         type: "integer",
                         nullable: false,
@@ -2245,18 +2357,14 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: 0
                     ),
-                    respect_reset_date = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
+                    respect_reset_date = table.Column<DateOnly>(type: "date", nullable: true),
                     last_login_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: true
                     ),
-                    updated_at = table.Column<DateTime>(
+                    last_seen_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
+                        nullable: true
                     ),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
@@ -2267,6 +2375,7 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_players", x => x.id);
+                    table.CheckConstraint("ck_players_name_key", "name_key = lower(trim(name))");
                 },
                 comment: "The hotel's players."
             );
@@ -2333,11 +2442,7 @@ namespace Turbo.Database.Migrations
                         maxLength: 32,
                         nullable: false
                     ),
-                    target = table.Column<string>(
-                        type: "character varying(512)",
-                        maxLength: 512,
-                        nullable: false
-                    ),
+                    targets = table.Column<List<string>>(type: "text[]", nullable: false),
                     required_repeats = table.Column<int>(
                         type: "integer",
                         nullable: false,
@@ -2775,6 +2880,10 @@ namespace Turbo.Database.Migrations
                         "ck_catalog_offers_costs",
                         "cost_credits >= 0 AND cost_currency >= 0"
                     );
+                    table.CheckConstraint(
+                        "ck_catalog_offers_currency",
+                        "cost_currency = 0 OR currency_type_id IS NOT NULL"
+                    );
                     table.ForeignKey(
                         name: "fk_catalog_offers_catalog_currency_types_currency_type_id",
                         column: x => x.currency_type_id,
@@ -2878,6 +2987,14 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_vouchers", x => x.id);
+                    table.CheckConstraint(
+                        "ck_vouchers_amounts",
+                        "credits >= 0 AND currency_amount >= 0 AND furniture_quantity >= 0 AND (currency_amount = 0 OR currency_type_id IS NOT NULL)"
+                    );
+                    table.CheckConstraint(
+                        "ck_vouchers_uses",
+                        "uses >= 0 AND (max_uses IS NULL OR (max_uses >= 1 AND uses <= max_uses))"
+                    );
                     table.ForeignKey(
                         name: "fk_vouchers_catalog_currency_types_currency_type_id",
                         column: x => x.currency_type_id,
@@ -3198,8 +3315,7 @@ namespace Turbo.Database.Migrations
                         ),
                     player_id = table.Column<int>(type: "integer", nullable: false),
                     ticket = table.Column<string>(type: "text", nullable: false),
-                    ip_address = table.Column<string>(type: "text", nullable: false),
-                    is_locked = table.Column<bool>(
+                    reusable = table.Column<bool>(
                         type: "boolean",
                         nullable: false,
                         defaultValue: false
@@ -3225,7 +3341,7 @@ namespace Turbo.Database.Migrations
                         onDelete: ReferentialAction.Cascade
                     );
                 },
-                comment: "The ticket a player's client logs in with, stored as its hash; one per player."
+                comment: "The ticket a player's client logs in with, stored as its hash; one per player, created_at is when it was issued."
             );
 
             migrationBuilder.CreateTable(
@@ -3464,51 +3580,6 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "messenger_messages",
-                columns: table => new
-                {
-                    id = table
-                        .Column<long>(type: "bigint", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    sender_id = table.Column<int>(type: "integer", nullable: false),
-                    receiver_id = table.Column<int>(type: "integer", nullable: false),
-                    message = table.Column<string>(type: "text", nullable: false),
-                    sent_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    delivered = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_messenger_messages", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_messenger_messages_players_receiver_id",
-                        column: x => x.receiver_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                    table.ForeignKey(
-                        name: "fk_messenger_messages_players_sender_id",
-                        column: x => x.sender_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                },
-                comment: "Private messages between friends, and whether each has been delivered."
-            );
-
-            migrationBuilder.CreateTable(
                 name: "messenger_requests",
                 columns: table => new
                 {
@@ -3559,7 +3630,7 @@ namespace Turbo.Database.Migrations
                         ),
                     player_id = table.Column<int>(type: "integer", nullable: false),
                     badge_code = table.Column<string>(type: "text", nullable: false),
-                    slot_id = table.Column<int>(type: "integer", nullable: true, defaultValue: 0),
+                    slot_id = table.Column<int>(type: "integer", nullable: true),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -3569,6 +3640,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_player_badges", x => x.id);
+                    table.CheckConstraint(
+                        "ck_player_badges_slot_id",
+                        "slot_id IS NULL OR slot_id > 0"
+                    );
                     table.ForeignKey(
                         name: "fk_player_badges_players_player_id",
                         column: x => x.player_id,
@@ -3989,8 +4064,8 @@ namespace Turbo.Database.Migrations
                     player_id = table.Column<int>(type: "integer", nullable: false),
                     slot_id = table.Column<int>(type: "integer", nullable: false),
                     figure = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
+                        type: "character varying(279)",
+                        maxLength: 279,
                         nullable: false
                     ),
                     gender = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
@@ -4387,11 +4462,6 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: 0
                     ),
-                    periods_purchased = table.Column<int>(
-                        type: "integer",
-                        nullable: false,
-                        defaultValue: 0
-                    ),
                     furni_limit = table.Column<int>(
                         type: "integer",
                         nullable: false,
@@ -4558,11 +4628,7 @@ namespace Turbo.Database.Migrations
                         nullable: false
                     ),
                     repeats = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    counted = table.Column<string>(
-                        type: "character varying(1024)",
-                        maxLength: 1024,
-                        nullable: false
-                    ),
+                    counted = table.Column<List<string>>(type: "text[]", nullable: false),
                     status = table.Column<byte>(
                         type: "smallint",
                         nullable: false,
@@ -4614,7 +4680,11 @@ namespace Turbo.Database.Migrations
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
                     name = table.Column<string>(type: "text", nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
+                    description = table.Column<string>(
+                        type: "text",
+                        nullable: false,
+                        defaultValue: ""
+                    ),
                     player_id = table.Column<int>(type: "integer", nullable: false),
                     door_mode = table.Column<int>(
                         type: "integer",
@@ -4652,10 +4722,10 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: 0
                     ),
-                    allow_blocking = table.Column<bool>(
+                    allow_walk_through = table.Column<bool>(
                         type: "boolean",
                         nullable: false,
-                        defaultValue: false
+                        defaultValue: true
                     ),
                     allow_pets = table.Column<bool>(
                         type: "boolean",
@@ -4799,7 +4869,7 @@ namespace Turbo.Database.Migrations
                     is_deposit = table.Column<bool>(type: "boolean", nullable: false),
                     is_coins = table.Column<bool>(type: "boolean", nullable: false),
                     is_wall_item = table.Column<bool>(type: "boolean", nullable: false),
-                    type_id = table.Column<int>(type: "integer", nullable: false),
+                    sprite_id = table.Column<int>(type: "integer", nullable: false),
                     poster_id = table.Column<string>(
                         type: "character varying(64)",
                         maxLength: 64,
@@ -5067,7 +5137,7 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: false
                     ),
-                    chat_delay = table.Column<int>(
+                    chat_delay_seconds = table.Column<int>(
                         type: "integer",
                         nullable: false,
                         defaultValue: 0
@@ -5077,7 +5147,11 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: false
                     ),
-                    dance = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    dance_type = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -5836,12 +5910,16 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_catalog_ltd_series", x => x.id);
+                    table.CheckConstraint(
+                        "ck_catalog_ltd_series_quantity",
+                        "remaining_quantity >= 0 AND remaining_quantity <= total_quantity"
+                    );
                     table.ForeignKey(
                         name: "fk_catalog_ltd_series_catalog_products_catalog_product_id",
                         column: x => x.catalog_product_id,
                         principalTable: "catalog_products",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                 },
                 comment: "Configuration for an LTD (Limited Edition) series."
@@ -5858,6 +5936,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_wired_chests", x => x.item_id);
+                    table.CheckConstraint(
+                        "ck_wired_chests_amounts",
+                        "coins >= 0 AND capacity_level >= 0"
+                    );
                     table.ForeignKey(
                         name: "fk_wired_chests_furniture_item_id",
                         column: x => x.item_id,
@@ -6067,6 +6149,10 @@ namespace Turbo.Database.Migrations
                         nullable: false,
                         defaultValue: false
                     ),
+                    joined_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -6095,7 +6181,7 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "catalog_ltd_raffle_entries",
+                name: "catalog_ltd_entries",
                 columns: table => new
                 {
                     id = table
@@ -6106,20 +6192,11 @@ namespace Turbo.Database.Migrations
                         ),
                     series_id = table.Column<int>(type: "integer", nullable: false),
                     player_id = table.Column<int>(type: "integer", nullable: false),
-                    batch_id = table.Column<string>(
-                        type: "character varying(36)",
-                        maxLength: 36,
-                        nullable: false
-                    ),
-                    entered_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    result = table.Column<string>(
-                        type: "character varying(20)",
-                        maxLength: 20,
+                    batch_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    result = table.Column<byte>(
+                        type: "smallint",
                         nullable: false,
-                        defaultValue: "pending"
+                        defaultValue: (byte)0
                     ),
                     serial_number = table.Column<int>(type: "integer", nullable: true),
                     processed_at = table.Column<DateTime>(
@@ -6134,23 +6211,23 @@ namespace Turbo.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_catalog_ltd_raffle_entries", x => x.id);
+                    table.PrimaryKey("pk_catalog_ltd_entries", x => x.id);
                     table.ForeignKey(
-                        name: "fk_catalog_ltd_raffle_entries_catalog_ltd_series_series_id",
+                        name: "fk_catalog_ltd_entries_catalog_ltd_series_series_id",
                         column: x => x.series_id,
                         principalTable: "catalog_ltd_series",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
                     table.ForeignKey(
-                        name: "fk_catalog_ltd_raffle_entries_players_player_id",
+                        name: "fk_catalog_ltd_entries_players_player_id",
                         column: x => x.player_id,
                         principalTable: "players",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
                 },
-                comment: "An entry in an LTD raffle queue."
+                comment: "Every claim on an LTD series: raffle entries and sales, with the serial each won."
             );
 
             migrationBuilder.CreateTable(
@@ -6218,9 +6295,9 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_achievement_facts_player_id",
+                name: "ix_achievement_facts_player_id_id",
                 table: "achievement_facts",
-                column: "player_id",
+                columns: new[] { "player_id", "id" },
                 filter: "NOT processed"
             );
 
@@ -6232,15 +6309,10 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_achievement_facts_player_id_processed_id",
-                table: "achievement_facts",
-                columns: new[] { "player_id", "processed", "id" }
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "ix_achievement_progress_pending_delivery_player_id",
+                name: "ix_achievement_progress_player_id",
                 table: "achievement_progress",
-                columns: new[] { "pending_delivery", "player_id" }
+                column: "player_id",
+                filter: "pending_delivery"
             );
 
             migrationBuilder.CreateIndex(
@@ -6371,28 +6443,47 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_catalog_currency_types_type_activity_point_type",
+                    table: "catalog_currency_types",
+                    columns: new[] { "type", "activity_point_type" },
+                    unique: true
+                )
+                .Annotation("Npgsql:NullsDistinct", false);
+
             migrationBuilder.CreateIndex(
-                name: "ix_catalog_ltd_raffle_entries_batch_id_player_id",
-                table: "catalog_ltd_raffle_entries",
+                name: "ix_catalog_ltd_entries_batch_id_player_id",
+                table: "catalog_ltd_entries",
                 columns: new[] { "batch_id", "player_id" }
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_catalog_ltd_raffle_entries_player_id",
-                table: "catalog_ltd_raffle_entries",
+                name: "ix_catalog_ltd_entries_player_id",
+                table: "catalog_ltd_entries",
                 column: "player_id"
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_catalog_ltd_raffle_entries_series_id_player_id_result",
-                table: "catalog_ltd_raffle_entries",
+                name: "ix_catalog_ltd_entries_series_id_player_id_result",
+                table: "catalog_ltd_entries",
                 columns: new[] { "series_id", "player_id", "result" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_catalog_ltd_entries_series_id_serial_number",
+                table: "catalog_ltd_entries",
+                columns: new[] { "series_id", "serial_number" },
+                unique: true,
+                filter: "serial_number IS NOT NULL"
             );
 
             migrationBuilder.CreateIndex(
                 name: "ix_catalog_ltd_series_catalog_product_id",
                 table: "catalog_ltd_series",
-                column: "catalog_product_id"
+                column: "catalog_product_id",
+                unique: true,
+                filter: "is_active"
             );
 
             migrationBuilder.CreateIndex(
@@ -6469,6 +6560,12 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_furniture_builders_club_offer_id",
+                table: "furniture_builders_club",
+                column: "offer_id"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_furniture_builders_club_placed_by_player_id",
                 table: "furniture_builders_club",
                 column: "placed_by_player_id"
@@ -6486,6 +6583,24 @@ namespace Turbo.Database.Migrations
                 table: "furniture_definitions",
                 columns: new[] { "type", "name" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_furniture_transfers_from_player_id_id",
+                table: "furniture_transfers",
+                columns: new[] { "from_player_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_furniture_transfers_furniture_id_id",
+                table: "furniture_transfers",
+                columns: new[] { "furniture_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_furniture_transfers_to_player_id_id",
+                table: "furniture_transfers",
+                columns: new[] { "to_player_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
@@ -6550,10 +6665,22 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_guild_forum_messages_guild_id_created_at",
+                table: "guild_forum_messages",
+                columns: new[] { "guild_id", "created_at" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_guild_forum_messages_guild_id_forum_message_id",
                 table: "guild_forum_messages",
                 columns: new[] { "guild_id", "forum_message_id" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_guild_forum_messages_guild_id_player_id",
+                table: "guild_forum_messages",
+                columns: new[] { "guild_id", "player_id" }
             );
 
             migrationBuilder.CreateIndex(
@@ -6607,7 +6734,13 @@ namespace Turbo.Database.Migrations
                 column: "player_id"
             );
 
-            migrationBuilder.CreateIndex(name: "ix_guilds_name", table: "guilds", column: "name");
+            migrationBuilder.CreateIndex(
+                name: "ix_guild_members_player_id1",
+                table: "guild_members",
+                column: "player_id",
+                unique: true,
+                filter: "is_favourite"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_guilds_player_id",
@@ -6682,13 +6815,6 @@ namespace Turbo.Database.Migrations
                 name: "ix_habbo_texts_text_key",
                 table: "habbo_texts",
                 column: "text_key",
-                unique: true
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "ix_hotel_chat_styles_client_style_id",
-                table: "hotel_chat_styles",
-                column: "client_style_id",
                 unique: true
             );
 
@@ -6790,22 +6916,22 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_messenger_messages_receiver_id_sender_id_sent_at",
+                name: "ix_messenger_messages_receiver_id_created_at",
                 table: "messenger_messages",
-                columns: new[] { "receiver_id", "sender_id", "sent_at" }
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "ix_messenger_messages_receiver_id_sent_at",
-                table: "messenger_messages",
-                columns: new[] { "receiver_id", "sent_at" },
+                columns: new[] { "receiver_id", "created_at" },
                 filter: "NOT delivered"
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_messenger_messages_sender_id_receiver_id_sent_at",
+                name: "ix_messenger_messages_receiver_id_sender_id_created_at",
                 table: "messenger_messages",
-                columns: new[] { "sender_id", "receiver_id", "sent_at" }
+                columns: new[] { "receiver_id", "sender_id", "created_at" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_messenger_messages_sender_id_receiver_id_created_at",
+                table: "messenger_messages",
+                columns: new[] { "sender_id", "receiver_id", "created_at" }
             );
 
             migrationBuilder.CreateIndex(
@@ -6840,16 +6966,15 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_moderation_command_logs_player_id_id",
+                name: "ix_moderation_command_logs_outcome_id",
                 table: "moderation_command_logs",
-                columns: new[] { "player_id", "id" }
+                columns: new[] { "outcome", "id" }
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_moderation_filter_words_word",
-                table: "moderation_filter_words",
-                column: "word",
-                unique: true
+                name: "ix_moderation_command_logs_player_id_id",
+                table: "moderation_command_logs",
+                columns: new[] { "player_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
@@ -6920,10 +7045,22 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_pet_respect_operations_operation_id",
-                table: "pet_respect_operations",
-                column: "operation_id",
-                filter: "NOT completed AND NOT rejected"
+                name: "ix_pet_feedings_pet_id",
+                table: "pet_feedings",
+                column: "pet_id"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_pet_respects_id",
+                table: "pet_respects",
+                column: "id",
+                filter: "status = 0"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_pet_respects_pet_id",
+                table: "pet_respects",
+                column: "pet_id"
             );
 
             migrationBuilder.CreateIndex(
@@ -7006,6 +7143,12 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_player_currency_ledger_player_id_id",
+                table: "player_currency_ledger",
+                columns: new[] { "player_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_player_daily_tasks_definition_id",
                 table: "player_daily_tasks",
                 column: "definition_id"
@@ -7043,6 +7186,24 @@ namespace Turbo.Database.Migrations
                 table: "player_figure_sets",
                 columns: new[] { "player_id", "set_id" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_logins_ip_address",
+                table: "player_logins",
+                column: "ip_address"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_logins_machine_id",
+                table: "player_logins",
+                column: "machine_id"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_logins_player_id_id",
+                table: "player_logins",
+                columns: new[] { "player_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7101,6 +7262,14 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_player_quests_player_id",
+                table: "player_quests",
+                column: "player_id",
+                unique: true,
+                filter: "accepted"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_player_quests_player_id_quest_id",
                 table: "player_quests",
                 columns: new[] { "player_id", "quest_id" },
@@ -7114,10 +7283,28 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_player_respect_operations_operation_id",
-                table: "player_respect_operations",
-                column: "operation_id",
-                filter: "NOT completed AND NOT rejected"
+                name: "ix_player_respect_changes_player_id",
+                table: "player_respect_changes",
+                column: "player_id"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_respects_giver_id_created_at",
+                table: "player_respects",
+                columns: new[] { "giver_id", "created_at" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_respects_id",
+                table: "player_respects",
+                column: "id",
+                filter: "status = 0"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_respects_receiver_id_created_at",
+                table: "player_respects",
+                columns: new[] { "receiver_id", "created_at" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7132,6 +7319,12 @@ namespace Turbo.Database.Migrations
                 table: "player_settings",
                 column: "player_id",
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_subscription_grants_player_id_created_at",
+                table: "player_subscription_grants",
+                columns: new[] { "player_id", "created_at" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7152,6 +7345,12 @@ namespace Turbo.Database.Migrations
                 table: "player_unseen_items",
                 columns: new[] { "player_id", "category", "item_id" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_players_last_login_at",
+                table: "players",
+                column: "last_login_at"
             );
 
             migrationBuilder.CreateIndex(
@@ -7211,6 +7410,12 @@ namespace Turbo.Database.Migrations
                 name: "ix_room_chat_logs_target_player_id_id",
                 table: "room_chat_logs",
                 columns: new[] { "target_player_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_room_entry_logs_player_id_created_at",
+                table: "room_entry_logs",
+                columns: new[] { "player_id", "created_at" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7342,22 +7547,9 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_server_setting_changes_setting_path",
-                table: "server_setting_changes",
-                column: "setting_path"
-            );
-
-            migrationBuilder.CreateIndex(
                 name: "ix_server_settings_setting_path",
                 table: "server_settings",
                 column: "setting_path",
-                unique: true
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "ix_songs_code",
-                table: "songs",
-                column: "code",
                 unique: true
             );
 
@@ -7421,6 +7613,27 @@ namespace Turbo.Database.Migrations
                 "CREATE INDEX ix_rooms_name_trgm ON rooms USING gin (lower(name) gin_trgm_ops);"
             );
 
+            // Staff search players and groups by any part of a name.
+            migrationBuilder.Sql(
+                "CREATE INDEX ix_players_name_key_trgm ON players USING gin (name_key gin_trgm_ops);"
+            );
+            migrationBuilder.Sql(
+                "CREATE INDEX ix_guilds_name_trgm ON guilds USING gin (lower(name) gin_trgm_ops);"
+            );
+
+            // Names the game matches without regard to case are unique without regard to case:
+            // a filter word, an event category, a song, a currency.
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX ix_moderation_filter_words_word ON moderation_filter_words (lower(word));"
+            );
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX ix_navigator_event_categories_name ON navigator_event_categories (lower(name));"
+            );
+            migrationBuilder.Sql("CREATE UNIQUE INDEX ix_songs_code ON songs (lower(code));");
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX ix_catalog_currency_types_name ON catalog_currency_types (lower(name));"
+            );
+
             // updated_at is restamped on every update by a trigger, so a bulk ExecuteUpdate, which
             // no SaveChanges hook sees, moves it too.
             migrationBuilder.Sql(
@@ -7431,7 +7644,7 @@ BEGIN
 END $$;"
             );
 
-            foreach (var table in new[] { "players", "player_subscriptions" })
+            foreach (var table in new[] { "player_subscriptions" })
                 migrationBuilder.Sql(
                     $"CREATE TRIGGER {table}_set_updated_at BEFORE UPDATE ON {table} "
                         + "FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
@@ -7481,11 +7694,13 @@ END $$;"
 
             migrationBuilder.DropTable(name: "catalog_featured_items");
 
-            migrationBuilder.DropTable(name: "catalog_ltd_raffle_entries");
+            migrationBuilder.DropTable(name: "catalog_ltd_entries");
 
             migrationBuilder.DropTable(name: "catalog_page_expiries");
 
             migrationBuilder.DropTable(name: "furniture_builders_club");
+
+            migrationBuilder.DropTable(name: "furniture_transfers");
 
             migrationBuilder.DropTable(name: "gamedata_builds");
 
@@ -7567,9 +7782,9 @@ END $$;"
 
             migrationBuilder.DropTable(name: "pet_breeds");
 
-            migrationBuilder.DropTable(name: "pet_nutrition_operations");
+            migrationBuilder.DropTable(name: "pet_feedings");
 
-            migrationBuilder.DropTable(name: "pet_respect_operations");
+            migrationBuilder.DropTable(name: "pet_respects");
 
             migrationBuilder.DropTable(name: "pet_speech_lines");
 
@@ -7587,6 +7802,8 @@ END $$;"
 
             migrationBuilder.DropTable(name: "player_currencies");
 
+            migrationBuilder.DropTable(name: "player_currency_ledger");
+
             migrationBuilder.DropTable(name: "player_daily_tasks");
 
             migrationBuilder.DropTable(name: "player_effects");
@@ -7594,6 +7811,8 @@ END $$;"
             migrationBuilder.DropTable(name: "player_favorite_rooms");
 
             migrationBuilder.DropTable(name: "player_figure_sets");
+
+            migrationBuilder.DropTable(name: "player_logins");
 
             migrationBuilder.DropTable(name: "player_navigator_collapsed_categories");
 
@@ -7611,13 +7830,15 @@ END $$;"
 
             migrationBuilder.DropTable(name: "player_quests");
 
-            migrationBuilder.DropTable(name: "player_respect_operations");
+            migrationBuilder.DropTable(name: "player_respect_changes");
 
-            migrationBuilder.DropTable(name: "player_respect_receipts");
+            migrationBuilder.DropTable(name: "player_respects");
 
             migrationBuilder.DropTable(name: "player_reward_tracks");
 
             migrationBuilder.DropTable(name: "player_settings");
+
+            migrationBuilder.DropTable(name: "player_subscription_grants");
 
             migrationBuilder.DropTable(name: "player_subscriptions");
 

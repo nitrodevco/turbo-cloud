@@ -649,8 +649,8 @@ public sealed class OperatorCommandRunner(
             dbCtx.CommandLogs.Add(
                 new CommandLogEntity
                 {
-                    RoomEntityId = executor.RoomId?.Value ?? 0,
-                    PlayerEntityId = executor.PlayerId?.Value ?? 0,
+                    RoomEntityId = executor.RoomId?.Value,
+                    PlayerEntityId = executor.PlayerId?.Value,
                     Command = Truncate(descriptor.Name, CommandLogEntity.COMMAND_MAX_LENGTH),
                     Arguments = Truncate(
                         descriptor.Binder.AuditText(argumentText).Trim(),

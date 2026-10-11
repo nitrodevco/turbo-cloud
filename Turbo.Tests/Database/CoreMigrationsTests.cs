@@ -73,12 +73,13 @@ public sealed class CoreMigrationsTests
         // A deleted_at the database stamps on every write made every row look deleted, and the
         // queries that skipped deleted rows found nothing.
         columns.Should().NotContain(x => x.Column == "deleted_at");
-        // An asset bundle's is set by the sync and shown in the panel's list.
+        // An asset bundle's is set by the sync and shown in the panel's list; a subscription's is
+        // read back into its snapshot. A player's "last seen" is its own column, last_seen_at.
         columns
             .Where(x => x.Column == "updated_at")
             .Select(x => x.Table)
             .Should()
-            .BeEquivalentTo(["players", "player_subscriptions", "asset_bundles"]);
+            .BeEquivalentTo(["player_subscriptions", "asset_bundles"]);
     }
 
     /// <summary>
@@ -142,10 +143,10 @@ public sealed class CoreMigrationsTests
         foreach (
             var receipts in new[]
             {
-                "player_respect_operations",
-                "player_respect_receipts",
-                "pet_respect_operations",
-                "pet_nutrition_operations",
+                "player_respects",
+                "player_respect_changes",
+                "pet_respects",
+                "pet_feedings",
                 "achievement_wallet_receipts",
                 "player_wallet_credit_receipts",
             }

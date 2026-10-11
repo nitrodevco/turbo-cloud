@@ -46,7 +46,6 @@ public sealed class QuestTests : IDisposable
                 Name = "player",
                 Figure = "hd-180-1",
                 Gender = Turbo.Primitives.Rooms.Enums.AvatarGenderType.Male,
-                PlayerStatus = Turbo.Primitives.Players.Enums.PlayerStatusType.Offline,
             }
         );
         _db.Insert(

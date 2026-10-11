@@ -26,7 +26,6 @@ public sealed class PlayerSubscriptionAchievementTests : IDisposable
                 Name = "club-test",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
                 CreatedAt = DateTime.UtcNow.AddDays(-10),
             }
         );
@@ -55,6 +54,33 @@ public sealed class PlayerSubscriptionAchievementTests : IDisposable
             .EligibleSeconds(club.TotalDaysSubscribed, club.ExpiresAt!.Value, DateTime.UtcNow)
             .Should()
             .BeLessThan(5);
+    }
+
+    /// <summary>
+    /// The subscription row only holds where a membership stands; each grant is kept beside it,
+    /// so staff can see what was bought, what was given, and when.
+    /// </summary>
+    [Fact]
+    public async Task EachExtensionIsRecordedWithItsDaysAndWhetherItWasBought()
+    {
+        var grain = NewGrain();
+
+        await grain.ExtendPurchasedAsync(SubscriptionType.HabboClub, 31, Ct);
+        await grain.ExtendAsync(SubscriptionType.HabboClub, 10, Ct);
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var club = await db.PlayerSubscriptions.SingleAsync(Ct);
+        var grants = await db.PlayerSubscriptionGrants.OrderBy(x => x.Id).ToListAsync(Ct);
+
+        grants
+            .Select(x => (x.PlayerEntityId, x.SubscriptionType, x.Days, x.Purchased))
+            .Should()
+            .Equal(
+                (1, SubscriptionType.HabboClub, 31, true),
+                (1, SubscriptionType.HabboClub, 10, false)
+            );
+        grants[^1].ExpiresAt.Should().Be(club.ExpiresAt!.Value);
+        (grants[1].ExpiresAt - grants[0].ExpiresAt).Should().Be(TimeSpan.FromDays(10));
     }
 
     private IPlayerSubscriptionGrain NewGrain()

@@ -22,11 +22,11 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     protected override async Task ServeAsync(IRoomPet pet, CancellationToken ct)
     {
         var config = _roomGrain._petConfig;
-        var operationId = Guid.CreateVersion7().ToString("N");
+        var feedingId = Guid.CreateVersion7();
         await PetModule.SupplyNutritionAsync(
             pet,
             _ctx.RoomObject.OwnerId,
-            operationId,
+            feedingId,
             config.FoodNutrition,
             ct
         );

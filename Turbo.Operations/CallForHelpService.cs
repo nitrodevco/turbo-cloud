@@ -96,8 +96,9 @@ public sealed class CallForHelpService(
 
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
+        var since = timeProvider.GetUtcNow().UtcDateTime.AddHours(-_config.CfhOpenReportHours);
         var open = await dbCtx.CfhReports.CountAsync(
-            x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null,
+            x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null && x.CreatedAt >= since,
             ct
         );
 

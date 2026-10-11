@@ -36,14 +36,14 @@ public sealed class ChatStyleProvider(
         try
         {
             var entities = await dbCtx
-                .PlayerChatStyles.AsNoTracking()
+                .ChatStyles.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
             var stylesByClientId = new Dictionary<int, ChatStyleSnapshot>();
 
             foreach (var entity in entities)
-                stylesByClientId[entity.ClientStyleId] = entity.ToSnapshot();
+                stylesByClientId[entity.Id] = entity.ToSnapshot();
 
             _stylesByClientId = stylesByClientId.ToFrozenDictionary();
 

@@ -214,7 +214,16 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
         if (debits.Count > 0)
         {
-            var debit = await _grainFactory.GetPlayerWalletGrain(payerId).TryDebitAsync(debits, ct);
+            var debit = await _grainFactory
+                .GetPlayerWalletGrain(payerId)
+                .TryDebitAsync(
+                    debits,
+                    new WalletChange(
+                        WalletChangeReason.WiredChest,
+                        $"upgrade chest {_state.ChestId}"
+                    ),
+                    ct
+                );
 
             if (!debit.Succeeded)
                 return (
@@ -590,7 +599,13 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         // Referenced by the transaction, so a retried credit can never pay twice.
         var credited = await _grainFactory
             .GetPlayerWalletGrain(request.ReceiverId)
-            .CreditAsync(CurrencyKind.Credits, amount, CreditReference(transactionId), ct);
+            .CreditAsync(
+                CurrencyKind.Credits,
+                amount,
+                CreditReference(transactionId),
+                new WalletChange(WalletChangeReason.WiredChest, $"chest {_state.ChestId}"),
+                ct
+            );
 
         if (credited == WalletCreditResult.Rejected)
         {

@@ -113,7 +113,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                         BadgesRank = 0,
                         IsOnline = false,
                         CreatedAt = new DateTime(2025, 3, 4, 5, 6, 0, DateTimeKind.Utc),
-                        LastUpdated = new DateTime(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc),
+                        LastSeen = new DateTime(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc),
                         RespectPoints = 0,
                         RespectsLeft = 0,
                         PetRespectsLeft = 0,

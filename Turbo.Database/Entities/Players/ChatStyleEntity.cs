@@ -13,14 +13,15 @@ namespace Turbo.Database.Entities.Players;
 /// </summary>
 [Comment("One chat bubble style the client can draw, and who may speak with it.")]
 [Table("hotel_chat_styles")]
-[Index(nameof(ClientStyleId), IsUnique = true)]
-public class PlayerChatStyleEntity : TurboEntity
+public class ChatStyleEntity
 {
-    [Column("client_style_id")]
-    [DefaultValue(0)]
-    public required int ClientStyleId { get; set; }
+    /// <summary>The client's own number for the style, which players' settings and chat name.</summary>
+    [Key]
+    [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public required int Id { get; set; }
 
-    /// <summary>The client's asset id for the style, for whoever reads the table.</summary>
+    /// <summary>The client's asset name for the style, so whoever reads the table knows which it is.</summary>
     [Column("name")]
     [MaxLength(64)]
     public string? Name { get; set; }

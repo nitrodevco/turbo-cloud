@@ -425,6 +425,7 @@ public sealed partial class VoucherService(
                                 CurrencyKind.Credits,
                                 voucher.Credits,
                                 Reference(voucher, "credits"),
+                                new WalletChange(WalletChangeReason.Voucher, voucher.Code),
                                 ct
                             )
                             .ConfigureAwait(false)
@@ -449,6 +450,7 @@ public sealed partial class VoucherService(
                                 },
                                 voucher.CurrencyAmount,
                                 Reference(voucher, "currency"),
+                                new WalletChange(WalletChangeReason.Voucher, voucher.Code),
                                 ct
                             )
                             .ConfigureAwait(false)

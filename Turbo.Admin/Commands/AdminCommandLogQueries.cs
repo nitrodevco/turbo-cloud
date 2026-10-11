@@ -97,8 +97,8 @@ public sealed class AdminCommandLogQueries(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var playerIds = rows.Select(x => x.PlayerEntityId).Where(x => x > 0).Distinct().ToList();
-        var roomIds = rows.Select(x => x.RoomEntityId).Where(x => x > 0).Distinct().ToList();
+        var playerIds = rows.Select(x => x.PlayerEntityId).OfType<int>().Distinct().ToList();
+        var roomIds = rows.Select(x => x.RoomEntityId).OfType<int>().Distinct().ToList();
         var players = await db
             .Players.AsNoTracking()
             .Where(x => playerIds.Contains(x.Id))
@@ -118,10 +118,10 @@ public sealed class AdminCommandLogQueries(
                 .. rows.Select(x => new CommandLogEntry(
                     x.Id,
                     x.CreatedAt,
-                    x.PlayerEntityId,
-                    players.GetValueOrDefault(x.PlayerEntityId),
-                    x.RoomEntityId,
-                    rooms.GetValueOrDefault(x.RoomEntityId),
+                    x.PlayerEntityId ?? 0,
+                    x.PlayerEntityId is { } playerId ? players.GetValueOrDefault(playerId) : null,
+                    x.RoomEntityId ?? 0,
+                    x.RoomEntityId is { } roomId ? rooms.GetValueOrDefault(roomId) : null,
                     x.Command,
                     x.Arguments,
                     x.Outcome,

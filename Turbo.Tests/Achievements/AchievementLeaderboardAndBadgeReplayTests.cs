@@ -63,7 +63,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
             {
                 PlayerId = 1,
                 Score = 900,
-                EarnedLevels = 2,
+                CompletedLevels = 2,
             }
         );
         _db.Insert(
@@ -71,7 +71,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
             {
                 PlayerId = 2,
                 Score = 100,
-                EarnedLevels = 5,
+                CompletedLevels = 5,
             }
         );
         // No definitions are present: the board is still the durable all-time earned-level total.
@@ -232,7 +232,6 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
             Name = $"achievement-board-{id}",
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static PlayerBadgeEntity NewBadge(

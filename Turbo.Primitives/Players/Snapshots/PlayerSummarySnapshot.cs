@@ -35,8 +35,9 @@ public sealed record PlayerSummarySnapshot
     [Id(8)]
     public required DateTime CreatedAt { get; init; }
 
+    /// <summary>When the player was last online: now while they are, else the end of their last session.</summary>
     [Id(9)]
-    public required DateTime LastUpdated { get; init; }
+    public required DateTime LastSeen { get; init; }
 
     [Id(10)]
     public required int RespectPoints { get; init; }

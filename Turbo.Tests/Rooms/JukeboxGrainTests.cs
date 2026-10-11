@@ -352,7 +352,6 @@ public sealed class JukeboxGrainTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static FurnitureEntity Furni(int id, int definitionId, int ownerId, int songId) =>

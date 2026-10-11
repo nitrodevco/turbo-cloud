@@ -30,7 +30,8 @@ public class RoomEntity : TurboEntity
     public required string Name { get; set; }
 
     [Column("description")]
-    public string? Description { get; set; }
+    [DefaultValue("")]
+    public string Description { get; set; } = string.Empty;
 
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
@@ -80,9 +81,10 @@ public class RoomEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required RoomThicknessType ThicknessFloor { get; set; }
 
-    [Column("allow_blocking")]
-    [DefaultValue(false)]
-    public required bool AllowBlocking { get; set; }
+    /// <summary>Whether avatars may walk through each other; Habbo's rooms start with it on.</summary>
+    [Column("allow_walk_through")]
+    [DefaultValue(true)]
+    public required bool AllowWalkThrough { get; set; }
 
     [Column("allow_pets")]
     [DefaultValue(false)]

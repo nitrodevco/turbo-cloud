@@ -138,6 +138,27 @@ public sealed class CallForHelpReportTests : IDisposable
     }
 
     [Fact]
+    public async Task Reports_nobody_got_to_stop_counting_after_a_day()
+    {
+        for (var i = 0; i < new OperationsConfig().CfhMaxOpenReports; i++)
+            _db.Insert(
+                new CfhReportEntity
+                {
+                    Id = 100 + i,
+                    ReporterEntityId = REPORTER,
+                    TopicId = TOPIC,
+                    Message = "an old report",
+                    CreatedAt = NOW.AddHours(-new OperationsConfig().CfhOpenReportHours - 1),
+                }
+            );
+
+        var reply = Assert.Single(await SendReportAsync(TOPIC));
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+        (await Reports()).Should().HaveCount(4);
+    }
+
+    [Fact]
     public async Task Only_a_report_closed_without_action_can_be_appealed_and_only_once()
     {
         await SendReportAsync(TOPIC);
@@ -337,7 +358,7 @@ public sealed class CallForHelpReportTests : IDisposable
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -444,6 +465,5 @@ public sealed class CallForHelpReportTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 }

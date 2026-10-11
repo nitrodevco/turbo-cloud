@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans.Concurrency;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -92,6 +93,7 @@ public partial interface IInventoryGrain
     public Task<bool> TransferFurnitureAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        FurnitureTransferReason reason,
         CancellationToken ct
     );
 

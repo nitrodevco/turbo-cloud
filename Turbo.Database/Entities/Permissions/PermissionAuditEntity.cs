@@ -18,7 +18,7 @@ namespace Turbo.Database.Entities.Permissions;
 [Table("permission_audit_logs")]
 // "What happened to this player / group", newest first.
 [Index(nameof(TargetType), nameof(TargetId), nameof(CreatedAt))]
-public class PermissionAuditEntity : TurboEntity
+public class PermissionAuditEntity : TurboLogEntity
 {
     /// <summary>Who made the change: a player id, or null for the console or the server itself (an expiry).</summary>
     [Column("actor_player_id")]

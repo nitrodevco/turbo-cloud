@@ -11,6 +11,7 @@ public class PlayerChatStyleOwnedEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
+    /// <summary>The style's client number (<c>hotel_chat_styles.id</c>).</summary>
     [Column("chat_style_id")]
     public required int ChatStyleId { get; set; }
 
@@ -18,5 +19,5 @@ public class PlayerChatStyleOwnedEntity : TurboEntity
     public required PlayerEntity PlayerEntity { get; set; }
 
     [ForeignKey(nameof(ChatStyleId))]
-    public required PlayerChatStyleEntity ChatStyle { get; set; }
+    public required ChatStyleEntity ChatStyle { get; set; }
 }

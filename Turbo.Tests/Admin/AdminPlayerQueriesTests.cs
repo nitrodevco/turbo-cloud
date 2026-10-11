@@ -80,7 +80,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             new CurrencyTypeEntity
             {
                 Id = 2,
-                Name = null,
+                Name = "",
                 CurrencyType = CurrencyType.Emeralds,
                 Enabled = true,
             }
@@ -246,7 +246,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     [Fact]
     public async Task APlayersInventory_ListsBadgesWornFirst_AndFurnitureByKindWithWhereItIs()
     {
-        _db.Insert(Badge(1, "ZZZ", slot: 0));
+        _db.Insert(Badge(1, "ZZZ", slot: null));
         _db.Insert(Badge(2, "ACH_Login1", slot: null));
         _db.Insert(Badge(3, "ADM", slot: 2));
         _db.Insert(Badge(4, "VIP", slot: 1));
@@ -308,7 +308,6 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
             LastLoginAt = lastLogin,
         };
 
@@ -398,7 +397,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = true,
+            AllowWalkThrough = true,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

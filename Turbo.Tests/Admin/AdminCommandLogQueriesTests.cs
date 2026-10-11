@@ -155,7 +155,6 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static RoomEntity Room(int id, string name, int ownerId) =>
@@ -171,7 +170,7 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = true,
+            AllowWalkThrough = true,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

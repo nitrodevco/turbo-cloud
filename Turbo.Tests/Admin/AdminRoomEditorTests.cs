@@ -45,7 +45,6 @@ public sealed class AdminRoomEditorTests : IDisposable
                 Name = "alice",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Female,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -87,7 +86,7 @@ public sealed class AdminRoomEditorTests : IDisposable
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = true,
+                AllowWalkThrough = true,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,

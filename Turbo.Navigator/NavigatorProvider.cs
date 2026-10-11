@@ -443,7 +443,7 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = false,
+            AllowWalkThrough = true,
             AllowPets = false,
             AllowPetsEat = false,
             TradeType = tradeType,

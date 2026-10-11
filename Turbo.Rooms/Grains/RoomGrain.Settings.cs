@@ -139,7 +139,7 @@ public sealed partial class RoomGrain
             TradeType = settings.TradeMode,
             AllowPets = settings.AllowPets,
             AllowPetsEat = settings.AllowPetsEat,
-            AllowBlocking = settings.AllowWalkThrough,
+            AllowWalkThrough = settings.AllowWalkThrough,
             HideWalls = settings.HideWalls,
             WallThickness = settings.WallThickness,
             FloorThickness = settings.FloorThickness,
@@ -256,6 +256,10 @@ public sealed partial class RoomGrain
             .PlayerSettings.Where(x => x.HomeRoomId == roomId)
             .ExecuteUpdateAsync(up => up.SetProperty(x => x.HomeRoomId, (int?)null), ct);
         await dbCtx.Rooms.Where(x => x.Id == roomId).ExecuteDeleteAsync(ct);
+        // A floor plan saved in the editor is a model of this room's own; nothing else uses it.
+        await dbCtx
+            .RoomModels.Where(x => x.Custom && x.Name == $"room_{roomId}")
+            .ExecuteDeleteAsync(ct);
 
         await tx.CommitAsync(ct);
 
@@ -312,7 +316,7 @@ public sealed partial class RoomGrain
             entity.TradeType = next.TradeType;
             entity.AllowPets = next.AllowPets;
             entity.AllowPetsEat = next.AllowPetsEat;
-            entity.AllowBlocking = next.AllowBlocking;
+            entity.AllowWalkThrough = next.AllowWalkThrough;
             entity.HideWalls = next.HideWalls;
             entity.ThicknessWall = next.WallThickness;
             entity.ThicknessFloor = next.FloorThickness;

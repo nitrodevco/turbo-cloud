@@ -46,10 +46,6 @@ public class PlayerSubscriptionEntity : TurboEntity
     [DefaultValue(0)]
     public int PurchasedDaysSubscribed { get; set; }
 
-    [Column("periods_purchased")]
-    [DefaultValue(0)]
-    public int PeriodsPurchased { get; set; }
-
     /// <summary>Builders Club only: items the player may borrow at once. Zero elsewhere.</summary>
     [Column("furni_limit")]
     [DefaultValue(0)]

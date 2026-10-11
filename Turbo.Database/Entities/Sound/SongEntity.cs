@@ -10,7 +10,6 @@ namespace Turbo.Database.Entities.Sound;
 /// </summary>
 [Comment("A trax song: the track a song disk plays in a jukebox.")]
 [Table("songs")]
-[Index(nameof(Code), IsUnique = true)]
 public class SongEntity : TurboEntity
 {
     public const int CODE_MAX_LENGTH = 64;

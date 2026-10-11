@@ -38,6 +38,8 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     private bool _writerCompleted;
 
     public bool PolicyDone { get; set; } = true;
+    public System.Net.IPAddress? ClientAddress { get; set; }
+    public string? MachineId { get; set; }
     public string RevisionId { get; set; } = "Default";
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }

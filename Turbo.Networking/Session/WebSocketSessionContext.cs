@@ -56,6 +56,13 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
             () => Connection.CloseAsync(SuperSocket.Connection.CloseReason.LocalClosing)
         );
 
+    public System.Net.IPAddress? ClientAddress => _state.ClientAddress;
+    public string? MachineId => _state.MachineId;
+
+    public void SetClientAddress(System.Net.IPAddress? address) => _state.ClientAddress = address;
+
+    public void SetMachineId(string machineId) => _state.MachineId = machineId;
+
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false) =>

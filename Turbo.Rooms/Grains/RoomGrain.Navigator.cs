@@ -50,7 +50,13 @@ public sealed partial class RoomGrain
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.Score, x => x.Score + points), ct);
             if (changed != 1)
                 throw new InvalidOperationException("Rated room no longer exists.");
-            await AchievementRoomCriteria.RecordRankingsAsync(dbCtx, _achievementFacts, ct);
+            if (points > 0)
+                await AchievementRoomCriteria.RecordRankAsync(
+                    dbCtx,
+                    _achievementFacts,
+                    _state.RoomSnapshot.OwnerId,
+                    ct
+                );
             await dbCtx.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }

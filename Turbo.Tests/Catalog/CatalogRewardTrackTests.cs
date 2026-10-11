@@ -44,7 +44,6 @@ public sealed class CatalogRewardTrackTests : IDisposable
                 Name = "buyer",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _catalog.Fakes.Handlers["GrantFurnitureAsync"] = _ =>
