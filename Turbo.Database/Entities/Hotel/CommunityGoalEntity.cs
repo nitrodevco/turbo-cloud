@@ -11,6 +11,9 @@ namespace Turbo.Database.Entities.Hotel;
 /// together, buying from its catalog pages (and, in a voting goal, voting for a side). The goal
 /// shown is the last one started.
 /// </summary>
+[Comment(
+    "A community goal: from StartsAt to EndsAt the hotel plays it together, buying from its catalog pages (and, in a voting goal, voting for a side)."
+)]
 [Table("hotel_community_goals")]
 [Index(nameof(Code), IsUnique = true)]
 [Index(nameof(StartsAt))]

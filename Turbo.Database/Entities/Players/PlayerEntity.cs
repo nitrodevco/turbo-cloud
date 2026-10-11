@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("The hotel's players.")]
 [Table("players")]
 [Index(nameof(NameKey), IsUnique = true)]
 public class PlayerEntity : TurboEntity

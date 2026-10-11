@@ -11,6 +11,9 @@ namespace Turbo.Database.Entities.Room;
 /// and outlives the room it was typed in. Indexed by who ran it and by command, newest first, for
 /// the admin panel's log.
 /// </summary>
+[Comment(
+    "One use of a chat command by an executor who holds command.log, so an operator logs staff and nobody else."
+)]
 [Table("moderation_command_logs")]
 [Index(nameof(PlayerEntityId), nameof(Id))]
 [Index(nameof(Command), nameof(Id))]

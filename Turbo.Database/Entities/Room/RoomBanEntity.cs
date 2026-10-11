@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Players banned from a room, and until when.")]
 [Table("room_bans")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class RoomBanEntity : TurboEntity

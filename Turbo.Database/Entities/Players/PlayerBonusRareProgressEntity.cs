@@ -10,6 +10,7 @@ namespace Turbo.Database.Entities.Players;
 /// the campaign counts adds to it: credits bought, recorded under a receipt, or credits spent in
 /// the catalogue. A missing row means nothing counted yet.
 /// </summary>
+[Comment("A player's progress toward a bonus rare campaign's reward, by the campaign's code.")]
 [Table("player_bonus_rare_progress")]
 [Index(nameof(PlayerEntityId), nameof(CampaignId), IsUnique = true)]
 public class PlayerBonusRareProgressEntity : TurboEntity

@@ -607,6 +607,36 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         }
     }
 
+    /// <summary>
+    /// Stamps <c>rooms.last_active_at</c> as a player enters, which the admin panel sorts rooms by;
+    /// at most once every few minutes, so a busy room doesn't write on every entry. A failure is
+    /// logged: the entry goes on.
+    /// </summary>
+    internal async Task StampLastActiveAsync(CancellationToken ct)
+    {
+        var now = NowMs();
+
+        if (_state.LastActiveStampedMs is { } last && now - last < LAST_ACTIVE_STAMP_MS)
+            return;
+
+        _state.LastActiveStampedMs = now;
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            await dbCtx
+                .Rooms.Where(x => x.Id == _state.RoomId.Value)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastActive, DateTime.UtcNow), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to stamp room {RoomId} as active", _state.RoomId);
+        }
+    }
+
+    private const long LAST_ACTIVE_STAMP_MS = 5 * 60 * 1000;
+
     internal long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     internal long AlignToNextBoundary(long now, int offset)

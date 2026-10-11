@@ -8,6 +8,7 @@ namespace Turbo.Database.Entities.Sound;
 /// A trax song: the track a song disk plays in a jukebox. Staff add them in the admin panel; the
 /// song directory grain owns the table, so every change goes through it.
 /// </summary>
+[Comment("A trax song: the track a song disk plays in a jukebox.")]
 [Table("songs")]
 [Index(nameof(Code), IsUnique = true)]
 public class SongEntity : TurboEntity

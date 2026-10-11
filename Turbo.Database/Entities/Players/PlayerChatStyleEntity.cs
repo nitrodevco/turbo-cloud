@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Players;
 /// one no player may pick. The flags combine: a style that is both club-only and purchasable
 /// needs a player who has the club and owns it.
 /// </summary>
+[Comment("One chat bubble style the client can draw, and who may speak with it.")]
 [Table("hotel_chat_styles")]
 [Index(nameof(ClientStyleId), IsUnique = true)]
 public class PlayerChatStyleEntity : TurboEntity

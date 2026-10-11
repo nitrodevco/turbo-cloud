@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
+[Comment(
+    "Currency an achievement level paid a player, one row per payment, so a retry never pays twice."
+)]
 [Table("achievement_wallet_receipts")]
 [PrimaryKey(nameof(PlayerId), nameof(AwardKey))]
 public sealed class AchievementWalletReceiptEntity

@@ -11,6 +11,9 @@ namespace Turbo.Database.Entities.Permissions;
 /// A node set on one player, beating anything their groups say: a grant their groups do not
 /// give, or a denial (a sanction) of one they do.
 /// </summary>
+[Comment(
+    "A node set on one player, beating anything their groups say: a grant their groups do not give, or a denial (a sanction) of one they do."
+)]
 [Table("player_permission_nodes")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(PlayerEntityId), nameof(Node), nameof(IsTemporary), IsUnique = true)]

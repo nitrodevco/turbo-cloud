@@ -10,6 +10,7 @@ namespace Turbo.Database.Entities.Badges;
 /// only there to pin its rarity (a staff badge is unique however many staff there are) instead of
 /// letting the owner count decide.
 /// </summary>
+[Comment("What the hotel says about a badge code.")]
 [Table("badge_definitions")]
 [Index(nameof(BadgeCode), IsUnique = true)]
 public class BadgeDefinitionEntity : TurboEntity

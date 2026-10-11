@@ -35,6 +35,51 @@ Host=127.0.0.1;Port=5432;Username=turbo;Password=turbo-dev;Database=turbo
 
 and start Turbo. That is the whole setup.
 
+## Running PostgreSQL in production
+
+What a hotel's own server needs, in the order you set it up.
+
+1. **Install PostgreSQL 16 or newer** (Ploi: Server > Databases, or the distribution's
+   `postgresql` package). It can share the machine with Turbo on a small hotel.
+2. **Make a role and a database it owns, and nothing more.** Turbo never needs a superuser: the one
+   extension it uses, `pg_trgm` (for searching chat and room names), is "trusted", so the database's
+   owner can create it.
+
+   ```sql
+   CREATE ROLE turbo LOGIN PASSWORD 'a long random password';
+   CREATE DATABASE turbo OWNER turbo;
+   ```
+
+   Then set `TURBO_DB_*` (or `TURBO_DB_CONNECTION_STRING`) and deploy: `Turbo.Main migrate` makes the
+   tables. Keep PostgreSQL listening on `127.0.0.1` unless something else really must reach it.
+3. **Size the memory once.** PostgreSQL's defaults are for a tiny machine. In `postgresql.conf`
+   (or `ALTER SYSTEM SET ...` and a restart):
+
+   | Setting | Start at | Why |
+   | --- | --- | --- |
+   | `shared_buffers` | 25% of RAM (no more than 40%) | PostgreSQL's own advice for a dedicated server; it also uses the OS cache. On a machine shared with Turbo, take the 25% from what Turbo leaves. |
+   | `effective_cache_size` | 50-75% of RAM | Tells the planner how much the OS will cache; allocates nothing. |
+   | `work_mem` | 16MB | Per sort or hash in each query, so many can be held at once; the default 4MB spills the admin panel's bigger sorts to disk. |
+   | `maintenance_work_mem` | 256MB | Vacuum and index builds; one at a time per session, so it can be larger. |
+   | `random_page_cost` | 1.1 on SSD/NVMe | The default 4 assumes spinning disks and makes the planner avoid indexes it should use. |
+
+   `max_connections` can stay at 100: one Turbo silo's pool (Npgsql) holds what it uses, and a
+   connection pooler is only worth it once a CMS, the panel and cron jobs share the server.
+4. **Turn on query statistics.** Add `shared_preload_libraries = 'pg_stat_statements'`, restart, and
+   run `CREATE EXTENSION pg_stat_statements;` as a superuser once. `SELECT query, calls,
+   mean_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` then shows what
+   the database spends its time on, which is where the next index goes.
+5. **Back up, and practise restoring.**
+   - Nightly: `pg_dump -Fc -f turbo-$(date +%F).dump turbo`, copied off the machine (object storage,
+     another server). A custom-format dump restores with `pg_restore -d turbo_restored file.dump`.
+   - A dump loses everything since it was taken. To lose at most minutes, archive the WAL as well
+     (PostgreSQL's continuous archiving, or a tool such as pgBackRest), which restores to any
+     moment.
+   - Restore one into a scratch database now and then. A backup nobody has restored is a guess.
+6. **Leave autovacuum on** (the default). Furniture and wallets are updated all day and PostgreSQL
+   keeps old row versions until vacuum clears them; `SELECT relname, n_dead_tup FROM
+   pg_stat_user_tables ORDER BY n_dead_tup DESC;` shows whether it keeps up.
+
 ## The settings (`Turbo:Database`)
 
 | Setting | Default | What it does |
@@ -161,6 +206,23 @@ root things (`players`, `rooms`, `furniture`, `pets`, `bots`, `guilds`, `quests`
 domain. Times end in `_at` (every time is UTC, so no name says so), foreign keys in `_id`.
 `SchemaNamingTests` holds every table, column, index and key to this, and to PostgreSQL's
 63-character limit on a name.
+
+Every table carries a comment saying what it holds (`[Comment]` on its entity), which pgAdmin,
+DBeaver and `\d+` show beside it; `EveryTableSaysWhatItHolds` fails for a new table without one.
+A string column is `text` unless its domain has a real limit, which it then declares with
+`[MaxLength]`. A list is a `text[]` (a room's tags), not a comma-joined string.
+
+## Searching text
+
+PostgreSQL compares text exactly: `'Josh' = 'josh'` is false. A search a player types:
+
+- **A player's name** goes through `name_key` (`PlayerNames.Key`), the lower-cased name, by equality
+  or prefix. It is in the byte-order `C` collation, so its index serves a prefix `LIKE`.
+- **Part of any other text** is `EF.Functions.Like(x.Column.ToLower(), LikePatterns.Containing(text),
+  LikePatterns.ESCAPE)`, which escapes `%` and `_` in what was typed. On a table that grows, give
+  it a trigram index on `lower(column)` in a migration (chat and room names have one).
+- Never `x.Name == typed` or `x.Name.Contains(typed)` on what a player typed: both are
+  case-sensitive.
 
 ## Furniture behaviour
 

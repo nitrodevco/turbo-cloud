@@ -11,6 +11,9 @@ namespace Turbo.Database.Entities.Admin;
 /// never anything secret. Passkeys are the panel's only sign-in, so a player with none has no
 /// way in. Owned by the player's admin account grain.
 /// </summary>
+[Comment(
+    "A passkey a player signs in to the admin panel with: the public key their authenticator made, never anything secret."
+)]
 [Table("auth_admin_passkeys")]
 [Index(nameof(PlayerEntityId))]
 [Index(nameof(CredentialId), IsUnique = true)]

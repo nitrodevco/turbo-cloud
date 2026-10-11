@@ -89,7 +89,6 @@ public sealed class GuildForumTests : IDisposable
                     PlayerEntityId = OWNER,
                     RoomModelEntityId = 1,
                     DoorMode = RoomDoorModeType.Open,
-                    UsersNow = 0,
                     PlayersMax = 25,
                     HideWalls = false,
                     AllowBlocking = false,

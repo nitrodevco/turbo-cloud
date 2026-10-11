@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("The badges each player owns, and which slot each is worn in.")]
 [Table("player_badges")]
 [Index(nameof(PlayerEntityId), nameof(BadgeCode), IsUnique = true)]
 // Owner counts group by code alone, which the unique index above (player first) cannot serve.

@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Permissions;
 /// A named set of permission nodes and meta that players hold and other groups inherit. See
 /// <c>docs/permissions.md</c> §5.
 /// </summary>
+[Comment("A named set of permission nodes and meta that players hold and other groups inherit.")]
 [Table("permission_groups")]
 [Index(nameof(Name), IsUnique = true)]
 public class PermissionGroupEntity : TurboEntity

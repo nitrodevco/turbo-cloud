@@ -9,6 +9,9 @@ namespace Turbo.Database.Entities.Security;
 /// The Discord account a player signs in to the public site with: one each way, so a Discord
 /// account is one player and a player is one Discord account.
 /// </summary>
+[Comment(
+    "The Discord account a player signs in to the public site with: one each way, so a Discord account is one player and a player is one Discord account."
+)]
 [Table("auth_discord_links")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 [Index(nameof(DiscordId), IsUnique = true)]

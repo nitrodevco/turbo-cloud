@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Players;
 /// (<c>FigureSetIdsMessage.boundFurnitureNames</c>) and puts the clothes on, rather than asking
 /// again, when the player uses another furni of the same kind.
 /// </summary>
+[Comment(
+    "Clothing furni a player has bound: a figure_purchasable_set furni they used, whose figure sets are theirs since."
+)]
 [Table("player_bound_clothing")]
 [Index(nameof(PlayerEntityId), nameof(FurnitureDefinitionEntityId), IsUnique = true)]
 public class PlayerBoundClothingEntity : TurboEntity

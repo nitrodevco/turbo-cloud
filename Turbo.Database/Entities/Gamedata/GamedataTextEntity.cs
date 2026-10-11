@@ -8,6 +8,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One of the hotel's texts, the external texts the client shows: Habbo's taken in, and the
 /// hotel's own. The value is as the file writes it, <c>\n</c> escapes and all.
 /// </summary>
+[Comment(
+    "One of the hotel's texts, the external texts the client shows: Habbo's taken in, and the hotel's own."
+)]
 [Table("gamedata_texts")]
 [Index(nameof(Key), IsUnique = true)]
 public class GamedataTextEntity : TurboEntity

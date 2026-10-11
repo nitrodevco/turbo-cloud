@@ -456,6 +456,20 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var now = DateTime.UtcNow;
         var friends = new List<int> { 2, 3 };
 
+        // A player who has talked a lot and has three messages waiting: the replay should read the
+        // three, not the history, and the planner should know there is a history to avoid.
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO players (id, name, name_key, figure, gender, status)
+            SELECT g, 'p' || g, 'p' || g, 'hd-180-1', 0, 0 FROM generate_series(1, 3) g;
+            INSERT INTO messenger_messages (sender_id, receiver_id, message, sent_at, delivered)
+            SELECT 2 + (g % 2), 1, 'hi', now() - g * interval '1 minute', g > 3
+            FROM generate_series(1, 20000) g;
+            ANALYZE messenger_messages;
+            """,
+            Ct
+        );
+
         (
             await PlanAsync(
                 db,
@@ -514,6 +528,43 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         )
             .Should()
             .Contain("ix_messenger_messages_receiver_id_sent_at");
+        // The friend search: a prefix of a name's key, which the C collation lets a b-tree serve
+        // as a range; in a language collation the whole index is read and filtered.
+        (
+            await PlanAsync(
+                db,
+                db.Players.Where(x =>
+                        EF.Functions.Like(
+                            x.NameKey,
+                            LikePatterns.StartingWith("jo"),
+                            LikePatterns.ESCAPE
+                        )
+                    )
+                    .OrderBy(x => x.NameKey)
+                    .Take(50)
+            )
+        )
+            .Should()
+            .Contain("ix_players_name_key")
+            .And.Contain(
+                "Index Cond: ((name_key >= ",
+                "the prefix is a range of the index, not a filter"
+            );
+        // The navigator's room search: any part of a name, in any case.
+        (
+            await PlanAsync(
+                db,
+                db.Rooms.Where(x =>
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing("pool"),
+                        LikePatterns.ESCAPE
+                    )
+                )
+            )
+        )
+            .Should()
+            .Contain("ix_rooms_name_trgm");
         (
             await PlanAsync(
                 db,

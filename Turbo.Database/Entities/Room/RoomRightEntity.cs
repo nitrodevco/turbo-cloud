@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Players a room's owner has given rights in it.")]
 [Table("room_rights")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class RoomRightEntity : TurboEntity

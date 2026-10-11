@@ -67,7 +67,6 @@ public sealed class RoomDecorationTests : IDisposable
                 PlayerEntityId = OWNER,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 PaintWall = "101",
                 WallHeight = -1,

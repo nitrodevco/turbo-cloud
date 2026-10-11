@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Searches each player has saved in the navigator.")]
 [Table("player_navigator_saved_searches")]
 [Index(nameof(PlayerEntityId), nameof(SearchId), IsUnique = true)]
 public class PlayerNavigatorSavedSearchEntity : TurboEntity

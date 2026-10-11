@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[Comment("Private messages between friends, and whether each has been delivered.")]
 [Table("messenger_messages")]
 [Index(nameof(SenderPlayerEntityId), nameof(ReceiverPlayerEntityId), nameof(Timestamp))]
 [Index(nameof(ReceiverPlayerEntityId), nameof(SenderPlayerEntityId), nameof(Timestamp))]

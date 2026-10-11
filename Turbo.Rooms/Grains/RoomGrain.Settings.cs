@@ -308,7 +308,7 @@ public sealed partial class RoomGrain
             entity.Password = next.Password.Length == 0 ? null : next.Password;
             entity.PlayersMax = next.PlayersMax;
             entity.NavigatorCategoryEntityId = next.CategoryId > 0 ? next.CategoryId : null;
-            entity.Tags = next.Tags.IsDefaultOrEmpty ? null : RoomTags.Join(next.Tags);
+            entity.Tags = next.Tags.IsDefault ? [] : [.. next.Tags];
             entity.TradeType = next.TradeType;
             entity.AllowPets = next.AllowPets;
             entity.AllowPetsEat = next.AllowPetsEat;

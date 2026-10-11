@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -129,10 +130,7 @@ public sealed partial class RoomGrain
 
         tags = _wordFilter.FilterTags(tags);
 
-        var value = RoomTags.Join(tags);
-
-        if (value.Length > RoomEntity.TAGS_MAX_LENGTH)
-            return false;
+        List<string> value = [.. tags];
 
         try
         {
@@ -140,10 +138,7 @@ public sealed partial class RoomGrain
 
             await dbCtx
                 .Rooms.Where(x => x.Id == _state.RoomId.Value)
-                .ExecuteUpdateAsync(
-                    s => s.SetProperty(x => x.Tags, value.Length == 0 ? null : value),
-                    ct
-                );
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Tags, value), ct);
         }
         catch (Exception ex)
         {

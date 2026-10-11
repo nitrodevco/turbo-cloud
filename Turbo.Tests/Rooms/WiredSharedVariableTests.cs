@@ -63,7 +63,6 @@ public sealed class WiredSharedVariableTests
                 PlayerEntityId = 1,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,

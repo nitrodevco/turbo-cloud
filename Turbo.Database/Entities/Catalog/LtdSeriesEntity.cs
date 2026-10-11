@@ -1,12 +1,14 @@
 ﻿using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Catalog;
 
 /// <summary>
 /// Configuration for an LTD (Limited Edition) series.
 /// </summary>
+[Comment("Configuration for an LTD (Limited Edition) series.")]
 [Table(TABLE)]
 public class LtdSeriesEntity : TurboEntity
 {

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Turbo.Database.Entities.Moderation;
 
 /// <summary>A chat line sent with a call for help, in the order the reporter sent them.</summary>
+[Comment("A chat line sent with a call for help, in the order the reporter sent them.")]
 [Table("moderation_cfh_report_chat_lines")]
 [Index(nameof(ReportEntityId), nameof(Position))]
 public class CfhReportChatLineEntity : TurboEntity

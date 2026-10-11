@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Players;
 /// what matters is how many they have taken against how many they have earned. Which offer they
 /// picked is kept because it is the only record of what was handed out.
 /// </summary>
+[Comment("One Habbo Club gift a player has claimed.")]
 [Table("player_club_gifts")]
 [Index(nameof(PlayerEntityId))]
 public class PlayerClubGiftEntity : TurboEntity

@@ -13,6 +13,9 @@ namespace Turbo.Database.Entities.Assets;
 /// in <see cref="Error"/> and has no file; it is tried again only when that may pass
 /// (<see cref="Retry"/>) or its revision changes.
 /// </summary>
+[Comment(
+    "A .nitro bundle the hotel keeps, by its kind and name: the file itself is on disk (bundled/<kind>/<name>.nitro under the asset directory), and this row is what is known of it without opening it."
+)]
 [Table("asset_bundles")]
 [Index(nameof(Kind), nameof(Name), IsUnique = true)]
 public class AssetBundleEntity : TurboEntity

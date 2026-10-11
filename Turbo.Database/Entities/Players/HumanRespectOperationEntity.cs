@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
@@ -12,6 +13,7 @@ namespace Turbo.Database.Entities.Players;
 /// finishes or reports it instead of doing it again. Each player's own side is kept in
 /// <see cref="HumanRespectParticipantReceiptEntity"/>.
 /// </summary>
+[Comment("One respect one player gave another.")]
 [Table("player_respect_operations")]
 public sealed class HumanRespectOperationEntity
 {

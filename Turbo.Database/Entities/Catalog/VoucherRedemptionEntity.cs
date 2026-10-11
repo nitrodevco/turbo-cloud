@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Players;
 namespace Turbo.Database.Entities.Catalog;
 
 /// <summary>A player's redemption of a voucher: one each, which the unique index holds to.</summary>
+[Comment("A player's redemption of a voucher: one each, which the unique index holds to.")]
 [Table("voucher_redemptions")]
 [Index(nameof(VoucherEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class VoucherRedemptionEntity : TurboEntity

@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Achievements;
 /// still being delivered or announced. Levels deliver strictly in order, so a single cursor and a
 /// short list of open awards replace a row per level.
 /// </summary>
+[Comment(
+    "Everything about one player's one achievement: reducer state, the levels earned, and the levels still being delivered or announced."
+)]
 [Table("achievement_progress")]
 [PrimaryKey(nameof(PlayerId), nameof(AchievementId))]
 // Recovery looks for players with an undelivered award across every player.

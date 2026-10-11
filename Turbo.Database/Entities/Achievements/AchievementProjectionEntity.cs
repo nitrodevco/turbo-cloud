@@ -1,8 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
+[Comment(
+    "Each player's achievement score and levels as other players see them, and whether that still has to be published."
+)]
 [Table("achievement_projections")]
 public sealed class AchievementProjectionEntity
 {

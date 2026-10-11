@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Catalog;
 /// redemption is made, never past <see cref="MaxUses"/>; who redeemed it is in
 /// <c>voucher_redemptions</c>.
 /// </summary>
+[Comment("A voucher code and what it gives.")]
 [Table("vouchers")]
 [Index(nameof(Code), IsUnique = true)]
 public class VoucherEntity : TurboEntity

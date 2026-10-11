@@ -11,6 +11,9 @@ namespace Turbo.Database.Entities.Players;
 /// finds the receipt and does not spend or credit that player again. See
 /// <see cref="HumanRespectOperationEntity"/>.
 /// </summary>
+[Comment(
+    "One player's side of a respect: the spend from the giver, or the credit to the receiver (and a pet scratch's spend)."
+)]
 [Table("player_respect_receipts")]
 [PrimaryKey(nameof(PlayerId), nameof(OperationId), nameof(Kind))]
 public sealed class HumanRespectParticipantReceiptEntity

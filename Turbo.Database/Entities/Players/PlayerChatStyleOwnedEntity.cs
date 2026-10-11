@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("The chat bubble styles each player owns.")]
 [Table("player_chat_styles")]
 [Index(nameof(PlayerEntityId), nameof(ChatStyleId), IsUnique = true)]
 public class PlayerChatStyleOwnedEntity : TurboEntity

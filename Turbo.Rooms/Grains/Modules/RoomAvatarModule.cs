@@ -79,6 +79,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         _roomGrain._state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
 
+        await _roomGrain.StampLastActiveAsync(ct);
+
         avatar.SetRotation(startRot);
 
         _roomGrain.WakeTick();

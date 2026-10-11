@@ -1,10 +1,14 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Assets;
 
 /// <summary>A publish, for its target's history: who started it, what it sent and removed, and how it ended.</summary>
+[Comment(
+    "A publish, for its target's history: who started it, what it sent and removed, and how it ended."
+)]
 [Table("asset_publishes")]
 public class AssetPublishEntity : TurboEntity
 {

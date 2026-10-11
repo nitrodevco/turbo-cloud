@@ -33,7 +33,7 @@ public static class RoomEntityExtensions
             Score = entity.Score,
             Ranking = 0,
             CategoryId = entity.NavigatorCategoryEntityId ?? -1,
-            Tags = RoomTags.Parse(entity.Tags),
+            Tags = [.. entity.Tags],
             AllowBlocking = entity.AllowBlocking,
             AllowPets = entity.AllowPets,
             AllowPetsEat = entity.AllowPetsEat,

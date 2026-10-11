@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// How far a player has read a forum: the last message read, numbered within the forum.
 /// <see cref="ReadAt"/> is when they last read it, which the Most Viewed list counts.
 /// </summary>
+[Comment("How far a player has read a forum: the last message read, numbered within the forum.")]
 [Table("guild_forum_read_markers")]
 [Index(nameof(PlayerEntityId), nameof(GuildEntityId), IsUnique = true)]
 [Index(nameof(GuildEntityId), nameof(ReadAt))]

@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// what clients are sent; the ones before it are kept a while for clients still holding their
 /// address.
 /// </summary>
+[Comment("A gamedata file as it was built, by the hash of its content, gzipped.")]
 [Table("gamedata_builds")]
 [Index(nameof(File), nameof(Hash), IsUnique = true)]
 public class GamedataBuildEntity : TurboEntity

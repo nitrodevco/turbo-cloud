@@ -1,9 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Pets;
 
+[Comment("Pet feeding and drinking, one row per action, so a retry never feeds twice.")]
 [Table("pet_nutrition_operations")]
 public sealed class PetNutritionOperationEntity
 {

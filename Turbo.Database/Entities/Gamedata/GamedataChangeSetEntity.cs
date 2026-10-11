@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Gamedata.Enums;
 
 namespace Turbo.Database.Entities.Gamedata;
@@ -8,6 +9,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// <summary>
 /// Gamedata changes made together - an import, an edit, a rollback - and rolled back together.
 /// </summary>
+[Comment(
+    "Gamedata changes made together - an import, an edit, a rollback - and rolled back together."
+)]
 [Table("gamedata_change_sets")]
 public class GamedataChangeSetEntity : TurboEntity
 {

@@ -238,7 +238,6 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             PlayerEntityId = ownerId,
             DoorMode = doorMode,
             RoomModelEntityId = 1,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,

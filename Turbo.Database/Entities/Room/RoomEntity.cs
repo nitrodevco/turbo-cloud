@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("The hotel's rooms.")]
 [Table("rooms")]
 // The navigator lists: a category by score, the highest scored, the staff picks by score; and
 // the Builders Club sweep looks up the rooms it hid.
@@ -24,7 +25,6 @@ public class RoomEntity : TurboEntity
     public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK = WiredPermissionFlags.Rights;
     public const string DEFAULT_WIRED_TIMEZONE = "UTC";
     public const int WIRED_TIMEZONE_MAX_LENGTH = 64;
-    public const int TAGS_MAX_LENGTH = 128;
 
     [Column("name")]
     public required string Name { get; set; }
@@ -48,10 +48,6 @@ public class RoomEntity : TurboEntity
 
     [Column("category_id")]
     public int? NavigatorCategoryEntityId { get; set; }
-
-    [Column("users_now")]
-    [DefaultValue(0)]
-    public required int UsersNow { get; set; }
 
     [Column("players_max")]
     [DefaultValue(25)]
@@ -149,10 +145,12 @@ public class RoomEntity : TurboEntity
     [DefaultValue(0)]
     public int Score { get; set; }
 
-    /// <summary>Comma-separated room tags shown and searched in the navigator.</summary>
+    /// <summary>
+    /// The room's tags, lower case, shown and searched in the navigator. How many and how long is
+    /// set by <c>RoomConfig.RoomTagsMax</c> and <c>RoomTagMaxLength</c>.
+    /// </summary>
     [Column("tags")]
-    [MaxLength(TAGS_MAX_LENGTH)]
-    public string? Tags { get; set; }
+    public List<string> Tags { get; set; } = [];
 
     [Column("staff_pick")]
     [DefaultValue(false)]

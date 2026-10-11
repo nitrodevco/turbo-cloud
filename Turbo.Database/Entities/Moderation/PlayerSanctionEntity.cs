@@ -12,6 +12,7 @@ namespace Turbo.Database.Entities.Moderation;
 /// ids are plain columns, not foreign keys, so the record of a sanction outlives the player row
 /// and the staff member who issued it. A lifted ban is kept and stamped, never deleted.
 /// </summary>
+[Comment("A hotel-wide sanction on a player.")]
 [Table("moderation_sanctions")]
 [Index(nameof(PlayerEntityId), nameof(Kind))]
 public class PlayerSanctionEntity : TurboEntity

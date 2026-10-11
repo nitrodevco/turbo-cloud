@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>One group inheriting from another. Cycles are refused on write and ignored on resolve.</summary>
+[Comment("One group inheriting from another.")]
 [Table("permission_group_parents")]
 [Index(nameof(GroupEntityId), nameof(ParentGroupEntityId), IsUnique = true)]
 // A group edit re-resolves everything that inherits from it, which reads by parent.

@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
+[Comment(
+    "Every operator change to the achievements (imports, retiring, enabling), with who made it and why."
+)]
 [Table("achievement_audit_logs")]
 [Index(nameof(OperationId), IsUnique = true)]
 public sealed class AchievementAuditEntity

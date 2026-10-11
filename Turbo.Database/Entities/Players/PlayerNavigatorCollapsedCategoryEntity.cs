@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Navigator sections each player has collapsed.")]
 [Table("player_navigator_collapsed_categories")]
 [Index(nameof(PlayerEntityId), nameof(SearchCode), IsUnique = true)]
 public class PlayerNavigatorCollapsedCategoryEntity : TurboEntity

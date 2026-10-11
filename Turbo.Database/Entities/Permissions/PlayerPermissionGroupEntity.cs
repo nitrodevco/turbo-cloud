@@ -6,6 +6,7 @@ using Turbo.Database.Entities.Players;
 namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>A group a player holds directly. The default group is held without a row.</summary>
+[Comment("A group a player holds directly.")]
 [Table("player_permission_groups")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(PlayerEntityId), nameof(GroupEntityId), nameof(IsTemporary), IsUnique = true)]

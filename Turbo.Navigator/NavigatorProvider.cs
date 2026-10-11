@@ -345,7 +345,11 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
         if (value.Length == 0 || value.Length > _config.MaxSearchCodeLength)
             return Task.FromResult(new List<RoomInfoSnapshot>());
 
-        var tagPattern = "," + value + ",";
+        // Names compare as players type them: a room name in any case, an owner by their name's
+        // key, a tag in the lower case it is stored in.
+        var namePattern = LikePatterns.Containing(value);
+        var ownerKey = PlayerNames.Key(value);
+        var tag = value.ToLowerInvariant();
 
         return GetCachedListAsync(
             SearchKey(filterType, value),
@@ -356,17 +360,19 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
 
                 q = filterType switch
                 {
-                    NavigatorSearchFilterType.RoomName => q.Where(x => x.Name.Contains(value)),
-                    NavigatorSearchFilterType.Owner => q.Where(x => x.PlayerEntity.Name == value),
-                    NavigatorSearchFilterType.Tag => q.Where(x =>
-                        x.Tags != null && ("," + x.Tags + ",").Contains(tagPattern)
+                    NavigatorSearchFilterType.RoomName => q.Where(x =>
+                        EF.Functions.Like(x.Name.ToLower(), namePattern, LikePatterns.ESCAPE)
                     ),
+                    NavigatorSearchFilterType.Owner => q.Where(x =>
+                        x.PlayerEntity.NameKey == ownerKey
+                    ),
+                    NavigatorSearchFilterType.Tag => q.Where(x => x.Tags.Contains(tag)),
                     // There are no groups yet, so a group search matches nothing.
                     NavigatorSearchFilterType.Group => q.Where(x => false),
                     _ => q.Where(x =>
-                        x.Name.Contains(value)
-                        || x.PlayerEntity.Name == value
-                        || (x.Tags != null && ("," + x.Tags + ",").Contains(tagPattern))
+                        EF.Functions.Like(x.Name.ToLower(), namePattern, LikePatterns.ESCAPE)
+                        || x.PlayerEntity.NameKey == ownerKey
+                        || x.Tags.Contains(tag)
                     ),
                 };
 
@@ -432,7 +438,6 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
             DoorMode = RoomDoorModeType.Open,
             RoomModelEntityId = modelId,
             NavigatorCategoryEntityId = categoryId,
-            UsersNow = 0,
             PlayersMax = playersMax,
             WallHeight = -1,
             HideWalls = false,
@@ -578,12 +583,12 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
 
         var rows = await dbCtx
             .Rooms.AsNoTracking()
-            .Where(x => x.Tags != null && x.DoorMode != RoomDoorModeType.Invisible)
+            .Where(x => x.Tags.Count > 0 && x.DoorMode != RoomDoorModeType.Invisible)
             .Select(x => new { x.Id, x.Tags })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return [.. rows.Select(x => (RoomId.Parse(x.Id), RoomTags.Parse(x.Tags)))];
+        return [.. rows.Select(x => (RoomId.Parse(x.Id), (ImmutableArray<string>)[.. x.Tags]))];
     }
 
     private static MemoryCacheEntryOptions CreateEntryOptions(TimeSpan ttl) =>

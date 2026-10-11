@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Gamedata.Enums;
 
 namespace Turbo.Database.Entities.Assets;
@@ -9,6 +10,7 @@ namespace Turbo.Database.Entities.Assets;
 /// Where bundles are published: a folder on this server, or an FTP, FTPS or SFTP server. The
 /// password is kept sealed (AES-GCM, with the asset key) and is never sent back to the panel.
 /// </summary>
+[Comment("Where bundles are published: a folder on this server, or an FTP, FTPS or SFTP server.")]
 [Table("asset_publish_targets")]
 public class AssetPublishTargetEntity : TurboEntity
 {

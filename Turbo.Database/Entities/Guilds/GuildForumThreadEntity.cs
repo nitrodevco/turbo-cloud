@@ -8,6 +8,7 @@ using Turbo.Primitives.Guilds.Forums.Enums;
 namespace Turbo.Database.Entities.Guilds;
 
 /// <summary>A forum thread. Its first message is the opening post.</summary>
+[Comment("A forum thread.")]
 [Table("guild_forum_threads")]
 [Index(nameof(GuildEntityId), nameof(IsSticky), nameof(LastMessageAt))]
 public class GuildForumThreadEntity : TurboEntity

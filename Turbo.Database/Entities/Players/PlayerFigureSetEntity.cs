@@ -7,6 +7,9 @@ namespace Turbo.Database.Entities.Players;
 /// A piece of clothing a player owns: a figure set the figure data marks as sold, which the
 /// player may wear once they have it.
 /// </summary>
+[Comment(
+    "A piece of clothing a player owns: a figure set the figure data marks as sold, which the player may wear once they have it."
+)]
 [Table("player_figure_sets")]
 [Index(nameof(PlayerEntityId), nameof(SetId), IsUnique = true)]
 public class PlayerFigureSetEntity : TurboEntity

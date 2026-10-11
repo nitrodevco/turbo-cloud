@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[Comment("Friend requests waiting for an answer.")]
 [Table("messenger_requests")]
 [Index(nameof(PlayerEntityId), nameof(RequestedPlayerEntityId), IsUnique = true)]
 public class MessengerRequestEntity : TurboEntity

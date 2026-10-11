@@ -8,6 +8,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>A meta value set on one player, beating anything their groups set.</summary>
+[Comment("A meta value set on one player, beating anything their groups set.")]
 [Table("player_permission_meta")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(PlayerEntityId), nameof(Key), nameof(IsTemporary), IsUnique = true)]

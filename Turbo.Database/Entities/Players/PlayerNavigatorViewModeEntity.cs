@@ -5,6 +5,7 @@ using Turbo.Primitives.Navigator.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Whether each player sees a navigator section as a list or as tiles.")]
 [Table("player_navigator_view_modes")]
 [Index(nameof(PlayerEntityId), nameof(SearchCode), IsUnique = true)]
 public class PlayerNavigatorViewModeEntity : TurboEntity

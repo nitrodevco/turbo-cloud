@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// apart by their rank — which is what lets a request be rejected without losing that it was
 /// made, and a block outlive the kick that caused it.
 /// </summary>
+[Comment("One player's standing in one group.")]
 [Table("guild_members")]
 [Index(nameof(GuildEntityId), nameof(PlayerEntityId), IsUnique = true)]
 // "My groups" reads by player across every group, which the unique index above (guild first)

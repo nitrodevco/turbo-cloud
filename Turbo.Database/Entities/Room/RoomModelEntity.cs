@@ -5,6 +5,9 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment(
+    "Room layouts: the standard models rooms are created on, and each room's own saved floor plan."
+)]
 [Table("room_models")]
 [Index(nameof(Name), IsUnique = true)]
 public class RoomModelEntity : TurboEntity

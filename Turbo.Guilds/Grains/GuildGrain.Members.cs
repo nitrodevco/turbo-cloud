@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -371,7 +372,13 @@ internal sealed partial class GuildGrain
             };
 
         if (!string.IsNullOrEmpty(filter))
-            query = query.Where(x => x.Name.Contains(filter));
+            query = query.Where(x =>
+                EF.Functions.Like(
+                    x.Name.ToLower(),
+                    LikePatterns.Containing(filter),
+                    LikePatterns.ESCAPE
+                )
+            );
 
         var total = await query.CountAsync(ct);
         var rows = await query

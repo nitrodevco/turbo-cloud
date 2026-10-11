@@ -64,7 +64,6 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
                 PlayerEntityId = OWNER_ID,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,

@@ -8,6 +8,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Security;
 
+[Comment("The ticket a player's client logs in with, stored as its hash; one per player.")]
 [Table("auth_login_tickets")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 [Index(nameof(Ticket), IsUnique = true)]

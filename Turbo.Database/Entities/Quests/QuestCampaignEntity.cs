@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Quests;
 /// texts (quests.&lt;code&gt;.name) and images. A campaign with <see cref="EndsAt"/> is seasonal:
 /// the window shows its time left.
 /// </summary>
+[Comment("A quest campaign: the quest window's rows, in SortOrder.")]
 [Table("quest_campaigns")]
 [Index(nameof(Code), IsUnique = true)]
 public class QuestCampaignEntity : TurboEntity

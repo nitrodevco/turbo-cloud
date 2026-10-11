@@ -5,25 +5,13 @@ using System.Linq;
 
 namespace Turbo.Primitives.Rooms;
 
-/// <summary>Room tags are stored as one comma-separated column.</summary>
+/// <summary>
+/// A room's tags as the hotel keeps them: lower case, distinct, and without commas, which the
+/// client's tag list uses between tags.
+/// </summary>
 public static class RoomTags
 {
     private const char SEPARATOR = ',';
-
-    public static ImmutableArray<string> Parse(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? []
-            :
-            [
-                .. value
-                    .Split(
-                        SEPARATOR,
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                    )
-                    .Distinct(StringComparer.OrdinalIgnoreCase),
-            ];
-
-    public static string Join(IEnumerable<string> tags) => string.Join(SEPARATOR, tags);
 
     /// <summary>
     /// Trims, lower-cases and de-duplicates tags, dropping empty ones and any containing the

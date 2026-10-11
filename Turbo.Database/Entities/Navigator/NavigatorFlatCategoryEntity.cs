@@ -6,6 +6,7 @@ using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Navigator;
 
+[Comment("The categories a room can be put in, as the navigator lists them.")]
 [Table("navigator_room_categories")]
 // The admin panel refuses a second category of the same name; this holds it to that.
 [Index(nameof(Name), IsUnique = true)]

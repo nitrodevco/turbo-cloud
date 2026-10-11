@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Players;
 /// (a gift, a trade) is still new when they log in. <see cref="ItemId"/> means what the category
 /// says — a furni, pet, bot or badge row — so it has no foreign key of its own.
 /// </summary>
+[Comment(
+    "Something a player received and has not looked at yet: the client draws it as \"new\" until they open its inventory tab."
+)]
 [Table("player_unseen_items")]
 [Index(nameof(PlayerEntityId), nameof(Category), nameof(ItemId), IsUnique = true)]
 public class PlayerUnseenItemEntity : TurboEntity

@@ -7,6 +7,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>A node a group grants (<see cref="Value"/> true) or denies (false).</summary>
+[Comment("A node a group grants (Value true) or denies (false).")]
 [Table("permission_group_nodes")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(GroupEntityId), nameof(Node), nameof(IsTemporary), IsUnique = true)]

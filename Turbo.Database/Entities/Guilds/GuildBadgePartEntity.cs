@@ -12,6 +12,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// already built from that part draws something else. That is why it is its own column, unique
 /// per part type, rather than the primary key doing double duty.
 /// </summary>
+[Comment("A part the badge editor may pick.")]
 [Table("guild_badge_parts")]
 [Index(nameof(PartType), nameof(PartId), IsUnique = true)]
 public class GuildBadgePartEntity : TurboEntity

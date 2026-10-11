@@ -72,13 +72,9 @@ public static class ModelBuilderExtensions
 
     public static void ApplyConventions(this ModelBuilder mb)
     {
-        foreach (
-            var p in mb
-                .Model.GetEntityTypes()
-                .SelectMany(t => t.GetProperties())
-                .Where(p => p.ClrType == typeof(string))
-        )
-            p.SetMaxLength(p.GetMaxLength() ?? 512);
+        // A string with no length of its own is text, PostgreSQL's own string type: varchar(n)
+        // costs the same and only adds a limit, which belongs on the strings whose domain has
+        // one ([MaxLength]). The 512 every string used to get was a limit nothing asked for.
 
         var utc = new ValueConverter<DateTime, DateTime>(
             v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),

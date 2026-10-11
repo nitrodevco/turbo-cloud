@@ -7,6 +7,7 @@ namespace Turbo.Database.Entities.Room;
 /// A player entering a room. Plain ids, not foreign keys, so a visit stays in the log when the room
 /// or the player is deleted.
 /// </summary>
+[Comment("A player entering a room.")]
 [Table("room_entry_logs")]
 // Covers the navigator history: a player's visits grouped by room with the latest per room.
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId), nameof(CreatedAt))]

@@ -1,9 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Pets;
 
+[Comment("Respect given to pets (scratches), one row per action, so a retry never counts twice.")]
 [Table("pet_respect_operations")]
 public sealed class PetRespectOperationEntity
 {

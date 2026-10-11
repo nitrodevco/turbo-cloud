@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[Comment("Players a player has blocked from messaging them.")]
 [Table("messenger_blocks")]
 [Index(nameof(PlayerEntityId), nameof(BlockedPlayerEntityId), IsUnique = true)]
 public class MessengerBlockedEntity : TurboEntity

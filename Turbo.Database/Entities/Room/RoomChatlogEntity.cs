@@ -8,6 +8,7 @@ namespace Turbo.Database.Entities.Room;
 /// One line said in a room. The room and players are plain ids, not foreign keys: the line is
 /// moderation evidence, and stays when the room or a player is deleted.
 /// </summary>
+[Comment("One line said in a room.")]
 [Table("room_chat_logs")]
 // The moderation tools page a room's or a player's lines newest first, by id.
 [Index(nameof(RoomEntityId), nameof(Id))]

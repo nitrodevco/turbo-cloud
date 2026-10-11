@@ -82,7 +82,6 @@ public sealed class AdminRoomEditorTests : IDisposable
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Password,
                 Password = "secret",
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,

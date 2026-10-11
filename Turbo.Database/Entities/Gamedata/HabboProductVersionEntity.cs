@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One version of Habbo's product data as a check found it, gzipped, by its hash. Habbo changes it
 /// apart from its furniture and texts, so it is kept apart from them.
 /// </summary>
+[Comment("One version of Habbo's product data as a check found it, gzipped, by its hash.")]
 [Table("habbo_product_versions")]
 [Index(nameof(Domain), nameof(Hash), IsUnique = true)]
 public class HabboProductVersionEntity : TurboEntity

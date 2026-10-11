@@ -166,7 +166,6 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
             PlayerEntityId = ownerId,
             RoomModelEntityId = 1,
             DoorMode = RoomDoorModeType.Open,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,

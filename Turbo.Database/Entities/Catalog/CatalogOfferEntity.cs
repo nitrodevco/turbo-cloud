@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[Comment("What the catalog sells: an offer on a page, its price, and who may buy or gift it.")]
 [Table("catalog_offers")]
 public class CatalogOfferEntity : TurboEntity
 {

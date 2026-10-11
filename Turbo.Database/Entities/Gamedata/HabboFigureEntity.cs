@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One record of Habbo's figure data as it was last taken in. The next import compares against it
 /// to tell what Habbo changed from what the hotel changed.
 /// </summary>
+[Comment("One record of Habbo's figure data as it was last taken in.")]
 [Table("habbo_figures")]
 [Index(nameof(Kind), nameof(Key), IsUnique = true)]
 public class HabboFigureEntity : TurboEntity

@@ -207,7 +207,6 @@ public sealed class DeleteRulesTests : IDisposable
             PlayerEntityId = OWNER,
             RoomModelEntityId = MODEL,
             DoorMode = RoomDoorModeType.Open,
-            UsersNow = 0,
             PlayersMax = 25,
             PaintWall = "101",
             WallHeight = -1,

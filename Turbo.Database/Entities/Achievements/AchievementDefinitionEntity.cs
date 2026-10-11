@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
+[Comment(
+    "The hotel's achievements: each one's levels, badge, what counts toward it and its rewards."
+)]
 [Table("achievement_definitions")]
 [PrimaryKey(nameof(AchievementId), nameof(Revision))]
 public sealed class AchievementDefinitionEntity

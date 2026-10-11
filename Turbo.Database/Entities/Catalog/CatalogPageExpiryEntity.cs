@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Catalog;
 /// <see cref="ExpiresAt"/> comes first among those still to come, with its own texts and teaser
 /// picture. It promotes the page; the catalog itself shows the page as it would anyway.
 /// </summary>
+[Comment(
+    "A catalog page the reception counts down to: the expiring page widget shows the page whose ExpiresAt comes first among those still to come, with its own texts and teaser picture."
+)]
 [Table("catalog_page_expiries")]
 [Index(nameof(CatalogPageEntityId), IsUnique = true)]
 [Index(nameof(ExpiresAt))]

@@ -7,6 +7,7 @@ using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Each player's client settings: volumes, chat, navigator window and home room.")]
 [Table("player_settings")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 public class PlayerSettingsEntity : TurboEntity

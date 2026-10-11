@@ -9,6 +9,7 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Rooms;
@@ -24,8 +25,6 @@ public sealed class AdminChatlogQueries(
     IOptions<AdminConfig> config
 )
 {
-    private const string ESCAPE = "\\";
-
     /// <summary>
     /// A run of the log. <paramref name="before"/> asks for the lines older than that one,
     /// <paramref name="after"/> for those newer; with neither, the newest.
@@ -73,16 +72,12 @@ public sealed class AdminChatlogQueries(
 
         if (words.Length > 0)
         {
-            // LIKE, so case is ignored the same way on every database; the text is escaped so a
-            // % or _ in it is matched as itself.
-            var like = words
-                .Replace(ESCAPE, ESCAPE + ESCAPE, StringComparison.Ordinal)
-                .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
-                .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
+            // Served by the trigram index on lower(message).
+            var like = LikePatterns.Containing(words);
 
-            var lowered = "%" + like.ToLowerInvariant() + "%";
-
-            lines = lines.Where(x => EF.Functions.Like(x.Message.ToLower(), lowered, ESCAPE));
+            lines = lines.Where(x =>
+                EF.Functions.Like(x.Message.ToLower(), like, LikePatterns.ESCAPE)
+            );
         }
 
         List<RoomChatlogEntity> rows;

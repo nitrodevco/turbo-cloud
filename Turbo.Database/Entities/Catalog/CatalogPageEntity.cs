@@ -2,10 +2,12 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[Comment("The catalog's page tree, as both the normal and the Builders Club catalog show it.")]
 [Table("catalog_pages")]
 public class CatalogPageEntity : TurboEntity
 {

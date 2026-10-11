@@ -6,9 +6,12 @@ namespace Turbo.Database.Entities.Gamedata;
 
 /// <summary>
 /// One of the hotel's products, its product data: the name and description the client shows for a
-/// catalog offer whose name key (<c>catalog_offers.localization_id</c>) is the code. Habbo's taken
+/// catalog offer whose name key (<c>catalog_offers.product_code</c>) is the code. Habbo's taken
 /// in, and the hotel's own.
 /// </summary>
+[Comment(
+    "One of the hotel's products, its product data: the name and description the client shows for a catalog offer whose name key (catalog_offers.product_code) is the code."
+)]
 [Table("gamedata_products")]
 [Index(nameof(Code), IsUnique = true)]
 public class GamedataProductEntity : TurboEntity

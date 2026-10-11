@@ -9,6 +9,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One of Habbo's furniture as it was last taken in: its furnidata item, as Habbo wrote it. The
 /// next import compares against it to tell what Habbo changed from what the hotel changed.
 /// </summary>
+[Comment(
+    "One of Habbo's furniture as it was last taken in: its furnidata item, as Habbo wrote it."
+)]
 [Table("habbo_furniture")]
 [Index(nameof(ProductType), nameof(ClassName), IsUnique = true)]
 public class HabboFurnitureEntity : TurboEntity

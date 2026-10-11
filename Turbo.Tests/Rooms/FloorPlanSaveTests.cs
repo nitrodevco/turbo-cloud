@@ -51,7 +51,6 @@ public sealed class FloorPlanSaveTests : IDisposable
                 PlayerEntityId = OWNER,
                 RoomModelEntityId = STOCK_MODEL,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 PaintWall = "101",
                 WallHeight = -1,

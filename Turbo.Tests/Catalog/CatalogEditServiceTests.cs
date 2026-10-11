@@ -400,7 +400,6 @@ public sealed class CatalogEditServiceTests : IDisposable
                 PlayerEntityId = 1,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,

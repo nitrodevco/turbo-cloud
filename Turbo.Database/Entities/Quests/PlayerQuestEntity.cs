@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Quests;
 /// A player's progress on a quest: accepted (the one they are doing), the steps done, and when
 /// it was completed. A quest with no row was never started.
 /// </summary>
+[Comment(
+    "A player's progress on a quest: accepted (the one they are doing), the steps done, and when it was completed."
+)]
 [Table("player_quests")]
 [Index(nameof(PlayerEntityId), nameof(QuestEntityId), IsUnique = true)]
 public class PlayerQuestEntity : TurboEntity

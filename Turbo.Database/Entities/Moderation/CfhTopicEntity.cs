@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Moderation;
 
@@ -9,6 +10,7 @@ namespace Turbo.Database.Entities.Moderation;
 /// text), not generated. Categories are listed in the order of their first topic, and topics by
 /// <see cref="SortOrder"/>, then id.
 /// </summary>
+[Comment("A call for help topic.")]
 [Table("moderation_cfh_topics")]
 public class CfhTopicEntity
 {

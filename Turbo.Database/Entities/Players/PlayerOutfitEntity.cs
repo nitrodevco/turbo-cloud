@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Looks each player has saved in their wardrobe.")]
 [Table("player_outfits")]
 [Index(nameof(PlayerEntityId), nameof(SlotId), IsUnique = true)]
 public class PlayerOutfitEntity : TurboEntity

@@ -13,6 +13,7 @@ namespace Turbo.Database.Entities.Quests;
 /// <see cref="Counted"/> keeps what an explore task has already counted (comma-separated room
 /// ids), so a room counts once.
 /// </summary>
+[Comment("A daily task given to a player for one day.")]
 [Table("player_daily_tasks")]
 // One of each task a day: the grain gives only definitions the player hasn't had that day.
 [Index(nameof(PlayerEntityId), nameof(DayStartsAt), nameof(DefinitionEntityId), IsUnique = true)]

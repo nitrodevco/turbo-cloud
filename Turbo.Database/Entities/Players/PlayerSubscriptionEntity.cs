@@ -6,6 +6,7 @@ using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Each player's Habbo Club and Builders Club membership.")]
 [Table("player_subscriptions")]
 [Index(nameof(PlayerEntityId), nameof(SubscriptionType), IsUnique = true)]
 // The lapse sweep looks for expiring subscriptions across every player, which the unique index

@@ -301,7 +301,6 @@ public sealed class AdminRoomQueriesTests : IDisposable
             RoomModelEntityId = 1,
             DoorMode = doorMode,
             Password = doorMode == RoomDoorModeType.Password ? "secret" : null,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,

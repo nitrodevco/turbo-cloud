@@ -149,7 +149,6 @@ public sealed class AdminNavigatorEditorTests : IDisposable
                 RoomModelEntityId = 1,
                 NavigatorCategoryEntityId = CATEGORY,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,

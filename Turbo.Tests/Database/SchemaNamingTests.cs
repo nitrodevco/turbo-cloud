@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
@@ -105,6 +106,24 @@ public sealed partial class SchemaNamingTests
             )
             .Should()
             .BeEmpty();
+    }
+
+    /// <summary>
+    /// Every table says what it holds, as a comment a database tool shows beside it, so someone
+    /// browsing the schema needn't read the code to know what player_respect_operations is.
+    /// </summary>
+    [Fact]
+    public void EveryTableSaysWhatItHolds()
+    {
+        using var db = CoreMigrationsTests.OfflineContext();
+
+        db.GetService<IDesignTimeModel>()
+            .Model.GetEntityTypes()
+            .Where(x => x.GetTableName() is not null)
+            .Where(x => string.IsNullOrWhiteSpace(x.GetComment()))
+            .Select(x => x.GetTableName())
+            .Should()
+            .BeEmpty("a new table gets a [Comment] saying what it holds");
     }
 
     [Fact]

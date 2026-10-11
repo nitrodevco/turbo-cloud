@@ -8,6 +8,9 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Furniture;
 
+[Comment(
+    "The hotel's furni: one row per item class, with its size, behaviour (logic) and how it may be used."
+)]
 [Table("furniture_definitions")]
 [Index(nameof(SpriteId), nameof(ProductType), nameof(FurniCategory), IsUnique = true)]
 // A class name is one definition per type: imports and the room match furni by it.

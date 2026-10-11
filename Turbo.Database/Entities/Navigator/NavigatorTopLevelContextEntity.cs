@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Navigator;
 
+[Comment("The tabs along the top of the navigator.")]
 [Table("navigator_top_level_contexts")]
 [Index(nameof(SearchCode), IsUnique = true)]
 public class NavigatorTopLevelContextEntity : TurboEntity

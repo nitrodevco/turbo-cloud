@@ -20,6 +20,7 @@ namespace Turbo.Database.Entities.Furniture;
 /// furni id pointing at the same furni.
 /// </para>
 /// </summary>
+[Comment("A furni the Builders Club lends.")]
 [Table("furniture_builders_club")]
 [PrimaryKey(nameof(RoomEntityId), nameof(RoomObjectId))]
 // The borrow count is per player across every room, which the key above cannot serve.

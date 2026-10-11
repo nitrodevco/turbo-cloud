@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Security;
 /// SHA-256, so the table can't be used to sign in. Kept here rather than in memory, so a restart
 /// doesn't sign everyone out.
 /// </summary>
+[Comment("A sign-in to the public site.")]
 [Table("auth_web_sessions")]
 [Index(nameof(TokenHash), IsUnique = true)]
 [Index(nameof(PlayerEntityId))]

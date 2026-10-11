@@ -8,6 +8,9 @@ namespace Turbo.Database.Entities.Hotel;
 /// One setting for the whole hotel that staff change while it runs, such as the welcome message,
 /// by its key. Each is owned by a grain that reads it once and answers from memory.
 /// </summary>
+[Comment(
+    "One setting for the whole hotel that staff change while it runs, such as the welcome message, by its key."
+)]
 [Table("hotel_settings")]
 [Index(nameof(Key), IsUnique = true)]
 public class HotelSettingEntity : TurboEntity

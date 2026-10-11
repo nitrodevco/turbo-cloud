@@ -8,6 +8,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One of Habbo's texts as it was last taken in. The next import compares against it to tell what
 /// Habbo changed from what the hotel changed.
 /// </summary>
+[Comment("One of Habbo's texts as it was last taken in.")]
 [Table("habbo_texts")]
 [Index(nameof(Key), IsUnique = true)]
 public class HabboTextEntity : TurboEntity

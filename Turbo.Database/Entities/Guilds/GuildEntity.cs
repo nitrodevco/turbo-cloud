@@ -14,6 +14,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// group is the row that is created, edited and deleted as a unit, and the homeroom never
 /// changes once chosen. The unique index is what enforces "at most one".
 /// </summary>
+[Comment("A group.")]
 [Table("guilds")]
 [Index(nameof(RoomEntityId), IsUnique = true)]
 [Index(nameof(PlayerEntityId))]

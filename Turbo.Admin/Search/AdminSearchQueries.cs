@@ -10,6 +10,7 @@ using Turbo.Admin.Configuration;
 using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Gamedata;
 
 namespace Turbo.Admin.Search;
@@ -39,8 +40,6 @@ public sealed class AdminSearchQueries(
 {
     /// <summary>Shorter terms find too much to be any use; the panel opens ids itself.</summary>
     public const int MIN_TERM_LENGTH = 2;
-
-    private const string ESCAPE = "\\";
 
     public async Task<SearchResponse> SearchAsync(
         string? text,
@@ -125,8 +124,7 @@ public sealed class AdminSearchQueries(
     /// <summary>Catalog pages whose caption or open-by name has the term, in tree order.</summary>
     private async Task<SearchGroup?> CatalogPagesAsync(string term, int take, CancellationToken ct)
     {
-        // Lowered on both sides: case is ignored the same way on every database.
-        var like = $"%{Escape(term).ToLowerInvariant()}%";
+        var like = LikePatterns.Containing(term);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         await using var dbScope = db.ConfigureAwait(false);
@@ -134,8 +132,10 @@ public sealed class AdminSearchQueries(
         var matching = db
             .CatalogPages.AsNoTracking()
             .Where(x =>
-                EF.Functions.Like(x.Localization.ToLower(), like, ESCAPE)
-                || (x.Name != null && EF.Functions.Like(x.Name.ToLower(), like, ESCAPE))
+                EF.Functions.Like(x.Localization.ToLower(), like, LikePatterns.ESCAPE)
+                || (
+                    x.Name != null && EF.Functions.Like(x.Name.ToLower(), like, LikePatterns.ESCAPE)
+                )
             );
         var total = await matching.CountAsync(ct).ConfigureAwait(false);
         var pages = await matching
@@ -214,9 +214,4 @@ public sealed class AdminSearchQueries(
 
         return line.Length == 0 ? null : line;
     }
-
-    private static string Escape(string term) =>
-        term.Replace(ESCAPE, ESCAPE + ESCAPE, StringComparison.Ordinal)
-            .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
-            .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
 }

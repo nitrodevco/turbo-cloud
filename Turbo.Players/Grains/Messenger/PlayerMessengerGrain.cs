@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Messenger;
+using Turbo.Database.Extensions;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -845,10 +846,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         // A prefix match on the name key, so its unique index answers it and case is ignored on
         // every database; a leading wildcard read every player row on each search. The client's
         // own wildcards are escaped.
-        var pattern = EscapeLikePattern(query).ToLowerInvariant() + "%";
+        var pattern = LikePatterns.StartingWith(query);
         var results = await dbCtx
             .Players.AsNoTracking()
-            .Where(p => EF.Functions.Like(p.NameKey, pattern, LIKE_ESCAPE))
+            .Where(p => EF.Functions.Like(p.NameKey, pattern, LikePatterns.ESCAPE))
             .OrderBy(p => p.NameKey)
             .ThenBy(p => p.Id)
             .Take(_playerConfig.MessengerSearchLimit)
@@ -1837,15 +1838,6 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             _playerConfig.MessengerNormalFriendLimit,
             ct
         );
-
-    /// <summary>The escape character for <see cref="EscapeLikePattern"/>; PostgreSQL's own default.</summary>
-    private const string LIKE_ESCAPE = "\\";
-
-    /// <summary>Makes client text match itself literally inside a <c>LIKE</c> pattern.</summary>
-    private static string EscapeLikePattern(string text) =>
-        text.Replace(LIKE_ESCAPE, LIKE_ESCAPE + LIKE_ESCAPE, StringComparison.Ordinal)
-            .Replace("%", LIKE_ESCAPE + "%", StringComparison.Ordinal)
-            .Replace("_", LIKE_ESCAPE + "_", StringComparison.Ordinal);
 
     private void ForceUpdate(PlayerId friendId)
     {

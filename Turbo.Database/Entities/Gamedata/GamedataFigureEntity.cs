@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// its fields as JSON, by the names Habbo's file gives them. Habbo's taken in, and the hotel's
 /// own. What the client draws an avatar from, and what a figure is checked against.
 /// </summary>
+[Comment(
+    "One record of the hotel's figure data - a colour, a kind of clothing or a piece of clothing - its fields as JSON, by the names Habbo's file gives them."
+)]
 [Table("gamedata_figures")]
 [Index(nameof(Kind), nameof(Key), IsUnique = true)]
 [Index(nameof(Kind), nameof(Group))]

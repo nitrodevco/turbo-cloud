@@ -318,6 +318,24 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         // b-tree can serve; the baseline adds a trigram index on lower(message) for it.
         mb.HasPostgresExtension("pg_trgm");
 
+        // What the code already holds to, held by the database too, so a bug or a hand edit
+        // can't leave a balance below nothing or an offer that pays the buyer.
+        mb.Entity<PlayerCurrencyEntity>()
+            .ToTable(t => t.HasCheckConstraint("ck_player_currencies_amount", "amount >= 0"));
+        mb.Entity<CatalogOfferEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_offers_costs",
+                    "cost_credits >= 0 AND cost_currency >= 0"
+                )
+            );
+        mb.Entity<CatalogProductEntity>()
+            .ToTable(t => t.HasCheckConstraint("ck_catalog_products_quantity", "quantity >= 1"));
+
+        // Names are looked up by their key, by equality and by prefix (the friend search). In the
+        // byte-order C collation a b-tree serves a prefix LIKE; in a language collation it can't.
+        mb.Entity<PlayerEntity>().Property(x => x.NameKey).UseCollation("C");
+
         foreach (var fk in mb.Model.GetEntityTypes().SelectMany(x => x.GetForeignKeys()))
             if (
                 fk.DeleteBehavior == DeleteBehavior.Cascade

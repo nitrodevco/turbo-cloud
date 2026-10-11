@@ -35,8 +35,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Actor")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("actor");
 
                     b.Property<string>("AfterJson")
@@ -63,8 +62,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("reason");
 
                     b.Property<string>("RequestJson")
@@ -80,7 +78,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_achievement_audit_logs_operation_id");
 
-                    b.ToTable("achievement_audit_logs", (string)null);
+                    b.ToTable("achievement_audit_logs", null, t =>
+                        {
+                            t.HasComment("Every operator change to the achievements (imports, retiring, enabling), with who made it and why.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementDefinitionEntity", b =>
@@ -102,7 +103,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("AchievementId", "Revision")
                         .HasName("pk_achievement_definitions");
 
-                    b.ToTable("achievement_definitions", (string)null);
+                    b.ToTable("achievement_definitions", null, t =>
+                        {
+                            t.HasComment("The hotel's achievements: each one's levels, badge, what counts toward it and its rewards.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementDistinctValueEntity", b =>
@@ -123,7 +127,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("PlayerId", "AchievementId", "Value")
                         .HasName("pk_achievement_distinct_values");
 
-                    b.ToTable("achievement_distinct_values", (string)null);
+                    b.ToTable("achievement_distinct_values", null, t =>
+                        {
+                            t.HasComment("One distinct value a player has contributed to a distinct-count achievement.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementFactEntity", b =>
@@ -189,7 +196,10 @@ namespace Turbo.Database.Migrations
                         .HasDatabaseName("ix_achievement_facts_player_id")
                         .HasFilter("NOT processed");
 
-                    b.ToTable("achievement_facts", (string)null);
+                    b.ToTable("achievement_facts", null, t =>
+                        {
+                            t.HasComment("Things players did that count toward achievements, waiting to be or already turned into progress.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementProgressEntity", b =>
@@ -260,7 +270,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PendingDelivery", "PlayerId")
                         .HasDatabaseName("ix_achievement_progress_pending_delivery_player_id");
 
-                    b.ToTable("achievement_progress", (string)null);
+                    b.ToTable("achievement_progress", null, t =>
+                        {
+                            t.HasComment("Everything about one player's one achievement: reducer state, the levels earned, and the levels still being delivered or announced.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementProjectionEntity", b =>
@@ -275,8 +288,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("ObservedState")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("observed_state");
 
                     b.Property<bool>("PublicationPending")
@@ -300,7 +312,10 @@ namespace Turbo.Database.Migrations
                         .HasDatabaseName("ix_achievement_projections_player_id")
                         .HasFilter("publication_pending");
 
-                    b.ToTable("achievement_projections", (string)null);
+                    b.ToTable("achievement_projections", null, t =>
+                        {
+                            t.HasComment("Each player's achievement score and levels as other players see them, and whether that still has to be published.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementWalletReceiptEntity", b =>
@@ -310,8 +325,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<string>("AwardKey")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("award_key");
 
                     b.Property<DateTime>("CreatedAt")
@@ -322,14 +336,16 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("PayloadJson")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("payload_json");
 
                     b.HasKey("PlayerId", "AwardKey")
                         .HasName("pk_achievement_wallet_receipts");
 
-                    b.ToTable("achievement_wallet_receipts", (string)null);
+                    b.ToTable("achievement_wallet_receipts", null, t =>
+                        {
+                            t.HasComment("Currency an achievement level paid a player, one row per payment, so a retry never pays twice.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Admin.AdminPasskeyEntity", b =>
@@ -390,7 +406,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId")
                         .HasDatabaseName("ix_auth_admin_passkeys_player_id");
 
-                    b.ToTable("auth_admin_passkeys", (string)null);
+                    b.ToTable("auth_admin_passkeys", null, t =>
+                        {
+                            t.HasComment("A passkey a player signs in to the admin panel with: the public key their authenticator made, never anything secret.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetBundleEntity", b =>
@@ -461,7 +480,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_asset_bundles_kind_name");
 
-                    b.ToTable("asset_bundles", (string)null);
+                    b.ToTable("asset_bundles", null, t =>
+                        {
+                            t.HasComment("A .nitro bundle the hotel keeps, by its kind and name: the file itself is on disk (bundled/<kind>/<name>.nitro under the asset directory), and this row is what is known of it without opening it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetPublishEntity", b =>
@@ -522,7 +544,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("TargetEntityId")
                         .HasDatabaseName("ix_asset_publishes_target_id");
 
-                    b.ToTable("asset_publishes", (string)null);
+                    b.ToTable("asset_publishes", null, t =>
+                        {
+                            t.HasComment("A publish, for its target's history: who started it, what it sent and removed, and how it ended.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetPublishTargetEntity", b =>
@@ -594,7 +619,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_asset_publish_targets");
 
-                    b.ToTable("asset_publish_targets", (string)null);
+                    b.ToTable("asset_publish_targets", null, t =>
+                        {
+                            t.HasComment("Where bundles are published: a folder on this server, or an FTP, FTPS or SFTP server.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetPublishedFileEntity", b =>
@@ -635,7 +663,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_asset_published_files_target_id_path");
 
-                    b.ToTable("asset_published_files", (string)null);
+                    b.ToTable("asset_published_files", null, t =>
+                        {
+                            t.HasComment("A file a publish target holds, as it was last sent there: a publish sends only what is new or whose hash changed, and one that stops part way resumes from what is recorded.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Badges.BadgeDefinitionEntity", b =>
@@ -670,7 +701,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_badge_definitions_badge_code");
 
-                    b.ToTable("badge_definitions", (string)null);
+                    b.ToTable("badge_definitions", null, t =>
+                        {
+                            t.HasComment("What the hotel says about a badge code.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Bots.BotEntity", b =>
@@ -778,7 +812,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "RoomEntityId")
                         .HasDatabaseName("ix_bots_player_id_room_id");
 
-                    b.ToTable("bots", (string)null);
+                    b.ToTable("bots", null, t =>
+                        {
+                            t.HasComment("Bots players own: in their inventory or placed in a room.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.BonusRareCampaignEntity", b =>
@@ -840,7 +877,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("StartsAt")
                         .HasDatabaseName("ix_catalog_bonus_rare_campaigns_starts_at");
 
-                    b.ToTable("catalog_bonus_rare_campaigns", (string)null);
+                    b.ToTable("catalog_bonus_rare_campaigns", null, t =>
+                        {
+                            t.HasComment("A bonus rare campaign: a furniture given for every CreditsRequired credits a player brings in, counted as Source says.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.BonusRareReceiptEntity", b =>
@@ -888,7 +928,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_catalog_bonus_rare_receipts_reference");
 
-                    b.ToTable("catalog_bonus_rare_receipts", (string)null);
+                    b.ToTable("catalog_bonus_rare_receipts", null, t =>
+                        {
+                            t.HasComment("Credits bought, recorded once for the bonus rare under the purchase integration's own reference: a reference recorded again counts nothing.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogBackupEntity", b =>
@@ -944,7 +987,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_catalog_backups");
 
-                    b.ToTable("catalog_backups", (string)null);
+                    b.ToTable("catalog_backups", null, t =>
+                        {
+                            t.HasComment("A copy of the catalog's pages, offers, products and featured items as they were saved when it was taken, which the editor can roll the catalog back to.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogFeaturedItemEntity", b =>
@@ -995,7 +1041,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_catalog_featured_items");
 
-                    b.ToTable("catalog_featured_items", (string)null);
+                    b.ToTable("catalog_featured_items", null, t =>
+                        {
+                            t.HasComment("A featured item of the catalog's front page, which the front page layouts draw: the first large on the left, the next three in a list.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>
@@ -1052,8 +1101,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("LocalizationId")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("product_code");
 
                     b.Property<int>("SortOrder")
@@ -1075,7 +1123,12 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("CurrencyTypeId")
                         .HasDatabaseName("ix_catalog_offers_currency_type_id");
 
-                    b.ToTable("catalog_offers", (string)null);
+                    b.ToTable("catalog_offers", null, t =>
+                        {
+                            t.HasComment("What the catalog sells: an offer on a page, its price, and who may buy or gift it.");
+
+                            t.HasCheckConstraint("ck_catalog_offers_costs", "cost_credits >= 0 AND cost_currency >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogPageEntity", b =>
@@ -1145,7 +1198,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ParentEntityId")
                         .HasDatabaseName("ix_catalog_pages_parent_id");
 
-                    b.ToTable("catalog_pages", (string)null);
+                    b.ToTable("catalog_pages", null, t =>
+                        {
+                            t.HasComment("The catalog's page tree, as both the normal and the Builders Club catalog show it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogPageExpiryEntity", b =>
@@ -1187,7 +1243,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ExpiresAt")
                         .HasDatabaseName("ix_catalog_page_expiries_expires_at");
 
-                    b.ToTable("catalog_page_expiries", (string)null);
+                    b.ToTable("catalog_page_expiries", null, t =>
+                        {
+                            t.HasComment("A catalog page the reception counts down to: the expiring page widget shows the page whose ExpiresAt comes first among those still to come, with its own texts and teaser picture.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogProductEntity", b =>
@@ -1210,8 +1269,7 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("ExtraParam")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("extra_param");
 
                     b.Property<int?>("FurnitureDefinitionEntityId")
@@ -1246,7 +1304,12 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("FurnitureDefinitionEntityId")
                         .HasDatabaseName("ix_catalog_products_definition_id");
 
-                    b.ToTable("catalog_products", (string)null);
+                    b.ToTable("catalog_products", null, t =>
+                        {
+                            t.HasComment("What one catalog offer gives: furni, a badge, an effect, a pet or club time.");
+
+                            t.HasCheckConstraint("ck_catalog_products_quantity", "quantity >= 1");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", b =>
@@ -1278,14 +1341,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("enabled");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.HasKey("Id")
                         .HasName("pk_catalog_currency_types");
 
-                    b.ToTable("catalog_currency_types", (string)null);
+                    b.ToTable("catalog_currency_types", null, t =>
+                        {
+                            t.HasComment("The currencies a hotel has (credits, duckets, diamonds, ...) and how the client knows them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.LtdRaffleEntryEntity", b =>
@@ -1349,7 +1414,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("SeriesEntityId", "PlayerEntityId", "Result")
                         .HasDatabaseName("ix_catalog_ltd_raffle_entries_series_id_player_id_result");
 
-                    b.ToTable("catalog_ltd_raffle_entries", (string)null);
+                    b.ToTable("catalog_ltd_raffle_entries", null, t =>
+                        {
+                            t.HasComment("An entry in an LTD raffle queue.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.LtdSeriesEntity", b =>
@@ -1408,7 +1476,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("CatalogProductEntityId")
                         .HasDatabaseName("ix_catalog_ltd_series_catalog_product_id");
 
-                    b.ToTable("catalog_ltd_series", (string)null);
+                    b.ToTable("catalog_ltd_series", null, t =>
+                        {
+                            t.HasComment("Configuration for an LTD (Limited Edition) series.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
@@ -1492,7 +1563,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("FurnitureDefinitionEntityId")
                         .HasDatabaseName("ix_vouchers_furniture_definition_id");
 
-                    b.ToTable("vouchers", (string)null);
+                    b.ToTable("vouchers", null, t =>
+                        {
+                            t.HasComment("A voucher code and what it gives.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherRedemptionEntity", b =>
@@ -1528,7 +1602,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_voucher_redemptions_voucher_id_player_id");
 
-                    b.ToTable("voucher_redemptions", (string)null);
+                    b.ToTable("voucher_redemptions", null, t =>
+                        {
+                            t.HasComment("A player's redemption of a voucher: one each, which the unique index holds to.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.BuildersClubFurnitureEntity", b =>
@@ -1546,8 +1623,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("offer_id");
 
                     b.Property<string>("ExtraData")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
@@ -1592,7 +1668,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlacedByPlayerEntityId")
                         .HasDatabaseName("ix_furniture_builders_club_placed_by_player_id");
 
-                    b.ToTable("furniture_builders_club", (string)null);
+                    b.ToTable("furniture_builders_club", null, t =>
+                        {
+                            t.HasComment("A furni the Builders Club lends.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", b =>
@@ -1671,8 +1750,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("default_dir");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<string>("Environment")
@@ -1686,7 +1764,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("excluded_dynamic");
 
                     b.Property<string>("ExtraData")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("extra_data");
 
@@ -1715,8 +1792,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.PrimitiveCollection<List<string>>("PartColors")
@@ -1778,7 +1854,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_furniture_definitions_sprite_id_type_category");
 
-                    b.ToTable("furniture_definitions", (string)null);
+                    b.ToTable("furniture_definitions", null, t =>
+                        {
+                            t.HasComment("The hotel's furni: one row per item class, with its size, behaviour (logic) and how it may be used.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureEntity", b =>
@@ -1805,8 +1884,7 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("ExtraData")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
@@ -1865,7 +1943,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "RoomEntityId")
                         .HasDatabaseName("ix_furniture_player_id_room_id");
 
-                    b.ToTable("furniture", (string)null);
+                    b.ToTable("furniture", null, t =>
+                        {
+                            t.HasComment("Every furni a player owns: in their inventory, placed in a room, or held inside another item.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataBuildEntity", b =>
@@ -1911,7 +1992,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_gamedata_builds_file_hash");
 
-                    b.ToTable("gamedata_builds", (string)null);
+                    b.ToTable("gamedata_builds", null, t =>
+                        {
+                            t.HasComment("A gamedata file as it was built, by the hash of its content, gzipped.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataChangeEntity", b =>
@@ -1924,12 +2008,10 @@ namespace Turbo.Database.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("After")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("after");
 
                     b.Property<string>("Before")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("before");
 
@@ -1963,7 +2045,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ChangeSetEntityId")
                         .HasDatabaseName("ix_gamedata_changes_change_set_id");
 
-                    b.ToTable("gamedata_changes", (string)null);
+                    b.ToTable("gamedata_changes", null, t =>
+                        {
+                            t.HasComment("One row a change set touched.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataChangeSetEntity", b =>
@@ -2010,7 +2095,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_gamedata_change_sets");
 
-                    b.ToTable("gamedata_change_sets", (string)null);
+                    b.ToTable("gamedata_change_sets", null, t =>
+                        {
+                            t.HasComment("Gamedata changes made together - an import, an edit, a rollback - and rolled back together.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataFigureEntity", b =>
@@ -2030,7 +2118,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Data")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("data");
 
@@ -2061,7 +2148,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_gamedata_figures_kind_record_key");
 
-                    b.ToTable("gamedata_figures", (string)null);
+                    b.ToTable("gamedata_figures", null, t =>
+                        {
+                            t.HasComment("One record of the hotel's figure data - a colour, a kind of clothing or a piece of clothing - its fields as JSON, by the names Habbo's file gives them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataProductEntity", b =>
@@ -2087,12 +2177,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("name");
 
@@ -2103,7 +2191,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_gamedata_products_code");
 
-                    b.ToTable("gamedata_products", (string)null);
+                    b.ToTable("gamedata_products", null, t =>
+                        {
+                            t.HasComment("One of the hotel's products, its product data: the name and description the client shows for a catalog offer whose name key (catalog_offers.product_code) is the code.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataTextEntity", b =>
@@ -2130,7 +2221,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("value");
 
@@ -2141,7 +2231,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_gamedata_texts_text_key");
 
-                    b.ToTable("gamedata_texts", (string)null);
+                    b.ToTable("gamedata_texts", null, t =>
+                        {
+                            t.HasComment("One of the hotel's texts, the external texts the client shows: Habbo's taken in, and the hotel's own.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataVariableEntity", b =>
@@ -2178,7 +2271,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("value");
 
@@ -2189,7 +2281,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_gamedata_variables_variable_key");
 
-                    b.ToTable("gamedata_variables", (string)null);
+                    b.ToTable("gamedata_variables", null, t =>
+                        {
+                            t.HasComment("One of the client's external variables, the configuration it loads from the gamedata host: its key, and its value as JSON (\"text\", true, 120, [1, 2]).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboFigureEntity", b =>
@@ -2209,7 +2304,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Data")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("data");
 
@@ -2235,7 +2329,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_figures_kind_record_key");
 
-                    b.ToTable("habbo_figures", (string)null);
+                    b.ToTable("habbo_figures", null, t =>
+                        {
+                            t.HasComment("One record of Habbo's figure data as it was last taken in.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboFigureVersionEntity", b =>
@@ -2293,7 +2390,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_figure_versions_domain_hash");
 
-                    b.ToTable("habbo_figure_versions", (string)null);
+                    b.ToTable("habbo_figure_versions", null, t =>
+                        {
+                            t.HasComment("One version of Habbo's figure data (/gamedata/figuredata, XML) as a check found it, gzipped, by its hash.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboFurnitureAssetEntity", b =>
@@ -2323,7 +2423,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("error");
 
                     b.Property<string>("Info")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("info");
 
@@ -2356,7 +2455,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_furniture_assets_asset_name_revision");
 
-                    b.ToTable("habbo_furniture_assets", (string)null);
+                    b.ToTable("habbo_furniture_assets", null, t =>
+                        {
+                            t.HasComment("What one of Habbo's furniture asset files said, by its asset name (a classname without its *N colour) and the revision furnidata gave it: the file is read once per revision.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboFurnitureEntity", b =>
@@ -2382,7 +2484,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Data")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("data");
 
@@ -2405,7 +2506,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_furniture_type_class_name");
 
-                    b.ToTable("habbo_furniture", (string)null);
+                    b.ToTable("habbo_furniture", null, t =>
+                        {
+                            t.HasComment("One of Habbo's furniture as it was last taken in: its furnidata item, as Habbo wrote it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboProductEntity", b =>
@@ -2431,7 +2535,6 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("description");
 
@@ -2440,7 +2543,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("version_id");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("name");
 
@@ -2451,7 +2553,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_products_code");
 
-                    b.ToTable("habbo_products", (string)null);
+                    b.ToTable("habbo_products", null, t =>
+                        {
+                            t.HasComment("One of Habbo's products as it was last taken in.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboProductVersionEntity", b =>
@@ -2505,7 +2610,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_product_versions_domain_hash");
 
-                    b.ToTable("habbo_product_versions", (string)null);
+                    b.ToTable("habbo_product_versions", null, t =>
+                        {
+                            t.HasComment("One version of Habbo's product data as a check found it, gzipped, by its hash.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboReleaseEntity", b =>
@@ -2565,7 +2673,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_furniture_versions_domain_furniture_data_hash");
 
-                    b.ToTable("habbo_furniture_versions", (string)null);
+                    b.ToTable("habbo_furniture_versions", null, t =>
+                        {
+                            t.HasComment("One of Habbo's releases as a check found it: the revision its external variables named, and the furniture data it served then, gzipped, so an import works from what was checked.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboTextEntity", b =>
@@ -2596,7 +2707,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("value");
 
@@ -2607,7 +2717,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_texts_text_key");
 
-                    b.ToTable("habbo_texts", (string)null);
+                    b.ToTable("habbo_texts", null, t =>
+                        {
+                            t.HasComment("One of Habbo's texts as it was last taken in.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboTextVersionEntity", b =>
@@ -2661,7 +2774,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_habbo_text_versions_domain_hash");
 
-                    b.ToTable("habbo_text_versions", (string)null);
+                    b.ToTable("habbo_text_versions", null, t =>
+                        {
+                            t.HasComment("One version of Habbo's external texts as a check found it, gzipped, by its hash.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildBadgePartEntity", b =>
@@ -2707,7 +2823,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_guild_badge_parts_part_type_part_id");
 
-                    b.ToTable("guild_badge_parts", (string)null);
+                    b.ToTable("guild_badge_parts", null, t =>
+                        {
+                            t.HasComment("A part the badge editor may pick.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildColorEntity", b =>
@@ -2747,7 +2866,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_guild_colors_slot_color_id");
 
-                    b.ToTable("guild_colors", (string)null);
+                    b.ToTable("guild_colors", null, t =>
+                        {
+                            t.HasComment("A colour the badge editor may pick, from one of its three palettes.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildEntity", b =>
@@ -2822,7 +2944,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_guilds_room_id");
 
-                    b.ToTable("guilds", (string)null);
+                    b.ToTable("guilds", null, t =>
+                        {
+                            t.HasComment("A group.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildForumEntity", b =>
@@ -2889,7 +3014,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_guild_forums_guild_id");
 
-                    b.ToTable("guild_forums", (string)null);
+                    b.ToTable("guild_forums", null, t =>
+                        {
+                            t.HasComment("A group's forum, opened when the group's owner buys a forum terminal for it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildForumMessageEntity", b =>
@@ -2956,7 +3084,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ThreadEntityId", "ThreadIndex")
                         .HasDatabaseName("ix_guild_forum_messages_thread_id_thread_index");
 
-                    b.ToTable("guild_forum_messages", (string)null);
+                    b.ToTable("guild_forum_messages", null, t =>
+                        {
+                            t.HasComment("A forum message.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildForumReadMarkerEntity", b =>
@@ -3000,7 +3131,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_guild_forum_read_markers_player_id_guild_id");
 
-                    b.ToTable("guild_forum_read_markers", (string)null);
+                    b.ToTable("guild_forum_read_markers", null, t =>
+                        {
+                            t.HasComment("How far a player has read a forum: the last message read, numbered within the forum.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildForumThreadEntity", b =>
@@ -3070,7 +3204,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("GuildEntityId", "IsSticky", "LastMessageAt")
                         .HasDatabaseName("ix_guild_forum_threads_guild_id_is_sticky_last_message_at");
 
-                    b.ToTable("guild_forum_threads", (string)null);
+                    b.ToTable("guild_forum_threads", null, t =>
+                        {
+                            t.HasComment("A forum thread.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildMemberEntity", b =>
@@ -3119,7 +3256,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("GuildEntityId", "Rank")
                         .HasDatabaseName("ix_guild_members_guild_id_member_rank");
 
-                    b.ToTable("guild_members", (string)null);
+                    b.ToTable("guild_members", null, t =>
+                        {
+                            t.HasComment("One player's standing in one group.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Hotel.CommunityGoalContributionEntity", b =>
@@ -3174,7 +3314,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("GoalEntityId", "Score")
                         .HasDatabaseName("ix_hotel_community_goal_contributions_goal_id_score");
 
-                    b.ToTable("hotel_community_goal_contributions", (string)null);
+                    b.ToTable("hotel_community_goal_contributions", null, t =>
+                        {
+                            t.HasComment("What one player has given a community goal: to each side (a goal of one side has only the first), and the side they voted for.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Hotel.CommunityGoalEntity", b =>
@@ -3240,7 +3383,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("StartsAt")
                         .HasDatabaseName("ix_hotel_community_goals_starts_at");
 
-                    b.ToTable("hotel_community_goals", (string)null);
+                    b.ToTable("hotel_community_goals", null, t =>
+                        {
+                            t.HasComment("A community goal: from StartsAt to EndsAt the hotel plays it together, buying from its catalog pages (and, in a voting goal, voting for a side).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Hotel.HotelSettingEntity", b =>
@@ -3277,7 +3423,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_hotel_settings_key");
 
-                    b.ToTable("hotel_settings", (string)null);
+                    b.ToTable("hotel_settings", null, t =>
+                        {
+                            t.HasComment("One setting for the whole hotel that staff change while it runs, such as the welcome message, by its key.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Hotel.PromoArticleEntity", b =>
@@ -3351,7 +3500,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("SortOrder")
                         .HasDatabaseName("ix_hotel_promo_articles_sort_order");
 
-                    b.ToTable("hotel_promo_articles", (string)null);
+                    b.ToTable("hotel_promo_articles", null, t =>
+                        {
+                            t.HasComment("A promo article of the reception's carousel: a title, words, a picture and a button.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>
@@ -3387,7 +3539,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_messenger_blocks_player_id_blocked_player_id");
 
-                    b.ToTable("messenger_blocks", (string)null);
+                    b.ToTable("messenger_blocks", null, t =>
+                        {
+                            t.HasComment("Players a player has blocked from messaging them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerCategoryEntity", b =>
@@ -3407,8 +3562,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<int>("PlayerEntityId")
@@ -3422,7 +3576,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_messenger_categories_player_id_name");
 
-                    b.ToTable("messenger_categories", (string)null);
+                    b.ToTable("messenger_categories", null, t =>
+                        {
+                            t.HasComment("The categories a player sorts their friend list into.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerFriendEntity", b =>
@@ -3470,7 +3627,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_messenger_friends_player_id_friend_id");
 
-                    b.ToTable("messenger_friends", (string)null);
+                    b.ToTable("messenger_friends", null, t =>
+                        {
+                            t.HasComment("Friendships, one row for each side of each friendship.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerIgnoredEntity", b =>
@@ -3506,7 +3666,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_messenger_ignores_player_id_ignored_player_id");
 
-                    b.ToTable("messenger_ignores", (string)null);
+                    b.ToTable("messenger_ignores", null, t =>
+                        {
+                            t.HasComment("Players a player has ignored in rooms.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerMessageEntity", b =>
@@ -3530,8 +3693,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("message");
 
                     b.Property<int>("ReceiverPlayerEntityId")
@@ -3559,7 +3721,10 @@ namespace Turbo.Database.Migrations
                         .HasDatabaseName("ix_messenger_messages_receiver_id_sent_at")
                         .HasFilter("NOT delivered");
 
-                    b.ToTable("messenger_messages", (string)null);
+                    b.ToTable("messenger_messages", null, t =>
+                        {
+                            t.HasComment("Private messages between friends, and whether each has been delivered.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerRequestEntity", b =>
@@ -3595,7 +3760,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_messenger_requests_player_id_requested_id");
 
-                    b.ToTable("messenger_requests", (string)null);
+                    b.ToTable("messenger_requests", null, t =>
+                        {
+                            t.HasComment("Friend requests waiting for an answer.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.CfhReportChatLineEntity", b =>
@@ -3637,7 +3805,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ReportEntityId", "Position")
                         .HasDatabaseName("ix_moderation_cfh_report_chat_lines_report_id_position");
 
-                    b.ToTable("moderation_cfh_report_chat_lines", (string)null);
+                    b.ToTable("moderation_cfh_report_chat_lines", null, t =>
+                        {
+                            t.HasComment("A chat line sent with a call for help, in the order the reporter sent them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.CfhReportEntity", b =>
@@ -3746,7 +3917,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ReporterEntityId", "ClosedAt")
                         .HasDatabaseName("ix_moderation_cfh_reports_reporter_id_closed_at");
 
-                    b.ToTable("moderation_cfh_reports", (string)null);
+                    b.ToTable("moderation_cfh_reports", null, t =>
+                        {
+                            t.HasComment("A call for help.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.CfhTopicEntity", b =>
@@ -3786,7 +3960,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_moderation_cfh_topics");
 
-                    b.ToTable("moderation_cfh_topics", (string)null);
+                    b.ToTable("moderation_cfh_topics", null, t =>
+                        {
+                            t.HasComment("A call for help topic.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.FilterWordEntity", b =>
@@ -3817,7 +3994,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_moderation_filter_words_word");
 
-                    b.ToTable("moderation_filter_words", (string)null);
+                    b.ToTable("moderation_filter_words", null, t =>
+                        {
+                            t.HasComment("A word of the hotel's filter, kept out of everything players type (see IWordFilter).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.PlayerSanctionEntity", b =>
@@ -3871,7 +4051,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "Kind")
                         .HasDatabaseName("ix_moderation_sanctions_player_id_kind");
 
-                    b.ToTable("moderation_sanctions", (string)null);
+                    b.ToTable("moderation_sanctions", null, t =>
+                        {
+                            t.HasComment("A hotel-wide sanction on a player.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorEventCategoryEntity", b =>
@@ -3891,8 +4074,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<bool>("Visible")
@@ -3902,7 +4084,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_navigator_event_categories");
 
-                    b.ToTable("navigator_event_categories", (string)null);
+                    b.ToTable("navigator_event_categories", null, t =>
+                        {
+                            t.HasComment("The categories a room event can be listed under in the navigator.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorFlatCategoryEntity", b =>
@@ -3920,8 +4105,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("automatic");
 
                     b.Property<string>("AutomaticCategory")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("automatic_category");
 
                     b.Property<DateTime>("CreatedAt")
@@ -3931,8 +4115,7 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("GlobalCategory")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("global_category");
 
                     b.Property<int>("MinRank")
@@ -3942,8 +4125,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<int>("OrderNum")
@@ -3973,7 +4155,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_navigator_room_categories_name");
 
-                    b.ToTable("navigator_room_categories", (string)null);
+                    b.ToTable("navigator_room_categories", null, t =>
+                        {
+                            t.HasComment("The categories a room can be put in, as the navigator lists them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorTopLevelContextEntity", b =>
@@ -3998,8 +4183,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("SearchCode")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("search_code");
 
                     b.Property<bool>("Visible")
@@ -4014,7 +4198,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_navigator_top_level_contexts_search_code");
 
-                    b.ToTable("navigator_top_level_contexts", (string)null);
+                    b.ToTable("navigator_top_level_contexts", null, t =>
+                        {
+                            t.HasComment("The tabs along the top of the navigator.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionAuditEntity", b =>
@@ -4059,8 +4246,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("target_type");
 
                     b.Property<string>("Value")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -4069,7 +4255,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("TargetType", "TargetId", "CreatedAt")
                         .HasDatabaseName("ix_permission_audit_logs_target_type_target_id_created_at");
 
-                    b.ToTable("permission_audit_logs", (string)null);
+                    b.ToTable("permission_audit_logs", null, t =>
+                        {
+                            t.HasComment("One change to a group's or a player's permissions, written in the same save as the change.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupEntity", b =>
@@ -4111,7 +4300,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_permission_groups_name");
 
-                    b.ToTable("permission_groups", (string)null);
+                    b.ToTable("permission_groups", null, t =>
+                        {
+                            t.HasComment("A named set of permission nodes and meta that players hold and other groups inherit.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupMetaEntity", b =>
@@ -4149,8 +4341,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -4160,7 +4351,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_permission_group_meta_group_id_meta_key_is_temporary");
 
-                    b.ToTable("permission_group_meta", (string)null);
+                    b.ToTable("permission_group_meta", null, t =>
+                        {
+                            t.HasComment("A meta value a group sets (client.security_level = 5).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupNodeEntity", b =>
@@ -4207,7 +4401,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_permission_group_nodes_group_id_node_is_temporary");
 
-                    b.ToTable("permission_group_nodes", (string)null);
+                    b.ToTable("permission_group_nodes", null, t =>
+                        {
+                            t.HasComment("A node a group grants (Value true) or denies (false).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupParentEntity", b =>
@@ -4243,7 +4440,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_permission_group_parents_group_id_parent_group_id");
 
-                    b.ToTable("permission_group_parents", (string)null);
+                    b.ToTable("permission_group_parents", null, t =>
+                        {
+                            t.HasComment("One group inheriting from another.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PlayerPermissionGroupEntity", b =>
@@ -4287,7 +4487,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_permission_groups_player_id_group_id_is_temporary");
 
-                    b.ToTable("player_permission_groups", (string)null);
+                    b.ToTable("player_permission_groups", null, t =>
+                        {
+                            t.HasComment("A group a player holds directly.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PlayerPermissionMetaEntity", b =>
@@ -4325,8 +4528,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -4336,7 +4538,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_permission_meta_player_id_meta_key_is_temporary");
 
-                    b.ToTable("player_permission_meta", (string)null);
+                    b.ToTable("player_permission_meta", null, t =>
+                        {
+                            t.HasComment("A meta value set on one player, beating anything their groups set.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PlayerPermissionNodeEntity", b =>
@@ -4383,7 +4588,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_permission_nodes_player_id_node_is_temporary");
 
-                    b.ToTable("player_permission_nodes", (string)null);
+                    b.ToTable("player_permission_nodes", null, t =>
+                        {
+                            t.HasComment("A node set on one player, beating anything their groups say: a grant their groups do not give, or a denial (a sanction) of one they do.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Pets.PetBreedEntity", b =>
@@ -4440,7 +4648,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_pet_breeds_type_id_palette_id");
 
-                    b.ToTable("pet_breeds", (string)null);
+                    b.ToTable("pet_breeds", null, t =>
+                        {
+                            t.HasComment("A sellable palette of a pet type: what the catalog offers and what breeding yields.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Pets.PetEntity", b =>
@@ -4585,7 +4796,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "RoomEntityId")
                         .HasDatabaseName("ix_pets_player_id_room_id");
 
-                    b.ToTable("pets", (string)null);
+                    b.ToTable("pets", null, t =>
+                        {
+                            t.HasComment("Pets players own: in their inventory or placed in a room.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Pets.PetNutritionOperationEntity", b =>
@@ -4644,7 +4858,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("OperationId")
                         .HasName("pk_pet_nutrition_operations");
 
-                    b.ToTable("pet_nutrition_operations", (string)null);
+                    b.ToTable("pet_nutrition_operations", null, t =>
+                        {
+                            t.HasComment("Pet feeding and drinking, one row per action, so a retry never feeds twice.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Pets.PetRespectOperationEntity", b =>
@@ -4699,7 +4916,10 @@ namespace Turbo.Database.Migrations
                         .HasDatabaseName("ix_pet_respect_operations_operation_id")
                         .HasFilter("NOT completed AND NOT rejected");
 
-                    b.ToTable("pet_respect_operations", (string)null);
+                    b.ToTable("pet_respect_operations", null, t =>
+                        {
+                            t.HasComment("Respect given to pets (scratches), one row per action, so a retry never counts twice.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Pets.PetSpeechEntity", b =>
@@ -4733,7 +4953,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("TypeId")
                         .HasDatabaseName("ix_pet_speech_lines_type_id");
 
-                    b.ToTable("pet_speech_lines", (string)null);
+                    b.ToTable("pet_speech_lines", null, t =>
+                        {
+                            t.HasComment("A line a pet may say when told to speak or on its own now and then.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectOperationEntity", b =>
@@ -4776,7 +4999,10 @@ namespace Turbo.Database.Migrations
                         .HasDatabaseName("ix_player_respect_operations_operation_id")
                         .HasFilter("NOT completed AND NOT rejected");
 
-                    b.ToTable("player_respect_operations", (string)null);
+                    b.ToTable("player_respect_operations", null, t =>
+                        {
+                            t.HasComment("One respect one player gave another.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectParticipantReceiptEntity", b =>
@@ -4812,7 +5038,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("PlayerId", "OperationId", "Kind")
                         .HasName("pk_player_respect_receipts");
 
-                    b.ToTable("player_respect_receipts", (string)null);
+                    b.ToTable("player_respect_receipts", null, t =>
+                        {
+                            t.HasComment("One player's side of a respect: the spend from the giver, or the credit to the receiver (and a pet scratch's spend).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBadgeEntity", b =>
@@ -4826,8 +5055,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("BadgeCode")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("badge_code");
 
                     b.Property<DateTime>("CreatedAt")
@@ -4855,7 +5083,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_badges_player_id_badge_code");
 
-                    b.ToTable("player_badges", (string)null);
+                    b.ToTable("player_badges", null, t =>
+                        {
+                            t.HasComment("The badges each player owns, and which slot each is worn in.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBonusRareProgressEntity", b =>
@@ -4900,7 +5131,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_bonus_rare_progress_player_id_campaign_code");
 
-                    b.ToTable("player_bonus_rare_progress", (string)null);
+                    b.ToTable("player_bonus_rare_progress", null, t =>
+                        {
+                            t.HasComment("A player's progress toward a bonus rare campaign's reward, by the campaign's code.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBoundClothingEntity", b =>
@@ -4936,7 +5170,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_bound_clothing_player_id_definition_id");
 
-                    b.ToTable("player_bound_clothing", (string)null);
+                    b.ToTable("player_bound_clothing", null, t =>
+                        {
+                            t.HasComment("Clothing furni a player has bound: a figure_purchasable_set furni they used, whose figure sets are theirs since.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleEntity", b =>
@@ -4996,7 +5233,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_hotel_chat_styles_client_style_id");
 
-                    b.ToTable("hotel_chat_styles", (string)null);
+                    b.ToTable("hotel_chat_styles", null, t =>
+                        {
+                            t.HasComment("One chat bubble style the client can draw, and who may speak with it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleOwnedEntity", b =>
@@ -5032,7 +5272,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_chat_styles_player_id_chat_style_id");
 
-                    b.ToTable("player_chat_styles", (string)null);
+                    b.ToTable("player_chat_styles", null, t =>
+                        {
+                            t.HasComment("The chat bubble styles each player owns.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerClubGiftEntity", b =>
@@ -5064,7 +5307,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId")
                         .HasDatabaseName("ix_player_club_gifts_player_id");
 
-                    b.ToTable("player_club_gifts", (string)null);
+                    b.ToTable("player_club_gifts", null, t =>
+                        {
+                            t.HasComment("One Habbo Club gift a player has claimed.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerCurrencyEntity", b =>
@@ -5110,7 +5356,12 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_currencies_player_id_currency_type_id");
 
-                    b.ToTable("player_currencies", (string)null);
+                    b.ToTable("player_currencies", null, t =>
+                        {
+                            t.HasComment("Each player's balance in each currency.");
+
+                            t.HasCheckConstraint("ck_player_currencies_amount", "amount >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerEffectEntity", b =>
@@ -5162,7 +5413,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_effects_player_id_effect_id");
 
-                    b.ToTable("player_effects", (string)null);
+                    b.ToTable("player_effects", null, t =>
+                        {
+                            t.HasComment("One avatar effect a player owns: a row per effect id, however many copies.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerEntity", b =>
@@ -5198,21 +5452,19 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("last_login_at");
 
                     b.Property<string>("Motto")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("motto");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<string>("NameKey")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("name_key");
+                        .HasColumnType("text")
+                        .HasColumnName("name_key")
+                        .UseCollation("C");
 
                     b.Property<int>("PetRespectsLeft")
                         .HasColumnType("integer")
@@ -5256,7 +5508,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_players_name_key");
 
-                    b.ToTable("players", (string)null);
+                    b.ToTable("players", null, t =>
+                        {
+                            t.HasComment("The hotel's players.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerFavoriteRoomsEntity", b =>
@@ -5292,7 +5547,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_favorite_rooms_player_id_room_id");
 
-                    b.ToTable("player_favorite_rooms", (string)null);
+                    b.ToTable("player_favorite_rooms", null, t =>
+                        {
+                            t.HasComment("The rooms each player has marked as a favourite.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerFigureSetEntity", b =>
@@ -5325,7 +5583,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_figure_sets_player_id_set_id");
 
-                    b.ToTable("player_figure_sets", (string)null);
+                    b.ToTable("player_figure_sets", null, t =>
+                        {
+                            t.HasComment("A piece of clothing a player owns: a figure set the figure data marks as sold, which the player may wear once they have it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerNavigatorCollapsedCategoryEntity", b =>
@@ -5360,7 +5621,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_navigator_collapsed_categories_player_id_search_code");
 
-                    b.ToTable("player_navigator_collapsed_categories", (string)null);
+                    b.ToTable("player_navigator_collapsed_categories", null, t =>
+                        {
+                            t.HasComment("Navigator sections each player has collapsed.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerNavigatorSavedSearchEntity", b =>
@@ -5405,7 +5669,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_navigator_saved_searches_player_id_search_id");
 
-                    b.ToTable("player_navigator_saved_searches", (string)null);
+                    b.ToTable("player_navigator_saved_searches", null, t =>
+                        {
+                            t.HasComment("Searches each player has saved in the navigator.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerNavigatorViewModeEntity", b =>
@@ -5444,7 +5711,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_navigator_view_modes_player_id_search_code");
 
-                    b.ToTable("player_navigator_view_modes", (string)null);
+                    b.ToTable("player_navigator_view_modes", null, t =>
+                        {
+                            t.HasComment("Whether each player sees a navigator section as a list or as tiles.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerOutfitEntity", b =>
@@ -5488,7 +5758,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_outfits_player_id_slot_id");
 
-                    b.ToTable("player_outfits", (string)null);
+                    b.ToTable("player_outfits", null, t =>
+                        {
+                            t.HasComment("Looks each player has saved in their wardrobe.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerSettingsEntity", b =>
@@ -5659,7 +5932,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_settings_player_id");
 
-                    b.ToTable("player_settings", (string)null);
+                    b.ToTable("player_settings", null, t =>
+                        {
+                            t.HasComment("Each player's client settings: volumes, chat, navigator window and home room.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerSubscriptionEntity", b =>
@@ -5730,7 +6006,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("SubscriptionType", "ExpiresAt")
                         .HasDatabaseName("ix_player_subscriptions_subscription_type_expires_at");
 
-                    b.ToTable("player_subscriptions", (string)null);
+                    b.ToTable("player_subscriptions", null, t =>
+                        {
+                            t.HasComment("Each player's Habbo Club and Builders Club membership.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerUnseenItemEntity", b =>
@@ -5767,7 +6046,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_unseen_items_player_id_category_item_id");
 
-                    b.ToTable("player_unseen_items", (string)null);
+                    b.ToTable("player_unseen_items", null, t =>
+                        {
+                            t.HasComment("Something a player received and has not looked at yet: the client draws it as \"new\" until they open its inventory tab.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.WalletCreditReceiptEntity", b =>
@@ -5790,7 +6072,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("PlayerId", "Reference")
                         .HasName("pk_player_wallet_credit_receipts");
 
-                    b.ToTable("player_wallet_credit_receipts", (string)null);
+                    b.ToTable("player_wallet_credit_receipts", null, t =>
+                        {
+                            t.HasComment("Records that a referenced credit was applied, so repeating it changes nothing.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.DailyTaskDefinitionEntity", b =>
@@ -5876,7 +6161,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_quest_daily_task_definitions_code");
 
-                    b.ToTable("quest_daily_task_definitions", (string)null);
+                    b.ToTable("quest_daily_task_definitions", null, t =>
+                        {
+                            t.HasComment("A daily task a player can be given.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerDailyTaskEntity", b =>
@@ -5940,7 +6228,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_daily_tasks_player_id_day_starts_at_definition_id");
 
-                    b.ToTable("player_daily_tasks", (string)null);
+                    b.ToTable("player_daily_tasks", null, t =>
+                        {
+                            t.HasComment("A daily task given to a player for one day.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerQuestEntity", b =>
@@ -5990,7 +6281,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_quests_player_id_quest_id");
 
-                    b.ToTable("player_quests", (string)null);
+                    b.ToTable("player_quests", null, t =>
+                        {
+                            t.HasComment("A player's progress on a quest: accepted (the one they are doing), the steps done, and when it was completed.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerRewardTrackEntity", b =>
@@ -6041,7 +6335,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_player_reward_tracks_player_id_track_id");
 
-                    b.ToTable("player_reward_tracks", (string)null);
+                    b.ToTable("player_reward_tracks", null, t =>
+                        {
+                            t.HasComment("A player's progress on one reward track (the tracks themselves are configuration).");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.QuestCampaignEntity", b =>
@@ -6086,7 +6383,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_quest_campaigns_code");
 
-                    b.ToTable("quest_campaigns", (string)null);
+                    b.ToTable("quest_campaigns", null, t =>
+                        {
+                            t.HasComment("A quest campaign: the quest window's rows, in SortOrder.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.QuestEntity", b =>
@@ -6176,7 +6476,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_quests_campaign_id_localization_code");
 
-                    b.ToTable("quests", (string)null);
+                    b.ToTable("quests", null, t =>
+                        {
+                            t.HasComment("One quest of a campaign, done in SortOrder.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.CommandLogEntity", b =>
@@ -6195,7 +6498,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("arguments");
 
                     b.Property<string>("BatchTargetResultsJson")
-                        .HasMaxLength(512)
                         .HasColumnType("jsonb")
                         .HasColumnName("batch_target_results_json");
 
@@ -6234,7 +6536,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<string>("ResolvedAudienceJson")
-                        .HasMaxLength(512)
                         .HasColumnType("jsonb")
                         .HasColumnName("resolved_audience_json");
 
@@ -6256,7 +6557,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "Id")
                         .HasDatabaseName("ix_moderation_command_logs_player_id_id");
 
-                    b.ToTable("moderation_command_logs", (string)null);
+                    b.ToTable("moderation_command_logs", null, t =>
+                        {
+                            t.HasComment("One use of a chat command by an executor who holds command.log, so an operator logs staff and nobody else.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomBanEntity", b =>
@@ -6296,7 +6600,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_bans_room_id_player_id");
 
-                    b.ToTable("room_bans", (string)null);
+                    b.ToTable("room_bans", null, t =>
+                        {
+                            t.HasComment("Players banned from a room, and until when.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomChatlogEntity", b =>
@@ -6344,7 +6651,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("TargetPlayerEntityId", "Id")
                         .HasDatabaseName("ix_room_chat_logs_target_player_id_id");
 
-                    b.ToTable("room_chat_logs", (string)null);
+                    b.ToTable("room_chat_logs", null, t =>
+                        {
+                            t.HasComment("One line said in a room.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomEntity", b =>
@@ -6388,8 +6698,7 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<int>("DoorMode")
@@ -6455,8 +6764,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<int?>("NavigatorCategoryEntityId")
@@ -6464,23 +6772,19 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("category_id");
 
                     b.Property<string>("PaintFloor")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("paint_floor");
 
                     b.Property<string>("PaintLandscape")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("paint_landscape");
 
                     b.Property<string>("PaintWall")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("paint_wall");
 
                     b.Property<string>("Password")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("password");
 
                     b.Property<int>("PlayerEntityId")
@@ -6506,9 +6810,9 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("staff_pick");
 
-                    b.Property<string>("Tags")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
                         .HasColumnName("tags");
 
                     b.Property<int>("ThicknessFloor")
@@ -6525,11 +6829,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("trade_type");
-
-                    b.Property<int>("UsersNow")
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("users_now");
 
                     b.Property<int>("WallHeight")
                         .HasColumnType("integer")
@@ -6575,7 +6874,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("StaffPick", "Score")
                         .HasDatabaseName("ix_rooms_staff_pick_score");
 
-                    b.ToTable("rooms", (string)null);
+                    b.ToTable("rooms", null, t =>
+                        {
+                            t.HasComment("The hotel's rooms.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomEntryLogEntity", b =>
@@ -6610,7 +6912,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerEntityId", "RoomEntityId", "CreatedAt")
                         .HasDatabaseName("ix_room_entry_logs_player_id_room_id_created_at");
 
-                    b.ToTable("room_entry_logs", (string)null);
+                    b.ToTable("room_entry_logs", null, t =>
+                        {
+                            t.HasComment("A player entering a room.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomEventEntity", b =>
@@ -6671,7 +6976,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("RoomEntityId")
                         .HasDatabaseName("ix_room_events_room_id");
 
-                    b.ToTable("room_events", (string)null);
+                    b.ToTable("room_events", null, t =>
+                        {
+                            t.HasComment("Events players are running in their rooms, as the navigator lists them.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomFilterWordEntity", b =>
@@ -6706,7 +7014,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_filter_words_room_id_word");
 
-                    b.ToTable("room_filter_words", (string)null);
+                    b.ToTable("room_filter_words", null, t =>
+                        {
+                            t.HasComment("Words a room's owner has chosen to filter in their room's chat.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomModelEntity", b =>
@@ -6751,14 +7062,12 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Model")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("model");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.HasKey("Id")
@@ -6768,7 +7077,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_models_name");
 
-                    b.ToTable("room_models", (string)null);
+                    b.ToTable("room_models", null, t =>
+                        {
+                            t.HasComment("Room layouts: the standard models rooms are created on, and each room's own saved floor plan.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomMuteEntity", b =>
@@ -6808,7 +7120,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_mutes_room_id_player_id");
 
-                    b.ToTable("room_mutes", (string)null);
+                    b.ToTable("room_mutes", null, t =>
+                        {
+                            t.HasComment("Players muted in a room, and until when.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomRaidProtectionEntity", b =>
@@ -6876,7 +7191,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_raid_protections_room_id");
 
-                    b.ToTable("room_raid_protections", (string)null);
+                    b.ToTable("room_raid_protections", null, t =>
+                        {
+                            t.HasComment("A room's raid protection settings.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomRatingEntity", b =>
@@ -6916,7 +7234,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_ratings_room_id_player_id");
 
-                    b.ToTable("room_ratings", (string)null);
+                    b.ToTable("room_ratings", null, t =>
+                        {
+                            t.HasComment("Players' votes on rooms.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomRightEntity", b =>
@@ -6952,7 +7273,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_room_rights_room_id_player_id");
 
-                    b.ToTable("room_rights", (string)null);
+                    b.ToTable("room_rights", null, t =>
+                        {
+                            t.HasComment("Players a room's owner has given rights in it.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Security.PlayerDiscordLinkEntity", b =>
@@ -6997,7 +7321,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_auth_discord_links_player_id");
 
-                    b.ToTable("auth_discord_links", (string)null);
+                    b.ToTable("auth_discord_links", null, t =>
+                        {
+                            t.HasComment("The Discord account a player signs in to the public site with: one each way, so a Discord account is one player and a player is one Discord account.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Security.SecurityTicketEntity", b =>
@@ -7021,8 +7348,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("IpAddress")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("ip_address");
 
                     b.Property<bool>("IsLocked")
@@ -7036,8 +7362,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Ticket")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
+                        .HasColumnType("text")
                         .HasColumnName("ticket");
 
                     b.HasKey("Id")
@@ -7051,7 +7376,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_auth_login_tickets_ticket");
 
-                    b.ToTable("auth_login_tickets", (string)null);
+                    b.ToTable("auth_login_tickets", null, t =>
+                        {
+                            t.HasComment("The ticket a player's client logs in with, stored as its hash; one per player.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Security.WebSessionEntity", b =>
@@ -7096,7 +7424,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_auth_web_sessions_token_hash");
 
-                    b.ToTable("auth_web_sessions", (string)null);
+                    b.ToTable("auth_web_sessions", null, t =>
+                        {
+                            t.HasComment("A sign-in to the public site.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Settings.ServerSettingChangeEntity", b =>
@@ -7109,12 +7440,10 @@ namespace Turbo.Database.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("After")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("after");
 
                     b.Property<string>("Before")
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("before");
 
@@ -7144,7 +7473,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("Path")
                         .HasDatabaseName("ix_server_setting_changes_setting_path");
 
-                    b.ToTable("server_setting_changes", (string)null);
+                    b.ToTable("server_setting_changes", null, t =>
+                        {
+                            t.HasComment("A server setting changed in the admin panel, and by whom: the panel's value before and after, as JSON, null where the panel had none.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Settings.ServerSettingEntity", b =>
@@ -7170,7 +7502,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("value");
 
@@ -7181,7 +7512,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_server_settings_setting_path");
 
-                    b.ToTable("server_settings", (string)null);
+                    b.ToTable("server_settings", null, t =>
+                        {
+                            t.HasComment("A server setting overridden in the admin panel: its configuration path (Turbo:Rooms:MaxUsersPerRoom) and its value as JSON.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Sound.SongEntity", b =>
@@ -7226,7 +7560,6 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Track")
                         .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("track");
 
@@ -7237,7 +7570,10 @@ namespace Turbo.Database.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_songs_code");
 
-                    b.ToTable("songs", (string)null);
+                    b.ToTable("songs", null, t =>
+                        {
+                            t.HasComment("A trax song: the track a song disk plays in a jukebox.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
@@ -7257,7 +7593,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("ItemEntityId")
                         .HasName("pk_wired_chests");
 
-                    b.ToTable("wired_chests", (string)null);
+                    b.ToTable("wired_chests", null, t =>
+                        {
+                            t.HasComment("What a wired chest holds besides its furni rows: the credits in a credit chest and how many times its capacity was bought up.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntity", b =>
@@ -7303,7 +7642,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("RoomId", "Id")
                         .HasDatabaseName("ix_wired_chest_transactions_room_id_id");
 
-                    b.ToTable("wired_chest_transactions", (string)null);
+                    b.ToTable("wired_chest_transactions", null, t =>
+                        {
+                            t.HasComment("One thing that moved furni or credits into or out of wired chests, written in the same database transaction as the move, so the logs never disagree with the chests.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntryEntity", b =>
@@ -7358,7 +7700,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("ChestItemId", "TransactionEntityId")
                         .HasDatabaseName("ix_wired_chest_transaction_entries_chest_item_id_transaction_id");
 
-                    b.ToTable("wired_chest_transaction_entries", (string)null);
+                    b.ToTable("wired_chest_transaction_entries", null, t =>
+                        {
+                            t.HasComment("How much of one kind went into or out of one chest in a transaction: credits, or furni of one type.");
+                        });
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Admin.AdminPasskeyEntity", b =>
