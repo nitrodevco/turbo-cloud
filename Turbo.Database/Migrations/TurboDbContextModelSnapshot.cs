@@ -21,6 +21,7 @@ namespace Turbo.Database.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementAuditEntity", b =>
@@ -180,6 +181,14 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("PlayerId", "Processed", "Id")
                         .HasDatabaseName("ix_achievement_facts_player_id_processed_id");
 
+                    b.HasIndex(new[] { "OccurredAtUtc" }, "ix_achievement_facts_processed_occurred_at")
+                        .HasDatabaseName("ix_achievement_facts_occurred_at")
+                        .HasFilter("processed");
+
+                    b.HasIndex(new[] { "PlayerId" }, "ix_achievement_facts_unprocessed")
+                        .HasDatabaseName("ix_achievement_facts_player_id")
+                        .HasFilter("NOT processed");
+
                     b.ToTable("achievement_facts", (string)null);
                 });
 
@@ -286,6 +295,10 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("PlayerId")
                         .HasName("pk_achievement_projections");
+
+                    b.HasIndex(new[] { "PlayerId" }, "ix_achievement_projections_publication_pending")
+                        .HasDatabaseName("ix_achievement_projections_player_id")
+                        .HasFilter("publication_pending");
 
                     b.ToTable("achievement_projections", (string)null);
                 });
@@ -3542,6 +3555,10 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("SenderPlayerEntityId", "ReceiverPlayerEntityId", "Timestamp")
                         .HasDatabaseName("ix_messenger_messages_sender_id_receiver_id_sent_at");
 
+                    b.HasIndex(new[] { "ReceiverPlayerEntityId", "Timestamp" }, "ix_messenger_messages_undelivered")
+                        .HasDatabaseName("ix_messenger_messages_receiver_id_sent_at")
+                        .HasFilter("NOT delivered");
+
                     b.ToTable("messenger_messages", (string)null);
                 });
 
@@ -4678,6 +4695,10 @@ namespace Turbo.Database.Migrations
                     b.HasKey("OperationId")
                         .HasName("pk_pet_respect_operations");
 
+                    b.HasIndex(new[] { "OperationId" }, "ix_pet_respect_operations_pending")
+                        .HasDatabaseName("ix_pet_respect_operations_operation_id")
+                        .HasFilter("NOT completed AND NOT rejected");
+
                     b.ToTable("pet_respect_operations", (string)null);
                 });
 
@@ -4750,6 +4771,10 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("OperationId")
                         .HasName("pk_player_respect_operations");
+
+                    b.HasIndex(new[] { "OperationId" }, "ix_player_respect_operations_pending")
+                        .HasDatabaseName("ix_player_respect_operations_operation_id")
+                        .HasFilter("NOT completed AND NOT rejected");
 
                     b.ToTable("player_respect_operations", (string)null);
                 });
@@ -7060,6 +7085,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_auth_web_sessions");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_auth_web_sessions_expires_at");
 
                     b.HasIndex("PlayerEntityId")
                         .HasDatabaseName("ix_auth_web_sessions_player_id");

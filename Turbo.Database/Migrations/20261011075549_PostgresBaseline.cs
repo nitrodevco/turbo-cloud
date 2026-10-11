@@ -13,6 +13,8 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase().Annotation("Npgsql:PostgresExtension:pg_trgm", ",,");
+
             migrationBuilder.CreateTable(
                 name: "achievement_audit_logs",
                 columns: table => new
@@ -6235,6 +6237,20 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_achievement_facts_occurred_at",
+                table: "achievement_facts",
+                column: "occurred_at",
+                filter: "processed"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_achievement_facts_player_id",
+                table: "achievement_facts",
+                column: "player_id",
+                filter: "NOT processed"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_achievement_facts_player_id_operation_id",
                 table: "achievement_facts",
                 columns: new[] { "player_id", "operation_id" },
@@ -6251,6 +6267,13 @@ namespace Turbo.Database.Migrations
                 name: "ix_achievement_progress_pending_delivery_player_id",
                 table: "achievement_progress",
                 columns: new[] { "pending_delivery", "player_id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_achievement_projections_player_id",
+                table: "achievement_projections",
+                column: "player_id",
+                filter: "publication_pending"
             );
 
             migrationBuilder.CreateIndex(
@@ -6312,6 +6335,12 @@ namespace Turbo.Database.Migrations
                 table: "auth_login_tickets",
                 column: "ticket",
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_auth_web_sessions_expires_at",
+                table: "auth_web_sessions",
+                column: "expires_at"
             );
 
             migrationBuilder.CreateIndex(
@@ -6793,6 +6822,13 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_messenger_messages_receiver_id_sent_at",
+                table: "messenger_messages",
+                columns: new[] { "receiver_id", "sent_at" },
+                filter: "NOT delivered"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_messenger_messages_sender_id_receiver_id_sent_at",
                 table: "messenger_messages",
                 columns: new[] { "sender_id", "receiver_id", "sent_at" }
@@ -6907,6 +6943,13 @@ namespace Turbo.Database.Migrations
                 table: "pet_breeds",
                 columns: new[] { "type_id", "palette_id" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_pet_respect_operations_operation_id",
+                table: "pet_respect_operations",
+                column: "operation_id",
+                filter: "NOT completed AND NOT rejected"
             );
 
             migrationBuilder.CreateIndex(
@@ -7094,6 +7137,13 @@ namespace Turbo.Database.Migrations
                 name: "ix_player_quests_quest_id",
                 table: "player_quests",
                 column: "quest_id"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_player_respect_operations_operation_id",
+                table: "player_respect_operations",
+                column: "operation_id",
+                filter: "NOT completed AND NOT rejected"
             );
 
             migrationBuilder.CreateIndex(
@@ -7385,6 +7435,12 @@ namespace Turbo.Database.Migrations
                 name: "ix_wired_chest_transactions_room_id_id",
                 table: "wired_chest_transactions",
                 columns: new[] { "room_id", "id" }
+            );
+
+            // Moderators search chat by any part of a line, which no b-tree can serve: a trigram
+            // index on the lowered text, matching the query's lower(message) LIKE '%...%'.
+            migrationBuilder.Sql(
+                "CREATE INDEX ix_room_chat_logs_message_trgm ON room_chat_logs USING gin (lower(message) gin_trgm_ops);"
             );
 
             // updated_at is restamped on every update by a trigger, so a bulk ExecuteUpdate, which

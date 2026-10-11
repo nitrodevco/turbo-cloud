@@ -22,6 +22,8 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
         _conn.Open();
         _options = new DbContextOptionsBuilder<TurboDbContext>()
             .UseSqlite(_conn)
+            // The names PostgreSQL has, so raw SQL in the model (an index's filter) reads the same.
+            .UseSnakeCaseNamingConvention()
             .AddInterceptors(new StampTimestamps())
             .ConfigureWarnings(w =>
             {

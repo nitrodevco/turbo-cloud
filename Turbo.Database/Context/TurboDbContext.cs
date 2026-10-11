@@ -286,6 +286,38 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             .Property(x => x.Key)
             .UseCollation(GamedataVariableEntity.KEY_COLLATION);
 
+        // The recovery timer reads the rows still pending every few seconds. A partial index holds
+        // only those, so it stays a handful of entries however large the table grows; a scan of
+        // the whole table measured over a second a tick at 2-3 million rows.
+        mb.Entity<HumanRespectOperationEntity>()
+            .HasIndex(x => x.OperationId, "ix_player_respect_operations_pending")
+            .HasFilter("NOT completed AND NOT rejected");
+        mb.Entity<PetRespectOperationEntity>()
+            .HasIndex(x => x.OperationId, "ix_pet_respect_operations_pending")
+            .HasFilter("NOT completed AND NOT rejected");
+        mb.Entity<AchievementFactEntity>()
+            .HasIndex(x => x.PlayerId, "ix_achievement_facts_unprocessed")
+            .HasFilter("NOT processed");
+        mb.Entity<AchievementProjectionEntity>()
+            .HasIndex(x => x.PlayerId, "ix_achievement_projections_publication_pending")
+            .HasFilter("publication_pending");
+        // The hourly prune finds processed facts past their retention.
+        mb.Entity<AchievementFactEntity>()
+            .HasIndex(x => x.OccurredAtUtc, "ix_achievement_facts_processed_occurred_at")
+            .HasFilter("processed");
+        // Each web sign-in deletes the sessions that have ended.
+        mb.Entity<WebSessionEntity>().HasIndex(x => x.ExpiresAt);
+        // A login replays the messages it hasn't been given, newest first: only undelivered ones.
+        mb.Entity<MessengerMessageEntity>()
+            .HasIndex(
+                x => new { x.ReceiverPlayerEntityId, x.Timestamp },
+                "ix_messenger_messages_undelivered"
+            )
+            .HasFilter("NOT delivered");
+        // Moderators search chat by any part of a line (lower(message) LIKE '%...%'), which no
+        // b-tree can serve; the baseline adds a trigram index on lower(message) for it.
+        mb.HasPostgresExtension("pg_trgm");
+
         foreach (var fk in mb.Model.GetEntityTypes().SelectMany(x => x.GetForeignKeys()))
             if (
                 fk.DeleteBehavior == DeleteBehavior.Cascade

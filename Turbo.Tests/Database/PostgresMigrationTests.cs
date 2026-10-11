@@ -441,6 +441,115 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         currencies.TryGetCurrencyTypeId(CurrencyKind.Credits, out _).Should().BeTrue();
     }
 
+    /// <summary>
+    /// The queries that run on a timer or on every login can each use their index, so their cost
+    /// stays flat as the tables grow: the respect and achievement recovery every few seconds, the
+    /// fact prune, the web sign-in's sweep, the offline-message replay, and the moderators' chat
+    /// search by any part of a line. Each query has the shape of the code that sends it.
+    /// </summary>
+    [Fact]
+    public async Task TheTimerAndLoginQueries_UseTheirIndexes()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+        var now = DateTime.UtcNow;
+        var friends = new List<int> { 2, 3 };
+
+        (
+            await PlanAsync(
+                db,
+                db.HumanRespectOperations.Where(x => !x.Completed && !x.Rejected)
+                    .OrderBy(x => x.OperationId)
+                    .Take(50)
+            )
+        )
+            .Should()
+            .Contain("ix_player_respect_operations_operation_id");
+        (
+            await PlanAsync(
+                db,
+                db.PetRespectOperations.Where(x => !x.Completed && !x.Rejected)
+                    .OrderBy(x => x.OperationId)
+                    .Take(50)
+            )
+        )
+            .Should()
+            .Contain("ix_pet_respect_operations_operation_id");
+        (await PlanAsync(db, db.AchievementFacts.Where(x => !x.Processed).Select(x => x.PlayerId)))
+            .Should()
+            .Contain("ix_achievement_facts_player_id");
+        (
+            await PlanAsync(
+                db,
+                db.AchievementProjections.Where(x => x.PublicationPending).Select(x => x.PlayerId)
+            )
+        )
+            .Should()
+            .Contain("ix_achievement_projections_player_id");
+        (
+            await PlanAsync(
+                db,
+                db.AchievementFacts.Where(x => x.Processed && x.OccurredAtUtc < now)
+                    .Select(x => x.Id)
+            )
+        )
+            .Should()
+            .Contain("ix_achievement_facts_occurred_at");
+        (await PlanAsync(db, db.WebSessions.Where(x => x.ExpiresAt <= now)))
+            .Should()
+            .Contain("ix_auth_web_sessions_expires_at");
+        (
+            await PlanAsync(
+                db,
+                db.MessengerMessages.Where(x =>
+                        x.ReceiverPlayerEntityId == 1
+                        && !x.Delivered
+                        && friends.Contains(x.SenderPlayerEntityId)
+                    )
+                    .OrderByDescending(x => x.Timestamp)
+                    .ThenByDescending(x => x.Id)
+                    .Take(50)
+            )
+        )
+            .Should()
+            .Contain("ix_messenger_messages_receiver_id_sent_at");
+        (
+            await PlanAsync(
+                db,
+                db.Chatlogs.Where(x => EF.Functions.Like(x.Message.ToLower(), "%rude%", "\\"))
+            )
+        )
+            .Should()
+            .Contain("ix_room_chat_logs_message_trgm");
+    }
+
+    /// <summary>The plan for a query with sequential scans priced out, so any usable index shows.</summary>
+    private static async Task<string> PlanAsync<T>(TurboDbContext db, IQueryable<T> query)
+    {
+        await using var command = query.CreateDbCommand();
+        var connection = command.Connection!;
+
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync(Ct);
+
+        await using (var off = connection.CreateCommand())
+        {
+            off.CommandText = "SET enable_seqscan = off";
+            await off.ExecuteNonQueryAsync(Ct);
+        }
+
+        command.CommandText = "EXPLAIN " + command.CommandText;
+        var plan = new System.Text.StringBuilder();
+
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+
+        while (await reader.ReadAsync(Ct))
+            plan.AppendLine(reader.GetString(0));
+
+        return plan.ToString();
+    }
+
     private sealed class Factory(PostgresMigrationTests owner) : IDbContextFactory<TurboDbContext>
     {
         public TurboDbContext CreateDbContext() => owner.Context();
