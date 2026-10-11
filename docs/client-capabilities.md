@@ -158,7 +158,7 @@ public sealed record GiveArguments(
 
 | Source | Values | Used by |
 | --- | --- | --- |
-| `currencies` | enabled `currency_types` names | `:give` |
+| `currencies` | enabled `catalog_currency_types` names | `:give` |
 | `furni` | furni definition names (a sorted array, searched by halving) | `:giveitem` |
 | `groups` | permission group names | `:group` |
 | `nodes` | registered permission nodes | `:perm check` |

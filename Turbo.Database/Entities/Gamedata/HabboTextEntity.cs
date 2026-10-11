@@ -16,7 +16,7 @@ public class HabboTextEntity : TurboEntity
     [MaxLength(GamedataTextEntity.KEY_MAX_LENGTH)]
     public required string Key { get; set; }
 
-    [Column("value", TypeName = "longtext")]
+    [Column("value", TypeName = "text")]
     public required string Value { get; set; }
 
     /// <summary>The version it was last taken in from.</summary>

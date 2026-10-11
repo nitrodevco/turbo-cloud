@@ -33,7 +33,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
 
    The scripts find `~/.dotnet` on their own. A system-wide install under `/usr/share/dotnet` or `/usr/lib/dotnet` works too.
 
-2. **Create a database** (Ploi > Server > Databases) with a user for it.
+2. **Create a PostgreSQL database** (16 or newer; Ploi > Server > Databases) with a user that owns it.
 
 3. **Create the site** with the domain the client will connect to (for example `ws.example.com`). Install this repository on it.
 
@@ -109,7 +109,7 @@ from Cloudflare, for each site on the server.
 
 ## Migrations
 
-`deploy.sh` runs the new release's own `Turbo.Main migrate` against the configured database after the publish succeeds and before the running server is touched. It needs the .NET runtime only, not the `ef` tool. If a migration fails, the deploy stops and the old release keeps running. MySQL does not roll back schema changes, so a migration that fails part-way may leave some of its changes applied; the output names the migration, and the next run resumes there.
+`deploy.sh` runs the new release's own `Turbo.Main migrate` against the configured database after the publish succeeds and before the running server is touched. It needs the .NET runtime only, not the `ef` tool. If a migration fails, the deploy stops and the old release keeps running. PostgreSQL runs each migration in a transaction, so a failed one is rolled back whole; the output names it, and the next run resumes there.
 
 It is the same code the server runs when it starts (see [docs/database.md](../../docs/database.md)): one lock per database, a refusal if the database was made by a newer version, and a refusal to drop a table or a column from a database that has data unless `TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS=true`. Back up first when it says a migration is destructive.
 

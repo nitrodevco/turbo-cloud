@@ -80,7 +80,9 @@ public sealed class AdminChatlogQueries(
                 .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
                 .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
 
-            lines = lines.Where(x => EF.Functions.Like(x.Message, "%" + like + "%", ESCAPE));
+            var lowered = "%" + like.ToLowerInvariant() + "%";
+
+            lines = lines.Where(x => EF.Functions.Like(x.Message.ToLower(), lowered, ESCAPE));
         }
 
         List<RoomChatlogEntity> rows;

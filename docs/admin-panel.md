@@ -78,7 +78,7 @@ undone open as a sheet from the bottom.
    The API listens on `http://127.0.0.1:8090`. `PanelUrl` defaults to `http://localhost:5173`,
    where the panel's dev server runs.
 
-2. **Apply the migrations.** The admin panel adds the `admin_passkeys` table. Turbo migrates its
+2. **Apply the migrations.** The admin panel adds the `auth_admin_passkeys` table. Turbo migrates its
    own database when it starts (see [database.md](database.md)), so there is nothing to do; to
    do it ahead of time, run `dotnet run --project Turbo.Main -- migrate`.
 
@@ -119,7 +119,7 @@ TURBO_ADMIN_ENABLED=true
 TURBO_ADMIN_PANEL_URL=https://admin.example.com
 ```
 
-Then deploy. The deploy applies the `admin_passkeys` migration, and Turbo starts the API on
+Then deploy. The deploy applies the `auth_admin_passkeys` migration, and Turbo starts the API on
 `127.0.0.1:8090`.
 
 - `TURBO_ADMIN_PANEL_URL` must be the panel's exact address. Passkeys are bound to its domain,
@@ -636,7 +636,7 @@ raffled; after that, switch it off. A club gift can't be limited. Saving tells a
 read the series again, so switching it off stops it at once. Players see the new numbers when you
 publish.
 
-**Currencies.** An offer's second price names a row of `currency_types`, and the hotel charges
+**Currencies.** An offer's second price names a row of `catalog_currency_types`, and the hotel charges
 that row's activity-point type. Duckets are row 4 but type 0, so earlier code that charged the row
 number charged the wrong currency. The editor only offers activity-point currencies that are
 enabled.
@@ -743,7 +743,7 @@ player whose every permission you hold, the same rule as passkey setup links. A 
 that never runs out is a standing login; the card warns you, so keep it like a password.
 
 Tickets are 32 random bytes and aren't tied to an address. The server stores only a SHA-256 hash
-of each ticket it issues (`sha256:…` in `security_tickets.ticket`), so a copy of the table logs
+of each ticket it issues (`sha256:…` in `auth_login_tickets.ticket`), so a copy of the table logs
 nobody in; that is also why the card can't show the ticket again. Tickets written by something
 else (a CMS, the load-test bots) are stored as written and work as before: without an end time, a plain one is used up by its first
 login and a reusable ("locked") one never is. A plain ticket can only ever log in once, even if two
@@ -920,7 +920,7 @@ The **Content** page is the game's content, each change made at once and on reco
 - **Achievements**, from the achievement catalog, by category. An edit (a level's requirement,
   badge, score or reward, the state, the dates, or the whole definition as JSON) is **checked** as
   the catalog checks every definition, then **published** as the achievement's next revision with
-  a reason, kept in `achievement_audit`, and live at once. **Copy as a new achievement** starts one
+  a reason, kept in `achievement_audit_logs`, and live at once. **Copy as a new achievement** starts one
   from another. Retiring keeps what players earned and gives nothing more.
 - **Badges**: every code players hold or that has a pinned rarity, most held first. Pin a rarity
   (it reaches the hotel within the badge directory's `OwnerCountRefreshMs`), see who holds a badge,

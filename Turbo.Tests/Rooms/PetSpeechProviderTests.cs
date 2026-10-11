@@ -1,8 +1,6 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Pets;
-using Turbo.Database.Migrations;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Rooms.Providers;
 using Turbo.Tests.Support;
@@ -11,8 +9,9 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// What a pet says comes from <c>pet_speech</c>, by its type: a type's own lines, else the lines
-/// every type shares, else nothing. The shipped rows give each animal its own sounds.
+/// What a pet says comes from <c>pet_speech_lines</c>, by its type: a type's own lines, else the
+/// lines every type shares, else nothing. The shipped rows are checked in
+/// <see cref="Database.PostgresMigrationTests"/>.
 /// </summary>
 public sealed class PetSpeechProviderTests : IDisposable
 {
@@ -50,24 +49,6 @@ public sealed class PetSpeechProviderTests : IDisposable
 
         (await LoadAsync()).GetLines(COW).Should().Equal("...");
         (await LoadAsync()).GetLines(CAT).Should().Equal(["Meow!"], "a type's own lines win");
-    }
-
-    [Fact]
-    public void TheShippedLines_GiveEachAnimalItsOwnSounds()
-    {
-        var rows = new AddPetSpeech().UpOperations.OfType<InsertDataOperation>().Single().Values;
-        var lines = Enumerable
-            .Range(0, rows.GetLength(0))
-            .Select(i => (Type: (int)rows[i, 0]!, Line: (string)rows[i, 1]!))
-            .ToList();
-
-        lines
-            .Where(x => x.Line == "Woof!")
-            .Select(x => x.Type)
-            .Should()
-            .OnlyContain(type => type == DOG || type == 36, "only the dog and the dragon dog bark");
-        lines.Where(x => x.Type == CAT).Select(x => x.Line).Should().Contain("Meow!");
-        lines.Should().OnlyContain(x => x.Line.Length > 0 && x.Line.Length <= 100);
     }
 
     private int _nextId;

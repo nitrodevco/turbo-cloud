@@ -4,7 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
-[Table("room_chatlogs")]
+[Table("room_chat_logs")]
 public class RoomChatlogEntity : TurboEntity
 {
     public const int MESSAGE_MAX_LENGTH = 100;

@@ -36,7 +36,7 @@ public class HabboFurnitureAssetEntity : TurboEntity
     public string? VisualizationType { get; set; }
 
     /// <summary>Everything read from the file (<c>FurnitureAssetInfo</c>), as JSON.</summary>
-    [Column("info", TypeName = "longtext")]
+    [Column("info", TypeName = "text")]
     public string? Info { get; set; }
 
     [Column("error")]

@@ -19,7 +19,7 @@ public class MessengerMessageEntity : TurboEntity
     [Column("message")]
     public required string Message { get; set; }
 
-    [Column("timestamp")]
+    [Column("sent_at")]
     public required DateTime Timestamp { get; set; }
 
     [Column("delivered")]

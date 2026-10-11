@@ -20,7 +20,6 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Settings;
 using Turbo.Database.Entities.Sound;
-using Turbo.Database.Entities.Tracking;
 using Turbo.Database.Entities.WiredTrading;
 
 namespace Turbo.Database.Context;
@@ -181,8 +180,6 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
 
-    public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
-
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
 
     public DbSet<LtdSeriesEntity> LtdSeries { get; init; }
@@ -245,6 +242,13 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             .WithMany()
             .HasForeignKey(x => x.CurrencyTypeEntityId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // PostgreSQL keeps 63 characters of a name; the one made for this key ran to 64.
+        mb.Entity<PlayerDailyTaskEntity>()
+            .HasOne(x => x.Definition)
+            .WithMany()
+            .HasForeignKey(x => x.DefinitionEntityId)
+            .HasConstraintName("fk_player_daily_tasks_definition_id");
 
         mb.Entity<GamedataTextEntity>()
             .Property(x => x.Key)

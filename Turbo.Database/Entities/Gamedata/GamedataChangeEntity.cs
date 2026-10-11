@@ -30,10 +30,10 @@ public class GamedataChangeEntity : TurboEntity
     [MaxLength(LABEL_MAX_LENGTH)]
     public required string Label { get; set; }
 
-    [Column("before", TypeName = "longtext")]
+    [Column("before", TypeName = "text")]
     public string? Before { get; set; }
 
-    [Column("after", TypeName = "longtext")]
+    [Column("after", TypeName = "text")]
     public string? After { get; set; }
 
     [ForeignKey(nameof(ChangeSetEntityId))]

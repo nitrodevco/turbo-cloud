@@ -7,9 +7,12 @@ namespace Turbo.Database.Entities.Catalog;
 /// <summary>
 /// Configuration for an LTD (Limited Edition) series.
 /// </summary>
-[Table("ltd_series")]
+[Table(TABLE)]
 public class LtdSeriesEntity : TurboEntity
 {
+    /// <summary>The table, which the raffle's row lock names in SQL.</summary>
+    public const string TABLE = "catalog_ltd_series";
+
     /// <summary>
     /// Links to the catalog product this LTD series is for.
     /// </summary>

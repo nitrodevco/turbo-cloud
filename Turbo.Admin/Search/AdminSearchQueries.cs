@@ -125,7 +125,8 @@ public sealed class AdminSearchQueries(
     /// <summary>Catalog pages whose caption or open-by name has the term, in tree order.</summary>
     private async Task<SearchGroup?> CatalogPagesAsync(string term, int take, CancellationToken ct)
     {
-        var like = $"%{Escape(term)}%";
+        // Lowered on both sides: case is ignored the same way on every database.
+        var like = $"%{Escape(term).ToLowerInvariant()}%";
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         await using var dbScope = db.ConfigureAwait(false);
@@ -133,8 +134,8 @@ public sealed class AdminSearchQueries(
         var matching = db
             .CatalogPages.AsNoTracking()
             .Where(x =>
-                EF.Functions.Like(x.Localization, like, ESCAPE)
-                || (x.Name != null && EF.Functions.Like(x.Name, like, ESCAPE))
+                EF.Functions.Like(x.Localization.ToLower(), like, ESCAPE)
+                || (x.Name != null && EF.Functions.Like(x.Name.ToLower(), like, ESCAPE))
             );
         var total = await matching.CountAsync(ct).ConfigureAwait(false);
         var pages = await matching

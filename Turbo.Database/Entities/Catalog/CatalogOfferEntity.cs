@@ -10,7 +10,7 @@ public class CatalogOfferEntity : TurboEntity
     [Column("page_id")]
     public required int CatalogPageEntityId { get; set; }
 
-    [Column("localization_id")]
+    [Column("product_code")]
     public required string LocalizationId { get; set; }
 
     [Column("cost_credits")]

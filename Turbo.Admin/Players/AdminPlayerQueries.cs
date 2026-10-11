@@ -84,11 +84,17 @@ public sealed class AdminPlayerQueries(
                         l.PlayerEntityId == x.Id
                         && (
                             l.DiscordId == term
-                            || EF.Functions.Like(l.DiscordUsername, "%" + like + "%", ESCAPE)
+                            || EF.Functions.Like(
+                                l.DiscordUsername.ToLower(),
+                                "%" + like.ToLowerInvariant() + "%",
+                                ESCAPE
+                            )
                         )
                     )
                 ),
-                _ => players.Where(x => EF.Functions.Like(x.Name, "%" + like + "%", ESCAPE)),
+                _ => players.Where(x =>
+                    EF.Functions.Like(x.NameKey, "%" + like.ToLowerInvariant() + "%", ESCAPE)
+                ),
             };
         }
 

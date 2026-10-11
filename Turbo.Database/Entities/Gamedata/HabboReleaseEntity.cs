@@ -10,7 +10,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// the furniture data it served then, gzipped, so an import works from what was checked. A row is
 /// one furniture data: Habbo serving the same data again only moves <see cref="CheckedAt"/>.
 /// </summary>
-[Table("habbo_releases")]
+[Table("habbo_furniture_versions")]
 [Index(nameof(Domain), nameof(FurnitureDataHash), IsUnique = true)]
 public class HabboReleaseEntity : TurboEntity
 {

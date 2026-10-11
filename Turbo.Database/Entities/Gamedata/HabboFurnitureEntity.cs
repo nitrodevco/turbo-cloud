@@ -25,7 +25,7 @@ public class HabboFurnitureEntity : TurboEntity
     public required int SpriteId { get; set; }
 
     /// <summary>The furnidata item, as JSON.</summary>
-    [Column("data", TypeName = "longtext")]
+    [Column("data", TypeName = "text")]
     public required string Data { get; set; }
 
     /// <summary>The release it was last taken in from.</summary>

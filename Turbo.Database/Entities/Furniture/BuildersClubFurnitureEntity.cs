@@ -20,7 +20,7 @@ namespace Turbo.Database.Entities.Furniture;
 /// furni id pointing at the same furni.
 /// </para>
 /// </summary>
-[Table("builders_club_furniture")]
+[Table("furniture_builders_club")]
 [PrimaryKey(nameof(RoomEntityId), nameof(RoomObjectId))]
 // The borrow count is per player across every room, which the key above cannot serve.
 [Index(nameof(PlacedByPlayerEntityId))]
@@ -52,7 +52,7 @@ public class BuildersClubFurnitureEntity : IPlacedFurnitureEntity
     [DefaultValue(0)]
     public int Y { get; set; }
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 

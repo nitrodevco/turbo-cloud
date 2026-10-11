@@ -18,16 +18,16 @@ public class GamedataVariableEntity : TurboEntity
     public const int KEY_MAX_LENGTH = 255;
 
     /// <summary>
-    /// The collation a key is kept under: binary, so keys that differ only in case are two keys,
-    /// as they are to the client.
+    /// The collation a key is kept under: PostgreSQL's byte-order <c>C</c>, so keys that differ
+    /// only in case are two keys, as they are to the client.
     /// </summary>
-    public const string KEY_COLLATION = "utf8mb4_bin";
+    public const string KEY_COLLATION = "C";
 
     [Column("variable_key")]
     [MaxLength(KEY_MAX_LENGTH)]
     public required string Key { get; set; }
 
-    [Column("value", TypeName = "longtext")]
+    [Column("value", TypeName = "text")]
     public required string Value { get; set; }
 
     /// <summary>

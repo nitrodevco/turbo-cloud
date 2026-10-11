@@ -16,10 +16,10 @@ public class HabboProductEntity : TurboEntity
     [MaxLength(GamedataProductEntity.CODE_MAX_LENGTH)]
     public required string Code { get; set; }
 
-    [Column("name", TypeName = "longtext")]
+    [Column("name", TypeName = "text")]
     public string? Name { get; set; }
 
-    [Column("description", TypeName = "longtext")]
+    [Column("description", TypeName = "text")]
     public string? Description { get; set; }
 
     /// <summary>The version it was last taken in from.</summary>

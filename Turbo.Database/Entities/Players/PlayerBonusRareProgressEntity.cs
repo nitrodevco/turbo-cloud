@@ -17,7 +17,7 @@ public class PlayerBonusRareProgressEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("campaign_id")]
+    [Column("campaign_code")]
     [MaxLength(100)]
     public required string CampaignId { get; set; }
 

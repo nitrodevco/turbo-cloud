@@ -15,16 +15,16 @@ public class GamedataProductEntity : TurboEntity
 {
     public const int CODE_MAX_LENGTH = 255;
 
-    /// <summary>Binary, as a text key's: Habbo has codes that differ only in case.</summary>
-    public const string CODE_COLLATION = "utf8mb4_bin";
+    /// <summary>Byte order, as a text key's: Habbo has codes that differ only in case.</summary>
+    public const string CODE_COLLATION = "C";
 
     [Column("code")]
     [MaxLength(CODE_MAX_LENGTH)]
     public required string Code { get; set; }
 
-    [Column("name", TypeName = "longtext")]
+    [Column("name", TypeName = "text")]
     public string? Name { get; set; }
 
-    [Column("description", TypeName = "longtext")]
+    [Column("description", TypeName = "text")]
     public string? Description { get; set; }
 }

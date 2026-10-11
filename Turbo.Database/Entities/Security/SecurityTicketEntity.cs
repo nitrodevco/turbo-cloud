@@ -8,7 +8,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Security;
 
-[Table("security_tickets")]
+[Table("auth_login_tickets")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 [Index(nameof(Ticket), IsUnique = true)]
 public class SecurityTicketEntity : TurboEntity

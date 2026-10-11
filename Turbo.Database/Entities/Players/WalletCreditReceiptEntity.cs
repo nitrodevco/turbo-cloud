@@ -6,7 +6,7 @@ using Turbo.Primitives.Players.Wallet;
 namespace Turbo.Database.Entities.Players;
 
 /// <summary>Records that a referenced credit was applied, so repeating it changes nothing.</summary>
-[Table("wallet_credit_receipts")]
+[Table("player_wallet_credit_receipts")]
 [PrimaryKey(nameof(PlayerId), nameof(Reference))]
 public sealed class WalletCreditReceiptEntity
 {

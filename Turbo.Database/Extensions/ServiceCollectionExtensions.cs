@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using MySqlConnector;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
@@ -17,37 +16,6 @@ namespace Turbo.Database.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    /// The server version per connection string, asked of the server once. A plugin context's
-    /// options are built per scope, and <see cref="ServerVersion.AutoDetect(string)"/> opens a
-    /// connection and queries the version each time it is called.
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, Lazy<ServerVersion>> SERVER_VERSIONS = new(
-        StringComparer.Ordinal
-    );
-
-    /// <summary>
-    /// The configured server version when there is one, which needs no connection; otherwise
-    /// the server's own, asked on a connection without the database name: the version does not
-    /// depend on it, and the database may be one the server has yet to create.
-    /// </summary>
-    private static ServerVersion GetServerVersion(DatabaseConfig config) =>
-        !string.IsNullOrWhiteSpace(config.ServerVersion)
-            ? ServerVersion.Parse(config.ServerVersion)
-            : SERVER_VERSIONS
-                .GetOrAdd(
-                    config.ConnectionString,
-                    static key => new Lazy<ServerVersion>(() =>
-                        ServerVersion.AutoDetect(
-                            new MySqlConnectionStringBuilder(key)
-                            {
-                                Database = string.Empty,
-                            }.ConnectionString
-                        )
-                    )
-                )
-                .Value;
-
     public static IServiceCollection AddTurboDatabaseContext(
         this IServiceCollection services,
         HostApplicationBuilder builder
@@ -58,7 +26,7 @@ public static class ServiceCollectionExtensions
         );
 
         // One migrator for the emulator's tables and every plugin's, and one lock between them.
-        services.AddSingleton<IMigrationLock, MySqlMigrationLock>();
+        services.AddSingleton<IMigrationLock, PostgresMigrationLock>();
         services.AddSingleton<DatabaseMigrator>();
 
         // Pooled: every grain turn that touches the database creates a context, and TurboDbContext
@@ -66,10 +34,10 @@ public static class ServiceCollectionExtensions
         // Consumers still take IDbContextFactory<TurboDbContext>.
         services.AddPooledDbContextFactory<TurboDbContext>(
             (sp, options) =>
-                UseTurboMySql(
+                UseTurboPostgres(
                     options,
                     sp.GetRequiredService<IOptions<DatabaseConfig>>().Value,
-                    mysql => mysql.MigrationsAssembly("Turbo.Database")
+                    npgsql => npgsql.MigrationsAssembly("Turbo.Database")
                 )
         );
 
@@ -109,11 +77,11 @@ public static class ServiceCollectionExtensions
                 var prefix = sp.GetRequiredService<TablePrefixProvider>();
                 var host = sp.GetRequiredService<IHostServices>();
 
-                UseTurboMySql(
+                UseTurboPostgres(
                     options,
                     host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
-                    mysql =>
-                        mysql.MigrationsHistoryTable(
+                    npgsql =>
+                        npgsql.MigrationsHistoryTable(
                             $"__EFMigrationsHistory_{prefix().TrimEnd('_')}"
                         )
                 );
@@ -124,19 +92,23 @@ public static class ServiceCollectionExtensions
     }
 
     // The emulator's and every plugin's contexts connect the same way; only the migrations
-    // setup differs. With LoggingEnabled off, EF is given no logger at all, so its command and
-    // change-tracking logs stay out of the host log whatever the log level filters say.
-    private static void UseTurboMySql(
+    // setup differs. Every table and column is snake_case, whatever the entity calls it, so a
+    // name never needs quoting in SQL. With LoggingEnabled off, EF is given no logger at all, so
+    // its command and change-tracking logs stay out of the host log whatever the log level
+    // filters say.
+    public static DbContextOptionsBuilder UseTurboPostgres(
         DbContextOptionsBuilder options,
         DatabaseConfig dbConfig,
-        Action<MySqlDbContextOptionsBuilder> configureMySql
+        Action<NpgsqlDbContextOptionsBuilder>? configureNpgsql = null
     )
     {
-        var connectionString = dbConfig.ConnectionString;
-
-        options.UseMySql(connectionString, GetServerVersion(dbConfig), configureMySql);
+        options
+            .UseNpgsql(dbConfig.ConnectionString, configureNpgsql)
+            .UseSnakeCaseNamingConvention();
 
         if (!dbConfig.LoggingEnabled)
             options.UseLoggerFactory(NullLoggerFactory.Instance);
+
+        return options;
     }
 }

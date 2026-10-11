@@ -16,10 +16,10 @@ public class ServerSettingChangeEntity : TurboEntity
     [MaxLength(ServerSettingEntity.PATH_MAX_LENGTH)]
     public required string Path { get; set; }
 
-    [Column("before", TypeName = "longtext")]
+    [Column("before", TypeName = "text")]
     public string? Before { get; set; }
 
-    [Column("after", TypeName = "longtext")]
+    [Column("after", TypeName = "text")]
     public string? After { get; set; }
 
     [Column("secret")]

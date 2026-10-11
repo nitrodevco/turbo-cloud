@@ -307,9 +307,10 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
         try
         {
+            // The table's name is the entity's own constant, so a rename can't leave this behind.
             var series = await dbCtx
                 .LtdSeries.FromSqlRaw(
-                    "SELECT * FROM ltd_series WHERE id = {0} FOR UPDATE",
+                    "SELECT * FROM " + LtdSeriesEntity.TABLE + " WHERE id = {0} FOR UPDATE",
                     _state.SeriesId
                 )
                 .OrderBy(x => x.Id)

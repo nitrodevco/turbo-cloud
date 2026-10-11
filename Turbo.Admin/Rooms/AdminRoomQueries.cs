@@ -65,9 +65,12 @@ public sealed class AdminRoomQueries(
                     ? rooms.Where(x => x.Id == id)
                     : rooms.Where(x => false),
                 RoomSearchMode.Owner => rooms.Where(x =>
-                    EF.Functions.Like(x.PlayerEntity.Name, like + "%", ESCAPE)
+                    EF.Functions.Like(x.PlayerEntity.NameKey, like.ToLowerInvariant() + "%", ESCAPE)
                 ),
-                _ => rooms.Where(x => EF.Functions.Like(x.Name, "%" + like + "%", ESCAPE)),
+                // Lowered on both sides: case is ignored the same way on every database.
+                _ => rooms.Where(x =>
+                    EF.Functions.Like(x.Name.ToLower(), "%" + like.ToLowerInvariant() + "%", ESCAPE)
+                ),
             };
         }
 

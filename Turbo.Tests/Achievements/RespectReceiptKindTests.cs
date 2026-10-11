@@ -7,10 +7,10 @@ using Xunit;
 namespace Turbo.Tests.Achievements;
 
 /// <summary>
-/// Every kind a respect receipt records fits its <c>Kind</c> column. MySQL refuses a longer
+/// Every kind a respect receipt records fits its <c>Kind</c> column. PostgreSQL refuses a longer
 /// value, and a refused receipt is a refused respect: <c>pet-spend</c> outgrew the column and
 /// every pet scratch failed. SQLite ignores column lengths, so a round trip through the test
-/// database cannot see this; the model's declared length is what MySQL enforces.
+/// database cannot see this; the model's declared length is what PostgreSQL enforces.
 /// </summary>
 public sealed class RespectReceiptKindTests : IDisposable
 {
@@ -28,7 +28,7 @@ public sealed class RespectReceiptKindTests : IDisposable
 
     [Theory]
     [MemberData(nameof(Kinds))]
-    public void EveryKind_FitsTheColumnMySqlEnforces(string kind)
+    public void EveryKind_FitsTheColumnTheDatabaseEnforces(string kind)
     {
         using var db = _db.CreateDbContext();
 

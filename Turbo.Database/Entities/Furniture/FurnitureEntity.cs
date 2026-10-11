@@ -30,7 +30,7 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     [DefaultValue(0)]
     public int Y { get; set; } = 0;
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 

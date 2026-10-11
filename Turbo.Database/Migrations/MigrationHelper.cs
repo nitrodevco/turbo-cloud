@@ -59,19 +59,21 @@ public static class MigrationHelper
                 $"Refusing to uninstall {typeof(TContext).Name}: table prefix '{prefix}' is empty or not a plain identifier, so its tables cannot be told apart from the hotel's."
             );
 
-        // `_` is a LIKE wildcard: "tsp_" would otherwise also match "tspx...".
+        // `_` is a LIKE wildcard: "tsp_" would otherwise also match "tspx...". CASCADE drops the
+        // foreign keys other tables hold on them.
         var tablePrefix = prefix.Replace("_", @"\_");
 
         var sql =
             $@"
-SET @sql = (
-  SELECT GROUP_CONCAT(CONCAT('DROP TABLE IF EXISTS `', TABLE_SCHEMA, '`.`', TABLE_NAME, '`') SEPARATOR ';')
-  FROM INFORMATION_SCHEMA.TABLES
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE '{tablePrefix}%'
-);
-SET FOREIGN_KEY_CHECKS = 0;
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET FOREIGN_KEY_CHECKS = 1;";
+DO $$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables
+           WHERE schemaname = current_schema() AND tablename LIKE '{tablePrefix}%'
+  LOOP
+    EXECUTE format('DROP TABLE IF EXISTS %I CASCADE', t.tablename);
+  END LOOP;
+END $$;";
         await db.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
     }
 }

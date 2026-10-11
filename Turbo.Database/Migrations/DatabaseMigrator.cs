@@ -332,9 +332,9 @@ public sealed class DatabaseMigrator(
             {
                 throw new MigrationException(
                     $"Database {label}: migration {name} failed: {ex.Message} "
-                        + $"{applied.Count} earlier migration(s) were applied. MySQL cannot roll back a "
-                        + "schema change, so the database is left as the failure found it: fix the cause "
-                        + "(or restore a backup) and start again. Applying resumes at this migration.",
+                        + $"{applied.Count} earlier migration(s) were applied; this one was rolled back "
+                        + "whole, as PostgreSQL runs each migration in a transaction. Fix the cause and "
+                        + "start again: applying resumes at this migration.",
                     ex
                 );
             }

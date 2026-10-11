@@ -352,8 +352,8 @@ grain.
 - `guild_members` — guild id, player id, rank, and whether it is the player's favourite group.
   Member-since is `created_at`, so there is no column for it. Unique on (guild, player); indexed
   on player alone for "my groups", and on (guild, rank) for the member search. The rank column
-  is `member_rank`, not `rank`: `rank` is reserved in MySQL 8, and the seed migrations write raw
-  SQL where that would bite.
+  is `member_rank`, not `rank`: `rank` is a reserved word in some SQL dialects and a function
+  name in PostgreSQL, so raw SQL would have to quote it.
 - `guild_badge_parts` — base and symbol parts (`part_type`, `part_id`, `file_name`,
   `mask_file_name`), seeded. Feeds `GuildEditorData`. `part_id` is not the row id: it is the
   number written into a badge code, so it must never be pointed at a different picture.

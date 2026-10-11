@@ -10,7 +10,7 @@ namespace Turbo.Database.Entities.Hotel;
 /// A promo article of the reception's carousel: a title, words, a picture and a button. Players
 /// see the visible ones within their dates, by <see cref="SortOrder"/>.
 /// </summary>
-[Table("promo_articles")]
+[Table("hotel_promo_articles")]
 [Index(nameof(SortOrder))]
 public class PromoArticleEntity : TurboEntity
 {

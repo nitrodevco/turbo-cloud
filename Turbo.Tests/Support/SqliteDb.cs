@@ -80,7 +80,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     public void Dispose() => _conn.Dispose();
 
     /// <summary>
-    /// The model with the two timestamps written by the caller: MySQL generates them (and
+    /// The model with the two timestamps written by the caller: PostgreSQL generates them (and
     /// <c>updated_at</c> on every change), SQLite cannot, so here they are plain columns that
     /// <see cref="StampTimestamps"/> fills in.
     /// </summary>
@@ -93,7 +93,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 
             foreach (var entityType in mb.Model.GetEntityTypes())
             {
-                // MySQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
+                // PostgreSQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
                 foreach (var property in entityType.GetProperties())
                     property.SetCollation(null);
 
@@ -110,7 +110,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     }
 
     /// <summary>
-    /// MySQL fills <c>created_at</c> and <c>updated_at</c> itself, and SQLite has no generator for
+    /// PostgreSQL fills <c>created_at</c> and <c>updated_at</c> itself, and SQLite has no generator for
     /// them, so a row added through EF is stamped here instead, as the database would.
     /// </summary>
     private sealed class StampTimestamps : SaveChangesInterceptor

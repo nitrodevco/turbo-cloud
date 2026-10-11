@@ -9,7 +9,7 @@ namespace Turbo.Database.Entities.Catalog;
 /// Credits bought, recorded once for the bonus rare under the purchase integration's own
 /// reference: a reference recorded again counts nothing.
 /// </summary>
-[Table("bonus_rare_receipts")]
+[Table("catalog_bonus_rare_receipts")]
 [Index(nameof(Reference), IsUnique = true)]
 public class BonusRareReceiptEntity : TurboEntity
 {

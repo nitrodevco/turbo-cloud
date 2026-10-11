@@ -12,7 +12,7 @@ public class DatabaseConfig
 {
     public const string SECTION_NAME = "Turbo:Database";
 
-    /// <summary>The MySQL or MariaDB connection string, its password included.</summary>
+    /// <summary>The PostgreSQL connection string, its password included.</summary>
     [SecretSetting]
     public string ConnectionString { get; init; } = string.Empty;
     public bool LoggingEnabled { get; init; } = false;
@@ -39,11 +39,4 @@ public class DatabaseConfig
     /// ALTER on a table with millions of rows.
     /// </summary>
     public int MigrationCommandTimeoutMinutes { get; init; } = 30;
-
-    /// <summary>
-    /// The database server, such as <c>mysql 8.4.0</c> or <c>mariadb 11.4.0</c>, instead of asking
-    /// it at startup. Lets <c>Turbo.Main migrate --script</c> write the SQL without a connection.
-    /// Empty asks the server.
-    /// </summary>
-    public string ServerVersion { get; init; } = string.Empty;
 }

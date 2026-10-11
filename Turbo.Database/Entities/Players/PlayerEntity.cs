@@ -78,7 +78,7 @@ public class PlayerEntity : TurboEntity
     public DateTime? RespectResetDate { get; set; }
 
     /// <summary>When the player last opened a session (UTC); null for one who never has.</summary>
-    [Column("last_login")]
+    [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
 
     [InverseProperty("PlayerEntity")]
@@ -141,7 +141,7 @@ public class PlayerEntity : TurboEntity
     [InverseProperty("ReceiverPlayerEntity")]
     public List<MessengerMessageEntity>? MessengerMessagesReceived { get; set; }
 
-    /// <summary>When the row last changed; MySQL sets it on every update.</summary>
+    /// <summary>When the row last changed; a trigger sets it on every update.</summary>
     [Column("updated_at")]
     [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdatedAt { get; set; }

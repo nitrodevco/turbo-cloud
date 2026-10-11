@@ -30,7 +30,7 @@ public class PlayerRewardTrackEntity : TurboEntity
     [DefaultValue(false)]
     public bool Premium { get; set; }
 
-    [Column("progress_json", TypeName = "longtext")]
+    [Column("progress_json", TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string ProgressJson { get; set; } = "{}";
 

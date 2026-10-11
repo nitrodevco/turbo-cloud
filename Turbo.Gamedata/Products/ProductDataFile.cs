@@ -14,7 +14,7 @@ namespace Turbo.Gamedata.Products;
 /// keys as <c>"25"</c> all the same); a name or description may be null, and stays so. A code given
 /// twice keeps its first place and its last values. A code is trimmed: Habbo lists a few with
 /// stray spaces or tabs (<c>"avatar_effect27 "</c> beside <c>"avatar_effect27"</c>), which no
-/// offer's name key could match, and which MySQL would take for the code without them.
+/// offer's name key could match.
 /// </summary>
 internal static class ProductDataFile
 {

@@ -45,7 +45,7 @@ public class FurnitureDefinitionEntity : TurboEntity
     [DefaultValue(1)]
     public required int Length { get; set; } // rows
 
-    [Column("stack_height", TypeName = "double(10,4)")]
+    [Column("stack_height")]
     [DefaultValue(0.0d)]
     public required double StackHeight { get; set; } // depth
 
@@ -88,7 +88,7 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     // Named JSON sections (a crackable's rewards, a vending machine's items...): longer than the
     // 512 characters a plain string column takes.
-    [Column("extra_data", TypeName = "longtext")]
+    [Column("extra_data", TypeName = "text")]
     public string? ExtraData { get; set; }
 
     // What only the client's furnidata says of the furniture. The rest of a furnidata item is

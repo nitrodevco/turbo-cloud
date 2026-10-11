@@ -9,7 +9,7 @@ namespace Turbo.Database.Entities.Moderation;
 /// One word per row, matched whole and ignoring case; a room owner's own list is
 /// <c>room_filter_words</c>.
 /// </summary>
-[Table("filter_words")]
+[Table("moderation_filter_words")]
 [Index(nameof(Word), IsUnique = true)]
 public class FilterWordEntity : TurboEntity
 {

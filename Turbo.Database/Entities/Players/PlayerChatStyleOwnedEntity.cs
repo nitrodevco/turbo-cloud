@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Players;
 
-[Table("player_chat_styles_owned")]
+[Table("player_chat_styles")]
 [Index(nameof(PlayerEntityId), nameof(ChatStyleId), IsUnique = true)]
 public class PlayerChatStyleOwnedEntity : TurboEntity
 {

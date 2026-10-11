@@ -13,7 +13,7 @@ page under **Gamedata** in the panel.
 - **Habbo's releases.** Every `ReleaseCheckMinutes`, and when staff press **Check now**, Turbo reads
   `www.habbo.<HabboDomain>/gamedata/external_variables/0` for the revision (the
   `flash-assets-<revision>` of `flash.client.url`). It then downloads `furnidata_json/0`. New
-  furniture data is kept in `habbo_releases`, gzipped, by its SHA-1. Nothing is taken in until
+  furniture data is kept in `habbo_furniture_versions`, gzipped, by its SHA-1. Nothing is taken in until
   staff do it.
 - **The definitions are the source.** `furniture_definitions` holds every furnidata field. Some
   are the columns the server already used (`xdim` is `width`, `canstandon` is `can_walk`,
@@ -76,7 +76,7 @@ page under **Gamedata** in the panel.
 ## Product data
 
 Product data gives the name and description the client shows for a catalog offer. The client
-looks it up by the offer's name key (`catalog_offers.localization_id`). With no product of that
+looks it up by the offer's name key (`catalog_offers.product_code`). With no product of that
 code, the client shows the furniture's own name.
 
 Each check of Habbo also downloads its `productdata_json`, and keeps a new version in
@@ -128,7 +128,7 @@ The figure data is the colours and clothing avatars are drawn from, and who may 
 Each check of Habbo also downloads its `figuredata` (XML), and keeps a new version in
 `habbo_figure_versions`.
 - **Records:** each colour (keyed `palette/id`), kind of clothing (`hr`, `ch`, ...) and piece (by
-  its id) is one record in `gamedata_figure_records`. Its fields are JSON, by the names Habbo's
+  its id) is one record in `gamedata_figures`. Its fields are JSON, by the names Habbo's
   file gives them.
 - **Taking in:** **Gamedata → Figures** reviews a version and takes it in, in the background. Each
   field is compared three ways, as a product's are; a piece's parts and hidden layers are each one
@@ -293,8 +293,8 @@ client reads them (nitro-react's `HotelViewWidgets.ts`, after Flash's `WidgetCon
 | **Preview** | Nothing: the reception on a 1600 by 900 window at the time chosen, and what each slot shows then. A slot clicked opens it. |
 | **Slots** | The five widget slots (`landing.view.dynamic.slot.<n>.*`): the widget each holds; for a container (`widgetcontainer`), the schedule of promos it shows (`.conf`, `date,code;...`); for a promo of its own (`generic`), that promo; the headings over slots 4 and 5, and whether slots 2 and 3 line up. And the bottom slot 6, beside the avatar, which takes only the layout's fixed widgets: the expiring catalogue page, the community goal and the next limited rare. |
 | **Promos** | The promos schedules name, each under a code (`landing.view.<code>.widget`, `.conf`, `.layout`): its picture and where it and the column sit, and the column's headings, text, buttons, links and countdowns. Each element's words are an external text, edited beside it. Promos are made, copied and removed here; removing one takes it out of the schedules. |
-| **Articles** | The promo articles a slot holding the **Promo articles** widget (`promoarticle`) shows: title, text, a picture under the image library, a button to a web page or a client link, and the dates they show between. Kept in `promo_articles`, saved at once (not with the variables), and sent in order, ten at most (`Turbo:Catalog:Reception:PromoArticleLimit`). Another silo sees an edit within `CacheSeconds`. |
-| **Community goals** | Campaigns the hotel plays together, shown by a slot holding a community goal widget (`communitygoal`, `communitygoalvsmode`, `communitygoalvsmodevote`). The last one started is played. Each item bought from its catalogue page is a point; a versus goal has a page per side, and a voting one lets every player vote once, for a point to a side. Its levels (one to three scores, or how far a side must lead), prize bands, dates and words (`landing.view.community.headline.<code>`, ...) are edited here, with the standing and the best contributors. Kept in `community_goals` and `community_goal_contributions`. |
+| **Articles** | The promo articles a slot holding the **Promo articles** widget (`promoarticle`) shows: title, text, a picture under the image library, a button to a web page or a client link, and the dates they show between. Kept in `hotel_promo_articles`, saved at once (not with the variables), and sent in order, ten at most (`Turbo:Catalog:Reception:PromoArticleLimit`). Another silo sees an edit within `CacheSeconds`. |
+| **Community goals** | Campaigns the hotel plays together, shown by a slot holding a community goal widget (`communitygoal`, `communitygoalvsmode`, `communitygoalvsmodevote`). The last one started is played. Each item bought from its catalogue page is a point; a versus goal has a page per side, and a voting one lets every player vote once, for a point to a side. Its levels (one to three scores, or how far a side must lead), prize bands, dates and words (`landing.view.community.headline.<code>`, ...) are edited here, with the standing and the best contributors. Kept in `hotel_community_goals` and `hotel_community_goal_contributions`. |
 | **Bonus rare** | The bonus rare campaigns: the furniture given for every so many credits a player brings in (bought, or spent in the catalogue), and recording credits bought outside the client. See `docs/reception.md`. |
 | **Expiring pages** | The catalogue pages the expiring page widget (`expiringcatalogpage`, `expiringcatalogpagesmall`) counts down to, in `catalog_page_expiries`: it shows the one that runs out first among those still to come (`GetCatalogPageWithEarliestExpiry`), by the page's name, with its words (`landing.view.pageexpiry.page.<name>.header` / `.desc`) and the image library's `reception/catalog_teaser_<name>.png`. The page stays in the catalogue; the widget only promotes it. A page needs a name to be counted down to, and its expiry goes with it when it is deleted. Saved at once. |
 | **Backgrounds** | The six background layers (`landing.view.<layer>.uri` and `.visible`) and sets of them under a code that `landing.view.bgtiming` switches to from a time on. A set's layer left empty keeps the picture of the set before it, as the client does. Each set's moving objects too (`landing.view.[<code>.]bgobject.<1-20>`, `<picture>;<type>;<numbers>`): along a line, wandering, in a spiral, or an animation, as nitro-next's `movingBackgroundObjects.ts` reads them. |

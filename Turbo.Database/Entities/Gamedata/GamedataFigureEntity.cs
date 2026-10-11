@@ -10,7 +10,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// its fields as JSON, by the names Habbo's file gives them. Habbo's taken in, and the hotel's
 /// own. What the client draws an avatar from, and what a figure is checked against.
 /// </summary>
-[Table("gamedata_figure_records")]
+[Table("gamedata_figures")]
 [Index(nameof(Kind), nameof(Key), IsUnique = true)]
 [Index(nameof(Kind), nameof(Group))]
 public class GamedataFigureEntity : TurboEntity
@@ -30,6 +30,6 @@ public class GamedataFigureEntity : TurboEntity
     [MaxLength(KEY_MAX_LENGTH)]
     public required string Group { get; set; }
 
-    [Column("data", TypeName = "longtext")]
+    [Column("data", TypeName = "text")]
     public required string Data { get; set; }
 }

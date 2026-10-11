@@ -1,8 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Attributes;
 
@@ -92,7 +94,21 @@ public static class ModelBuilderExtensions
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?))
         )
+        {
             p.SetValueConverter(utc);
+
+            // A time the database stamps (a created_at, a room's last_active, an updated_at) is
+            // the row's insert time unless written: the database default, not a provider's
+            // reading of "identity". An updated_at is also restamped on every update, by the
+            // trigger the baseline migration puts on its table.
+            if (
+                p.PropertyInfo?.GetCustomAttribute<DatabaseGeneratedAttribute>()
+                    is { DatabaseGeneratedOption: not DatabaseGeneratedOption.None }
+                && p.GetDefaultValueSql() is null
+                && p.FindAnnotation(RelationalAnnotationNames.DefaultValue) is null
+            )
+                p.SetDefaultValueSql("CURRENT_TIMESTAMP");
+        }
 
         foreach (
             var p in mb

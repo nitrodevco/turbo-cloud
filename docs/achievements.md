@@ -50,7 +50,7 @@ Seven achievement tables, plus four operation journals that belong to respect an
 | Table | Holds | Why it is a table |
 | --- | --- | --- |
 | `achievement_definitions` | Every published revision of every definition | Revisions are immutable; facts and open awards freeze one |
-| `achievement_audit` | Operator imports and actions, with operation IDs | Idempotent, replayable administration |
+| `achievement_audit_logs` | Operator imports and actions, with operation IDs | Idempotent, replayable administration |
 | `achievement_facts` | Authoritative facts waiting to be processed | Crash-safe outbox; pruned after `FactRetentionDays` |
 | `achievement_progress` | One row per player and achievement | Reducer state, `EarnedLevel`/`CompletedLevel` cursors, `ScoreEarned` and the short list of open awards |
 | `achievement_distinct_values` | Values a player has contributed to a distinct counter | Unbounded, so a fact costs one key lookup |
@@ -61,7 +61,7 @@ Levels deliver strictly in order, so there is no row per level. A level that is 
 
 Membership state needs no table of its own. Every grant covers exactly its days with no overlap and nothing shortens a membership, so time spent as a member is `total_days_subscribed` minus what is left of the current run, and purchased days are `purchased_days_subscribed`. The badge a player holds for an achievement is found from the badge family (the code without its level suffix), so no entitlement table is kept.
 
-`human_respect_operations`, `human_respect_participant_receipts`, `pet_respect_operations` and `pet_nutrition_operations` make respect and pet care durable on their own: they guard quota and double credit and let recovery resume a half-finished action. They are created by their own migration, `AddRespectAndPetOperationJournals`. Achievements only attach a fact to the same transaction.
+`player_respect_operations`, `player_respect_receipts`, `pet_respect_operations` and `pet_nutrition_operations` make respect and pet care durable on their own: they guard quota and double credit and let recovery resume a half-finished action. They are created by their own migration, `AddRespectAndPetOperationJournals`. Achievements only attach a fact to the same transaction.
 
 ## Definitions and extensions
 

@@ -842,13 +842,14 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        // A prefix match, so the unique index on the name answers it; a leading wildcard read
-        // every player row on each search. The client's own wildcards are escaped.
-        var pattern = EscapeLikePattern(query) + "%";
+        // A prefix match on the name key, so its unique index answers it and case is ignored on
+        // every database; a leading wildcard read every player row on each search. The client's
+        // own wildcards are escaped.
+        var pattern = EscapeLikePattern(query).ToLowerInvariant() + "%";
         var results = await dbCtx
             .Players.AsNoTracking()
-            .Where(p => EF.Functions.Like(p.Name, pattern, LIKE_ESCAPE))
-            .OrderBy(p => p.Name)
+            .Where(p => EF.Functions.Like(p.NameKey, pattern, LIKE_ESCAPE))
+            .OrderBy(p => p.NameKey)
             .ThenBy(p => p.Id)
             .Take(_playerConfig.MessengerSearchLimit)
             .Select(x => new
@@ -1837,7 +1838,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             ct
         );
 
-    /// <summary>The escape character for <see cref="EscapeLikePattern"/>; MySQL's own default.</summary>
+    /// <summary>The escape character for <see cref="EscapeLikePattern"/>; PostgreSQL's own default.</summary>
     private const string LIKE_ESCAPE = "\\";
 
     /// <summary>Makes client text match itself literally inside a <c>LIKE</c> pattern.</summary>

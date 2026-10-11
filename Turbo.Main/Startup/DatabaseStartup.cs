@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MySqlConnector;
+using Npgsql;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
@@ -195,11 +195,11 @@ internal static class DatabaseStartup
             await using (db.ConfigureAwait(false))
                 return await body(db).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is MySqlException or FormatException)
+        catch (Exception ex) when (ex is NpgsqlException or FormatException or ArgumentException)
         {
             throw new MigrationException(
                 $"Cannot use the database: {ex.Message} Check Turbo:Database:ConnectionString "
-                    + "(and Turbo:Database:ServerVersion, if set), and that the database server is running.",
+                    + "and that the PostgreSQL server is running.",
                 ex
             );
         }

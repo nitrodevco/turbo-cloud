@@ -15,7 +15,7 @@ public class RoomBanEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("date_expires")]
+    [Column("expires_at")]
     public required DateTime DateExpires { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]

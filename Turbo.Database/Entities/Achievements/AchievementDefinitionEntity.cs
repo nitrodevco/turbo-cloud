@@ -11,7 +11,7 @@ public sealed class AchievementDefinitionEntity
     public int AchievementId { get; set; }
     public int Revision { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public required string DefinitionJson { get; set; }
 }

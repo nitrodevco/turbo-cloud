@@ -249,7 +249,7 @@ every inventory, trade and ownership-count query in the tree reads it that way.
 So, its own table, with the room-facing id as part of the key:
 
 ```text
-builders_club_furniture
+furniture_builders_club
   room_id, room_object_id          PRIMARY KEY (room_id, room_object_id)
   definition_id, placed_by_player_id, offer_id
   x, y, z, direction, wall_offset, extra_data
@@ -395,7 +395,7 @@ need to read it:
    tree has a root, even with no pages in it — the client asks for it again on every furni it
    selects until it gets one. Both the index handler and its serializer treat a hotel with no
    pages at all as nothing to send rather than a crash.
-3. **Builders Club furni.** *Done.* `builders_club_furniture` table, `FurniIdBands`,
+3. **Builders Club furni.** *Done.* `furniture_builders_club` table, `FurniIdBands`,
    `BuildersClubGrain`, `RoomFurniModule.BuildersClub`, the loader, persistence and pickup
    branches, the three packet handlers, the missing `BuildersClubFurniCount` contract and
    serializer, the `BuildersClubPlacementWarning` contract and serializer, and `Ownership` on

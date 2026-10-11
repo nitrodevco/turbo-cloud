@@ -9,7 +9,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One record of Habbo's figure data as it was last taken in. The next import compares against it
 /// to tell what Habbo changed from what the hotel changed.
 /// </summary>
-[Table("habbo_figure_records")]
+[Table("habbo_figures")]
 [Index(nameof(Kind), nameof(Key), IsUnique = true)]
 public class HabboFigureEntity : TurboEntity
 {
@@ -20,7 +20,7 @@ public class HabboFigureEntity : TurboEntity
     [MaxLength(GamedataFigureEntity.KEY_MAX_LENGTH)]
     public required string Key { get; set; }
 
-    [Column("data", TypeName = "longtext")]
+    [Column("data", TypeName = "text")]
     public required string Data { get; set; }
 
     /// <summary>The version it was last taken in from.</summary>

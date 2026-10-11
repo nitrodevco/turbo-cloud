@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Room;
 /// and outlives the room it was typed in. Indexed by who ran it and by command, newest first, for
 /// the admin panel's log.
 /// </summary>
-[Table("command_logs")]
+[Table("moderation_command_logs")]
 [Index(nameof(PlayerEntityId), nameof(Id))]
 [Index(nameof(Command), nameof(Id))]
 public class CommandLogEntity : TurboEntity
@@ -51,9 +51,9 @@ public class CommandLogEntity : TurboEntity
     [StringLength(16)]
     public string? Source { get; set; }
 
-    [Column("resolved_audience_json", TypeName = "json")]
+    [Column("resolved_audience_json", TypeName = "jsonb")]
     public string? ResolvedAudienceJson { get; set; }
 
-    [Column("batch_target_results_json", TypeName = "json")]
+    [Column("batch_target_results_json", TypeName = "jsonb")]
     public string? BatchTargetResultsJson { get; set; }
 }

@@ -12,7 +12,7 @@ namespace Turbo.Database.Entities.Quests;
 /// <c>DailyTaskTypes</c> and says what counts, with <see cref="Target"/> its comma-separated furni
 /// definition names for a find task. One reward per task, as every official task shows.
 /// </summary>
-[Table("daily_task_definitions")]
+[Table("quest_daily_task_definitions")]
 [Index(nameof(Code), IsUnique = true)]
 public class DailyTaskDefinitionEntity : TurboEntity
 {

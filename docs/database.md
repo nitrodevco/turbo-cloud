@@ -1,33 +1,36 @@
 # The database and its migrations
 
-Turbo keeps its state in MySQL or MariaDB, and the schema moves forward with the server through
+Turbo keeps its state in PostgreSQL, and the schema moves forward with the server through
 EF Core migrations. **By default the server migrates itself**: start it against an empty database,
 or one made by an older version, and it brings the database up to date, says what it did, and
 carries on. Nothing else is needed to get going, and nothing needs the .NET SDK on the server.
 
 ```
-Database core: creating the database, 47 migration(s)
-Database core: applying 20260208101510_InitialCreate (1/47)
-Database core: applied 20260208101510_InitialCreate in 2.9 s
-...
-Database core: up to date at 20261006013342_AddHotelSettings, 47 migration(s) applied in 21.6 s
+Database core: creating the database, 2 migration(s)
+Database core: applying 20261011075549_PostgresBaseline (1/2)
+Database core: applied 20261011075549_PostgresBaseline in 1.6 s
+Database core: applying 20261011075715_SeedReferenceData (2/2)
+Database core: applied 20261011075715_SeedReferenceData in 195 ms
+Database core: up to date at 20261011075715_SeedReferenceData, 2 migration(s) applied in 3.4 s
 ```
 
 ## Getting a database
 
-Anything MySQL 8 or MariaDB 10.6+ will do, with a user that may create the database (or create the
-database yourself and give the user rights on it). For local work, Docker is the quickest:
+PostgreSQL 16 or newer, with a user that may create the database (or create the database yourself
+and make the user its owner). The migrator connects to the server's `postgres` database for its
+lock and to create the hotel's database, so that one must be reachable too. For local work, Docker
+is the quickest:
 
 ```bash
-docker run -d --name turbo-mysql -e MYSQL_ROOT_PASSWORD=turbo-dev -e MYSQL_DATABASE=turbo \
-  -p 127.0.0.1:3306:3306 mysql:8.4 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+docker run -d --name turbo-postgres -e POSTGRES_USER=turbo -e POSTGRES_PASSWORD=turbo-dev \
+  -p 127.0.0.1:5432:5432 postgres:16
 ```
 
 then set `Turbo:Database:ConnectionString` (`appsettings.Development.json`, or the environment as
 `Turbo__Database__ConnectionString`):
 
 ```
-server=127.0.0.1;port=3306;user=root;password=turbo-dev;database=turbo
+Host=127.0.0.1;Port=5432;Username=turbo;Password=turbo-dev;Database=turbo
 ```
 
 and start Turbo. That is the whole setup.
@@ -40,10 +43,9 @@ and start Turbo. That is the whole setup.
 | `AllowDestructiveMigrations` | `false` | Whether a migration that drops a table or a column may run on a database that has data. |
 | `MigrationLockSeconds` | `60` | How long a migration waits for another one to finish. |
 | `MigrationCommandTimeoutMinutes` | `30` | How long one statement of a migration may run. The usual 30 seconds is too short for an `ALTER` on a table with millions of rows. |
-| `ServerVersion` | _(ask the server)_ | `mysql 8.4.0` or `mariadb 11.4.0`. Skips the question at startup, and lets `migrate --script` run with no connection. |
 
 In the Ploi environment these are `TURBO_DB_MIGRATE`, `TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS`,
-`TURBO_DB_MIGRATION_LOCK_SECONDS` and `TURBO_DB_SERVER_VERSION`.
+and `TURBO_DB_MIGRATION_LOCK_SECONDS`.
 
 `Auto` is right for a hotel on one server, which is nearly all of them. `Check` is for a hotel
 whose deploy runs `Turbo.Main migrate` first (the Ploi scripts do) and wants the server to refuse a
@@ -66,9 +68,10 @@ non-zero code (so a supervisor can see the server did not come up), in these cas
   `MigrationLockSeconds`, then stops and says so.
 - **Nothing can be reached.** No connection string, or a server that is not running, is reported as
   that, with the setting to check, instead of a stack trace.
-- **A migration fails.** The message names it and says how many earlier ones were applied. MySQL
-  cannot roll back a schema change, so the database is left as the failure found it. Fix the cause
-  (or restore a backup) and start again: applying resumes at that migration.
+- **A migration fails.** The message names it and says how many earlier ones were applied.
+  PostgreSQL runs each migration in a transaction, so the failed one is rolled back whole and the
+  database is left at the last one that worked. Fix the cause (or restore a backup) and start
+  again: applying resumes at that migration.
 
 Before applying to a database that has data, the server warns that a backup is the only way back.
 Take one.
@@ -86,8 +89,7 @@ dotnet Turbo.Main.dll migrate --allow-destructive
 
 - It starts nothing else: no sockets, no plugins, no game.
 - `--script` writes every migration as SQL that is safe to run on a database at any earlier
-  migration, and twice (an idempotent script), and changes nothing. With `Turbo:Database:ServerVersion`
-  set it needs no connection at all.
+  migration, and twice (an idempotent script), and changes nothing. It needs no connection at all.
 - It migrates the emulator's own tables. **Plugins' tables are migrated when each plugin loads**,
   by the same migrator, so the same settings (and the same refusals) apply to them. A plugin whose
   tables cannot be migrated (a database from a newer version, a destructive migration not allowed,
@@ -98,7 +100,8 @@ dotnet Turbo.Main.dll migrate --allow-destructive
 
 ## Several things at once
 
-One lock per database (MySQL's `GET_LOCK`, taken on a connection of its own) covers the emulator
+One lock per database (a PostgreSQL advisory lock keyed on the database's name, taken on a
+connection of its own) covers the emulator
 and every plugin. Two servers started together, or a server started while a deploy migrates, take
 turns, and the one that waited reads the state again once it has the lock, so nothing is applied
 twice. The server releases the lock when its connection ends, so a migrator that is killed
@@ -114,7 +117,7 @@ The migrator's guarantees rest on how migrations are written:
   back.
 - **Add the migration with the change.** `dotnet ef migrations add Name` from `Turbo.Database`
   (see `CONTRIBUTING.md`). A test fails if an entity changed and its migration is missing: that is
-  the "Unknown column" that stops every login.
+  the "column does not exist" that stops every login.
 - **Prefer adding to taking away.** To rename or remove a column, add the new one in one release
   and remove the old one in a later one, once nothing reads it. A migration that drops anything
   makes every hotel with data stop and ask its operator; that should be a deliberate release.
@@ -122,6 +125,25 @@ The migrator's guarantees rest on how migrations are written:
 - **One logical change per migration**, named for it, so the log reads well.
 - **Plugins** keep their own history table (`__EFMigrationsHistory_<prefix>`) and table prefix, and
   call `MigrationHelper.MigrateAsync` from their `IPluginDbModule`, so they get all of the above.
+
+## How tables and columns are named
+
+Every table and column is lower `snake_case`, written once in the entity's `[Table]` / `[Column]`
+or made from the property name by the snake_case convention. A table is either one of the hotel's
+root things (`players`, `rooms`, `furniture`, `pets`, `bots`, `guilds`, `quests`, `songs`,
+`vouchers`) or starts with the domain it belongs to (`player_`, `room_`, `catalog_`, `messenger_`,
+`moderation_`, `auth_`, `hotel_`, `gamedata_`, `habbo_` and so on), so a sorted table list groups by
+domain. Times end in `_at` (every time is UTC, so no name says so), foreign keys in `_id`.
+`SchemaNamingTests` holds every table, column, index and key to this, and to PostgreSQL's
+63-character limit on a name.
+
+## Furniture behaviour
+
+A new hotel's furniture comes from Habbo's releases (the admin panel's import). The behaviour a
+class has (a pet's food bowl, a club gift that cracks open, a vending machine, a trax song, a wired
+chest) is given to a definition as it is made, from `Turbo.Gamedata/Furniture/FurnitureBehaviours.cs`;
+a definition the hotel already has is never changed there. A new known behaviour goes in that
+table, not in a data migration, which would only reach the definitions a hotel had when it ran.
 
 ## Deploying with Ploi
 
@@ -135,6 +157,6 @@ See `scripts/ploi/README.md`.
 | --- | --- | --- |
 | `... has migrations this version of Turbo does not know` | The database was used by a newer Turbo. | Run the newer version, or restore a backup from before the upgrade. |
 | `... pending migrations would delete some of it` | A release drops a table or column. | Back up, then allow destructive migrations for one start. |
-| `Another process has been migrating this database` | A second Turbo or a deploy holds the lock. | Wait for it. The lock is freed the moment its holder's connection ends; if the holder died without closing it, MySQL frees it when it notices (see `SHOW PROCESSLIST`). |
+| `Another process has been migrating this database` | A second Turbo or a deploy holds the lock. | Wait for it. The lock is freed the moment its holder's connection ends; if the holder died without closing it, PostgreSQL frees it when it notices (see `pg_stat_activity`). |
 | `... migration X failed` | X could not run; earlier ones are applied. | Fix what the message says, or restore a backup, and start again. |
 | `... migration(s) behind` | `Migrate` is `Check` and the database is not current. | Run `Turbo.Main migrate`, or set `Migrate` to `Auto`. |

@@ -5,7 +5,7 @@ using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Navigator;
 
-[Table("navigator_flatcats")]
+[Table("navigator_room_categories")]
 public class NavigatorFlatCategoryEntity : TurboEntity
 {
     [Key]

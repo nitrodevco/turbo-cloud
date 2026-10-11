@@ -6,7 +6,7 @@ using Turbo.Primitives.Players.Enums.Wallet;
 
 namespace Turbo.Database.Entities.Catalog;
 
-[Table("currency_types")]
+[Table("catalog_currency_types")]
 public class CurrencyTypeEntity : TurboEntity
 {
     [Column("name")]

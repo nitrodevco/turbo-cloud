@@ -4,7 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
-[Table("messenger_ignored")]
+[Table("messenger_ignores")]
 [Index(nameof(PlayerEntityId), nameof(IgnoredPlayerEntityId), IsUnique = true)]
 public class MessengerIgnoredEntity : TurboEntity
 {

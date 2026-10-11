@@ -93,7 +93,7 @@ public class PetEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(0)]
     public int Y { get; set; }
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 

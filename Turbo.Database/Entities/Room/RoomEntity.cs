@@ -179,7 +179,7 @@ public class RoomEntity : TurboEntity
     [DefaultValue(DEFAULT_WIRED_TIMEZONE)]
     public string WiredTimezone { get; set; } = DEFAULT_WIRED_TIMEZONE;
 
-    [Column("last_active")]
+    [Column("last_active_at")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime LastActive { get; set; }
 

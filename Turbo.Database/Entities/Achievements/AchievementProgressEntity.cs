@@ -21,6 +21,8 @@ public sealed class AchievementProgressEntity
     public long Value { get; set; }
     public long ForwardAdjustment { get; set; }
     public long Streak { get; set; }
+
+    [Column("last_day")]
     public DateTime? LastDayUtc { get; set; }
 
     /// <summary>The highest level the progress qualifies for. Each level above <see cref="CompletedLevel"/> is an open award.</summary>
@@ -33,17 +35,18 @@ public sealed class AchievementProgressEntity
     public int ScoreEarned { get; set; }
 
     /// <summary>When the last level was completed, for support questions. History is not kept per level.</summary>
+    [Column("last_level_at")]
     public DateTime? LastLevelAtUtc { get; set; }
 
     /// <summary>Distinct values counted so far; the values live in <c>achievement_distinct_values</c>.</summary>
     public int DistinctCount { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string IntervalsJson { get; set; } = "[]";
 
     /// <summary>Earned levels not yet finished, as JSON. Read and written through <c>AchievementOpenAwards</c>.</summary>
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string OpenAwards { get; set; } = "[]";
 

@@ -234,7 +234,7 @@ internal sealed class AchievementRecoveryService(
             return;
         var cutoff = now.AddDays(-config.Value.FactRetentionDays);
         var batch = config.Value.RecoveryBatchSize * 10;
-        // MySQL rejects LIMIT inside an IN subquery, so select the ids first.
+        // Select the ids first, so each delete is one bounded batch.
         var ids = await db
             .AchievementFacts.AsNoTracking()
             .Where(x => x.Processed && x.OccurredAtUtc < cutoff)

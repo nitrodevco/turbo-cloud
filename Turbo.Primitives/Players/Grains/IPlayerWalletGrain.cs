@@ -19,7 +19,7 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
 
     /// <summary>
     /// Credits at most once per <paramref name="reference"/> for this player, so a caller that
-    /// retries after a crash cannot double-credit. The reference is opaque and compared case-insensitively on MySQL;
+    /// retries after a crash cannot double-credit. The reference is opaque and compared exactly;
     /// by convention it is <c>&lt;plugin-key&gt;:&lt;id&gt;</c>. It must be non-blank and at most
     /// <see cref="WalletCreditReference.MaxLength"/> characters, otherwise this throws.
     /// </summary>

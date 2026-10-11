@@ -9,7 +9,7 @@ namespace Turbo.Database.Entities.Pets;
 /// type (as the client's <c>pet.configuration</c> numbers them), or none for a line every type
 /// may say when its own type has no lines.
 /// </summary>
-[Table("pet_speech")]
+[Table("pet_speech_lines")]
 [Index(nameof(TypeId))]
 public class PetSpeechEntity : TurboEntity
 {

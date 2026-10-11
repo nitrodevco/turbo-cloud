@@ -30,7 +30,7 @@ public class SongEntity : TurboEntity
     public required string Author { get; set; }
 
     /// <summary>The trax track in the client's format, read by the client only.</summary>
-    [Column("track", TypeName = "longtext")]
+    [Column("track", TypeName = "text")]
     public required string Track { get; set; }
 
     [Column("length_seconds")]

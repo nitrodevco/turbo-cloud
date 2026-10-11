@@ -12,7 +12,7 @@ namespace Turbo.Database.Entities.Moderation;
 /// A call for help. The ids are plain columns, not foreign keys, so a report outlives the
 /// players and the room it names, as a sanction does. <c>created_at</c> is when it was sent.
 /// </summary>
-[Table("cfh_reports")]
+[Table("moderation_cfh_reports")]
 [Index(nameof(ReporterEntityId), nameof(ClosedAt))]
 public class CfhReportEntity : TurboEntity
 {

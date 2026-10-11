@@ -9,7 +9,7 @@ namespace Turbo.Database.Entities.Moderation;
 /// text), not generated. Categories are listed in the order of their first topic, and topics by
 /// <see cref="SortOrder"/>, then id.
 /// </summary>
-[Table("cfh_topics")]
+[Table("moderation_cfh_topics")]
 public class CfhTopicEntity
 {
     [Key]

@@ -10,7 +10,7 @@ namespace Turbo.Database.Entities.Catalog;
 /// <summary>
 /// An entry in an LTD raffle queue.
 /// </summary>
-[Table("ltd_raffle_entries")]
+[Table("catalog_ltd_raffle_entries")]
 // "Has this player already won this series" and "this batch's entry for this player".
 [Index(nameof(SeriesEntityId), nameof(PlayerEntityId), nameof(Result))]
 [Index(nameof(BatchId), nameof(PlayerEntityId))]

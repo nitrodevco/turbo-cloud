@@ -3,7 +3,7 @@ namespace Turbo.Database.Entities.Players;
 /// <summary>
 /// What a <see cref="HumanRespectParticipantReceiptEntity"/> records for its player. Each must
 /// fit the receipt's <c>Kind</c> column: <c>pet-spend</c> once outgrew it, and every pet scratch
-/// failed on MySQL while SQLite, which ignores column lengths, let the tests pass.
+/// failed on the real database while SQLite, which ignores column lengths, let the tests pass.
 /// </summary>
 public static class RespectReceiptKinds
 {

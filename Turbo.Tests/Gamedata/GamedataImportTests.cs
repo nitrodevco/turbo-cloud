@@ -20,6 +20,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -345,6 +346,48 @@ public sealed class GamedataImportTests : IDisposable
         await edit.Should().ThrowAsync<ArgumentException>();
     }
 
+    /// <summary>
+    /// A new hotel's furniture all comes from Habbo's releases. The behaviour a class has (a pet's
+    /// food bowl, a club gift box that cracks open, a vending machine, a trax song) is given as it
+    /// is made, not left as plain furniture for staff to find; what the hotel already has is left
+    /// as it is.
+    /// </summary>
+    [Fact]
+    public async Task habbos_new_furniture_comes_with_the_behaviour_its_class_has()
+    {
+        _db.Insert(Definition(500, "petfood2"));
+
+        await _furniture.ImportAsync(
+            Release(
+                1,
+                Floor(501, "petfood1"),
+                Floor(502, "hc_gift_31days"),
+                Floor(503, "rare_icecream*3"),
+                Floor(504, "song_disk", specialType: 8),
+                Floor(505, "mnstr_seed_rare"),
+                Floor(506, "conf_area_hide"),
+                Floor(507, "plain_stool"),
+                Floor(500, "petfood2")
+            ),
+            STAFF,
+            Ct
+        );
+
+        var byName = (await DefinitionsAsync()).ToDictionary(x => x.Name);
+
+        byName["petfood1"].Logic.Should().Be("pet_food");
+        byName["hc_gift_31days"].Logic.Should().Be("crackable");
+        byName["hc_gift_31days"].ExtraData.Should().Contain("\"subscriptionDays\":31");
+        byName["rare_icecream*3"].Logic.Should().Be("vending_machine");
+        byName["rare_icecream*3"].UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        byName["song_disk"].Logic.Should().Be("song_disk");
+        byName["mnstr_seed_rare"].Logic.Should().Be("monsterplant_seed");
+        byName["mnstr_seed_rare"].ExtraData.Should().Contain("MinRarityLevel");
+        byName["conf_area_hide"].Logic.Should().Be("area_hide");
+        byName["plain_stool"].Logic.Should().Be("default_floor");
+        byName["petfood2"].Logic.Should().Be("default_floor", "the hotel's own is left alone");
+    }
+
     private async Task<List<FurnitureDefinitionEntity>> DefinitionsAsync()
     {
         await using var dbCtx = _db.CreateDbContext();
@@ -418,6 +461,17 @@ public sealed class GamedataImportTests : IDisposable
             ["tradeable"] = true,
             ["recyclable"] = true,
         };
+
+    private static JsonObject Floor(int id, string className, int specialType = 1)
+    {
+        var item = Chair(xdim: 1);
+
+        item["id"] = id;
+        item["classname"] = className;
+        item["specialtype"] = specialType;
+
+        return item;
+    }
 
     private static JsonObject Poster() =>
         new()

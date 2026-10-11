@@ -19,6 +19,6 @@ public class ServerSettingEntity : TurboEntity
     [MaxLength(PATH_MAX_LENGTH)]
     public required string Path { get; set; }
 
-    [Column("value", TypeName = "longtext")]
+    [Column("value", TypeName = "text")]
     public required string Value { get; set; }
 }

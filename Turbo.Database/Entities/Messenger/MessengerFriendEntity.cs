@@ -13,7 +13,7 @@ public class MessengerFriendEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("requested_id")]
+    [Column("friend_id")]
     public required int FriendPlayerEntityId { get; set; }
 
     [Column("category_id")]
