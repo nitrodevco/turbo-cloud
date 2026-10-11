@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Admin;
@@ -227,6 +228,19 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerPermissionMetaEntity> PlayerPermissionMeta { get; init; }
     public DbSet<PermissionAuditEntity> PermissionAudit { get; init; }
 
+    /// <summary>
+    /// What a hotel defines once and many rows use. Deleting one is refused while anything still
+    /// uses it: a cascade took every copy of a furni out of every inventory and room, every room
+    /// built on a model, and every balance in a currency. The admin panel checks first and says
+    /// what still uses it.
+    /// </summary>
+    private static readonly System.Type[] DEFINITIONS =
+    [
+        typeof(FurnitureDefinitionEntity),
+        typeof(RoomModelEntity),
+        typeof(CurrencyTypeEntity),
+    ];
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
@@ -271,5 +285,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         mb.Entity<GamedataVariableEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataVariableEntity.KEY_COLLATION);
+
+        foreach (var fk in mb.Model.GetEntityTypes().SelectMany(x => x.GetForeignKeys()))
+            if (
+                fk.DeleteBehavior == DeleteBehavior.Cascade
+                && DEFINITIONS.Contains(fk.PrincipalEntityType.ClrType)
+            )
+                fk.DeleteBehavior = DeleteBehavior.Restrict;
     }
 }

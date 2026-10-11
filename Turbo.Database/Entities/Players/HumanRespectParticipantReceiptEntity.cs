@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -27,4 +28,9 @@ public sealed class HumanRespectParticipantReceiptEntity
     public bool Accepted { get; set; }
 
     public int ResultTotal { get; set; }
+
+    /// <summary>When the row was written, so old receipts can be purged.</summary>
+    [Column("created_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public DateTime CreatedAt { get; set; }
 }

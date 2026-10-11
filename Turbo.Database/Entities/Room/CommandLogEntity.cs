@@ -14,7 +14,7 @@ namespace Turbo.Database.Entities.Room;
 [Table("moderation_command_logs")]
 [Index(nameof(PlayerEntityId), nameof(Id))]
 [Index(nameof(Command), nameof(Id))]
-public class CommandLogEntity : TurboEntity
+public class CommandLogEntity : TurboLogEntity
 {
     public const int COMMAND_MAX_LENGTH = 32;
     public const int ARGUMENTS_MAX_LENGTH = 255;

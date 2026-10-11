@@ -46,7 +46,7 @@ public sealed partial class RoomPetModule
             }
         }
 
-        var operationId = Guid.NewGuid().ToString("N");
+        var operationId = Guid.CreateVersion7().ToString("N");
         var respect = await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
             .ApplyPetRespectOperationAsync(
@@ -254,7 +254,7 @@ public sealed partial class RoomPetModule
         )
             return false;
 
-        var operationId = Guid.NewGuid().ToString("N");
+        var operationId = Guid.CreateVersion7().ToString("N");
         await SupplyNutritionAsync(pet, ctx.PlayerId, operationId, Config.HandItemNutrition, ct);
         pet.SetEnergy(Math.Min(Config.MaxEnergy, pet.Energy + Config.HandItemEnergy));
 

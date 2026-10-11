@@ -108,7 +108,7 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         PlayerId senderId,
         string message,
         DateTime sentAtUtc,
-        int messageId,
+        long messageId,
         string senderName,
         string senderFigure,
         CancellationToken ct

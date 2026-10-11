@@ -127,9 +127,6 @@ public class PlayerEntity : TurboEntity
     public List<RoomRightEntity>? RoomRights { get; set; }
 
     [InverseProperty("PlayerEntity")]
-    public List<RoomChatlogEntity>? RoomChatlogs { get; set; }
-
-    [InverseProperty("PlayerEntity")]
     public List<MessengerBlockedEntity>? MessengerBlocked { get; set; }
 
     [InverseProperty("PlayerEntity")]

@@ -10,6 +10,8 @@ namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture_definitions")]
 [Index(nameof(SpriteId), nameof(ProductType), nameof(FurniCategory), IsUnique = true)]
+// A class name is one definition per type: imports and the room match furni by it.
+[Index(nameof(ProductType), nameof(Name), IsUnique = true)]
 public class FurnitureDefinitionEntity : TurboEntity
 {
     [Column("sprite_id")]

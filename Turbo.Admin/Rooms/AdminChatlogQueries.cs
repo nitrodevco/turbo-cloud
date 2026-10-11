@@ -34,8 +34,8 @@ public sealed class AdminChatlogQueries(
         string? player,
         int? room,
         string? text,
-        int? before,
-        int? after,
+        long? before,
+        long? after,
         CancellationToken ct
     )
     {
@@ -128,7 +128,7 @@ public sealed class AdminChatlogQueries(
     /// One line in context: the lines said around it in its room, before and after, newest first.
     /// Empty when there is no such line.
     /// </summary>
-    public async Task<ChatlogResponse> AroundAsync(int lineId, CancellationToken ct)
+    public async Task<ChatlogResponse> AroundAsync(long lineId, CancellationToken ct)
     {
         var side = Math.Max(1, PageSize / 2);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);

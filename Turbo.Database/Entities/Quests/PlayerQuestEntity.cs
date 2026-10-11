@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Quests;
 
@@ -29,6 +30,9 @@ public class PlayerQuestEntity : TurboEntity
 
     [Column("completed_at")]
     public DateTime? CompletedAt { get; set; }
+
+    [ForeignKey(nameof(PlayerEntityId))]
+    public PlayerEntity? PlayerEntity { get; set; }
 
     [ForeignKey(nameof(QuestEntityId))]
     public QuestEntity? Quest { get; set; }

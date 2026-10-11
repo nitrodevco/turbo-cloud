@@ -173,8 +173,6 @@ public sealed class AdminChatlogQueriesTests : IDisposable
             RoomEntityId = roomId,
             TargetPlayerEntityId = target,
             Message = message,
-            PlayerEntity = null!,
-            RoomEntity = null!,
         };
 
     private static PlayerEntity Player(int id, string name) =>

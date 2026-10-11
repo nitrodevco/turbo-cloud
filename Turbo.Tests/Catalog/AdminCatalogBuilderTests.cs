@@ -775,7 +775,7 @@ public sealed class AdminCatalogBuilderTests : IDisposable
         );
         _catalog.AddDefinition(
             201,
-            "poster",
+            "poster_basic",
             ProductType.Wall,
             x =>
             {

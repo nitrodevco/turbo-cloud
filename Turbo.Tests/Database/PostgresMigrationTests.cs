@@ -3,12 +3,25 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Turbo.Catalog.Providers;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Database.Migrations;
+using Turbo.Players.Providers;
+using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Providers;
+using Turbo.Primitives.Catalog.Tags;
+using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Players.Enums.Wallet;
+using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Providers;
+using Turbo.Rooms.Providers;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -363,6 +376,74 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             .OnlyContain(type => type == 0 || type == 36, "only the dog and the dragon dog bark");
         lines.Where(x => x.TypeId == 1).Select(x => x.Line).Should().Contain("Meow!");
         lines.Should().OnlyContain(x => x.Line.Length > 0 && x.Line.Length <= 100);
+    }
+
+    /// <summary>
+    /// A new hotel is playable once migrated: a room can be made on any of the standard models,
+    /// each opening onto a tile a player can stand on; the catalog has a root to build on and sells
+    /// Habbo Club; credits, duckets and diamonds exist; the navigator has its tabs and categories.
+    /// </summary>
+    [Fact]
+    public async Task ANewDatabase_IsAPlayableHotel()
+    {
+        RequireServer();
+        await using (var db = Context())
+            await Migrator().MigrateAsync(db, "core", null, Ct);
+        var factory = new Factory(this);
+
+        var models = new RoomModelProvider(factory, NullLogger<IRoomModelProvider>.Instance);
+        await models.ReloadAsync(Ct);
+
+        await using (var db = Context())
+        {
+            var ids = await db.RoomModels.Select(x => x.Id).ToListAsync(Ct);
+
+            ids.Should().HaveCount(36);
+
+            foreach (var model in ids.Select(models.GetModelById))
+                model
+                    .BaseFlags[model.DoorY * model.Width + model.DoorX]
+                    .Should()
+                    .Be(RoomTileFlags.Open, model.Name + "'s door");
+
+            (await db.NavigatorTopLevelContexts.Select(x => x.SearchCode).ToListAsync(Ct))
+                .Should()
+                .BeEquivalentTo("official_view", "hotel_view", "roomads_view", "myworld_view");
+            (await db.NavigatorFlatCategories.CountAsync(x => !x.StaffOnly, Ct))
+                .Should()
+                .BeGreaterThan(0);
+            (await db.NavigatorEventCategories.CountAsync(Ct)).Should().BeGreaterThan(0);
+        }
+
+        var catalog = await new CatalogSnapshotProvider<NormalCatalog>(
+            factory,
+            NullLogger<ICatalogSnapshotProvider<NormalCatalog>>.Instance,
+            new Fakes().Create<IFurnitureDefinitionProvider>(),
+            CatalogType.Normal
+        ).GetSnapshotAsync(Ct);
+
+        catalog.RootPageId.Should().BePositive();
+        catalog
+            .OffersById.Values.Select(x => x.LocalizationId)
+            .Should()
+            .Contain(["habbo_club_1_month", "habbo_club_3_months", "habbo_club_12_months"]);
+
+        var currencies = new CurrencyTypeProvider(
+            factory,
+            NullLogger<ICurrencyTypeProvider>.Instance
+        );
+        await currencies.ReloadAsync(Ct);
+
+        currencies
+            .GetEnabledCurrencyNames()
+            .Should()
+            .BeEquivalentTo("credits", "duckets", "diamonds");
+        currencies.TryGetCurrencyTypeId(CurrencyKind.Credits, out _).Should().BeTrue();
+    }
+
+    private sealed class Factory(PostgresMigrationTests owner) : IDbContextFactory<TurboDbContext>
+    {
+        public TurboDbContext CreateDbContext() => owner.Context();
     }
 
     /// <summary>

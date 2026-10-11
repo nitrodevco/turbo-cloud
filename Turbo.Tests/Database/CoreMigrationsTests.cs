@@ -107,6 +107,62 @@ public sealed class CoreMigrationsTests
         dropped.Should().BeEmpty("EF would store the database default in place of the CLR default");
     }
 
+    /// <summary>
+    /// The shape the audit asked for: logs a busy hotel writes by the million have 64-bit ids and
+    /// no foreign keys (so they outlive the rooms they name), receipts say when they were written so
+    /// they can be purged, and player and group rows go with their player or group.
+    /// </summary>
+    [Fact]
+    public void LogsAreWide_ReceiptsAreDated_AndOwnedRowsGoWithTheirOwner()
+    {
+        using var db = OfflineContext();
+        var tables = db
+            .Model.GetEntityTypes()
+            .Where(x => x.GetTableName() is not null)
+            .ToDictionary(x => x.GetTableName()!);
+
+        foreach (
+            var log in new[]
+            {
+                "room_chat_logs",
+                "room_entry_logs",
+                "messenger_messages",
+                "moderation_command_logs",
+            }
+        )
+            tables[log]
+                .FindPrimaryKey()!
+                .Properties.Single()
+                .ClrType.Should()
+                .Be(typeof(long), log);
+
+        tables["room_chat_logs"].GetForeignKeys().Should().BeEmpty();
+        tables["room_entry_logs"].GetForeignKeys().Should().BeEmpty();
+
+        foreach (
+            var receipts in new[]
+            {
+                "player_respect_operations",
+                "player_respect_receipts",
+                "pet_respect_operations",
+                "pet_nutrition_operations",
+                "achievement_wallet_receipts",
+                "player_wallet_credit_receipts",
+            }
+        )
+            tables[receipts]
+                .GetProperties()
+                .Should()
+                .Contain(x => x.GetColumnName() == "created_at", receipts);
+
+        static string[] Owners(IEntityType table) =>
+            [.. table.GetForeignKeys().Select(x => x.PrincipalEntityType.GetTableName()!)];
+
+        Owners(tables["player_quests"]).Should().Contain("players");
+        Owners(tables["guild_forum_threads"]).Should().Contain("guilds");
+        Owners(tables["guild_forum_read_markers"]).Should().Contain(["guilds", "players"]);
+    }
+
     [Fact]
     public void TheScriptForAnEmptyDatabaseNeedsNoConnection_AndNamesEveryMigration()
     {

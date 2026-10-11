@@ -58,7 +58,7 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
     private AdminCommandLogQueries Queries(int pageSize = 50) =>
         new(_db, Options.Create(new AdminConfig { CommandLogPageSize = pageSize }));
 
-    private async Task<int[]> IdsAsync(
+    private async Task<long[]> IdsAsync(
         string? player = null,
         string? command = null,
         string? outcome = null,

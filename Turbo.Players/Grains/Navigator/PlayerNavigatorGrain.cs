@@ -337,6 +337,8 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         var visits = await dbCtx
             .RoomEntryLogs.AsNoTracking()
             .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
+            // The log keeps visits to deleted rooms; the history shows rooms that are still there.
+            .Where(x => dbCtx.Rooms.Any(r => r.Id == x.RoomEntityId))
             .GroupBy(x => x.RoomEntityId)
             .Select(g => new
             {

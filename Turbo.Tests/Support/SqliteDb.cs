@@ -97,11 +97,10 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
                 foreach (var property in entityType.GetProperties())
                     property.SetCollation(null);
 
-                if (!typeof(TurboEntity).IsAssignableFrom(entityType.ClrType))
+                if (entityType.FindProperty(nameof(TurboEntity.CreatedAt)) is not { } createdAt)
                     continue;
 
-                entityType.FindProperty(nameof(TurboEntity.CreatedAt))!.ValueGenerated =
-                    ValueGenerated.Never;
+                createdAt.ValueGenerated = ValueGenerated.Never;
 
                 if (entityType.FindProperty("UpdatedAt") is { } updatedAt)
                     updatedAt.ValueGenerated = ValueGenerated.Never;
@@ -138,16 +137,18 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 
         private static void Stamp(DbContext? context)
         {
-            foreach (
-                var entry in context?.ChangeTracker.Entries<Turbo.Database.Entities.TurboEntity>()
-                    ?? []
-            )
+            foreach (var entry in context?.ChangeTracker.Entries() ?? [])
             {
                 if (entry.State != EntityState.Added)
                     continue;
 
-                if (entry.Entity.CreatedAt == default)
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                if (
+                    entry.Metadata.FindProperty(nameof(TurboEntity.CreatedAt)) is not null
+                    && entry.Property(nameof(TurboEntity.CreatedAt)).CurrentValue
+                        is DateTime created
+                    && created == default
+                )
+                    entry.Property(nameof(TurboEntity.CreatedAt)).CurrentValue = DateTime.UtcNow;
 
                 if (
                     entry.Metadata.FindProperty("UpdatedAt") is not null

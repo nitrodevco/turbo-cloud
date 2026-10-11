@@ -20,22 +20,22 @@ internal sealed class ChatlogEndpoints(IGrainFactory grainFactory, AdminChatlogQ
         var group = secured.MapGroup("/chatlog").AddEndpointFilter(RequireViewAsync);
 
         group.MapGet("/", SearchAsync);
-        group.MapGet("/{id:int}/context", AroundAsync);
+        group.MapGet("/{id:long}/context", AroundAsync);
     }
 
     private async Task<IResult> SearchAsync(
         string? player,
         int? room,
         string? text,
-        int? before,
-        int? after,
+        long? before,
+        long? after,
         CancellationToken ct
     ) =>
         Results.Ok(
             await chatlog.SearchAsync(player, room, text, before, after, ct).ConfigureAwait(false)
         );
 
-    private async Task<IResult> AroundAsync(int id, CancellationToken ct) =>
+    private async Task<IResult> AroundAsync(long id, CancellationToken ct) =>
         Results.Ok(await chatlog.AroundAsync(id, ct).ConfigureAwait(false));
 
     private async ValueTask<object?> RequireViewAsync(

@@ -218,7 +218,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             new()
             {
                 Source = AchievementSources.LOGIN,
-                OperationId = Guid.NewGuid().ToString("N"),
+                OperationId = Guid.CreateVersion7().ToString("N"),
                 OccurredAtUtc = now,
             }
         );
@@ -228,7 +228,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             new()
             {
                 Source = AchievementSources.ACCOUNT_AGE,
-                OperationId = Guid.NewGuid().ToString("N"),
+                OperationId = Guid.CreateVersion7().ToString("N"),
                 OccurredAtUtc = now,
                 Amount = Math.Max(0, (long)(now - _state.CreatedAt).TotalDays),
             }
@@ -239,7 +239,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             new()
             {
                 Source = AchievementSources.PETS,
-                OperationId = Guid.NewGuid().ToString("N"),
+                OperationId = Guid.CreateVersion7().ToString("N"),
                 OccurredAtUtc = now,
                 Amount = await db.Pets.CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct),
             }
@@ -330,7 +330,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 new()
                 {
                     Source = achievementSource,
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = DateTime.UtcNow,
                 }
             );

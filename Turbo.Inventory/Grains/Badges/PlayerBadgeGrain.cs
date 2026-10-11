@@ -305,7 +305,7 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
                         new()
                         {
                             Source = AchievementSources.BADGE_WORN,
-                            OperationId = Guid.NewGuid().ToString("N"),
+                            OperationId = Guid.CreateVersion7().ToString("N"),
                             OccurredAtUtc = DateTime.UtcNow,
                             Value = entity.BadgeCode,
                         }

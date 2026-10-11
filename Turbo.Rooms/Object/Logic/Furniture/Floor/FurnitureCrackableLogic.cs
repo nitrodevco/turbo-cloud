@@ -395,7 +395,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                 {
                     Source = AchievementSources.CRACKABLE_HIT,
                     Value = hit,
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = now,
                 }
             );
@@ -409,7 +409,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                     Source = AchievementSources.CRACKABLE_CRACKED,
                     Value = final,
                     Amount = Math.Max(1, _data.FinalHitAchievementCount),
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = now,
                 }
             );

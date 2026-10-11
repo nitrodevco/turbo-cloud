@@ -164,7 +164,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                 {
                     Source = AchievementSources.HC,
                     Amount = 0,
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = now,
                 }
             );

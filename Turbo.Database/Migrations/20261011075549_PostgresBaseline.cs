@@ -236,6 +236,11 @@ namespace Turbo.Database.Migrations
                         maxLength: 512,
                         nullable: false
                     ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
                 },
                 constraints: table =>
                 {
@@ -1014,93 +1019,6 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "guild_forum_read_markers",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    guild_id = table.Column<int>(type: "integer", nullable: false),
-                    last_read_message_id = table.Column<int>(type: "integer", nullable: false),
-                    read_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_guild_forum_read_markers", x => x.id);
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "guild_forum_threads",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    guild_id = table.Column<int>(type: "integer", nullable: false),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    subject = table.Column<string>(
-                        type: "character varying(120)",
-                        maxLength: 120,
-                        nullable: false
-                    ),
-                    is_sticky = table.Column<bool>(
-                        type: "boolean",
-                        nullable: false,
-                        defaultValue: false
-                    ),
-                    is_locked = table.Column<bool>(
-                        type: "boolean",
-                        nullable: false,
-                        defaultValue: false
-                    ),
-                    state = table.Column<byte>(
-                        type: "smallint",
-                        nullable: false,
-                        defaultValue: (byte)0
-                    ),
-                    moderator_id = table.Column<int>(type: "integer", nullable: true),
-                    moderated_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                    message_count = table.Column<int>(
-                        type: "integer",
-                        nullable: false,
-                        defaultValue: 0
-                    ),
-                    last_message_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_guild_forum_threads", x => x.id);
-                }
-            );
-
-            migrationBuilder.CreateTable(
                 name: "habbo_figure_versions",
                 columns: table => new
                 {
@@ -1762,7 +1680,7 @@ namespace Turbo.Database.Migrations
                 columns: table => new
                 {
                     id = table
-                        .Column<int>(type: "integer", nullable: false)
+                        .Column<long>(type: "bigint", nullable: false)
                         .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -2145,6 +2063,11 @@ namespace Turbo.Database.Migrations
                     nutrition_after = table.Column<int>(type: "integer", nullable: false),
                     actual_gain = table.Column<int>(type: "integer", nullable: false),
                     completed = table.Column<bool>(type: "boolean", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
                 },
                 constraints: table =>
                 {
@@ -2169,6 +2092,11 @@ namespace Turbo.Database.Migrations
                     rejected = table.Column<bool>(type: "boolean", nullable: false),
                     completed = table.Column<bool>(type: "boolean", nullable: false),
                     result_respect = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
                 },
                 constraints: table =>
                 {
@@ -2218,6 +2146,11 @@ namespace Turbo.Database.Migrations
                     rejected = table.Column<bool>(type: "boolean", nullable: false),
                     completed = table.Column<bool>(type: "boolean", nullable: false),
                     result_total = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
                 },
                 constraints: table =>
                 {
@@ -2242,6 +2175,11 @@ namespace Turbo.Database.Migrations
                     ),
                     accepted = table.Column<bool>(type: "boolean", nullable: false),
                     result_total = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
                 },
                 constraints: table =>
                 {
@@ -2266,6 +2204,11 @@ namespace Turbo.Database.Migrations
                         type: "character varying(128)",
                         maxLength: 128,
                         nullable: false
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
                     ),
                 },
                 constraints: table =>
@@ -2470,6 +2413,60 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_quest_daily_task_definitions", x => x.id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "room_chat_logs",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    room_id = table.Column<int>(type: "integer", nullable: false),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    target_player_id = table.Column<int>(type: "integer", nullable: true),
+                    message = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_room_chat_logs", x => x.id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "room_entry_logs",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    room_id = table.Column<int>(type: "integer", nullable: false),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_room_entry_logs", x => x.id);
                 }
             );
 
@@ -2949,55 +2946,6 @@ namespace Turbo.Database.Migrations
                         name: "fk_gamedata_changes_gamedata_change_sets_change_set_id",
                         column: x => x.change_set_id,
                         principalTable: "gamedata_change_sets",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "guild_forum_messages",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    guild_id = table.Column<int>(type: "integer", nullable: false),
-                    thread_id = table.Column<int>(type: "integer", nullable: false),
-                    forum_message_id = table.Column<int>(type: "integer", nullable: false),
-                    thread_index = table.Column<int>(type: "integer", nullable: false),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    text = table.Column<string>(
-                        type: "character varying(4000)",
-                        maxLength: 4000,
-                        nullable: false
-                    ),
-                    state = table.Column<byte>(
-                        type: "smallint",
-                        nullable: false,
-                        defaultValue: (byte)0
-                    ),
-                    moderator_id = table.Column<int>(type: "integer", nullable: true),
-                    moderated_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_guild_forum_messages", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_guild_forum_messages_guild_forum_threads_thread_id",
-                        column: x => x.thread_id,
-                        principalTable: "guild_forum_threads",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
@@ -3539,7 +3487,7 @@ namespace Turbo.Database.Migrations
                 columns: table => new
                 {
                     id = table
-                        .Column<int>(type: "integer", nullable: false)
+                        .Column<long>(type: "bigint", nullable: false)
                         .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -3727,7 +3675,7 @@ namespace Turbo.Database.Migrations
                         column: x => x.definition_id,
                         principalTable: "furniture_definitions",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                     table.ForeignKey(
                         name: "fk_player_bound_clothing_players_player_id",
@@ -3840,7 +3788,7 @@ namespace Turbo.Database.Migrations
                         column: x => x.currency_type_id,
                         principalTable: "catalog_currency_types",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                     table.ForeignKey(
                         name: "fk_player_currencies_players_player_id",
@@ -4646,16 +4594,16 @@ namespace Turbo.Database.Migrations
                 {
                     table.PrimaryKey("pk_player_daily_tasks", x => x.id);
                     table.ForeignKey(
-                        name: "fk_player_daily_tasks_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
+                        name: "fk_player_daily_tasks_definition_id",
+                        column: x => x.definition_id,
+                        principalTable: "quest_daily_task_definitions",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
                     table.ForeignKey(
-                        name: "fk_player_daily_tasks_definition_id",
-                        column: x => x.definition_id,
-                        principalTable: "quest_daily_task_definitions",
+                        name: "fk_player_daily_tasks_players_player_id",
+                        column: x => x.player_id,
+                        principalTable: "players",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
@@ -4870,7 +4818,7 @@ namespace Turbo.Database.Migrations
                         column: x => x.model_id,
                         principalTable: "room_models",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                 }
             );
@@ -5085,6 +5033,13 @@ namespace Turbo.Database.Migrations
                 {
                     table.PrimaryKey("pk_player_quests", x => x.id);
                     table.ForeignKey(
+                        name: "fk_player_quests_players_player_id",
+                        column: x => x.player_id,
+                        principalTable: "players",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
                         name: "fk_player_quests_quests_quest_id",
                         column: x => x.quest_id,
                         principalTable: "quests",
@@ -5244,7 +5199,7 @@ namespace Turbo.Database.Migrations
                         column: x => x.definition_id,
                         principalTable: "furniture_definitions",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                     table.ForeignKey(
                         name: "fk_furniture_players_player_id",
@@ -5305,7 +5260,7 @@ namespace Turbo.Database.Migrations
                         column: x => x.definition_id,
                         principalTable: "furniture_definitions",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
+                        onDelete: ReferentialAction.Restrict
                     );
                     table.ForeignKey(
                         name: "fk_furniture_builders_club_players_placed_by_player_id",
@@ -5577,94 +5532,6 @@ namespace Turbo.Database.Migrations
                     );
                     table.ForeignKey(
                         name: "fk_room_bans_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "room_chat_logs",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    room_id = table.Column<int>(type: "integer", nullable: false),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    target_player_id = table.Column<int>(type: "integer", nullable: true),
-                    message = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_room_chat_logs", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_room_chat_logs_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                    table.ForeignKey(
-                        name: "fk_room_chat_logs_players_target_player_id",
-                        column: x => x.target_player_id,
-                        principalTable: "players",
-                        principalColumn: "id"
-                    );
-                    table.ForeignKey(
-                        name: "fk_room_chat_logs_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "room_entry_logs",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    room_id = table.Column<int>(type: "integer", nullable: false),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_room_entry_logs", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_room_entry_logs_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                    table.ForeignKey(
-                        name: "fk_room_entry_logs_rooms_room_id",
                         column: x => x.room_id,
                         principalTable: "rooms",
                         principalColumn: "id",
@@ -6033,6 +5900,114 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "guild_forum_read_markers",
+                columns: table => new
+                {
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    guild_id = table.Column<int>(type: "integer", nullable: false),
+                    last_read_message_id = table.Column<int>(type: "integer", nullable: false),
+                    read_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_guild_forum_read_markers", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_guild_forum_read_markers_guilds_guild_id",
+                        column: x => x.guild_id,
+                        principalTable: "guilds",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "fk_guild_forum_read_markers_players_player_id",
+                        column: x => x.player_id,
+                        principalTable: "players",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "guild_forum_threads",
+                columns: table => new
+                {
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    guild_id = table.Column<int>(type: "integer", nullable: false),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    subject = table.Column<string>(
+                        type: "character varying(120)",
+                        maxLength: 120,
+                        nullable: false
+                    ),
+                    is_sticky = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
+                    is_locked = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
+                    state = table.Column<byte>(
+                        type: "smallint",
+                        nullable: false,
+                        defaultValue: (byte)0
+                    ),
+                    moderator_id = table.Column<int>(type: "integer", nullable: true),
+                    moderated_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    message_count = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
+                    last_message_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_guild_forum_threads", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_guild_forum_threads_guilds_guild_id",
+                        column: x => x.guild_id,
+                        principalTable: "guilds",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "guild_forums",
                 columns: table => new
                 {
@@ -6197,6 +6172,55 @@ namespace Turbo.Database.Migrations
                         name: "fk_catalog_ltd_raffle_entries_players_player_id",
                         column: x => x.player_id,
                         principalTable: "players",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "guild_forum_messages",
+                columns: table => new
+                {
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    guild_id = table.Column<int>(type: "integer", nullable: false),
+                    thread_id = table.Column<int>(type: "integer", nullable: false),
+                    forum_message_id = table.Column<int>(type: "integer", nullable: false),
+                    thread_index = table.Column<int>(type: "integer", nullable: false),
+                    player_id = table.Column<int>(type: "integer", nullable: false),
+                    text = table.Column<string>(
+                        type: "character varying(4000)",
+                        maxLength: 4000,
+                        nullable: false
+                    ),
+                    state = table.Column<byte>(
+                        type: "smallint",
+                        nullable: false,
+                        defaultValue: (byte)0
+                    ),
+                    moderator_id = table.Column<int>(type: "integer", nullable: true),
+                    moderated_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_guild_forum_messages", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_guild_forum_messages_guild_forum_threads_thread_id",
+                        column: x => x.thread_id,
+                        principalTable: "guild_forum_threads",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade
                     );
@@ -6451,6 +6475,13 @@ namespace Turbo.Database.Migrations
                 name: "ix_furniture_definitions_sprite_id_type_category",
                 table: "furniture_definitions",
                 columns: new[] { "sprite_id", "type", "category" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_furniture_definitions_type_name",
+                table: "furniture_definitions",
+                columns: new[] { "type", "name" },
                 unique: true
             );
 
@@ -6818,6 +6849,13 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_navigator_room_categories_name",
+                table: "navigator_room_categories",
+                column: "name",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_navigator_top_level_contexts_search_code",
                 table: "navigator_top_level_contexts",
                 column: "search_code",
@@ -6957,9 +6995,10 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_player_daily_tasks_player_id_day_starts_at",
+                name: "ix_player_daily_tasks_player_id_day_starts_at_definition_id",
                 table: "player_daily_tasks",
-                columns: new[] { "player_id", "day_starts_at" }
+                columns: new[] { "player_id", "day_starts_at", "definition_id" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -7133,21 +7172,21 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_room_chat_logs_player_id",
+                name: "ix_room_chat_logs_player_id_id",
                 table: "room_chat_logs",
-                column: "player_id"
+                columns: new[] { "player_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_room_chat_logs_room_id",
+                name: "ix_room_chat_logs_room_id_id",
                 table: "room_chat_logs",
-                column: "room_id"
+                columns: new[] { "room_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_room_chat_logs_target_player_id",
+                name: "ix_room_chat_logs_target_player_id_id",
                 table: "room_chat_logs",
-                column: "target_player_id"
+                columns: new[] { "target_player_id", "id" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7157,9 +7196,9 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "ix_room_entry_logs_room_id",
+                name: "ix_room_entry_logs_room_id_created_at",
                 table: "room_entry_logs",
-                column: "room_id"
+                columns: new[] { "room_id", "created_at" }
             );
 
             migrationBuilder.CreateIndex(
@@ -7348,8 +7387,8 @@ namespace Turbo.Database.Migrations
                 columns: new[] { "room_id", "id" }
             );
 
-            // updated_at is restamped on every update, as MySQL's ON UPDATE CURRENT_TIMESTAMP did:
-            // by a trigger, so a bulk ExecuteUpdate moves it too.
+            // updated_at is restamped on every update by a trigger, so a bulk ExecuteUpdate, which
+            // no SaveChanges hook sees, moves it too.
             migrationBuilder.Sql(
                 @"CREATE FUNCTION set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -7590,8 +7629,6 @@ END $$;"
 
             migrationBuilder.DropTable(name: "guild_forum_threads");
 
-            migrationBuilder.DropTable(name: "guilds");
-
             migrationBuilder.DropTable(name: "hotel_community_goals");
 
             migrationBuilder.DropTable(name: "messenger_categories");
@@ -7616,23 +7653,25 @@ END $$;"
 
             migrationBuilder.DropTable(name: "catalog_products");
 
-            migrationBuilder.DropTable(name: "quest_campaigns");
+            migrationBuilder.DropTable(name: "guilds");
 
-            migrationBuilder.DropTable(name: "rooms");
+            migrationBuilder.DropTable(name: "quest_campaigns");
 
             migrationBuilder.DropTable(name: "catalog_offers");
 
             migrationBuilder.DropTable(name: "furniture_definitions");
+
+            migrationBuilder.DropTable(name: "rooms");
+
+            migrationBuilder.DropTable(name: "catalog_currency_types");
+
+            migrationBuilder.DropTable(name: "catalog_pages");
 
             migrationBuilder.DropTable(name: "navigator_room_categories");
 
             migrationBuilder.DropTable(name: "players");
 
             migrationBuilder.DropTable(name: "room_models");
-
-            migrationBuilder.DropTable(name: "catalog_currency_types");
-
-            migrationBuilder.DropTable(name: "catalog_pages");
         }
     }
 }

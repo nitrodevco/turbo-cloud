@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Achievements;
+using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Quest;
@@ -38,6 +39,16 @@ public sealed class QuestTests : IDisposable
 
     public QuestTests()
     {
+        _db.Insert(
+            new PlayerEntity
+            {
+                Id = PLAYER,
+                Name = "player",
+                Figure = "hd-180-1",
+                Gender = Turbo.Primitives.Rooms.Enums.AvatarGenderType.Male,
+                PlayerStatus = Turbo.Primitives.Players.Enums.PlayerStatusType.Offline,
+            }
+        );
         _db.Insert(
             new QuestCampaignEntity
             {

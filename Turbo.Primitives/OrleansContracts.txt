@@ -288,7 +288,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayer
   55478B95: OnFriendRemovedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   57808C51: OnGuildMembershipsChangedAsync(System.Threading.CancellationToken) -> Task
   62020B9E: ReceieveFriendRequestAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
-  CBDE514A: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
+  F54AF3C3: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, long, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   3D427D61: ReceiveRoomInviteAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
   745A9E58: RecieveFriendUpdateAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   4A5359B1: RemoveFriendsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, System.Threading.CancellationToken) -> Task

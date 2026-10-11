@@ -229,7 +229,8 @@ public sealed partial class RoomGrain
         // writes them only because the room row cannot go while they point at it. Pets, bots and
         // furni were handed home above; clearing their room here is the backstop for one whose
         // hand-over failed, which the cascade would otherwise delete. A navigator still holding
-        // this room as a favourite drops it at its next flush (PlayerNavigatorGrain).
+        // this room as a favourite drops it at its next flush (PlayerNavigatorGrain). Its chat and
+        // entry logs stay: they are moderation evidence, and name the room by id only.
 
         await dbCtx
             .Furnitures.Where(x => x.RoomEntityId == roomId)
@@ -246,12 +247,14 @@ public sealed partial class RoomGrain
         await dbCtx.RoomRaidProtections.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomRatings.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomEvents.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
-        await dbCtx.RoomEntryLogs.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
-        await dbCtx.Chatlogs.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomFilterWords.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx
             .PlayerFavouriteRooms.Where(x => x.RoomEntityId == roomId)
             .ExecuteDeleteAsync(ct);
+        // A player whose settings are loaded drops it as a home room at their next login instead.
+        await dbCtx
+            .PlayerSettings.Where(x => x.HomeRoomId == roomId)
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.HomeRoomId, (int?)null), ct);
         await dbCtx.Rooms.Where(x => x.Id == roomId).ExecuteDeleteAsync(ct);
 
         await tx.CommitAsync(ct);

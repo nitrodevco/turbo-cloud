@@ -14,7 +14,8 @@ namespace Turbo.Database.Entities.Quests;
 /// ids), so a room counts once.
 /// </summary>
 [Table("player_daily_tasks")]
-[Index(nameof(PlayerEntityId), nameof(DayStartsAt))]
+// One of each task a day: the grain gives only definitions the player hasn't had that day.
+[Index(nameof(PlayerEntityId), nameof(DayStartsAt), nameof(DefinitionEntityId), IsUnique = true)]
 public class PlayerDailyTaskEntity : TurboEntity
 {
     public const int COUNTED_MAX_LENGTH = 1024;

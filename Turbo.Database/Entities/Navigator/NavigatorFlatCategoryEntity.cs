@@ -1,11 +1,14 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Navigator;
 
 [Table("navigator_room_categories")]
+// The admin panel refuses a second category of the same name; this holds it to that.
+[Index(nameof(Name), IsUnique = true)]
 public class NavigatorFlatCategoryEntity : TurboEntity
 {
     [Key]

@@ -49,4 +49,8 @@ public class GuildForumThreadEntity : TurboEntity
 
     [Column("last_message_at")]
     public DateTime LastMessageAt { get; set; }
+
+    // Part of the group: the threads go when it does (its messages cascade from the thread).
+    [ForeignKey(nameof(GuildEntityId))]
+    public GuildEntity? GuildEntity { get; set; }
 }

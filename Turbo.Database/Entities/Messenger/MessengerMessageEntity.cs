@@ -8,7 +8,7 @@ namespace Turbo.Database.Entities.Messenger;
 [Table("messenger_messages")]
 [Index(nameof(SenderPlayerEntityId), nameof(ReceiverPlayerEntityId), nameof(Timestamp))]
 [Index(nameof(ReceiverPlayerEntityId), nameof(SenderPlayerEntityId), nameof(Timestamp))]
-public class MessengerMessageEntity : TurboEntity
+public class MessengerMessageEntity : TurboLogEntity
 {
     [Column("sender_id")]
     public required int SenderPlayerEntityId { get; set; }

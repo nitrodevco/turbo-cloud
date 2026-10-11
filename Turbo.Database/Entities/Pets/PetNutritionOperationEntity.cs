@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -28,4 +29,9 @@ public sealed class PetNutritionOperationEntity
     public int ActualGain { get; set; }
 
     public bool Completed { get; set; }
+
+    /// <summary>When the row was written, so old receipts can be purged.</summary>
+    [Column("created_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public DateTime CreatedAt { get; set; }
 }

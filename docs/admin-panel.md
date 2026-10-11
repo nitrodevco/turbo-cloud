@@ -204,6 +204,11 @@ Discord id, or set `TURBO_WEB_REGISTRATION_OPEN=false` until you have signed up.
 Locally, in the Development environment with no owner named, the first player created becomes the
 owner (`Turbo:Owner:FirstPlayerInDevelopment`, on by default).
 
+**A hotel without the public site or Discord** makes its first player at the server console
+(see below for reaching it): `createplayer <name> [male|female]` creates the player and prints a
+ticket that signs them in once, within the hour, as a link to the client when `Turbo:Web:ClientUrl`
+is set. With `TURBO_OWNER_NAME` naming them, they become the owner at once.
+
 Without naming an owner, or to rescue a hotel, the setup link can be made by hand. Either:
 
 - **In the hotel**, if your account already holds `admin.panel`: type `:adminsetup` and click the

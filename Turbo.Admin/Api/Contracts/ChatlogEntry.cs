@@ -7,7 +7,7 @@ namespace Turbo.Admin.Api.Contracts;
 /// Names are null when the player or room is gone.
 /// </summary>
 public sealed record ChatlogEntry(
-    int Id,
+    long Id,
     DateTime AtUtc,
     int PlayerId,
     string? PlayerName,

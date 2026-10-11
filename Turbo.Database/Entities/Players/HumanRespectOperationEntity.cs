@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -32,4 +33,9 @@ public sealed class HumanRespectOperationEntity
 
     /// <summary>The receiver's respect total once it was given, which a retry is answered with.</summary>
     public int ResultTotal { get; set; }
+
+    /// <summary>When the row was written, so old receipts can be purged.</summary>
+    [Column("created_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public DateTime CreatedAt { get; set; }
 }

@@ -343,7 +343,7 @@ public sealed partial class RoomGrain
             var result = await Turbo
                 .Primitives.Players.Grains.Respect.HumanRespectOperationGrainExtensions.GetHumanRespectOperationGrain(
                     _grainFactory,
-                    Guid.NewGuid().ToString("N")
+                    Guid.CreateVersion7().ToString("N")
                 )
                 .ExecuteAsync(ctx.PlayerId, targetId, ct);
             if (!result.Accepted)

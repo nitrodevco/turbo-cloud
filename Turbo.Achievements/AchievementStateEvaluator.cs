@@ -52,7 +52,7 @@ public sealed class AchievementStateEvaluator(
                 playerId,
                 new()
                 {
-                    OperationId = $"state:{source}:{Guid.NewGuid():N}",
+                    OperationId = $"state:{source}:{Guid.CreateVersion7():N}",
                     Source = source,
                     Amount = value,
                     OccurredAtUtc = now,

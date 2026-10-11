@@ -41,7 +41,7 @@ public static class AchievementRoomCriteria
                 rooms[index],
                 new AchievementFact
                 {
-                    OperationId = $"room-rank:{Guid.NewGuid():N}",
+                    OperationId = $"room-rank:{Guid.CreateVersion7():N}",
                     Source = AchievementSources.ROOM_RANK,
                     OccurredAtUtc = now,
                     Amount = index + 1,

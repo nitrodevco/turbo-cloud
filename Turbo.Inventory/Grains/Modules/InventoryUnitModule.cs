@@ -212,7 +212,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                         new()
                         {
                             Source = AchievementSources.PET_LEVEL,
-                            OperationId = Guid.NewGuid().ToString("N"),
+                            OperationId = Guid.CreateVersion7().ToString("N"),
                             Amount = returnedPet.Level - previousPet.Level,
                             OccurredAtUtc = DateTime.UtcNow,
                         }
@@ -280,7 +280,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                     new()
                     {
                         Source = AchievementSources.PETS,
-                        OperationId = Guid.NewGuid().ToString("N"),
+                        OperationId = Guid.CreateVersion7().ToString("N"),
                         Amount = owned + 1,
                         OccurredAtUtc = DateTime.UtcNow,
                     }

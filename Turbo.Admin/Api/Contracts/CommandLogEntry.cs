@@ -8,7 +8,7 @@ namespace Turbo.Admin.Api.Contracts;
 /// null for a room chat command). Names are null when the player or room is gone.
 /// </summary>
 public sealed record CommandLogEntry(
-    int Id,
+    long Id,
     DateTime AtUtc,
     int PlayerId,
     string? PlayerName,

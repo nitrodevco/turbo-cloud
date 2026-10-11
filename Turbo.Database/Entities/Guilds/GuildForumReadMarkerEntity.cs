@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Guilds;
 
@@ -24,4 +25,11 @@ public class GuildForumReadMarkerEntity : TurboEntity
 
     [Column("read_at")]
     public DateTime ReadAt { get; set; }
+
+    // Part of the group and the player: the marker goes with either.
+    [ForeignKey(nameof(GuildEntityId))]
+    public GuildEntity? GuildEntity { get; set; }
+
+    [ForeignKey(nameof(PlayerEntityId))]
+    public PlayerEntity? PlayerEntity { get; set; }
 }

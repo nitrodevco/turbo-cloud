@@ -126,6 +126,31 @@ The migrator's guarantees rest on how migrations are written:
 - **Plugins** keep their own history table (`__EFMigrationsHistory_<prefix>`) and table prefix, and
   call `MigrationHelper.MigrateAsync` from their `IPluginDbModule`, so they get all of the above.
 
+## What a new hotel starts with
+
+The `SeedReferenceData` migration gives every hotel the rows it needs to be playable: credits,
+duckets and diamonds; Habbo's 36 private-room models (`model_a` to `model_z`, `model_0` to
+`model_9`); the navigator's tabs, room categories and event categories, named as Habbo's texts
+name them; a catalog root with a front page and the Habbo Club page selling one, three and twelve
+months; and the permission groups, call-for-help topics, chat styles, pet breeds and speech, quests
+and group badge parts. Furniture comes from Habbo's releases, imported in the admin panel, and the
+catalog generator builds the rest of the catalog from it. `ANewDatabase_IsAPlayableHotel` checks
+all of this against a real PostgreSQL.
+
+## What a delete takes with it
+
+- **A definition can't be deleted while it is used.** A furni definition, a room model or a
+  currency is refused while any furniture, room, balance, offer or clothing uses it; the admin
+  panel says what still uses it.
+- **Logs keep no foreign keys.** Room chat, room entries, private messages and command logs name
+  rooms and players by id, so they outlive both: a deleted room's chat is still there for the
+  moderators. They have 64-bit ids, since a busy hotel writes them by the million.
+- **What belongs to something goes with it.** A player's quests, a group's forum threads and read
+  markers, a room's rights, bans and ratings.
+- **A home room is checked, not constrained.** `player_settings.home_room_id` has no foreign key,
+  because the settings grain writes the row whole and a stale id would fail every save. Deleting a
+  room clears it, and loading settings drops one that no longer exists.
+
 ## How tables and columns are named
 
 Every table and column is lower `snake_case`, written once in the entity's `[Table]` / `[Column]`

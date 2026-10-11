@@ -1071,7 +1071,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     /// answered with false, and the caller carries on as though the flag had not changed.
     /// </summary>
     private async Task<bool> TrySetDeliveredAsync(
-        int messageId,
+        long messageId,
         bool delivered,
         CancellationToken ct
     )
@@ -1345,7 +1345,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         PlayerId senderId,
         string message,
         DateTime sentAtUtc,
-        int messageId,
+        long messageId,
         string senderName,
         string senderFigure,
         CancellationToken ct
@@ -1646,7 +1646,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     /// live one, and the newest row id among them. Messages from a former friend are left
     /// undelivered: there is no conversation to put them in.
     /// </summary>
-    private async Task<(List<IComposer> Composers, int ReplayedUpToId)> LoadOfflineMessagesAsync(
+    private async Task<(List<IComposer> Composers, long ReplayedUpToId)> LoadOfflineMessagesAsync(
         CancellationToken ct
     )
     {
@@ -1710,7 +1710,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     /// statement, so rows past the replay limit are not replayed on every login; they remain in
     /// the conversation history. False, logged, when the write failed.
     /// </summary>
-    private async Task<bool> TryMarkOfflineMessagesDeliveredAsync(int upToId, CancellationToken ct)
+    private async Task<bool> TryMarkOfflineMessagesDeliveredAsync(long upToId, CancellationToken ct)
     {
         var ownerId = _state.PlayerId.Value;
         var friendIds = _state.Friends.Keys.Select(x => x.Value).ToList();

@@ -202,9 +202,6 @@ public class RoomEntity : TurboEntity
     public List<RoomRightEntity>? RoomRights { get; set; }
 
     [InverseProperty("RoomEntity")]
-    public List<RoomChatlogEntity>? RoomChats { get; set; }
-
-    [InverseProperty("RoomEntity")]
     public List<RoomRatingEntity>? RoomRatings { get; set; }
 
     [InverseProperty("RoomEntity")]

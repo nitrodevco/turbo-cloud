@@ -855,6 +855,16 @@ internal sealed class GamedataHistoryService(
                 .ToListAsync(ct)
                 .ConfigureAwait(false)
         );
+        // Clothing a player bought with the furni: the database refuses the definition's delete
+        // while a player holds it.
+        used.UnionWith(
+            await dbCtx
+                .PlayerBoundClothing.Where(x => ids.Contains(x.FurnitureDefinitionEntityId))
+                .Select(x => x.FurnitureDefinitionEntityId)
+                .Distinct()
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        );
 
         return used;
     }

@@ -261,8 +261,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                     PlayerEntityId = snapshot.PlayerId.Value,
                     TargetPlayerEntityId = snapshot.TargetPlayerId?.Value,
                     Message = message,
-                    RoomEntity = null!,
-                    PlayerEntity = null!,
                 }
             );
         }
@@ -786,7 +784,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                         {
                             Source = AchievementSources.PET_LEVEL,
                             Amount = pet.Level - row.Level,
-                            OperationId = Guid.NewGuid().ToString("N"),
+                            OperationId = Guid.CreateVersion7().ToString("N"),
                             OccurredAtUtc = DateTime.UtcNow,
                         }
                     );

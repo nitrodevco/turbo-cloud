@@ -213,7 +213,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                 new()
                 {
                     Source = AchievementSources.FURNITURE,
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = DateTime.UtcNow,
                 }
             );
