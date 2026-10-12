@@ -24,6 +24,14 @@ public sealed class FurnitureOccupationVariable(RoomGrain roomGrain)
 
     protected override ushort Order => 74;
 
+    /// <summary>
+    /// The client shows a packed value as its parts (purple, with
+    /// <c>wiredmenu.inspection.packed_variable.desc</c>) only for a variable that says it has a
+    /// text connector (WIN63-202610121624 <c>Util.getPackedVariableText</c>); the table itself is
+    /// empty, because the client builds the text from the name.
+    /// </summary>
+    protected override WiredVariableFlags Flags => base.Flags | WiredVariableFlags.HasTextConnector;
+
     protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
         (item.X << 16) | (item.Y << 8) | (int)item.Rotation;
 
