@@ -1468,7 +1468,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<int>("RaffleWindowSeconds")
                         .HasColumnType("integer")
-                        .HasDefaultValue(30)
+                        .HasDefaultValue(20)
                         .HasColumnName("raffle_window_seconds");
 
                     b.Property<int>("RemainingQuantity")

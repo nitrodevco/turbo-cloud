@@ -30,4 +30,12 @@ public interface ICatalogService
     public ImmutableArray<CatalogOfferSnapshot> GetClubGiftOffers();
 
     public Task<UpcomingLtdSnapshot?> GetUpcomingLtdAsync(CancellationToken ct);
+
+    /// <summary>
+    /// As the server stops, before the silo does: draws every limited raffle still gathering
+    /// buyers, so its entrants hear how it went and its winners get their piece. Left to the
+    /// silo, the draw ran after it had left the cluster: it marked the raffle finished, failed at
+    /// the first charge, and left every entry pending. Returns how many raffles were drawn.
+    /// </summary>
+    public Task<int> DrawOpenRafflesAsync(CancellationToken ct);
 }

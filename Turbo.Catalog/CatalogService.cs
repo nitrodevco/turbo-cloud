@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Turbo.Catalog.Exceptions;
 using Turbo.Database.Context;
 using Turbo.Players.Configuration;
@@ -14,6 +15,7 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Catalog.Tags;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Catalog;
@@ -23,7 +25,8 @@ public sealed class CatalogService(
     ICatalogSnapshotProvider<NormalCatalog> normalCatalogProvider,
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IOptions<PlayerConfig> playerConfig
+    IOptions<PlayerConfig> playerConfig,
+    IGrainFactory grainFactory
 ) : ICatalogService
 {
     private readonly ILogger<ICatalogService> _logger = logger;
@@ -32,6 +35,7 @@ public sealed class CatalogService(
     private readonly ICatalogSnapshotProvider<BuildersClubCatalog> _buildersClubCatalogProvider =
         buildersClubCatalogProvider;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     // The client adds a membership back up as periods * 31 + days, so how long a period is has
     // to be the one the subscriptions themselves are measured in.
@@ -134,6 +138,53 @@ public sealed class CatalogService(
             OriginalActivityPointType = shortest.PriceActivityPointType,
             SubscriptionDaysLeft = 0,
         };
+    }
+
+    public async Task<int> DrawOpenRafflesAsync(CancellationToken ct)
+    {
+        var open = await OpenRafflesAsync(ct).ConfigureAwait(false);
+        var drawn = 0;
+
+        foreach (var seriesId in open)
+        {
+            try
+            {
+                await _grainFactory
+                    .GetLtdRaffleGrain(seriesId)
+                    .ForceRunRaffleAsync(ct)
+                    .ConfigureAwait(false);
+
+                drawn++;
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to draw the raffle of LTD series {SeriesId} as the server stops",
+                    seriesId
+                );
+            }
+        }
+
+        return drawn;
+    }
+
+    /// <summary>The series whose entries wait on a draw that has not run.</summary>
+    private async Task<int[]> OpenRafflesAsync(CancellationToken ct)
+    {
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        return await dbCtx
+            .LtdRaffleEntries.Where(e =>
+                e.Result == LtdEntryResult.Pending
+                && e.BatchId != null
+                && !e.Series!.IsRaffleFinished
+            )
+            .Select(e => e.SeriesEntityId)
+            .Distinct()
+            .ToArrayAsync(ct)
+            .ConfigureAwait(false);
     }
 
     public async Task<UpcomingLtdSnapshot?> GetUpcomingLtdAsync(CancellationToken ct)

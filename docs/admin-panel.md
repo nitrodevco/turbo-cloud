@@ -655,10 +655,20 @@ since members may have claimed it; hide it, or turn **Club gift** off first.
 limited:
 
 - **How many:** the size of the series.
-- **Raffle window:** how long the opening raffle gathers buyers before it draws. 0 sells first
-  come, first served.
+- **Raffle window:** how long the opening raffle gathers buyers before it draws; 20 s for a new
+  series, as on Habbo. 0 sells first come, first served. With an **On sale from** time the window
+  runs from then, so it closes on time however fast the first buyer is; otherwise the first buyer
+  opens it.
 - **On sale from / until:** a later start shows as the next limited item.
 - **On sale:** a switch to stop selling it.
+
+How the raffle goes, as Habbo runs one: players press buy as usual and are told they are in. When
+the window closes the hotel puts everyone who entered in order, favouring experienced players (the
+`Turbo:Catalog:LtdRaffle` weights: account age, badges, rooms, furni and the rest; or pure chance),
+and sells down that order while stock lasts. Only those who get one are charged; one who can no
+longer pay is passed over for the next. Everyone is told whether they got one, and anything left
+is then sold first come, first served. A sold-out series shows the client's own "Sold Out!" alert.
+A raffle still open when the server stops is drawn before it stops.
 
 The editor never counts what is left; the hotel does. A new total moves what is left by as much,
 and can't drop below what is sold. A series can only come off an offer while none of it is sold or

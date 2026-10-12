@@ -34,11 +34,12 @@ public class LtdSeriesEntity : TurboEntity
     public required int RemainingQuantity { get; set; }
 
     /// <summary>
-    /// How long the raffle queue is open (in seconds) before drawing.
+    /// How long the opening raffle gathers buyers before it draws, in seconds; 0 sells first
+    /// come, first served. Habbo's is 20.
     /// </summary>
     [Column("raffle_window_seconds")]
-    [DefaultValue(30)]
-    public required int RaffleWindowSeconds { get; set; } = 30;
+    [DefaultValue(20)]
+    public required int RaffleWindowSeconds { get; set; } = 20;
 
     /// <summary>
     /// Whether this series is currently active.

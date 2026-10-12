@@ -12,11 +12,6 @@ public class LtdRaffleWeightConfig
     public double BaseWeight { get; set; } = 1.0;
 
     /// <summary>
-    /// Default buffer window in seconds.
-    /// </summary>
-    public int DefaultBufferSeconds { get; set; } = 20;
-
-    /// <summary>
     /// If true, uses pure random selection (equal chance for all).
     /// Set to true to disable all weighting.
     /// </summary>

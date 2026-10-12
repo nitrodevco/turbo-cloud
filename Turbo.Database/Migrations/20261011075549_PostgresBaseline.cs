@@ -5935,7 +5935,7 @@ namespace Turbo.Database.Migrations
                     raffle_window_seconds = table.Column<int>(
                         type: "integer",
                         nullable: false,
-                        defaultValue: 30
+                        defaultValue: 20
                     ),
                     is_active = table.Column<bool>(
                         type: "boolean",

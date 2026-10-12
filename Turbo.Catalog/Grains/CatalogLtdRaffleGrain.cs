@@ -164,10 +164,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             );
         }
 
-        var buffer =
-            _state.Series.RaffleWindowSeconds > 0
-                ? _state.Series.RaffleWindowSeconds
-                : _config.LtdRaffle.DefaultBufferSeconds;
+        var window = WindowLeft(_state.Series, DateTime.UtcNow);
 
         // One per customer counts what they bought outright as well as what they won.
         if (_config.LtdRaffle.LimitOnePerCustomer)
@@ -186,12 +183,19 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
         }
 
-        if (buffer <= 0 || _state.RaffleFinished)
+        if (window is null || _state.RaffleFinished)
         {
-            var instantWin = await TryFinalizeWinnerAsync(playerId, null, false, ct);
-            return instantWin
-                ? LtdRaffleEntryResult.Succeeded("instant")
-                : LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SoldOut);
+            return await TryFinalizeWinnerAsync(playerId, null, false, ct) switch
+            {
+                LtdRaffleResultType.Won => LtdRaffleEntryResult.Succeeded("instant"),
+                LtdRaffleResultType.LostNoStock => LtdRaffleEntryResult.Failed(
+                    LtdRaffleEntryErrorType.SoldOut
+                ),
+                LtdRaffleResultType.Lost => LtdRaffleEntryResult.Failed(
+                    LtdRaffleEntryErrorType.InsufficientFunds
+                ),
+                _ => LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.None),
+            };
         }
 
         if (_state.CurrentBatchEntries.ContainsKey(playerId))
@@ -205,7 +209,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 static async (self, ct) =>
                     await ((CatalogLtdRaffleGrain)self!).ExecuteRaffleAsync(ct),
                 this,
-                TimeSpan.FromSeconds(buffer),
+                window.Value,
                 Timeout.InfiniteTimeSpan
             );
         }
@@ -269,32 +273,40 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         await PersistFinishedAsync();
         await ReloadSeriesAsync(ct);
 
-        var winnersCount = Math.Min(entries.Count, _state.Series?.RemainingQuantity ?? 0);
-        var winners = _config.LtdRaffle.UsePureRandom
-            ? [.. entries.OrderBy(_ => Random.Shared.Next()).Take(winnersCount).Select(e => e.Key)]
-            : SelectWeighted(entries, winnersCount);
+        // As Habbo draws: everyone who entered is put in order, weighted towards experienced
+        // players unless UsePureRandom, and the stock is sold down that order. One who cannot pay
+        // now is passed over for the next, so no piece goes unsold while an entrant is left.
+        // Every entrant is told how it went, and every entry is settled.
+        var remaining = _state.Series?.RemainingQuantity ?? 0;
+        var results = new Dictionary<int, LtdRaffleResultType>();
 
-        var loserIds = new List<int>();
-
-        // Winners must be sequential (row lock + quantity decrement per winner)
-        foreach (var entry in entries)
+        // One sale at a time: each takes a piece of stock and a serial.
+        foreach (var playerId in DrawOrder(entries))
         {
-            if (winners.Contains(entry.Key))
-                await TryFinalizeWinnerAsync(entry.Key, batchId, true, ct);
-            else
-                loserIds.Add(entry.Key);
+            if (remaining <= 0)
+            {
+                results[playerId] = LtdRaffleResultType.Lost;
+                continue;
+            }
+
+            var result = await TryFinalizeWinnerAsync(playerId, batchId, true, ct);
+
+            results[playerId] = result;
+
+            if (result == LtdRaffleResultType.Won)
+                remaining--;
+            else if (result == LtdRaffleResultType.LostNoStock)
+                remaining = 0;
         }
 
-        // Loser notifications go to different presence grains — parallelize
-        if (loserIds.Count > 0)
-        {
-            await Task.WhenAll(
-                loserIds.Select(id => NotifyLoserAsync(id, LtdRaffleResultType.Lost, ct))
-            );
-        }
+        var losers = results.Where(x => x.Value != LtdRaffleResultType.Won).ToList();
 
-        if (loserIds.Count > 0)
+        if (losers.Count > 0)
         {
+            // Different presence grains, so side by side.
+            await Task.WhenAll(losers.Select(x => NotifyLoserAsync(x.Key, x.Value, ct)));
+
+            var loserIds = losers.Select(x => x.Key).ToList();
             await using var db = await _dbCtxFactory.CreateDbContextAsync(CancellationToken.None);
 
             await db
@@ -310,7 +322,37 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         await ReloadSeriesAsync(CancellationToken.None);
     }
 
-    private async Task<bool> TryFinalizeWinnerAsync(
+    /// <summary>
+    /// How long the raffle that would open now gathers buyers, or null when the series is sold
+    /// first come, first served (a window of 0). Habbo opens the window with the sale: when the
+    /// series has a start time and that window is still running, it closes on time whoever
+    /// comes first; otherwise the first buyer opens it.
+    /// </summary>
+    internal static TimeSpan? WindowLeft(LtdSeriesSnapshot series, DateTime nowUtc)
+    {
+        if (series.RaffleWindowSeconds <= 0)
+            return null;
+
+        var length = TimeSpan.FromSeconds(series.RaffleWindowSeconds);
+
+        if (series.StartsAt is { } start && nowUtc >= start && nowUtc < start + length)
+            return start + length - nowUtc;
+
+        return length;
+    }
+
+    /// <summary>The order the stock is offered in: weighted, or pure random.</summary>
+    private List<int> DrawOrder(List<KeyValuePair<int, double>> entries) =>
+        _config.LtdRaffle.UsePureRandom
+            ? [.. entries.Select(e => e.Key).OrderBy(_ => Random.Shared.Next())]
+            : SelectWeighted(entries, entries.Count);
+
+    /// <summary>
+    /// Sells one piece to the player: charges them, takes it from the stock with its serial,
+    /// then gives it. Won, or why not: none left, they could not pay, or something failed (and
+    /// whatever was charged is given back).
+    /// </summary>
+    private async Task<LtdRaffleResultType> TryFinalizeWinnerAsync(
         int playerId,
         Guid? batchId,
         bool isRaffle,
@@ -333,7 +375,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 .FirstOrDefaultAsync(x => x.Id == _state.SeriesId);
 
             if (series is not { RemainingQuantity: > 0 })
-                return false;
+                return LtdRaffleResultType.LostNoStock;
 
             var snap = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
 
@@ -349,7 +391,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     playerId
                 );
 
-                return false;
+                return LtdRaffleResultType.LostError;
             }
 
             var debits = offer.ToDebitRequests(1);
@@ -365,10 +407,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 );
 
             if (!debitResult.Succeeded)
-            {
-                await NotifyLoserAsync(playerId, LtdRaffleResultType.Lost, ct);
-                return false;
-            }
+                return LtdRaffleResultType.Lost;
 
             charged = debits;
 
@@ -448,7 +487,20 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 );
             }
 
-            return true;
+            return LtdRaffleResultType.Won;
+        }
+        catch (Exception ex) when (committed)
+        {
+            // The sale stands: paid for, its serial theirs. Rolling back a committed transaction
+            // only threw again and stopped the rest of the draw.
+            _logger.LogError(
+                ex,
+                "Sold LTD series {SeriesId} to player {PlayerId}, but giving it to them failed",
+                _state.SeriesId,
+                playerId
+            );
+
+            return LtdRaffleResultType.Won;
         }
         catch (Exception ex)
         {
@@ -461,7 +513,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
             await tx.RollbackAsync();
 
-            if (charged is not null && !committed)
+            if (charged is not null)
                 await _grainFactory.RefundAsync(
                     PlayerId.Parse(playerId),
                     charged,
@@ -469,7 +521,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     $"LTD series {_state.SeriesId}"
                 );
 
-            return false;
+            return LtdRaffleResultType.LostError;
         }
     }
 
@@ -590,9 +642,10 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         return weight;
     }
 
-    private static HashSet<int> SelectWeighted(List<KeyValuePair<int, double>> entries, int count)
+    /// <summary>Picks <paramref name="count"/> entrants in turn, each in proportion to their weight.</summary>
+    private static List<int> SelectWeighted(List<KeyValuePair<int, double>> entries, int count)
     {
-        var winners = new HashSet<int>();
+        var winners = new List<int>();
         var pool = entries.ToList();
 
         for (var i = 0; i < count && pool.Count > 0; i++)

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
@@ -36,7 +37,8 @@ public class TurboEmulator(
     INetworkManager networkManager,
     IRevisionManager revisionManager,
     IRoomService roomService,
-    ISessionGateway sessionGateway
+    ISessionGateway sessionGateway,
+    ICatalogService catalogService
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
@@ -55,6 +57,7 @@ public class TurboEmulator(
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IRoomService _roomService = roomService;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
+    private readonly ICatalogService _catalogService = catalogService;
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -92,12 +95,20 @@ public class TurboEmulator(
 
     /// <summary>
     /// Runs before the silo stops (hosted services stop in reverse order, and the silo was added
-    /// first), so every step below can still reach the grains. Players are logged out first and
-    /// their connections closed, so nothing changes while the rooms are written; then the rooms.
+    /// first), so every step below can still reach the grains. Open LTD raffles are drawn while
+    /// their entrants are still here to see how it went. Players are then logged out and their
+    /// connections closed, so nothing changes while the rooms are written; then the rooms.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Turbo StopAsync called.");
+
+        var raffles = await _catalogService
+            .DrawOpenRafflesAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (raffles > 0)
+            _logger.LogInformation("Drew {Count} open LTD raffles", raffles);
 
         var started = Stopwatch.GetTimestamp();
         var players = await _sessionGateway

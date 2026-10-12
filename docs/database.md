@@ -323,12 +323,14 @@ decides which as each move happens, not at the room's next save:
 A room hands what changed (positions, furni data, pets, bots, chat lines, command uses) to its
 writer every `Turbo:Rooms:DirtyItemsTickMs` (2 s), which writes it soon after. When the server stops
 (`SIGTERM` from a deploy, `:shutdown`, Ctrl+C), it does what still needs other grains while Orleans
-can reach them, and only then stops Orleans: it logs every player out (they leave their room, their
-online time and logout time are recorded), closes the connections, then saves and unloads every
-active room. Left to Orleans, all of this ran after the silo had left the cluster, when every call
-between grains fails: each room's last changes and most players' logouts were lost. The log says
-`Logged out N players in M ms` and `Saved N active rooms in M ms`, or at error level how many could
-not be written or were cut off by the host's 30 s shutdown timeout.
+can reach them, and only then stops Orleans: it draws any LTD raffle still gathering buyers, logs
+every player out (they leave their room, their online time and logout time are recorded), closes the
+connections, then saves and unloads every active room. Left to Orleans, all of this ran after the
+silo had left the cluster, when every call between grains fails: each room's last changes and most
+players' logouts were lost, and an open raffle was marked finished with every entry left pending.
+The log says `Drew N open LTD raffles`, `Logged out N players in M ms` and `Saved N active rooms in
+M ms`, or at error level how many could not be written or were cut off by the host's 30 s shutdown
+timeout.
 
 Measured on PostgreSQL 16, with `SIGTERM` sent as soon as every furni in every room had moved:
 
@@ -338,7 +340,8 @@ Measured on PostgreSQL 16, with `SIGTERM` sent as soon as every furni in every r
 | 3,000 | 17,170 of 150,000, in 355 rooms | 0 | 803 ms |
 
 With 200 players online (the load bots), `SIGTERM` left 110-114 of their logins with no logout
-time; now none, and logging them out took 667-708 ms.
+time; now none, and logging them out took 667-708 ms. With 50 players entered in a 20 s raffle and
+`SIGTERM` sent at once, all 50 now get their piece before the server stops.
 
 ## Indexes and storage for the busiest tables
 
