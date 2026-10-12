@@ -243,9 +243,29 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         _state.CurrentBatchEntries.Clear();
         _state.IsInBufferPeriod = false;
         _state.RaffleFinished = true;
-        _raffleTimer?.Dispose();
+
+        // Disposing a grain timer cancels the token it handed its callback, which is this draw's
+        // when the timer runs it: disposed first, the draw's next query was cancelled after the
+        // raffle was marked finished, so nobody won and every entry stayed pending.
+        var timer = _raffleTimer;
         _raffleTimer = null;
 
+        try
+        {
+            await DrawAsync(batchId, entries, ct);
+        }
+        finally
+        {
+            timer?.Dispose();
+        }
+    }
+
+    private async Task DrawAsync(
+        Guid? batchId,
+        List<KeyValuePair<int, double>> entries,
+        CancellationToken ct
+    )
+    {
         await PersistFinishedAsync();
         await ReloadSeriesAsync(ct);
 
@@ -664,9 +684,5 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     public Task<LtdSeriesSnapshot?> GetSeriesSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_state.Series);
 
-    public async Task ForceRunRaffleAsync(CancellationToken ct)
-    {
-        _raffleTimer?.Dispose();
-        await ExecuteRaffleAsync(ct);
-    }
+    public Task ForceRunRaffleAsync(CancellationToken ct) => ExecuteRaffleAsync(ct);
 }
