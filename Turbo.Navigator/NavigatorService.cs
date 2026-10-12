@@ -142,7 +142,16 @@ public sealed class NavigatorService(
                         (NavigatorSearchCodes.NEW_ADS, string.Empty),
                         .. GetEventCategories()
                             .Where(x => x.Visible)
-                            .Select(x => (NavigatorSearchCodes.EventCategory(x.Name), x.Name)),
+                            // Habbo names these blocks by id (eventcategory__2), which the
+                            // client titles from navigator.searchcode.title.eventcategory__2.
+                            .Select(x =>
+                                (
+                                    NavigatorSearchCodes.EventCategory(
+                                        x.Id.ToString(CultureInfo.InvariantCulture)
+                                    ),
+                                    x.Name
+                                )
+                            ),
                     ],
                     keepEmpty: false,
                     ct
@@ -643,7 +652,12 @@ public sealed class NavigatorService(
         if (rooms is null)
             return [];
 
-        var text = NavigatorSearchCodes.GetCategoryName(code);
+        var text = code.StartsWith(
+            NavigatorSearchCodes.EVENT_CATEGORY_PREFIX,
+            StringComparison.Ordinal
+        )
+            ? FindEventCategory(code)?.Name ?? NavigatorSearchCodes.GetCategoryName(code)
+            : NavigatorSearchCodes.GetCategoryName(code);
 
         return
         [
@@ -816,11 +830,7 @@ public sealed class NavigatorService(
 
         if (code.StartsWith(NavigatorSearchCodes.EVENT_CATEGORY_PREFIX, StringComparison.Ordinal))
         {
-            var name = NavigatorSearchCodes.GetCategoryName(code);
-            var category = GetEventCategories()
-                .FirstOrDefault(x =>
-                    string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
-                );
+            var category = FindEventCategory(code);
 
             return category is null
                 ? []
@@ -828,6 +838,25 @@ public sealed class NavigatorService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The event category an <c>eventcategory__</c> code names: by id, as Habbo's blocks do, or
+    /// by name, as its collapsed list and older saved searches do.
+    /// </summary>
+    private NavigatorEventCategorySnapshot? FindEventCategory(string code)
+    {
+        var key = NavigatorSearchCodes.GetCategoryName(code);
+        var categories = GetEventCategories();
+
+        return (
+                int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+                    ? categories.FirstOrDefault(x => x.Id == id)
+                    : null
+            )
+            ?? categories.FirstOrDefault(x =>
+                string.Equals(x.Name, key, StringComparison.OrdinalIgnoreCase)
+            );
     }
 
     private async Task<List<RoomInfoSnapshot>> SearchByFilterAsync(
