@@ -333,6 +333,24 @@ on 200,000 furni over 20,000 room saves: fillfactor 80 updated 20% in place agai
 indexes 35% smaller (70 MB against 108 MB), and saved 11% faster. 70 gained nothing more in index
 size for a bigger table.
 
+No index on `furniture` (or `furniture_builders_club`) holds a column a room's save writes
+(`x`, `y`, `z`, `direction`, `wall_offset`, `extra_data`), and `FurnitureStorageTests` keeps it so.
+That rules out covering indexes for loading a room or an inventory. Both were measured on 2 million
+furni, cold (PostgreSQL restarted and the OS cache dropped before each load):
+
+- **Inventory.** An index on `player_id` holding `id`, `definition_id`, `created_at` and
+  `extra_data`, for rows in no room and no holder, loaded a 20,000-item inventory in 12-20 ms
+  against 1.5 s, but only on a freshly vacuumed table. An inventory's rows share pages with furni
+  in rooms, and rooms save all day, so those pages are rarely all-visible. After room saves the
+  same load still read 13,403 of the 20,000 rows from the table (1.1-1.2 s, 25% better), while
+  every save that changed a furni's state got 40% slower.
+- **Room.** An index on `room_id` holding every column made position-only saves 83% slower
+  (none in place, against 49%) and tripled the indexes (173 MB to 525 MB). A room of 2,000 furni
+  loaded no faster after saves, because every row was fetched from the table anyway.
+
+A cold room of 2,000 furni loads in about 150 ms and a warm one in 3 ms; an inventory is read
+once, when it is first opened, and kept while the player is online.
+
 Chat lines, the busiest log, are written by binary `COPY` (PostgreSQL's guidance for loading many
 rows): a batch of 200 took 10 ms, against 50 ms through EF's batched inserts, on the same table
 and indexes.
