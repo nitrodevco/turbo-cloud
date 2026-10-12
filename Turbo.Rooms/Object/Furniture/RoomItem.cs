@@ -98,4 +98,6 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
         bool isExpired = false,
         int delay = 0
     );
+
+    public abstract IComposer GetHideComposer();
 }

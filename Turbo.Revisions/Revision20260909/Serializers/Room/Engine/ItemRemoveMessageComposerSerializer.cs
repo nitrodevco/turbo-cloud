@@ -8,6 +8,9 @@ internal class ItemRemoveMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, ItemRemoveMessageComposer message)
     {
-        packet.WriteString(message.ObjectId.ToString()).WriteInteger(message.PickerId);
+        packet
+            .WriteString(message.ObjectId.ToString())
+            .WriteInteger(message.PickerId)
+            .WriteBoolean(message.ByInvisibleFurniManager);
     }
 }
