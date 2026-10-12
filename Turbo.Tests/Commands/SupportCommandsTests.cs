@@ -57,7 +57,8 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                 Grains,
                 definitions,
                 Hotel.Fakes.Create<Turbo.Primitives.Catalog.Providers.IGiftWrappingProvider>(),
-                Config
+                Config,
+                Moderation
             ),
         ]);
 
@@ -622,6 +623,18 @@ public class SupportCommandsTests : OperatorCommandsTestBase
         _presents[1].Player.Should().Be(BOB);
         _presents[1].Request.BadgeCode.Should().BeNull();
         _presents[1].Request.TrustedSender.Should().BeTrue();
+        // A present from the hotel is in each player's history, with what it held.
+        History()
+            .Select(x => (x.Action, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.GiftSent,
+                    ALICE,
+                    "throne, badge ADM: Thanks for playing Habbo. Enjoy the throne and the badge!"
+                ),
+                (ModerationActionType.GiftSent, BOB, "throne: From the team")
+            );
         staff
             .Replies.Should()
             .Equal(

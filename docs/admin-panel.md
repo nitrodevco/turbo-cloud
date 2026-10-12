@@ -362,8 +362,11 @@ isn't. Editing the settings, rights or bans of an unloaded room loads it lightly
 rights and bans, not its furniture), as visiting its settings in the hotel would.
 
 Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it, and each
-kick, mute, ban, lifted ban, room-wide mute, kick-everyone and unload goes into the moderation
-history (`moderation_actions`) as done from the panel, beside the same actions taken in game.
+kick, mute, ban, lifted ban, room-wide mute, kick-everyone, unload and rights taken away goes
+into the moderation history (`moderation_actions`) as done from the panel, beside the same
+actions taken in game. Saving the settings of a room you don't own is recorded too, with which
+settings changed (never a password itself). So are a group's rename, badge reset, member removal
+and deletion from the Content page.
 
 Chat and visit logs, deleting rooms and changing owners aren't in the panel yet.
 

@@ -227,7 +227,7 @@ transaction as the change it records, so the record and the change can't disagre
 | --- | --- | --- |
 | `player_currency_ledger` | change to a balance, with its reason, detail and the balance it left | "my credits vanished", a disputed charge, a duplicated reward |
 | `furniture_transfers` | furni changing owner: a trade (or one undone), a staff pickup that keeps it, a wired chest deposit or payout between players, a present opened by someone it changed hands to | "my rare was taken", a duplicated item |
-| `moderation_actions` | moderation action: ban, silence, trade lock, disconnect, warning, room kick, ban and mute, room-wide mute, flood mute, badge or furni given, forum post hidden; by whom, from where (game, panel, console, the hotel itself), to whom, why, until when | what has been done to a player, what a staff member did, what happened in a room |
+| `moderation_actions` | moderation action: ban, silence, trade lock, disconnect, warning, room kick, ban and mute, room-wide mute, flood mute, rights taken away, a room's settings changed by staff who don't own it, badge, furni or present given, forum post hidden, a group renamed, its badge reset, a member removed or the group deleted by staff; by whom, from where (game, panel, console, the hotel itself), to whom, why, until when | what has been done to a player, what a staff member did, what happened in a room |
 | `catalog_ltd_entries` | raffle entry or sale of an LTD, with the serial won | who owns which serial; no serial is sold twice |
 | `player_subscription_grants` | extension of a membership: days, bought or given, until when | a disputed purchase, a gift |
 | `player_logins` | session: address (through a trusted proxy), machine id, when it ended | a banned player's other accounts |
@@ -277,6 +277,8 @@ decides which as each move happens, not at the room's next save:
 - **Placing** takes the furni into the room with one conditional write, only while the row is in
   its owner's inventory. A furni traded, deposited or placed elsewhere a moment before is refused,
   and the client's stale inventory entry is removed. A spot the room then refuses hands it back.
+- **A jukebox** takes a disk in, and gives one back, the same way: one conditional write each,
+  on where the row is now, in one transaction with the playlist's new order.
 - **Picking up** and sending furni home (a room deleted, a floor plan changed, a rented space run
   out) take it out of the room in the database before any inventory lists it, and only what the
   database still has in that room. A staff member who keeps what they pick up becomes its owner

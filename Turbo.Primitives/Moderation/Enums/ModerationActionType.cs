@@ -70,6 +70,15 @@ public enum ModerationActionType : short
     /// </summary>
     RoomFloodMute = 109,
 
+    /// <summary>A player's rights in the room taken away.</summary>
+    RoomRightsRemoved = 110,
+
+    /// <summary>Everyone's rights in the room taken away.</summary>
+    RoomRightsRemovedAll = 111,
+
+    /// <summary>The room's settings changed by staff who do not own it; the detail is what changed.</summary>
+    RoomSettingsChanged = 112,
+
     // What staff hand out and take away.
 
     /// <summary>A badge given; the detail is its code.</summary>
@@ -80,6 +89,9 @@ public enum ModerationActionType : short
 
     /// <summary>Furni given; the detail is what and how many.</summary>
     ItemGiven = 202,
+
+    /// <summary>A present sent from the hotel; the detail is what was in it.</summary>
+    GiftSent = 203,
 
     // A group and its forum.
 
@@ -94,4 +106,16 @@ public enum ModerationActionType : short
 
     /// <summary>A hidden forum post shown again.</summary>
     ForumPostRestored = 303,
+
+    /// <summary>A group renamed by staff; the detail is the new name.</summary>
+    GroupRenamed = 310,
+
+    /// <summary>A group's badge reset by staff to the default.</summary>
+    GroupBadgeReset = 311,
+
+    /// <summary>A member removed from a group by staff.</summary>
+    GroupMemberRemoved = 312,
+
+    /// <summary>A group deleted by staff; the detail is its name.</summary>
+    GroupDeleted = 313,
 }

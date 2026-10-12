@@ -40,6 +40,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
     private readonly IGrainFactory _grainFactory;
     private readonly GuildConfig _guildConfig;
     private readonly IWordFilter _wordFilter;
+    private readonly IModerationLog _moderationLog;
     private readonly ILogger<IGuildGrain> _logger;
 
     private readonly GuildLiveState _state;
@@ -54,6 +55,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
         IGrainFactory grainFactory,
         IOptions<GuildConfig> guildConfig,
         IWordFilter wordFilter,
+        IModerationLog moderationLog,
         ILogger<IGuildGrain> logger
     )
     {
@@ -61,6 +63,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
         _grainFactory = grainFactory;
         _guildConfig = guildConfig.Value;
         _wordFilter = wordFilter;
+        _moderationLog = moderationLog;
         _logger = logger;
 
         _state = new() { GuildId = this.GetGuildId() };

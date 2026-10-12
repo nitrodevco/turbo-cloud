@@ -117,8 +117,9 @@ public sealed class AdminRoomEditorTests : IDisposable
 
         result.Outcome.Should().Be(AdminRoomSaveOutcome.Saved);
         var (ctx, settings) = Saved();
-        // The room checks the staff member owns it or holds room.control.any, as in the hotel.
-        ctx.Origin.Should().Be(ActionOrigin.Player);
+        // The room checks the staff member owns it or holds room.control.any, as in the hotel,
+        // and records the change as made from the panel.
+        ctx.Origin.Should().Be(ActionOrigin.Panel);
         ctx.PlayerId.Should().Be(STAFF);
         settings.Name.Should().Be("Cafe");
         settings.DoorMode.Should().Be((int)RoomDoorModeType.Open);

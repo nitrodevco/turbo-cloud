@@ -10,6 +10,7 @@ using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
@@ -27,6 +28,7 @@ public sealed class RoomModerationHistoryTests : IDisposable
 {
     private const int ROOM = 1;
     private const int STAFF = 500;
+    private const int OWNER = 1;
 
     private readonly SqliteDb _db = new();
     private readonly WiredRoom _room = new(8, 8);
@@ -59,7 +61,9 @@ public sealed class RoomModerationHistoryTests : IDisposable
         _room.Harness.Fakes.Handlers["HasAsync"] = call =>
             Task.FromResult(
                 Convert.ToInt64(call.Key) == STAFF
-                    && (string)call.Args[0]! == PermissionNodes.Room.MODERATE_ANY
+                    && (string)call.Args[0]!
+                        is PermissionNodes.Room.MODERATE_ANY
+                            or PermissionNodes.Room.CONTROL_ANY
             );
     }
 
@@ -186,6 +190,147 @@ public sealed class RoomModerationHistoryTests : IDisposable
             .Should()
             .Equal((ModerationActionType.RoomFloodMute, ModerationSource.System, null, _alice));
     }
+
+    /// <summary>
+    /// Rights taken away, by the owner or by staff, wrote nothing down: a player who lost their
+    /// rights could not be told who took them.
+    /// </summary>
+    [Fact]
+    public async Task Rights_taken_away_are_recorded_one_player_or_all()
+    {
+        foreach (var (id, player) in new[] { (1, _alice), (2, _bob) })
+            _db.Insert(
+                new Turbo.Database.Entities.Room.RoomRightEntity
+                {
+                    Id = id,
+                    RoomEntityId = ROOM,
+                    PlayerEntityId = player,
+                }
+            );
+        // The security module was given the room's database when the room was built.
+        RoomHarness.SetField(_room.Harness.Room.SecurityModule, "_dbCtxFactory", _db);
+
+        // As the room loads them.
+        var rights =
+            (HashSet<Turbo.Primitives.Players.PlayerId>)
+                RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!;
+        rights.Add(_alice);
+        rights.Add(_bob);
+
+        await _room.Harness.Room.RemoveRightsFromPlayerAsync(
+            ActionContext.CreateForPlayer(OWNER, ROOM),
+            _alice,
+            Ct
+        );
+        await _room.Harness.Room.RemoveAllRightsAsync(
+            ActionContext.CreateForPanel(STAFF, ROOM),
+            Ct
+        );
+
+        History()
+            .Select(x => (x.Action, x.Source, x.ActorId, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.RoomRightsRemoved,
+                    ModerationSource.Game,
+                    OWNER,
+                    _alice,
+                    null
+                ),
+                (
+                    ModerationActionType.RoomRightsRemovedAll,
+                    ModerationSource.Panel,
+                    STAFF,
+                    null,
+                    "1"
+                )
+            );
+    }
+
+    /// <summary>
+    /// Staff changing a room that is not theirs is recorded with what changed (never the
+    /// password itself); the owner changing their own room is not moderation and is not.
+    /// </summary>
+    [Fact]
+    public async Task Staff_changing_a_rooms_settings_is_recorded_with_what_changed()
+    {
+        var snapshot = (RoomSnapshot)RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
+        RoomHarness.SetMember(
+            _room.Harness.State,
+            "RoomSnapshot",
+            snapshot with
+            {
+                Name = "room",
+                Description = "",
+                Password = "",
+                Tags = [],
+                DoorMode = RoomDoorModeType.Open,
+                PlayersMax = 25,
+                CategoryId = -1,
+                ChatProtection = ChatFloodSensitivityType.Normal,
+            }
+        );
+
+        (
+            await _room.Harness.Room.SaveRoomSettingsAsync(
+                ActionContext.CreateForPanel(STAFF, ROOM),
+                Settings("tidied up", RoomDoorModeType.Password, "secret"),
+                Ct
+            )
+        )
+            .Error.Should()
+            .Be(RoomSettingsSaveErrorType.None);
+        await _room.Harness.Room.SaveRoomSettingsAsync(
+            ActionContext.CreateForPlayer(OWNER, ROOM),
+            Settings("mine again", RoomDoorModeType.Open, ""),
+            Ct
+        );
+
+        History()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<ModerationActionEntity>(x =>
+                x.Action == ModerationActionType.RoomSettingsChanged
+                && x.Source == ModerationSource.Panel
+                && x.ActorId == STAFF
+                && x.Detail == "name \"tidied up\", door Password, password"
+            );
+    }
+
+    private static RoomSettingsUpdateSnapshot Settings(
+        string name,
+        RoomDoorModeType door,
+        string password
+    ) =>
+        new()
+        {
+            Name = name,
+            Description = "",
+            DoorMode = (int)door,
+            Password = password,
+            MaximumVisitors = 25,
+            CategoryId = null,
+            Tags = [],
+            TradeMode = RoomTradeModeType.Disabled,
+            AllowPets = false,
+            AllowPetsEat = false,
+            AllowWalkThrough = false,
+            HideWalls = false,
+            WallThickness = RoomThicknessType.Normal,
+            FloorThickness = RoomThicknessType.Normal,
+            WhoCanMute = ModSettingType.Owner,
+            WhoCanKick = ModSettingType.Owner,
+            WhoCanBan = ModSettingType.Owner,
+            ChatProtection = ChatFloodSensitivityType.Normal,
+            LeaveOnDoorTile = false,
+            IdleSleepEnabled = false,
+            IdleSleepTimeoutSeconds = 0,
+            IdleAutokickEnabled = false,
+            IdleAutokickTimeoutSeconds = 0,
+            MuteAllPets = false,
+        };
 
     private List<ModerationActionEntity> History()
     {

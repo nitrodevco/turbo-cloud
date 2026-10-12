@@ -29,6 +29,13 @@ public static class FurnitureRows
                 }
             );
 
+        db.InsertRooms(players[0], rooms);
+        db.InsertDefinition();
+    }
+
+    /// <summary>Rooms owned by <paramref name="owner"/>, a player already in the database.</summary>
+    public static void InsertRooms(this SqliteDb db, int owner, int[] rooms)
+    {
         db.Insert(
             new RoomModelEntity
             {
@@ -49,7 +56,7 @@ public static class FurnitureRows
                 {
                     Id = id,
                     Name = $"room-{id}",
-                    PlayerEntityId = players[0],
+                    PlayerEntityId = owner,
                     RoomModelEntityId = 1,
                     DoorMode = RoomDoorModeType.Open,
                     PlayersMax = 25,
@@ -69,7 +76,11 @@ public static class FurnitureRows
                     RoomModelEntity = null!,
                 }
             );
+    }
 
+    /// <summary>The one definition the rows use, <see cref="DEFINITION"/>.</summary>
+    public static void InsertDefinition(this SqliteDb db)
+    {
         db.Insert(
             new FurnitureDefinitionEntity
             {

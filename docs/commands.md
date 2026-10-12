@@ -255,7 +255,8 @@ what suits it; `admin` holds `*`.
 **Moderation history.** Every command that acts on a player records what it did in
 `moderation_actions` (`IModerationLog`), beside the command log's line: the ban, silence, trade
 lock and their lifting with the reason given and when they end, a disconnect, a warning or alert
-to one player with its text, a badge given or taken, furni given. Where it came from is recorded
+to one player with its text, a badge given or taken, furni given, a present sent with `:gift`
+(what it held, its badge and its note). Where it came from is recorded
 as the executor's source: the game, the panel (which runs these commands) or the console. A
 command that changed nothing (a player already silenced) records nothing.
 

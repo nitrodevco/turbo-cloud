@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -163,7 +164,72 @@ public sealed partial class RoomGrain
 
         await ApplySettingsAsync(current, next, ct);
 
+        // Staff changing a room that is not theirs is in its moderation history, with what
+        // changed; an owner changing their own room is not moderation.
+        if (
+            !SecurityModule.IsOwnedBy(ctx.PlayerId) && SettingsChanged(current, next) is { } changed
+        )
+            await ModerationModule.RecordAsync(
+                ctx,
+                ModerationActionType.RoomSettingsChanged,
+                null,
+                ct,
+                detail: changed
+            );
+
         return RoomSettingsSaveResultSnapshot.Success;
+    }
+
+    /// <summary>
+    /// Which settings differ, by the names the settings dialog gives them; the new name is
+    /// written out, a password never. Null when nothing did.
+    /// </summary>
+    private static string? SettingsChanged(RoomSnapshot before, RoomSnapshot after)
+    {
+        var changed = new List<string>();
+
+        if (before.Name != after.Name)
+            changed.Add($"name \"{after.Name}\"");
+        if (before.Description != after.Description)
+            changed.Add("description");
+        if (before.DoorMode != after.DoorMode)
+            changed.Add($"door {after.DoorMode}");
+        if (before.Password != after.Password)
+            changed.Add("password");
+        if (before.PlayersMax != after.PlayersMax)
+            changed.Add($"max players {after.PlayersMax}");
+        if (before.CategoryId != after.CategoryId)
+            changed.Add($"category {after.CategoryId}");
+        if (!before.Tags.SequenceEqual(after.Tags))
+            changed.Add("tags");
+        if (before.TradeType != after.TradeType)
+            changed.Add($"trading {after.TradeType}");
+        if (before.AllowPets != after.AllowPets || before.AllowPetsEat != after.AllowPetsEat)
+            changed.Add("pets");
+        if (before.AllowWalkThrough != after.AllowWalkThrough)
+            changed.Add("walk-through");
+        if (
+            before.HideWalls != after.HideWalls
+            || before.WallThickness != after.WallThickness
+            || before.FloorThickness != after.FloorThickness
+        )
+            changed.Add("walls and floor");
+        if (before.ModSettings != after.ModSettings)
+            changed.Add("who can mute, kick and ban");
+        if (before.ChatProtection != after.ChatProtection)
+            changed.Add($"chat flood {after.ChatProtection}");
+        if (
+            before.LeaveOnDoorTile != after.LeaveOnDoorTile
+            || before.IdleSleepEnabled != after.IdleSleepEnabled
+            || before.IdleSleepTimeoutSeconds != after.IdleSleepTimeoutSeconds
+            || before.IdleAutokickEnabled != after.IdleAutokickEnabled
+            || before.IdleAutokickTimeoutSeconds != after.IdleAutokickTimeoutSeconds
+        )
+            changed.Add("idle players");
+        if (before.MuteAllPets != after.MuteAllPets)
+            changed.Add("pet chat");
+
+        return changed.Count == 0 ? null : string.Join(", ", changed);
     }
 
     public async Task<RoomSettingsSaveResultSnapshot> UpdateCategoryAndTradeSettingsAsync(

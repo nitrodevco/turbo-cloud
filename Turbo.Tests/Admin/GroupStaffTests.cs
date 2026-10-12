@@ -14,6 +14,8 @@ using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -254,6 +256,55 @@ public sealed class GroupStaffTests : IDisposable
         dbCtx.Guilds.Should().BeEmpty();
         dbCtx.GuildMembers.Should().BeEmpty();
         _fakes.Log.Of("OnGuildRemovedAsync").Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Staff renaming a group, resetting its badge, removing a member or deleting it wrote only
+    /// to the server log. Each is in the moderation history, as done from the panel: a member
+    /// taken out in theirs, and the group's in the record of the group.
+    /// </summary>
+    [Fact]
+    public async Task Staff_changes_to_a_group_are_in_the_moderation_history()
+    {
+        var group = await GroupAsync();
+
+        await group.StaffRenameAsync(STAFF, "New name", "x", Ct);
+        await group.StaffRemoveMemberAsync(STAFF, new PlayerId(BOB), Ct);
+        await group.StaffDeleteAsync(STAFF, Ct);
+
+        _fakes
+            .Log.Of(nameof(IModerationLog.RecordAsync))
+            .Select(x => (ModerationRecord)x.Args[0]!)
+            .Select(x =>
+                (x.Action, x.Source, x.ActorId?.Value, x.TargetPlayerId?.Value, x.GuildId, x.Detail)
+            )
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.GroupRenamed,
+                    ModerationSource.Panel,
+                    (int?)STAFF.Value,
+                    (int?)null,
+                    (int?)GROUP,
+                    "New name"
+                ),
+                (
+                    ModerationActionType.GroupMemberRemoved,
+                    ModerationSource.Panel,
+                    STAFF.Value,
+                    BOB,
+                    GROUP,
+                    null
+                ),
+                (
+                    ModerationActionType.GroupDeleted,
+                    ModerationSource.Panel,
+                    STAFF.Value,
+                    null,
+                    GROUP,
+                    "New name"
+                )
+            );
     }
 
     [Fact]
