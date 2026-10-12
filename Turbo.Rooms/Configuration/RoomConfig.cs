@@ -260,6 +260,13 @@ public class RoomConfig
     public int[] RaidGuardDurationsSeconds { get; init; } = [300, 900, 1800, 3600, 10800];
 
     /// <summary>
+    /// How long after sending a player a room's ban list their next request for it goes
+    /// unanswered, as Habbo lets the client's immediate repeats go (it asks again whenever the
+    /// list arrives empty). 0 answers every request.
+    /// </summary>
+    public int BanListRepeatIgnoreMs { get; init; } = 1000;
+
+    /// <summary>
     /// Furniture class names the client draws with another class's assets (FurnitureAliases,
     /// asked for at login): name to the class whose assets it uses. Empty by default. Habbo
     /// sends 14, its advertising furni drawn with their campaign assets
