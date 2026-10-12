@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources/habbo-achievements-2026-10-02.json" />
+    <EmbeddedResource Include="Resources/habbo-reward-track-introduction-2026-10-12.json" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <ProjectReference Include="../Turbo.Contracts/Turbo.Contracts.csproj" />
     <ProjectReference Include="../Turbo.Database/Turbo.Database.csproj" />

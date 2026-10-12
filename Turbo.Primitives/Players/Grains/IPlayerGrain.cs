@@ -24,6 +24,13 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     /// </summary>
     public Task RefitFigureAsync(CancellationToken ct);
     public Task SetMottoAsync(string text, CancellationToken ct);
+
+    /// <summary>
+    /// The name a new player chose in the new user flow, once: written only while that step is
+    /// still to do, which it then is not. Checking the name is the caller's; the database's unique
+    /// name key is what refuses one taken meanwhile. The player's own name is accepted as is.
+    /// </summary>
+    public Task<NameCheckResult> ChooseNameAsync(string name, CancellationToken ct);
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
 
     /// <summary>Consumes one daily respect; false when none are left today.</summary>

@@ -1,0 +1,556 @@
+{
+    "Id": "introduction",
+    "Theme": "blue",
+    "Premium": {
+        "TaskPointsBoost": 1.2,
+        "InstantPoints": 0,
+        "CostCredits": 100,
+        "CostDiamonds": 100
+    },
+    "Tasks": [
+        {
+            "Id": "visit_rooms",
+            "ActionType": "ENTER_OTHER_USERS_ROOM",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 5,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "chat_with_users",
+            "ActionType": "CHAT_WITH_SOMEONE",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 50,
+                    "Points": 30
+                },
+                {
+                    "RequiredCount": 200,
+                    "Points": 40
+                }
+            ]
+        },
+        {
+            "Id": "dance_in_room",
+            "ActionType": "DANCE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "wave_at_user",
+            "ActionType": "WAVE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 10
+                }
+            ]
+        },
+        {
+            "Id": "use_habbicon",
+            "ActionType": "USE_HABBICON",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 5,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "give_respect",
+            "ActionType": "GIVE_RESPECT",
+            "Levels": [
+                {
+                    "RequiredCount": 3,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 6,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 24,
+                    "Points": 100
+                }
+            ]
+        },
+        {
+            "Id": "replenish_respect",
+            "ActionType": "REPLENISH_RESPECT",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 3,
+                    "Points": 40
+                }
+            ]
+        },
+        {
+            "Id": "make_friends",
+            "ActionType": "REQUEST_FRIEND",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 5,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 30
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 40
+                }
+            ]
+        },
+        {
+            "Id": "pet_a_pet",
+            "ActionType": "PET_RESPECT",
+            "Levels": [
+                {
+                    "RequiredCount": 3,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 6,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 9,
+                    "Points": 30
+                },
+                {
+                    "RequiredCount": 15,
+                    "Points": 50
+                }
+            ]
+        },
+        {
+            "Id": "feed_pet",
+            "ActionType": "PET_EAT",
+            "Levels": [
+                {
+                    "RequiredCount": 4,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 40,
+                    "Points": 50
+                }
+            ]
+        },
+        {
+            "Id": "level_pet",
+            "ActionType": "PET_LEVEL",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 3,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 6,
+                    "Points": 50
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 100
+                }
+            ]
+        },
+        {
+            "Id": "change_motto",
+            "ActionType": "CHANGE_MOTTO",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "change_outfit",
+            "ActionType": "CHANGE_FIGURE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "wear_badge",
+            "ActionType": "WEAR_BADGE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "close_love_lock",
+            "ActionType": "FRIEND_FURNI_LOCKED",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 50
+                }
+            ]
+        },
+        {
+            "Id": "use_teleport",
+            "ActionType": "TELEPORT",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "grab_drink",
+            "ActionType": "FIND_HAND_ITEM",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "use_furniture",
+            "ActionType": "SWITCH_ITEM_STATE",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "go_swimming",
+            "ActionType": "SWIM",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "create_room",
+            "ActionType": "CREATE_ROOM",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 50
+                }
+            ]
+        },
+        {
+            "Id": "buy_catalog_furni",
+            "ActionType": "BUY_FROM_CATALOGUE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 50
+                }
+            ]
+        },
+        {
+            "Id": "place_furniture",
+            "ActionType": "PLACE_ITEM",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "place_builders_club_furni",
+            "ActionType": "PLACE_BUILDERS_CLUB_FURNI",
+            "Levels": [
+                {
+                    "RequiredCount": 10,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 50,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "move_furniture",
+            "ActionType": "MOVE_ITEM",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 20
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "rotate_furniture",
+            "ActionType": "ROTATE_ITEM",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 10,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "send_messenger_message",
+            "ActionType": "SEND_MESSENGER_MESSAGE",
+            "Levels": [
+                {
+                    "RequiredCount": 5,
+                    "Points": 10
+                },
+                {
+                    "RequiredCount": 20,
+                    "Points": 20
+                }
+            ]
+        },
+        {
+            "Id": "send_messenger_invite",
+            "ActionType": "SEND_MESSENGER_INVITE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "follow_friend",
+            "ActionType": "FOLLOW_FRIEND",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "set_relationship_status",
+            "ActionType": "SET_RELATIONSHIP_STATUS",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 30
+                }
+            ]
+        },
+        {
+            "Id": "publish_picture",
+            "ActionType": "PUBLISH_PICTURE",
+            "Levels": [
+                {
+                    "RequiredCount": 1,
+                    "Points": 50
+                }
+            ]
+        }
+    ],
+    "Prizes": [
+        {
+            "Id": "free_004",
+            "RequiredPoints": 200,
+            "ProductType": "ActivityPoints",
+            "RewardTypeId": "0",
+            "Amount": 50
+        },
+        {
+            "Id": "free_010",
+            "RequiredPoints": 500,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "1534",
+            "Amount": 10
+        },
+        {
+            "Id": "premium_005",
+            "RequiredPoints": 500,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "2131",
+            "Amount": 10,
+            "Premium": true
+        },
+        {
+            "Id": "free_013",
+            "RequiredPoints": 650,
+            "ProductType": "Badge",
+            "RewardTypeId": "ACH_TraderPass1",
+            "Amount": 1
+        },
+        {
+            "Id": "free_015",
+            "RequiredPoints": 750,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "195",
+            "Amount": 1
+        },
+        {
+            "Id": "premium_008",
+            "RequiredPoints": 800,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "4582",
+            "Amount": 1,
+            "Premium": true
+        },
+        {
+            "Id": "free_019",
+            "RequiredPoints": 950,
+            "ProductType": "ActivityPoints",
+            "RewardTypeId": "0",
+            "Amount": 50
+        },
+        {
+            "Id": "free_022",
+            "RequiredPoints": 1100,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "18976",
+            "Amount": 1
+        },
+        {
+            "Id": "free_024",
+            "RequiredPoints": 1200,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "18490",
+            "Amount": 1
+        },
+        {
+            "Id": "premium_014",
+            "RequiredPoints": 1350,
+            "ProductType": "ActivityPoints",
+            "RewardTypeId": "5",
+            "Amount": 25,
+            "Premium": true
+        },
+        {
+            "Id": "premium_015",
+            "RequiredPoints": 1400,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "6348",
+            "Amount": 1,
+            "Premium": true
+        },
+        {
+            "Id": "free_029",
+            "RequiredPoints": 1450,
+            "ProductType": "ActivityPoints",
+            "RewardTypeId": "0",
+            "Amount": 100
+        },
+        {
+            "Id": "premium_016",
+            "RequiredPoints": 1450,
+            "ProductType": "ActivityPoints",
+            "RewardTypeId": "5",
+            "Amount": 25,
+            "Premium": true
+        },
+        {
+            "Id": "free_030",
+            "RequiredPoints": 1500,
+            "ProductType": "FloorItem",
+            "RewardTypeId": "18975",
+            "Amount": 1
+        },
+        {
+            "Id": "free_031",
+            "RequiredPoints": 1650,
+            "ProductType": "Badge",
+            "RewardTypeId": "JRH31",
+            "Amount": 1
+        },
+        {
+            "Id": "premium_018",
+            "RequiredPoints": 1650,
+            "ProductType": "Badge",
+            "RewardTypeId": "JRH32",
+            "Amount": 1,
+            "Premium": true
+        }
+    ]
+}

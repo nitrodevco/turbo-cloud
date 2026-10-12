@@ -4374,6 +4374,61 @@ namespace Turbo.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.StarterRoomEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedByPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_player_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("PictureTakenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("picture_taken_at");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("integer")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_starters");
+
+                    b.HasIndex("CreatedByPlayerId")
+                        .HasDatabaseName("ix_room_starters_created_by_player_id");
+
+                    b.HasIndex("RoomEntityId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_room_starters_room_id");
+
+                    b.ToTable("room_starters", null, t =>
+                        {
+                            t.HasComment("Rooms the hotel offers new players as starter rooms; each player who picks one gets a copy.");
+                        });
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionAuditEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -5599,6 +5654,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name_key")
                         .UseCollation("C");
+
+                    b.Property<bool>("OnboardingNamePending")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_name_pending");
+
+                    b.Property<bool>("OnboardingRoomPending")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_room_pending");
 
                     b.Property<int>("PetRespectsLeft")
                         .HasColumnType("integer")
@@ -8575,6 +8640,26 @@ namespace Turbo.Database.Migrations
                         .HasConstraintName("fk_moderation_cfh_report_chat_lines_moderation_cfh_reports_rep");
 
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.StarterRoomEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "CreatedByPlayer")
+                        .WithMany()
+                        .HasForeignKey("CreatedByPlayerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_room_starters_players_created_by_player_id");
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_room_starters_rooms_room_id");
+
+                    b.Navigation("CreatedByPlayer");
+
+                    b.Navigation("RoomEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupMetaEntity", b =>

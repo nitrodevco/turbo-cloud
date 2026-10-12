@@ -46,6 +46,12 @@ public partial interface IRoomGrain
     /// </summary>
     public Task CompleteRoomDeletionAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Makes the room a new user lobby (<see cref="RoomDoorModeType.NoobLobby"/>), or a lobby an
+    /// open room again; false when it already was, or is not a lobby to turn back.
+    /// </summary>
+    public Task<bool> SetNoobLobbyAsync(bool isLobby, CancellationToken ct);
+
     public Task<RoomSettingsSaveResultSnapshot> UpdateCategoryAndTradeSettingsAsync(
         ActionContext ctx,
         int? categoryId,

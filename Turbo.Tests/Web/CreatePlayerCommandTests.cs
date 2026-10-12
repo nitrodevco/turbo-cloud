@@ -88,6 +88,10 @@ public sealed class CreatePlayerCommandTests : IDisposable
                     _db,
                     new NoOwner(),
                     new PassThroughWordFilter(),
+                    Options.Create(new Turbo.Players.Configuration.OnboardingConfig()),
+                    new Turbo.Players.Accounts.PlayerNamePolicy(
+                        Options.Create(new Turbo.Players.Configuration.PlayerConfig())
+                    ),
                     NullLogger<IPlayerAccountService>.Instance
                 ),
                 new LoginTicketService(_db, TimeProvider.System),

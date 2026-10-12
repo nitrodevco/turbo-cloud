@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Avatar;
 
 internal class ChangeUserNameMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ChangeUserNameMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ChangeUserNameMessage { Name = packet.PopString() };
 }

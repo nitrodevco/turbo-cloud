@@ -28,6 +28,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Notifications;
+using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -155,6 +156,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
         IModerationLog moderationLog,
+        IPlayerOnboardingService onboarding,
         ILogger<IRoomGrain> logger
     )
     {
@@ -194,7 +196,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule = new(this);
         SecurityModule = new(this, _dbCtxFactory);
         ModerationModule = new(this, _dbCtxFactory);
-        EntryModule = new(this, _dbCtxFactory);
+        EntryModule = new(this, _dbCtxFactory, onboarding);
         MapModule = new(this);
         ObjectModule = new(this);
         AvatarModule = new(this);

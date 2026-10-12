@@ -597,6 +597,7 @@ internal static class MessageEvent
     #region Turbo
     public const int TurboClientCapabilitiesMessageEvent = 30000;
     public const int TurboCommandSuggestMessageEvent = 30003;
+    public const int TurboStarterRoomPictureMessageEvent = 30006;
     #endregion
 }
 
@@ -1215,5 +1216,7 @@ internal static class MessageComposer
     public const int TurboPermissionNodesMessageComposer = 30001;
     public const int TurboCommandTreeMessageComposer = 30002;
     public const int TurboCommandSuggestionsMessageComposer = 30004;
+    public const int TurboStarterRoomCameraMessageComposer = 30005;
+    public const int TurboStarterRoomPictureResultMessageComposer = 30007;
     #endregion
 }

@@ -271,6 +271,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             }
 
             player.SetFavouriteGuild(guild.GuildId, GuildMembershipStatus.Member, guild.Name);
+
+            // The client draws a worn group only from a badge code it was sent, and the people
+            // already standing here asked for theirs before this player arrived.
+            await _roomGrain.SendComposerToRoomAsync(
+                new HabboGroupBadgesMessageComposer { Guilds = [guild] },
+                ct
+            );
         }
         catch (Exception ex)
         {

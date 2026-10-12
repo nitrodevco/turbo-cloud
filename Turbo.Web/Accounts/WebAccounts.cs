@@ -25,6 +25,7 @@ public sealed class WebAccounts(
     IPlayerAccountService accounts,
     IOwnerBootstrap owner,
     IWordFilter wordFilter,
+    IPlayerNamePolicy namePolicy,
     ILogger<WebAccounts> logger
 )
 {
@@ -93,7 +94,7 @@ public sealed class WebAccounts(
 
         return NameSuggestion.Suggest(
             new DiscordCandidates(discord.Username, discord.GlobalName),
-            name => taken.Contains(name) || !wordFilter.IsClean(name)
+            name => taken.Contains(name) || !wordFilter.IsClean(name) || namePolicy.IsBlocked(name)
         );
     }
 

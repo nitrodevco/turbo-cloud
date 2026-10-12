@@ -8,6 +8,7 @@ using Turbo.Players.Configuration;
 using Turbo.Players.Figures;
 using Turbo.Players.Messenger;
 using Turbo.Players.Notifications;
+using Turbo.Players.Onboarding;
 using Turbo.Players.Permissions;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Figures;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Notifications;
+using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Runtime.AssemblyProcessing;
@@ -59,7 +61,12 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<OwnerBootstrap>();
         services.AddSingleton<IOwnerBootstrap>(sp => sp.GetRequiredService<OwnerBootstrap>());
         services.AddHostedService<OwnerStartupService>();
+        services.AddSingleton<IPlayerNamePolicy, PlayerNamePolicy>();
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
+        services.Configure<OnboardingConfig>(
+            builder.Configuration.GetSection(OnboardingConfig.SECTION_NAME)
+        );
+        services.AddSingleton<IPlayerOnboardingService, PlayerOnboardingService>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }
 }

@@ -11,6 +11,8 @@ using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -22,7 +24,8 @@ namespace Turbo.Rooms.Grains.Modules;
 /// </summary>
 public sealed class RoomEntryModule(
     RoomGrain roomGrain,
-    IDbContextFactory<TurboDbContext> dbCtxFactory
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IPlayerOnboardingService? onboarding
 ) : RoomGrainComponent(roomGrain)
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
@@ -88,9 +91,17 @@ public sealed class RoomEntryModule(
         {
             RoomDoorModeType.Locked => RoomEntryAccessType.Doorbell,
             RoomDoorModeType.Password => CheckPassword(snapshot.Password, password),
+            RoomDoorModeType.NoobLobby => await IsNewUserAsync(playerId)
+                ? RoomEntryAccessType.Allowed
+                : RoomEntryAccessType.NewUsersOnly,
             _ => RoomEntryAccessType.Allowed,
         };
     }
+
+    private async Task<bool> IsNewUserAsync(PlayerId playerId) =>
+        onboarding is not null
+        && await onboarding.GetNoobnessLevelAsync(playerId, CancellationToken.None)
+            == NoobnessLevelType.RealNoob;
 
     /// <summary>
     /// Registers the player at the door and notifies every controller currently in the room.

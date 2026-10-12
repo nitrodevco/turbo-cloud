@@ -18,7 +18,7 @@ namespace Turbo.Admin.Assets;
 /// (<see cref="GamedataFiles.EXTERNAL_VARIABLES"/>) so the panel draws the same pictures players
 /// see. They are written as the client resolves them: <c>${key}</c> is another key's value, and
 /// an address that names no host is under the client's page (<see cref="AdminConfig.ClientLoginUrl"/>);
-/// without one, such an address is left out. Read again whenever the variables are built anew.
+/// without one, such an address is left out. One starting <c>//</c> names its host, so it is kept. Read again whenever the variables are built anew.
 /// </summary>
 public sealed class ClientAssets(
     IGamedataFileService files,
@@ -142,18 +142,19 @@ public sealed class ClientAssets(
     /// An address the browser would read beside the client, made one the panel can read: under
     /// the page's scheme when it starts <c>//</c>, its host when it starts <c>/</c>, and its
     /// folder when it names neither. Built by hand, because <see cref="Uri"/> would escape the
-    /// <c>%name%</c> placeholders. Without the page, only an address with its own host is kept.
+    /// <c>%name%</c> placeholders. Without the page, only an address with its own host is kept,
+    /// one starting <c>//</c> under https.
     /// </summary>
     private static string Absolute(Uri? source, string address)
     {
         if (address.Length == 0 || address.Contains("://", StringComparison.Ordinal))
             return address;
 
+        if (address.StartsWith("//", StringComparison.Ordinal))
+            return $"{source?.Scheme ?? Uri.UriSchemeHttps}:{address}";
+
         if (source is null)
             return "";
-
-        if (address.StartsWith("//", StringComparison.Ordinal))
-            return $"{source.Scheme}:{address}";
 
         var origin = source.GetLeftPart(UriPartial.Authority);
 

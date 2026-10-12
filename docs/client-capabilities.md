@@ -251,3 +251,25 @@ a name AIR keeps for itself.
   many players waits for `:confirm`. A client learns it only from the reply; a later version could
   carry a `confirms` flag so the client warns before sending.
 - Client checks are advisory. Plugin argument types can impose additional validation on the server.
+
+## `starter.rooms` (version 1)
+
+The starter room camera: how a hotel takes the round picture the new user flow's room picker shows
+for one of its own starter rooms (`docs/onboarding.md`).
+
+| Direction | Header | Packet | Body |
+| --- | --- | --- | --- |
+| server → client | 30005 | `TurboStarterRoomCameraMessage` | `int roomId`: open the camera in that room |
+| client → server | 30006 | `TurboStarterRoomPictureMessage` | `int roomId`, `int length` + render data (zlib-deflated, as a room thumbnail's), then optionally `int length` + a PNG of the camera's view |
+| server → client | 30007 | `TurboStarterRoomPictureResultMessage` | `int roomId`, `bool ok` |
+
+`:starterroom add` and `:starterroom picture` send the first. The camera's viewfinder is the
+picture's ellipse's bounding box (296x284), the ellipse marked on it. Its capture is the render
+data of the room under it - as the thumbnail camera's - and, from nitro-next, the view itself: the
+render data carries no wall or floor textures, the view does. The camera renderer frames the view
+(`render.mjs --frame starter-room --scene <png>`) into Habbo's 296x315 round picture and draws the
+furni that break out of the frame from the render data; without a view it draws the room from the
+data alone. The picture is served by the gamedata host at `/starter-rooms/<room id>.png`.
+
+Only a player holding `command.starterroom`, in that room, for one of the hotel's starter rooms, is
+answered; the view is trusted because only staff send it.

@@ -72,6 +72,23 @@ public sealed class ClientAssetsTests
     }
 
     [Fact]
+    public async Task WithoutTheClientsPage_AnAddressStartingTwoSlashesIsKeptUnderHttps()
+    {
+        // The hotel view's backgrounds and promo pictures are `${image.library.url}...`.
+        _variables.Json = """
+            {
+                "image.library.url": "//images.example/c_images/",
+                "asset.urls.catalog": "${image.library.url}catalogue/%name%.gif"
+            }
+            """;
+
+        var assets = await Assets(clientPage: "").GetAsync(Ct);
+
+        assets.ImageLibrary.Should().Be("https://images.example/c_images/");
+        assets.CatalogImage.Should().Be("https://images.example/c_images/catalogue/%name%.gif");
+    }
+
+    [Fact]
     public async Task TheVariablesAreReadAgain_WhenTheyAreBuiltAnew()
     {
         _variables.Json = """{ "badge.asset.url": "https://a.example/%badgename%.gif" }""";

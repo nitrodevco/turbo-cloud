@@ -3,12 +3,22 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class ForwardToSomeRoomMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<ForwardToSomeRoomMessage>
+/// <summary>
+/// <c>navigator/goto/&lt;name&gt;</c> links the server resolves: <c>predefined_noob_lobby</c> (the
+/// new user lobby offer, the toolbar and leaving a room as a new user) goes to one of the hotel's
+/// new user lobbies, or nowhere when it has none; anything else (<c>random_friending_room</c>) to a
+/// random room with people in it.
+/// </summary>
+public class ForwardToSomeRoomMessageHandler(
+    IGrainFactory grainFactory,
+    INoobLobbyDirectory noobLobbies
+) : IMessageHandler<ForwardToSomeRoomMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
 
@@ -21,15 +31,18 @@ public class ForwardToSomeRoomMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var roomDirectory = _grainFactory.GetRoomDirectoryGrain();
-        var randomRoomId = await roomDirectory
-            .GetRandomPopulatedRoomAsync(ct)
-            .ConfigureAwait(false);
+        RoomId? roomId =
+            message.ForwardData == INoobLobbyDirectory.FORWARD_DATA
+                ? await noobLobbies.PickAsync(ct).ConfigureAwait(false)
+                : await _grainFactory
+                    .GetRoomDirectoryGrain()
+                    .GetRandomPopulatedRoomAsync(ct)
+                    .ConfigureAwait(false);
 
-        if (randomRoomId is not null && randomRoomId.Value > 0)
+        if (roomId is not null && roomId.Value > 0)
         {
             await _grainFactory
-                .ForwardPlayerToRoomAsync(ctx.PlayerId, randomRoomId.Value, ct)
+                .ForwardPlayerToRoomAsync(ctx.PlayerId, roomId.Value, ct)
                 .ConfigureAwait(false);
         }
     }

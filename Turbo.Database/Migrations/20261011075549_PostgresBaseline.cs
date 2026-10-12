@@ -2401,6 +2401,16 @@ namespace Turbo.Database.Migrations
                         defaultValue: 0
                     ),
                     respect_reset_date = table.Column<DateOnly>(type: "date", nullable: true),
+                    onboarding_name_pending = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
+                    onboarding_room_pending = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
                     last_login_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: true
@@ -5920,6 +5930,52 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "room_starters",
+                columns: table => new
+                {
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    room_id = table.Column<int>(type: "integer", nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: true),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    picture_taken_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    created_by_player_id = table.Column<int>(type: "integer", nullable: true),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_room_starters", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_room_starters_players_created_by_player_id",
+                        column: x => x.created_by_player_id,
+                        principalTable: "players",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                    table.ForeignKey(
+                        name: "fk_room_starters_rooms_room_id",
+                        column: x => x.room_id,
+                        principalTable: "rooms",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                },
+                comment: "Rooms the hotel offers new players as starter rooms; each player who picks one gets a copy."
+            );
+
+            migrationBuilder.CreateTable(
                 name: "catalog_ltd_series",
                 columns: table => new
                 {
@@ -7701,6 +7757,19 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_room_starters_created_by_player_id",
+                table: "room_starters",
+                column: "created_by_player_id"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_room_starters_room_id",
+                table: "room_starters",
+                column: "room_id",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_rooms_category_id_score",
                 table: "rooms",
                 columns: new[] { "category_id", "score" }
@@ -8077,6 +8146,8 @@ END $$;"
             migrationBuilder.DropTable(name: "room_ratings");
 
             migrationBuilder.DropTable(name: "room_rights");
+
+            migrationBuilder.DropTable(name: "room_starters");
 
             migrationBuilder.DropTable(name: "server_setting_changes");
 

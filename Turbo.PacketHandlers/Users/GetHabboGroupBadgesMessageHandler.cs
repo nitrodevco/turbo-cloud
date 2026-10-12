@@ -1,8 +1,10 @@
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
@@ -13,10 +15,9 @@ namespace Turbo.PacketHandlers.Users;
 /// The client asks on every room ready and resolves every group badge it draws through the
 /// answer.
 ///
-/// What it needs is the badge of every group represented in the room. Today that is the
-/// viewer's own groups and nothing else, because no avatar in a room advertises a group yet —
-/// that arrives with the room integration, and this is where the room's own groups join the
-/// list when it does.
+/// What it needs is the badge of every group represented in the room: the viewer's own groups,
+/// the groups the people standing in the room wear, and the room's own group. Anyone who walks
+/// in or changes group afterwards is pushed by the room itself.
 /// </summary>
 public class GetHabboGroupBadgesMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetHabboGroupBadgesMessage>
@@ -32,14 +33,26 @@ public class GetHabboGroupBadgesMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var memberships = await _grainFactory
+        var membershipsTask = _grainFactory
             .GetPlayerGuildGrain(ctx.PlayerId)
-            .GetMembershipsAsync(ct)
-            .ConfigureAwait(false);
+            .GetMembershipsAsync(ct);
+
+        var shownTask =
+            ctx.RoomId > 0
+                ? _grainFactory.GetRoomGrain(ctx.RoomId).GetShownGuildIdsAsync(ct)
+                : Task.FromResult(ImmutableArray<GuildId>.Empty);
+
+        var memberships = await membershipsTask.ConfigureAwait(false);
+        var shown = await shownTask.ConfigureAwait(false);
+
+        ImmutableArray<GuildId> guildIds =
+        [
+            .. memberships.Select(x => x.GroupId).Concat(shown).Distinct(),
+        ];
 
         var guilds = await _grainFactory
             .GetGuildDirectoryGrain()
-            .GetSummariesAsync([.. memberships.Select(x => x.GroupId)], ct)
+            .GetSummariesAsync(guildIds, ct)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(new HabboGroupBadgesMessageComposer { Guilds = guilds }, ct)

@@ -48,3 +48,5 @@ plugins-shadow/*
 # Load-test bots: logins (they hold SSO tickets) and run reports
 loadbots.accounts.json
 loadbots-report-*.json
+
+assets

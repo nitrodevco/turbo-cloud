@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -107,6 +109,19 @@ public sealed partial class RoomGrain
 
         player.SetFavouriteGuild(guildId, guildStatus, guildName);
 
+        // The badge goes out first so the new group is drawable when the room hears it is worn.
+        // The directory calls nothing back, so asking it here cannot wait on the player's grain.
+        if (guildId > 0)
+        {
+            var guild = await _grainFactory.GetGuildDirectoryGrain().GetSummaryAsync(guildId, ct);
+
+            if (guild is not null)
+                await SendComposerToRoomAsync(
+                    new HabboGroupBadgesMessageComposer { Guilds = [guild] },
+                    ct
+                );
+        }
+
         await SendComposerToRoomAsync(
             new FavoriteMembershipUpdateMessageComposer
             {
@@ -117,6 +132,21 @@ public sealed partial class RoomGrain
             },
             ct
         );
+    }
+
+    public async Task<ImmutableArray<GuildId>> GetShownGuildIdsAsync(CancellationToken ct)
+    {
+        var guild = await GetGuildAsync(ct);
+
+        return
+        [
+            .. AvatarModule
+                .Players.Select(player => player.GuildId)
+                .Append(guild?.GuildId ?? GuildId.Invalid)
+                .Where(guildId => guildId > 0)
+                .Distinct()
+                .Select(guildId => (GuildId)guildId),
+        ];
     }
 
     public async Task<bool> GetIsGroupRoomAsync(CancellationToken ct) =>
