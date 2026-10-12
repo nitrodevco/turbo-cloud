@@ -663,6 +663,13 @@ public abstract partial class FurnitureWiredLogic(
 
     private static readonly WiredVariableId NO_VARIABLE = new(0);
 
+    /// <summary>The client's "no variable" (<c>WiredVariable.NONE</c>), and the "0" Habbo answers with for one.</summary>
+    private const string CLIENT_NO_VARIABLE = "n";
+
+    private static bool IsEmptyVariableSlot(string id) =>
+        (id == CLIENT_NO_VARIABLE)
+        || (WiredVariableId.TryParse(id, out var parsed) && (parsed == NO_VARIABLE));
+
     /// <summary>
     /// Set by a box whose variable ids mean something by position (override min, override max,
     /// audience; spawn variable, value variable). Every slot is then kept, an empty or unknown
@@ -700,6 +707,17 @@ public abstract partial class FurnitureWiredLogic(
         {
             if (variableIds.Count >= max)
                 break;
+
+            // An empty slot keeps its place: the client writes "n" for one (WiredVariable.NONE,
+            // VariablePickerPreset.finalizeSelection) and Habbo stores and echoes it as "0", so a
+            // value-mode Give Variable ["303135","n"] reopens as ["303135","0"] (official client
+            // capture, WIN63-202610121709). Dropping it would slide a later variable into its slot.
+            if (IsEmptyVariableSlot(id))
+            {
+                variableIds.Add(NO_VARIABLE);
+
+                continue;
+            }
 
             if (!WiredVariableId.TryParse(id, out var variableId))
                 continue;
