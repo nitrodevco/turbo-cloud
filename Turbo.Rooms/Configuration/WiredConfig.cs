@@ -52,6 +52,12 @@ public class WiredConfig
     public int ShowMessageMaxLength { get; init; } = 400;
 
     /// <summary>
+    /// The longest delay an action may wait, in half-second pulses: 120 (60 s) is what the
+    /// WIN63-202610121624 editor offers, standard or precise (<c>ActionDelaySection</c>).
+    /// </summary>
+    public int ActionDelayMaxPulses { get; init; } = 120;
+
+    /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the
     /// match is given up and logged.
     /// </summary>

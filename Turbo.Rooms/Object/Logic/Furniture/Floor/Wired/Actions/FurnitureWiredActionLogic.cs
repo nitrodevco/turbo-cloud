@@ -24,12 +24,12 @@ public abstract class FurnitureWiredActionLogic(
 {
     public override WiredType WiredType => WiredType.Action;
 
-    private int _delayMs = 0;
+    private long _delayMs = 0;
 
     public override List<Type> GetDefinitionSpecificTypes() =>
         [.. base.GetDefinitionSpecificTypes(), typeof(int)];
 
-    public int GetDelayMs() => _delayMs;
+    public long GetDelayMs() => _delayMs;
 
     public virtual bool IsNegative => false;
 
@@ -127,6 +127,9 @@ public abstract class FurnitureWiredActionLogic(
     {
         await base.FillInternalDataAsync(ct);
 
-        _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * WiredPulses.MS;
+        _delayMs = WiredPulses.ActionDelayToMs(
+            _wiredData.GetDefinitionParam<int>(0),
+            _roomGrain._wiredConfig.ActionDelayMaxPulses
+        );
     }
 }
