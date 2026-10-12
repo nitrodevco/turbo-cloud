@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Guilds.Enums;
@@ -21,6 +22,12 @@ public partial interface IRoomGrain
     /// here are the group's, so a change to the group is a change to who may build.
     /// </summary>
     public Task OnGuildChangedAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Every group the room shows a badge for: the ones the players standing in it wear, and the
+    /// group whose homeroom it is. What a viewer asking for group badges needs beyond their own.
+    /// </summary>
+    public Task<ImmutableArray<Guilds.GuildId>> GetShownGuildIdsAsync(CancellationToken ct);
 
     /// <summary>
     /// One player's standing in this room's group moved — they joined it, left it, or were

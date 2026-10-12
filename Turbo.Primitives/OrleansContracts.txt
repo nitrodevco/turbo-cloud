@@ -477,6 +477,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   978D5192: GetRoomPopulationAsync(System.Threading.CancellationToken) -> Task<int>
   AA15EF0E: GetRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSnapshot?>
   5DF1280C: GetSharedWiredVariablesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.WiredVariableSnapshot>>
+  44AD344C: GetShownGuildIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.GuildId>>
   A640172D: GetSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomSnapshot>
   E1F31DCB: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomSummarySnapshot>
   E3B79F04: GetTileSnapshotAsync(int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomTileSnapshot>
