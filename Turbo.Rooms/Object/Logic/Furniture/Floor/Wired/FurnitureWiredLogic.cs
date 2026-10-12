@@ -907,12 +907,20 @@ public abstract partial class FurnitureWiredLogic(
         await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
     }
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        _grainFactory.SendComposerToPlayerAsync(
+    /// <summary>
+    /// Habbo flips the box's state on every use, then opens the editor (ObjectDataUpdate before
+    /// Open in the official client's capture).
+    /// </summary>
+    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
+    {
+        await FlashActivationStateAsync(ct);
+
+        await _grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenEventMessageComposer { ItemId = _ctx.ObjectId },
             ct
         );
+    }
 
     /// <summary>
     /// Stored wired data that does not fit the box (a stale shape after a definition change) is
