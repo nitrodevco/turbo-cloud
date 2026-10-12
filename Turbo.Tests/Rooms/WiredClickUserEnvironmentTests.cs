@@ -69,6 +69,29 @@ public sealed class WiredClickUserEnvironmentTests
             .BeTrue();
     }
 
+    [Fact]
+    public async Task Whoever_walks_into_a_room_without_the_trigger_is_told_so()
+    {
+        // As Habbo does on every entry (WiredEnvironment all off), so the client drops the
+        // enabled achievements of the room before.
+        await Wired.OnRoomEventAsync(
+            new PlayerEnterEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForPlayer((PlayerId)(100 + CLICKER), (RoomId)1),
+                PlayerId = (PlayerId)(100 + CLICKER),
+            },
+            Ct
+        );
+
+        var environment = SentTo<WiredEnvironmentMessageComposer>(100 + CLICKER)
+            .Should()
+            .ContainSingle()
+            .Subject;
+        environment.HasClickUserWired.Should().BeFalse();
+        environment.EnabledAchievements.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, true)]
