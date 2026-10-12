@@ -23,6 +23,7 @@ internal static class VariableFxStyles
     public const string EXTRA_METALLIC = "metallic";
     public const string EXTRA_SUB_RENDERER = "sub_renderer";
     public const string EXTRA_SEGMENTS = "segments";
+    public const string EXTRA_STACK_ORDER = "stack_order";
 
     public const int RENDERER_CLASSIC_MINI = 1;
     public const int RENDERER_BLOCK = 2;

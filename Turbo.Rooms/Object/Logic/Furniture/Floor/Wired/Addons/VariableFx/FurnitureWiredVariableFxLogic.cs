@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -64,6 +65,13 @@ public abstract class FurnitureWiredVariableFxLogic(
 
     /// <summary>The first int param a category may add after the shared ones.</summary>
     protected const int PARAM_CATEGORY = 21;
+
+    /// <summary>
+    /// "Order in FX stack" (WIN63-202610121624 <c>variablefx/_-j10.writeIntParams</c>: param 21 is
+    /// the category's slot, 0 when it has none, and 22 the order; Discord 12/10/2026 img4: "Higher
+    /// values place this FX lower in the object's FX stack").
+    /// </summary>
+    private const int PARAM_STACK_ORDER = 22;
 
     private const int SLOT_OVERRIDE_MIN = 0;
     private const int SLOT_OVERRIDE_MAX = 1;
@@ -135,8 +143,24 @@ public abstract class FurnitureWiredVariableFxLogic(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             new WiredRangeParamRule(0, SEGMENTS_MAX, 0),
-            .. GetCategoryParamRules(),
+            .. GetCategorySlotRules(),
+            WiredRules.AnyInt(),
         ];
+
+    /// <summary>
+    /// A box saved before the stack order existed stops after its category params; it keeps
+    /// them and takes order 0.
+    /// </summary>
+    protected override int GetRequiredIntParamCount() =>
+        PARAM_CATEGORY + GetCategoryParamRules().Count();
+
+    /// <summary>The category's own param, or the slot the editor fills with 0 for one without.</summary>
+    private List<IWiredParamRule> GetCategorySlotRules()
+    {
+        var rules = GetCategoryParamRules().ToList();
+
+        return rules.Count > 0 ? rules : [new WiredRangeParamRule(0, 0, 0)];
+    }
 
     public override int GetMaxVariableIds() => SLOT_COUNT;
 
@@ -215,6 +239,14 @@ public abstract class FurnitureWiredVariableFxLogic(
 
         if (segments > 0 && VariableFxStyles.SupportsSegments(GetSegmentRendererId(rendererId)))
             extra[VariableFxStyles.EXTRA_SEGMENTS] = segments.ToString(
+                CultureInfo.InvariantCulture
+            );
+
+        // The renderer reads it as VariableFxConfigData.stackOrder, 0 when absent.
+        var stackOrder = GetIntParamOrDefault(PARAM_STACK_ORDER, 0);
+
+        if (stackOrder != 0)
+            extra[VariableFxStyles.EXTRA_STACK_ORDER] = stackOrder.ToString(
                 CultureInfo.InvariantCulture
             );
 
