@@ -272,6 +272,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayer
   5196A158: CanBeAddedByAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.FriendListErrorCodeType>
   AA0A5EA9: CanReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   6C66C1E6: DeclineFriendRequestsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
+  6EECBD4A: GetBlockedAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>>
   94518EBF: GetCategoriesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerCategoryDto>>
   88F053BA: GetFriendCountAsync(System.Threading.CancellationToken) -> Task<int>
   01171713: GetFriendsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerFriendDto>>
