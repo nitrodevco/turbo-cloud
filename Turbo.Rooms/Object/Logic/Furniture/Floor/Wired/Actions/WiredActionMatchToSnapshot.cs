@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -14,8 +16,12 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// Puts the picked furni back the way they were when the box was saved. The four params pick
-/// what to restore: state, direction, position, altitude.
+/// Puts furni back the way they were when the box was saved. The four params pick what to
+/// restore: state, direction, position, altitude. The furni come from the box's source (picked,
+/// triggered, selector or signal, as Habbo offers it: allowedFurniSources [[0, 100, 200, 201]]);
+/// furni in the snapshot get their own entry, and when the snapshot holds a single furni, every
+/// other furni takes that furni's state (recorded on hhus, WIN63-202610121709: one tile
+/// snapshotted in state 3 turns every tile a selector picks to 3).
 /// </summary>
 [RoomObjectLogic("wf_act_match_to_sshot")]
 public class WiredActionMatchToSnapshot(
@@ -36,7 +42,12 @@ public class WiredActionMatchToSnapshot(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            [WiredFurniSourceType.SelectedItems],
+            [
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.SignalItems,
+            ],
         ];
 
     protected override bool KeepsFurniSnapshot => true;
@@ -49,10 +60,19 @@ public class WiredActionMatchToSnapshot(
         var restorePosition = GetIntParamOrDefault(2, false);
         var restoreAltitude = GetIntParamOrDefault(3, false);
 
-        foreach (var (itemId, entry) in snapshot)
+        // A furni outside a one-furni snapshot takes that furni's state; nothing else of it was
+        // recorded, so direction, position and altitude stay with furni of the snapshot itself.
+        WiredFurniSnapshotEntry? onlyEntry = snapshot.Count == 1 ? snapshot.Values.First() : null;
+
+        foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            if (!TryGetFloorItem(itemId, out var item))
+            if (!snapshot.TryGetValue(item.ObjectId, out var entry))
+            {
+                if (restoreState && onlyEntry is { } only && item.Logic.GetState() != only.State)
+                    await ctx.ProcessItemStateUpdateAsync(item, only.State);
+
                 continue;
+            }
 
             if (restoreState && item.Logic.GetState() != entry.State)
                 await ctx.ProcessItemStateUpdateAsync(item, entry.State);
