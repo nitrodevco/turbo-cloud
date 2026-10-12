@@ -36,7 +36,10 @@ public class WiredConfig
     public int MaxPermanentGlobalVariables { get; init; } = 50;
 
     // The bounds a saved box is checked against.
-    public int SelectorMaxAreaSize { get; init; } = 100;
+    // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how
+    // Habbo works (recorded on hhus, WIN63-202610121709: 10x18, 12x16 and 50x50 areas saved as sent,
+    // and a 10x18 area changes tiles in all 18 rows).
+    public int SelectorMaxAreaSize { get; init; } = 0;
     public int SelectedItemsLimit { get; init; } = 20;
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
