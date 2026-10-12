@@ -52,6 +52,11 @@ public sealed class AchievementModule : IHostPluginModule
         services
             .AddOptions<RewardTrackConfig>()
             .Bind(builder.Configuration.GetSection(RewardTrackConfig.SECTION_NAME))
+            .PostConfigure(x =>
+            {
+                if (x.Tracks.Count == 0 && x.HabboIntroduction)
+                    x.Tracks = [HabboRewardTracks.Introduction()];
+            })
             .Validate(
                 x => x.Problem() is null,
                 "Turbo:RewardTracks is invalid: unique ids, levels counting up from 1, premium boost of at least 1, no negative points, costs or amounts."

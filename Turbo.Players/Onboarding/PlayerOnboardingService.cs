@@ -12,6 +12,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Onboarding;
 
 namespace Turbo.Players.Onboarding;
@@ -157,6 +158,28 @@ public sealed class PlayerOnboardingService(
             .ConfigureAwait(false);
 
         return updated == 1;
+    }
+
+    public async Task<NoobnessLevelType> GetNoobnessLevelAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        var hours = config.Value.NewUserHours;
+
+        if (hours <= 0)
+            return NoobnessLevelType.NotNoob;
+
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var since = DateTime.UtcNow.AddHours(-hours);
+        var isNew = await db
+            .Players.AsNoTracking()
+            .AnyAsync(x => x.Id == playerId.Value && x.CreatedAt > since, ct)
+            .ConfigureAwait(false);
+
+        return isNew ? NoobnessLevelType.RealNoob : NoobnessLevelType.NotNoob;
     }
 
     private async Task<(bool Name, bool Room)?> ReadPendingAsync(

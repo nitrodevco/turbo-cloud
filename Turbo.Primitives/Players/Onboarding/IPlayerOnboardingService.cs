@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Primitives.Players.Onboarding;
 
@@ -43,4 +44,10 @@ public interface IPlayerOnboardingService
 
     /// <summary>Ends the starter room step; false when it was already done.</summary>
     public Task<bool> CompleteRoomAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>
+    /// What login's <c>NoobnessLevel</c> says: <see cref="NoobnessLevelType.RealNoob"/> for a
+    /// player who signed up less than <c>Turbo:Onboarding:NewUserHours</c> ago.
+    /// </summary>
+    public Task<NoobnessLevelType> GetNoobnessLevelAsync(PlayerId playerId, CancellationToken ct);
 }

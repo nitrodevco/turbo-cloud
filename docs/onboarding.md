@@ -16,6 +16,9 @@ behaviour as the default.
 | Each step | `Turbo:Onboarding:ChooseName`, `PickRoom` | both on |
 | The starter rooms | `:starterroom` in the hotel (below), `Turbo:Onboarding:MaxStarterRooms` | Habbo's room 10 |
 | Names no one may take | `Turbo:Players:BlockedNames` | none |
+| How long a player counts as new | `Turbo:Onboarding:NewUserHours` | 24 |
+| The new user lobbies | `:nooblobby` in the hotel (below) | none |
+| The Introduction reward track | `Turbo:RewardTracks:HabboIntroduction` (when `Tracks` lists none) | Habbo's |
 | Suggestions for a taken name | `Turbo:Onboarding:NameSuggestions`, `SuggestionWords` | 3, Turbo's words |
 | Room types, pictures and names in the client | written by `:starterroom` (client `new.user.flow.roomTypes`, `new.user.flow.room.image.url`, texts `room.name.<type>` / `room.description.<type>`) | Habbo's |
 | The looks the dice rolls | client `new.user.flow.figures.male`, `.female` (comma-separated) | Habbo's 25 each |
@@ -47,6 +50,35 @@ every furni with its state; a teleporter's link is left out, a wired box keeps i
 the room changes what later players get. The pictures need `Turbo:Gamedata:PublicUrl` (the gamedata
 host's address the client loads from). With no starter rooms of the hotel's, the built-in ones are
 offered: Habbo's room 10 and its picture.
+
+### New users: the lobby and the journey
+
+A player who signed up less than `Turbo:Onboarding:NewUserHours` ago is told at login they are a
+new user (`NoobnessLevel` 2, "real noob"; Habbo's own length is not known). For them, when the
+hotel has a lobby, the client:
+
+- puts up **"Welcome to Habbo - Enter a room to meet other new users"** a while after they enter
+  their home room (`nux.noob.lobby.popup.delay` seconds: Habbo has 90, Flash's default is 70);
+  **Enter the room!** asks for `predefined_noob_lobby`;
+- sends them to a lobby when they leave a room (the toolbar's reception button too) instead of the
+  hotel view, and home when they leave a lobby, where the toolbar shows a home button.
+
+A lobby is a room with door mode 4: only new users, staff (`room.enter.locked`) and whoever has
+rights get in, and Turbo sends a new user to the fullest lobby with room left. Build the room, stand
+in it and **`:nooblobby add`** (permission node `command.nooblobby`, also needed to pick door mode
+4 in the panel's room editor; the game's room settings window cannot). `:nooblobby remove` opens
+it again and `:nooblobby list` shows the lobbies and who is in them. Turbo turns the client's
+`nux.lobbies.enabled` on while there is a lobby and off when the last one goes.
+
+Habbo's lobby (2026-10-12) was "Fresh Brew Coffee" by official_rooms, for 80, with a bot that says
+"Double-click the doors to enter other rooms and meet new friends!" - furnishing is the hotel's.
+
+"**Start your Habbo Journey!**" is the client's new feature notification
+(`notifications.new_feature.active` `rewardtrack_intro`), shown while the `introduction` reward
+track is not complete. With no tracks of its own, Turbo offers Habbo's Introduction track as Habbo
+sent it to the new account (30 tasks, its points and premium) with the 16 of its 49 prizes Turbo can
+give: duckets, diamonds, badges and furni, found by sprite. Its 30 Habbicons, 2 pets and a bot are
+left out until Turbo can give those. Turbo counts 17 of the 30 task types so far.
 
 ### Blocked names
 

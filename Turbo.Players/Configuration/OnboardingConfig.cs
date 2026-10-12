@@ -50,4 +50,11 @@ public sealed class OnboardingConfig
     /// Empty uses Turbo's own few.
     /// </summary>
     public List<string> SuggestionWords { get; init; } = [];
+
+    /// <summary>
+    /// How long, from sign-up, a player is a new user to the client (<c>NoobnessLevel</c> 2, "real
+    /// noob"): the noob lobby offer, the toolbar's way back to the lobby, the rooms only new users
+    /// may enter. Habbo's length is not known; 0 makes no one new. Not tied to <see cref="Enabled"/>.
+    /// </summary>
+    public int NewUserHours { get; init; } = 24;
 }

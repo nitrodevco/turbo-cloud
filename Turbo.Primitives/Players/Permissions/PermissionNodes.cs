@@ -181,6 +181,9 @@ public static class PermissionNodes
         /// <summary>Offer rooms as the new user flow's starter rooms, and take their pictures.</summary>
         public const string STARTERROOM = "command.starterroom";
 
+        /// <summary>Make rooms new user lobbies (door mode 4), with the command or the panel.</summary>
+        public const string NOOBLOBBY = "command.nooblobby";
+
         /// <summary>Not a command: holding it has every use of a command by this player logged.</summary>
         public const string LOG = "command.log";
     }

@@ -251,6 +251,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :starterroom to offer rooms as new players' starter rooms and take their pictures."
         ),
         new(
+            PermissionNodes.Command.NOOBLOBBY,
+            "Use :nooblobby (or the panel's room editor) to make rooms lobbies only new users may enter."
+        ),
+        new(
             PermissionNodes.Hotel.MAINTENANCE_BYPASS,
             "Log in, and stay logged in, while the hotel is in maintenance."
         ),

@@ -131,6 +131,8 @@ public class SSOTicketMessageHandler(
         var boundClothingTask = clothing.GetBoundFurnitureNamesAsync(playerId, ct);
         // The new user flow's steps the player still has to do; the client draws the flow for them.
         var loginActionsTask = onboarding.GetLoginActionsAsync(playerId, ct);
+        // Whether they are a new user, for the client's noob lobby offer and noob-only rooms.
+        var noobnessTask = onboarding.GetNoobnessLevelAsync(playerId, ct);
 
         await Task.WhenAll(
                 settingsTask,
@@ -140,7 +142,8 @@ public class SSOTicketMessageHandler(
                 effectsTask,
                 ownedClothingTask,
                 boundClothingTask,
-                loginActionsTask
+                loginActionsTask,
+                noobnessTask
             )
             .ConfigureAwait(false);
 
@@ -225,7 +228,10 @@ public class SSOTicketMessageHandler(
             )
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(
-                new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelType.NotNoob },
+                new NoobnessLevelMessage
+                {
+                    NoobnessLevel = await noobnessTask.ConfigureAwait(false),
+                },
                 ct
             )
             .ConfigureAwait(false);
