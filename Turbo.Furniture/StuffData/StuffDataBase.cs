@@ -33,7 +33,15 @@ internal abstract class StuffDataBase : IStuffData
 
     public bool IsUnique() => UniqueNumber > 0 && UniqueSeries > 0;
 
-    public virtual int GetState() => int.Parse(GetLegacyString(), CultureInfo.InvariantCulture);
+    public virtual int GetState() =>
+        int.TryParse(
+            GetLegacyString(),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var state
+        )
+            ? state
+            : 0;
 
     public virtual void SetState(string state) { }
 

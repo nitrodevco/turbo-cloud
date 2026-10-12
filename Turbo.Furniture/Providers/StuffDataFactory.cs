@@ -44,6 +44,23 @@ public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuff
         return CreateStuffData(type);
     }
 
+    public IStuffData CreateStuffDataFromExtraData(
+        StuffDataType type,
+        IExtraData extraData,
+        string emptyLegacyState
+    )
+    {
+        var stuffData = CreateStuffDataFromExtraData(type, extraData);
+
+        if (
+            stuffData is LegacyStuffData legacy
+            && !extraData.TryGetSection(ExtraDataSectionType.STUFF, out _)
+        )
+            legacy.Data = emptyLegacyState;
+
+        return stuffData;
+    }
+
     public IStuffData CreateStuffDataFromExtraData(StuffDataType type, IExtraData extraData)
     {
         type = (StuffDataType)((int)type & StuffDataBase.TYPE_MASK);

@@ -40,10 +40,19 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     {
         _stuffDataFactory = stuffDataFactory;
 
-        StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-            _stuffDataType,
-            ctx.RoomObject.ExtraData
-        );
+        // A stateless item (no states in its definition) that never stored any data sends empty
+        // data, as Habbo does (hhus, 2026-10-12: floors, modules, chairs); anything else "0".
+        StuffData =
+            ctx.Definition.TotalStates == 0
+                ? _stuffDataFactory.CreateStuffDataFromExtraData(
+                    _stuffDataType,
+                    ctx.RoomObject.ExtraData,
+                    string.Empty
+                )
+                : _stuffDataFactory.CreateStuffDataFromExtraData(
+                    _stuffDataType,
+                    ctx.RoomObject.ExtraData
+                );
     }
 
     public virtual FurnitureUsageType GetUsagePolicy() =>

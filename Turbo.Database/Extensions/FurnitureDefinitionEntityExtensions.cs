@@ -22,7 +22,8 @@ public static class FurnitureDefinitionEntityExtensions
             TotalStates = entity.TotalStates,
             Width = entity.Width,
             Length = entity.Length,
-            StackHeight = Math.Round(Math.Max(minimumStackHeight, entity.StackHeight), 2),
+            // To the column's four decimals: Habbo sends 0.6875, not 0.69.
+            StackHeight = Math.Round(Math.Max(minimumStackHeight, entity.StackHeight), 4),
             CanStack = entity.CanStack,
             CanWalk = entity.CanWalk,
             CanSit = entity.CanSit,
