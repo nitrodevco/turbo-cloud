@@ -28,10 +28,9 @@ public class FurnitureMultiHeightLogic(
         if (states <= 1)
             return full;
 
-        var state = Math.Clamp(GetState(), 0, states - 1);
         var step = MultiHeightFurniture.StepOf(_ctx.Definition) ?? full.Value / (states - 1);
 
-        return Math.Round(Math.Max(0, full.Value - (state * step)), 2);
+        return MultiHeightFurniture.HeightAt(full.Value, GetState(), states, step);
     }
 
     public override async Task OnStateChangedAsync(CancellationToken ct)

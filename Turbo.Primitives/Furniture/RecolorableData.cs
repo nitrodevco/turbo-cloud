@@ -17,6 +17,11 @@ namespace Turbo.Primitives.Furniture;
 /// </summary>
 public static partial class RecolorableData
 {
+    public const string LOGIC_NAME = "recolorable";
+
+    /// <summary>Habbo names every recolorable class <c>*_recolorable</c>.</summary>
+    private const string CLASS_SUFFIX = "_recolorable";
+
     public const string RED = "r";
     public const string GREEN = "g";
     public const string BLUE = "b";
@@ -123,6 +128,10 @@ public static partial class RecolorableData
     }
 
     /// <summary>Flash <c>readChannel</c>: up to three digits and at most 255, else 255.</summary>
+    /// <summary>Whether a definition's class is one of Habbo's recolorable furni.</summary>
+    public static bool IsRecolorableClass(string definitionName) =>
+        ClassName(definitionName).EndsWith(CLASS_SUFFIX, StringComparison.Ordinal);
+
     private static int Channel(IReadOnlyDictionary<string, string> data, string key)
     {
         if (!data.TryGetValue(key, out var value) || !ChannelText().IsMatch(value))

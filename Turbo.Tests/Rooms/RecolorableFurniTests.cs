@@ -19,13 +19,18 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Wired.Variables;
+using Turbo.Rooms.Wired.Variables.Furniture.Smart;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -192,16 +197,14 @@ public sealed class RecolorableFurniTests
             .Harness.Module<RoomFurniModule>()
             .Items.OfType<IRoomFloorItem>()
             .Single(x => x.Definition.Id == BLOCK_DEFINITION);
+        // In the official ObjectAdd's order: r, b, g, state.
         ((IMapStuffData)placed.Logic.StuffData)
             .Data.Should()
-            .BeEquivalentTo(
-                new Dictionary<string, string>
-                {
-                    ["state"] = "0",
-                    ["r"] = "255",
-                    ["g"] = "54",
-                    ["b"] = "0",
-                }
+            .Equal(
+                new KeyValuePair<string, string>("r", "255"),
+                new KeyValuePair<string, string>("b", "0"),
+                new KeyValuePair<string, string>("g", "54"),
+                new KeyValuePair<string, string>("state", "0")
             );
     }
 
@@ -321,6 +324,120 @@ public sealed class RecolorableFurniTests
 
         Logics(connection).Count(x => x.Logic == "recolorable").Should().Be(0);
     }
+
+    [Fact]
+    public void The_default_palettes_are_habbos()
+    {
+        var config = new RoomConfig();
+
+        RecolorableData
+            .GetPalette(config.RecolorablePaletteToFurni, config.RecolorablePalettes, BLOCK)
+            .Should()
+            .HaveCount(69)
+            .And.StartWith([0xFFFFFF, 0xAEF0D8])
+            .And.Contain(ORANGE);
+        RecolorableData
+            .GetPalette(
+                config.RecolorablePaletteToFurni,
+                config.RecolorablePalettes,
+                "bc_block_grass_recolorable"
+            )
+            .Should()
+            .Equal(0xB0B1AE, 0x6AB18E, 0x57832E, 0x30B106, 0x929E12, 0xB19626, 0xB15501);
+    }
+
+    [Fact]
+    public async Task An_imported_block_on_the_default_logic_is_recolorable_and_steps_down_by_state()
+    {
+        var item = _room.AddFloorItem(20, 2, 2, BLOCK, BLOCK_DEFINITION);
+        RoomHarness.SetMember(
+            item,
+            "Definition",
+            item.Definition with
+            {
+                LogicName = "default_floor",
+                TotalStates = 5,
+                StackHeight = Altitude.FromInt(100),
+                CustomParams = "-0.25",
+            }
+        );
+        item.SetLogic(
+            _room.Harness.LogicProvider.CreateLogicInstance(
+                "default_floor",
+                new RoomFloorItemContext(_room.Harness.Room, item)
+            )
+        );
+
+        await item.Logic.SetStateAsync(2);
+
+        item.Logic.Should().BeOfType<FurnitureRecolorableLogic>();
+        item.GetStackHeight().ToInt().Should().Be(50);
+        Broadcast<ObjectUpdateMessageComposer>()
+            .Should()
+            .Contain(x => x.FloorItem.ObjectId == 20 && x.FloorItem.StackHeight.ToInt() == 50);
+    }
+
+    [Fact]
+    public async Task The_smart_variables_read_the_colour_and_write_only_palette_colours()
+    {
+        var block = Block(10, BLOCK, BLOCK_DEFINITION);
+        await RecolorAsync(OWNER, 10, RecolorScopeType.OnlyThis, ORANGE);
+        var room = _room.Harness.Room;
+        var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();
+        var rgb = new FurnitureRecolorableRgbVariable(room);
+        var red = new FurnitureRecolorableRedVariable(room);
+        var green = new FurnitureRecolorableGreenVariable(room);
+        var blue = new FurnitureRecolorableBlueVariable(room);
+
+        ValueOf(rgb, 10).Should().Be(ORANGE);
+        (ValueOf(red, 10), ValueOf(green, 10), ValueOf(blue, 10)).Should().Be((255, 54, 0));
+        // As the official server lists them: rgb writable with the text connector flag, the channels read only.
+        rgb.GetVarSnapshot()
+            .Flags.Should()
+            .Be(
+                WiredVariableFlags.HasValue
+                    | WiredVariableFlags.CanWriteValue
+                    | WiredVariableFlags.HasTextConnector
+            );
+        red.GetVarSnapshot().VariableName.Should().Be("~recolorable_furni.color.rgb.red");
+        red.GetVarSnapshot().Flags.Should().Be(WiredVariableFlags.HasValue);
+
+        (await rgb.SetValueAsync(ctx, Key(rgb, 10), BLUE)).Should().BeTrue();
+        ColorOf(block).Should().Be(BLUE);
+        Broadcast<FurniRecolorUpdateMessageComposer>()
+            .Last()
+            .Updates.Single()
+            .Should()
+            .BeEquivalentTo(
+                new
+                {
+                    ObjectIds = new[] { (RoomObjectId)10 },
+                    Red = 0x12,
+                    Green = 0x34,
+                    Blue = 0x56,
+                }
+            );
+
+        // #FF3456 is in no palette; #FFFFFF is.
+        (await red.SetValueAsync(ctx, Key(red, 10), 255))
+            .Should()
+            .BeFalse();
+        ColorOf(block).Should().Be(BLUE);
+        (await rgb.SetValueAsync(ctx, Key(rgb, 10), 0x1000000)).Should().BeFalse();
+        (await rgb.SetValueAsync(ctx, Key(rgb, 10), 0xFFFFFF)).Should().BeTrue();
+        (await blue.SetValueAsync(ctx, Key(blue, 10), 0)).Should().BeFalse();
+        ColorOf(block).Should().Be(0xFFFFFF);
+    }
+
+    private static int ValueOf(WiredInternalVariable variable, int itemId)
+    {
+        variable.TryGetValue(Key(variable, itemId), out var value).Should().BeTrue();
+
+        return (int)value;
+    }
+
+    private static WiredVariableKey Key(WiredInternalVariable variable, int itemId) =>
+        new(variable.GetVarSnapshot().VariableId, WiredVariableTargetType.Furni, itemId);
 
     private const int OFFER = 35202;
 

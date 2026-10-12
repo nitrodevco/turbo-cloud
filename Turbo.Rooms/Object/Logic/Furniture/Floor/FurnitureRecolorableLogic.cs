@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -24,7 +25,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// window's scope; each only to a colour of its own palette. The room is told once, with one
 /// <c>FurniRecolorUpdate</c> entry for all of them.
 /// </summary>
-[RoomObjectLogic("recolorable")]
+[RoomObjectLogic(RecolorableData.LOGIC_NAME)]
 public class FurnitureRecolorableLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
@@ -60,10 +61,15 @@ public class FurnitureRecolorableLogic(
         if (!RecolorableData.TryParseParam(extraParam, out var rgb) || !Palette.Contains(rgb))
             return;
 
-        map.Data[RecolorableData.STATE] = FIRST_STATE;
+        // A new item's map holds only its state; the official ObjectAdd lists r, b, g, state.
+        var entries = RecolorableData.Entries(rgb);
 
-        foreach (var (key, value) in RecolorableData.Entries(rgb))
-            map.Data[key] = value;
+        map.Data.Clear();
+
+        map.Data[RecolorableData.RED] = entries[RecolorableData.RED];
+        map.Data[RecolorableData.BLUE] = entries[RecolorableData.BLUE];
+        map.Data[RecolorableData.GREEN] = entries[RecolorableData.GREEN];
+        map.Data[RecolorableData.STATE] = FIRST_STATE;
 
         map.MarkDirty();
 
@@ -88,8 +94,54 @@ public class FurnitureRecolorableLogic(
         if (!Palette.Contains(rgb))
             return Reject(ctx, interaction, "colour not in palette");
 
-        var targets = Targets(recolor.Scope).Where(x => x.Palette.Contains(rgb)).ToList();
+        await RecolorAsync(
+            Targets(recolor.Scope).Where(x => x.Palette.Contains(rgb)).ToList(),
+            rgb
+        );
 
+        return true;
+    }
+
+    /// <summary>
+    /// A wired write of the colour (<c>~recolorable_furni.color.*</c>): only to a colour of the
+    /// palette, as the recolor window. False when the colour is not one of them.
+    /// </summary>
+    public async Task<bool> SetColorAsync(int rgb)
+    {
+        if (!Palette.Contains(rgb))
+            return false;
+
+        if (rgb != Color)
+            await RecolorAsync([this], rgb);
+
+        return true;
+    }
+
+    /// <summary>
+    /// A building block whose furnidata gives a step down per state (<c>customparams</c>, the
+    /// recolorable Large Block -0.25 as the plain one) stands lower with each state, as
+    /// <see cref="FurnitureMultiHeightLogic"/>; the others keep their height.
+    /// </summary>
+    public override Altitude GetStackHeight()
+    {
+        var full = base.GetStackHeight();
+
+        return MultiHeightFurniture.StepOf(_ctx.Definition) is { } step
+            ? MultiHeightFurniture.HeightAt(full, GetState(), _ctx.Definition.TotalStates, step)
+            : full;
+    }
+
+    public override async Task OnStateChangedAsync(CancellationToken ct)
+    {
+        await base.OnStateChangedAsync(ct);
+
+        if (MultiHeightFurniture.StepOf(_ctx.Definition) is not null)
+            await _ctx.UpdateItemAsync();
+    }
+
+    /// <summary>Gives the furni the colour, persisted, and tells the room once.</summary>
+    private async Task RecolorAsync(List<FurnitureRecolorableLogic> targets, int rgb)
+    {
         foreach (var target in targets)
             await target.SetMapDataAsync(RecolorableData.Entries(rgb), false);
 
@@ -108,8 +160,6 @@ public class FurnitureRecolorableLogic(
                 ],
             }
         );
-
-        return true;
     }
 
     /// <summary>
