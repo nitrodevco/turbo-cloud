@@ -59,6 +59,33 @@ public sealed class IdleWakeTests
         _harness.Module<Turbo.Rooms.Grains.Modules.RoomMapModule>().AddAvatar(_avatar, false);
     }
 
+    [Fact]
+    public async Task A_dance_is_answered_before_the_wake_as_habbo_does()
+    {
+        // Habbo (hhus, 2026-10-12), a sleeping avatar told to dance: Dance, then Sleep false.
+        await _harness.Room.SetAvatarExpressionAsync(
+            Player,
+            AvatarExpressionType.Idle,
+            CancellationToken.None
+        );
+        _harness.Fakes.Log.Calls.Clear();
+
+        await _harness.Room.SetAvatarDanceAsync(
+            Player,
+            AvatarDanceType.Dance,
+            CancellationToken.None
+        );
+
+        var sent = _harness
+            .Fakes.Log.Calls.SelectMany(x => x.Args)
+            .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
+            .SelectMany(x => x.Composers)
+            .Select(x => x.GetType().Name)
+            .Where(x => x is "DanceMessageComposer" or "SleepMessageComposer")
+            .ToList();
+        sent.Should().Equal("DanceMessageComposer", "SleepMessageComposer");
+    }
+
     public static IEnumerable<object[]> Actions() =>
         [
             ["walk"],

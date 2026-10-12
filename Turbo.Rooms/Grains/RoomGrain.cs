@@ -457,14 +457,23 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         ActionContext ctx,
         string action,
         object subject,
-        Func<Task<bool>> body
+        Func<Task<bool>> body,
+        bool wakeAfter = false
     )
     {
         try
         {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+            if (!wakeAfter)
+                AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
 
-            return await body();
+            var result = await body();
+
+            // Some actions wake a sleeping avatar after their own answer, as Habbo does (a dance:
+            // Dance, then Sleep false).
+            if (wakeAfter)
+                AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            return result;
         }
         catch (Exception ex)
         {
