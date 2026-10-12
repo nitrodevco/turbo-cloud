@@ -943,6 +943,15 @@ public abstract partial class FurnitureWiredLogic(
     }
 
     /// <summary>
+    /// Every wired box is used (its editor opened) by those with rights, whatever its furni
+    /// definition says: Habbo sends wired boxes with usage Rights (recorded on hhus, WIN63-
+    /// 202610121709, ObjectAdd of wf_trg_click_tile, wf_trg_click_user and wf_slc_furni_area). A
+    /// definition imported with usage Nobody otherwise blocks the double-click and the editor
+    /// never opens.
+    /// </summary>
+    public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
+
+    /// <summary>
     /// Habbo flips the box's state on every use, then opens the editor (ObjectDataUpdate before
     /// Open in the official client's capture).
     /// </summary>
