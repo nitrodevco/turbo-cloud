@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
@@ -276,6 +277,8 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             },
             ct
         );
+
+    public virtual FurniturePickupConfirmation? GetPickupConfirmation() => null;
 
     public virtual Task OnPickupAsync(ActionContext ctx, CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(

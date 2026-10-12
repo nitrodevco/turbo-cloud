@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Commands;
 using Turbo.Tests.Support;
 using Xunit;
@@ -24,6 +26,7 @@ public class RoomOperatorCommandsTests
             new RoomMuteCommand(),
             new RoomUnmuteCommand(),
             new UnloadRoomCommand(),
+            new RoomEffectCommand(),
         ]);
 
     private bool IsMuted => (bool)RoomHarness.GetMember(_room.Harness.State, "IsRoomMuted")!;
@@ -185,4 +188,50 @@ public class RoomOperatorCommandsTests
             .Should()
             .ContainSingle(x => (string)x.Args[1]! == "command.unloadroom.unloaded");
     }
+
+    [Theory]
+    [InlineData("rotate", SpecialRoomEffectType.Rotate)]
+    [InlineData("SHAKE", SpecialRoomEffectType.Shake)]
+    [InlineData("flip", SpecialRoomEffectType.Flip)]
+    [InlineData("disco", SpecialRoomEffectType.Disco)]
+    public async Task RoomEffect_PlaysTheEffectForEveryoneInTheRoom(
+        string name,
+        SpecialRoomEffectType effect
+    )
+    {
+        _room.AddPlayer(2, PermissionNodes.Command.ROOMEFFECT);
+        _room.AddPlayer(3);
+
+        await _room.SayAsync(2, $":roomeffect {name}");
+
+        EffectsSentToRoom().Should().Equal(effect);
+        _room.WhispersTo(2).Should().Equal($"Playing {name.ToLowerInvariant()} for the room.");
+        _room.SaidToRoom().Should().BeEmpty("the command is not said aloud");
+    }
+
+    [Fact]
+    public async Task RoomEffect_IsRefusedWithoutTheNodeOrAnEffectTheClientKnows()
+    {
+        _room.AddPlayer(2);
+        _room.AddPlayer(3, PermissionNodes.Command.ROOMEFFECT);
+
+        await _room.SayAsync(2, ":roomeffect shake");
+        await _room.SayAsync(3, ":roomeffect snow");
+
+        EffectsSentToRoom().Should().BeEmpty();
+        _room.WhispersTo(2).Should().Equal("You can't use that command.");
+        _room
+            .WhispersTo(3)
+            .Should()
+            .Equal("snow is not a valid effect. Usage: :roomeffect <effect>");
+    }
+
+    private IEnumerable<SpecialRoomEffectType> EffectsSentToRoom() =>
+        _room
+            .Harness.Fakes.Log.Of("OnNextAsync")
+            .SelectMany(c =>
+                ((Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot)c.Args[0]!).Composers
+            )
+            .OfType<SpecialRoomEffectMessageComposer>()
+            .Select(c => c.Effect);
 }

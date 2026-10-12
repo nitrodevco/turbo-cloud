@@ -11,15 +11,24 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 [GenerateSerializer, Immutable]
 public sealed record ConfigurationItemStatesMessageComposer : IComposer
 {
-    /// <summary>The Handitem blocker (<c>conf_handitem_block</c>), which this hotel does not run yet.</summary>
+    /// <summary>
+    /// A Handitem blocker (<c>conf_handitem_block</c>) is switched on: clients stop offering to
+    /// give or drop a hand item.
+    /// </summary>
     [Id(0)]
     public required bool IsHanditemControlBlocked { get; init; }
 
-    /// <summary>The <c>:chooser</c> disabler, which this hotel does not run yet.</summary>
+    /// <summary>
+    /// A <c>:chooser</c> disabler (<c>conf_chooser_disable</c>) is switched on: clients open the
+    /// user chooser only for room rights holders.
+    /// </summary>
     [Id(1)]
     public required bool ChooserDisabled { get; init; }
 
-    /// <summary>Free furni movement, which this hotel does not run yet.</summary>
+    /// <summary>
+    /// Free furni movement: anyone may move furni. No furni of this hotel's switches it, so it
+    /// always goes out off.
+    /// </summary>
     [Id(2)]
     public required bool FreeFurniMovementsEnabled { get; init; }
 

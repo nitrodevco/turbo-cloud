@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
@@ -610,6 +611,13 @@ public abstract class FurnitureWiredVariableLogic
             TextConnectors = textConnectors,
         };
     }
+
+    /// <summary>
+    /// Picking a variable up deletes what it stored and leaves every box that names it pointing
+    /// at nothing, so the player is asked first (<c>wiredfurni.variables.pickup.body</c>).
+    /// </summary>
+    public override FurniturePickupConfirmation? GetPickupConfirmation() =>
+        FurniturePickupConfirmation.WiredVariable;
 
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {

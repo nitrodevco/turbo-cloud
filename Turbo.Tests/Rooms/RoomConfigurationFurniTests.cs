@@ -29,6 +29,7 @@ public sealed class RoomConfigurationFurniTests
     private const int HIDER = 31;
     private const int INSIDE = 32;
     private const int OUTSIDE = 33;
+    private const int HAND_ITEM = 5;
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -64,6 +65,77 @@ public sealed class RoomConfigurationFurniTests
             .Last()
             .InvisibleFurni.Should()
             .BeFalse();
+    }
+
+    [Fact]
+    public async Task A_switched_on_handitem_blocker_tells_the_room_and_stops_hand_items_being_passed()
+    {
+        var giver = _room.Enter(1, 2, 2);
+        _room.Enter(2, 2, 3);
+        giver.SetHandItem(HAND_ITEM);
+        var blocker = _room.AddFloorItem(
+            CONTROLLER,
+            5,
+            5,
+            "handitem_block",
+            createLogic: (factory, ctx) => new FurnitureHanditemBlockLogic(factory, ctx)
+        );
+
+        await blocker.Logic.OnUseAsync(Owner, 0, Ct);
+
+        SentToRoom<ConfigurationItemStatesMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    IsHanditemControlBlocked = true,
+                    ChooserDisabled = false,
+                    InvisibleFurni = false,
+                }
+            );
+        (await EntryViewAsync()).HanditemControlBlocked.Should().BeTrue();
+        (await PassHandItemAsync()).Should().BeFalse();
+        giver.HandItemId.Should().Be(HAND_ITEM, "the blocker kept it in the giver's hand");
+
+        await blocker.Logic.OnUseAsync(Owner, 0, Ct);
+
+        SentToRoom<ConfigurationItemStatesMessageComposer>()
+            .Last()
+            .IsHanditemControlBlocked.Should()
+            .BeFalse();
+        (await PassHandItemAsync()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_switched_on_chooser_disabler_tells_the_room_and_newcomers_and_its_pickup_clears_it()
+    {
+        var disabler = _room.AddFloorItem(
+            CONTROLLER,
+            1,
+            1,
+            "chooser_disable",
+            createLogic: (factory, ctx) => new FurnitureChooserDisableLogic(factory, ctx)
+        );
+
+        (await EntryViewAsync()).ChooserDisabled.Should().BeFalse();
+
+        await disabler.Logic.OnUseAsync(Owner, 0, Ct);
+
+        SentToRoom<ConfigurationItemStatesMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.ChooserDisabled.Should()
+            .BeTrue();
+        (await EntryViewAsync()).ChooserDisabled.Should().BeTrue();
+
+        await disabler.Logic.OnDetachAsync(Ct);
+
+        SentToRoom<ConfigurationItemStatesMessageComposer>()
+            .Last()
+            .ChooserDisabled.Should()
+            .BeFalse("the switched-on disabler is the one leaving");
     }
 
     [Fact]
@@ -197,6 +269,10 @@ public sealed class RoomConfigurationFurniTests
 
     private List<Turbo.Primitives.Rooms.Snapshots.Wired.WiredFloorItemMovementSnapshot> WiredMoves() =>
         [.. SentToRoom<WiredMovementsMessageComposer>().SelectMany(x => x.FloorItems)];
+
+    // Player 101 (object 1) hands what they hold to player 102 (object 2), standing beside them.
+    private Task<bool> PassHandItemAsync() =>
+        _room.Harness.Room.PassHandItemAsync(ActionContext.CreateForPlayer(101, 1), 102, Ct);
 
     private Task<RoomEntryViewSnapshot> EntryViewAsync() =>
         _room.Harness.Room.GetEntryViewAsync((PlayerId)105, Ct);

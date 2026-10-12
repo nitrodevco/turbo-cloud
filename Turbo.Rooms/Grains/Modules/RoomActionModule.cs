@@ -33,6 +33,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     public async Task<bool> RemoveItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
+        bool confirmed,
         CancellationToken ct
     )
     {
@@ -51,6 +52,9 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             if (await SecurityModule.GetControllerLevelAsync(ctx) < RoomControllerType.GroupAdmin)
                 throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
+            if (!confirmed && await AskToConfirmPickupAsync(ctx, item, ct))
+                return false;
+
             return await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
         }
 
@@ -63,6 +67,9 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         if (pickupType == FurniturePickupType.None)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+        if (!confirmed && await AskToConfirmPickupAsync(ctx, item, ct))
+            return false;
 
         PlayerId pickerId = item.OwnerId;
 
@@ -78,6 +85,35 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(snapshot.OwnerId);
 
         await inventory.AddFurnitureFromRoomItemSnapshotAsync(snapshot, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Asks the player to confirm picking up an item that loses something on the way out, after
+    /// the room has decided they may. True when they were asked, and the pickup waits for the
+    /// client to send it again confirmed.
+    /// </summary>
+    private async Task<bool> AskToConfirmPickupAsync(
+        ActionContext ctx,
+        IRoomItem item,
+        CancellationToken ct
+    )
+    {
+        if (item.Logic.GetPickupConfirmation() is not { } confirmation)
+            return false;
+
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new ObjectRemoveConfirmMessageComposer
+            {
+                Category =
+                    item is IRoomFloorItem ? RoomItemCategoryType.Floor : RoomItemCategoryType.Wall,
+                ObjectId = item.ObjectId,
+                Confirmation = confirmation,
+            },
+            ct
+        );
 
         return true;
     }

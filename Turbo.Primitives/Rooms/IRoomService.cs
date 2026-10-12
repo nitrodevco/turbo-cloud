@@ -74,8 +74,8 @@ public partial interface IRoomService
     public Task PickupItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        bool isConfirm = true
+        bool confirmed,
+        CancellationToken ct
     );
     public Task UseItemInRoomAsync(
         ActionContext ctx,

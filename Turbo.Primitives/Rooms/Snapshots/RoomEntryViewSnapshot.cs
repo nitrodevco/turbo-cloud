@@ -54,4 +54,12 @@ public sealed record RoomEntryViewSnapshot
     /// <summary>An Invisible Furni Controller is switched on.</summary>
     [Id(11)]
     public required bool InvisibleFurni { get; init; }
+
+    /// <summary>A Handitem blocker is switched on.</summary>
+    [Id(12)]
+    public required bool HanditemControlBlocked { get; init; }
+
+    /// <summary>A <c>:chooser</c> disabler is switched on.</summary>
+    [Id(13)]
+    public required bool ChooserDisabled { get; init; }
 }

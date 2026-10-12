@@ -32,8 +32,8 @@ public class PickupObjectMessageHandler(IRoomService roomService)
                     .PickupItemInRoomAsync(
                         ctx.AsActionContext(),
                         message.ObjectId,
-                        ct,
-                        message.Confirm
+                        message.Confirm,
+                        ct
                     )
                     .ConfigureAwait(false);
 

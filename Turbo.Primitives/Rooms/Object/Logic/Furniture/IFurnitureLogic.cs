@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
@@ -38,6 +39,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
     public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
     public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);
+
+    /// <summary>
+    /// What the player must confirm before this item is picked up, or null when it goes without
+    /// asking. The room asks once and picks it up when the client answers with the confirm flag.
+    /// </summary>
+    public FurniturePickupConfirmation? GetPickupConfirmation();
     public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
 
     /// <summary>

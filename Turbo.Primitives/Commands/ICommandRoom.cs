@@ -50,6 +50,9 @@ public interface ICommandRoom
     /// </summary>
     Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct);
 
+    /// <summary>Plays a room-wide effect for everyone in the room now; nothing is kept.</summary>
+    Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct);
+
     /// <summary>
     /// Sends everyone out, the owner too, and unloads the room, so the next visitor finds it read
     /// from the database again.

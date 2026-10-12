@@ -1085,6 +1085,10 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (handItemId <= 0 || !AreAdjacent(giver, receiver))
             return false;
 
+        // A switched-on Handitem blocker takes the offer away from every client in the room.
+        if (FurnitureConfigurationControlLogic.IsOnInRoom<FurnitureHanditemBlockLogic>(FurniModule))
+            return false;
+
         await SetHandItemAsync(giver, 0, ct);
         await SetHandItemAsync(receiver, handItemId, ct);
 

@@ -235,6 +235,7 @@ what suits it; `admin` holds `*`.
 | | `:roomkickall`, `:roommute`, `:roomunmute` | `command.roomkickall`, `.roommute`, `.roomunmute` | Room commands. Clearing skips the owner, anyone with `room.moderate.any`, and the executor. |
 | Announcements | `:warn <who> <msg>`, `:alert <who> <msg>` | `command.warn`, `command.alert` | `ModeratorMessage` / `HabboBroadcast`. `@room` and `@online` need `command.alert.mass`. |
 | | `:roomalert <msg>`, `:hotelalert <msg>` | `command.roomalert`, `command.hotelalert` | The room's players when the line was typed; everyone online. |
+| | `:roomeffect rotate\|shake\|flip\|disco` | `command.roomeffect` | Room command: `SpecialRoomEffect` to everyone in the room. A few seconds of spectacle the client plays and forgets, so later arrivals see nothing. Granted to nobody but `admin` (`*`). |
 | | `:eventalert [msg]` | `command.eventalert` | A hotel notice naming the room, with an `event:navigator/goto/<id>` link. Whether a client follows that link is not verified; the room name and number are in the text. |
 | Support | `:whois <who>` | `command.whois` | Online state and room, groups, ban, silence and trade lock, wallet. The player rows hold no address, so none is shown. |
 | | `:follow <who>`, `:summon <who>` | `command.follow`, `command.summon` | `ForwardPlayerToRoomAsync`: the room's door still applies. |

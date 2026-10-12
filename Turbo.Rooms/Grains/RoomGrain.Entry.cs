@@ -107,9 +107,18 @@ public sealed partial class RoomGrain
                         .Items.Select(x => (x.Logic as FurnitureAreaHideLogic)?.GetActiveArea())
                         .OfType<AreaHideDataSnapshot>(),
                 ],
-                InvisibleFurni = FurnitureInvisibleFurniControlLogic.IsInvisibleFurniOn(
-                    FurniModule
-                ),
+                InvisibleFurni =
+                    FurnitureConfigurationControlLogic.IsOnInRoom<FurnitureInvisibleFurniControlLogic>(
+                        FurniModule
+                    ),
+                HanditemControlBlocked =
+                    FurnitureConfigurationControlLogic.IsOnInRoom<FurnitureHanditemBlockLogic>(
+                        FurniModule
+                    ),
+                ChooserDisabled =
+                    FurnitureConfigurationControlLogic.IsOnInRoom<FurnitureChooserDisableLogic>(
+                        FurniModule
+                    ),
             }
         );
 

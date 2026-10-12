@@ -614,15 +614,15 @@ internal sealed partial class RoomService(
             new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems }
         );
 
-        // Only when on: the client starts every room with the marks of invisible furni shown.
-        if (view.InvisibleFurni)
+        // Only when one is on: the client starts every room with all of them off.
+        if (view.InvisibleFurni || view.HanditemControlBlocked || view.ChooserDisabled)
             composers.Add(
                 new ConfigurationItemStatesMessageComposer
                 {
-                    IsHanditemControlBlocked = false,
-                    ChooserDisabled = false,
+                    IsHanditemControlBlocked = view.HanditemControlBlocked,
+                    ChooserDisabled = view.ChooserDisabled,
                     FreeFurniMovementsEnabled = false,
-                    InvisibleFurni = true,
+                    InvisibleFurni = view.InvisibleFurni,
                 }
             );
         composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
@@ -724,8 +724,8 @@ internal sealed partial class RoomService(
     public async Task PickupItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        bool isConfirm = true
+        bool confirmed,
+        CancellationToken ct
     )
     {
         if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
@@ -733,7 +733,7 @@ internal sealed partial class RoomService(
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-        await roomGrain.RemoveItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
+        await roomGrain.RemoveItemByIdAsync(ctx, itemId, confirmed, ct).ConfigureAwait(false);
     }
 
     public async Task UseItemInRoomAsync(

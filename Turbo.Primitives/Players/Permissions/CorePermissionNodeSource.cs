@@ -255,6 +255,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :nooblobby (or the panel's room editor) to make rooms lobbies only new users may enter."
         ),
         new(
+            PermissionNodes.Command.ROOMEFFECT,
+            "Use :roomeffect to rotate, shake, flip or light up this room for everyone in it."
+        ),
+        new(
             PermissionNodes.Hotel.MAINTENANCE_BYPASS,
             "Log in, and stay logged in, while the hotel is in maintenance."
         ),

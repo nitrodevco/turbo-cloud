@@ -424,12 +424,19 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `python scripts/packetgap.py Room` (nitro-next is found through `NITRO_NEXT`) compares the
   composers nitro-next constructs and the messages it listens to with the handlers that do
   something and the composers something sends. Its "stub" and "unsent" are heuristics, so read
-  the file before acting on a line. Still missing after this pass, each for want of
-  a system rather than a handler: purchasable clothing (no clothing inventory), the guild furni
-  menu (no guilds), the room queue and spectators, `UseObject`,
-  `SpecialRoomEffect` and `BotSkillListUpdate` (nothing on the server causes them).
-  `ConfigurationItemStates` carries only the Invisible Furni Controller so far; the handitem
-  blocker, the `:chooser` disabler and free furni movement are sent as off.
+  the file before acting on a line. What it still lists, and why, is kept in
+  [docs/room-gaps.md](docs/room-gaps.md): purchasable clothing (no clothing inventory), the room
+  queue and spectators, and `UseObject` and `BotSkillListUpdate`, whose composers are complete
+  but which nothing known causes. `SpecialRoomEffect` is sent by the `:roomeffect` room command.
+- The configuration furni (`FurnitureConfigurationControlLogic`: the Invisible Furni
+  Controller, the Handitem blocker and the `:chooser` disabler) each switch one flag of
+  `ConfigurationItemStates`. The room is told whenever a switched-on one changes, arrives or
+  leaves, and a player walking in only when one is on, because the client starts every room
+  with all four off. Free furni movement has no furni and is sent as off.
+- A furni that loses something when picked up says so through
+  `IFurnitureLogic.GetPickupConfirmation` (a wired variable box: its stored values and every
+  reference to it). The room then answers an unconfirmed pickup with `ObjectRemoveConfirm` and
+  picks the item up only when the client sends the pickup again with its confirm flag set.
 - A Room Area Hider hides furni by not sending them (`RoomFurniModule.AreaHide`): the client
   only takes the floor out of the area. Anything that sends a floor or wall item to the room
   asks `IsHiddenByArea` first, as placing and moving do, and a change to a hider is announced

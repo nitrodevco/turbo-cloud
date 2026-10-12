@@ -11,6 +11,10 @@ internal class ObjectRemoveConfirmMessageComposerSerializer(int header)
         ObjectRemoveConfirmMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger((int)message.Category)
+            .WriteInteger(message.ObjectId)
+            .WriteString(message.Confirmation.TitleKey)
+            .WriteString(message.Confirmation.BodyKey);
     }
 }

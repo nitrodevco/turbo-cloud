@@ -245,7 +245,7 @@ public sealed partial class RoomGrain
         {
             try
             {
-                await ActionModule.RemoveItemByIdAsync(ctx, itemId, ct);
+                await ActionModule.RemoveItemByIdAsync(ctx, itemId, confirmed: true, ct);
             }
             catch (Exception ex)
             {

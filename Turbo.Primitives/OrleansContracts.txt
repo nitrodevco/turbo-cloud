@@ -527,7 +527,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2EDCBBA1: RemoveAllRightsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task
   CB459A11: RemoveAvatarFromPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   D0DDCA13: RemoveDoorbellRingerAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
-  EA6F1F14: RemoveItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
+  ADBD7EAA: RemoveItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, bool, System.Threading.CancellationToken) -> Task<bool>
   4B874D00: RemoveOwnRightsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
   6398E57D: RemovePetSaddleAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   D14B72F6: RemoveRightsFromPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task

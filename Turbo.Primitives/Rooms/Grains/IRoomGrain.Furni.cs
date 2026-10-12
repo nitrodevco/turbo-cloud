@@ -13,9 +13,17 @@ namespace Turbo.Primitives.Rooms.Grains;
 public partial interface IRoomGrain
 {
     public Task<bool> AddItemAsync(IRoomItem item, CancellationToken ct);
+
+    /// <summary>
+    /// Picks an item up for the player. An item that loses something on the way out
+    /// (<c>IFurnitureLogic.GetPickupConfirmation</c>) is not picked up unless
+    /// <paramref name="confirmed"/>: the player is asked instead, and their answer is this call
+    /// again with it set.
+    /// </summary>
     public Task<bool> RemoveItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
+        bool confirmed,
         CancellationToken ct
     );
     public Task<bool> UseItemByIdAsync(

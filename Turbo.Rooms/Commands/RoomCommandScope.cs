@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Rooms.Enums;
@@ -140,6 +141,12 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
 
     public Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct) =>
         roomGrain.ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
+
+    public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>
+        roomGrain.SendComposerToRoomAsync(
+            new SpecialRoomEffectMessageComposer { Effect = effect },
+            ct
+        );
 
     public Task UnloadAsync(CancellationToken ct) =>
         roomGrain.ModerationModule.EvictEveryoneAndUnloadAsync(ct);

@@ -177,6 +177,7 @@ public static class PermissionNodes
         public const string ROOMKICKALL = "command.roomkickall";
         public const string ROOMMUTE = "command.roommute";
         public const string ROOMUNMUTE = "command.roomunmute";
+        public const string ROOMEFFECT = "command.roomeffect";
 
         /// <summary>Offer rooms as the new user flow's starter rooms, and take their pictures.</summary>
         public const string STARTERROOM = "command.starterroom";
