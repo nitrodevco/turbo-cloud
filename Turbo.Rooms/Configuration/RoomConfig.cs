@@ -260,6 +260,12 @@ public class RoomConfig
     public int[] RaidGuardDurationsSeconds { get; init; } = [300, 900, 1800, 3600, 10800];
 
     /// <summary>
+    /// How high above the floor an avatar sits when it sits down where it stands (the Sit action):
+    /// Habbo sends <c>sit 0.55</c> (recorded on hhus, 2026-10-12).
+    /// </summary>
+    public double FloorSitHeight { get; init; } = 0.55;
+
+    /// <summary>
     /// How long after sending a player a room's ban list their next request for it goes
     /// unanswered, as Habbo lets the client's immediate repeats go (it asks again whenever the
     /// list arrives empty). 0 answers every request.

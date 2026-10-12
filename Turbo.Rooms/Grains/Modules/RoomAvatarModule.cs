@@ -923,6 +923,24 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             return Task.FromResult(true);
         }
 
+        // A wave stops a dance first, as Habbo does (hhus, 2026-10-12: Dance 0, then the wave).
+        if (
+            expressionType == AvatarExpressionType.Wave
+            && avatar.DanceType != AvatarDanceType.None
+            && avatar.SetDance(AvatarDanceType.None)
+        )
+        {
+            _roomGrain.SendComposerToRoomAndForget(
+                new DanceMessageComposer
+                {
+                    ObjectId = avatar.ObjectId,
+                    DanceType = avatar.DanceType,
+                }
+            );
+
+            PublishAction(avatar, AvatarActionType.Dance, (int)avatar.DanceType);
+        }
+
         _roomGrain.SendComposerToRoomAndForget(
             new ExpressionMessageComposer
             {
@@ -1127,7 +1145,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         switch (postureType)
         {
             case AvatarPostureType.Sit:
-                avatar.Sit(true);
+                avatar.Sit(true, _roomGrain._roomConfig.FloorSitHeight);
                 PublishAction(avatar, AvatarActionType.Posture, (int)AvatarPostureType.Sit);
                 break;
             case AvatarPostureType.Stand:
