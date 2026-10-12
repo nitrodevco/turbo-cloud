@@ -16,10 +16,12 @@ using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -270,9 +272,28 @@ public sealed class NavigatorService(
         }
     }
 
-    public async Task<
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => GetFlatCategoriesForPlayerAsync(playerId, NavigatorCategoryAccess.CanSee, ct);
+
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetKnownFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => GetFlatCategoriesForPlayerAsync(playerId, NavigatorCategoryAccess.CanKnow, ct);
+
+    private async Task<
         ImmutableArray<NavigatorFlatCategorySnapshot>
-    > GetFlatCategoriesForPlayerAsync(PlayerId playerId, CancellationToken ct)
+    > GetFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        Func<
+            NavigatorFlatCategorySnapshot,
+            ResolvedPermissionsSnapshot,
+            SecurityLevelType,
+            bool
+        > allowed,
+        CancellationToken ct
+    )
     {
         var permissions = await _grainFactory
             .GetPlayerPermissionGrain(playerId)
@@ -286,9 +307,7 @@ public sealed class NavigatorService(
 
         return
         [
-            .. _navigatorProvider
-                .GetFlatCategories()
-                .Where(x => NavigatorCategoryAccess.CanSee(x, permissions, level)),
+            .. _navigatorProvider.GetFlatCategories().Where(x => allowed(x, permissions, level)),
         ];
     }
 

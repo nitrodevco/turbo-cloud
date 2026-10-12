@@ -20,9 +20,18 @@ public static class NavigatorCategoryAccess
         NavigatorFlatCategorySnapshot category,
         ResolvedPermissionsSnapshot permissions,
         SecurityLevelType securityLevel
+    ) => category.Visible && CanKnow(category, permissions, securityLevel);
+
+    /// <summary>
+    /// What <see cref="CanSee"/> asks except visibility: whether the player is told the category
+    /// exists at all (a hidden one still names the rooms listed in it).
+    /// </summary>
+    public static bool CanKnow(
+        NavigatorFlatCategorySnapshot category,
+        ResolvedPermissionsSnapshot permissions,
+        SecurityLevelType securityLevel
     ) =>
-        category.Visible
-        && (!category.StaffOnly || permissions.Has(PermissionNodes.Navigator.CATEGORY_STAFF))
+        (!category.StaffOnly || permissions.Has(PermissionNodes.Navigator.CATEGORY_STAFF))
         && category.MinRank <= RankOf(securityLevel)
         && (category.RequiredNode is null || permissions.Has(category.RequiredNode));
 

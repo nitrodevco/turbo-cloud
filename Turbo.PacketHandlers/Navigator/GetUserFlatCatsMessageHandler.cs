@@ -25,7 +25,7 @@ public class GetUserFlatCatsMessageHandler(INavigatorService navigatorService)
                 new UserFlatCatsMessageComposer
                 {
                     Categories = await _navigatorService
-                        .GetFlatCategoriesForPlayerAsync(ctx.PlayerId, ct)
+                        .GetKnownFlatCategoriesForPlayerAsync(ctx.PlayerId, ct)
                         .ConfigureAwait(false),
                 },
                 ct
