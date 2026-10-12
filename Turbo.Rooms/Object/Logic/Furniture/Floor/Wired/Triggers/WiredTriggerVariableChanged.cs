@@ -22,7 +22,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 /// the client's editor saves them (<c>triggerconfs/VariableUpdate</c>): created, value changed and
 /// deleted (0 or 1 each, <c>variables.trigger_options.0</c> to <c>.2</c>); the value-changed kinds as
 /// a mask (bit 0 increased, bit 1 decreased, bit 2 unchanged; 0 is all of them); and the origins
-/// allowed as a mask (bit n for <see cref="WiredVariableChangeOriginType"/> n, -1 all). The target
+/// allowed as a mask (bit n for <see cref="WiredVariableChangeOriginType"/> n, -1 all); and since
+/// WIN63-202610121624 which variables are watched (<c>variables.trigger_mode</c>: 0 the one
+/// picked in the editor, 1 those of the variable boxes picked as furni; Wired Faculty 12/10/2026:
+/// "works on multiple variables at the same time by selecting the variable boxes"). The target
 /// the change happened on becomes the triggering furni or user.
 /// </summary>
 [RoomObjectLogic("wf_trg_var_changed")]
@@ -42,6 +45,7 @@ public class WiredTriggerVariableChanged(
     private const int PARAM_REMOVED = 2;
     private const int PARAM_UPDATE_KINDS = 3;
     private const int PARAM_ORIGINS = 4;
+    private const int PARAM_PICKED_BOXES = 5;
 
     private const int UPDATE_INCREASED = 1 << 0;
     private const int UPDATE_DECREASED = 1 << 1;
@@ -55,7 +59,11 @@ public class WiredTriggerVariableChanged(
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(0, 0b111, 0),
             new WiredRangeParamRule(ALL_ORIGINS, 0b1111, ALL_ORIGINS),
+            new WiredBoolParamRule(false),
         ];
+
+    /// <summary>The editor reads the origins and the mode as optional (<c>intParams.length > 4</c>).</summary>
+    protected override int GetRequiredIntParamCount() => PARAM_ORIGINS;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -65,9 +73,21 @@ public class WiredTriggerVariableChanged(
         if (evt is not WiredVariableChangedEvent change)
             return Task.FromResult(false);
 
-        var variable = GetVariable(0);
+        WiredVariableValue value = default;
+        WiredVariableValue previous = default;
+        var watched = false;
 
-        if (variable is null || !TryReadChange(variable, change, out var value, out var previous))
+        foreach (var variable in GetWatchedVariables())
+        {
+            if (TryReadChange(variable, change, out value, out previous))
+            {
+                watched = true;
+
+                break;
+            }
+        }
+
+        if (!watched)
             return Task.FromResult(false);
 
         var origins = GetIntParamOrDefault(PARAM_ORIGINS, ALL_ORIGINS);
@@ -85,6 +105,30 @@ public class WiredTriggerVariableChanged(
                 _ => false,
             }
         );
+    }
+
+    /// <summary>
+    /// The variable picked in the editor, or in "picked variable boxes" mode the variables of the
+    /// variable boxes picked as this trigger's furni.
+    /// </summary>
+    private IEnumerable<IWiredVariable> GetWatchedVariables()
+    {
+        if (!GetIntParamOrDefault(PARAM_PICKED_BOXES, false))
+        {
+            if (GetVariable(0) is { } picked)
+                yield return picked;
+
+            yield break;
+        }
+
+        foreach (var stuffId in _wiredData.StuffIds)
+        {
+            if (
+                FurniModule.TryGetItem(stuffId, out var item)
+                && item.Logic is Variables.FurnitureWiredVariableLogic box
+            )
+                yield return box;
+        }
     }
 
     /// <summary>

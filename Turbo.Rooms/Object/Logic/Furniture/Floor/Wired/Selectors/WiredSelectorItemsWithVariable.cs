@@ -17,8 +17,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 /// Picks the furni holding the chosen variable, optionally only those whose value passes a
 /// comparison. Params as the editor saves them (AS3 <c>WithVariable.readIntParamsFromForm</c>):
 /// comparison, reference (0 none - "select by value" unticked, 1 a typed value, 2 a variable),
-/// the typed value (hi, lo), the reference variable's target. Variables: the subject, then the
-/// reference variable.
+/// the typed value (hi, lo), the reference variable's target, and since WIN63-202610121624
+/// "same holder" (each holder compared with the reference variable it holds itself). Variables:
+/// the subject, then the reference variable.
 /// </summary>
 [RoomObjectLogic("wf_slc_furni_with_var")]
 public class WiredSelectorItemsWithVariable(
@@ -30,6 +31,7 @@ public class WiredSelectorItemsWithVariable(
     protected const int REFERENCE_NONE = 0;
     protected const int REFERENCE_VALUE = 1;
     protected const int REFERENCE_VARIABLE = 2;
+    protected const int PARAM_SAME_HOLDER = 5;
 
     protected virtual WiredVariableTargetType TargetType => WiredVariableTargetType.Furni;
 
@@ -44,7 +46,10 @@ public class WiredSelectorItemsWithVariable(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.Furni),
+            new WiredBoolParamRule(false),
         ];
+
+    protected override int GetRequiredIntParamCount() => PARAM_SAME_HOLDER;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
@@ -76,12 +81,15 @@ public class WiredSelectorItemsWithVariable(
 
         var reference = GetIntParamOrDefault(1, REFERENCE_NONE);
         var byValue = reference != REFERENCE_NONE;
+        var sameHolder =
+            reference == REFERENCE_VARIABLE && GetIntParamOrDefault(PARAM_SAME_HOLDER, false);
         long operand = 0;
 
         if (reference == REFERENCE_VALUE)
             operand = GetLongParam(2);
         else if (
             reference == REFERENCE_VARIABLE
+            && !sameHolder
             && !TryReadVariableOperand(1, 4, ctx.GetSelection(this), out operand)
         )
             return Task.FromResult<IWiredSelectionSet>(output);
@@ -93,6 +101,9 @@ public class WiredSelectorItemsWithVariable(
             var value = ReadVariable(variable, TargetType, targetId);
 
             if (value is null)
+                continue;
+
+            if (sameHolder && !TryReadOperandOnHolder(1, TargetType, targetId, out operand))
                 continue;
 
             if (byValue && !WiredComparison.Compare(comparison, value.Value, operand))

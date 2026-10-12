@@ -17,7 +17,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 /// <summary>
 /// Compares how long ago the picked variable was created or last written on the selected
 /// targets. Params: target, comparison (0 less, 2 more), which timestamp (0 creation,
-/// 1 last update), duration (hi, lo), time unit.
+/// 1 last update), duration (hi, lo), time unit, and since WIN63-202610121624 whether the
+/// duration is read from a variable and that variable's target (AS3
+/// <c>VariableAge.readIntParamsFromForm</c>; Wired Faculty 12/10/2026: "Variable Age can use
+/// timeout from a variable"). Variable ids: the variable, then the duration variable.
 /// </summary>
 [RoomObjectLogic("wf_cnd_var_age_match")]
 public class WiredConditionVariableAgeMatch(
@@ -28,7 +31,12 @@ public class WiredConditionVariableAgeMatch(
 {
     public override int WiredCode => (int)WiredConditionType.VARIABLE_AGE;
 
-    public override int GetMaxVariableIds() => 1;
+    private const int PARAM_FROM_VARIABLE = 6;
+    private const int PARAM_REFERENCE_TARGET = 7;
+
+    public override int GetMaxVariableIds() => 2;
+
+    protected override int GetRequiredIntParamCount() => PARAM_FROM_VARIABLE;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
@@ -38,6 +46,8 @@ public class WiredConditionVariableAgeMatch(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             new WiredEnumParamRule<WiredTimeUnitType>(WiredTimeUnitType.Seconds),
+            new WiredBoolParamRule(false),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -65,8 +75,21 @@ public class WiredConditionVariableAgeMatch(
         var targetType = GetTargetType(variable, 0);
         var comparison = GetIntParamOrDefault(1, 2);
         var useUpdate = GetIntParamOrDefault(2, false);
+        var duration = GetLongParam(3);
+
+        if (
+            GetIntParamOrDefault(PARAM_FROM_VARIABLE, false)
+            && !TryReadVariableOperand(
+                1,
+                PARAM_REFERENCE_TARGET,
+                ctx.GetSelection(this),
+                out duration
+            )
+        )
+            return false;
+
         var durationMs = WiredTimeUnits.ToMilliseconds(
-            GetLongParam(3),
+            duration,
             GetIntParamOrDefault(5, WiredTimeUnitType.Seconds)
         );
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
