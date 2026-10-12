@@ -135,6 +135,8 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         return true;
     }
 
+    public virtual void ApplyCatalogParam(string extraParam) { }
+
     public virtual Task<bool> OnInteractAsync(
         ActionContext ctx,
         FurnitureInteraction interaction,

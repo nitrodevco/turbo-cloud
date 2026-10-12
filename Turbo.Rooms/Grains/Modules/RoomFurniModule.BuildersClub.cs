@@ -84,6 +84,10 @@ public sealed partial class RoomFurniModule
         )
             return false;
 
+        // The page's purchase parameter (a recolorable block's colour) goes on the new item.
+        if (ObjectModule.EnsureLogic(item))
+            item.Logic.ApplyCatalogParam(extraParam);
+
         if (!await PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
             return false;
 

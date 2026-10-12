@@ -37,6 +37,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     public Task SetStateAsync(int state, bool refresh = true);
     public Task OnStateChangedAsync(CancellationToken ct);
     public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
+
+    /// <summary>
+    /// What the catalogue's purchase parameter makes of a new item before it is first placed (a
+    /// Builders Club placement sends it): a recolorable's colour. Most furni take nothing from it.
+    /// </summary>
+    public void ApplyCatalogParam(string extraParam);
     public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
     public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);
 

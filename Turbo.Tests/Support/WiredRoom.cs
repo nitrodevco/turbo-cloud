@@ -19,6 +19,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -35,9 +36,9 @@ public sealed class WiredRoom
     private static readonly BindingFlags All =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-    public WiredRoom(int width = 8, int height = 8)
+    public WiredRoom(int width = 8, int height = 8, RoomConfig? roomConfig = null)
     {
-        Harness = new LiveRoomHarness(width, height);
+        Harness = new LiveRoomHarness(width, height, roomConfig);
         RoomHarness.SetMember(Harness.State, "IsRightsLoaded", true);
 
         // A furni told that an avatar walked on it asks the avatar's logic for its context.

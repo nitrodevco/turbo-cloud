@@ -125,6 +125,21 @@ public class RoomConfig
 
     public int MannequinNameMaxLength { get; init; } = 32;
 
+    /// <summary>
+    /// Which palette each recolorable furni class takes, as the client's
+    /// <c>recolorable_bc.palette_to_furni</c>: <c>palette=class1,class2;...</c>. A class it does
+    /// not name takes the palette <c>default</c>. Link that external variable to this setting so
+    /// the recolor window and the server agree.
+    /// </summary>
+    public string RecolorablePaletteToFurni { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The recolorable palettes by name, each <c>RRGGBB,...</c> as the client's
+    /// <c>recolorable_bc.palette.&lt;name&gt;</c>. A furni is only recolored, or placed with a
+    /// colour, from its palette; with none set it keeps white.
+    /// </summary>
+    public Dictionary<string, string> RecolorablePalettes { get; init; } = [];
+
     /// <summary>Longest figure string a furni stores (a clothing booth's look).</summary>
     public int FigureMaxLength { get; init; } = 300;
 

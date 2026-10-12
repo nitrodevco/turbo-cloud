@@ -1271,6 +1271,7 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.SetMannequinFigureMessageEvent, new SetMannequinFigureMessageParser() },
             { MessageEvent.SetMannequinNameMessageEvent, new SetMannequinNameMessageParser() },
+            { MessageEvent.RecolorFurnitureMessageEvent, new RecolorFurnitureMessageParser() },
             { MessageEvent.SetRandomStateMessageEvent, new SetRandomStateMessageParser() },
             {
                 MessageEvent.SetRoomBackgroundColorDataMessageEvent,
@@ -2958,6 +2959,12 @@ public class Revision20260909 : IRevision
                 typeof(ObjectDataUpdateMessageComposer),
                 new ObjectDataUpdateMessageComposerSerializer(
                     MessageComposer.ObjectDataUpdateMessageComposer
+                )
+            },
+            {
+                typeof(FurniRecolorUpdateMessageComposer),
+                new FurniRecolorUpdateMessageComposerSerializer(
+                    MessageComposer.FurniRecolorUpdateMessageComposer
                 )
             },
             {
