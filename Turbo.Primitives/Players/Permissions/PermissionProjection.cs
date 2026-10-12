@@ -26,12 +26,22 @@ public static class PermissionProjection
                 .. registry
                     .Nodes.Values.Where(x => x.Perk is not null)
                     .OrderBy(x => x.Perk)
-                    .Select(x => new PerkAllowanceSnapshot
-                    {
-                        Perk = x.Perk!.Value,
-                        IsAllowed = resolved.Has(x.Node),
-                        Refusal = x.PerkRefusal ?? string.Empty,
-                    }),
+                    .Select(x =>
+                        resolved.Has(x.Node)
+                            ? new PerkAllowanceSnapshot
+                            {
+                                Perk = x.Perk!.Value,
+                                IsAllowed = true,
+                                // Habbo sends an allowed perk with no refusal text (hhus, 2026-10-12).
+                                Refusal = string.Empty,
+                            }
+                            : new PerkAllowanceSnapshot
+                            {
+                                Perk = x.Perk!.Value,
+                                IsAllowed = false,
+                                Refusal = x.PerkRefusal ?? string.Empty,
+                            }
+                    ),
             ],
             Nodes =
             [
