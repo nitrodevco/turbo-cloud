@@ -53,7 +53,9 @@ public class WiredActionGiveVariable(
             WiredRules.AnyInt(),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            // A fresh box's reference is a global variable (official client capture,
+            // WIN63-202610121709: open payload defaults with -10 here).
+            WiredRules.VariableTarget(WiredVariableTargetType.Global),
             new WiredBoolParamRule(false),
         ];
 

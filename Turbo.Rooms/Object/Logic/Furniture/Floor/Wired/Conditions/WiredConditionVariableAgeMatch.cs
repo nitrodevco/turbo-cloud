@@ -41,13 +41,16 @@ public class WiredConditionVariableAgeMatch(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             WiredRules.VariableTarget(WiredVariableTargetType.User),
-            new WiredRangeParamRule(0, 2, 2),
+            // Fresh boxes open on "less than" (0), as Habbo's do (same capture: [1,0,0,0,0,1,0,-10]).
+            new WiredRangeParamRule(0, 2, 0),
             new WiredBoolParamRule(false),
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             new WiredEnumParamRule<WiredTimeUnitType>(WiredTimeUnitType.Seconds),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            // A fresh box's reference is a global variable (official client capture,
+            // WIN63-202610121709: open payload defaults with -10 here).
+            WiredRules.VariableTarget(WiredVariableTargetType.Global),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
