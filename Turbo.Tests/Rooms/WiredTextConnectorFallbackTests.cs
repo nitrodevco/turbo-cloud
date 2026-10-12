@@ -108,13 +108,15 @@ public sealed class WiredTextConnectorFallbackTests
     }
 
     [Fact]
-    public void A_context_variable_requires_an_execution_context()
+    public void A_context_variable_does_not_require_an_execution_context()
     {
+        // Habbo's list (official client capture, WIN63-202610121709, 163 variables) has the flag
+        // false for all of them, the 21 context variables (@signal_user_count ...) included.
         var packet = Encode(
             new ContextSignalUserCountVariable(_room.Harness.Room).GetVarSnapshot()
         );
 
-        ReadUpToTextConnector(packet).Should().BeTrue();
+        ReadUpToTextConnector(packet).Should().BeFalse();
     }
 
     private async Task<WiredVariableUser> UserVariableWithConnectorAsync(string connectorText)

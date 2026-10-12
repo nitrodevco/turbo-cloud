@@ -608,12 +608,10 @@ public abstract class FurnitureWiredVariableLogic
     {
         var textConnectors = GetTextConnectors();
         var fallback = GetTextConnectorFallback();
-        var flags = WiredVariableExecutionContext.WithRequirement(
+        var flags =
             textConnectors.Count > 0 || fallback is not null
                 ? Flags | WiredVariableFlags.HasTextConnector
-                : Flags,
-            TargetType
-        );
+                : Flags;
         var variableHash = WiredVariableHashBuilder.HashValues(
             _wiredData.StringParam,
             AvailabilityType,
