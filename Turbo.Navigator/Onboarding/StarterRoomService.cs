@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -15,7 +16,6 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
 using Turbo.Navigator.Configuration;
-using Turbo.Players.Configuration;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
@@ -28,10 +28,11 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Navigator.Onboarding;
 
 /// <summary>
-/// <see cref="IStarterRoomService"/>. A room type is what <c>Turbo:Onboarding:StarterRooms</c>
-/// says it is - a copy of one of the hotel's rooms, or a built-in template - and, with that list
-/// empty, the built-in templates: embedded <c>StarterRooms/&lt;type&gt;.json</c> files recorded
-/// from Habbo (the model, the paint, the name and description and the furni with their places).
+/// <see cref="IStarterRoomService"/>. A room type is a room of the hotel's starter rooms
+/// (<see cref="IStarterRoomDirectory"/>, the type being its id), copied for the player; with the
+/// hotel offering none, the built-in templates: embedded <c>StarterRooms/&lt;type&gt;.json</c>
+/// files recorded from Habbo (the model, the paint, the name and description and the furni with
+/// their places).
 ///
 /// The room is made through the navigator like any other (so the room limit and model checks
 /// hold), then painted and furnished in one write before anyone enters it. Furni the hotel has no
@@ -45,7 +46,7 @@ public sealed class StarterRoomService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> navigatorConfig,
-    IOptions<OnboardingConfig> onboardingConfig,
+    IStarterRoomDirectory directory,
     ILogger<IStarterRoomService> logger
 ) : IStarterRoomService
 {
@@ -63,7 +64,8 @@ public sealed class StarterRoomService(
         LoadTemplates
     );
 
-    public bool HasType(string roomType) => Resolve(roomType) is not null;
+    public async Task<bool> HasTypeAsync(string roomType, CancellationToken ct) =>
+        await ResolveAsync(roomType, ct).ConfigureAwait(false) is not null;
 
     public async Task<CreatedStarterRoom?> CreateAsync(
         PlayerId playerId,
@@ -71,7 +73,7 @@ public sealed class StarterRoomService(
         CancellationToken ct
     )
     {
-        var option = Resolve(roomType);
+        var option = await ResolveAsync(roomType, ct).ConfigureAwait(false);
 
         if (option is null)
             return null;
@@ -98,25 +100,39 @@ public sealed class StarterRoomService(
         return created;
     }
 
-    /// <summary>The hotel's entry for the type, or - with none configured - the built-in template's.</summary>
-    private StarterRoomOption? Resolve(string roomType)
+    /// <summary>The hotel's starter room of that id, or - with the hotel offering none - the built-in template's.</summary>
+    private async Task<StarterRoomOption?> ResolveAsync(string roomType, CancellationToken ct)
     {
         var type = roomType.Trim();
-        var configured = onboardingConfig.Value.StarterRooms;
+        var rooms = await directory.ListAsync(ct).ConfigureAwait(false);
 
-        if (configured.Count > 0)
+        if (!rooms.IsEmpty)
         {
-            var option = configured.FirstOrDefault(x =>
-                string.Equals(x.Type.Trim(), type, StringComparison.Ordinal)
+            var room = rooms.FirstOrDefault(x =>
+                string.Equals(
+                    x.RoomId.Value.ToString(CultureInfo.InvariantCulture),
+                    type,
+                    StringComparison.Ordinal
+                )
             );
 
-            return (option is not null && (option.RoomId > 0 || TEMPLATES.Value.ContainsKey(type)))
-                ? option
-                : null;
+            return room is null
+                ? null
+                : new StarterRoomOption(type, room.RoomId.Value, room.Name, room.Description);
         }
 
-        return TEMPLATES.Value.ContainsKey(type) ? new StarterRoomOption { Type = type } : null;
+        return TEMPLATES.Value.ContainsKey(type)
+            ? new StarterRoomOption(type, 0, null, null)
+            : null;
     }
+
+    /// <summary>What a pick makes: a copy of a room (<c>RoomId</c>), or a template's room.</summary>
+    private sealed record StarterRoomOption(
+        string Type,
+        int RoomId,
+        string? Name,
+        string? Description
+    );
 
     private static string Fill(string pattern, string ownerName) =>
         pattern.Replace(NAME_PLACEHOLDER, ownerName, StringComparison.OrdinalIgnoreCase);

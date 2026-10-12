@@ -27,6 +27,12 @@ public static class ClientCapabilities
     /// </summary>
     public const string CHAT_COMMANDS = "chat.commands.v2";
 
+    /// <summary>
+    /// <c>TurboStarterRoomCameraMessage</c> and the picture it takes: the starter room camera
+    /// <c>:starterroom</c> opens, which draws a starter room's picture for the new user flow.
+    /// </summary>
+    public const string STARTER_ROOMS = "starter.rooms";
+
     /// <summary>Maximum preceding argument text in a suggestion request.</summary>
     public const int MAX_SUGGEST_CONTEXT = 1024;
 
@@ -47,6 +53,7 @@ public static class ClientCapabilities
     {
         [PERMISSION_NODES] = 1,
         [CHAT_COMMANDS] = 1,
+        [STARTER_ROOMS] = 1,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

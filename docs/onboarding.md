@@ -14,12 +14,10 @@ behaviour as the default.
 | --- | --- | --- |
 | The flow on or off | `Turbo:Onboarding:Enabled` | off |
 | Each step | `Turbo:Onboarding:ChooseName`, `PickRoom` | both on |
-| The starter rooms | `Turbo:Onboarding:StarterRooms` (below) | Habbo's room 10 |
+| The starter rooms | `:starterroom` in the hotel (below), `Turbo:Onboarding:MaxStarterRooms` | Habbo's room 10 |
 | Names no one may take | `Turbo:Players:BlockedNames` | none |
 | Suggestions for a taken name | `Turbo:Onboarding:NameSuggestions`, `SuggestionWords` | 3, Turbo's words |
-| Room types the client offers | client `new.user.flow.roomTypes` | `10,11,12` |
-| Their pictures | client `new.user.flow.room.image.url` (`%type%`) | Habbo's `nux_room_<type>_round.png` |
-| Their names and descriptions | texts `room.name.<type>`, `room.description.<type>` | the hotel's texts |
+| Room types, pictures and names in the client | written by `:starterroom` (client `new.user.flow.roomTypes`, `new.user.flow.room.image.url`, texts `room.name.<type>` / `room.description.<type>`) | Habbo's |
 | The looks the dice rolls | client `new.user.flow.figures.male`, `.female` (comma-separated) | Habbo's 25 each |
 | Every other word on screen | texts `onboarding.*`, `rename.error.*`, `help.tutorial.name.changed` | the hotel's texts |
 
@@ -29,25 +27,26 @@ texts are its external texts.
 
 ### Starter rooms
 
-Build each starter room in the hotel like any room - its floor plan, paint and furni - and list it
-by the room type the client offers for it:
+Build the room in the hotel like any room - floor plan, paint, furni - then, standing in it:
 
-```json
-"StarterRooms": [
-  { "Type": "1", "RoomId": 4512, "Name": "%name%'s loft", "Description": "Welcome, %name%!" },
-  { "Type": "2", "RoomId": 4513 },
-  { "Type": "10" }
-]
-```
+1. **`:starterroom add`** offers it (permission node `command.starterroom`, not granted by default;
+   up to `Turbo:Onboarding:MaxStarterRooms`, 3, as many as the picker lays out). Turbo writes the
+   client's side for you: the room joins `new.user.flow.roomTypes` (its id is its room type),
+   `new.user.flow.room.image.url` points at the gamedata host's `/starter-rooms/%type%.png`, and
+   `room.name.<id>` / `room.description.<id>` are the room's own name and description.
+2. **The starter room camera opens** (nitro-next). Move the room or the window until the room sits
+   well in the circle, step out of it yourself, and take the picture. Turbo draws it into Habbo's
+   round frame - the white ring, the shadow, front furni breaking out of the frame - from the
+   camera's own view, so walls and floors look as you see them. `:starterroom picture` takes it
+   again whenever the room changes.
+3. **`:starterroom list`** shows what is offered and which rooms still need a picture;
+   **`:starterroom remove`**, in a room, stops offering it.
 
-- `RoomId`: the room copied for every player who picks the type - its model (a floor plan of its
-  own included), paint, wall height and thickness, and every furni with its state, owned by the
-  new player. A teleporter's link to its partner is not copied; a wired box keeps its settings.
-- No `RoomId`: Turbo's built-in template of that type (`10` is Habbo's, recorded).
-- `Name` / `Description`: `%name%` is the player's name; left out, the source's are kept.
-- An empty list offers the built-in templates.
-
-The client's `new.user.flow.roomTypes` must list the same types, with a picture and texts for each.
+Every player who picks the room gets a copy of it as it is then - its floor plan, paint, walls and
+every furni with its state; a teleporter's link is left out, a wired box keeps its settings. Editing
+the room changes what later players get. The pictures need `Turbo:Gamedata:PublicUrl` (the gamedata
+host's address the client loads from). With no starter rooms of the hotel's, the built-in ones are
+offered: Habbo's room 10 and its picture.
 
 ### Blocked names
 

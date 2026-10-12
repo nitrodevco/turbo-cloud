@@ -36,7 +36,7 @@ public class SelectInitialRoomMessageHandler(
         CreatedStarterRoom? room = null;
 
         if (
-            starterRooms.HasType(message.RoomType)
+            await starterRooms.HasTypeAsync(message.RoomType, ct).ConfigureAwait(false)
             && await onboarding.IsRoomPendingAsync(ctx.PlayerId, ct).ConfigureAwait(false)
             && await onboarding.CompleteRoomAsync(ctx.PlayerId, ct).ConfigureAwait(false)
         )

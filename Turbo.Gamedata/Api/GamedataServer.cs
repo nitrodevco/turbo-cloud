@@ -17,6 +17,8 @@ using Microsoft.Net.Http.Headers;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Gamedata.Api;
 
@@ -29,6 +31,9 @@ namespace Turbo.Gamedata.Api;
 /// <item><c>/gamedata/&lt;file&gt;/&lt;sha1&gt;</c> is a build by the hash of its content. It
 /// never changes, so it is cached for good, and kept a while after a newer build.</item>
 /// <item><c>/gamedata/hashes</c> lists each file's current hash, in Habbo's shape.</item>
+/// <item><c>/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
+/// (<see cref="IStarterRoomDirectory"/>), which the room picker shows; it can be taken again, so it
+/// is cached for a minute only.</item>
 /// </list>
 /// Anyone may load them, from any site: they are what every player's client downloads. Its own
 /// small web host beside the silo, off unless <see cref="GamedataConfig.Enabled"/>.
@@ -44,6 +49,7 @@ internal sealed class GamedataServer(
     private const string GZIP = "gzip";
     private const string IMMUTABLE = "public, max-age=31536000, immutable";
     private const int HASH_LENGTH = 40;
+    private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
 
     private WebApplication? _app;
 
@@ -66,6 +72,7 @@ internal sealed class GamedataServer(
 
         var app = builder.Build();
         var files = services.GetRequiredService<IGamedataFileService>();
+        var starterRooms = services.GetService<IStarterRoomDirectory>();
 
         // Behind the reverse proxy the request comes from loopback; its forwarded headers give
         // the scheme and host clients used, which the hashes list's addresses are built on.
@@ -83,6 +90,11 @@ internal sealed class GamedataServer(
             "/gamedata/hashes",
             (HttpContext http, CancellationToken ct) => HashesAsync(http, files, ct)
         );
+        if (starterRooms is not null)
+            app.MapGet(
+                "/starter-rooms/{roomId:int}.png",
+                (HttpContext http, int roomId) => StarterRoomPicture(http, starterRooms, roomId)
+            );
         app.MapGet(
             "/gamedata/{file}/{version}",
             (HttpContext http, string file, string version, CancellationToken ct) =>
@@ -111,6 +123,23 @@ internal sealed class GamedataServer(
         _app = app;
 
         logger.LogInformation("Gamedata host listening on {Url}", options.Url);
+    }
+
+    /// <summary>A starter room's picture, as the starter room camera last drew it; 404 when there is none.</summary>
+    private static IResult StarterRoomPicture(
+        HttpContext http,
+        IStarterRoomDirectory starterRooms,
+        int roomId
+    )
+    {
+        var file = starterRooms.GetPictureFile(new RoomId(roomId));
+
+        if (file is null)
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = STARTER_ROOM_PICTURE_CACHE;
+
+        return Results.File(Path.GetFullPath(file), "image/png");
     }
 
     public async Task StopAsync(CancellationToken ct)

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
@@ -349,18 +350,10 @@ public sealed class NewUserOnboardingTests : IDisposable
             return Task.FromResult<RoomId?>(new RoomId(ROOM));
         };
 
-        var starterRooms = new StarterRoomService(
-            _fakes.Create<INavigatorService>(),
-            _fakes.Create<IFurnitureDefinitionProvider>(),
-            _db,
-            _fakes.Create<IGrainFactory>(),
-            Options.Create(new NavigatorConfig()),
-            Options.Create(new OnboardingConfig()),
-            NullLogger<IStarterRoomService>.Instance
-        );
+        var starterRooms = StarterRooms();
 
-        starterRooms.HasType("10").Should().BeTrue();
-        starterRooms.HasType("99").Should().BeFalse();
+        (await starterRooms.HasTypeAsync("10", Ct)).Should().BeTrue();
+        (await starterRooms.HasTypeAsync("99", Ct)).Should().BeFalse();
 
         var made = await starterRooms.CreateAsync(NEW_PLAYER, "10", Ct);
 
@@ -443,28 +436,121 @@ public sealed class NewUserOnboardingTests : IDisposable
     }
 
     [Fact]
-    public void TheHotelsStarterRooms_ReplaceTheBuiltInOnes()
+    public async Task TheHotelsStarterRooms_ReplaceTheBuiltInOnes()
     {
-        var starterRooms = StarterRooms(
-            new OnboardingConfig
+        InsertPublicModel();
+        _db.Insert(Room(77, OTHER_PLAYER, 1, "Loft", wall: null));
+        _db.Insert(
+            new StarterRoomEntity
             {
-                StarterRooms =
-                [
-                    new StarterRoomOption { Type = "1", RoomId = 77 },
-                    new StarterRoomOption { Type = "10" },
-                ],
+                Id = 1,
+                RoomEntityId = 77,
+                SortOrder = 1,
             }
         );
 
-        starterRooms.HasType("1").Should().BeTrue();
-        starterRooms.HasType("10").Should().BeTrue();
-        starterRooms.HasType("11").Should().BeFalse();
+        var starterRooms = StarterRooms();
 
-        // An entry with no room of its own has to name a built-in template.
-        StarterRooms(new OnboardingConfig { StarterRooms = [new StarterRoomOption { Type = "5" }] })
-            .HasType("5")
+        (await starterRooms.HasTypeAsync("77", Ct)).Should().BeTrue();
+        // The built-in room 10 is offered only while the hotel offers none of its own.
+        (await starterRooms.HasTypeAsync("10", Ct))
             .Should()
             .BeFalse();
+    }
+
+    [Fact]
+    public async Task AddingAStarterRoom_OffersItInTheClient_UpToTheLimit()
+    {
+        InsertPublicModel();
+        for (var id = 70; id < 74; id++)
+            _db.Insert(Room(id, OTHER_PLAYER, 1, $"Room {id}", wall: null));
+
+        var variables = new Dictionary<string, string>();
+        var texts = new Dictionary<string, string>();
+
+        _fakes.Handlers["SaveAsync"] = call =>
+        {
+            var target =
+                call.Interface == typeof(Turbo.Primitives.Gamedata.IGamedataVariableService)
+                    ? variables
+                    : texts;
+
+            target[(string)call.Args[0]!] = (string)call.Args[1]!;
+
+            return Fakes.NotHandled;
+        };
+        _fakes.Handlers["GetValue"] = _ => "\"https://gamedata.example\"";
+
+        var directory = Directory(capacity: 3);
+
+        (await directory.AddAsync(new RoomId(70), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.Added);
+        (await directory.AddAsync(new RoomId(71), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.Added);
+        (await directory.AddAsync(new RoomId(70), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.AlreadyAdded);
+        (await directory.AddAsync(new RoomId(72), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.Added);
+        (await directory.AddAsync(new RoomId(73), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.Full);
+        (await directory.AddAsync(new RoomId(999), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.RoomNotFound);
+
+        variables["new.user.flow.roomTypes"].Should().Be("\"70,71,72\"");
+        variables["new.user.flow.room.image.url"]
+            .Should()
+            .Be("\"https://gamedata.example/starter-rooms/%type%.png\"");
+        texts["room.name.71"].Should().Be("Room 71");
+
+        (await directory.RemoveAsync(new RoomId(71), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.Removed);
+        (await directory.RemoveAsync(new RoomId(71), OTHER_PLAYER, Ct))
+            .Should()
+            .Be(StarterRoomChange.NotAStarterRoom);
+        variables["new.user.flow.roomTypes"].Should().Be("\"70,72\"");
+
+        await directory.RemoveAsync(new RoomId(70), OTHER_PLAYER, Ct);
+        await directory.RemoveAsync(new RoomId(72), OTHER_PLAYER, Ct);
+
+        // None left: the built-in room and Habbo's picture again.
+        variables["new.user.flow.roomTypes"].Should().Be("\"10\"");
+        variables["new.user.flow.room.image.url"].Should().Contain("images.habbo.com");
+    }
+
+    [Fact]
+    public void ThePictureMessage_IsReadWithItsOptionalView()
+    {
+        var withView = PacketHarness.Parse(
+            PacketHarness.Incoming("TurboStarterRoomPictureMessageEvent"),
+            PacketHarness.Payload(w =>
+                w.Int(19).Int(2).Byte(1).Byte(2).Int(3).Byte(7).Byte(8).Byte(9)
+            )
+        );
+        var withoutView = PacketHarness.Parse(
+            PacketHarness.Incoming("TurboStarterRoomPictureMessageEvent"),
+            PacketHarness.Payload(w => w.Int(19).Int(1).Byte(1))
+        );
+
+        var message = withView
+            .Should()
+            .BeOfType<Turbo.Primitives.Messages.Incoming.Turbo.TurboStarterRoomPictureMessage>()
+            .Subject;
+
+        message.RoomId.Should().Be(19);
+        message.Data.Should().Equal(1, 2);
+        message.Scene.Should().Equal(7, 8, 9);
+        withoutView
+            .Should()
+            .BeOfType<Turbo.Primitives.Messages.Incoming.Turbo.TurboStarterRoomPictureMessage>()
+            .Which.Scene.Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -546,21 +632,17 @@ public sealed class NewUserOnboardingTests : IDisposable
             return Task.FromResult<RoomId?>(new RoomId(COPY));
         };
 
-        var made = await StarterRooms(
-                new OnboardingConfig
-                {
-                    StarterRooms =
-                    [
-                        new StarterRoomOption
-                        {
-                            Type = "1",
-                            RoomId = SOURCE,
-                            Name = "%name%'s first shop",
-                        },
-                    ],
-                }
-            )
-            .CreateAsync(NEW_PLAYER, "1", Ct);
+        _db.Insert(
+            new StarterRoomEntity
+            {
+                Id = 1,
+                RoomEntityId = SOURCE,
+                SortOrder = 1,
+                Name = "%name%'s first shop",
+            }
+        );
+
+        var made = await StarterRooms().CreateAsync(NEW_PLAYER, SOURCE.ToString(), Ct);
 
         made.Should().Be(new CreatedStarterRoom(new RoomId(COPY), "Hutch.'s first shop"));
         madeName.Should().Be("Hutch.'s first shop");
@@ -589,14 +671,39 @@ public sealed class NewUserOnboardingTests : IDisposable
             .NotContain("9999");
     }
 
-    private StarterRoomService StarterRooms(OnboardingConfig config) =>
+    private void InsertPublicModel() =>
+        _db.Insert(
+            new RoomModelEntity
+            {
+                Id = 1,
+                Name = "model_a",
+                Model = "x",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.South,
+                Enabled = true,
+                Custom = false,
+            }
+        );
+
+    private StarterRoomDirectory Directory(int capacity = 3) =>
+        new(
+            _db,
+            _fakes.Create<Turbo.Primitives.Gamedata.IGamedataVariableService>(),
+            _fakes.Create<Turbo.Primitives.Gamedata.IGamedataTextService>(),
+            _fakes.Create<Turbo.Primitives.Settings.IServerSettings>(),
+            Options.Create(new OnboardingConfig { MaxStarterRooms = capacity }),
+            NullLogger<IStarterRoomDirectory>.Instance
+        );
+
+    private StarterRoomService StarterRooms() =>
         new(
             _fakes.Create<INavigatorService>(),
             _fakes.Create<IFurnitureDefinitionProvider>(),
             _db,
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
-            Options.Create(config),
+            Directory(),
             NullLogger<IStarterRoomService>.Instance
         );
 

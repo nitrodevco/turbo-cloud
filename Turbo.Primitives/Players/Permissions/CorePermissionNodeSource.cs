@@ -247,6 +247,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :roomunmute to let this room's visitors speak again."
         ),
         new(
+            PermissionNodes.Command.STARTERROOM,
+            "Use :starterroom to offer rooms as new players' starter rooms and take their pictures."
+        ),
+        new(
             PermissionNodes.Hotel.MAINTENANCE_BYPASS,
             "Log in, and stay logged in, while the hotel is in maintenance."
         ),

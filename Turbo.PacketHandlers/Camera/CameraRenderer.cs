@@ -24,13 +24,19 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
     /// <summary>
     /// True when the PNG exists afterwards; false (logged) when the renderer is off, missing,
     /// failed or timed out. <paramref name="withSmall"/> also writes the half-size
-    /// <c>&lt;name&gt;_small.png</c> a photo poster on a wall is drawn from.
+    /// <c>&lt;name&gt;_small.png</c> a photo poster on a wall is drawn from. <paramref name="frame"/>
+    /// draws the render into a frame of the renderer's (<c>starter-room</c>: the new user flow's
+    /// round room picture); <paramref name="scenePath"/> is a PNG of the room as the client showed it,
+    /// drawn instead of the render data's planes and sprites, which then only give the frame the
+    /// furni that break out of it.
     /// </summary>
     public async Task<bool> RenderAsync(
         string jsonPath,
         string pngPath,
         CancellationToken ct,
-        bool withSmall = false
+        bool withSmall = false,
+        string? frame = null,
+        string? scenePath = null
     )
     {
         if (string.IsNullOrWhiteSpace(_config.RendererCommand))
@@ -75,6 +81,18 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
 
         if (withSmall)
             info.ArgumentList.Add("--small");
+
+        if (!string.IsNullOrEmpty(frame))
+        {
+            info.ArgumentList.Add("--frame");
+            info.ArgumentList.Add(frame);
+        }
+
+        if (!string.IsNullOrEmpty(scenePath))
+        {
+            info.ArgumentList.Add("--scene");
+            info.ArgumentList.Add(Path.GetFullPath(scenePath));
+        }
 
         foreach (var url in _config.RendererExternalImageUrls)
         {
