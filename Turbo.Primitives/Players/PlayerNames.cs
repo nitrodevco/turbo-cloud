@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Turbo.Primitives.Players;
@@ -41,6 +43,29 @@ public static partial class PlayerNames
     /// each compare differently (case, accents, trailing spaces).
     /// </summary>
     public static string Key(string name) => name.Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// Whether a hotel's blocked names (<c>Turbo:Players:BlockedNames</c>) take this one: each is
+    /// a name or a pattern where <c>*</c> stands for any run of characters (<c>MOD-*</c>,
+    /// <c>*admin*</c>), compared as <see cref="Key"/> compares names - so whatever its case.
+    /// </summary>
+    public static bool IsBlocked(string name, IEnumerable<string>? patterns)
+    {
+        if (patterns is null)
+            return false;
+
+        var key = Key(name);
+
+        return patterns
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Any(pattern =>
+                Regex.IsMatch(
+                    key,
+                    "^" + string.Join(".*", Key(pattern).Split('*').Select(Regex.Escape)) + "$",
+                    RegexOptions.CultureInvariant
+                )
+            );
+    }
 
     /// <summary>Whether two names are the same name, as <see cref="Key"/> compares them.</summary>
     public static bool Same(string left, string right) =>

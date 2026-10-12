@@ -70,7 +70,10 @@ public sealed class NewUserOnboardingTests : IDisposable
             _db,
             _fakes.Create<IGrainFactory>(),
             new PassThroughWordFilter(),
-            Options.Create(config ?? new OnboardingConfig { Enabled = true })
+            Options.Create(config ?? new OnboardingConfig { Enabled = true }),
+            new Turbo.Players.Accounts.PlayerNamePolicy(
+                Options.Create(new PlayerConfig { BlockedNames = ["Admin", "MOD-*"] })
+            )
         );
 
     [Fact]
@@ -244,6 +247,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _fakes.Create<Turbo.Primitives.Players.Accounts.IOwnerBootstrap>(),
             new PassThroughWordFilter(),
             Options.Create(new OnboardingConfig { Enabled = true }),
+            new Turbo.Players.Accounts.PlayerNamePolicy(Options.Create(new PlayerConfig())),
             NullLogger<Turbo.Primitives.Players.Accounts.IPlayerAccountService>.Instance
         );
 
@@ -351,6 +355,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _db,
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
+            Options.Create(new OnboardingConfig()),
             NullLogger<IStarterRoomService>.Instance
         );
 
@@ -393,6 +398,234 @@ public sealed class NewUserOnboardingTests : IDisposable
         wardrobe.WallOffset.Should().Be(0);
         wardrobe.Rotation.Should().Be(Rotation.West);
     }
+
+    [Theory]
+    [InlineData("Admin", true)]
+    [InlineData("aDMIN", true)]
+    [InlineData("Admins", false)]
+    [InlineData("MOD-Bob", true)]
+    [InlineData("MOD-", true)]
+    [InlineData("XMOD-Bob", false)]
+    [InlineData("Hutch", false)]
+    public void BlockedNames_AreNamesOrStarPatterns_WhateverTheirCase(string name, bool blocked) =>
+        PlayerNames.IsBlocked(name, ["Admin", "MOD-*"]).Should().Be(blocked);
+
+    [Fact]
+    public async Task ANameTheHotelBlocks_IsAnswered4_InTheNameBox()
+    {
+        var check = await Onboarding().CheckNameAsync(NEW_PLAYER, "MOD-Hutch", Ct);
+
+        check.Result.Should().Be(NameCheckResult.NotAllowed);
+        check.Suggestions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ASuggestion_IsNeverABlockedName()
+    {
+        _db.Insert(Player(3, "Mod", pending: false));
+
+        var onboarding = new PlayerOnboardingService(
+            _db,
+            _fakes.Create<IGrainFactory>(),
+            new PassThroughWordFilter(),
+            Options.Create(
+                new OnboardingConfig { Enabled = true, SuggestionWords = ["-Cool", "Star"] }
+            ),
+            new Turbo.Players.Accounts.PlayerNamePolicy(
+                Options.Create(new PlayerConfig { BlockedNames = ["MOD-*"] })
+            )
+        );
+
+        var check = await onboarding.CheckNameAsync(NEW_PLAYER, "Mod", Ct);
+
+        check.Result.Should().Be(NameCheckResult.Taken);
+        check.Suggestions.Should().BeEquivalentTo("ModStar", "StarMod", "-CoolMod");
+    }
+
+    [Fact]
+    public void TheHotelsStarterRooms_ReplaceTheBuiltInOnes()
+    {
+        var starterRooms = StarterRooms(
+            new OnboardingConfig
+            {
+                StarterRooms =
+                [
+                    new StarterRoomOption { Type = "1", RoomId = 77 },
+                    new StarterRoomOption { Type = "10" },
+                ],
+            }
+        );
+
+        starterRooms.HasType("1").Should().BeTrue();
+        starterRooms.HasType("10").Should().BeTrue();
+        starterRooms.HasType("11").Should().BeFalse();
+
+        // An entry with no room of its own has to name a built-in template.
+        StarterRooms(new OnboardingConfig { StarterRooms = [new StarterRoomOption { Type = "5" }] })
+            .HasType("5")
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task AStarterRoomCopiedFromAHotelRoom_TakesItsPlanLookAndFurni()
+    {
+        const int SOURCE = 60;
+        const int COPY = 61;
+
+        _db.Insert(
+            new RoomModelEntity
+            {
+                Id = 1,
+                Name = "model_a",
+                Model = "x",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.South,
+                Enabled = true,
+                Custom = false,
+            }
+        );
+        _db.Insert(
+            new RoomModelEntity
+            {
+                Id = 2,
+                Name = $"room_{SOURCE}",
+                Model = "00\r00",
+                DoorX = 1,
+                DoorY = 0,
+                DoorRotation = Rotation.SouthEast,
+                Enabled = true,
+                Custom = true,
+            }
+        );
+        _db.Insert(Room(SOURCE, OTHER_PLAYER, 2, "Starter shop", wall: "201"));
+        _db.Insert(Room(COPY, NEW_PLAYER, 1, "placeholder", wall: null));
+
+        var chair = Definition(100, "chair_polyfon", wall: false);
+        var teleport = Definition(101, "door", wall: false);
+        _db.Insert(chair);
+        _db.Insert(teleport);
+        _db.Insert(
+            new FurnitureEntity
+            {
+                Id = 500,
+                PlayerEntityId = OTHER_PLAYER,
+                FurnitureDefinitionEntityId = chair.Id,
+                RoomEntityId = SOURCE,
+                X = 1,
+                Y = 1,
+                Z = 0,
+                Rotation = Rotation.East,
+                ExtraData = Turbo.Primitives.Furniture.ProductStuffData.ExtraData("2"),
+            }
+        );
+        _db.Insert(
+            new FurnitureEntity
+            {
+                Id = 501,
+                PlayerEntityId = OTHER_PLAYER,
+                FurnitureDefinitionEntityId = teleport.Id,
+                RoomEntityId = SOURCE,
+                X = 0,
+                Y = 1,
+                Z = 0,
+                Rotation = Rotation.South,
+                ExtraData = Turbo.Primitives.Furniture.TeleportFurniture.PairExtraData(9999),
+            }
+        );
+
+        _fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult("Hutch.");
+
+        string? madeName = null;
+        string? madeModel = null;
+        _fakes.Handlers["CreateRoomAsync"] = call =>
+        {
+            madeName = (string)call.Args[1]!;
+            madeModel = (string)call.Args[3]!;
+            return Task.FromResult<RoomId?>(new RoomId(COPY));
+        };
+
+        var made = await StarterRooms(
+                new OnboardingConfig
+                {
+                    StarterRooms =
+                    [
+                        new StarterRoomOption
+                        {
+                            Type = "1",
+                            RoomId = SOURCE,
+                            Name = "%name%'s first shop",
+                        },
+                    ],
+                }
+            )
+            .CreateAsync(NEW_PLAYER, "1", Ct);
+
+        made.Should().Be(new CreatedStarterRoom(new RoomId(COPY), "Hutch.'s first shop"));
+        madeName.Should().Be("Hutch.'s first shop");
+        // The source has a plan of its own: the room is made on a public model, then given a copy.
+        madeModel.Should().Be("model_a");
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var room = await db
+            .Rooms.Include(x => x.RoomModelEntity)
+            .SingleAsync(x => x.Id == COPY, Ct);
+        var items = await db.Furnitures.Where(x => x.RoomEntityId == COPY).ToListAsync(Ct);
+
+        room.RoomModelEntity.Name.Should().Be($"room_{COPY}");
+        room.RoomModelEntity.Custom.Should().BeTrue();
+        room.RoomModelEntity.Model.Should().Be("00\r00");
+        room.RoomModelEntity.DoorX.Should().Be(1);
+        room.PaintWall.Should().Be("201");
+        items.Should().HaveCount(2).And.OnlyContain(x => x.PlayerEntityId == NEW_PLAYER);
+        items
+            .Single(x => x.FurnitureDefinitionEntityId == chair.Id)
+            .ExtraData.Should()
+            .Contain("\"2\"");
+        items
+            .Single(x => x.FurnitureDefinitionEntityId == teleport.Id)
+            .ExtraData.Should()
+            .NotContain("9999");
+    }
+
+    private StarterRoomService StarterRooms(OnboardingConfig config) =>
+        new(
+            _fakes.Create<INavigatorService>(),
+            _fakes.Create<IFurnitureDefinitionProvider>(),
+            _db,
+            _fakes.Create<IGrainFactory>(),
+            Options.Create(new NavigatorConfig()),
+            Options.Create(config),
+            NullLogger<IStarterRoomService>.Instance
+        );
+
+    private static RoomEntity Room(int id, int owner, int model, string name, string? wall) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            PlayerEntityId = owner,
+            RoomModelEntityId = model,
+            DoorMode = RoomDoorModeType.Open,
+            UsersNow = 0,
+            PlayersMax = 25,
+            WallHeight = -1,
+            HideWalls = false,
+            ThicknessWall = RoomThicknessType.Normal,
+            ThicknessFloor = RoomThicknessType.Normal,
+            AllowBlocking = false,
+            AllowPets = false,
+            AllowPetsEat = false,
+            TradeType = RoomTradeModeType.Disabled,
+            MuteType = ModSettingType.Owner,
+            KickType = ModSettingType.Owner,
+            BanType = ModSettingType.Owner,
+            ChatFloodType = ChatFloodSensitivityType.Minimal,
+            PaintWall = wall,
+            PlayerEntity = null!,
+            RoomModelEntity = null!,
+        };
 
     private static FurnitureDefinitionEntity Definition(int id, string name, bool wall) =>
         new()

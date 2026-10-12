@@ -61,6 +61,7 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<OwnerBootstrap>();
         services.AddSingleton<IOwnerBootstrap>(sp => sp.GetRequiredService<OwnerBootstrap>());
         services.AddHostedService<OwnerStartupService>();
+        services.AddSingleton<IPlayerNamePolicy, PlayerNamePolicy>();
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.Configure<OnboardingConfig>(
             builder.Configuration.GetSection(OnboardingConfig.SECTION_NAME)

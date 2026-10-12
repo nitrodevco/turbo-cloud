@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,11 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Room;
 using Turbo.Navigator.Configuration;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
@@ -24,11 +28,16 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Navigator.Onboarding;
 
 /// <summary>
-/// <see cref="IStarterRoomService"/>. Each room type is an embedded <c>StarterRooms/&lt;type&gt;.json</c>
-/// recorded from Habbo: the model, the paint, the room's name and description patterns and the
-/// furni with their places. The room is made through the navigator like any other (so the room
-/// limit and model checks hold), then painted and furnished in one write before anyone enters it.
-/// Furni the hotel has no definition for are left out and logged.
+/// <see cref="IStarterRoomService"/>. A room type is what <c>Turbo:Onboarding:StarterRooms</c>
+/// says it is - a copy of one of the hotel's rooms, or a built-in template - and, with that list
+/// empty, the built-in templates: embedded <c>StarterRooms/&lt;type&gt;.json</c> files recorded
+/// from Habbo (the model, the paint, the name and description and the furni with their places).
+///
+/// The room is made through the navigator like any other (so the room limit and model checks
+/// hold), then painted and furnished in one write before anyone enters it. Furni the hotel has no
+/// definition for are left out and logged. A copied room takes its source's model - its own
+/// floor plan copied too - its paint and walls and every furni in it with its state; a
+/// teleporter's link to its partner is not copied, and a wired box keeps the source's settings.
 /// </summary>
 public sealed class StarterRoomService(
     INavigatorService navigatorService,
@@ -36,10 +45,14 @@ public sealed class StarterRoomService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> navigatorConfig,
+    IOptions<OnboardingConfig> onboardingConfig,
     ILogger<IStarterRoomService> logger
 ) : IStarterRoomService
 {
     private const string RESOURCE_PREFIX = "StarterRooms.";
+
+    /// <summary>The player's name in a starter room's name and description.</summary>
+    private const string NAME_PLACEHOLDER = "%name%";
 
     private static readonly JsonSerializerOptions JSON_OPTIONS = new()
     {
@@ -50,7 +63,7 @@ public sealed class StarterRoomService(
         LoadTemplates
     );
 
-    public bool HasType(string roomType) => TEMPLATES.Value.ContainsKey(roomType.Trim());
+    public bool HasType(string roomType) => Resolve(roomType) is not null;
 
     public async Task<CreatedStarterRoom?> CreateAsync(
         PlayerId playerId,
@@ -58,7 +71,9 @@ public sealed class StarterRoomService(
         CancellationToken ct
     )
     {
-        if (!TEMPLATES.Value.TryGetValue(roomType.Trim(), out var template))
+        var option = Resolve(roomType);
+
+        if (option is null)
             return null;
 
         var ownerName = await grainFactory
@@ -66,12 +81,70 @@ public sealed class StarterRoomService(
             .GetPlayerNameAsync(playerId, ct)
             .ConfigureAwait(false);
 
-        var name = string.Format(template.Name, ownerName);
+        var created =
+            (option.RoomId > 0)
+                ? await CopyRoomAsync(playerId, ownerName, option, ct).ConfigureAwait(false)
+                : await FromTemplateAsync(playerId, ownerName, option, ct).ConfigureAwait(false);
+
+        if (created is not null)
+            logger.LogInformation(
+                "Made starter room {RoomId} (type {RoomType}, from {Source}) for player {PlayerId}",
+                created.RoomId,
+                option.Type,
+                (option.RoomId > 0) ? $"room {option.RoomId}" : "its template",
+                playerId
+            );
+
+        return created;
+    }
+
+    /// <summary>The hotel's entry for the type, or - with none configured - the built-in template's.</summary>
+    private StarterRoomOption? Resolve(string roomType)
+    {
+        var type = roomType.Trim();
+        var configured = onboardingConfig.Value.StarterRooms;
+
+        if (configured.Count > 0)
+        {
+            var option = configured.FirstOrDefault(x =>
+                string.Equals(x.Type.Trim(), type, StringComparison.Ordinal)
+            );
+
+            return (option is not null && (option.RoomId > 0 || TEMPLATES.Value.ContainsKey(type)))
+                ? option
+                : null;
+        }
+
+        return TEMPLATES.Value.ContainsKey(type) ? new StarterRoomOption { Type = type } : null;
+    }
+
+    private static string Fill(string pattern, string ownerName) =>
+        pattern.Replace(NAME_PLACEHOLDER, ownerName, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<CreatedStarterRoom?> FromTemplateAsync(
+        PlayerId playerId,
+        string ownerName,
+        StarterRoomOption option,
+        CancellationToken ct
+    )
+    {
+        var template = TEMPLATES.Value[option.Type.Trim()];
+        var name = Fill(
+            string.IsNullOrWhiteSpace(option.Name) ? template.Name : option.Name,
+            ownerName
+        );
+        var description = Fill(
+            string.IsNullOrWhiteSpace(option.Description)
+                ? template.Description
+                : option.Description,
+            ownerName
+        );
+
         var roomId = await navigatorService
             .CreateRoomAsync(
                 playerId,
                 name,
-                string.Format(template.Description, ownerName),
+                description,
                 template.Model,
                 template.Category,
                 Math.Min(template.MaxUsers, navigatorConfig.Value.MaxPlayersLimit),
@@ -85,14 +158,152 @@ public sealed class StarterRoomService(
 
         await FurnishAsync(roomId.Value, playerId, template, ct).ConfigureAwait(false);
 
-        logger.LogInformation(
-            "Made starter room {RoomId} (type {RoomType}) for player {PlayerId}",
-            roomId,
-            template.Type,
-            playerId
+        return new(roomId.Value, name);
+    }
+
+    /// <summary>A copy of a hotel room: made through the navigator, then given the source's model, look and furni.</summary>
+    private async Task<CreatedStarterRoom?> CopyRoomAsync(
+        PlayerId playerId,
+        string ownerName,
+        StarterRoomOption option,
+        CancellationToken ct
+    )
+    {
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var source = await db
+            .Rooms.AsNoTracking()
+            .Include(x => x.RoomModelEntity)
+            .SingleOrDefaultAsync(x => x.Id == option.RoomId, ct)
+            .ConfigureAwait(false);
+
+        if (source is null)
+        {
+            logger.LogWarning(
+                "Starter room type {RoomType} copies room {RoomId}, which does not exist",
+                option.Type,
+                option.RoomId
+            );
+
+            return null;
+        }
+
+        // A room with a floor plan of its own is made on any public model first and given a copy
+        // of that plan below; the navigator only makes rooms on the public ones.
+        var modelName = source.RoomModelEntity.Custom
+            ? await db
+                .RoomModels.AsNoTracking()
+                .Where(x => x.Enabled && !x.Custom)
+                .OrderBy(x => x.Id)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false)
+            : source.RoomModelEntity.Name;
+
+        var name = Fill(
+            string.IsNullOrWhiteSpace(option.Name) ? source.Name : option.Name,
+            ownerName
+        );
+        var description = Fill(
+            string.IsNullOrWhiteSpace(option.Description)
+                ? source.Description ?? string.Empty
+                : option.Description,
+            ownerName
         );
 
+        var roomId = await navigatorService
+            .CreateRoomAsync(
+                playerId,
+                name,
+                description,
+                modelName ?? string.Empty,
+                source.NavigatorCategoryEntityId ?? 0,
+                Math.Min(source.PlayersMax, navigatorConfig.Value.MaxPlayersLimit),
+                source.TradeType,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (roomId is null)
+            return null;
+
+        var newRoomId = roomId.Value.Value;
+        var room = await db.Rooms.SingleAsync(x => x.Id == newRoomId, ct).ConfigureAwait(false);
+
+        if (source.RoomModelEntity.Custom)
+        {
+            var model = new RoomModelEntity
+            {
+                Name = "room_" + newRoomId,
+                Model = source.RoomModelEntity.Model,
+                DoorX = source.RoomModelEntity.DoorX,
+                DoorY = source.RoomModelEntity.DoorY,
+                DoorRotation = source.RoomModelEntity.DoorRotation,
+                Enabled = true,
+                Custom = true,
+            };
+
+            db.RoomModels.Add(model);
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            room.RoomModelEntityId = model.Id;
+        }
+
+        room.PaintWall = source.PaintWall;
+        room.PaintFloor = source.PaintFloor;
+        room.PaintLandscape = source.PaintLandscape;
+        room.WallHeight = source.WallHeight;
+        room.HideWalls = source.HideWalls;
+        room.ThicknessWall = source.ThicknessWall;
+        room.ThicknessFloor = source.ThicknessFloor;
+
+        var items = await db
+            .Furnitures.AsNoTracking()
+            .Where(x => x.RoomEntityId == source.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        foreach (var item in items)
+        {
+            db.Add(
+                new FurnitureEntity
+                {
+                    PlayerEntityId = playerId.Value,
+                    FurnitureDefinitionEntityId = item.FurnitureDefinitionEntityId,
+                    RoomEntityId = newRoomId,
+                    X = item.X,
+                    Y = item.Y,
+                    Z = item.Z,
+                    Rotation = item.Rotation,
+                    WallOffset = item.WallOffset,
+                    ExtraData = WithoutTeleportLink(item.ExtraData),
+                }
+            );
+        }
+
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
         return new(roomId.Value, name);
+    }
+
+    /// <summary>The item's data without its teleporter partner, which is the source room's.</summary>
+    private static string? WithoutTeleportLink(string? extraData)
+    {
+        if (string.IsNullOrWhiteSpace(extraData))
+            return extraData;
+
+        try
+        {
+            if (JsonNode.Parse(extraData) is JsonObject data && data.Remove(RoomLinkerData.SECTION))
+                return data.ToJsonString();
+        }
+        catch (JsonException)
+        {
+            // Not JSON: kept as it is.
+        }
+
+        return extraData;
     }
 
     /// <summary>Paints the new room and puts its furni in place, all in one write.</summary>

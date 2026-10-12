@@ -25,6 +25,7 @@ public sealed class PlayerAccountService(
     IOwnerBootstrap owner,
     IWordFilter wordFilter,
     IOptions<OnboardingConfig> onboarding,
+    IPlayerNamePolicy namePolicy,
     ILogger<IPlayerAccountService> logger
 ) : IPlayerAccountService
 {
@@ -44,7 +45,7 @@ public sealed class PlayerAccountService(
         if (PlayerNames.Check(player.Name) is { } refused)
             return NewPlayerResult.Refused(refused);
 
-        if (!wordFilter.IsClean(player.Name.Trim()))
+        if (!wordFilter.IsClean(player.Name.Trim()) || namePolicy.IsBlocked(player.Name))
             return NewPlayerResult.Refused(PlayerNames.FILTERED);
 
         var name = player.Name.Trim();

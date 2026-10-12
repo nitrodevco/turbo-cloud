@@ -25,9 +25,31 @@ public sealed class PlayerOnboardingService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
     IWordFilter wordFilter,
-    IOptions<OnboardingConfig> config
+    IOptions<OnboardingConfig> config,
+    IPlayerNamePolicy namePolicy
 ) : IPlayerOnboardingService
 {
+    /// <summary>The words suggestions are made with when the hotel names none.</summary>
+    private static readonly string[] DEFAULT_SUGGESTION_WORDS =
+    [
+        "Cool",
+        "Star",
+        "Pixel",
+        "Sunny",
+        "Purple",
+        "Cyclone",
+        "Bonsai",
+        "Mushroom",
+        "Mammoth",
+        "Jellyfish",
+        "Blizzard",
+        "Boulder",
+        "Comet",
+        "Breeze",
+        "Racer",
+        "Smith",
+    ];
+
     public async Task<ImmutableArray<short>> GetLoginActionsAsync(
         PlayerId playerId,
         CancellationToken ct
@@ -164,8 +186,13 @@ public sealed class PlayerOnboardingService(
         if (name.Length > PlayerNames.MAX_LENGTH)
             return NameCheckResult.TooLong;
 
-        // Characters, a leading @ and the word filter: Flash shows 4 as "not a very nice name".
-        if (PlayerNames.Check(name) is not null || !wordFilter.IsClean(name))
+        // Characters, a leading @, the hotel's blocked names and the word filter: Flash shows 4
+        // as "not a very nice name".
+        if (
+            PlayerNames.Check(name) is not null
+            || namePolicy.IsBlocked(name)
+            || !wordFilter.IsClean(name)
+        )
             return NameCheckResult.NotAllowed;
 
         return null;
@@ -184,7 +211,10 @@ public sealed class PlayerOnboardingService(
         var options = config.Value;
         var words = options.SuggestionWords.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
 
-        if (options.NameSuggestions <= 0 || words.Count == 0)
+        if (words.Count == 0)
+            words = [.. DEFAULT_SUGGESTION_WORDS];
+
+        if (options.NameSuggestions <= 0)
             return [];
 
         var candidates = words

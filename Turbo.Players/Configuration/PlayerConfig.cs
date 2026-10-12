@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Turbo.Players.Configuration;
 
 /// <summary>
@@ -8,6 +10,13 @@ namespace Turbo.Players.Configuration;
 public class PlayerConfig
 {
     public const string SECTION_NAME = "Turbo:Players";
+
+    /// <summary>
+    /// Names no one may take, at sign-up or in the new user flow: each a name or a pattern with
+    /// <c>*</c> for any run of characters (<c>Admin</c>, <c>MOD-*</c>, <c>*staff*</c>), whatever
+    /// its case. Players who already have such a name keep it.
+    /// </summary>
+    public List<string> BlockedNames { get; init; } = [];
 
     /// <summary>Maximum wait for a best-effort player notice, in milliseconds.</summary>
     public int NoticeTimeoutMs { get; init; } = 5000;
