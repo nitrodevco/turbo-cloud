@@ -39,12 +39,12 @@ internal static class ChatMessagePayloadSerializer
         )
             return;
 
-        packet.WriteInteger(message.ReceiverRoomIndex ?? NO_RECEIVER);
-
-        if (message.ChatBubbleWidthOverride is null && !message.HideUsername)
-            return;
-
-        packet.WriteInteger(message.ChatBubbleWidthOverride ?? NO_BUBBLE_WIDTH);
+        // A receiver always comes with a width: Habbo's wired whispers (the triggerer's hidden
+        // message echoed back, Show Message's whisper) end with receiver 0 and width -1 even when
+        // the box sets no width (official client capture, WIN63-202610121709).
+        packet
+            .WriteInteger(message.ReceiverRoomIndex ?? NO_RECEIVER)
+            .WriteInteger(message.ChatBubbleWidthOverride ?? NO_BUBBLE_WIDTH);
 
         if (message.HideUsername)
             packet.WriteBoolean(true);
