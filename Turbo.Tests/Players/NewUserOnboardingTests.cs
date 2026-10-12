@@ -31,7 +31,7 @@ using Xunit;
 namespace Turbo.Tests.Players;
 
 /// <summary>
-/// The new user flow as Habbo ran it for a new account on 2026-10-12 (recorded with QX Scripter):
+/// The new user flow as Habbo ran it for a new account on 2026-10-12 (recorded on hhus):
 /// login lists the steps still to do, the name box answers with Habbo's codes and suggestions,
 /// "I'm ready" sets the name once, and the room pick makes the furnished starter room.
 /// </summary>
