@@ -19,6 +19,15 @@ public interface ISessionGateway
     public Task AddSessionToPlayerAsync(SessionKey key, PlayerId playerId);
     public Task RemoveSessionFromPlayerAsync(PlayerId playerId, CancellationToken ct);
 
+    /// <summary>
+    /// As the server stops, before its connections close: ends every logged-in session as a
+    /// disconnect does (the player leaves their room, their online time is recorded) and marks
+    /// each player offline (their logout stamp), all awaited while the silo can still reach
+    /// their grains. Left to the connections' close handlers, nothing waited for them and the
+    /// silo stopped first. Returns how many sessions were ended.
+    /// </summary>
+    public Task<int> EndAllSessionsAsync(CancellationToken ct);
+
     /// <summary>Every player who has a logged-in connection at this moment.</summary>
     public IReadOnlyCollection<PlayerId> GetOnlinePlayerIds();
 

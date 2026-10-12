@@ -84,8 +84,9 @@ What a hotel's own server needs, in the order you set it up.
    | `maintenance_work_mem` | 256MB | Vacuum and index builds; one at a time per session, so it can be larger. |
    | `random_page_cost` | 1.1 on SSD/NVMe | The default 4 assumes spinning disks and makes the planner avoid indexes it should use. |
 
-   `max_connections` can stay at 100: one Turbo silo's pool (Npgsql) holds what it uses, and a
-   connection pooler is only worth it once a CMS, the panel and cron jobs share the server.
+   `max_connections` can stay at 100 while Turbo's pool (`MaxPoolSize`, 50) stays below it with
+   room for backups, psql and the 3 connections kept for superusers; raise both together if you
+   raise one. A connection pooler is only worth it once a CMS and cron jobs share the server.
 5. **Turn on query statistics.** Add `shared_preload_libraries = 'pg_stat_statements'`, restart, and
    run `CREATE EXTENSION pg_stat_statements;` as a superuser once. `SELECT query, calls,
    mean_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` then shows what
@@ -108,6 +109,7 @@ What a hotel's own server needs, in the order you set it up.
 | `ConnectionString` | | The server's connection. |
 | `MigrationConnectionString` | empty | The connection migrations run with: the owner role, when the server's own role may not change the schema (step 3 above). Empty: migrations use `ConnectionString`. |
 | `MaxAutoPrepare` | `50` | How many of its most used statements each connection keeps prepared, so PostgreSQL plans them once. Measured 20 to 32% faster on the inventory and room loads and the wallet update. `0` turns it off, which only PgBouncer older than 1.21 in transaction mode needs; a `Max Auto Prepare` in the connection string wins. |
+| `MaxPoolSize` | `50` | The most connections Turbo holds open; past it a query waits for one. Npgsql's default of 100 is more than a default PostgreSQL (`max_connections` 100, 3 kept for superusers) lets an ordinary role have, so a burst was refused with "too many clients" and its writes lost: with 500 players saving at once as the server stopped, 1 to 2 writes of 1,500 at 100, none at 50. Keep it below what the server allows the role, with room for backups and psql. A `Maximum Pool Size` in the connection string wins; `0` leaves Npgsql's default. |
 | `Migrate` | `Auto` | `Auto` applies what is pending at startup. `Check` applies nothing and refuses to start while anything is pending. `Off` does not look at the schema. |
 | `AllowDestructiveMigrations` | `false` | Whether a migration that drops a table or a column may run on a database that has data. |
 | `MigrationLockSeconds` | `60` | How long a migration waits for another one to finish. |
@@ -320,11 +322,13 @@ decides which as each move happens, not at the room's next save:
 
 A room hands what changed (positions, furni data, pets, bots, chat lines, command uses) to its
 writer every `Turbo:Rooms:DirtyItemsTickMs` (2 s), which writes it soon after. When the server stops
-(`SIGTERM` from a deploy, `:shutdown`, Ctrl+C), it first closes every player connection, then saves
-and unloads every active room, and only then stops Orleans. Left to Orleans, rooms are unloaded
-after the silo has left the cluster, so each room's last changes cannot reach its writer and are
-lost. The log says `Saved N active rooms in M ms`, or at error level how many could not be written
-or were cut off by the host's 30 s shutdown timeout.
+(`SIGTERM` from a deploy, `:shutdown`, Ctrl+C), it does what still needs other grains while Orleans
+can reach them, and only then stops Orleans: it logs every player out (they leave their room, their
+online time and logout time are recorded), closes the connections, then saves and unloads every
+active room. Left to Orleans, all of this ran after the silo had left the cluster, when every call
+between grains fails: each room's last changes and most players' logouts were lost. The log says
+`Logged out N players in M ms` and `Saved N active rooms in M ms`, or at error level how many could
+not be written or were cut off by the host's 30 s shutdown timeout.
 
 Measured on PostgreSQL 16, with `SIGTERM` sent as soon as every furni in every room had moved:
 
@@ -332,6 +336,9 @@ Measured on PostgreSQL 16, with `SIGTERM` sent as soon as every furni in every r
 | --- | --- | --- | --- |
 | 100 | 2,420-2,633 of 5,000, in 53-58 rooms | 0 | 193-287 ms |
 | 3,000 | 17,170 of 150,000, in 355 rooms | 0 | 803 ms |
+
+With 200 players online (the load bots), `SIGTERM` left 110-114 of their logins with no logout
+time; now none, and logging them out took 667-708 ms.
 
 ## Indexes and storage for the busiest tables
 

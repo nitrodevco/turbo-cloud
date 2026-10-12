@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -34,7 +35,8 @@ public class TurboEmulator(
     IWordFilter wordFilter,
     INetworkManager networkManager,
     IRevisionManager revisionManager,
-    IRoomService roomService
+    IRoomService roomService,
+    ISessionGateway sessionGateway
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
@@ -52,6 +54,7 @@ public class TurboEmulator(
     private readonly INetworkManager _networkManager = networkManager;
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IRoomService _roomService = roomService;
+    private readonly ISessionGateway _sessionGateway = sessionGateway;
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -89,12 +92,23 @@ public class TurboEmulator(
 
     /// <summary>
     /// Runs before the silo stops (hosted services stop in reverse order, and the silo was added
-    /// first). Players go first, so nothing changes while the rooms are written; then the rooms,
-    /// while their persistence grains can still be reached.
+    /// first), so every step below can still reach the grains. Players are logged out first and
+    /// their connections closed, so nothing changes while the rooms are written; then the rooms.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Turbo StopAsync called.");
+
+        var started = Stopwatch.GetTimestamp();
+        var players = await _sessionGateway
+            .EndAllSessionsAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "Logged out {Count} players in {ElapsedMs} ms",
+            players,
+            (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds
+        );
 
         try
         {
