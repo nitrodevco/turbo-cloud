@@ -40,6 +40,9 @@ public static class WiredVariableHashBuilder
         foreach (var s in snapshot.TextConnectors.Values)
             WriteString(ref hasher, s);
 
+        if (snapshot.TextConnectorFallback is not null)
+            WriteString(ref hasher, snapshot.TextConnectorFallback);
+
         Span<byte> hashBytes = stackalloc byte[4];
         hasher.GetHashAndReset(hashBytes);
 
@@ -51,7 +54,8 @@ public static class WiredVariableHashBuilder
         WiredAvailabilityType availabilityType,
         WiredVariableTargetType targetType,
         WiredVariableFlags flags,
-        Dictionary<WiredVariableValue, string> textConnectors
+        Dictionary<WiredVariableValue, string> textConnectors,
+        string? textConnectorFallback = null
     )
     {
         var hasher = new XxHash32();
@@ -64,6 +68,10 @@ public static class WiredVariableHashBuilder
 
         foreach (var s in textConnectors.Values)
             WriteString(ref hasher, s);
+
+        // A changed fallback has to change the hash, or the client keeps the old one cached.
+        if (textConnectorFallback is not null)
+            WriteString(ref hasher, textConnectorFallback);
 
         Span<byte> hashBytes = stackalloc byte[4];
         hasher.GetHashAndReset(hashBytes);

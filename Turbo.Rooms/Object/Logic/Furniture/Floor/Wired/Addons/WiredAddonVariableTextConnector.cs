@@ -12,7 +12,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
 /// Gives the variable box on the same tile a label per value. The string param holds one
-/// "value=text" pair per line; the variable box reads them when it builds its snapshot.
+/// "value=text" pair per line; the variable box reads them when it builds its snapshot. A
+/// "_=text" line is the fallback, shown for every value without a label of its own (Wired
+/// Faculty, 12/10/2026: "Fallback text value in Text connectors"; the client shows it under
+/// the key "_" in the overview and for an unmapped value, AS3 <c>Util.getConnectedText</c>).
 /// </summary>
 [RoomObjectLogic("wf_xtra_var_text_connector")]
 public class WiredAddonVariableTextConnector(
@@ -23,6 +26,33 @@ public class WiredAddonVariableTextConnector(
 {
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TEXT_CONVERTER;
 
+    /// <summary>The text of the box's "_=" line, or null when it has none.</summary>
+    public string? GetFallback()
+    {
+        string? fallback = null;
+
+        foreach (var line in Lines())
+        {
+            var index = line.IndexOf('=');
+
+            if (index <= 0 || line[..index].Trim() != "_")
+                continue;
+
+            var label = line[(index + 1)..].Trim();
+
+            if (label.Length > 0)
+                fallback = label;
+        }
+
+        return fallback;
+    }
+
+    private string[] Lines() =>
+        (_wiredData?.StringParam ?? string.Empty).Split(
+            ['\r', '\n'],
+            StringSplitOptions.RemoveEmptyEntries
+        );
+
     /// <summary>The value to label map the box currently describes.</summary>
     public Dictionary<WiredVariableValue, string> GetConnectors()
     {
@@ -30,9 +60,7 @@ public class WiredAddonVariableTextConnector(
         if (_wiredData is null)
             return connectors;
 
-        var text = _wiredData.StringParam ?? string.Empty;
-
-        foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var line in Lines())
         {
             var index = line.IndexOf('=');
 

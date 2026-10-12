@@ -20,6 +20,7 @@ internal class WiredVariableSerializer
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.CanWriteValue))
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.CanInterceptChanges))
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.IsInvisible))
+            .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.RequiresExecutionContext))
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.CanReadCreationTime))
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.CanReadLastUpdateTime))
             .WriteBoolean(snapshot.Flags.Has(WiredVariableFlags.HasTextConnector));
@@ -30,6 +31,11 @@ internal class WiredVariableSerializer
 
             foreach (var (key, value) in snapshot.TextConnectors)
                 packet.WriteInteger(key.ToClient()).WriteString(value);
+
+            packet.WriteBoolean(snapshot.TextConnectorFallback is not null);
+
+            if (snapshot.TextConnectorFallback is not null)
+                packet.WriteString(snapshot.TextConnectorFallback);
         }
     }
 }

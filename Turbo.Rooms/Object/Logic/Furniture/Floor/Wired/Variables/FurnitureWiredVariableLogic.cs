@@ -469,6 +469,23 @@ public abstract class FurnitureWiredVariableLogic
         );
     }
 
+    /// <summary>
+    /// The text a text connector addon on the same tile shows for a value it has no label for
+    /// (its <c>_=</c> line), or null.
+    /// </summary>
+    public virtual string? GetTextConnectorFallback()
+    {
+        string? fallback = null;
+
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        {
+            if (item.Logic is Addons.WiredAddonVariableTextConnector connector)
+                fallback = connector.GetFallback() ?? fallback;
+        }
+
+        return fallback;
+    }
+
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
@@ -590,13 +607,20 @@ public abstract class FurnitureWiredVariableLogic
     protected virtual WiredVariableSnapshot BuildVarSnapshot()
     {
         var textConnectors = GetTextConnectors();
-        var flags = textConnectors.Count > 0 ? Flags | WiredVariableFlags.HasTextConnector : Flags;
+        var fallback = GetTextConnectorFallback();
+        var flags = WiredVariableExecutionContext.WithRequirement(
+            textConnectors.Count > 0 || fallback is not null
+                ? Flags | WiredVariableFlags.HasTextConnector
+                : Flags,
+            TargetType
+        );
         var variableHash = WiredVariableHashBuilder.HashValues(
             _wiredData.StringParam,
             AvailabilityType,
             TargetType,
             flags,
-            textConnectors
+            textConnectors,
+            fallback
         );
 
         return new()
@@ -609,6 +633,7 @@ public abstract class FurnitureWiredVariableLogic
             TargetType = TargetType,
             Flags = flags,
             TextConnectors = textConnectors,
+            TextConnectorFallback = fallback,
         };
     }
 
