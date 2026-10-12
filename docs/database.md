@@ -41,18 +41,39 @@ What a hotel's own server needs, in the order you set it up.
 
 1. **Install PostgreSQL 16 or newer** (Ploi: Server > Databases, or the distribution's
    `postgresql` package). It can share the machine with Turbo on a small hotel.
-2. **Make a role and a database it owns, and nothing more.** Turbo never needs a superuser: the one
-   extension it uses, `pg_trgm` (for searching chat and room names), is "trusted", so the database's
-   owner can create it.
+2. **Make the database's cluster with checksums.** `initdb --data-checksums` (or
+   `pg_createcluster ... -- --data-checksums` on Debian and Ubuntu) has PostgreSQL check every page
+   it reads, so a disk that silently corrupts data is caught at the page it broke rather than
+   copied into every backup after it. PostgreSQL 18 turns them on by default; before that it has to
+   be chosen when the cluster is made, so check with `SHOW data_checksums;` before the first
+   deploy, while making the cluster again costs nothing.
+3. **Make two roles: one that owns the database, one the server runs as.** The server's role reads
+   and writes rows and can change nothing else, so a bug, a plugin or a stolen password can't drop
+   a table. Run `scripts/sql/least-privilege.sql` as a superuser once (`sudo -u postgres psql -f
+   scripts/sql/least-privilege.sql`, after putting in two long random passwords). It makes:
 
-   ```sql
-   CREATE ROLE turbo LOGIN PASSWORD 'a long random password';
-   CREATE DATABASE turbo OWNER turbo;
-   ```
+   - `turbo_owner`, which owns the database and runs migrations, the emulator's and every
+     plugin's. Turbo never needs a superuser: the one extension it uses, `pg_trgm` (for searching
+     chat and room names), is "trusted", so the database's owner can create it.
+   - `turbo_app`, the server's role. It may `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table
+     the owner makes, now and later (default privileges), and nothing else: no `CREATE`, `ALTER`,
+     `DROP` or `TRUNCATE`.
+   - Limits on the server's sessions. A transaction left open (a crash between two writes) gives its
+     row locks back after a minute (`idle_in_transaction_session_timeout`). A statement waiting on a
+     lock gives up after ten seconds (`lock_timeout`), so requests don't pile up behind one stuck
+     row. A runaway statement stops after a minute (`statement_timeout`). Migrations run as the owner
+     and aren't limited.
 
-   Then set `TURBO_DB_*` (or `TURBO_DB_CONNECTION_STRING`) and deploy: `Turbo.Main migrate` makes the
-   tables. Keep PostgreSQL listening on `127.0.0.1` unless something else really must reach it.
-3. **Size the memory once.** PostgreSQL's defaults are for a tiny machine. In `postgresql.conf`
+   Then point `Turbo:Database:ConnectionString` at `turbo_app` and
+   `Turbo:Database:MigrationConnectionString` at `turbo_owner` (Ploi: `TURBO_DB_USERNAME` /
+   `TURBO_DB_PASSWORD`, and `TURBO_DB_MIGRATION_USERNAME` / `TURBO_DB_MIGRATION_PASSWORD`), and
+   deploy: `Turbo.Main migrate` makes the tables as the owner. Keep PostgreSQL listening on
+   `127.0.0.1` unless something else really must reach it.
+
+   A hotel that wants one role can still have one: leave `MigrationConnectionString` empty and give
+   `ConnectionString` the database's owner, as `CREATE ROLE turbo LOGIN PASSWORD '...'; CREATE
+   DATABASE turbo OWNER turbo;` does.
+4. **Size the memory once.** PostgreSQL's defaults are for a tiny machine. In `postgresql.conf`
    (or `ALTER SYSTEM SET ...` and a restart):
 
    | Setting | Start at | Why |
@@ -65,18 +86,18 @@ What a hotel's own server needs, in the order you set it up.
 
    `max_connections` can stay at 100: one Turbo silo's pool (Npgsql) holds what it uses, and a
    connection pooler is only worth it once a CMS, the panel and cron jobs share the server.
-4. **Turn on query statistics.** Add `shared_preload_libraries = 'pg_stat_statements'`, restart, and
+5. **Turn on query statistics.** Add `shared_preload_libraries = 'pg_stat_statements'`, restart, and
    run `CREATE EXTENSION pg_stat_statements;` as a superuser once. `SELECT query, calls,
    mean_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` then shows what
    the database spends its time on, which is where the next index goes.
-5. **Back up, and practise restoring.**
+6. **Back up, and practise restoring.**
    - Nightly: `pg_dump -Fc -f turbo-$(date +%F).dump turbo`, copied off the machine (object storage,
      another server). A custom-format dump restores with `pg_restore -d turbo_restored file.dump`.
    - A dump loses everything since it was taken. To lose at most minutes, archive the WAL as well
      (PostgreSQL's continuous archiving, or a tool such as pgBackRest), which restores to any
      moment.
    - Restore one into a scratch database now and then. A backup nobody has restored is a guess.
-6. **Leave autovacuum on** (the default). Furniture and wallets are updated all day and PostgreSQL
+7. **Leave autovacuum on** (the default). Furniture and wallets are updated all day and PostgreSQL
    keeps old row versions until vacuum clears them; `SELECT relname, n_dead_tup FROM
    pg_stat_user_tables ORDER BY n_dead_tup DESC;` shows whether it keeps up.
 
@@ -84,13 +105,17 @@ What a hotel's own server needs, in the order you set it up.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
+| `ConnectionString` | | The server's connection. |
+| `MigrationConnectionString` | empty | The connection migrations run with: the owner role, when the server's own role may not change the schema (step 3 above). Empty: migrations use `ConnectionString`. |
+| `MaxAutoPrepare` | `50` | How many of its most used statements each connection keeps prepared, so PostgreSQL plans them once. Measured 20 to 32% faster on the inventory and room loads and the wallet update. `0` turns it off, which only PgBouncer older than 1.21 in transaction mode needs; a `Max Auto Prepare` in the connection string wins. |
 | `Migrate` | `Auto` | `Auto` applies what is pending at startup. `Check` applies nothing and refuses to start while anything is pending. `Off` does not look at the schema. |
 | `AllowDestructiveMigrations` | `false` | Whether a migration that drops a table or a column may run on a database that has data. |
 | `MigrationLockSeconds` | `60` | How long a migration waits for another one to finish. |
 | `MigrationCommandTimeoutMinutes` | `30` | How long one statement of a migration may run. The usual 30 seconds is too short for an `ALTER` on a table with millions of rows. |
 
-In the Ploi environment these are `TURBO_DB_MIGRATE`, `TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS`,
-and `TURBO_DB_MIGRATION_LOCK_SECONDS`.
+In the Ploi environment these are `TURBO_DB_*` (or `TURBO_DB_CONNECTION_STRING`),
+`TURBO_DB_MIGRATION_*`, `TURBO_DB_MAX_AUTO_PREPARE`, `TURBO_DB_MIGRATE`,
+`TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS`, and `TURBO_DB_MIGRATION_LOCK_SECONDS`.
 
 `Auto` is right for a hotel on one server, which is nearly all of them. `Check` is for a hotel
 whose deploy runs `Turbo.Main migrate` first (the Ploi scripts do) and wants the server to refuse a
@@ -291,7 +316,7 @@ decides which as each move happens, not at the room's next save:
   `chest_transaction_id`) on a row in no holder, and the `furniture_leave_holder` trigger clears
   them however a row leaves its holder, including the holder's own row being deleted.
 
-## Indexes for the logs
+## Indexes and storage for the busiest tables
 
 The logs the retention job trims by age (chat, private messages, room entries, logins, the
 currency ledger, furni transfers, the command log, the moderation history, respects, pet
@@ -300,6 +325,13 @@ arrive in time order, so a summary per block range finds the old end of the tabl
 reading it. Measured on 5 million chat lines (a 444 MB table): the hourly pass with nothing to
 remove went from a parallel scan of the whole table, 244 to 274 ms, to under a millisecond,
 with an index of 32 kB where a b-tree on the same column is 80 MB.
+
+`furniture` is stored with `fillfactor` 80. A room's save rewrites where its furni stand all day,
+and no index covers those columns, so PostgreSQL can rewrite a row in place, with no new index
+entries (a HOT update), when its page has room; full pages (the default, 100) never do. Measured
+on 200,000 furni over 20,000 room saves: fillfactor 80 updated 20% in place against none, left the
+indexes 35% smaller (70 MB against 108 MB), and saved 11% faster. 70 gained nothing more in index
+size for a bigger table.
 
 Chat lines, the busiest log, are written by binary `COPY` (PostgreSQL's guidance for loading many
 rows): a batch of 200 took 10 ms, against 50 ms through EF's batched inserts, on the same table

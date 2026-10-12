@@ -79,6 +79,31 @@ turbo_connection_string() {
     "$TURBO_DB_DATABASE"
 }
 
+# The connection string migrations run with, for a database set up with a separate owner role
+# (scripts/sql/least-privilege.sql): TURBO_DB_MIGRATION_CONNECTION_STRING, or the TURBO_DB_* parts
+# with TURBO_DB_MIGRATION_USERNAME and TURBO_DB_MIGRATION_PASSWORD. Empty: migrations use the
+# server's own connection.
+turbo_migration_connection_string() {
+  if [ -n "${TURBO_DB_MIGRATION_CONNECTION_STRING:-}" ]; then
+    printf '%s' "$TURBO_DB_MIGRATION_CONNECTION_STRING"
+    return
+  fi
+
+  if [ -z "${TURBO_DB_MIGRATION_USERNAME:-}" ] || [ -z "${TURBO_DB_DATABASE:-}" ]; then
+    return
+  fi
+
+  local password="${TURBO_DB_MIGRATION_PASSWORD:-}"
+  password="${password//\"/\"\"}"
+
+  printf 'Host=%s;Port=%s;Username=%s;Password="%s";Database=%s' \
+    "${TURBO_DB_HOST:-127.0.0.1}" \
+    "${TURBO_DB_PORT:-5432}" \
+    "$TURBO_DB_MIGRATION_USERNAME" \
+    "$password" \
+    "$TURBO_DB_DATABASE"
+}
+
 # Exports "<prefix><key>" when the named .env setting is present. The prefix defaults to TURBO__.
 turbo_map() {
   local setting="$1"
@@ -101,7 +126,15 @@ turbo_export_app_env() {
     export "TURBO__Turbo__Database__ConnectionString=$connection_string"
   fi
 
+  local migration_connection_string
+  migration_connection_string="$(turbo_migration_connection_string)"
+
+  if [ -n "$migration_connection_string" ]; then
+    export "TURBO__Turbo__Database__MigrationConnectionString=$migration_connection_string"
+  fi
+
   turbo_map TURBO_DB_LOGGING Turbo__Database__LoggingEnabled
+  turbo_map TURBO_DB_MAX_AUTO_PREPARE Turbo__Database__MaxAutoPrepare
   turbo_map TURBO_DB_MIGRATE Turbo__Database__Migrate
   turbo_map TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS Turbo__Database__AllowDestructiveMigrations
   turbo_map TURBO_DB_MIGRATION_LOCK_SECONDS Turbo__Database__MigrationLockSeconds

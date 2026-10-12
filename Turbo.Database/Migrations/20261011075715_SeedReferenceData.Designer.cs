@@ -1976,6 +1976,8 @@ namespace Turbo.Database.Migrations
 
                             t.HasCheckConstraint("ck_furniture_one_place", "room_id IS NULL OR chest_item_id IS NULL");
                         });
+
+                    b.HasAnnotation("Npgsql:StorageParameter:fillfactor", 80);
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureTransferEntity", b =>

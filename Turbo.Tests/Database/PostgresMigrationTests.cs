@@ -678,6 +678,17 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         RequireServer();
         await using var db = Context();
         await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        // Room saves rewrite positions all day; a page with room lets them update in place.
+        (
+            await db
+                .Database.SqlQueryRaw<string>(
+                    "SELECT array_to_string(reloptions, ',') AS \"Value\" FROM pg_class WHERE relname = 'furniture'"
+                )
+                .SingleAsync(Ct)
+        )
+            .Should()
+            .Be("fillfactor=80");
         await db.Database.ExecuteSqlRawAsync(
             """
             INSERT INTO players (id, name, name_key, figure, gender)
@@ -898,6 +909,166 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             .Which.Should()
             .Contain("created_at")
             .And.Contain("autosummarize");
+    }
+
+    /// <summary>
+    /// <c>scripts/sql/least-privilege.sql</c>, run as written: the server's role reads and writes
+    /// rows and can change nothing else, migrations run as the owner through
+    /// <c>MigrationConnectionString</c> and their new tables are the server's to use at once, and
+    /// the server's sessions carry the timeouts that keep one stuck transaction from holding up
+    /// the hotel.
+    /// </summary>
+    [Fact]
+    public async Task TheServersRole_UsesRows_ButCannotChangeTheSchema()
+    {
+        RequireServer();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var (owner, app) = ($"turbo_owner_{suffix}", $"turbo_app_{suffix}");
+        var script = (
+            await File.ReadAllTextAsync(
+                Path.Combine(RepoRoot(), "scripts/sql/least-privilege.sql"),
+                Ct
+            )
+        )
+            .Replace("turbo_owner", owner)
+            .Replace("turbo_app", app)
+            .Replace("replace with a long random password", "owner-pw")
+            .Replace("replace with another long random password", "app-pw")
+            .Replace("DATABASE turbo", $"DATABASE {_database}");
+        var parts = script.Split("\\connect turbo");
+
+        string As(string role, string password) =>
+            new NpgsqlConnectionStringBuilder(ConnectionString)
+            {
+                Username = role,
+                Password = password,
+            }.ConnectionString;
+
+        try
+        {
+            await ExecuteAsync(On("postgres"), parts[0]);
+            await ExecuteAsync(ConnectionString, parts[1]);
+
+            // The server's role alone cannot make the tables.
+            var serverOnly = new DatabaseConfig { ConnectionString = As(app, "app-pw") };
+            await using (var db = ServerContext(serverOnly))
+            {
+                var alone = () =>
+                    new DatabaseMigrator(
+                        Options.Create(serverOnly),
+                        new PostgresMigrationLock(),
+                        new CapturingLogger<DatabaseMigrator>()
+                    ).MigrateAsync(db, "core", null, Ct);
+
+                await alone.Should().ThrowAsync<Exception>();
+            }
+
+            var config = new DatabaseConfig
+            {
+                ConnectionString = As(app, "app-pw"),
+                MigrationConnectionString = As(owner, "owner-pw"),
+            };
+            var migrator = new DatabaseMigrator(
+                Options.Create(config),
+                new PostgresMigrationLock(),
+                new CapturingLogger<DatabaseMigrator>()
+            );
+
+            await using (var db = ServerContext(config))
+                (await migrator.MigrateAsync(db, "core", null, Ct))
+                    .Outcome.Should()
+                    .Be(MigrationOutcome.Applied);
+
+            await using var server = ServerContext(config);
+            await server.Database.ExecuteSqlRawAsync(
+                "INSERT INTO players (id, name, name_key, figure, gender) VALUES (1, 'a', 'a', 'hd', 0); "
+                    + "UPDATE players SET motto = 'hi' WHERE id = 1; DELETE FROM players WHERE id = 1;",
+                Ct
+            );
+
+            foreach (
+                var ddl in new[]
+                {
+                    "CREATE TABLE sneaky (id int)",
+                    "DROP TABLE furniture",
+                    "TRUNCATE players",
+                    "ALTER TABLE players ADD COLUMN sneaky int",
+                }
+            )
+            {
+                var act = () => server.Database.ExecuteSqlRawAsync(ddl, Ct);
+
+                await act.Should()
+                    .ThrowAsync<PostgresException>()
+                    .Where(x => x.SqlState == "42501", ddl);
+            }
+
+            (
+                await server
+                    .Database.SqlQueryRaw<string>(
+                        "SELECT current_setting('idle_in_transaction_session_timeout') || ' '"
+                            + " || current_setting('lock_timeout') || ' ' || current_setting('statement_timeout') AS \"Value\""
+                    )
+                    .SingleAsync(Ct)
+            )
+                .Should()
+                .Be("1min 10s 1min");
+        }
+        finally
+        {
+            NpgsqlConnection.ClearAllPools();
+            await DropDatabaseAsync(_database);
+            await ExecuteAsync(
+                On("postgres"),
+                $"DROP ROLE IF EXISTS {app}; DROP ROLE IF EXISTS {owner};"
+            );
+        }
+    }
+
+    private static TurboDbContext ServerContext(DatabaseConfig config) =>
+        new(
+            (DbContextOptions<TurboDbContext>)
+                ServiceCollectionExtensions
+                    .UseTurboPostgres(
+                        new DbContextOptionsBuilder<TurboDbContext>(),
+                        config,
+                        npgsql => npgsql.MigrationsAssembly("Turbo.Database")
+                    )
+                    .Options
+        );
+
+    /// <summary>Each statement on its own, as psql sends a script: CREATE DATABASE runs alone.</summary>
+    private static async Task ExecuteAsync(string connectionString, string sql)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        var statements = string.Join(
+                '\n',
+                sql.Split('\n')
+                    .Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal))
+            )
+            .Split(';')
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0);
+
+        foreach (var statement in statements)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = statement;
+            await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Turbo.Cloud.sln")))
+            dir = dir.Parent;
+
+        return dir?.FullName
+            ?? throw new InvalidOperationException("No Turbo.Cloud.sln above the tests");
     }
 
     private sealed class Factory(PostgresMigrationTests owner) : IDbContextFactory<TurboDbContext>

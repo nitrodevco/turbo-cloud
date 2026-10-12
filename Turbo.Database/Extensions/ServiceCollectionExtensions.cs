@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
@@ -103,12 +104,33 @@ public static class ServiceCollectionExtensions
     )
     {
         options
-            .UseNpgsql(dbConfig.ConnectionString, configureNpgsql)
+            .UseNpgsql(WithAutoPrepare(dbConfig), configureNpgsql)
             .UseSnakeCaseNamingConvention();
 
         if (!dbConfig.LoggingEnabled)
             options.UseLoggerFactory(NullLoggerFactory.Instance);
 
         return options;
+    }
+
+    /// <summary>
+    /// The connection string with automatic preparation on (<see cref="DatabaseConfig.MaxAutoPrepare"/>),
+    /// unless it says otherwise itself. A statement is prepared on its second use, so a query run
+    /// once (an admin search, a migration) costs nothing extra.
+    /// </summary>
+    public static string WithAutoPrepare(DatabaseConfig dbConfig)
+    {
+        if (string.IsNullOrEmpty(dbConfig.ConnectionString) || dbConfig.MaxAutoPrepare <= 0)
+            return dbConfig.ConnectionString;
+
+        var builder = new NpgsqlConnectionStringBuilder(dbConfig.ConnectionString);
+
+        if (builder.MaxAutoPrepare > 0)
+            return dbConfig.ConnectionString;
+
+        builder.MaxAutoPrepare = dbConfig.MaxAutoPrepare;
+        builder.AutoPrepareMinUsages = 2;
+
+        return builder.ConnectionString;
     }
 }

@@ -33,7 +33,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
 
    The scripts find `~/.dotnet` on their own. A system-wide install under `/usr/share/dotnet` or `/usr/lib/dotnet` works too.
 
-2. **Create a PostgreSQL database** (16 or newer; Ploi > Server > Databases) with a user that owns it.
+2. **Create a PostgreSQL database** (16 or newer). Recommended: run `scripts/sql/least-privilege.sql` as a superuser, which makes an owner role for migrations and a role the server runs as that can't change the schema (see [docs/database.md](../../docs/database.md), step 3). Simplest: Ploi > Server > Databases, with a user that owns it.
 
 3. **Create the site** with the domain the client will connect to (for example `ws.example.com`). Install this repository on it.
 
@@ -71,6 +71,8 @@ All of these are set in `.env`. Restart the daemon (or deploy) after changing th
 | `TURBO_TCP_ENABLED` | `Turbo:Networking:TcpEnabled` | `true` from appsettings, `false` in the example (WebSocket only) |
 | `TURBO_SILO_ADDRESS`, `TURBO_SILO_PORT`, `TURBO_GATEWAY_PORT` | `Turbo:Orleans` | `127.0.0.1`, `11111`, `3000` |
 | `TURBO_DB_*` or `TURBO_DB_CONNECTION_STRING` | `Turbo:Database:ConnectionString` | from appsettings |
+| `TURBO_DB_MIGRATION_USERNAME` and `TURBO_DB_MIGRATION_PASSWORD`, or `TURBO_DB_MIGRATION_CONNECTION_STRING` | `Turbo:Database:MigrationConnectionString` (the owner role of `scripts/sql/least-privilege.sql`) | empty: migrations use the server's connection |
+| `TURBO_DB_MAX_AUTO_PREPARE` | `Turbo:Database:MaxAutoPrepare` | 50 |
 
 Orleans listens on every interface for its silo and gateway ports. Leave them closed in the firewall.
 

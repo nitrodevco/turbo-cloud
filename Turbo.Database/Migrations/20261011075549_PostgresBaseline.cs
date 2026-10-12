@@ -5226,83 +5226,85 @@ namespace Turbo.Database.Migrations
                 comment: "Bots players own: in their inventory or placed in a room."
             );
 
-            migrationBuilder.CreateTable(
-                name: "furniture",
-                columns: table => new
-                {
-                    id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+            migrationBuilder
+                .CreateTable(
+                    name: "furniture",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "integer", nullable: false)
+                            .Annotation(
+                                "Npgsql:ValueGenerationStrategy",
+                                NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                            ),
+                        player_id = table.Column<int>(type: "integer", nullable: false),
+                        definition_id = table.Column<int>(type: "integer", nullable: false),
+                        room_id = table.Column<int>(type: "integer", nullable: true),
+                        x = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                        y = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                        z = table.Column<double>(
+                            type: "double precision",
+                            nullable: false,
+                            defaultValue: 0.0
                         ),
-                    player_id = table.Column<int>(type: "integer", nullable: false),
-                    definition_id = table.Column<int>(type: "integer", nullable: false),
-                    room_id = table.Column<int>(type: "integer", nullable: true),
-                    x = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    y = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    z = table.Column<double>(
-                        type: "double precision",
-                        nullable: false,
-                        defaultValue: 0.0
-                    ),
-                    direction = table.Column<int>(
-                        type: "integer",
-                        nullable: false,
-                        defaultValue: 0
-                    ),
-                    wall_offset = table.Column<int>(
-                        type: "integer",
-                        nullable: false,
-                        defaultValue: 0
-                    ),
-                    extra_data = table.Column<string>(type: "text", nullable: true),
-                    chest_item_id = table.Column<int>(type: "integer", nullable: true),
-                    chest_transaction_id = table.Column<long>(type: "bigint", nullable: true),
-                    held_position = table.Column<int>(type: "integer", nullable: true),
-                    created_at = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "CURRENT_TIMESTAMP"
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_furniture", x => x.id);
-                    table.CheckConstraint(
-                        "ck_furniture_one_place",
-                        "room_id IS NULL OR chest_item_id IS NULL"
-                    );
-                    table.ForeignKey(
-                        name: "fk_furniture_furniture_chest_item_id",
-                        column: x => x.chest_item_id,
-                        principalTable: "furniture",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull
-                    );
-                    table.ForeignKey(
-                        name: "fk_furniture_furniture_definitions_definition_id",
-                        column: x => x.definition_id,
-                        principalTable: "furniture_definitions",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict
-                    );
-                    table.ForeignKey(
-                        name: "fk_furniture_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                    table.ForeignKey(
-                        name: "fk_furniture_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id"
-                    );
-                },
-                comment: "Every furni a player owns: in their inventory, placed in a room, or held inside another item."
-            );
+                        direction = table.Column<int>(
+                            type: "integer",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        wall_offset = table.Column<int>(
+                            type: "integer",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        extra_data = table.Column<string>(type: "text", nullable: true),
+                        chest_item_id = table.Column<int>(type: "integer", nullable: true),
+                        chest_transaction_id = table.Column<long>(type: "bigint", nullable: true),
+                        held_position = table.Column<int>(type: "integer", nullable: true),
+                        created_at = table.Column<DateTime>(
+                            type: "timestamp with time zone",
+                            nullable: false,
+                            defaultValueSql: "CURRENT_TIMESTAMP"
+                        ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("pk_furniture", x => x.id);
+                        table.CheckConstraint(
+                            "ck_furniture_one_place",
+                            "room_id IS NULL OR chest_item_id IS NULL"
+                        );
+                        table.ForeignKey(
+                            name: "fk_furniture_furniture_chest_item_id",
+                            column: x => x.chest_item_id,
+                            principalTable: "furniture",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.SetNull
+                        );
+                        table.ForeignKey(
+                            name: "fk_furniture_furniture_definitions_definition_id",
+                            column: x => x.definition_id,
+                            principalTable: "furniture_definitions",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Restrict
+                        );
+                        table.ForeignKey(
+                            name: "fk_furniture_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "fk_furniture_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id"
+                        );
+                    },
+                    comment: "Every furni a player owns: in their inventory, placed in a room, or held inside another item."
+                )
+                .Annotation("Npgsql:StorageParameter:fillfactor", 80);
 
             migrationBuilder.CreateTable(
                 name: "furniture_builders_club",

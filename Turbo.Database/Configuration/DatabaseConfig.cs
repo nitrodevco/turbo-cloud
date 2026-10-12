@@ -15,7 +15,26 @@ public class DatabaseConfig
     /// <summary>The PostgreSQL connection string, its password included.</summary>
     [SecretSetting]
     public string ConnectionString { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The connection string migrations run with, when the server's own role may not change the
+    /// schema (<c>docs/database.md</c>, "A role for the server, and one for migrations"). Empty:
+    /// migrations use <see cref="ConnectionString"/>. Used for the emulator's tables, every
+    /// plugin's, and a plugin's uninstall; nothing else.
+    /// </summary>
+    [SecretSetting]
+    public string MigrationConnectionString { get; init; } = string.Empty;
+
     public bool LoggingEnabled { get; init; } = false;
+
+    /// <summary>
+    /// How many of its most used statements each connection keeps prepared, so PostgreSQL plans
+    /// them once rather than every time (Npgsql's automatic preparation): measured on the
+    /// inventory and room loads and the wallet update, 20 to 32% faster. 0 turns it off, which a
+    /// pooler in transaction mode older than PgBouncer 1.21 needs. A <c>Max Auto Prepare</c> in
+    /// the connection string wins.
+    /// </summary>
+    public int MaxAutoPrepare { get; init; } = 50;
 
     /// <summary>
     /// What the server does about migrations at startup, for its own tables and for each plugin's:

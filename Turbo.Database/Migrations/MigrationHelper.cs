@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Configuration;
 using Turbo.Database.Delegates;
 
 namespace Turbo.Database.Migrations;
@@ -74,6 +76,13 @@ BEGIN
     EXECUTE format('DROP TABLE IF EXISTS %I CASCADE', t.tablename);
   END LOOP;
 END $$;";
-        await db.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
+        // Dropping tables is the schema owner's to do, as migrating them is.
+        var config = sp.GetRequiredService<IHostServices>()
+            .GetRequiredService<IOptions<DatabaseConfig>>()
+            .Value;
+        var owner = DatabaseMigrator.AsSchemaOwner(db, config);
+
+        await using (owner.ConfigureAwait(false))
+            await db.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
     }
 }
