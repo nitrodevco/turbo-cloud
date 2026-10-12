@@ -224,4 +224,28 @@ public class LoginAdmissionTests
             .Be(120);
         _fakes.Log.Of("ReconcileAsync").Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task LoginSendsTheEffectsOnceAndDoesNotEmptyThemAgain()
+    {
+        // Habbo sends AvatarEffects once at login (hhus, 2026-10-12). Turbo sent the player's
+        // effects and then an empty list, which the client takes as the whole list: every
+        // effect was gone from the client after each login.
+        _fakes.Handlers["GetSettingsAsync"] = _ =>
+            Task.FromResult(Activator.CreateInstance<PlayerSettingsSnapshot>());
+        _fakes.Handlers["GetFavouriteRoomIdsAsync"] = _ =>
+            Task.FromResult(ImmutableArray<RoomId>.Empty);
+        _fakes.Handlers["GetClubGiftInfoAsync"] = _ => Task.FromResult(ClubGiftInfoSnapshot.Empty);
+        _fakes.Handlers["GetUnseenItemsAsync"] = _ =>
+            Task.FromResult(ImmutableDictionary<UnseenItemCategory, ImmutableArray<int>>.Empty);
+        _fakes.Handlers["GetSummaryAsync"] = _ =>
+            Task.FromResult(Activator.CreateInstance<PlayerSummarySnapshot>());
+
+        await LogInAsync();
+
+        SentToSession()
+            .OfType<Turbo.Primitives.Messages.Outgoing.Inventory.Avatareffect.AvatarEffectsMessageComposer>()
+            .Should()
+            .ContainSingle();
+    }
 }

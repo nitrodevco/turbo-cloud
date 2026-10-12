@@ -188,8 +188,6 @@ public class SSOTicketMessageHandler(
         // What they wore last may not be theirs to wear now - club clothing after the club ran
         // out - so it is fitted again before anyone sees it.
         await _grainFactory.GetPlayerGrain(playerId).RefitFigureAsync(ct).ConfigureAwait(false);
-        await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
-            .ConfigureAwait(false);
         var settings = await settingsTask.ConfigureAwait(false);
         var favouriteRoomIds = await favouriteRoomIdsTask.ConfigureAwait(false);
 
