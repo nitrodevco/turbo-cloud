@@ -235,6 +235,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
 
         MapModule.ComputeAllTiles();
         _roomGrain._state.DirtyHeightTileIds.Clear();
+        _roomGrain._state.DirtyHeightSentValues.Clear();
 
         foreach (var item in wallItems)
             await ObjectModule.AttatchObjectAsync(item, ct);

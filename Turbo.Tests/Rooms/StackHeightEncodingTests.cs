@@ -71,7 +71,7 @@ public sealed class StackHeightEncodingTests
         ((short[])RoomHarness.GetMember(_room.Harness.State, "TileEncodedHeights")!)[(y * 8) + x];
 
     /// <summary>A plain 1x1 floor furni, 1 high, standing on the floor.</summary>
-    private void AddFurni(int objectId, int x, int y, bool canStack)
+    private RoomFloorItem AddFurni(int objectId, int x, int y, bool canStack, double height = 1.0)
     {
         var item = new RoomFloorItem
         {
@@ -89,7 +89,7 @@ public sealed class StackHeightEncodingTests
                 TotalStates = 1,
                 Width = 1,
                 Length = 1,
-                StackHeight = Altitude.FromInt(100),
+                StackHeight = Altitude.FromValue(height),
                 CanStack = canStack,
                 CanWalk = false,
                 CanSit = false,
@@ -121,5 +121,46 @@ public sealed class StackHeightEncodingTests
         typeof(RoomMapModule)
             .GetMethod("AddItem", All, [typeof(IRoomItem)])!
             .Invoke(_room.Map, [item]);
+
+        return item;
+    }
+
+    [Fact]
+    public void A_height_is_truncated_to_256ths_as_habbo_does()
+    {
+        // Habbo: a 2.05 high stack is 524 (2.05 x 256 = 524.8), not 525.
+        AddFurni(1, 3, 3, canStack: true, height: 2.05);
+
+        Encoded(3, 3).Should().Be((short)524);
+    }
+
+    [Fact]
+    public async Task A_tile_that_changes_and_changes_back_before_the_flush_is_not_resent()
+    {
+        // Habbo resends only the tiles a rotation changed; a furni lifted and put down again
+        // (as a rotation does to the tile it keeps) left its tile resent by Turbo.
+        var item = AddFurni(1, 3, 3, canStack: true);
+        ((HashSet<int>)RoomHarness.GetMember(_room.Harness.State, "DirtyHeightTileIds")!).Clear();
+        (
+            (Dictionary<int, short>)
+                RoomHarness.GetMember(_room.Harness.State, "DirtyHeightSentValues")!
+        ).Clear();
+
+        _room.Map.RemoveFloorItem(item);
+        typeof(RoomMapModule).GetMethod("AddFloorItem", All)!.Invoke(_room.Map, [item]);
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        await (Task)
+            typeof(Turbo.Rooms.Grains.RoomGrain)
+                .GetMethod("FlushDirtyTilesAsync", All)!
+                .Invoke(_room.Harness.Room, [CancellationToken.None])!;
+
+        _room
+            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
+            .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
+            .SelectMany(x => x.Composers)
+            .OfType<Turbo.Primitives.Messages.Outgoing.Room.Engine.HeightMapUpdateMessageComposer>()
+            .Should()
+            .BeEmpty();
     }
 }

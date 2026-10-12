@@ -76,6 +76,12 @@ internal sealed class RoomLiveState
     public bool IsListingChanged { get; internal set; } = false;
 
     public HashSet<int> DirtyHeightTileIds { get; set; } = [];
+
+    /// <summary>
+    /// What each dirty tile's encoded height was when it was last sent, so a tile that changes and
+    /// changes back before the flush (a furni lifted and put down by a rotation) is not resent.
+    /// </summary>
+    public Dictionary<int, short> DirtyHeightSentValues { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
 
     /// <summary>Pets and bots whose row is out of date, by pet or bot id; handed over with the items.</summary>
