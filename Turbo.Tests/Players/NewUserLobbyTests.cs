@@ -23,8 +23,8 @@ using Xunit;
 namespace Turbo.Tests.Players;
 
 /// <summary>
-/// What Habbo showed a new account on 2026-10-12 after the new user flow (recorded with QX
-/// Scripter): login says the player is a "real noob" (<c>NoobnessLevel</c> 2); "Enter the room!"
+/// What Habbo showed a new account on 2026-10-12 after the new user flow (recorded on
+/// hhus): login says the player is a "real noob" (<c>NoobnessLevel</c> 2); "Enter the room!"
 /// and the toolbar ask for <c>predefined_noob_lobby</c> and land in a door mode 4 room only new
 /// users enter; and the Introduction reward track behind "Start your Habbo Journey!".
 /// </summary>

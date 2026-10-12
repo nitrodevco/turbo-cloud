@@ -8,6 +8,9 @@ internal static class ChatMessagePayloadSerializer
     /// <summary>What the client's parser holds as the receiver when none was sent.</summary>
     private const int NO_RECEIVER = -1;
 
+    /// <summary>What the client's parser holds as the bubble width when none was sent.</summary>
+    private const int NO_BUBBLE_WIDTH = -1;
+
     public static void Serialize(IServerPacket packet, ChatMessageComposer message)
     {
         packet
@@ -27,12 +30,23 @@ internal static class ChatMessagePayloadSerializer
         // (ChatMessageParser.parse). A width without a receiver (a bot's talk or shout) must
         // still fill the receiver's slot, with the client's own "none"; this used to stop at a
         // missing receiver and so dropped every such width.
-        if (message.ReceiverRoomIndex is null && message.ChatBubbleWidthOverride is null)
+        // WIN63-202610121624 reads a third, hideUsername, the same way, so hiding the name
+        // fills both slots before it.
+        if (
+            message.ReceiverRoomIndex is null
+            && message.ChatBubbleWidthOverride is null
+            && !message.HideUsername
+        )
             return;
 
         packet.WriteInteger(message.ReceiverRoomIndex ?? NO_RECEIVER);
 
-        if (message.ChatBubbleWidthOverride is { } bubbleWidth)
-            packet.WriteInteger(bubbleWidth);
+        if (message.ChatBubbleWidthOverride is null && !message.HideUsername)
+            return;
+
+        packet.WriteInteger(message.ChatBubbleWidthOverride ?? NO_BUBBLE_WIDTH);
+
+        if (message.HideUsername)
+            packet.WriteBoolean(true);
     }
 }

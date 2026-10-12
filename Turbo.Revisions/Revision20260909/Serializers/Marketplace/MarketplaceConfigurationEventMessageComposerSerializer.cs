@@ -11,6 +11,17 @@ internal class MarketplaceConfigurationEventMessageComposerSerializer(int header
         MarketplaceConfigurationEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteBoolean(message.Enabled)
+            .WriteInteger(message.Commission)
+            .WriteInteger(message.TokenBatchPrice)
+            .WriteInteger(message.TokenBatchSize)
+            .WriteInteger(message.OfferMinPrice)
+            .WriteInteger(message.OfferMaxPrice)
+            .WriteInteger(message.ExpirationHours)
+            .WriteInteger(message.AveragePricePeriod)
+            .WriteInteger(message.SellingFeePercentage)
+            .WriteInteger(message.RevenueLimit)
+            .WriteInteger(message.HalfTaxLimit);
     }
 }

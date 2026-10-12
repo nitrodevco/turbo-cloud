@@ -53,4 +53,10 @@ public interface IRoomItem : IRoomObject
     public IComposer GetUpdateComposer();
     public IComposer GetRefreshStuffDataComposer();
     public IComposer GetRemoveComposer(PlayerId pickerId, bool isExpired = false, int delay = 0);
+
+    /// <summary>
+    /// Takes the item away from the clients because an area hider hides it; it is sent again
+    /// with <see cref="GetAddComposer"/> when it shows.
+    /// </summary>
+    public IComposer GetHideComposer();
 }

@@ -29,4 +29,12 @@ public readonly record struct WiredVariableValue(long Value) : IComparable<Wired
     public static implicit operator WiredVariableValue(long value) => new(value);
 
     public static WiredVariableValue Default => new(1);
+
+    /// <summary>
+    /// What a held flag variable (one without a value of its own) reports: -1, as Habbo's
+    /// inspection answers for <c>@is_stackable</c> and <c>@can_stand_on</c> (official client
+    /// capture, WIN63-202610121624). The client draws no value for such a variable, but the menu
+    /// and Web API read the number.
+    /// </summary>
+    public static WiredVariableValue HeldFlag => new(-1);
 }

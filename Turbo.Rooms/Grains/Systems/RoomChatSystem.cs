@@ -203,7 +203,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                     speech.StyleId,
                     NO_TRACKING_ID,
                     listener.ObjectId,
-                    speech.BubbleWidth
+                    speech.BubbleWidth,
+                    speech.HideUsername
                 ),
                 ct
             );
@@ -217,7 +218,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 speech.StyleId,
                 NO_TRACKING_ID,
                 receiverRoomIndex: null,
-                speech.BubbleWidth
+                speech.BubbleWidth,
+                speech.HideUsername
             ),
             ct
         );
@@ -286,7 +288,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             evt.StyleId,
             evt.TrackingId,
             receiverRoomIndex: null,
-            bubbleWidth: null
+            bubbleWidth: null,
+            hideUsername: false
         );
 
     /// <summary>
@@ -301,7 +304,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         int styleId,
         int trackingId,
         int? receiverRoomIndex,
-        int? bubbleWidth
+        int? bubbleWidth,
+        bool hideUsername
     ) =>
         chatType switch
         {
@@ -315,6 +319,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 TrackingId = trackingId,
                 ReceiverRoomIndex = receiverRoomIndex,
                 ChatBubbleWidthOverride = bubbleWidth,
+                HideUsername = hideUsername,
             },
             RoomChatType.Whisper => new WhisperMessageComposer
             {
@@ -326,6 +331,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 TrackingId = trackingId,
                 ReceiverRoomIndex = receiverRoomIndex,
                 ChatBubbleWidthOverride = bubbleWidth,
+                HideUsername = hideUsername,
             },
             _ => new ChatMessageComposer
             {
@@ -337,6 +343,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 TrackingId = trackingId,
                 ReceiverRoomIndex = receiverRoomIndex,
                 ChatBubbleWidthOverride = bubbleWidth,
+                HideUsername = hideUsername,
             },
         };
 

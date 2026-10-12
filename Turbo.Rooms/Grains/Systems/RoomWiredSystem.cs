@@ -259,6 +259,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             CarriedPlaceholders = PlaceholdersFor(evt),
         };
 
+        // "User Says Keyword" gives its stack $(trigger_text): what was said. It is carried, so
+        // it reaches delayed effects and the stacks a signal from here calls.
+        if (trigger is WiredTriggerHabboSaysKeyword && evt is PlayerChatEvent chat)
+            ctx.CarriedPlaceholders[WiredPlaceholderText.TriggerTextToken] = chat.Text;
+
         SeedSelectionFromEvent(ctx, evt);
 
         var selection = ctx.GetSelection(trigger);

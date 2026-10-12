@@ -25,6 +25,22 @@ public class PermissionProjectionTests
     }
 
     [Fact]
+    public void AllowedPerks_CarryNoRefusal_AsHabbosDo()
+    {
+        // Habbo: CITIZEN, CAMERA, ... allowed with "", TRADE refused with
+        // requirement.unfulfilled.citizenship_level_3. Turbo kept the refusal on an allowed perk.
+        var allowed = Project(PermissionNodes.TRADE)
+            .Perks.Single(x =>
+                x.IsAllowed
+                && x.Perk.ToString().Contains("TRADE", StringComparison.OrdinalIgnoreCase)
+            );
+        var refused = Project().Perks.Single(x => x.Perk == allowed.Perk);
+
+        allowed.Refusal.Should().BeEmpty();
+        refused.Refusal.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public void Level_IsHighestClientLevelHeld()
     {
         Project(PermissionNodes.Wired.MENU, PermissionNodes.Moderation.TOOL)

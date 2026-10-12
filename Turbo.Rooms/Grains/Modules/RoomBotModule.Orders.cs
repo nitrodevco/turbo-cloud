@@ -34,12 +34,16 @@ public sealed partial class RoomBotModule
         return bot is not null;
     }
 
-    /// <summary>A bot speaks or shouts to the whole room.</summary>
+    /// <summary>
+    /// A bot speaks or shouts to the whole room; <paramref name="hideName"/> leaves its name off
+    /// the bubble.
+    /// </summary>
     public Task TalkAsync(
         IRoomBot bot,
         string text,
         bool shout,
         int? bubbleWidth,
+        bool hideName,
         CancellationToken ct
     ) =>
         ChatSystem.SayAsAvatarAsync(
@@ -50,6 +54,7 @@ public sealed partial class RoomBotModule
                 StyleId = Config.ChatStyleId,
                 Shout = shout,
                 BubbleWidth = bubbleWidth,
+                HideUsername = hideName,
             },
             ct
         );
@@ -60,6 +65,7 @@ public sealed partial class RoomBotModule
         IRoomPlayer player,
         string text,
         int? bubbleWidth,
+        bool hideName,
         CancellationToken ct
     ) =>
         ChatSystem.SayAsAvatarAsync(
@@ -70,6 +76,7 @@ public sealed partial class RoomBotModule
                 StyleId = Config.ChatStyleId,
                 OnlyFor = player,
                 BubbleWidth = bubbleWidth,
+                HideUsername = hideName,
             },
             ct
         );

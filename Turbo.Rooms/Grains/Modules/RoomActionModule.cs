@@ -185,6 +185,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     {
                         ObjectIdsToRemove = [.. floorIds],
                         PickerId = ownerId,
+                        ByInvisibleFurniManager = false,
                     },
                     ct
                 );

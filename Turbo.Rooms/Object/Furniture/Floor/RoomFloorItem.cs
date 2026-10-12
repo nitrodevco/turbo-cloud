@@ -48,6 +48,17 @@ public sealed class RoomFloorItem
             IsExpired = isExpired,
             PickerId = pickerId,
             Delay = delay,
+            ByInvisibleFurniManager = false,
+        };
+
+    public override IComposer GetHideComposer() =>
+        new ObjectRemoveMessageComposer
+        {
+            ObjectId = ObjectId,
+            IsExpired = false,
+            PickerId = PlayerId.Invalid,
+            Delay = 0,
+            ByInvisibleFurniManager = true,
         };
 
     protected override RoomItemSnapshot BuildSnapshot() =>

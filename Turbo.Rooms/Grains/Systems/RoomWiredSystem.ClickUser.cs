@@ -105,11 +105,13 @@ public sealed partial class RoomWiredSystem
         return _roomGrain.SendComposerToRoomAsync(BuildEnvironment(), ct);
     }
 
-    /// <summary>A player who walks in learns what the players already here were told.</summary>
+    /// <summary>
+    /// A player who walks in learns what the players already here were told, even when it is
+    /// nothing, as Habbo does: the client keeps the enabled achievements of the room before
+    /// (the Progress Achievement editor lists them) until it is told otherwise.
+    /// </summary>
     private Task SendClickUserEnvironmentAsync(PlayerId playerId, CancellationToken ct) =>
-        _hasClickUserWired || _enabledAchievements.Length > 0
-            ? _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, BuildEnvironment(), ct)
-            : Task.CompletedTask;
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, BuildEnvironment(), ct);
 
     private WiredEnvironmentMessageComposer BuildEnvironment() =>
         new()

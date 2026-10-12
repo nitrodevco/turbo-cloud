@@ -68,12 +68,15 @@ public sealed partial class RoomGrain
     {
         try
         {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            if (!await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
+            try
+            {
+                return await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param);
+            }
+            finally
+            {
+                // After the item's own update, as Habbo does (ObjectDataUpdate, then Sleep false).
+                AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+            }
         }
         catch (Exception ex)
         {

@@ -11,6 +11,23 @@ internal class RoomEventMessageComposerSerializer(int header)
     {
         var evt = message.Event;
 
+        if (evt is null)
+        {
+            packet
+                .WriteInteger(-1)
+                .WriteInteger(-1)
+                .WriteString(string.Empty)
+                .WriteInteger(-1)
+                .WriteInteger(-1)
+                .WriteString(string.Empty)
+                .WriteString(string.Empty)
+                .WriteInteger(0)
+                .WriteInteger(0)
+                .WriteInteger(-1);
+
+            return;
+        }
+
         packet
             .WriteInteger(evt.EventId)
             .WriteInteger(evt.OwnerId)

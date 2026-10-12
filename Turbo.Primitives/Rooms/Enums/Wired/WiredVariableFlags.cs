@@ -17,6 +17,13 @@ public enum WiredVariableFlags
     CanReadLastUpdateTime = 1 << 7,
     HasTextConnector = 1 << 8,
     IsStored = 1 << 9,
+
+    /// <summary>
+    /// Only has a value inside a running stack (a context variable). The client keeps such a
+    /// variable out of pickers that read it outside one: Echo, the Variable Changed trigger, the
+    /// fx audience and the overview's holder list (AS3 <c>WiredVariable.requiresExecutionContext</c>).
+    /// </summary>
+    RequiresExecutionContext = 1 << 10,
 }
 
 public static class WiredVariableFlagsExtensions

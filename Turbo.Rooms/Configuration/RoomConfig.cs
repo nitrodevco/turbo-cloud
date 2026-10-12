@@ -125,6 +125,54 @@ public class RoomConfig
 
     public int MannequinNameMaxLength { get; init; } = 32;
 
+    /// <summary>
+    /// Which palette each recolorable furni class takes, as the client's
+    /// <c>recolorable_bc.palette_to_furni</c>: <c>palette=class1,class2;...</c>. A class it does
+    /// not name takes the palette <c>default</c>. Link that external variable to this setting so
+    /// the recolor window and the server agree.
+    /// </summary>
+    public string RecolorablePaletteToFurni { get; init; } =
+        "default=bc_block_0_recolorable,bc_block_1_recolorable,bc_cone_recolorable,bc_cylinder_recolorable,bc_halfcylinder_recolorable,bc_hemisphere_recolorable,bc_panel_recolorable,bc_pyramidtip_recolorable,bc_quarterring_recolorable,bc_round_recolorable,bc_stairs_recolorable,bc_standinghalfcylinder_recolorable,bc_standingtriangularprism_recolorable,bc_stick_recolorable,bc_triangularprism_recolorable,bc_wedge_recolorable,bc_block_small_recolorable,bc_curvedramp_recolorable,bc_glasspanel_recolorable,bc_quartercircle_recolorable,bc_ramp_recolorable,bc_sphere_recolorable,bc_sphere_small_recolorable,bc_wedgecrnr_recolorable,bc_alpha1_alpha_recolorable,bc_alpha1_a_recolorable,bc_alpha1_b_recolorable,bc_alpha1_c_recolorable,bc_alpha1_d_recolorable,bc_alpha1_e_recolorable,bc_alpha1_f_recolorable,bc_alpha1_g_recolorable,bc_alpha1_h_recolorable,bc_alpha1_i_recolorable,bc_alpha1_j_recolorable,bc_alpha1_k_recolorable,bc_alpha1_l_recolorable,bc_alpha1_m_recolorable,bc_alpha1_n_recolorable,bc_alpha1_num_recolorable,bc_alpha1_o_recolorable,bc_alpha1_p_recolorable,bc_alpha1_q_recolorable,bc_alpha1_r_recolorable,bc_alpha1_s_recolorable,bc_alpha1_t_recolorable,bc_alpha1_u_recolorable,bc_alpha1_v_recolorable,bc_alpha1_w_recolorable,bc_alpha1_x_recolorable,bc_alpha1_y_recolorable,bc_alpha1_z_recolorable;"
+        + "artdeco1=bc_block_artdeco1_recolorable;"
+        + "classic=bc_block_glass_recolorable,bc_block_marble_recolorable,bc_block_wool_recolorable,bc_flowerhedge_recolorable,bc_lavarock_recolorable,bc_terra_recolorable,bc_tile_recolorable;"
+        + "grass=bc_block_grass_recolorable;"
+        + "industrial=bc_block_industrial_recolorable;"
+        + "metal=bc_block_metalgrip_recolorable;"
+        + "redbrick=bc_block_redbrick_recolorable;"
+        + "sand=bc_block_sand_recolorable;"
+        + "water=bc_block_water_recolorable;"
+        + "metalcrate=bc_metalcrate_recolorable;"
+        + "stone=bc_stone_recolorable;"
+        + "wood=bc_wood_recolorable";
+
+    /// <summary>
+    /// The recolorable palettes by name, each <c>RRGGBB,...</c> as the client's
+    /// <c>recolorable_bc.palette.&lt;name&gt;</c>. A furni is only recolored, or placed with a
+    /// colour, from its palette; with none set it keeps white. The defaults are Habbo's
+    /// (external variables of WIN63-202610121624).
+    /// </summary>
+    public Dictionary<string, string> RecolorablePalettes { get; init; } =
+        new()
+        {
+            ["artdeco1"] = "672913,A73E18,EB840C,E9C258,669933",
+            ["classic"] =
+                "FFFFFF,F7EBBC,ABD0D2,5EAAF8,835AB1,AC5AB1,FF99BC,525252,672913,E14218,FF9900,FFD837,92D13D,007223",
+            ["default"] =
+                "FFFFFF,AEF0D8,99FFCC,00E9E5,00F8FD,A1E8FD,ABD0D2,BCC0C4,F5D1B3,FDE1B1,F7EBBC,FDD97E,FFD837,DBF96F,BAFA00,9ABD00,8AAE00,92D13D,B6FA70,4EFA99,52DA50,00BA00,00AA00,00A943,007900,007223,005900,2E632E,0D380C,336666,004059,525252,778084,008895,2CBFFF,5EAAF8,BCB7FF,DDB6FE,FEB6FE,F5BFE1,FF99BC,FF7852,E14218,FF3600,E76000,FF9900,FEA13D,AD8100,666600,513100,6F3D0C,672913,8D1600,AE0024,E7005F,FF549C,AC5AB1,835AB1,6685FF,0085FF,0074FF,9C73FF,FE72FF,DE00D7,96008E,3F1BC7,0000C8,683EFF,0000FF",
+            ["grass"] = "B0B1AE,6AB18E,57832E,30B106,929E12,B19626,B15501",
+            ["industrial"] = "545B5B,3C412F,3D3432,262C31,383F55",
+            ["metal"] = "8F9B9B,676F51,695955,414B53,606B92",
+            ["metalcrate"] =
+                "BBBBBB,B5AC8A,7D989A,457DB6,604282,7E4282,BB708A,3C3C3C,4B1E0E,A53012,BB7000,BB9E28,6B992D,00541A",
+            ["redbrick"] =
+                "CECECE,C7BE98,8AA8A9,4C89C8,6A498F,8B498F,CE7B98,424242,53210F,B63513,CE7B00,CEAE2C,76A931,005C1C",
+            ["sand"] = "F7EBBC,C29655,7E5C1D,95701D,CB8233,E1A53A,F0C833",
+            ["stone"] =
+                "D0D0D0,C9C099,8BAAAB,4D8BCA,6B4990,8C4990,D07D99,434343,54210F,B73614,D07D00,D0B02D,77AA32,005D1D",
+            ["water"] = "336666,0069A6,5EAAF8,7AD8FF,99FFCC,E14218",
+            ["wood"] = "636568,667660,5A5045,7F603B,714A23,7D3822",
+        };
+
     /// <summary>Longest figure string a furni stores (a clothing booth's look).</summary>
     public int FigureMaxLength { get; init; } = 300;
 
@@ -258,4 +306,34 @@ public class RoomConfig
     /// (<c>GUARD_DURATION_VALUES</c>), 5 minutes to 3 hours.
     /// </summary>
     public int[] RaidGuardDurationsSeconds { get; init; } = [300, 900, 1800, 3600, 10800];
+
+    /// <summary>
+    /// How high above the floor an avatar sits when it sits down where it stands (the Sit action):
+    /// Habbo sends <c>sit 0.55</c> (recorded on hhus, 2026-10-12).
+    /// </summary>
+    public double FloorSitHeight { get; init; } = 0.55;
+
+    /// <summary>
+    /// How long after sending a player a room's ban list their next request for it goes
+    /// unanswered, as Habbo lets the client's immediate repeats go (it asks again whenever the
+    /// list arrives empty). 0 answers every request.
+    /// </summary>
+    public int BanListRepeatIgnoreMs { get; init; } = 1000;
+
+    /// <summary>
+    /// Furniture class names the client draws with another class's assets (FurnitureAliases,
+    /// asked for at login): name to the class whose assets it uses. Empty by default. Habbo
+    /// sends 14, its advertising furni drawn with their campaign assets
+    /// (recorded on hhus, 2026-10-12).
+    /// </summary>
+    /// <remarks>
+    /// Habbo's: footylamp_campaign = footylamp_campaign_ing, ads_711 = ads_711c,
+    /// ads_711shelf = ads_711shelfcmp, ads_oc_soda = ads_oc_soda_cmp, ads_boost_surfb =
+    /// ads_boost_surfbcmp, ads_target_wall = ads_target_wall_cmp, ads_capri_chair =
+    /// ads_capri_chair_camp, ads_capri_lava = ads_capri_lava_camp, ads_capri_arcade =
+    /// ads_capri_arcade_camp, ads_pepsi0 = ads_pepsi0_camp, ads_oc_soda_cherry =
+    /// ads_oc_soda_cherry_cmp, ads_rangocactus = ads_rangocactus_camp, ads_wowpball =
+    /// ads_wowpball_camp, ads_alvinsurf = ads_alvinsurfcmp.
+    /// </remarks>
+    public Dictionary<string, string> FurnitureAliases { get; init; } = [];
 }

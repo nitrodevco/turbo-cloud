@@ -62,6 +62,16 @@ public sealed class RoomObjectLogicProvider(
         )
             logicType = waterLogic;
 
+        // Habbo's recolorable furni (the 2026-10 building and alphabet blocks) are known by their
+        // classnames, so a definition imported after MapRecolorableFurnitureLogic ran still keeps
+        // a colour; their multi-height blocks step down in that logic too.
+        if (
+            logicType == DEFAULT_FLOOR_LOGIC
+            && ctx.RoomObject is IRoomItem recolorable
+            && RecolorableData.IsRecolorableClass(recolorable.Definition.Name)
+        )
+            logicType = RecolorableData.LOGIC_NAME;
+
         // A building block's height follows its state; its definition says so only through
         // its customparams (the step down per state), its logic column being the default.
         if (

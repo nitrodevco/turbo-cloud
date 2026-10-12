@@ -17,8 +17,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
 /// Applies an operation to the picked variable on the selected targets. Params: destination
-/// target, operation, operand mode, operand (hi, lo), operand target. The operand comes from
-/// a literal or a second variable; a few operations take none.
+/// target, operation, operand mode, operand (hi, lo), operand target, and since
+/// WIN63-202610121624 "same holder" (AS3 <c>ChangeVariable.readIntParamsFromForm</c>: 1 when the
+/// operand is a variable read on each target itself). The operand comes from a literal or a
+/// second variable; a few operations take none.
 /// </summary>
 [RoomObjectLogic("wf_act_change_var_val")]
 public class WiredActionChangeVariable(
@@ -39,7 +41,12 @@ public class WiredActionChangeVariable(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
+            new WiredBoolParamRule(false),
         ];
+
+    private const int PARAM_SAME_HOLDER = 6;
+
+    protected override int GetRequiredIntParamCount() => PARAM_SAME_HOLDER;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
@@ -58,8 +65,16 @@ public class WiredActionChangeVariable(
         var selection = ctx.GetSelection(this);
         var operation = GetIntParamOrDefault(1, WiredVariableOperationType.Set);
         long operand = 0;
+        var sameHolder =
+            RequiresOperand(operation)
+            && GetIntParamOrDefault(2, false)
+            && GetIntParamOrDefault(PARAM_SAME_HOLDER, false);
 
-        if (RequiresOperand(operation) && !TryResolveOperand(2, 3, 5, 1, selection, out operand))
+        if (
+            RequiresOperand(operation)
+            && !sameHolder
+            && !TryResolveOperand(2, 3, 5, 1, selection, out operand)
+        )
             return false;
 
         var targetType = GetTargetType(variable, 0);
@@ -75,6 +90,9 @@ public class WiredActionChangeVariable(
             );
 
             if (!variable.TryGetValue(key, out var current))
+                continue;
+
+            if (sameHolder && !TryReadOperandOnHolder(1, targetType, targetId, out operand))
                 continue;
 
             if (batch is not null)

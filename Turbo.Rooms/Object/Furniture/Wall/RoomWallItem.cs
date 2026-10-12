@@ -50,7 +50,21 @@ public class RoomWallItem
         PlayerId pickerId,
         bool isExpired = false,
         int delay = 0
-    ) => new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = pickerId };
+    ) =>
+        new ItemRemoveMessageComposer
+        {
+            ObjectId = ObjectId,
+            PickerId = pickerId,
+            ByInvisibleFurniManager = false,
+        };
+
+    public override IComposer GetHideComposer() =>
+        new ItemRemoveMessageComposer
+        {
+            ObjectId = ObjectId,
+            PickerId = PlayerId.Invalid,
+            ByInvisibleFurniManager = true,
+        };
 
     public string ConvertWallPositionToString() =>
         new WallPosition(X, Y, WallOffset, Z, Rotation).ToString();

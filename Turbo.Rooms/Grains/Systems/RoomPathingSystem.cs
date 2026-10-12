@@ -31,7 +31,11 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain) : RoomGrainComponent(
         (-1, -1, DIAGONAL_COST), // NW
     };
 
-    private readonly PriorityQueue<int, int> _open = new();
+    // Ordered by total cost, then by the estimate left: among equally short routes the one that
+    // has come closer to the goal goes first, which takes the diagonal steps first and the
+    // straight ones last, as Habbo's paths do (recorded on hhus, 2026-10-12: (5,6) to (8,8) is
+    // 6,7 / 7,8 / 8,8, not 6,6 / 7,7 / 8,8).
+    private readonly PriorityQueue<int, (int Total, int Left)> _open = new();
 
     private int[] _costFromStart = [];
     private int[] _costToGoal = [];
@@ -128,7 +132,7 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         var reached = 1;
 
-        _open.Enqueue(startIdx, _costToGoal[startIdx]);
+        _open.Enqueue(startIdx, (_costToGoal[startIdx], _costToGoal[startIdx]));
 
         while (_open.Count > 0 && reached <= maxNodes)
         {
@@ -179,14 +183,14 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain) : RoomGrainComponent(
                     _costFromStart[next] = cost;
                     _costToGoal[next] = Heuristic(x, y, goalX, goalY);
 
-                    _open.Enqueue(next, cost + _costToGoal[next]);
+                    _open.Enqueue(next, (cost + _costToGoal[next], _costToGoal[next]));
                 }
                 else if (cost < _costFromStart[next])
                 {
                     _parent[next] = current;
                     _costFromStart[next] = cost;
 
-                    _open.Enqueue(next, cost + _costToGoal[next]);
+                    _open.Enqueue(next, (cost + _costToGoal[next], _costToGoal[next]));
                 }
             }
         }

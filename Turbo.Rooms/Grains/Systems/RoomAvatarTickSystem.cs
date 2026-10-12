@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -120,6 +123,10 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
     {
         // The path is stored goal first, so the next step is the last entry.
         var nextTileId = avatar.TilePath[^1];
+
+        if (await TryLeaveByDoorAsync(avatar, nextTileId))
+            return;
+
         avatar.TilePath.RemoveAt(avatar.TilePath.Count - 1);
 
         if (avatar.TilePath.Count == 0)
@@ -129,6 +136,49 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             );
 
         await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
+    }
+
+    /// <summary>
+    /// A player about to step onto the room's door tile, in a room set to leave there, leaves the
+    /// room instead, as on Habbo (hhus, 2026-10-12: the walk stops beside the door and the player
+    /// gets YouArePlayingGame false and CloseConnection, with no step onto the door).
+    /// </summary>
+    private async Task<bool> TryLeaveByDoorAsync(IRoomAvatar avatar, int nextTileId)
+    {
+        var model = _roomGrain._state.Model;
+
+        if (
+            avatar is not IRoomPlayer player
+            || !_roomGrain._state.RoomSnapshot.LeaveOnDoorTile
+            || model is null
+            || nextTileId != MapModule.ToIdx(model.DoorX, model.DoorY)
+        )
+            return false;
+
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            player.PlayerId,
+            new YouArePlayingGameMessageComposer { IsPlaying = false },
+            CancellationToken.None
+        );
+
+        await AvatarModule.RemoveAvatarFromPlayerAsync(
+            ActionContext.CreateForSystem(_roomGrain.RoomId),
+            player.PlayerId,
+            CancellationToken.None
+        );
+
+        // The presence may be waiting on this room, so the session is closed without awaiting it.
+        _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(player.PlayerId)
+            .OnRemovedFromRoomAsync(_roomGrain.RoomId, false, CancellationToken.None)
+            .LogAndForget(
+                _roomGrain._logger,
+                "close the room session of player {PlayerId} leaving room {RoomId} by the door",
+                player.PlayerId,
+                _roomGrain.RoomId
+            );
+
+        return true;
     }
 
     private async Task ValidateAvatarStepAsync(
@@ -173,7 +223,10 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
-            avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
+            avatar.AddStatus(
+                AvatarStatusType.Move,
+                $"{nextX},{nextY},{nextHeight.ToStatusString()}"
+            );
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
 
             avatar.NextTileId = nextTileId;

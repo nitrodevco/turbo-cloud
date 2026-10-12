@@ -25,10 +25,8 @@ public class GetUserEventCatsMessageHandler(INavigatorService navigatorService)
         await ctx.SendComposerAsync(
                 new UserEventCatsMessageComposer
                 {
-                    EventCategories =
-                    [
-                        .. _navigatorService.GetEventCategories().Where(x => x.Visible),
-                    ],
+                    // Hidden ones too, with their visible flag, as Habbo sends them.
+                    EventCategories = [.. _navigatorService.GetEventCategories()],
                 },
                 ct
             )

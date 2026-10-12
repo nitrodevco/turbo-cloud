@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -55,14 +56,21 @@ public sealed partial class RoomGrain
         if (_state.DirtyHeightTileIds.Count == 0)
             return Task.CompletedTask;
         var dirtyHeightTileIds = _state.DirtyHeightTileIds;
+        var sentValues = _state.DirtyHeightSentValues;
         _state.DirtyHeightTileIds = [];
+        _state.DirtyHeightSentValues = [];
 
         var heights = new List<(int X, int Y, short Height)>(
             Math.Min(dirtyHeightTileIds.Count, _roomConfig.MaxTileHeightsPerFlush)
         );
 
-        foreach (var x in dirtyHeightTileIds)
+        // In tile order, as Habbo lists them.
+        foreach (var x in dirtyHeightTileIds.Order())
         {
+            // Back where it was when last sent: the client already has it.
+            if (sentValues.TryGetValue(x, out var sent) && sent == _state.TileEncodedHeights[x])
+                continue;
+
             heights.Add((MapModule.GetX(x), MapModule.GetY(x), _state.TileEncodedHeights[x]));
 
             if (heights.Count == heights.Capacity)

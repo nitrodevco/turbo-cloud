@@ -107,9 +107,9 @@ public class WiredAddonVariablePlaceholder(
                 continue;
 
             values.Add(
-                textMode && snapshot.TextConnectors.TryGetValue(value, out var label)
-                    ? label
-                    : value.Value.ToString(CultureInfo.InvariantCulture)
+                textMode && snapshot.TextConnectors.TryGetValue(value, out var label) ? label
+                : textMode && snapshot.TextConnectorFallback is { } fallback ? fallback
+                : value.Value.ToString(CultureInfo.InvariantCulture)
             );
 
             if (!GetIntParamOrDefault(0, false))

@@ -194,7 +194,8 @@ public sealed partial class RoomGrain
             danceType,
             async () =>
                 AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetAvatarDanceAsync(avatar.ObjectId, danceType, ct)
+                && await AvatarModule.SetAvatarDanceAsync(avatar.ObjectId, danceType, ct),
+            wakeAfter: true
         );
 
     public Task<bool> SetAvatarEffectAsync(ActionContext ctx, int effectId, CancellationToken ct) =>

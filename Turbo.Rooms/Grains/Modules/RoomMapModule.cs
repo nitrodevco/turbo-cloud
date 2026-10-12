@@ -350,7 +350,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         if (prevEncoded != nextEncoded)
         {
             _roomGrain._state.TileEncodedHeights[id] = nextEncoded;
-            _roomGrain._state.DirtyHeightTileIds.Add(id);
+
+            if (_roomGrain._state.DirtyHeightTileIds.Add(id))
+                _roomGrain._state.DirtyHeightSentValues[id] = prevEncoded;
         }
 
         _dirty = true;
@@ -414,7 +416,8 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
 
         int stackingMask = 1 << 14;
         int heightMask = stackingMask - 1;
-        int raw = (int)Math.Round(height.Value * 256.0);
+        // Truncated, as Habbo does: a 2.05 high stack is 524, not 525 (hhus, 2026-10-12).
+        int raw = (int)(height.Value * 256.0);
 
         if (raw < 0)
             raw = 0;

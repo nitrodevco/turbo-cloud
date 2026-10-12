@@ -64,6 +64,21 @@ public sealed class WiredPackedPositionVariableTests
         (chair.X, chair.Y, chair.Rotation).Should().Be((4, 6, Rotation.East));
     }
 
+    [Fact]
+    public void Both_say_they_have_a_text_connector_so_the_client_shows_the_parts()
+    {
+        // Util.getPackedVariableText returns null for a variable without hasTextConnector; the
+        // official inspection shows @position as "x: 14, y: 22" (Discord 07/10/2026).
+        new FurniturePositionVariable(_room.Harness.Room)
+            .GetVarSnapshot()
+            .Flags.Should()
+            .HaveFlag(WiredVariableFlags.HasTextConnector);
+        new FurnitureOccupationVariable(_room.Harness.Room)
+            .GetVarSnapshot()
+            .Flags.Should()
+            .HaveFlag(WiredVariableFlags.HasTextConnector);
+    }
+
     private WiredInternalVariable Register(WiredInternalVariable variable)
     {
         ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[

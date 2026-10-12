@@ -17,9 +17,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
 /// Gives the selected users, furni or the running stack a variable (Flash
-/// <c>actiontypes._-92n</c>). Int params as its editor writes them: the target, the initial value
-/// as a long (<c>Util.pushIntAsLong</c>: the high word, -1 for a negative value, then the value)
-/// and whether a holder's existing value is overridden.
+/// <c>actiontypes.GiveVariable</c>). Int params as its editor writes them: the target, the initial
+/// value as a long (<c>Util.pushIntAsLong</c>: the high word, -1 for a negative value, then the
+/// value) and whether a holder's existing value is overridden; since WIN63-202610121624 the
+/// initial value may come from a variable (Wired Faculty 12/10/2026: "Give Variable can
+/// initialize from a variable"): whether it does, that variable's target, and "same holder"
+/// (read on each target itself). Variable ids: the variable, then the reference variable.
 /// </summary>
 [RoomObjectLogic("wf_act_give_var")]
 public class WiredActionGiveVariable(
@@ -31,6 +34,9 @@ public class WiredActionGiveVariable(
     private const int PARAM_TARGET = 0;
     private const int PARAM_INITIAL_VALUE = 1;
     private const int PARAM_OVERRIDE = 3;
+    private const int PARAM_FROM_VARIABLE = 4;
+    private const int PARAM_REFERENCE_TARGET = 5;
+    private const int PARAM_SAME_HOLDER = 6;
 
     public override int WiredCode => (int)WiredActionType.GIVE_VARIABLE;
 
@@ -46,9 +52,14 @@ public class WiredActionGiveVariable(
             new WiredRangeParamRule(-1, 0, 0),
             WiredRules.AnyInt(),
             new WiredBoolParamRule(false),
+            new WiredBoolParamRule(false),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            new WiredBoolParamRule(false),
         ];
 
-    public override int GetMaxVariableIds() => 1;
+    protected override int GetRequiredIntParamCount() => PARAM_FROM_VARIABLE;
+
+    public override int GetMaxVariableIds() => 2;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
@@ -61,31 +72,43 @@ public class WiredActionGiveVariable(
     {
         var selection = ctx.GetSelection(this);
         var targetType = GetIntParamOrDefault(PARAM_TARGET, WiredVariableTargetType.User);
-        var value = new WiredVariableValue(GetLongParam(PARAM_INITIAL_VALUE));
         var replace = GetIntParamOrDefault(PARAM_OVERRIDE, false);
+        var fromVariable = GetIntParamOrDefault(PARAM_FROM_VARIABLE, false);
+        var sameHolder = fromVariable && GetIntParamOrDefault(PARAM_SAME_HOLDER, false);
+        var initial = GetLongParam(PARAM_INITIAL_VALUE);
         var given = false;
 
-        foreach (var variableId in _wiredData.VariableIds)
+        if (GetVariable(0) is not { } variable)
+            return false;
+
+        if (
+            fromVariable
+            && !sameHolder
+            && !TryReadVariableOperand(1, PARAM_REFERENCE_TARGET, selection, out initial)
+        )
+            return false;
+
+        var id = variable.GetVarSnapshot().VariableId;
+
+        // A user variable is keyed by the avatar, not by the player; a context variable has
+        // one holder, the wired execution running this box.
+        var targetIds =
+            targetType == WiredVariableTargetType.Context
+                ? [0]
+                : GetTargetIds(targetType, selection);
+
+        foreach (var targetId in targetIds)
         {
-            if (
-                !WiredVariableId.TryParse(variableId, out var id)
-                || WiredSystem.GetVariableById(id) is not { } variable
-            )
+            var value = initial;
+
+            if (sameHolder && !TryReadOperandOnHolder(1, targetType, targetId, out value))
                 continue;
 
-            // A user variable is keyed by the avatar, not by the player; a context variable has
-            // one holder, the wired execution running this box.
-            var targetIds =
-                targetType == WiredVariableTargetType.Context
-                    ? [0]
-                    : GetTargetIds(targetType, selection);
-
-            foreach (var targetId in targetIds)
-                given |= await variable.GiveValueAsync(
-                    new WiredVariableKey(id, targetType, targetId),
-                    value,
-                    replace
-                );
+            given |= await variable.GiveValueAsync(
+                new WiredVariableKey(id, targetType, targetId),
+                new WiredVariableValue(value),
+                replace
+            );
         }
 
         return given;

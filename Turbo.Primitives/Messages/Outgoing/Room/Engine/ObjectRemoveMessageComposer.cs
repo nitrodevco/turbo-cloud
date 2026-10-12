@@ -19,4 +19,11 @@ public sealed record ObjectRemoveMessageComposer : IComposer
 
     [Id(3)]
     public required int Delay { get; init; }
+
+    /// <summary>
+    /// Taken away because an area hider hides it (Flash's "invisible furni manager"), not picked
+    /// up or gone: the client keeps what it buffers for the furni until it is sent again.
+    /// </summary>
+    [Id(4)]
+    public required bool ByInvisibleFurniManager { get; init; }
 }

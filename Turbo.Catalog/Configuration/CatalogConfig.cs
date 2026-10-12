@@ -21,6 +21,9 @@ public class CatalogConfig
     /// <summary>What a gift can be wrapped in, and what wrapping costs.</summary>
     public GiftWrappingConfig GiftWrapping { get; init; } = new();
 
+    /// <summary>What the client is told about the marketplace (off until Turbo has one).</summary>
+    public MarketplaceConfig Marketplace { get; init; } = new();
+
     /// <summary>The reception's promo articles and community goals.</summary>
     public ReceptionConfig Reception { get; init; } = new();
 

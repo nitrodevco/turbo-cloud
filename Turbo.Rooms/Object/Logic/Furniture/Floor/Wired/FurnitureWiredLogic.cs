@@ -529,6 +529,16 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>The most ints a save may carry; a box whose editor sends more says so.</summary>
     protected virtual int GetMaxIntParams() => _roomGrain._wiredConfig.MaxIntParams;
 
+    /// <summary>
+    /// How many of the fixed int params a save or a stored box must carry. A client release
+    /// that adds params at the end of a box (WIN63-202610121624: "same holder" and the reference
+    /// target of the variable boxes, the Variable Changed trigger's mode) leaves every box saved
+    /// before it one short; those take the new params' defaults instead of failing the rules and
+    /// losing everything else they held. The AS3 editors read them the same way
+    /// (<c>intParams.length > 6 &amp;&amp; intParams[6] != 0</c>).
+    /// </summary>
+    protected virtual int GetRequiredIntParamCount() => GetIntParamRules().Count;
+
     protected virtual bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
     {
         normalized = [];
@@ -543,12 +553,19 @@ public abstract partial class FurnitureWiredLogic(
 
         if (tailRule is null)
         {
-            if (proposed.Count != fixedRules.Count)
+            if (proposed.Count > fixedRules.Count || proposed.Count < GetRequiredIntParamCount())
                 return false;
 
             for (var i = 0; i < fixedRules.Count; i++)
             {
                 var rule = fixedRules[i];
+
+                if (i >= proposed.Count)
+                {
+                    normalized.Add(rule.DefaultValue);
+
+                    continue;
+                }
 
                 try
                 {
@@ -907,12 +924,20 @@ public abstract partial class FurnitureWiredLogic(
         await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
     }
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        _grainFactory.SendComposerToPlayerAsync(
+    /// <summary>
+    /// Habbo flips the box's state on every use, then opens the editor (ObjectDataUpdate before
+    /// Open in the official client's capture).
+    /// </summary>
+    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
+    {
+        await FlashActivationStateAsync(ct);
+
+        await _grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenEventMessageComposer { ItemId = _ctx.ObjectId },
             ct
         );
+    }
 
     /// <summary>
     /// Stored wired data that does not fit the box (a stale shape after a definition change) is

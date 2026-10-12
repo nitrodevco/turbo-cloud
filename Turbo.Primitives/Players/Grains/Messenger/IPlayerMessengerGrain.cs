@@ -182,6 +182,9 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
     public Task<bool> IsBlockingAsync(PlayerId playerId, CancellationToken ct);
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);
     public Task<List<PlayerId>> GetIgnoredAsync(CancellationToken ct);
+
+    /// <summary>The players this one has blocked, for the client's block list.</summary>
+    public Task<List<PlayerId>> GetBlockedAsync(CancellationToken ct);
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct);
 
     /// <summary>

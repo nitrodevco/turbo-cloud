@@ -1770,6 +1770,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     public Task<List<PlayerId>> GetIgnoredAsync(CancellationToken ct) =>
         Task.FromResult(_state.IgnoredPlayerIds.ToList());
 
+    public Task<List<PlayerId>> GetBlockedAsync(CancellationToken ct) =>
+        Task.FromResult(_state.BlockedPlayerIds.ToList());
+
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct)
     {
         var updates = _state.PendingUpdates.Values.ToList();

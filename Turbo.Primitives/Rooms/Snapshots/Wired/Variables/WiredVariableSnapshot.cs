@@ -31,4 +31,11 @@ public record WiredVariableSnapshot
 
     [Id(7)]
     public required Dictionary<WiredVariableValue, string> TextConnectors { get; init; }
+
+    /// <summary>
+    /// The text a value without a label of its own is shown as (a text connector's <c>_=</c>
+    /// line), or null when there is none.
+    /// </summary>
+    [Id(8)]
+    public string? TextConnectorFallback { get; init; }
 }

@@ -133,6 +133,34 @@ public abstract partial class FurnitureWiredLogic
         return false;
     }
 
+    /// <summary>
+    /// The "same holder" half of a value-or-variable input (WIN63-202610121624
+    /// <c>ValueOrVariableSection</c>, <c>wiredfurni.params.variables.reference_value.same_holder</c>):
+    /// the operand variable read on the very furni or user being acted on, so "increase @altitude
+    /// with @height" on a group of furni gives each its own height (Wired Faculty, 12/10/2026).
+    /// False when that holder does not hold it. The editor only offers it when the reference
+    /// targets the same kind as the subject, so the subject's target type is used.
+    /// </summary>
+    protected bool TryReadOperandOnHolder(
+        int operandVariableIndex,
+        WiredVariableTargetType targetType,
+        int targetId,
+        out long value
+    )
+    {
+        value = 0;
+
+        if (
+            GetVariable(operandVariableIndex) is not { } operand
+            || ReadVariable(operand, targetType, targetId) is not { } found
+        )
+            return false;
+
+        value = found;
+
+        return true;
+    }
+
     /// <summary>Reads a variable on one target, null when the target has no value.</summary>
     protected static WiredVariableValue? ReadVariable(
         IWiredVariable variable,

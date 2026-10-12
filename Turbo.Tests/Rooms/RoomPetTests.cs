@@ -88,7 +88,7 @@ public sealed class RoomPetTests
 
         await SayAsync($"Rex {word}");
 
-        PetSnapshot().Status.Should().Contain($"/{status} 0/");
+        PetSnapshot().Status.Should().Contain($"/{status} 0.0/");
     }
 
     [Fact]

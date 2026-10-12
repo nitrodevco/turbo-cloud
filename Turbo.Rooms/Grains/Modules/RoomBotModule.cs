@@ -522,7 +522,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
     }
 
     internal Task TalkAsync(IRoomBot bot, string text, CancellationToken ct) =>
-        TalkAsync(bot, text, shout: false, bubbleWidth: null, ct);
+        TalkAsync(bot, text, shout: false, bubbleWidth: null, hideName: false, ct);
 
     private async Task<bool> AttachBotAsync(
         BotSnapshot snapshot,

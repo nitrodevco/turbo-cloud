@@ -14,7 +14,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
 /// Compares the picked variable on the selected targets with a literal or another variable.
-/// Params: target, comparison, operand mode, operand (hi, lo), operand target.
+/// Params: target, comparison, operand mode, operand (hi, lo), operand target, and since
+/// WIN63-202610121624 "same holder" (AS3 <c>VariableValue.readIntParamsFromForm</c>: each target
+/// is compared with the operand variable it holds itself).
 /// </summary>
 [RoomObjectLogic("wf_cnd_var_val_match")]
 public class WiredConditionVariableValueMatch(
@@ -35,7 +37,12 @@ public class WiredConditionVariableValueMatch(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
+            new WiredBoolParamRule(false),
         ];
+
+    private const int PARAM_SAME_HOLDER = 6;
+
+    protected override int GetRequiredIntParamCount() => PARAM_SAME_HOLDER;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
@@ -60,8 +67,11 @@ public class WiredConditionVariableValueMatch(
             return false;
 
         var selection = ctx.GetSelection(this);
+        var sameHolder =
+            GetIntParamOrDefault(2, false) && GetIntParamOrDefault(PARAM_SAME_HOLDER, false);
+        long operand = 0;
 
-        if (!TryResolveOperand(2, 3, 5, 1, selection, out var operand))
+        if (!sameHolder && !TryResolveOperand(2, 3, 5, 1, selection, out operand))
             return false;
 
         var targetType = GetTargetType(variable, 0);
@@ -70,9 +80,13 @@ public class WiredConditionVariableValueMatch(
 
         return Quantify(
             targets.Select(id =>
-                ReadVariable(variable, targetType, id) is { } value
-                && WiredComparison.Compare(comparison, value, operand)
-            ),
+            {
+                var own = operand;
+
+                return ReadVariable(variable, targetType, id) is { } value
+                    && (!sameHolder || TryReadOperandOnHolder(1, targetType, id, out own))
+                    && WiredComparison.Compare(comparison, value, own);
+            }),
             true
         );
     }

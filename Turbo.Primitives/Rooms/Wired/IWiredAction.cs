@@ -5,7 +5,7 @@ namespace Turbo.Primitives.Rooms.Wired;
 
 public interface IWiredAction : IWiredBox
 {
-    public int GetDelayMs();
+    public long GetDelayMs();
 
     /// <summary>
     /// Negative actions (the "neg_" boxes) run when the stack conditions fail instead of when

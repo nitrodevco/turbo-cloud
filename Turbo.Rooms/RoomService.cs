@@ -583,14 +583,10 @@ internal sealed partial class RoomService(
             new RoomChatSettingsMessageComposer { ChatProtection = snapshot.ChatProtection },
         };
 
-        if (view.ActiveEvent is not null)
-            composers.Add(
-                new RoomEventMessageComposer
-                {
-                    Event = view.ActiveEvent,
-                    SentAtUtc = DateTime.UtcNow,
-                }
-            );
+        // Sent with no event too, as Habbo does, so the last room's event card goes.
+        composers.Add(
+            new RoomEventMessageComposer { Event = view.ActiveEvent, SentAtUtc = DateTime.UtcNow }
+        );
 
         if (view.IsMuted)
             composers.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
@@ -614,17 +610,16 @@ internal sealed partial class RoomService(
             new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems }
         );
 
-        // Only when one is on: the client starts every room with all of them off.
-        if (view.InvisibleFurni || view.HanditemControlBlocked || view.ChooserDisabled)
-            composers.Add(
-                new ConfigurationItemStatesMessageComposer
-                {
-                    IsHanditemControlBlocked = view.HanditemControlBlocked,
-                    ChooserDisabled = view.ChooserDisabled,
-                    FreeFurniMovementsEnabled = false,
-                    InvisibleFurni = view.InvisibleFurni,
-                }
-            );
+        // Sent on every entry, off or on, as Habbo does.
+        composers.Add(
+            new ConfigurationItemStatesMessageComposer
+            {
+                IsHanditemControlBlocked = view.HanditemControlBlocked,
+                ChooserDisabled = view.ChooserDisabled,
+                FreeFurniMovementsEnabled = false,
+                InvisibleFurni = view.InvisibleFurni,
+            }
+        );
         composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
         composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
 

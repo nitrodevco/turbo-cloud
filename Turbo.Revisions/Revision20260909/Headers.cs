@@ -400,6 +400,7 @@ internal static class MessageEvent
     public const int PurchaseVipMembershipExtensionMessageEvent = 628;
     public const int QuitMessageEvent = 3929;
     public const int RateFlatMessageEvent = 1617;
+    public const int RecolorFurnitureMessageEvent = 7200;
     public const int RecycleItemsMessageEvent = 2026;
     public const int RedeemMarketplaceOfferCreditsMessageEvent = 1296;
     public const int RedeemVoucherMessageEvent = 547;
@@ -758,6 +759,7 @@ internal static class MessageComposer
     public const int FurniListMessageComposer = 1049;
     public const int FurniListRemoveMessageComposer = 2422;
     public const int FurniListRemoveMultipleMessageComposer = 3270;
+    public const int FurniRecolorUpdateMessageComposer = 7201;
     public const int FurniRentOrBuyoutOfferMessageComposer = 1921;
     public const int FurnitureAliasesMessageComposer = 2576;
     public const int Game2AccountGameStatusMessageComposer = 1173;

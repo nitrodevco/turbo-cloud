@@ -43,6 +43,16 @@ public interface INavigatorService
         PlayerId playerId,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The flat categories the client is told about (UserFlatCats): the same checks except
+    /// visibility, as Habbo sends its hidden categories too with <c>visible</c> false. The client
+    /// leaves those out of its pickers but still names a room listed in one.
+    /// </summary>
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetKnownFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    );
     public ImmutableArray<NavigatorEventCategorySnapshot> GetEventCategories();
     public Task<ImmutableArray<NavigatorPopularTagSnapshot>> GetPopularTagsAsync(
         CancellationToken ct

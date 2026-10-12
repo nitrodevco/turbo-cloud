@@ -16,6 +16,6 @@ internal class ObjectRemoveMultipleMessageComposerSerializer(int header)
         foreach (var objectId in message.ObjectIdsToRemove)
             packet.WriteInteger((int)objectId);
 
-        packet.WriteInteger(message.PickerId);
+        packet.WriteInteger(message.PickerId).WriteBoolean(message.ByInvisibleFurniManager);
     }
 }

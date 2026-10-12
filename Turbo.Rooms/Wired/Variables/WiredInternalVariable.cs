@@ -75,11 +75,12 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
 
     private WiredVariableSnapshot BuildSnapshot()
     {
+        var flags = WiredVariableExecutionContext.WithRequirement(Flags, TargetType);
         var variableHash = WiredVariableHashBuilder.HashValues(
             VariableName,
             AvailabilityType,
             TargetType,
-            Flags,
+            flags,
             GetTextConnectors()
         );
 
@@ -98,7 +99,7 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
             VariableHash = variableHash,
             AvailabilityType = AvailabilityType,
             TargetType = TargetType,
-            Flags = Flags,
+            Flags = flags,
             TextConnectors = GetTextConnectors(),
         };
     }

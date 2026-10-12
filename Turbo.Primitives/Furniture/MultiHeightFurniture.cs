@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using Turbo.Primitives.Furniture.Snapshots;
 
@@ -27,4 +28,11 @@ public static class MultiHeightFurniture
         && definition.TotalStates > 1
             ? -step
             : null;
+
+    /// <summary>
+    /// The height of a block of <paramref name="full"/> height in a state: one step lower per
+    /// state, never below the floor.
+    /// </summary>
+    public static double HeightAt(double full, int state, int totalStates, double step) =>
+        Math.Round(Math.Max(0, full - (Math.Clamp(state, 0, totalStates - 1) * step)), 2);
 }

@@ -18,4 +18,7 @@ public readonly record struct AvatarSpeech
 
     /// <summary>Null leaves the width to the client.</summary>
     public int? BubbleWidth { get; init; }
+
+    /// <summary>The bubble shows no "name: " before the text.</summary>
+    public bool HideUsername { get; init; }
 }

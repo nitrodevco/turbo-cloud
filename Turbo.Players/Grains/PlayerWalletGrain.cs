@@ -330,6 +330,15 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
     {
         var result = new Dictionary<int, int>();
 
+        // Every activity point type the hotel runs, at 0 until the player holds some: Habbo
+        // lists all of them at login, a new account's too.
+        foreach (var name in _currencyTypeProvider.GetEnabledCurrencyNames())
+            if (
+                _currencyTypeProvider.TryGetCurrencyKindByName(name, out var kind)
+                && kind.CurrencyType == CurrencyType.ActivityPoints
+            )
+                result[kind.ActivityPointType ?? -1] = 0;
+
         foreach (var currency in _state.CurrenciesByKind.Values)
         {
             if (

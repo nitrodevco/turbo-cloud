@@ -382,6 +382,7 @@ public sealed partial class RoomMapModule
 
         ComputeAllTiles();
         _roomGrain._state.DirtyHeightTileIds.Clear();
+        _roomGrain._state.DirtyHeightSentValues.Clear();
 
         foreach (var avatar in avatars)
         {

@@ -209,9 +209,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 
                 if (wasHidden != isHidden)
                     hiddenChanges.Add(
-                        isHidden
-                            ? floorItem.GetRemoveComposer(PlayerId.Invalid)
-                            : floorItem.GetAddComposer()
+                        isHidden ? floorItem.GetHideComposer() : floorItem.GetAddComposer()
                     );
 
                 hiddenFurni.Add(item);

@@ -16,10 +16,12 @@ using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -129,7 +131,8 @@ public sealed class NavigatorService(
                     query,
                     [.. NavigatorSearchCodes.MyWorldSections.Select(x => (x, string.Empty))],
                     keepEmpty: false,
-                    ct
+                    ct,
+                    _config.MyWorldKeepEmpty ?? NavigatorConfig.HabboMyWorldKeepEmpty
                 )
                 .ConfigureAwait(false),
             NavigatorSearchCodes.ROOMADS_VIEW => await CreatePreviewBlocksAsync(
@@ -139,7 +142,16 @@ public sealed class NavigatorService(
                         (NavigatorSearchCodes.NEW_ADS, string.Empty),
                         .. GetEventCategories()
                             .Where(x => x.Visible)
-                            .Select(x => (NavigatorSearchCodes.EventCategory(x.Name), x.Name)),
+                            // Habbo names these blocks by id (eventcategory__2), which the
+                            // client titles from navigator.searchcode.title.eventcategory__2.
+                            .Select(x =>
+                                (
+                                    NavigatorSearchCodes.EventCategory(
+                                        x.Id.ToString(CultureInfo.InvariantCulture)
+                                    ),
+                                    x.Name
+                                )
+                            ),
                     ],
                     keepEmpty: false,
                     ct
@@ -269,9 +281,28 @@ public sealed class NavigatorService(
         }
     }
 
-    public async Task<
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => GetFlatCategoriesForPlayerAsync(playerId, NavigatorCategoryAccess.CanSee, ct);
+
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetKnownFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => GetFlatCategoriesForPlayerAsync(playerId, NavigatorCategoryAccess.CanKnow, ct);
+
+    private async Task<
         ImmutableArray<NavigatorFlatCategorySnapshot>
-    > GetFlatCategoriesForPlayerAsync(PlayerId playerId, CancellationToken ct)
+    > GetFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        Func<
+            NavigatorFlatCategorySnapshot,
+            ResolvedPermissionsSnapshot,
+            SecurityLevelType,
+            bool
+        > allowed,
+        CancellationToken ct
+    )
     {
         var permissions = await _grainFactory
             .GetPlayerPermissionGrain(playerId)
@@ -285,9 +316,7 @@ public sealed class NavigatorService(
 
         return
         [
-            .. _navigatorProvider
-                .GetFlatCategories()
-                .Where(x => NavigatorCategoryAccess.CanSee(x, permissions, level)),
+            .. _navigatorProvider.GetFlatCategories().Where(x => allowed(x, permissions, level)),
         ];
     }
 
@@ -562,7 +591,8 @@ public sealed class NavigatorService(
         SearchQuery query,
         IReadOnlyList<(string Code, string Text)> sections,
         bool keepEmpty,
-        CancellationToken ct
+        CancellationToken ct,
+        IReadOnlyCollection<string>? keepEmptyCodes = null
     )
     {
         // One extra room tells us whether the block needs a "show more" action.
@@ -580,7 +610,14 @@ public sealed class NavigatorService(
         {
             var rooms = sectionRooms[i];
 
-            if (rooms is null || (!keepEmpty && rooms.Count == 0))
+            if (
+                rooms is null
+                || (
+                    !keepEmpty
+                    && rooms.Count == 0
+                    && keepEmptyCodes?.Contains(sections[i].Code) != true
+                )
+            )
                 continue;
 
             var action =
@@ -615,7 +652,12 @@ public sealed class NavigatorService(
         if (rooms is null)
             return [];
 
-        var text = NavigatorSearchCodes.GetCategoryName(code);
+        var text = code.StartsWith(
+            NavigatorSearchCodes.EVENT_CATEGORY_PREFIX,
+            StringComparison.Ordinal
+        )
+            ? FindEventCategory(code)?.Name ?? NavigatorSearchCodes.GetCategoryName(code)
+            : NavigatorSearchCodes.GetCategoryName(code);
 
         return
         [
@@ -788,11 +830,7 @@ public sealed class NavigatorService(
 
         if (code.StartsWith(NavigatorSearchCodes.EVENT_CATEGORY_PREFIX, StringComparison.Ordinal))
         {
-            var name = NavigatorSearchCodes.GetCategoryName(code);
-            var category = GetEventCategories()
-                .FirstOrDefault(x =>
-                    string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
-                );
+            var category = FindEventCategory(code);
 
             return category is null
                 ? []
@@ -800,6 +838,25 @@ public sealed class NavigatorService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The event category an <c>eventcategory__</c> code names: by id, as Habbo's blocks do, or
+    /// by name, as its collapsed list and older saved searches do.
+    /// </summary>
+    private NavigatorEventCategorySnapshot? FindEventCategory(string code)
+    {
+        var key = NavigatorSearchCodes.GetCategoryName(code);
+        var categories = GetEventCategories();
+
+        return (
+                int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+                    ? categories.FirstOrDefault(x => x.Id == id)
+                    : null
+            )
+            ?? categories.FirstOrDefault(x =>
+                string.Equals(x.Name, key, StringComparison.OrdinalIgnoreCase)
+            );
     }
 
     private async Task<List<RoomInfoSnapshot>> SearchByFilterAsync(

@@ -30,6 +30,9 @@ public sealed class RoomModerationModule(
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
+    // When each player was last sent this room's ban list, so a request right behind it is let go.
+    private readonly System.Collections.Generic.Dictionary<PlayerId, DateTime> _banListSentAt = [];
+
     /// <summary>
     /// Seconds remaining on the player's personal mute, or 0 when the player is not muted.
     /// Expired entries are dropped on read.
@@ -429,6 +432,20 @@ public sealed class RoomModerationModule(
             return null;
 
         var now = DateTime.UtcNow;
+
+        // Habbo answers the first request, empty or not, and lets the client's immediate repeats go
+        // unanswered (recorded on hhus, 2026-10-12: asked, answered empty, asked twice more 0.1 s
+        // later, no answer). Flash asks again whenever an empty list arrives, so answering every
+        // request would never end.
+        if (
+            _banListSentAt.TryGetValue(ctx.PlayerId, out var sentAt)
+            && now - sentAt
+                < TimeSpan.FromMilliseconds(_roomGrain._roomConfig.BanListRepeatIgnoreMs)
+        )
+            return null;
+
+        _banListSentAt[ctx.PlayerId] = now;
+
         var bannedIds = _roomGrain
             ._state.BannedUntilByPlayerId.Where(x => x.Value > now)
             .Select(x => x.Key)

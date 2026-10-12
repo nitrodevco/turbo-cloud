@@ -31,5 +31,6 @@ public class WiredSelectorEntitiesWithVariable(
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
+            new WiredBoolParamRule(false),
         ];
 }

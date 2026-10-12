@@ -194,6 +194,44 @@ public class RoomEntryPreparationTests
         }
     }
 
+    [Fact]
+    public async Task ApprovedEntry_SendsTheEventAndConfigurationStatesEvenWhenNone()
+    {
+        // Habbo, entering a room with no event and no configuration furni on: an empty
+        // RoomEvent (ids -1) and ConfigurationItemStates all off, so nothing of the room before
+        // is kept.
+        var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
+            (PlayerId)1,
+            CancellationToken.None
+        );
+        var harness = CreateHarness(RoomEntryAccessType.Allowed);
+        harness.Fakes.Handlers["GetEntryViewAsync"] = _ => Task.FromResult(view);
+
+        var headers = (await OpenRoomAsync(harness)).Select(packet => (int)packet.Header).ToList();
+
+        Assert.Contains(PacketHarness.Outgoing("RoomEventMessageComposer"), headers);
+        Assert.Contains(PacketHarness.Outgoing("ConfigurationItemStatesMessageComposer"), headers);
+    }
+
+    [Fact]
+    public void NoEvent_IsWrittenAsHabbosEmptyEvent()
+    {
+        var packet = PacketHarness.Encode(
+            new Turbo.Primitives.Messages.Outgoing.Navigator.RoomEventMessageComposer
+            {
+                Event = null,
+                SentAtUtc = DateTime.UtcNow,
+            }
+        );
+
+        Assert.Equal(
+            Convert.FromHexString(
+                "FFFFFFFFFFFFFFFF0000FFFFFFFFFFFFFFFF000000000000000000000000FFFFFFFF"
+            ),
+            packet.PopBytes(packet.Remaining)
+        );
+    }
+
     private static PacketHarness CreateHarness(RoomEntryAccessType access)
     {
         var harness = new PacketHarness();

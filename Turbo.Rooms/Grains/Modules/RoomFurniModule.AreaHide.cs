@@ -90,7 +90,7 @@ public sealed partial class RoomFurniModule
         foreach (var id in hiddenNow.Except(hiddenBefore))
         {
             if (TryGetItem(id, out var item))
-                composers.Add(item.GetRemoveComposer(PlayerId.Invalid));
+                composers.Add(item.GetHideComposer());
         }
 
         foreach (var id in hiddenBefore.Except(hiddenNow))
@@ -130,9 +130,7 @@ public sealed partial class RoomFurniModule
             if (wasHidden == isHidden)
                 return !isHidden;
 
-            composers.Add(
-                isHidden ? item.GetRemoveComposer(PlayerId.Invalid) : item.GetAddComposer()
-            );
+            composers.Add(isHidden ? item.GetHideComposer() : item.GetAddComposer());
 
             return false;
         }
@@ -155,7 +153,7 @@ public sealed partial class RoomFurniModule
         return (wasHidden, isHidden) switch
         {
             (false, false) => item.GetUpdateComposer(),
-            (false, true) => item.GetRemoveComposer(PlayerId.Invalid),
+            (false, true) => item.GetHideComposer(),
             (true, false) => item.GetAddComposer(),
             _ => null,
         };
