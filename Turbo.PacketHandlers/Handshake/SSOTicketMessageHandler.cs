@@ -171,6 +171,20 @@ public class SSOTicketMessageHandler(
             )
             .ConfigureAwait(false);
 
+        // Habbo pushes every activity point balance right after AuthenticationOK; GetCreditsInfo
+        // is answered with the credits only.
+        await ctx.SendComposerAsync(
+                new ActivityPointsMessageComposer
+                {
+                    PointsByCategoryId = await _grainFactory
+                        .GetPlayerWalletGrain(playerId)
+                        .GetActivityPointsAsync(ct)
+                        .ConfigureAwait(false),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
         // What they wore last may not be theirs to wear now - club clothing after the club ran
         // out - so it is fitted again before anyone sees it.
         await _grainFactory.GetPlayerGrain(playerId).RefitFigureAsync(ct).ConfigureAwait(false);

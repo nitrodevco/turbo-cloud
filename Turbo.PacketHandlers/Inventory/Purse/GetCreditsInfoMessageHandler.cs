@@ -10,6 +10,10 @@ using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.PacketHandlers.Inventory.Purse;
 
+/// <summary>
+/// Answered with the credits only, as Habbo does; the activity points go out at login
+/// (SSOTicketMessageHandler) and on every change.
+/// </summary>
 public class GetCreditsInfoMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetCreditsInfoMessage>
 {
@@ -28,15 +32,9 @@ public class GetCreditsInfoMessageHandler(IGrainFactory grainFactory)
         var credits = await wallet
             .GetAmountForCurrencyAsync(CurrencyKind.Credits, ct)
             .ConfigureAwait(false);
-        var activityPoints = await wallet.GetActivityPointsAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new CreditBalanceEventMessageComposer { Balance = $"{credits}.0" },
-                ct
-            )
-            .ConfigureAwait(false);
-        await ctx.SendComposerAsync(
-                new ActivityPointsMessageComposer { PointsByCategoryId = activityPoints },
                 ct
             )
             .ConfigureAwait(false);
