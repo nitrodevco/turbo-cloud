@@ -173,7 +173,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
-            avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
+            avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight.ToStatusString()}");
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
 
             avatar.NextTileId = nextTileId;

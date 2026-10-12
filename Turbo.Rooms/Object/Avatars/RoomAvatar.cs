@@ -108,7 +108,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
             rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(AvatarStatusType.Sit, finalHeight.ToString());
+            AddStatus(AvatarStatusType.Sit, finalHeight.ToStatusString());
         }
         else
         {
@@ -132,7 +132,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
             rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(AvatarStatusType.Lay, finalHeight.ToString());
+            AddStatus(AvatarStatusType.Lay, finalHeight.ToStatusString());
         }
         else
         {
