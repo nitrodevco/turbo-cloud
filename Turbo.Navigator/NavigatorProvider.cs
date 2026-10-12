@@ -445,7 +445,12 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
             MuteType = ModSettingType.Owner,
             KickType = ModSettingType.Owner,
             BanType = ModSettingType.Owner,
-            ChatFloodType = ChatFloodSensitivityType.Minimal,
+            ChatFloodType = _config.NewRoom.ChatFlood,
+            LeaveOnDoorTile = _config.NewRoom.LeaveOnDoorTile,
+            IdleSleepEnabled = _config.NewRoom.IdleSleepSeconds > 0,
+            IdleSleepTimeoutSeconds = _config.NewRoom.IdleSleepSeconds,
+            IdleAutokickEnabled = _config.NewRoom.IdleAutokickSeconds > 0,
+            IdleAutokickTimeoutSeconds = _config.NewRoom.IdleAutokickSeconds,
             PlayerEntity = null!,
             RoomModelEntity = null!,
         };

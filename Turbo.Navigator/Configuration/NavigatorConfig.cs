@@ -1,4 +1,5 @@
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Navigator.Enums;
 
 namespace Turbo.Navigator.Configuration;
 
@@ -52,4 +53,24 @@ public class NavigatorConfig
     public string[]? MyWorldKeepEmpty { get; init; }
 
     internal static readonly string[] HabboMyWorldKeepEmpty = [NavigatorSearchCodes.FAVOURITES];
+
+    /// <summary>The settings a newly created room starts with; Habbo's by default.</summary>
+    public NewRoomConfig NewRoom { get; init; } = new();
+}
+
+/// <summary>
+/// A new room's settings, as a room Habbo creates has them (recorded on hhus, 2026-10-12):
+/// leave on the door tile, fall asleep after 5 minutes, leave after 15, normal chat flood.
+/// </summary>
+public sealed class NewRoomConfig
+{
+    public bool LeaveOnDoorTile { get; init; } = true;
+
+    /// <summary>Seconds idle before an avatar falls asleep; 0 leaves idle sleep off.</summary>
+    public int IdleSleepSeconds { get; init; } = 300;
+
+    /// <summary>Seconds idle before an avatar is sent out of the room; 0 leaves it off.</summary>
+    public int IdleAutokickSeconds { get; init; } = 900;
+
+    public ChatFloodSensitivityType ChatFlood { get; init; } = ChatFloodSensitivityType.Normal;
 }
