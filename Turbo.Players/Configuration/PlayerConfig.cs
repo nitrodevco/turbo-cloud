@@ -142,4 +142,18 @@ public class PlayerConfig
 
     /// <summary>Consecutive failed writes before buffered room visits are given up.</summary>
     public int NavigatorVisitWriteAttempts { get; init; } = 5;
+
+    /// <summary>
+    /// The looks the avatar editor's Hot Looks tab offers (GetHotLooks), each with its gender
+    /// (<c>m</c> / <c>f</c>); the client shows those of the gender being edited. Empty by
+    /// default. Habbo sends 20, both genders mixed (recorded on hhus, 2026-10-12).
+    /// </summary>
+    public List<HotLookConfig> HotLooks { get; init; } = [];
+}
+
+/// <summary>One of the avatar editor's hot looks.</summary>
+public sealed class HotLookConfig
+{
+    public string Gender { get; init; } = "m";
+    public string Figure { get; init; } = string.Empty;
 }

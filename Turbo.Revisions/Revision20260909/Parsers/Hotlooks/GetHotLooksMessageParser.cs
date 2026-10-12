@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Hotlooks;
 
 internal class GetHotLooksMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetHotLooksMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetHotLooksMessage { Amount = packet.Remaining > 0 ? packet.PopByte() : 0 };
 }

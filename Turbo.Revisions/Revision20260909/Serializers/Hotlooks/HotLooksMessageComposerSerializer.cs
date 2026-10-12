@@ -8,6 +8,9 @@ internal class HotLooksMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, HotLooksMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Looks.Count);
+
+        foreach (var (gender, figure) in message.Looks)
+            packet.WriteString(gender).WriteString(figure);
     }
 }
