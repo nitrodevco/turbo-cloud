@@ -121,6 +121,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             var evt = _eventQueue.Dequeue();
 
+            if (evt is WiredSignalEvent signal)
+                FlashAntennas(signal);
+
             await ProcessRoomEventAsync(evt, now, ct);
         }
     }
@@ -316,7 +319,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     )
     {
         foreach (var selector in ctx.Stack.Selectors)
+        {
             await ApplySelectorAsync(ctx, selector, ct);
+            Flash(selector);
+        }
 
         foreach (var addon in ctx.Stack.Addons)
         {
@@ -328,6 +334,19 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
             return;
+
+        // Habbo flashes a trigger each time it fires, whatever its conditions then decide, and the
+        // conditions only when they pass (recorded on hhus, WIN63-202610121709: "receive signal"
+        // triggers flash every tick while their stack's single condition and effect flash only on
+        // the ticks the condition holds).
+        if (ctx.Trigger is not null)
+            Flash(ctx.Trigger);
+
+        if (passed)
+        {
+            foreach (var condition in ctx.Stack.Conditions)
+                Flash(condition);
+        }
 
         if (negativeCall is bool negative && negative == passed)
             return;
@@ -345,14 +364,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         if (pool.Count == 0)
             return;
-
-        if (ctx.Trigger is not null)
-            ctx.Trigger.FlashActivationStateAsync(ct)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "flash a wired box in room {RoomId}",
-                    _roomGrain.RoomId
-                );
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
@@ -1014,6 +1025,35 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             }
             default:
                 return [.. actions];
+        }
+    }
+
+    private void Flash(IWiredBox box) =>
+        box.FlashActivationStateAsync(CancellationToken.None)
+            .LogAndForget(
+                _roomGrain._logger,
+                "flash a wired box in room {RoomId}",
+                _roomGrain.RoomId
+            );
+
+    /// <summary>
+    /// A signal flashes each antenna it is delivered to once (recorded on hhus,
+    /// WIN63-202610121709: an antenna two "receive signal" triggers listen to flips once per signal).
+    /// </summary>
+    private void FlashAntennas(WiredSignalEvent signal)
+    {
+        foreach (var antennaId in signal.AntennaIds)
+        {
+            if (!FurniModule.TryGetFloorItem(antennaId, out var antenna))
+                continue;
+
+            antenna
+                .Logic.SetStateAsync(antenna.Logic.GetState() == 1 ? 0 : 1)
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "flash an antenna in room {RoomId}",
+                    _roomGrain.RoomId
+                );
         }
     }
 
