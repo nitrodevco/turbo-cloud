@@ -129,7 +129,8 @@ public sealed class NavigatorService(
                     query,
                     [.. NavigatorSearchCodes.MyWorldSections.Select(x => (x, string.Empty))],
                     keepEmpty: false,
-                    ct
+                    ct,
+                    _config.MyWorldKeepEmpty ?? NavigatorConfig.HabboMyWorldKeepEmpty
                 )
                 .ConfigureAwait(false),
             NavigatorSearchCodes.ROOMADS_VIEW => await CreatePreviewBlocksAsync(
@@ -562,7 +563,8 @@ public sealed class NavigatorService(
         SearchQuery query,
         IReadOnlyList<(string Code, string Text)> sections,
         bool keepEmpty,
-        CancellationToken ct
+        CancellationToken ct,
+        IReadOnlyCollection<string>? keepEmptyCodes = null
     )
     {
         // One extra room tells us whether the block needs a "show more" action.
@@ -580,7 +582,14 @@ public sealed class NavigatorService(
         {
             var rooms = sectionRooms[i];
 
-            if (rooms is null || (!keepEmpty && rooms.Count == 0))
+            if (
+                rooms is null
+                || (
+                    !keepEmpty
+                    && rooms.Count == 0
+                    && keepEmptyCodes?.Contains(sections[i].Code) != true
+                )
+            )
                 continue;
 
             var action =

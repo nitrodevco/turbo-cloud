@@ -1,3 +1,5 @@
+using Turbo.Primitives.Navigator;
+
 namespace Turbo.Navigator.Configuration;
 
 public class NavigatorConfig
@@ -41,4 +43,13 @@ public class NavigatorConfig
 
     /// <summary>Maximum cached entries (rooms and result lists) kept per silo.</summary>
     public int CacheSizeLimit { get; init; } = 10000;
+
+    /// <summary>
+    /// My World blocks sent even when they hold no rooms; every other block is left out when
+    /// empty. Unset keeps Habbo's: <c>favorites</c> (a player with no favourites still gets the
+    /// block). A code no block has (<c>[""]</c>) keeps none.
+    /// </summary>
+    public string[]? MyWorldKeepEmpty { get; init; }
+
+    internal static readonly string[] HabboMyWorldKeepEmpty = [NavigatorSearchCodes.FAVOURITES];
 }

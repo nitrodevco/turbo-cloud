@@ -14,6 +14,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
@@ -377,6 +378,78 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         _state.PendingVisits.Clear();
         _state.PreferencesVersion = 0;
         _state.PersistedPreferencesVersion = 0;
+
+        if (
+            _navigatorConfig.SeedNewPlayerPreferences
+            && savedSearches.Count == 0
+            && collapsedSearchCodes.Count == 0
+            && viewModes.Count == 0
+        )
+            await SeedNewPlayerPreferencesAsync(dbCtx, ct);
+    }
+
+    /// <summary>
+    /// The navigator a new Habbo account starts with. Marked dirty so the next flush stores it,
+    /// after which the player has preferences of their own and is never seeded again.
+    /// </summary>
+    private async Task SeedNewPlayerPreferencesAsync(TurboDbContext dbCtx, CancellationToken ct)
+    {
+        List<string> collapsed =
+        [
+            .. _navigatorConfig.NewPlayerCollapsedSearchCodes
+                ?? PlayerNavigatorConfig.HabboNewPlayerCollapsedSearchCodes,
+        ];
+
+        if (_navigatorConfig.NewPlayerCollapsesCategories)
+        {
+            collapsed.AddRange(
+                (
+                    await dbCtx
+                        .NavigatorFlatCategories.AsNoTracking()
+                        .OrderBy(x => x.Id)
+                        .Select(x => x.Name)
+                        .ToListAsync(ct)
+                ).Select(NavigatorSearchCodes.Category)
+            );
+            collapsed.AddRange(
+                (
+                    await dbCtx
+                        .NavigatorEventCategories.AsNoTracking()
+                        .OrderBy(x => x.Id)
+                        .Select(x => x.Name)
+                        .ToListAsync(ct)
+                ).Select(NavigatorSearchCodes.EventCategory)
+            );
+        }
+
+        foreach (var searchCode in collapsed)
+        {
+            if (_state.CollapsedSearchCodes.Count >= _navigatorConfig.MaxCollapsedSearchCodes)
+                break;
+
+            if (TryNormalizeSearchCode(searchCode, out var code))
+                _state.CollapsedSearchCodes.Add(code);
+        }
+
+        foreach (
+            var searchCode in _navigatorConfig.NewPlayerSavedSearches
+                ?? PlayerNavigatorConfig.HabboNewPlayerSavedSearches
+        )
+        {
+            if (_state.SavedSearches.Count >= _navigatorConfig.MaxSavedSearches)
+                break;
+
+            if (
+                TryNormalizeSearchCode(searchCode, out var code)
+                && !_state.SavedSearches.Any(x => x.SearchCode == code)
+            )
+                _state.SavedSearches.Add(
+                    CreateSavedSearch(_state.NextSavedSearchId++, code, string.Empty)
+                );
+        }
+
+        if (_state.CollapsedSearchCodes.Count > 0 || _state.SavedSearches.Count > 0)
+            _state.PreferencesVersion++;
     }
 
     private async Task FlushAsync(CancellationToken ct)

@@ -140,6 +140,40 @@ public sealed class NavigatorMyWorldTests
     }
 
     [Fact]
+    public async Task my_world_keeps_favorites_while_empty_as_habbo_does()
+    {
+        // Habbo's My World for a player with no favourites: my, favorites (0 rooms), history,
+        // history_freq; the other empty blocks are left out.
+        _fakes.Handlers["GetSnapshotAsync"] = _ =>
+            Task.FromResult(
+                new PlayerNavigatorSnapshot
+                {
+                    FavouriteRoomIds = [],
+                    SavedSearches = [],
+                    CollapsedSearchCodes = [],
+                    ViewModes = ImmutableDictionary<string, NavigatorViewModeType>.Empty,
+                }
+            );
+        _fakes.Handlers["GetRoomsWithRightsAsync"] = _ =>
+            Task.FromResult(new List<RoomInfoSnapshot>());
+
+        var blocks = await Service()
+            .SearchAsync(PLAYER, NavigatorSearchCodes.MYWORLD_VIEW, string.Empty, Ct);
+
+        blocks
+            .Select(x => x.SearchCode)
+            .Should()
+            .Contain("favorites")
+            .And.NotContain("with_rights");
+        blocks.Single(x => x.SearchCode == "favorites").Results.Should().BeEmpty();
+
+        var none = await Service(new NavigatorConfig { MyWorldKeepEmpty = [""] })
+            .SearchAsync(PLAYER, NavigatorSearchCodes.MYWORLD_VIEW, string.Empty, Ct);
+
+        none.Select(x => x.SearchCode).Should().NotContain("favorites");
+    }
+
+    [Fact]
     public async Task my_groups_lists_the_homerooms_of_the_players_own_groups()
     {
         var block = Assert.Single(
@@ -159,7 +193,7 @@ public sealed class NavigatorMyWorldTests
         block.Results.Select(x => x.RoomId.Value).Should().Equal(9);
     }
 
-    private NavigatorService Service()
+    private NavigatorService Service(NavigatorConfig? config = null)
     {
         var provider = _fakes.Create<INavigatorProvider>();
 
@@ -167,7 +201,7 @@ public sealed class NavigatorMyWorldTests
             NullLogger<INavigatorService>.Instance,
             provider,
             _fakes.Create<IGrainFactory>(),
-            Options.Create(new NavigatorConfig()),
+            Options.Create(config ?? new NavigatorConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
             _fakes.Create<IWordFilter>()
