@@ -11,6 +11,11 @@ internal class CheckUserNameResultMessageComposerSerializer(int header)
         CheckUserNameResultMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Result);
+        packet.WriteString(message.Name);
+        packet.WriteInteger(message.Suggestions.Length);
+
+        foreach (var suggestion in message.Suggestions)
+            packet.WriteString(suggestion);
     }
 }

@@ -1,0 +1,172 @@
+{
+  "type": "10",
+  "source": "Habbo (hhus) starter room 10, recorded 2026-10-12 with QX Scripter",
+  "model": "model_h",
+  "name": "{0}'s  room",
+  "description": "{0} has entered the building",
+  "category": 10,
+  "maxUsers": 75,
+  "wallpaper": "2403",
+  "floor": "610",
+  "landscape": "0.0",
+  "floorItems": [
+    {
+      "name": "pura_nt_mdl36",
+      "x": 8,
+      "y": 5,
+      "z": 1,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "cubie_nt_shelf_2_b",
+      "x": 7,
+      "y": 2,
+      "z": 1,
+      "rotation": 0,
+      "state": "1"
+    },
+    {
+      "name": "cubie_nt_shelf_1_b",
+      "x": 9,
+      "y": 2,
+      "z": 1,
+      "rotation": 0,
+      "state": "4"
+    },
+    {
+      "name": "usva_nt_shelf",
+      "x": 8,
+      "y": 4,
+      "z": 1,
+      "rotation": 0,
+      "state": "1"
+    },
+    {
+      "name": "pixel_bed_blue",
+      "x": 3,
+      "y": 10,
+      "z": 0.01,
+      "rotation": 2,
+      "state": ""
+    },
+    {
+      "name": "pura_nt_mdl26",
+      "x": 7,
+      "y": 5,
+      "z": 1,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "anna_nt_table_blue",
+      "x": 9,
+      "y": 10,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "cubie_nt_shelf_1_b",
+      "x": 6,
+      "y": 2,
+      "z": 1,
+      "rotation": 0,
+      "state": "4"
+    },
+    {
+      "name": "chair_nt_polyfon",
+      "x": 9,
+      "y": 9,
+      "z": 0,
+      "rotation": 4,
+      "state": ""
+    },
+    {
+      "name": "pixel_floor_silver",
+      "x": 3,
+      "y": 9,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "pixel_floor_silver",
+      "x": 5,
+      "y": 11,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "chair_nt_polyfon",
+      "x": 9,
+      "y": 12,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "pura_nt_mdl16",
+      "x": 9,
+      "y": 5,
+      "z": 1,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "chair_nt_polyfon",
+      "x": 10,
+      "y": 12,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "pixel_floor_silver",
+      "x": 3,
+      "y": 11,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "pixel_floor_silver",
+      "x": 5,
+      "y": 9,
+      "z": 0,
+      "rotation": 0,
+      "state": ""
+    },
+    {
+      "name": "chair_nt_polyfon",
+      "x": 10,
+      "y": 9,
+      "z": 0,
+      "rotation": 4,
+      "state": ""
+    }
+  ],
+  "wallItems": [
+    {
+      "name": "val09_nt_wdrobe_g",
+      "position": ":w=4,8 l=0,89 r",
+      "state": "1"
+    },
+    {
+      "name": "window_nt_diner2",
+      "position": ":w=4,2 l=4,67 l",
+      "state": "0"
+    },
+    {
+      "name": "pixel_clock_blue",
+      "position": ":w=2,10 l=4,55 l",
+      "state": "-1"
+    },
+    {
+      "name": "usva_nt_wallrug",
+      "position": ":w=2,10 l=4,68 l",
+      "state": "0"
+    }
+  ]
+}

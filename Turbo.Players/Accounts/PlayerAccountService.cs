@@ -4,8 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
@@ -22,6 +24,7 @@ public sealed class PlayerAccountService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOwnerBootstrap owner,
     IWordFilter wordFilter,
+    IOptions<OnboardingConfig> onboarding,
     ILogger<IPlayerAccountService> logger
 ) : IPlayerAccountService
 {
@@ -74,6 +77,13 @@ public sealed class PlayerAccountService(
             Gender = player.Gender,
             PlayerStatus = PlayerStatusType.Offline,
         };
+
+        // Made while the new user flow is on: its steps wait for their first login.
+        if (onboarding.Value.Enabled)
+        {
+            entity.OnboardingNamePending = true;
+            entity.OnboardingRoomPending = true;
+        }
 
         db.Players.Add(entity);
 

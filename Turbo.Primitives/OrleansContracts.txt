@@ -214,6 +214,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerDirectoryG
   859B846F: SetPlayerNameAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] Turbo.Primitives.Players.Grains.IPlayerGrain [Version(0)]
+  3956094B: ChooseNameAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.NameCheckResult>
   30E4F44A: GetExtendedProfileSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerExtendedProfileSnapshot>
   213E1401: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot>
   FBEF7436: ReceiveRespectAsync(System.Threading.CancellationToken) -> Task<int>

@@ -78,6 +78,19 @@ public class PlayerEntity : TurboEntity
     public DateTime? RespectResetDate { get; set; }
 
     /// <summary>When the player last opened a session (UTC); null for one who never has.</summary>
+    /// <summary>
+    /// The new user flow's look and name step is still to do (<c>Turbo:Onboarding</c>). Set when
+    /// the player is created with the flow on; cleared when they choose their name.
+    /// </summary>
+    [Column("onboarding_name_pending")]
+    [DefaultValue(false)]
+    public bool OnboardingNamePending { get; set; }
+
+    /// <summary>The new user flow's starter room step is still to do.</summary>
+    [Column("onboarding_room_pending")]
+    [DefaultValue(false)]
+    public bool OnboardingRoomPending { get; set; }
+
     [Column("last_login")]
     public DateTime? LastLoginAt { get; set; }
 

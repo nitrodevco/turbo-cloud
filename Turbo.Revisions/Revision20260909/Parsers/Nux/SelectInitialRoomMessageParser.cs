@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Nux;
 
 internal class SelectInitialRoomMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SelectInitialRoomMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SelectInitialRoomMessage { RoomType = packet.PopString() };
 }

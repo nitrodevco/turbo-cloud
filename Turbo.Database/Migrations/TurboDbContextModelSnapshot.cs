@@ -5030,6 +5030,18 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_login");
 
+                    b.Property<bool>("OnboardingNamePending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_name_pending");
+
+                    b.Property<bool>("OnboardingRoomPending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_room_pending");
+
                     b.Property<string>("Motto")
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)")

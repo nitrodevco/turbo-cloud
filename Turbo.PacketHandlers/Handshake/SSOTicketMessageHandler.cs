@@ -22,6 +22,7 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
 
@@ -36,7 +37,8 @@ public class SSOTicketMessageHandler(
     IHotelAvailability hotelAvailability,
     IHotelTextProvider textProvider,
     IPlayerClothingService clothing,
-    ICallForHelpService callForHelp
+    ICallForHelpService callForHelp,
+    IPlayerOnboardingService onboarding
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -127,6 +129,8 @@ public class SSOTicketMessageHandler(
         var ownedClothingTask = clothing.GetOwnedAsync(playerId, ct);
         // The clothing furni they have bound, which the client puts on without asking again.
         var boundClothingTask = clothing.GetBoundFurnitureNamesAsync(playerId, ct);
+        // The new user flow's steps the player still has to do; the client draws the flow for them.
+        var loginActionsTask = onboarding.GetLoginActionsAsync(playerId, ct);
 
         await Task.WhenAll(
                 settingsTask,
@@ -135,7 +139,8 @@ public class SSOTicketMessageHandler(
                 welcomeMessageTask,
                 effectsTask,
                 ownedClothingTask,
-                boundClothingTask
+                boundClothingTask,
+                loginActionsTask
             )
             .ConfigureAwait(false);
 
@@ -143,7 +148,7 @@ public class SSOTicketMessageHandler(
                 new AuthenticationOKMessage
                 {
                     AccountId = playerId,
-                    SuggestedLoginActions = [],
+                    SuggestedLoginActions = [.. await loginActionsTask.ConfigureAwait(false)],
                     IdentityId = playerId,
                 },
                 ct

@@ -55,6 +55,8 @@ public class WelcomeMessageLoginTests
         _fakes.Handlers[nameof(IWelcomeMessageGrain.GetMessageAsync)] = _ =>
             Task.FromResult(_welcome);
 
+        _fakes.Handlers["GetLoginActionsAsync"] = _ => Task.FromResult(_loginActions);
+
         _session = _fakes.Create<ISessionContext>("session");
         _handler = new SSOTicketMessageHandler(
             _fakes.Create<IAuthenticationService>(),
@@ -65,7 +67,8 @@ public class WelcomeMessageLoginTests
             _fakes.Create<IHotelAvailability>(),
             _fakes.Create<IHotelTextProvider>(),
             _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>(),
-            _fakes.Create<ICallForHelpService>()
+            _fakes.Create<ICallForHelpService>(),
+            _fakes.Create<Turbo.Primitives.Players.Onboarding.IPlayerOnboardingService>()
         );
     }
 
@@ -86,6 +89,8 @@ public class WelcomeMessageLoginTests
         },
     ];
 
+    private ImmutableArray<short> _loginActions = [];
+
     private Task LogInAsync() =>
         _handler
             .HandleAsync(
@@ -102,6 +107,21 @@ public class WelcomeMessageLoginTests
                 .Where(x => x.Method == "SendComposerAsync")
                 .Select(x => x.Args[0]),
         ];
+
+    [Fact]
+    public async Task TheNewUserFlowsSteps_AreTheLoginsSuggestedActions()
+    {
+        _loginActions = [0, 1];
+
+        await LogInAsync();
+
+        SentToSession()
+            .OfType<Turbo.Primitives.Messages.Outgoing.Handshake.AuthenticationOKMessage>()
+            .Should()
+            .ContainSingle()
+            .Which.SuggestedLoginActions.Should()
+            .Equal(0, 1);
+    }
 
     [Fact]
     public async Task TheCallForHelpTopics_AreSentAtLogin()

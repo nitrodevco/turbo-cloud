@@ -102,6 +102,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<IDbContextFactory<TurboDbContext>>(_db);
         services.AddSingleton<IOwnerBootstrap>(_owner);
+        services.AddSingleton(Options.Create(new Turbo.Players.Configuration.OnboardingConfig()));
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
         services.AddSingleton(_fakes.Create<ISanctionService>());

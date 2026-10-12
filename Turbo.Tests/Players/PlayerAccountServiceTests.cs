@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Accounts;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
@@ -39,6 +41,7 @@ public sealed class PlayerAccountServiceTests : IDisposable
             _db,
             new NoOwner(),
             new PassThroughWordFilter(),
+            Options.Create(new OnboardingConfig()),
             NullLogger<IPlayerAccountService>.Instance
         );
     }
