@@ -13,6 +13,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Revisions.Revision20260909;
 
@@ -32,7 +33,8 @@ public class TurboEmulator(
     IPetSpeechProvider petSpeechProvider,
     IWordFilter wordFilter,
     INetworkManager networkManager,
-    IRevisionManager revisionManager
+    IRevisionManager revisionManager,
+    IRoomService roomService
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
@@ -49,6 +51,7 @@ public class TurboEmulator(
     private readonly IWordFilter _wordFilter = wordFilter;
     private readonly INetworkManager _networkManager = networkManager;
     private readonly IRevisionManager _revisionManager = revisionManager;
+    private readonly IRoomService _roomService = roomService;
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -84,10 +87,24 @@ public class TurboEmulator(
         }
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs before the silo stops (hosted services stop in reverse order, and the silo was added
+    /// first). Players go first, so nothing changes while the rooms are written; then the rooms,
+    /// while their persistence grains can still be reached.
+    /// </summary>
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Turbo StopAsync called.");
 
-        return Task.CompletedTask;
+        try
+        {
+            await _networkManager.StopAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to close the player connections as the server stops");
+        }
+
+        await _roomService.SaveAndUnloadAllRoomsAsync(cancellationToken).ConfigureAwait(false);
     }
 }

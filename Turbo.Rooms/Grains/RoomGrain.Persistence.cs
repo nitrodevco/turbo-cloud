@@ -27,6 +27,21 @@ public sealed partial class RoomGrain
         return HandOverToPersistenceAsync(ct);
     }
 
+    public async Task<bool> SaveAndUnloadAsync(CancellationToken ct)
+    {
+        // Nothing moves after this: rollers and wired would otherwise change what was written.
+        _tickTimer?.Dispose();
+        _tickTimer = null;
+
+        await HandOverToPersistenceAsync(ct);
+
+        var saved = await _grainFactory.GetRoomPersistenceGrain(_state.RoomId).SaveAllAsync(ct);
+
+        DeactivateRoom();
+
+        return saved;
+    }
+
     /// <summary>
     /// Snapshots what is dirty as it stands now and hands it over. An item, pet or bot that left
     /// the room since it changed is skipped: its leaving wrote it already.

@@ -99,6 +99,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         _chatlogTimer?.Dispose();
         _chatlogTimer = null;
 
+        await SaveAllAsync(ct);
+    }
+
+    public async Task<bool> SaveAllAsync(CancellationToken ct)
+    {
         // Everything that is left, not one timer's worth. Each queue still stops at its first
         // batch that cannot be written: a database that is down must not hold the deactivation
         // in a loop.
@@ -107,6 +112,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
 
         while (_state.PendingCommandLogs.Count > 0 && await FlushCommandLogsAsync(ct)) { }
+
+        return _state.DirtyItems.Count == 0
+            && _state.DeletedItemIds.Count == 0
+            && _state.DirtyPets.Count == 0
+            && _state.DirtyBots.Count == 0
+            && _state.PendingChatlogs.Count == 0
+            && _state.PendingCommandLogs.Count == 0;
     }
 
     /// <summary>The chatlog timer's tick: the two audit buffers share it, and neither holds up the other.</summary>

@@ -316,6 +316,23 @@ decides which as each move happens, not at the room's next save:
   `chest_transaction_id`) on a row in no holder, and the `furniture_leave_holder` trigger clears
   them however a row leaves its holder, including the holder's own row being deleted.
 
+## When the server stops
+
+A room hands what changed (positions, furni data, pets, bots, chat lines, command uses) to its
+writer every `Turbo:Rooms:DirtyItemsTickMs` (2 s), which writes it soon after. When the server stops
+(`SIGTERM` from a deploy, `:shutdown`, Ctrl+C), it first closes every player connection, then saves
+and unloads every active room, and only then stops Orleans. Left to Orleans, rooms are unloaded
+after the silo has left the cluster, so each room's last changes cannot reach its writer and are
+lost. The log says `Saved N active rooms in M ms`, or at error level how many could not be written
+or were cut off by the host's 30 s shutdown timeout.
+
+Measured on PostgreSQL 16, with `SIGTERM` sent as soon as every furni in every room had moved:
+
+| Active rooms (50 furni each) | Moves lost before | Moves lost now | Time to save every room |
+| --- | --- | --- | --- |
+| 100 | 2,420-2,633 of 5,000, in 53-58 rooms | 0 | 193-287 ms |
+| 3,000 | 17,170 of 150,000, in 355 rooms | 0 | 803 ms |
+
 ## Indexes and storage for the busiest tables
 
 The logs the retention job trims by age (chat, private messages, room entries, logins, the

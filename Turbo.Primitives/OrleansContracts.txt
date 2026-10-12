@@ -540,6 +540,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2DF5D49B: RespectPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   1C740797: RespectPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   4CF16EE3: RingDoorbellAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
+  AF098ADD: SaveAndUnloadAsync(System.Threading.CancellationToken) -> Task<bool>
   8300F4FE: SaveFloorPlanAsync(Turbo.Primitives.Action.ActionContext, string, Turbo.Primitives.Rooms.Snapshots.Mapping.FloorPlanPropertiesSnapshot?, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   B6DB48CF: SaveRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSaveResultSnapshot>
   8DC218E2: SaveRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSaveResultSnapshot>
@@ -594,6 +595,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGra
   1847F886: EnqueueDirtyItemsAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task
   64DB0503: EnqueueDirtyPetsAsync(System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
   9ACCF37C: InsertBuildersClubItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, int, System.Threading.CancellationToken) -> Task<bool>
+  86D5870C: SaveAllAsync(System.Threading.CancellationToken) -> Task<bool>
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomTradeGrain")] Turbo.Primitives.Rooms.Grains.IRoomTradeGrain [Version(0)]
   738A1DBC: AcceptAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>

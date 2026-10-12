@@ -73,4 +73,10 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// <summary>Writes placed bots' positions and settings on the next flush.</summary>
     [AlwaysInterleave]
     public Task EnqueueDirtyBotsAsync(List<BotSnapshot> snapshots, CancellationToken ct);
+
+    /// <summary>
+    /// Writes everything queued now, as deactivation would, while the caller waits. False when
+    /// some of it could not be written and is still queued.
+    /// </summary>
+    public Task<bool> SaveAllAsync(CancellationToken ct);
 }

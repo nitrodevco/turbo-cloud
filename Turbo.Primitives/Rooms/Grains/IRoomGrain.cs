@@ -18,4 +18,12 @@ public partial interface IRoomGrain : IGrainWithIntegerKey
     public Task<int> GetRoomPopulationAsync(CancellationToken ct);
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct);
+
+    /// <summary>
+    /// For the server stopping: stops the room, writes everything it changed and unloads it,
+    /// while the silo can still reach its persistence grain. Once the silo itself stops, that
+    /// call fails and whatever changed since the last hand-over is lost. False when some of it
+    /// could not be written.
+    /// </summary>
+    public Task<bool> SaveAndUnloadAsync(CancellationToken ct);
 }
