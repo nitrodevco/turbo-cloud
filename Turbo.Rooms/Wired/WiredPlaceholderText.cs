@@ -10,6 +10,19 @@ public static class WiredPlaceholderText
     /// </summary>
     public static string Token(char sigil, string name) => $"{sigil}({name})";
 
+    /// <summary>The name inside a token: <c>name</c> for <c>$(name)</c>; empty for an empty token.</summary>
+    public static string NameOf(string token) => token.Length > 3 ? token[2..^1] : string.Empty;
+
+    /// <summary>
+    /// The placeholder "WIRED Trigger: User Says Keyword" creates for its stack, filled with what
+    /// was said (Wired Faculty announcement, 12/10/2026: "Placeholder $(trigger_text)
+    /// automatically created for WIRED Trigger: User Says Keyword").
+    /// </summary>
+    public const string TRIGGER_TEXT_NAME = "trigger_text";
+
+    /// <summary><c>$(trigger_text)</c>, as a text writes it.</summary>
+    public static readonly string TriggerTextToken = Token('$', TRIGGER_TEXT_NAME);
+
     private const string DEFAULT_DELIMITER = ", ";
 
     public static (string name, string delimiter) SplitNameAndDelimiter(string? stringParam)

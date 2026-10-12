@@ -9,4 +9,5 @@ public enum WiredContextType
     SharedVariables = 4,
     VariableList = 5,
     SharedGlobalPlaceholders = 6,
+    TextPlaceholders = 7,
 }

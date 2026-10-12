@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Wired.Rules;
@@ -15,7 +16,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// <summary>
 /// Shows a chat bubble over the selected users. Params: visibility (only those users see it,
 /// or the whole room), the bubble style id and the bubble width (-1 for the default). The
-/// string param is the text, run through the placeholder addons of the stack.
+/// string param is the text, run through the placeholder addons of the stack. Its editor
+/// (MessageEditorPreset) lists those placeholders from wired context section 7.
 /// </summary>
 [RoomObjectLogic("wf_act_show_message")]
 public class WiredActionShowMessage(
@@ -50,6 +52,14 @@ public class WiredActionShowMessage(
 
     protected override int GetStringParamMaxLength() =>
         _roomGrain._wiredConfig.ShowMessageMaxLength;
+
+    public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
+        TextPlaceholdersContext();
+
+    // The placeholders come from the other boxes of the stack, which change without this one
+    // being saved: read them again each time the editor opens.
+    public override Task<bool> RefreshEditorContextAsync(CancellationToken ct) =>
+        Task.FromResult(true);
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

@@ -32,4 +32,8 @@ public record ChatMessageComposer : IComposer
 
     [Id(7)]
     public int? ChatBubbleWidthOverride { get; init; }
+
+    /// <summary>The bubble shows no "name: " before the text (a bot box with "hide bot name").</summary>
+    [Id(8)]
+    public bool HideUsername { get; init; }
 }

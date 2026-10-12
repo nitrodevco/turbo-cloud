@@ -44,7 +44,12 @@ public class WiredConfig
     public int StringParamMaxLength { get; init; } = 2000;
     public int MaxHandItemId { get; init; } = 10000;
     public int MaxEffectId { get; init; } = 10000;
-    public int ShowMessageMaxLength { get; init; } = 200;
+
+    /// <summary>
+    /// The Show Message editor's limit: 400 since WIN63-202610121624
+    /// (<c>TextAreaParam(40, -1, 8, -1, 400)</c>).
+    /// </summary>
+    public int ShowMessageMaxLength { get; init; } = 400;
 
     /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the

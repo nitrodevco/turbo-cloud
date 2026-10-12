@@ -170,6 +170,18 @@ internal class WiredDataSerializer
                     WiredVariableSerializer.Serialize(packet, shared.Variable);
                 }
                 break;
+            // TextPlaceholders: the placeholder names, then the capturer names.
+            case WiredTextPlaceholdersSnapshot textPlaceholders:
+                packet.WriteInteger(textPlaceholders.PlaceholderNames.Length);
+
+                foreach (var name in textPlaceholders.PlaceholderNames)
+                    packet.WriteString(name);
+
+                packet.WriteInteger(textPlaceholders.CapturerNames.Length);
+
+                foreach (var name in textPlaceholders.CapturerNames)
+                    packet.WriteString(name);
+                break;
             default:
                 break;
         }

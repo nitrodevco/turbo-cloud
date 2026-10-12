@@ -176,6 +176,15 @@ public static class WiredDecoders
                 SkipVariable(reader);
                 _ = reader.Int();
                 break;
+            case WiredContextType.TextPlaceholders:
+                // Placeholder names, then capturer names.
+                for (var list = 0; list < 2; list++)
+                {
+                    var names = reader.Count();
+                    for (var i = 0; i < names; i++)
+                        _ = reader.String();
+                }
+                break;
             default:
                 // The serializer writes nothing after the type for the remaining kinds.
                 break;
