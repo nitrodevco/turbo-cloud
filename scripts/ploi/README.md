@@ -33,7 +33,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
 
    The scripts find `~/.dotnet` on their own. A system-wide install under `/usr/share/dotnet` or `/usr/lib/dotnet` works too.
 
-2. **Create a database** (Ploi > Server > Databases) with a user for it.
+2. **Create a PostgreSQL database** (16 or newer). Recommended: run `scripts/sql/least-privilege.sql` as a superuser, which makes an owner role for migrations and a role the server runs as that can't change the schema (see [docs/database.md](../../docs/database.md), step 3). Simplest: Ploi > Server > Databases, with a user that owns it.
 
 3. **Create the site** with the domain the client will connect to (for example `ws.example.com`). Install this repository on it.
 
@@ -71,6 +71,9 @@ All of these are set in `.env`. Restart the daemon (or deploy) after changing th
 | `TURBO_TCP_ENABLED` | `Turbo:Networking:TcpEnabled` | `true` from appsettings, `false` in the example (WebSocket only) |
 | `TURBO_SILO_ADDRESS`, `TURBO_SILO_PORT`, `TURBO_GATEWAY_PORT` | `Turbo:Orleans` | `127.0.0.1`, `11111`, `3000` |
 | `TURBO_DB_*` or `TURBO_DB_CONNECTION_STRING` | `Turbo:Database:ConnectionString` | from appsettings |
+| `TURBO_DB_MIGRATION_USERNAME` and `TURBO_DB_MIGRATION_PASSWORD`, or `TURBO_DB_MIGRATION_CONNECTION_STRING` | `Turbo:Database:MigrationConnectionString` (the owner role of `scripts/sql/least-privilege.sql`) | empty: migrations use the server's connection |
+| `TURBO_DB_MAX_AUTO_PREPARE` | `Turbo:Database:MaxAutoPrepare` | 50 |
+| `TURBO_DB_MAX_POOL_SIZE` | `Turbo:Database:MaxPoolSize` | 50 |
 
 Orleans listens on every interface for its silo and gateway ports. Leave them closed in the firewall.
 
@@ -109,7 +112,7 @@ from Cloudflare, for each site on the server.
 
 ## Migrations
 
-`deploy.sh` runs the new release's own `Turbo.Main migrate` against the configured database after the publish succeeds and before the running server is touched. It needs the .NET runtime only, not the `ef` tool. If a migration fails, the deploy stops and the old release keeps running. MySQL does not roll back schema changes, so a migration that fails part-way may leave some of its changes applied; the output names the migration, and the next run resumes there.
+`deploy.sh` runs the new release's own `Turbo.Main migrate` against the configured database after the publish succeeds and before the running server is touched. It needs the .NET runtime only, not the `ef` tool. If a migration fails, the deploy stops and the old release keeps running. PostgreSQL runs each migration in a transaction, so a failed one is rolled back whole; the output names it, and the next run resumes there.
 
 It is the same code the server runs when it starts (see [docs/database.md](../../docs/database.md)): one lock per database, a refusal if the database was made by a newer version, and a refusal to drop a table or a column from a database that has data unless `TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS=true`. Back up first when it says a migration is destructive.
 

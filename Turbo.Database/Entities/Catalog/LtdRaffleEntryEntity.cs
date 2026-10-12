@@ -4,60 +4,42 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
 /// <summary>
-/// An entry in an LTD raffle queue.
+/// Every claim on an LTD series: an entry in a raffle's draw, or a sale with no draw. A won claim
+/// holds its serial, and no serial of a series is held twice, so this is the record of who was
+/// sold which serial.
 /// </summary>
-[Table("ltd_raffle_entries")]
-// "Has this player already won this series" and "this batch's entry for this player".
+[Comment("Every claim on an LTD series: raffle entries and sales, with the serial each won.")]
+[Table("catalog_ltd_entries")]
+// "Has this player already won this series" and "this draw's entry for this player".
 [Index(nameof(SeriesEntityId), nameof(PlayerEntityId), nameof(Result))]
 [Index(nameof(BatchId), nameof(PlayerEntityId))]
 public class LtdRaffleEntryEntity : TurboEntity
 {
-    /// <summary>
-    /// The LTD series this entry is for.
-    /// </summary>
     [Column("series_id")]
     public required int SeriesEntityId { get; set; }
 
-    /// <summary>
-    /// The player who entered the raffle.
-    /// </summary>
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    /// <summary>
-    /// UUID for the raffle batch this entry belongs to.
-    /// </summary>
+    /// <summary>The draw this entry is in; null for a sale made with no draw.</summary>
     [Column("batch_id")]
-    [MaxLength(36)]
-    public required string BatchId { get; set; }
+    public Guid? BatchId { get; set; }
 
-    /// <summary>
-    /// When the player entered the raffle.
-    /// </summary>
-    [Column("entered_at")]
-    public required DateTime EnteredAt { get; set; }
-
-    /// <summary>
-    /// The result of the raffle: 'pending', 'won', 'lost'.
-    /// </summary>
     [Column("result")]
-    [MaxLength(20)]
-    [DefaultValue("pending")]
-    public required string Result { get; set; } = "pending";
+    [DefaultValue(LtdEntryResult.Pending)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public required LtdEntryResult Result { get; set; }
 
-    /// <summary>
-    /// The serial number assigned (if won).
-    /// </summary>
+    /// <summary>The serial won; null until it is won.</summary>
     [Column("serial_number")]
     public int? SerialNumber { get; set; }
 
-    /// <summary>
-    /// When the raffle was processed.
-    /// </summary>
+    /// <summary>When it was drawn or sold; null while pending.</summary>
     [Column("processed_at")]
     public DateTime? ProcessedAt { get; set; }
 

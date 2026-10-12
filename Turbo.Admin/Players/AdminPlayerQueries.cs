@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -29,8 +30,6 @@ public sealed class AdminPlayerQueries(
     TimeProvider timeProvider
 )
 {
-    private const string ESCAPE = "\\";
-
     /// <summary>The rooms a player's page lists, most recently active first.</summary>
     private const int RECENT_ROOMS = 8;
 
@@ -68,11 +67,7 @@ public sealed class AdminPlayerQueries(
 
         if (term.Length > 0)
         {
-            // LIKE, so case is ignored the same way on every database; the text is escaped so a
-            // % or _ in it is matched as itself.
-            var like = term.Replace(ESCAPE, ESCAPE + ESCAPE, StringComparison.Ordinal)
-                .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
-                .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
+            var like = LikePatterns.Containing(term);
 
             players = mode switch
             {
@@ -84,11 +79,15 @@ public sealed class AdminPlayerQueries(
                         l.PlayerEntityId == x.Id
                         && (
                             l.DiscordId == term
-                            || EF.Functions.Like(l.DiscordUsername, "%" + like + "%", ESCAPE)
+                            || EF.Functions.Like(
+                                l.DiscordUsername.ToLower(),
+                                like,
+                                LikePatterns.ESCAPE
+                            )
                         )
                     )
                 ),
-                _ => players.Where(x => EF.Functions.Like(x.Name, "%" + like + "%", ESCAPE)),
+                _ => players.Where(x => EF.Functions.Like(x.NameKey, like, LikePatterns.ESCAPE)),
             };
         }
 

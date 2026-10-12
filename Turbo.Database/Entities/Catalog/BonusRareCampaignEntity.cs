@@ -11,7 +11,10 @@ namespace Turbo.Database.Entities.Catalog;
 /// player brings in, counted as <see cref="Source"/> says. The last one started and not ended
 /// runs. Progress is kept by <see cref="Code"/> in <c>player_bonus_rare_progress</c>.
 /// </summary>
-[Table("bonus_rare_campaigns")]
+[Comment(
+    "A bonus rare campaign: a furniture given for every CreditsRequired credits a player brings in, counted as Source says."
+)]
+[Table("catalog_bonus_rare_campaigns")]
 [Index(nameof(Code), IsUnique = true)]
 [Index(nameof(StartsAt))]
 public class BonusRareCampaignEntity : TurboEntity

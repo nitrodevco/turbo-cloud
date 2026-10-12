@@ -8,18 +8,20 @@ namespace Turbo.Database.Entities.Settings;
 /// A server setting changed in the admin panel, and by whom: the panel's value before and after,
 /// as JSON, null where the panel had none. A secret's values are never kept.
 /// </summary>
+[Comment(
+    "A server setting changed in the admin panel, and by whom: the panel's value before and after, as JSON, null where the panel had none."
+)]
 [Table("server_setting_changes")]
-[Index(nameof(Path))]
 public class ServerSettingChangeEntity : TurboEntity
 {
     [Column("setting_path")]
     [MaxLength(ServerSettingEntity.PATH_MAX_LENGTH)]
     public required string Path { get; set; }
 
-    [Column("before", TypeName = "longtext")]
+    [Column("before", TypeName = "text")]
     public string? Before { get; set; }
 
-    [Column("after", TypeName = "longtext")]
+    [Column("after", TypeName = "text")]
     public string? After { get; set; }
 
     [Column("secret")]

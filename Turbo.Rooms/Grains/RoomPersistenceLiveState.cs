@@ -16,7 +16,6 @@ internal sealed class RoomPersistenceLiveState
 
     /// <summary>Swapped for an empty one at the start of a flush, so it is settable.</summary>
     public Dictionary<long, RoomItemSnapshot> DirtyItems { get; set; } = [];
-    public HashSet<RoomObjectId> RemovedItemIds { get; } = [];
     public HashSet<RoomObjectId> DeletedItemIds { get; } = [];
     public Dictionary<int, PetSnapshot> DirtyPets { get; } = [];
     public Dictionary<int, BotSnapshot> DirtyBots { get; } = [];

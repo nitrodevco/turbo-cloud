@@ -82,7 +82,7 @@ public sealed class AdminRoomEditor(
         var result = await grainFactory
             .GetRoomGrain(new RoomId(roomId))
             .SaveRoomSettingsAsync(
-                ActionContext.CreateForPlayer(editor, new RoomId(roomId)),
+                ActionContext.CreateForPanel(editor, new RoomId(roomId)),
                 new RoomSettingsUpdateSnapshot
                 {
                     Name = request.Name ?? string.Empty,

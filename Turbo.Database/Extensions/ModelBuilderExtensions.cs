@@ -1,8 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Attributes;
 
@@ -70,13 +72,9 @@ public static class ModelBuilderExtensions
 
     public static void ApplyConventions(this ModelBuilder mb)
     {
-        foreach (
-            var p in mb
-                .Model.GetEntityTypes()
-                .SelectMany(t => t.GetProperties())
-                .Where(p => p.ClrType == typeof(string))
-        )
-            p.SetMaxLength(p.GetMaxLength() ?? 512);
+        // A string with no length of its own is text, PostgreSQL's own string type: varchar(n)
+        // costs the same and only adds a limit, which belongs on the strings whose domain has
+        // one ([MaxLength]). The 512 every string used to get was a limit nothing asked for.
 
         var utc = new ValueConverter<DateTime, DateTime>(
             v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
@@ -92,7 +90,21 @@ public static class ModelBuilderExtensions
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?))
         )
+        {
             p.SetValueConverter(utc);
+
+            // A time the database stamps (a created_at, a room's last_active, an updated_at) is
+            // the row's insert time unless written: the database default, not a provider's
+            // reading of "identity". An updated_at is also restamped on every update, by the
+            // trigger the baseline migration puts on its table.
+            if (
+                p.PropertyInfo?.GetCustomAttribute<DatabaseGeneratedAttribute>()
+                    is { DatabaseGeneratedOption: not DatabaseGeneratedOption.None }
+                && p.GetDefaultValueSql() is null
+                && p.FindAnnotation(RelationalAnnotationNames.DefaultValue) is null
+            )
+                p.SetDefaultValueSql("CURRENT_TIMESTAMP");
+        }
 
         foreach (
             var p in mb

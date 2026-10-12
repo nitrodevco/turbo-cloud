@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -13,11 +14,14 @@ namespace Turbo.Database.Entities.Quests;
 /// <see cref="Counted"/> keeps what an explore task has already counted (comma-separated room
 /// ids), so a room counts once.
 /// </summary>
+[Comment("A daily task given to a player for one day.")]
 [Table("player_daily_tasks")]
-[Index(nameof(PlayerEntityId), nameof(DayStartsAt))]
+// One of each task a day: the grain gives only definitions the player hasn't had that day.
+[Index(nameof(PlayerEntityId), nameof(DayStartsAt), nameof(DefinitionEntityId), IsUnique = true)]
 public class PlayerDailyTaskEntity : TurboEntity
 {
-    public const int COUNTED_MAX_LENGTH = 1024;
+    /// <summary>The most rooms an explore task counts.</summary>
+    public const int COUNTED_MAX = 100;
 
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
@@ -33,9 +37,9 @@ public class PlayerDailyTaskEntity : TurboEntity
     [DefaultValue(0)]
     public int Repeats { get; set; }
 
+    /// <summary>An explore task's rooms already counted today, so a room counts once.</summary>
     [Column("counted")]
-    [StringLength(COUNTED_MAX_LENGTH)]
-    public string Counted { get; set; } = "";
+    public List<string> Counted { get; set; } = [];
 
     [Column("status")]
     [DefaultValue(DailyTaskStatus.Active)]

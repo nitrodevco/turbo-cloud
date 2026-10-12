@@ -230,7 +230,9 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
         if (cost.Count > 0)
         {
-            var debit = await _grainFactory.GetPlayerWalletGrain(PlayerId).TryDebitAsync(cost, ct);
+            var debit = await _grainFactory
+                .GetPlayerWalletGrain(PlayerId)
+                .TryDebitAsync(cost, new WalletChange(WalletChangeReason.GroupCreation), ct);
 
             if (!debit.Succeeded)
                 return GuildCreationResultSnapshot.Failed(
@@ -270,6 +272,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                     GuildEntityId = 0,
                     PlayerEntityId = PlayerId.Value,
                     Rank = GuildMemberRank.Owner,
+                    JoinedAt = DateTime.UtcNow,
                     // Their first group becomes the badge they wear; a later one does not take
                     // the place of a badge they chose.
                     IsFavourite = _state.FavouriteGuildId is null,

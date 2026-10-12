@@ -8,8 +8,12 @@ namespace Turbo.Database.Entities.Navigator;
 /// A room the hotel offers new players as a starter room (<c>:starterroom add</c>): each player who
 /// picks it gets a copy. Its room id is the room type the client offers.
 /// </summary>
-[Table("starter_rooms")]
+[Table("room_starters")]
+[Comment(
+    "Rooms the hotel offers new players as starter rooms; each player who picks one gets a copy."
+)]
 [Index(nameof(RoomEntityId), IsUnique = true)]
+[Index(nameof(CreatedByPlayerId))]
 public class StarterRoomEntity : TurboEntity
 {
     /// <summary>The room copied; the row goes when the room does.</summary>
@@ -32,10 +36,15 @@ public class StarterRoomEntity : TurboEntity
     [Column("picture_taken_at")]
     public System.DateTime? PictureTakenAt { get; set; }
 
+    /// <summary>Who offered it; kept empty once that player is deleted.</summary>
     [Column("created_by_player_id")]
     public int? CreatedByPlayerId { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]
     [DeleteBehavior(DeleteBehavior.Cascade)]
     public RoomEntity RoomEntity { get; set; } = null!;
+
+    [ForeignKey(nameof(CreatedByPlayerId))]
+    [DeleteBehavior(DeleteBehavior.SetNull)]
+    public Players.PlayerEntity? CreatedByPlayer { get; set; }
 }

@@ -30,6 +30,9 @@ public readonly record struct ActionContext(
     public static ActionContext CreateForPlayer(PlayerId playerId, RoomId roomId) =>
         new(ActionOrigin.Player, SessionKey.Invalid, playerId, roomId);
 
+    public static ActionContext CreateForPanel(PlayerId playerId, RoomId roomId) =>
+        new(ActionOrigin.Panel, SessionKey.Invalid, playerId, roomId);
+
     public static ActionContext CreateForObjectContext(IRoomObjectContext ctx) =>
         ctx switch
         {

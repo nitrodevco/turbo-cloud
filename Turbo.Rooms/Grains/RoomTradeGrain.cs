@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -378,7 +379,12 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
         var toPartner = await _grainFactory
             .GetInventoryGrain(session.InitiatorId)
-            .TransferFurnitureAsync(initiatorItems, session.PartnerId, ct);
+            .TransferFurnitureAsync(
+                initiatorItems,
+                session.PartnerId,
+                FurnitureTransferReason.Trade,
+                ct
+            );
 
         if (!toPartner)
         {
@@ -389,14 +395,24 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
         var toInitiator = await _grainFactory
             .GetInventoryGrain(session.PartnerId)
-            .TransferFurnitureAsync(partnerItems, session.InitiatorId, ct);
+            .TransferFurnitureAsync(
+                partnerItems,
+                session.InitiatorId,
+                FurnitureTransferReason.Trade,
+                ct
+            );
 
         if (!toInitiator)
         {
             // The first half already moved; hand it back rather than leave a one-sided trade.
             var returned = await _grainFactory
                 .GetInventoryGrain(session.PartnerId)
-                .TransferFurnitureAsync(initiatorItems, session.InitiatorId, ct);
+                .TransferFurnitureAsync(
+                    initiatorItems,
+                    session.InitiatorId,
+                    FurnitureTransferReason.TradeUndone,
+                    ct
+                );
 
             if (!returned)
                 _logger.LogError(

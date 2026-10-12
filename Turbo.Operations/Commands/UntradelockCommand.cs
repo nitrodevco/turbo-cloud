@@ -3,11 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record UntradelockArguments(PlayerTarget Who);
+public sealed record UntradelockArguments(PlayerTarget Who, RestOfLine? Reason = null);
 
 /// <summary>
 /// <c>:untradelock name</c>. Lifts a trade lock, however it was given. Whoever may lock may lift.
@@ -18,7 +20,7 @@ public sealed record UntradelockArguments(PlayerTarget Who);
     Category = CommandCategories.MODERATION
 )]
 [RequiresPermission(PermissionNodes.Command.TRADELOCK)]
-public sealed class UntradelockCommand(IGrainFactory grainFactory)
+public sealed class UntradelockCommand(IGrainFactory grainFactory, IModerationLog moderationLog)
     : IOperatorCommand<UntradelockArguments>
 {
     private const string LIFTED = "lifted";
@@ -53,6 +55,14 @@ public sealed class UntradelockCommand(IGrainFactory grainFactory)
         );
         if (!changed)
             return CommandResult.Fail(NOT_LOCKED, target.Name);
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.TradeUnlock,
+            target.Id,
+            ct,
+            CommandModeration.ReasonOf(arguments.Reason)
+        );
 
         await ctx.NotifyAsync(
             target.Id,

@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Players muted in a room, and until when.")]
 [Table("room_mutes")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class RoomMuteEntity : TurboEntity
@@ -15,7 +16,7 @@ public class RoomMuteEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("date_expires")]
+    [Column("expires_at")]
     public required DateTime DateExpires { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]

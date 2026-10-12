@@ -186,13 +186,11 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
         {
             case DailyTaskTypes.EXPLORE when activity == DailyTaskActivity.RoomVisit:
             {
-                var counted = task.Counted.Length == 0 ? [] : task.Counted.Split(',');
-
-                if (counted.Contains(value))
+                if (task.Counted.Contains(value))
                     return false;
 
-                task.Counted = string.Join(',', [.. counted, value]);
-                task.Repeats = counted.Length + 1;
+                task.Counted = [.. task.Counted, value];
+                task.Repeats = task.Counted.Count;
 
                 return true;
             }
@@ -208,11 +206,8 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
         }
     }
 
-    private static string[] Targets(DailyTaskDefinitionEntity definition) =>
-        definition.Target.Split(
-            ',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-        );
+    private static IEnumerable<string> Targets(DailyTaskDefinitionEntity definition) =>
+        definition.Targets.Select(x => x.Trim()).Where(x => x.Length > 0);
 
     /// <summary>
     /// Whether a definition can be given: a kind the server counts, a target for a find task,
@@ -222,11 +217,9 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
     {
         var countable = definition.QuestType switch
         {
-            // Each counted room takes its id and a comma.
             DailyTaskTypes.EXPLORE => definition.RequiredRepeats
-                * (int.MaxValue.ToString(CultureInfo.InvariantCulture).Length + 1)
-                <= PlayerDailyTaskEntity.COUNTED_MAX_LENGTH,
-            DailyTaskTypes.FIND_FURNI => Targets(definition).Length > 0,
+                <= PlayerDailyTaskEntity.COUNTED_MAX,
+            DailyTaskTypes.FIND_FURNI => Targets(definition).Any(),
             _ => false,
         };
         var grantable =
@@ -424,6 +417,7 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
                         CurrencyKind.ActivityPoints(pointType),
                         amount,
                         CREDIT_REFERENCE_PREFIX + task.Id.ToString(CultureInfo.InvariantCulture),
+                        new WalletChange(WalletChangeReason.DailyTask),
                         ct
                     );
 

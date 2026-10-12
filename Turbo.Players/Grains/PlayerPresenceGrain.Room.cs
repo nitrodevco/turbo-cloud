@@ -90,7 +90,7 @@ internal sealed partial class PlayerPresenceGrain
                     new()
                     {
                         Source = AchievementSources.VISIT,
-                        OperationId = Guid.NewGuid().ToString("N"),
+                        OperationId = Guid.CreateVersion7().ToString("N"),
                         OccurredAtUtc = DateTime.UtcNow,
                         Value = roomId.Value.ToString(
                             System.Globalization.CultureInfo.InvariantCulture

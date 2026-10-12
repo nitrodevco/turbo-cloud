@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Players' votes on rooms.")]
 [Table("room_ratings")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class RoomRatingEntity : TurboEntity

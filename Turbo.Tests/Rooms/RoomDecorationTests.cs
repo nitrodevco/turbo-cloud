@@ -43,7 +43,6 @@ public sealed class RoomDecorationTests : IDisposable
                 Name = "owner",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -67,14 +66,13 @@ public sealed class RoomDecorationTests : IDisposable
                 PlayerEntityId = OWNER,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 PaintWall = "101",
                 WallHeight = -1,
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,

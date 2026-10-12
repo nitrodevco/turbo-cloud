@@ -115,4 +115,7 @@ internal sealed class RoomLiveState
 
     /// <summary>When the room next hands what changed to its persistence grain.</summary>
     public long NextPersistenceBoundaryMs { get; set; } = 0;
+
+    /// <summary>When an entry last stamped <c>rooms.last_active_at</c>, on the room's clock.</summary>
+    public long? LastActiveStampedMs { get; set; }
 }

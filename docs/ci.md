@@ -21,7 +21,11 @@ paths. Successful builds do not upload these diagnostics.
 
 Dependabot checks GitHub Actions and NuGet weekly, grouping minor/patch updates
 per ecosystem. Major upgrades remain separate, with EF major upgrades held until
-the MySQL provider is compatible. Dependency PRs still require review.
+the Npgsql provider is compatible. Dependency PRs still require review.
+
+The Linux job starts a PostgreSQL 16 container and sets `TURBO_TEST_POSTGRES`, so
+`PostgresMigrationTests` run against a real server there; on Windows and macOS
+they skip.
 
 Local workflow validation: `actionlint .github/workflows/quality.yml`.
 The existing `TurboCloudFastCheck` and `TurboCloudQualityGate` MSBuild targets

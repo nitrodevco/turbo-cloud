@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -413,6 +415,13 @@ public sealed class RoomSecurityModule(
             return;
 
         await RevokeRightsAsync(playerId, ctx.PlayerId, ct);
+
+        await ModerationModule.RecordAsync(
+            ctx,
+            ModerationActionType.RoomRightsRemoved,
+            playerId,
+            ct
+        );
     }
 
     public async Task RemoveAllRightsAsync(ActionContext ctx, CancellationToken ct)
@@ -442,6 +451,14 @@ public sealed class RoomSecurityModule(
 
         foreach (var playerId in playerIds)
             await RefreshControllerLevelForPlayerAsync(playerId, ct);
+
+        await ModerationModule.RecordAsync(
+            ctx,
+            ModerationActionType.RoomRightsRemovedAll,
+            null,
+            ct,
+            detail: playerIds.Count.ToString(CultureInfo.InvariantCulture)
+        );
 
         // One entry per player for the actor's open rights list, as one batch to one player: the
         // list overload is the sanctioned direct presence call (see AGENTS.md), and it keeps order.

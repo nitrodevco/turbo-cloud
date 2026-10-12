@@ -17,26 +17,28 @@ namespace Turbo.Tests.Database;
 
 /// <summary>
 /// The emulator's own migrations and how they are wired, with no database server: the model has
-/// not drifted from its migrations (a changed entity with no migration is the "Unknown column"
+/// not drifted from its migrations (a changed entity with no migration is the "column does not exist"
 /// that stops every login), the SQL for a database can be written offline, and the migrator is
 /// built from the configuration.
 /// </summary>
 public sealed class CoreMigrationsTests
 {
     // Nothing listens on port 1: if anything tries to connect, the test fails at once.
-    private const string UNREACHABLE = "server=127.0.0.1;port=1;user=x;password=x;database=turbo";
+    private const string UNREACHABLE =
+        "Host=127.0.0.1;Port=1;Username=x;Password=x;Database=turbo;Timeout=2";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static TurboDbContext OfflineContext() =>
+    internal static TurboDbContext OfflineContext() =>
         new(
-            new DbContextOptionsBuilder<TurboDbContext>()
-                .UseMySql(
-                    UNREACHABLE,
-                    new MySqlServerVersion(new Version(8, 4, 0)),
-                    mysql => mysql.MigrationsAssembly("Turbo.Database")
-                )
-                .Options
+            (
+                (DbContextOptionsBuilder<TurboDbContext>)
+                    ServiceCollectionExtensions.UseTurboPostgres(
+                        new DbContextOptionsBuilder<TurboDbContext>(),
+                        new DatabaseConfig { ConnectionString = UNREACHABLE },
+                        npgsql => npgsql.MigrationsAssembly("Turbo.Database")
+                    )
+            ).Options
         );
 
     [Fact]
@@ -71,12 +73,13 @@ public sealed class CoreMigrationsTests
         // A deleted_at the database stamps on every write made every row look deleted, and the
         // queries that skipped deleted rows found nothing.
         columns.Should().NotContain(x => x.Column == "deleted_at");
-        // An asset bundle's is set by the sync and shown in the panel's list.
+        // An asset bundle's is set by the sync and shown in the panel's list; a subscription's is
+        // read back into its snapshot. A player's "last seen" is its own column, last_seen_at.
         columns
             .Where(x => x.Column == "updated_at")
             .Select(x => x.Table)
             .Should()
-            .BeEquivalentTo(["players", "player_subscriptions", "asset_bundles"]);
+            .BeEquivalentTo(["player_subscriptions", "asset_bundles"]);
     }
 
     /// <summary>
@@ -95,15 +98,70 @@ public sealed class CoreMigrationsTests
             .SelectMany(entity => entity.GetProperties())
             .Where(property =>
                 property.ClrType.IsValueType
-                && property.GetDefaultValue() is not null
+                // A created_at's default is SQL (CURRENT_TIMESTAMP), the database's to stamp.
+                && property.FindAnnotation(RelationalAnnotationNames.DefaultValue) is not null
                 && !property.IsPrimaryKey()
-                // A created_at is MySQL's to stamp (CURRENT_TIMESTAMP), never the code's.
-                && property.GetValueGenerationStrategy() == MySqlValueGenerationStrategy.None
                 && property.ValueGenerated != ValueGenerated.Never
             )
             .Select(property => $"{property.DeclaringType.DisplayName()}.{property.Name}");
 
         dropped.Should().BeEmpty("EF would store the database default in place of the CLR default");
+    }
+
+    /// <summary>
+    /// The shape the audit asked for: logs a busy hotel writes by the million have 64-bit ids and
+    /// no foreign keys (so they outlive the rooms they name), receipts say when they were written so
+    /// they can be purged, and player and group rows go with their player or group.
+    /// </summary>
+    [Fact]
+    public void LogsAreWide_ReceiptsAreDated_AndOwnedRowsGoWithTheirOwner()
+    {
+        using var db = OfflineContext();
+        var tables = db
+            .Model.GetEntityTypes()
+            .Where(x => x.GetTableName() is not null)
+            .ToDictionary(x => x.GetTableName()!);
+
+        foreach (
+            var log in new[]
+            {
+                "room_chat_logs",
+                "room_entry_logs",
+                "messenger_messages",
+                "moderation_command_logs",
+            }
+        )
+            tables[log]
+                .FindPrimaryKey()!
+                .Properties.Single()
+                .ClrType.Should()
+                .Be(typeof(long), log);
+
+        tables["room_chat_logs"].GetForeignKeys().Should().BeEmpty();
+        tables["room_entry_logs"].GetForeignKeys().Should().BeEmpty();
+
+        foreach (
+            var receipts in new[]
+            {
+                "player_respects",
+                "player_respect_changes",
+                "pet_respects",
+                "pet_feedings",
+                "achievement_wallet_receipts",
+                "player_wallet_credit_receipts",
+            }
+        )
+            tables[receipts]
+                .GetProperties()
+                .Should()
+                .Contain(x => x.GetColumnName() == "created_at", receipts);
+
+        static string[] Owners(IEntityType table) =>
+            [.. table.GetForeignKeys().Select(x => x.PrincipalEntityType.GetTableName()!)];
+
+        Owners(tables["player_quests"]).Should().Contain("players");
+        Owners(tables["guild_forum_threads"]).Should().Contain("guilds");
+        Owners(tables["guild_forum_read_markers"]).Should().Contain(["guilds", "players"]);
     }
 
     [Fact]
@@ -116,8 +174,8 @@ public sealed class CoreMigrationsTests
         foreach (var id in db.GetService<IMigrationsAssembly>().Migrations.Keys)
             script.Should().Contain(id);
 
-        script.Should().Contain("CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory`");
-        script.Should().Contain("IF NOT EXISTS(SELECT 1 FROM `__EFMigrationsHistory`");
+        script.Should().Contain("CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\"");
+        script.Should().Contain("IF NOT EXISTS(SELECT 1 FROM \"__EFMigrationsHistory\"");
     }
 
     [Fact]
@@ -134,14 +192,13 @@ public sealed class CoreMigrationsTests
     }
 
     [Fact]
-    public void TheMigratorIsBuiltFromTheConfiguration_AndNeedsNoServerToStartWhenTheVersionIsGiven()
+    public void TheMigratorIsBuiltFromTheConfiguration_AndNeedsNoServerToStart()
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
                 ["Turbo:Database:ConnectionString"] = UNREACHABLE,
-                ["Turbo:Database:ServerVersion"] = "mysql 8.4.0",
                 ["Turbo:Database:Migrate"] = "check",
                 ["Turbo:Database:AllowDestructiveMigrations"] = "true",
                 ["Turbo:Database:MigrationLockSeconds"] = "5",
@@ -152,13 +209,13 @@ public sealed class CoreMigrationsTests
 
         var config = provider.GetRequiredService<IOptions<DatabaseConfig>>().Value;
         provider.GetRequiredService<DatabaseMigrator>().Should().NotBeNull();
-        provider.GetRequiredService<IMigrationLock>().Should().BeOfType<MySqlMigrationLock>();
+        provider.GetRequiredService<IMigrationLock>().Should().BeOfType<PostgresMigrationLock>();
 
         config.Migrate.Should().Be(MigrationMode.Check);
         config.AllowDestructiveMigrations.Should().BeTrue();
         config.MigrationLockSeconds.Should().Be(5);
 
-        // A context from the factory is made without asking the server what version it is.
+        // A context from the factory is made without connecting to the server.
         using var db = provider
             .GetRequiredService<IDbContextFactory<TurboDbContext>>()
             .CreateDbContext();
@@ -175,7 +232,6 @@ public sealed class CoreMigrationsTests
         config.AllowDestructiveMigrations.Should().BeFalse();
         config.MigrationLockSeconds.Should().Be(60);
         config.MigrationCommandTimeoutMinutes.Should().Be(30);
-        config.ServerVersion.Should().BeEmpty();
     }
 
     [Theory]
@@ -213,23 +269,19 @@ public sealed class CoreMigrationsTests
         config.AllowDestructiveMigrations.Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData("db", "turbo:migrate:db")]
-    [InlineData("", "turbo:migrate:")]
-    [InlineData(null, "turbo:migrate:")]
-    public void TheLockIsNamedAfterTheDatabase(string? database, string expected) =>
-        MySqlMigrationLock.NameFor(database).Should().Be(expected);
-
+    /// <summary>
+    /// The advisory lock is server-wide, so each database has its own key: two hotels on one
+    /// server migrate side by side, and two servers of one hotel take turns.
+    /// </summary>
     [Fact]
-    public void ALongDatabaseNameStillMakesAUsableLockName_OneEachAndTheSameEveryTime()
+    public void EachDatabaseHasItsOwnLockKey_TheSameEveryTime()
     {
-        var a = MySqlMigrationLock.NameFor(new string('a', 64));
-        var b = MySqlMigrationLock.NameFor(new string('a', 63) + "b");
+        var a = PostgresMigrationLock.KeyFor(new string('a', 64));
+        var b = PostgresMigrationLock.KeyFor(new string('a', 63) + "b");
 
-        a.Length.Should().BeLessThanOrEqualTo(64);
-        b.Length.Should().BeLessThanOrEqualTo(64);
         a.Should().NotBe(b);
-        a.Should().Be(MySqlMigrationLock.NameFor(new string('a', 64)));
+        a.Should().Be(PostgresMigrationLock.KeyFor(new string('a', 64)));
+        PostgresMigrationLock.KeyFor(null).Should().Be(PostgresMigrationLock.KeyFor(""));
     }
 
     [Fact]
@@ -239,7 +291,7 @@ public sealed class CoreMigrationsTests
         using var db = OfflineContext();
         var migrator = new DatabaseMigrator(
             Options.Create(new DatabaseConfig()),
-            new MySqlMigrationLock(),
+            new PostgresMigrationLock(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<DatabaseMigrator>.Instance
         );
 

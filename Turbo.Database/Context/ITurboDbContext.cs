@@ -11,7 +11,6 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
-using Turbo.Database.Entities.Tracking;
 
 namespace Turbo.Database.Context;
 
@@ -93,11 +92,9 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<NavigatorEventCategoryEntity>? NavigatorEventCategories { get; set; }
 
-    public DbSet<PlayerChatStyleEntity>? PlayerChatStyles { get; set; }
+    public DbSet<ChatStyleEntity>? ChatStyles { get; set; }
 
     public DbSet<PlayerChatStyleOwnedEntity>? PlayerOwnedChatStyles { get; set; }
-
-    public DbSet<PerformanceLogEntity>? PerformanceLogs { get; set; }
 
     public DbSet<PlayerFavoriteRoomsEntity>? PlayerFavouriteRooms { get; set; }
 

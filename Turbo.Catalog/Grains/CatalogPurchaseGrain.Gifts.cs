@@ -76,7 +76,7 @@ internal sealed partial class CatalogPurchaseGrain
         if (paidWrapping)
             AddWrappingPrice(debitRequests, wrapping.Price);
 
-        await DebitAsync(debitRequests, ct);
+        await DebitAsync(debitRequests, $"gift of offer {offer.Id}", ct);
 
         try
         {

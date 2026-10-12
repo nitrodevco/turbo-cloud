@@ -7,6 +7,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Catalog;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
@@ -73,11 +74,19 @@ public class PurchaseFromCatalogMessageHandler(
             return;
         }
 
+        // The client's own alert: "Sold Out! This Limited Edition Rare is already sold out."
+        if (result.Error == LtdRaffleEntryErrorType.SoldOut)
+        {
+            await ctx.SendComposerAsync(new LimitedEditionSoldOutEventMessageComposer(), ct)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         var errorType = result.Error switch
         {
             LtdRaffleEntryErrorType.AlreadyWon => CatalogPurchaseErrorType.LtdPurchasesLimited,
             LtdRaffleEntryErrorType.RaffleProcessing => CatalogPurchaseErrorType.RaffleOngoing,
-            LtdRaffleEntryErrorType.SoldOut => CatalogPurchaseErrorType.OfferNotFound,
             LtdRaffleEntryErrorType.InsufficientFunds => CatalogPurchaseErrorType.NotEnoughCredits,
             LtdRaffleEntryErrorType.RequiresHabboClub => CatalogPurchaseErrorType.RequiresHabboClub,
             _ => CatalogPurchaseErrorType.PurchaseFailed,

@@ -15,6 +15,7 @@ using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Inventory.Grains.Modules;
@@ -212,7 +213,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                         new()
                         {
                             Source = AchievementSources.PET_LEVEL,
-                            OperationId = Guid.NewGuid().ToString("N"),
+                            OperationId = Guid.CreateVersion7().ToString("N"),
                             Amount = returnedPet.Level - previousPet.Level,
                             OccurredAtUtc = DateTime.UtcNow,
                         }
@@ -280,7 +281,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                     new()
                     {
                         Source = AchievementSources.PETS,
-                        OperationId = Guid.NewGuid().ToString("N"),
+                        OperationId = Guid.CreateVersion7().ToString("N"),
                         Amount = owned + 1,
                         OccurredAtUtc = DateTime.UtcNow,
                     }
@@ -314,8 +315,8 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
             // Keep the recipient row available until a durably admitted respect finishes.
             if (
                 typeof(TEntity) == typeof(PetEntity)
-                && await dbCtx.PetRespectOperations.AnyAsync(
-                    x => x.PetId == id && !x.Completed && !x.Rejected,
+                && await dbCtx.PetRespects.AnyAsync(
+                    x => x.PetId == id && x.Status == RespectStatus.Pending,
                     ct
                 )
             )

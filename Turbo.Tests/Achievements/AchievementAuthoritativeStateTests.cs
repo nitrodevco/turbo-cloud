@@ -194,7 +194,6 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
             CreatedAt = DateTime.UtcNow.AddDays(-30),
         };
 
@@ -238,13 +237,12 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             PlayerEntityId = ownerId,
             DoorMode = doorMode,
             RoomModelEntityId = 1,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = false,
+            AllowWalkThrough = false,
             AllowPets = false,
             AllowPetsEat = false,
             TradeType = RoomTradeModeType.Disabled,

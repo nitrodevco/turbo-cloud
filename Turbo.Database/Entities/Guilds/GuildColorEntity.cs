@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// <see cref="ColorId"/> is the number written into a badge code and must stay put; the hex
 /// behind it may be retuned freely, and every badge using it repaints.
 /// </summary>
+[Comment("A colour the badge editor may pick, from one of its three palettes.")]
 [Table("guild_colors")]
 [Index(nameof(Slot), nameof(ColorId), IsUnique = true)]
 public class GuildColorEntity : TurboEntity

@@ -93,10 +93,10 @@ public static class PlayerEntityExtensions
             Enabled = entity.Enabled,
         };
 
-    public static ChatStyleSnapshot ToSnapshot(this PlayerChatStyleEntity entity) =>
+    public static ChatStyleSnapshot ToSnapshot(this ChatStyleEntity entity) =>
         new()
         {
-            ClientStyleId = entity.ClientStyleId,
+            ClientStyleId = entity.Id,
             ClubOnly = entity.ClubOnly,
             AmbassadorOnly = entity.AmbassadorOnly,
             StaffOnly = entity.StaffOnly,

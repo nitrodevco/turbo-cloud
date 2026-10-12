@@ -71,7 +71,7 @@ public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
                     TradeMode = room.TradeType,
                     AllowPets = room.AllowPets,
                     AllowFoodConsume = room.AllowPetsEat,
-                    AllowWalkThrough = room.AllowBlocking,
+                    AllowWalkThrough = room.AllowWalkThrough,
                     HideWalls = room.HideWalls,
                     WallThickness = room.WallThickness,
                     FloorThickness = room.FloorThickness,

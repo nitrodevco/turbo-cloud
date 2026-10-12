@@ -297,7 +297,7 @@ public sealed partial class RoomMapModule
                 room.PlayerEntityId,
                 new AchievementFact
                 {
-                    OperationId = $"floor-plan:{Guid.NewGuid():N}",
+                    OperationId = $"floor-plan:{Guid.CreateVersion7():N}",
                     Source = AchievementSources.FLOOR_HEIGHTS,
                     OccurredAtUtc = DateTime.UtcNow,
                     Amount = AchievementRoomCriteria.CountFloorHeights(modelData),

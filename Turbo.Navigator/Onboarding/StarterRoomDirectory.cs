@@ -20,7 +20,7 @@ using Turbo.Primitives.Settings;
 namespace Turbo.Navigator.Onboarding;
 
 /// <summary>
-/// <see cref="IStarterRoomDirectory"/> over <c>starter_rooms</c>. After every change the client's
+/// <see cref="IStarterRoomDirectory"/> over <c>room_starters</c>. After every change the client's
 /// side is written again: <c>new.user.flow.roomTypes</c> lists the rooms' ids in picker order,
 /// <c>new.user.flow.room.image.url</c> points at the gamedata host's
 /// <c>/starter-rooms/%type%.png</c>, and each room's <c>room.name.&lt;id&gt;</c> and

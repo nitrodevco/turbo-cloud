@@ -30,7 +30,7 @@ public sealed class PlayerAccountService(
 ) : IPlayerAccountService
 {
     public const int MOTTO_MAX_LENGTH = 38;
-    public const int FIGURE_MAX_LENGTH = 279;
+    public const int FIGURE_MAX_LENGTH = PlayerEntity.FIGURE_MAX_LENGTH;
 
     /// <summary>
     /// The figure a new player wears when none is given, by gender: clothing and colours anyone
@@ -76,7 +76,6 @@ public sealed class PlayerAccountService(
             Motto = motto,
             Figure = figure,
             Gender = player.Gender,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
         // Made while the new user flow is on: its steps wait for their first login.

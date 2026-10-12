@@ -173,8 +173,6 @@ public sealed class AdminChatlogQueriesTests : IDisposable
             RoomEntityId = roomId,
             TargetPlayerEntityId = target,
             Message = message,
-            PlayerEntity = null!,
-            RoomEntity = null!,
         };
 
     private static PlayerEntity Player(int id, string name) =>
@@ -184,7 +182,6 @@ public sealed class AdminChatlogQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static RoomEntity Room(int id, string name) =>
@@ -195,13 +192,12 @@ public sealed class AdminChatlogQueriesTests : IDisposable
             PlayerEntityId = ALICE,
             RoomModelEntityId = 1,
             DoorMode = RoomDoorModeType.Open,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = true,
+            AllowWalkThrough = true,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

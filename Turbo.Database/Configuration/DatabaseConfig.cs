@@ -12,10 +12,40 @@ public class DatabaseConfig
 {
     public const string SECTION_NAME = "Turbo:Database";
 
-    /// <summary>The MySQL or MariaDB connection string, its password included.</summary>
+    /// <summary>The PostgreSQL connection string, its password included.</summary>
     [SecretSetting]
     public string ConnectionString { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The connection string migrations run with, when the server's own role may not change the
+    /// schema (<c>docs/database.md</c>, "A role for the server, and one for migrations"). Empty:
+    /// migrations use <see cref="ConnectionString"/>. Used for the emulator's tables, every
+    /// plugin's, and a plugin's uninstall; nothing else.
+    /// </summary>
+    [SecretSetting]
+    public string MigrationConnectionString { get; init; } = string.Empty;
+
     public bool LoggingEnabled { get; init; } = false;
+
+    /// <summary>
+    /// How many of its most used statements each connection keeps prepared, so PostgreSQL plans
+    /// them once rather than every time (Npgsql's automatic preparation): measured on the
+    /// inventory and room loads and the wallet update, 20 to 32% faster. 0 turns it off, which a
+    /// pooler in transaction mode older than PgBouncer 1.21 needs. A <c>Max Auto Prepare</c> in
+    /// the connection string wins.
+    /// </summary>
+    public int MaxAutoPrepare { get; init; } = 50;
+
+    /// <summary>
+    /// The most connections the server holds open at once; past it, a query waits for one to
+    /// come free. Npgsql's own default is 100, but PostgreSQL's default <c>max_connections</c>
+    /// of 100 keeps 3 for superusers, so a burst (hundreds of grains saving as the server stops)
+    /// was refused with "too many clients" and its writes lost. Measured with 500 players saving
+    /// at once: 1 to 2 writes of 1,500 lost at 100, none at 50. Keep it below what the server
+    /// allows this role, with room for the panel, backups and psql. A <c>Maximum Pool Size</c>
+    /// in the connection string wins; 0 leaves Npgsql's default.
+    /// </summary>
+    public int MaxPoolSize { get; init; } = 50;
 
     /// <summary>
     /// What the server does about migrations at startup, for its own tables and for each plugin's:
@@ -39,11 +69,4 @@ public class DatabaseConfig
     /// ALTER on a table with millions of rows.
     /// </summary>
     public int MigrationCommandTimeoutMinutes { get; init; } = 30;
-
-    /// <summary>
-    /// The database server, such as <c>mysql 8.4.0</c> or <c>mariadb 11.4.0</c>, instead of asking
-    /// it at startup. Lets <c>Turbo.Main migrate --script</c> write the SQL without a connection.
-    /// Empty asks the server.
-    /// </summary>
-    public string ServerVersion { get; init; } = string.Empty;
 }

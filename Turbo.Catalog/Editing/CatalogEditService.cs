@@ -781,8 +781,8 @@ public sealed partial class CatalogEditService(
 
         // One statement against the row as it is, not as it was read: the raffle sells from it
         // at any moment, and what is left moves by as much as the total, so no serial is lost
-        // or given twice. Each column is set from its own old value only, as MySQL reads back
-        // what a statement has already set; the total being the one read keeps the step right.
+        // or given twice. Each column is set from its own old value only, so the statement means
+        // the same on any database; the total being the one read keeps the step right.
         var saved = await db
             .LtdSeries.Where(x =>
                 x.Id == series.Id

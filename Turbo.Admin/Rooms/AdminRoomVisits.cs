@@ -44,9 +44,14 @@ public sealed class AdminRoomVisits(IDbContextFactory<TurboDbContext> database)
             .Take(LIMIT)
             .Select(x => new RoomVisitItem(
                 x.PlayerEntityId,
-                x.PlayerEntity != null ? x.PlayerEntity.Name : "",
+                // The log outlives the player and the room, so either can be gone.
+                db.Players.Where(p => p.Id == x.PlayerEntityId)
+                    .Select(p => p.Name)
+                    .FirstOrDefault()
+                    ?? "",
                 x.RoomEntityId,
-                x.RoomEntity != null ? x.RoomEntity.Name : "",
+                db.Rooms.Where(r => r.Id == x.RoomEntityId).Select(r => r.Name).FirstOrDefault()
+                    ?? "",
                 x.CreatedAt
             ))
             .ToListAsync(ct)

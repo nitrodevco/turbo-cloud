@@ -3,11 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record UnsilenceArguments(PlayerTarget Who);
+public sealed record UnsilenceArguments(PlayerTarget Who, RestOfLine? Reason = null);
 
 /// <summary>
 /// <c>:unsilence name</c>. Lifts a hotel silence, however it was given. Whoever may silence may
@@ -19,7 +21,7 @@ public sealed record UnsilenceArguments(PlayerTarget Who);
     Category = CommandCategories.MODERATION
 )]
 [RequiresPermission(PermissionNodes.Command.SILENCE)]
-public sealed class UnsilenceCommand(IGrainFactory grainFactory)
+public sealed class UnsilenceCommand(IGrainFactory grainFactory, IModerationLog moderationLog)
     : IOperatorCommand<UnsilenceArguments>
 {
     private const string LIFTED = "lifted";
@@ -54,6 +56,14 @@ public sealed class UnsilenceCommand(IGrainFactory grainFactory)
         );
         if (!changed)
             return CommandResult.Fail(NOT_SILENCED, target.Name);
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.Unsilence,
+            target.Id,
+            ct,
+            CommandModeration.ReasonOf(arguments.Reason)
+        );
 
         await ctx.NotifyAsync(
             target.Id,

@@ -37,8 +37,8 @@ directory, and `run`/`smoke` read it from there. Reports are written next to it 
 `provision` creates players named `<NamePrefix>0001`, `0002`, … (default prefix `lb_`). Each
 bot gets:
 
-- one `security_tickets` row with `is_locked = 1`, so the ticket survives login and the bot can
-  log in run after run (an unlocked ticket is deleted on use);
+- one `auth_login_tickets` row with `reusable = true`, so the ticket survives login and the bot can
+  log in run after run (any other ticket is used up by its login);
 - credits topped up to `Provision:Credits`;
 - the permission nodes in `Provision:GrantedPermissionNodes` (by default
   `room.floorplan.save_without_club` and `room.floorplan.large`, which the architects need).

@@ -9,6 +9,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One version of Habbo's figure data (<c>/gamedata/figuredata</c>, XML) as a check found it,
 /// gzipped, by its hash. Habbo changes it apart from its other files, so it is kept apart.
 /// </summary>
+[Comment(
+    "One version of Habbo's figure data (/gamedata/figuredata, XML) as a check found it, gzipped, by its hash."
+)]
 [Table("habbo_figure_versions")]
 [Index(nameof(Domain), nameof(Hash), IsUnique = true)]
 public class HabboFigureVersionEntity : TurboEntity

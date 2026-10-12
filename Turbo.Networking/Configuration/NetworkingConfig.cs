@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Turbo.Networking.Configuration;
 
 public class NetworkingConfig
@@ -23,4 +25,11 @@ public class NetworkingConfig
     /// disconnect anybody.
     /// </summary>
     public int SessionTimeoutMilliseconds { get; init; } = 60000;
+
+    /// <summary>
+    /// Proxies whose <c>X-Forwarded-For</c> names the player's real address, such as nginx in
+    /// front of the WebSocket on the same server. A connection from anywhere else is taken at
+    /// its own address, whatever header it sends.
+    /// </summary>
+    public List<string> TrustedProxies { get; init; } = ["127.0.0.1", "::1"];
 }

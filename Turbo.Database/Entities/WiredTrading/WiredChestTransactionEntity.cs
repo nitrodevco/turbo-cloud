@@ -12,6 +12,9 @@ namespace Turbo.Database.Entities.WiredTrading;
 /// database transaction as the move, so the logs never disagree with the chests. Rows are not
 /// tied to the room or player by foreign key: a log outlives both.
 /// </summary>
+[Comment(
+    "One thing that moved furni or credits into or out of wired chests, written in the same database transaction as the move, so the logs never disagree with the chests."
+)]
 [Table("wired_chest_transactions")]
 [Index(nameof(RoomId), nameof(Id))]
 public class WiredChestTransactionEntity

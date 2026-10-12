@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using MySqlConnector;
+using Npgsql;
 
 namespace Turbo.Database.Migrations;
 
@@ -26,14 +26,15 @@ public interface IMigrationLock
 }
 
 /// <summary>
-/// MySQL's and MariaDB's named lock (<c>GET_LOCK</c>), held on a connection of its own. Unlike a
-/// lock row or table, it is released by the server when that connection ends, so a migrator that
-/// is killed mid-way never leaves the next start waiting on a lock nobody holds.
+/// A PostgreSQL session advisory lock, held on a connection of its own to the server's
+/// maintenance database (the hotel's may not exist yet). Unlike a lock row or table, it is
+/// released by the server when that connection ends, so a migrator that is killed mid-way never
+/// leaves the next start waiting on a lock nobody holds.
 /// </summary>
-public sealed class MySqlMigrationLock : IMigrationLock
+public sealed class PostgresMigrationLock : IMigrationLock
 {
-    private const int MAX_NAME_LENGTH = 64;
     private const string PREFIX = "turbo:migrate:";
+    private static readonly TimeSpan RETRY = TimeSpan.FromMilliseconds(250);
 
     public async Task<IAsyncDisposable> AcquireAsync(
         string connectionString,
@@ -41,41 +42,33 @@ public sealed class MySqlMigrationLock : IMigrationLock
         CancellationToken ct
     )
     {
-        var builder = new MySqlConnectionStringBuilder(connectionString);
-        var name = NameFor(builder.Database);
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        var key = KeyFor(builder.Database);
 
-        // Named locks belong to the server, not a schema, and the database may not exist yet.
         // Pooling is off so that closing the connection really ends the session.
-        builder.Database = string.Empty;
+        builder.Database = "postgres";
         builder.Pooling = false;
 
-        var connection = new MySqlConnection(builder.ConnectionString);
+        var connection = new NpgsqlConnection(builder.ConnectionString);
 
         try
         {
             await connection.OpenAsync(ct).ConfigureAwait(false);
 
-            var command = connection.CreateCommand();
-            await using (command.ConfigureAwait(false))
+            var deadline = DateTime.UtcNow + timeout;
+
+            while (!await TryLockAsync(connection, key, ct).ConfigureAwait(false))
             {
-                command.CommandText = "SELECT GET_LOCK(@name, @seconds)";
-                command.Parameters.AddWithValue("@name", name);
-                command.Parameters.AddWithValue(
-                    "@seconds",
-                    (int)Math.Ceiling(timeout.TotalSeconds)
-                );
-                command.CommandTimeout = (int)timeout.TotalSeconds + 30;
-
-                var answer = await command.ExecuteScalarAsync(ct).ConfigureAwait(false);
-
-                if (answer is DBNull or null || Convert.ToInt64(answer) != 1)
+                if (DateTime.UtcNow >= deadline)
                     throw new MigrationException(
                         $"Another process has been migrating this database for more than {timeout.TotalSeconds:0} seconds "
                             + "(a second Turbo, or a deploy script). Wait for it to finish, or find and stop it."
                     );
+
+                await Task.Delay(RETRY, ct).ConfigureAwait(false);
             }
         }
-        catch (MySqlException ex)
+        catch (NpgsqlException ex)
         {
             await connection.DisposeAsync().ConfigureAwait(false);
 
@@ -91,20 +84,33 @@ public sealed class MySqlMigrationLock : IMigrationLock
             throw;
         }
 
-        return new Held(connection, name);
+        return new Held(connection, key);
     }
 
-    /// <summary>The lock's name for a schema: one per database, within MySQL's 64 character limit.</summary>
-    public static string NameFor(string? database)
+    /// <summary>The lock's key for a database: one per database name, as a 64-bit advisory key.</summary>
+    public static long KeyFor(string? database) =>
+        BitConverter.ToInt64(
+            SHA256.HashData(Encoding.UTF8.GetBytes(PREFIX + (database ?? string.Empty))),
+            0
+        );
+
+    private static async Task<bool> TryLockAsync(
+        NpgsqlConnection connection,
+        long key,
+        CancellationToken ct
+    )
     {
-        var name = PREFIX + (database ?? string.Empty);
+        var command = connection.CreateCommand();
+        await using (command.ConfigureAwait(false))
+        {
+            command.CommandText = "SELECT pg_try_advisory_lock(@key)";
+            command.Parameters.AddWithValue("key", key);
 
-        return name.Length <= MAX_NAME_LENGTH
-            ? name
-            : PREFIX + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(name)))[..32];
+            return await command.ExecuteScalarAsync(ct).ConfigureAwait(false) is true;
+        }
     }
 
-    private sealed class Held(MySqlConnection connection, string name) : IAsyncDisposable
+    private sealed class Held(NpgsqlConnection connection, long key) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {
@@ -113,13 +119,13 @@ public sealed class MySqlMigrationLock : IMigrationLock
                 var command = connection.CreateCommand();
                 await using (command.ConfigureAwait(false))
                 {
-                    command.CommandText = "SELECT RELEASE_LOCK(@name)";
-                    command.Parameters.AddWithValue("@name", name);
+                    command.CommandText = "SELECT pg_advisory_unlock(@key)";
+                    command.Parameters.AddWithValue("key", key);
 
                     await command.ExecuteScalarAsync().ConfigureAwait(false);
                 }
             }
-            catch (MySqlException)
+            catch (NpgsqlException)
             {
                 // The connection is closed next, which releases the lock either way.
             }

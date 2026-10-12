@@ -175,7 +175,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   FDC56515: SendFurnitureInventoryAsync(System.Threading.CancellationToken) -> Task
   012A55F6: SendPetInventoryAsync(System.Threading.CancellationToken) -> Task
   09C016D6: SendPetNameApprovalAsync(string, System.Threading.CancellationToken) -> Task
-  6BA6DC16: TransferFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
+  AA6B759E: TransferFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Inventory.FurnitureTransferReason, System.Threading.CancellationToken) -> Task<bool>
   A34BB15B: TryCheckOutBotAsync(int, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
   175A2ED5: TryCheckOutPetAsync(int, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
   70A61FB7: UnwrapPresentAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
@@ -218,7 +218,8 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] T
   30E4F44A: GetExtendedProfileSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerExtendedProfileSnapshot>
   213E1401: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot>
   FBEF7436: ReceiveRespectAsync(System.Threading.CancellationToken) -> Task<int>
-  D9CE1F18: ReceiveRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<int>
+  4666CCAE: ReceiveRespectOperationAsync(System.Guid, System.Threading.CancellationToken) -> Task<int>
+  D59C753E: RecordLoginOriginAsync(string?, string?, System.Threading.CancellationToken) -> Task
   F4E05759: RefitFigureAsync(System.Threading.CancellationToken) -> Task
   4C5177A0: ReplenishRespectAsync(System.Threading.CancellationToken) -> Task<bool>
   0650838E: SetAchievementTotalsAsync(int, int, System.Threading.CancellationToken) -> Task
@@ -226,8 +227,8 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] T
   97853E5F: SetFigureAsync(string, Turbo.Primitives.Rooms.Enums.AvatarGenderType, System.Threading.CancellationToken) -> Task
   B5AD8ECC: SetMottoAsync(string, System.Threading.CancellationToken) -> Task
   FC51897A: SetOnlineStatusAsync(bool, System.Threading.CancellationToken) -> Task
-  59025C5F: SpendPetRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<bool>
-  A146797F: SpendRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<bool>
+  9904AF2F: SpendPetRespectOperationAsync(System.Guid, System.Threading.CancellationToken) -> Task<bool>
+  7EF7CC70: SpendRespectOperationAsync(System.Guid, System.Threading.CancellationToken) -> Task<bool>
   F313E327: TryUsePetRespectAsync(System.Threading.CancellationToken) -> Task<bool>
   B5F55D30: TryUseRespectAsync(System.Threading.CancellationToken) -> Task<bool>
 
@@ -258,13 +259,13 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerWalletGrain")] Turbo.Primitives.Players.Grains.IPlayerWalletGrain [Version(0)]
   6FE41EA6: CreditAchievementAsync(string, Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
-  77F40F43: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
-  9FD63EC5: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletCreditResult>
-  85917D79: CreditRewardAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
+  5404B1E1: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, Turbo.Primitives.Players.Wallet.WalletChange, System.Threading.CancellationToken) -> Task<bool>
+  ACE26208: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, string, Turbo.Primitives.Players.Wallet.WalletChange, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletCreditResult>
+  C602686D: CreditRewardAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, Turbo.Primitives.Players.Wallet.WalletChange, System.Threading.CancellationToken) -> Task<bool>
   4D784270: DeliverPendingRewardsAsync(System.Threading.CancellationToken) -> Task
   19EE0FB8: GetActivityPointsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.Dictionary<int, int>>
   E63487B5: GetAmountForCurrencyAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, System.Threading.CancellationToken) -> Task<int>
-  27BF2E0D: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
+  606E9607: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, Turbo.Primitives.Players.Wallet.WalletChange, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain")] Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain [Version(0)]
   2B299D06: AcceptFriendRequestsAsync(System.Collections.Generic.List<int>, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerAcceptFriendFailure>>
@@ -289,7 +290,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayer
   55478B95: OnFriendRemovedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   57808C51: OnGuildMembershipsChangedAsync(System.Threading.CancellationToken) -> Task
   62020B9E: ReceieveFriendRequestAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
-  CBDE514A: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
+  F54AF3C3: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, long, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   3D427D61: ReceiveRoomInviteAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
   745A9E58: RecieveFriendUpdateAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   4A5359B1: RemoveFriendsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, System.Threading.CancellationToken) -> Task
@@ -438,7 +439,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   F8F69E06: ChangeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<bool>
   7B9EDF14: CheckEntryAccessAsync(Turbo.Primitives.Players.PlayerId, string?, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomEntryAccessType>
   984036F1: ClearPlayerEffectIfAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
-  C40E984C: ClearRoomBySystemAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<int>
+  4D53E83C: ClearRoomBySystemAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<int>
   CF85125F: ClearWiredErrorLogsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
   7A979098: ClickAvatarAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   D3D6972A: ClickItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken, int) -> Task<bool>
@@ -456,7 +457,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   DAE82BE2: DepositIntoWiredChestAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task<Turbo.Primitives.WiredTrading.Snapshots.WiredChestMoveResultSnapshot>
   F866B603: DropHandItemAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
   DD6F2D29: EnsureRoomActiveAsync(System.Threading.CancellationToken) -> Task
-  C0F567D6: EvictEveryoneAndUnloadAsync(System.Threading.CancellationToken) -> Task
+  9088A85E: EvictEveryoneAndUnloadAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task
   CB360794: GetActiveEventAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEventSnapshot?>
   FC781384: GetAllVariablesForBindingAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableBinding, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableValue)>>
   309B99F2: GetAvatarPositionAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Avatars.RoomAvatarPositionSnapshot?>
@@ -541,6 +542,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2DF5D49B: RespectPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   1C740797: RespectPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   4CF16EE3: RingDoorbellAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
+  AF098ADD: SaveAndUnloadAsync(System.Threading.CancellationToken) -> Task<bool>
   8300F4FE: SaveFloorPlanAsync(Turbo.Primitives.Action.ActionContext, string, Turbo.Primitives.Rooms.Snapshots.Mapping.FloorPlanPropertiesSnapshot?, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   B6DB48CF: SaveRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSaveResultSnapshot>
   8DC218E2: SaveRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsUpdateSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSaveResultSnapshot>
@@ -563,7 +565,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   F0E5A464: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.GuildMembershipStatus, string, System.Threading.CancellationToken) -> Task
   2153CAF5: SetPlayerHabboClubAsync(Turbo.Primitives.Players.PlayerId, System.DateTime?, System.Threading.CancellationToken) -> Task
   D4AD0169: SetPlayerPermissionsAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot, System.Threading.CancellationToken) -> Task
-  CCB393B3: SetRoomMutedBySystemAsync(bool, System.Threading.CancellationToken) -> Task<bool>
+  BC4D47BC: SetRoomMutedBySystemAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>
   2B5728FD: SetStaffPickAsync(bool, System.Threading.CancellationToken) -> Task
   CAA22F56: SetTagsAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   8146B8DB: SetTradingStatusAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
@@ -586,8 +588,8 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   D8D03AB5: WiredClickAvatarAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGrain")] Turbo.Primitives.Rooms.Grains.IRoomPersistenceGrain [Version(0)]
-  F8B51D2C: ApplyPetNutritionOperationAsync(string, int, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetNutritionOperationResult>
-  F1EB8252: ApplyPetRespectOperationAsync(string, Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetRespectOperationResult>
+  68770579: ApplyPetNutritionOperationAsync(System.Guid, int, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetNutritionOperationResult>
+  AAB00230: ApplyPetRespectOperationAsync(System.Guid, Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetRespectOperationResult>
   2F48AF9E: EnqueueChatlogsAsync(System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Chat.RoomChatlogSnapshot>, System.Threading.CancellationToken) -> Task
   A9A270FA: EnqueueCommandLogsAsync(System.Collections.Generic.List<Turbo.Primitives.Commands.Snapshots.CommandLogSnapshot>, System.Threading.CancellationToken) -> Task
   EBA32523: EnqueueDeletedItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task
@@ -596,6 +598,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGra
   1847F886: EnqueueDirtyItemsAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task
   64DB0503: EnqueueDirtyPetsAsync(System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
   9ACCF37C: InsertBuildersClubItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, int, System.Threading.CancellationToken) -> Task<bool>
+  86D5870C: SaveAllAsync(System.Threading.CancellationToken) -> Task<bool>
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomTradeGrain")] Turbo.Primitives.Rooms.Grains.IRoomTradeGrain [Version(0)]
   738A1DBC: AcceptAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>

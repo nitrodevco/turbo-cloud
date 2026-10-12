@@ -12,7 +12,8 @@ namespace Turbo.Database.Entities.Room;
 /// for a room never set up (official client, 2026-10-09, evidence raid.png): off, medium
 /// sensitivity, temporary ban for 15 minutes, door guard off for 15 minutes at medium.
 /// </summary>
-[Table("room_raid_protection")]
+[Comment("A room's raid protection settings.")]
+[Table("room_raid_protections")]
 [Index(nameof(RoomEntityId), IsUnique = true)]
 public class RoomRaidProtectionEntity : TurboEntity
 {

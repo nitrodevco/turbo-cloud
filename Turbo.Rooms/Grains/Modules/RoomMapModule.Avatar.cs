@@ -82,7 +82,7 @@ public sealed partial class RoomMapModule
             if (_roomGrain._state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
                 return true;
 
-            if (isGoal || _roomGrain._state.RoomSnapshot.AllowBlocking)
+            if (isGoal || !_roomGrain._state.RoomSnapshot.AllowWalkThrough)
                 return false;
         }
 

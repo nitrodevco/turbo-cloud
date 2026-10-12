@@ -20,6 +20,7 @@ internal sealed partial class PlayerWalletGrain
         CurrencyKind kind,
         int amount,
         string reference,
+        WalletChange why,
         CancellationToken ct
     )
     {
@@ -63,6 +64,7 @@ internal sealed partial class PlayerWalletGrain
             return WalletCreditResult.Rejected;
 
         entity.Amount += amount;
+        RecordChange(dbCtx, entity.CurrencyTypeEntityId, amount, entity.Amount, why);
         dbCtx.WalletCreditReceipts.Add(
             new WalletCreditReceiptEntity { PlayerId = PlayerId.Value, Reference = reference }
         );

@@ -22,6 +22,8 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
         _conn.Open();
         _options = new DbContextOptionsBuilder<TurboDbContext>()
             .UseSqlite(_conn)
+            // The names PostgreSQL has, so raw SQL in the model (an index's filter) reads the same.
+            .UseSnakeCaseNamingConvention()
             .AddInterceptors(new StampTimestamps())
             .ConfigureWarnings(w =>
             {
@@ -80,7 +82,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     public void Dispose() => _conn.Dispose();
 
     /// <summary>
-    /// The model with the two timestamps written by the caller: MySQL generates them (and
+    /// The model with the two timestamps written by the caller: PostgreSQL generates them (and
     /// <c>updated_at</c> on every change), SQLite cannot, so here they are plain columns that
     /// <see cref="StampTimestamps"/> fills in.
     /// </summary>
@@ -93,15 +95,25 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 
             foreach (var entityType in mb.Model.GetEntityTypes())
             {
-                // MySQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
+                // PostgreSQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
                 foreach (var property in entityType.GetProperties())
+                {
                     property.SetCollation(null);
 
-                if (!typeof(TurboEntity).IsAssignableFrom(entityType.ClrType))
+                    // PostgreSQL's inet is a type SQLite hasn't; it keeps the address as text.
+                    if (property.ClrType == typeof(System.Net.IPAddress))
+                        property.SetValueConverter(
+                            new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<
+                                System.Net.IPAddress,
+                                string
+                            >(x => x.ToString(), x => System.Net.IPAddress.Parse(x))
+                        );
+                }
+
+                if (entityType.FindProperty(nameof(TurboEntity.CreatedAt)) is not { } createdAt)
                     continue;
 
-                entityType.FindProperty(nameof(TurboEntity.CreatedAt))!.ValueGenerated =
-                    ValueGenerated.Never;
+                createdAt.ValueGenerated = ValueGenerated.Never;
 
                 if (entityType.FindProperty("UpdatedAt") is { } updatedAt)
                     updatedAt.ValueGenerated = ValueGenerated.Never;
@@ -110,7 +122,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     }
 
     /// <summary>
-    /// MySQL fills <c>created_at</c> and <c>updated_at</c> itself, and SQLite has no generator for
+    /// PostgreSQL fills <c>created_at</c> and <c>updated_at</c> itself, and SQLite has no generator for
     /// them, so a row added through EF is stamped here instead, as the database would.
     /// </summary>
     private sealed class StampTimestamps : SaveChangesInterceptor
@@ -138,16 +150,18 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 
         private static void Stamp(DbContext? context)
         {
-            foreach (
-                var entry in context?.ChangeTracker.Entries<Turbo.Database.Entities.TurboEntity>()
-                    ?? []
-            )
+            foreach (var entry in context?.ChangeTracker.Entries() ?? [])
             {
                 if (entry.State != EntityState.Added)
                     continue;
 
-                if (entry.Entity.CreatedAt == default)
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                if (
+                    entry.Metadata.FindProperty(nameof(TurboEntity.CreatedAt)) is not null
+                    && entry.Property(nameof(TurboEntity.CreatedAt)).CurrentValue
+                        is DateTime created
+                    && created == default
+                )
+                    entry.Property(nameof(TurboEntity.CreatedAt)).CurrentValue = DateTime.UtcNow;
 
                 if (
                     entry.Metadata.FindProperty("UpdatedAt") is not null

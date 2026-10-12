@@ -4,7 +4,8 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
-[Table("messenger_ignored")]
+[Comment("Players a player has ignored in rooms.")]
+[Table("messenger_ignores")]
 [Index(nameof(PlayerEntityId), nameof(IgnoredPlayerEntityId), IsUnique = true)]
 public class MessengerIgnoredEntity : TurboEntity
 {

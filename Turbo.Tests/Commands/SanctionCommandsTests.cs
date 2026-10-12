@@ -41,6 +41,10 @@ public abstract class OperatorCommandsTestBase : IDisposable
 
     protected Orleans.IGrainFactory Grains => Hotel.Fakes.Create<Orleans.IGrainFactory>();
 
+    /// <summary>The hotel's moderation history, written to <see cref="Db"/>.</summary>
+    protected IModerationLog Moderation =>
+        new ModerationLog(Db, NullLogger<IModerationLog>.Instance);
+
     protected OperatorCommandsTestBase()
     {
         Hotel
@@ -95,6 +99,14 @@ public abstract class OperatorCommandsTestBase : IDisposable
             )
             .Select(x => x.Args[0]);
 
+    /// <summary>The moderation history written so far, oldest first.</summary>
+    protected List<Turbo.Database.Entities.Moderation.ModerationActionEntity> History()
+    {
+        using var db = Db.CreateDbContext();
+
+        return [.. db.ModerationActions.OrderBy(x => x.Id)];
+    }
+
     protected IEnumerable<FakeCall> PermissionCalls(string method, int player) =>
         Hotel
             .Fakes.Log.On<IPlayerPermissionGrain>()
@@ -136,14 +148,15 @@ public class SanctionCommandsTests : OperatorCommandsTestBase
                 Grains,
                 texts,
                 Clock,
+                Moderation,
                 new CapturingLogger<BanCommand>()
             ),
-            new UnbanCommand(_sanctions),
-            new SilenceCommand(Grains, Clock),
-            new UnsilenceCommand(Grains),
-            new TradelockCommand(Grains, Clock),
-            new UntradelockCommand(Grains),
-            new DisconnectCommand(Grains, sessions, texts),
+            new UnbanCommand(_sanctions, Moderation),
+            new SilenceCommand(Grains, Clock, Moderation),
+            new UnsilenceCommand(Grains, Moderation),
+            new TradelockCommand(Grains, Clock, Moderation),
+            new UntradelockCommand(Grains, Moderation),
+            new DisconnectCommand(Grains, sessions, texts, Moderation),
         ]);
     }
 
@@ -410,5 +423,93 @@ public class SanctionCommandsTests : OperatorCommandsTestBase
             .Should()
             .NotBeNull();
         staff.Replies.Should().ContainSingle().Which.Should().Contain("ban for Alice was saved");
+    }
+
+    /// <summary>
+    /// A hotel ban, silence or trade lock lands in the player's moderation history with who gave
+    /// it, where they typed it, why and until when. A silence and a trade lock are permission
+    /// denials, whose audit has no reason; their history had nothing to say why.
+    /// </summary>
+    [Fact]
+    public async Task Sanctions_AreInThePlayersHistory_WithWhoWhereWhyAndUntilWhen()
+    {
+        var staff = Staff(
+            PermissionNodes.Command.BAN,
+            PermissionNodes.Command.SILENCE,
+            PermissionNodes.Command.TRADELOCK
+        );
+
+        await Hotel.RunAsync("silence", staff, "alice 2h shouting in the lobby");
+        await Hotel.RunAsync("tradelock", staff, "bob 1d scamming");
+        await Hotel.RunAsync("ban", staff, "alice 7d repeated spam");
+
+        History()
+            .Select(x =>
+                (x.Action, x.Source, x.ActorId, x.TargetPlayerId, x.RoomId, x.Reason, x.ExpiresAt)
+            )
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.Silence,
+                    ModerationSource.Game,
+                    STAFF,
+                    ALICE,
+                    7,
+                    "shouting in the lobby",
+                    START.AddHours(2)
+                ),
+                (
+                    ModerationActionType.TradeLock,
+                    ModerationSource.Game,
+                    STAFF,
+                    BOB,
+                    7,
+                    "scamming",
+                    START.AddDays(1)
+                ),
+                (
+                    ModerationActionType.Ban,
+                    ModerationSource.Game,
+                    STAFF,
+                    ALICE,
+                    7,
+                    "repeated spam",
+                    START.AddDays(7)
+                )
+            );
+    }
+
+    [Fact]
+    public async Task Lifting_AndDisconnecting_AreInTheHistory_AndTheConsoleHasNoActor()
+    {
+        var staff = Staff(PermissionNodes.Command.SILENCE, PermissionNodes.Command.DISCONNECT);
+
+        await Hotel.RunAsync("unsilence", staff, "alice appeal accepted");
+        await Hotel.RunAsync("disconnect", Console(), "bob");
+
+        History()
+            .Select(x => (x.Action, x.Source, x.ActorId, x.TargetPlayerId, x.Reason))
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.Unsilence,
+                    ModerationSource.Game,
+                    STAFF,
+                    ALICE,
+                    "appeal accepted"
+                ),
+                (ModerationActionType.Disconnect, ModerationSource.Console, null, BOB, null)
+            );
+    }
+
+    [Fact]
+    public async Task ASanctionThatChangedNothing_IsNotInTheHistory()
+    {
+        Hotel.Fakes.Handlers["SetNodeAsync"] = _ =>
+            Task.FromResult(PermissionChangeResultType.Unchanged);
+
+        await Hotel.RunAsync("silence", Staff(PermissionNodes.Command.SILENCE), "alice 1h");
+
+        History().Should().BeEmpty();
     }
 }

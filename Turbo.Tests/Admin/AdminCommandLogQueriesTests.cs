@@ -58,7 +58,7 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
     private AdminCommandLogQueries Queries(int pageSize = 50) =>
         new(_db, Options.Create(new AdminConfig { CommandLogPageSize = pageSize }));
 
-    private async Task<int[]> IdsAsync(
+    private async Task<long[]> IdsAsync(
         string? player = null,
         string? command = null,
         string? outcome = null,
@@ -155,7 +155,6 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static RoomEntity Room(int id, string name, int ownerId) =>
@@ -166,13 +165,12 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
             PlayerEntityId = ownerId,
             RoomModelEntityId = 1,
             DoorMode = RoomDoorModeType.Open,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = true,
+            AllowWalkThrough = true,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

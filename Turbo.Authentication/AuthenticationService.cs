@@ -63,7 +63,7 @@ public sealed class AuthenticationService(
 
             // Used up by this login: whichever of two logins with it removes it gets in.
             if (
-                !entity.IsLocked
+                !entity.Reusable
                 && await dbCtx
                     .SecurityTickets.Where(x => x.Id == entity.Id)
                     .ExecuteDeleteAsync(ct)

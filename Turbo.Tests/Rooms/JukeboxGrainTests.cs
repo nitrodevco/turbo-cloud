@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
+using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Furniture.Providers;
@@ -125,6 +126,27 @@ public sealed class JukeboxGrainTests : IDisposable
         (await _loader.LoadByPlayerIdAsync(ALICE, "alice", Ct)).Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The disk placed in a room while it goes into the jukebox. The jukebox read the row, then
+    /// saved it as held without asking where it was, so the two writes could leave it in a room
+    /// and in the jukebox at once (now refused by the database, so the jukebox's save failed
+    /// outright). Taking it in is one conditional write: whichever move comes first wins, and the
+    /// disk is in one place.
+    /// </summary>
+    [Fact]
+    public async Task A_disk_placed_while_it_goes_in_ends_up_in_one_place()
+    {
+        _db.InsertRooms(OWNER, [1]);
+        _db.Insert(Furni(10, DISK_DEFINITION, ALICE, SONG));
+        var jukebox = await JukeboxAsync(db: new PlacedMeanwhile(_db, diskId: 10, roomId: 1));
+
+        var result = await jukebox.AddDiskAsync(ALICE, 10, 0, Ct);
+
+        result.Result.Should().Be(JukeboxChangeResultType.Done);
+        var row = Rows(10).Single();
+        (row.ChestItemEntityId, row.RoomEntityId).Should().Be(((int?)JUKEBOX, (int?)null));
+    }
+
     [Fact]
     public async Task The_playlist_keeps_the_order_disks_were_put_in_at_across_reloads()
     {
@@ -209,13 +231,16 @@ public sealed class JukeboxGrainTests : IDisposable
             .Be(JukeboxChangeResultType.NoSuchSlot);
     }
 
-    private async Task<IJukeboxGrain> JukeboxAsync(int maxDisks = 10)
+    private async Task<IJukeboxGrain> JukeboxAsync(
+        int maxDisks = 10,
+        IDbContextFactory<TurboDbContext>? db = null
+    )
     {
         var grain = GrainHarness.Create(
             typeof(RoomGrain).Assembly,
             "Turbo.Rooms.Grains.Jukebox.JukeboxGrain",
             _fakes,
-            _db
+            db ?? _db
         );
 
         RoomHarness.SetMember(
@@ -352,7 +377,6 @@ public sealed class JukeboxGrainTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static FurnitureEntity Furni(int id, int definitionId, int ownerId, int songId) =>
@@ -376,4 +400,26 @@ public sealed class JukeboxGrainTests : IDisposable
             FurnitureDefinitionEntityId = definitionId,
             ExtraData = extraData,
         };
+
+    /// <summary>
+    /// A database where, as the jukebox saves, the disk is placed in a room by someone else, if
+    /// it is still in an inventory: the race between the two, at its narrowest.
+    /// </summary>
+    private sealed class PlacedMeanwhile(SqliteDb inner, int diskId, int roomId)
+        : IDbContextFactory<TurboDbContext>
+    {
+        public TurboDbContext CreateDbContext()
+        {
+            var ctx = inner.CreateDbContext();
+
+            ctx.SavingChanges += (_, _) =>
+                ctx.Database.ExecuteSqlRaw(
+                    "UPDATE furniture SET room_id = {0} WHERE id = {1} AND room_id IS NULL AND chest_item_id IS NULL",
+                    roomId,
+                    diskId
+                );
+
+            return ctx;
+        }
+    }
 }

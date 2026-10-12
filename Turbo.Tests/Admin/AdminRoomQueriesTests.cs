@@ -283,7 +283,6 @@ public sealed class AdminRoomQueriesTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private RoomEntity Room(
@@ -301,13 +300,12 @@ public sealed class AdminRoomQueriesTests : IDisposable
             RoomModelEntityId = 1,
             DoorMode = doorMode,
             Password = doorMode == RoomDoorModeType.Password ? "secret" : null,
-            UsersNow = 0,
             PlayersMax = 25,
             WallHeight = -1,
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = true,
+            AllowWalkThrough = true,
             AllowPets = true,
             AllowPetsEat = true,
             TradeType = RoomTradeModeType.Disabled,

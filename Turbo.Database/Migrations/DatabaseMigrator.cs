@@ -103,11 +103,59 @@ public sealed class DatabaseMigrator(
         CancellationToken ct = default
     )
     {
-        var config = options.Value;
-        var mode = run?.Mode ?? config.Migrate;
+        var mode = run?.Mode ?? options.Value.Migrate;
 
         if (mode == MigrationMode.Off)
             return Skip(label);
+
+        var owner = AsSchemaOwner(db, options.Value);
+
+        await using (owner.ConfigureAwait(false))
+            return await MigrateAsOwnerAsync(db, label, run, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Points <paramref name="db"/> at <see cref="DatabaseConfig.MigrationConnectionString"/>,
+    /// when there is one, until the result is disposed: the role that may change the schema, for a
+    /// server whose own role may not. Its connection must not be open.
+    /// </summary>
+    public static IAsyncDisposable AsSchemaOwner(DbContext db, DatabaseConfig config)
+    {
+        if (string.IsNullOrEmpty(config.MigrationConnectionString))
+            return NoOwner.Instance;
+
+        var runtime = db.Database.GetConnectionString();
+
+        db.Database.SetConnectionString(config.MigrationConnectionString);
+
+        return new OwnerScope(db, runtime);
+    }
+
+    private sealed class OwnerScope(DbContext db, string? runtime) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            await db.Database.CloseConnectionAsync().ConfigureAwait(false);
+            db.Database.SetConnectionString(runtime);
+        }
+    }
+
+    private sealed class NoOwner : IAsyncDisposable
+    {
+        public static readonly NoOwner Instance = new();
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private async Task<MigrationResult> MigrateAsOwnerAsync(
+        DbContext db,
+        string label,
+        MigrationRunOptions? run,
+        CancellationToken ct
+    )
+    {
+        var config = options.Value;
+        var mode = run?.Mode ?? config.Migrate;
 
         var clock = Stopwatch.StartNew();
         var state = await InspectAsync(db, ct).ConfigureAwait(false);
@@ -332,9 +380,9 @@ public sealed class DatabaseMigrator(
             {
                 throw new MigrationException(
                     $"Database {label}: migration {name} failed: {ex.Message} "
-                        + $"{applied.Count} earlier migration(s) were applied. MySQL cannot roll back a "
-                        + "schema change, so the database is left as the failure found it: fix the cause "
-                        + "(or restore a backup) and start again. Applying resumes at this migration.",
+                        + $"{applied.Count} earlier migration(s) were applied; this one was rolled back "
+                        + "whole, as PostgreSQL runs each migration in a transaction. Fix the cause and "
+                        + "start again: applying resumes at this migration.",
                     ex
                 );
             }

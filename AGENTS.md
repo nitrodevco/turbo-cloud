@@ -8,8 +8,9 @@ This repository targets the following core stack. When coding, prefer patterns c
 - .NET SDK `10.0.400` (from `global.json`)
 - C# / BCL `net10.0`
 - Orleans `10.3.1`
-- EF Core `9.0.19` (held on 9.x: Pomelo `9.0.0` pins `Microsoft.EntityFrameworkCore.Relational` to `[9.0.0, 9.0.999]`)
-- Pomelo MySQL provider `9.0.0`
+- EF Core `10.0.12`
+- PostgreSQL 16+ through Npgsql (`Npgsql.EntityFrameworkCore.PostgreSQL` `10.0.3`), with
+  `EFCore.NamingConventions` making every table and column snake_case (`docs/database.md`)
 - SuperSocket `2.1.0`
 
 ## Skills activation
@@ -510,7 +511,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   share `IInventoryUnitEntity`, the snapshots `IInventoryUnitSnapshot`, the live state
   `InventoryUnitSection<T>`. The two modules were two hundred lines copied; a third kind of
   room-placed unit is a subclass, not a copy. (EF translates the interface-typed `Where`,
-  `ExecuteUpdate` and `ExecuteDelete` in the base to plain column SQL; checked against MySQL.)
+  `ExecuteUpdate` and `ExecuteDelete` in the base to plain column SQL.)
 - Inventory items are built by `IInventoryFurnitureLoader` and nowhere else, so loaded, granted,
   picked-up and traded items read their extra data and stuff data the same way.
 - Tell the client once per change, not once per item: an addition is one "list changed", a
@@ -1869,8 +1870,9 @@ finishing a change, check it against this list; each line is a mistake that was 
   online resolution replaces a friend entry only if it is the same object it read before the
   first await; a `RecieveFriendUpdateAsync` that ran during the await wins.
 - **A migration that swaps a single-column foreign-key index for a composite creates the new
-  one before dropping the old.** EF emits the drop first and MySQL refuses to drop an index a
-  foreign key still needs; reorder `Up` and `Down` by hand and read the generated SQL.
+  one before dropping the old.** EF emits the drop first, and a foreign key is left without
+  the index its lookups need in between; reorder `Up` and `Down` by hand and read the generated
+  SQL.
 
 - **The room tick never waits on a database write.** The room awaited the persistence grain
   on every 50 ms tick and every chat line, and that grain's timer was mid-`SaveChanges` often

@@ -28,12 +28,12 @@ It has two parts:
   - **Something goes wrong:** they go back to the front page with the reason. They may have said
     no on Discord, taken too long, or registration may be closed.
 - **A sign-in to the site** is a random token in an `HttpOnly` cookie, kept as a SHA-256 hash in
-  `web_sessions`, for `SessionDays`. It signs in to the site only. The game is a separate login.
+  `auth_web_sessions`, for `SessionDays`. It signs in to the site only. The game is a separate login.
 - **Play** issues a ticket that works once, for `PlayTicketMinutes`, and opens `ClientUrl` with
   it in a frame. Each Play replaces the player's previous ticket, the same one-per-player ticket
   as the panel's **Login ticket** card, so a ticket issued from the panel is replaced too. A
   banned player is told so instead of getting a ticket.
-- **Links.** `player_discord_links` ties one Discord account to one player. The player's Discord
+- **Links.** `auth_discord_links` ties one Discord account to one player. The player's Discord
   username is refreshed on each sign-in.
 
 A name follows the same rules as the panel's **New player**: 3 to 15 letters, digits and
@@ -46,8 +46,8 @@ taken, a number is added to it, and `Player` is the last resort. People can alwa
 1. Apply the migrations. The server applies them when it starts ([database.md](database.md));
    to do it ahead of time, run `dotnet run --project Turbo.Main -- migrate`.
 
-   `AddPublicSite` adds `player_discord_links` and `web_sessions`. The `AddTicketExpiry` migration
-   before it adds `security_tickets.expires_at`; without it, every game login fails.
+   `AddPublicSite` adds `auth_discord_links` and `auth_web_sessions`. The `AddTicketExpiry` migration
+   before it adds `auth_login_tickets.expires_at`; without it, every game login fails.
 2. **Make a Discord application** at <https://discord.com/developers/applications>. Under
    **OAuth2**:
    - copy the **Client ID** and reset the **Client Secret**;

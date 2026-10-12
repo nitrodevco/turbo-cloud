@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// A forum message. <see cref="ForumMessageId"/> numbers it within the forum and
 /// <see cref="ThreadIndex"/> places it in its thread, from 0.
 /// </summary>
+[Comment("A forum message.")]
 [Table("guild_forum_messages")]
 [Index(nameof(GuildEntityId), nameof(ForumMessageId), IsUnique = true)]
 [Index(nameof(ThreadEntityId), nameof(ThreadIndex))]

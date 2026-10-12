@@ -10,7 +10,7 @@ namespace Turbo.Tests.Database;
 /// What the migrator does to a database, and what it refuses to: applied in order and told in
 /// the log, behind a lock, never against a database a newer version made, never dropping data
 /// unasked, and never twice. Run on SQLite with migrations written for the purpose; the lock is
-/// played by a fake here and is the real one in <see cref="MySqlMigrationTests"/>.
+/// played by a fake here and is the real one in <see cref="PostgresMigrationTests"/>.
 /// </summary>
 public sealed class DatabaseMigratorTests : IDisposable
 {

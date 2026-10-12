@@ -226,12 +226,15 @@ public sealed partial class RoomGrain
     public Task<bool> GetIsRoomMutedAsync(CancellationToken ct) =>
         Task.FromResult(_state.IsRoomMuted);
 
-    public Task<int> ClearRoomBySystemAsync(PlayerId except, CancellationToken ct) =>
-        ModerationModule.ClearRoomBySystemAsync(except, ct);
+    public Task<int> ClearRoomBySystemAsync(ActionContext ctx, CancellationToken ct) =>
+        ModerationModule.ClearRoomBySystemAsync(ctx, ct);
 
-    public Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct) =>
-        ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
+    public Task<bool> SetRoomMutedBySystemAsync(
+        ActionContext ctx,
+        bool muted,
+        CancellationToken ct
+    ) => ModerationModule.SetRoomMutedBySystemAsync(ctx, muted, ct);
 
-    public Task EvictEveryoneAndUnloadAsync(CancellationToken ct) =>
-        ModerationModule.EvictEveryoneAndUnloadAsync(ct);
+    public Task EvictEveryoneAndUnloadAsync(ActionContext ctx, CancellationToken ct) =>
+        ModerationModule.EvictEveryoneAndUnloadAsync(ctx, ct);
 }

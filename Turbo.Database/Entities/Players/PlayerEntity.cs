@@ -14,10 +14,17 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("The hotel's players.")]
 [Table("players")]
 [Index(nameof(NameKey), IsUnique = true)]
 public class PlayerEntity : TurboEntity
 {
+    /// <summary>
+    /// The longest figure a player, a saved outfit or a bot may wear: every set type with two
+    /// colours. One limit, so a look a player wears can always be saved and given to a bot.
+    /// </summary>
+    public const int FIGURE_MAX_LENGTH = 279;
+
     private string _name = string.Empty;
 
     /// <summary>The name as the player chose it; setting it sets <see cref="NameKey"/>.</summary>
@@ -40,10 +47,11 @@ public class PlayerEntity : TurboEntity
     public string NameKey { get; private set; } = string.Empty;
 
     [Column("motto")]
-    public string? Motto { get; set; }
+    [DefaultValue("")]
+    public string Motto { get; set; } = string.Empty;
 
     [Column("figure")]
-    [MaxLength(279)]
+    [MaxLength(FIGURE_MAX_LENGTH)]
     [DefaultValue("hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64")]
     public required string Figure { get; set; }
 
@@ -51,11 +59,6 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(AvatarGenderType.Male)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required AvatarGenderType Gender { get; set; }
-
-    [Column("status")]
-    [DefaultValue(PlayerStatusType.Offline)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required PlayerStatusType PlayerStatus { get; set; }
 
     [Column("respect_points")]
     [DefaultValue(0)]
@@ -73,11 +76,10 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(0)]
     public int RespectReplenishesLeft { get; set; }
 
-    /// <summary>UTC date the daily respect counters were last reset for.</summary>
+    /// <summary>The UTC day the daily respect counters were last reset for.</summary>
     [Column("respect_reset_date")]
-    public DateTime? RespectResetDate { get; set; }
+    public DateOnly? RespectResetDate { get; set; }
 
-    /// <summary>When the player last opened a session (UTC); null for one who never has.</summary>
     /// <summary>
     /// The new user flow's look and name step is still to do (<c>Turbo:Onboarding</c>). Set when
     /// the player is created with the flow on; cleared when they choose their name.
@@ -91,8 +93,16 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(false)]
     public bool OnboardingRoomPending { get; set; }
 
-    [Column("last_login")]
+    /// <summary>When the player last opened a session (UTC); null for one who never has.</summary>
+    [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>
+    /// When the player was last online: the end of their last session. Kept here as well as in
+    /// <c>player_logins</c>, which old rows are purged from, so "last seen" outlives the log.
+    /// </summary>
+    [Column("last_seen_at")]
+    public DateTime? LastSeenAt { get; set; }
 
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
@@ -140,22 +150,8 @@ public class PlayerEntity : TurboEntity
     public List<RoomRightEntity>? RoomRights { get; set; }
 
     [InverseProperty("PlayerEntity")]
-    public List<RoomChatlogEntity>? RoomChatlogs { get; set; }
-
-    [InverseProperty("PlayerEntity")]
     public List<MessengerBlockedEntity>? MessengerBlocked { get; set; }
 
     [InverseProperty("PlayerEntity")]
     public List<MessengerIgnoredEntity>? MessengerIgnored { get; set; }
-
-    [InverseProperty("SenderPlayerEntity")]
-    public List<MessengerMessageEntity>? MessengerMessagesSent { get; set; }
-
-    [InverseProperty("ReceiverPlayerEntity")]
-    public List<MessengerMessageEntity>? MessengerMessagesReceived { get; set; }
-
-    /// <summary>When the row last changed; MySQL sets it on every update.</summary>
-    [Column("updated_at")]
-    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-    public DateTime UpdatedAt { get; set; }
 }

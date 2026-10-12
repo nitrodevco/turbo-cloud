@@ -1,15 +1,20 @@
 ﻿using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Catalog;
 
 /// <summary>
 /// Configuration for an LTD (Limited Edition) series.
 /// </summary>
-[Table("ltd_series")]
+[Comment("Configuration for an LTD (Limited Edition) series.")]
+[Table(TABLE)]
 public class LtdSeriesEntity : TurboEntity
 {
+    /// <summary>The table's name.</summary>
+    public const string TABLE = "catalog_ltd_series";
+
     /// <summary>
     /// Links to the catalog product this LTD series is for.
     /// </summary>
@@ -29,11 +34,12 @@ public class LtdSeriesEntity : TurboEntity
     public required int RemainingQuantity { get; set; }
 
     /// <summary>
-    /// How long the raffle queue is open (in seconds) before drawing.
+    /// How long the opening raffle gathers buyers before it draws, in seconds; 0 sells first
+    /// come, first served. Habbo's is 20.
     /// </summary>
     [Column("raffle_window_seconds")]
-    [DefaultValue(30)]
-    public required int RaffleWindowSeconds { get; set; } = 30;
+    [DefaultValue(20)]
+    public required int RaffleWindowSeconds { get; set; } = 20;
 
     /// <summary>
     /// Whether this series is currently active.

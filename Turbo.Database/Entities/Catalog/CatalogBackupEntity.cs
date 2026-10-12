@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Catalog;
 
@@ -8,6 +9,9 @@ namespace Turbo.Database.Entities.Catalog;
 /// was taken, which the editor can roll the catalog back to. <see cref="Data"/> holds the rows,
 /// compressed; the counts are kept beside it so a list of backups need not read it.
 /// </summary>
+[Comment(
+    "A copy of the catalog's pages, offers, products and featured items as they were saved when it was taken, which the editor can roll the catalog back to."
+)]
 [Table("catalog_backups")]
 public class CatalogBackupEntity : TurboEntity
 {

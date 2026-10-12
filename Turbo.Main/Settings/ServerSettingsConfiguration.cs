@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
-using MySqlConnector;
+using Npgsql;
 using Turbo.Database.Configuration;
 
 namespace Turbo.Main.Settings;
@@ -18,7 +18,7 @@ namespace Turbo.Main.Settings;
 /// </summary>
 internal static class ServerSettingsConfiguration
 {
-    private const string SELECT = "SELECT `setting_path`, `value` FROM `server_settings`";
+    private const string SELECT = "SELECT setting_path, value FROM server_settings";
 
     /// <summary>
     /// Adds the overrides read by <paramref name="load"/>; the database's own by default, through
@@ -68,7 +68,7 @@ internal static class ServerSettingsConfiguration
 
         try
         {
-            using var connection = new MySqlConnection(connectionString);
+            using var connection = new NpgsqlConnection(connectionString);
 
             connection.Open();
 
@@ -84,13 +84,17 @@ internal static class ServerSettingsConfiguration
 
             return new ServerSettingsLoad(rows, null);
         }
-        catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.NoSuchTable)
+        catch (PostgresException ex)
+            when (ex.SqlState
+                    is PostgresErrorCodes.UndefinedTable
+                        or PostgresErrorCodes.InvalidCatalogName
+            )
         {
-            // Not migrated yet: nothing is overridden.
+            // Not migrated yet, or the database not even made: nothing is overridden.
             return ServerSettingsLoad.NONE;
         }
         catch (Exception ex)
-            when (ex is MySqlException or ArgumentException or InvalidOperationException)
+            when (ex is NpgsqlException or ArgumentException or InvalidOperationException)
         {
             // The server can't start without its database anyway; it says so itself, and the
             // panel shows this beside the settings.

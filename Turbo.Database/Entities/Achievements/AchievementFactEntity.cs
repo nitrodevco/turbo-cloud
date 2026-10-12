@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
+[Comment(
+    "Things players did that count toward achievements, waiting to be or already turned into progress."
+)]
 [Table("achievement_facts")]
-[Index(nameof(PlayerId), nameof(Processed), nameof(Id))]
 [Index(nameof(PlayerId), nameof(OperationId), IsUnique = true)]
 public sealed class AchievementFactEntity
 {
@@ -19,13 +21,15 @@ public sealed class AchievementFactEntity
 
     [MaxLength(160)]
     public required string OperationId { get; set; }
+
+    [Column("occurred_at")]
     public DateTime OccurredAtUtc { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public required string FactJson { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public required string BindingsJson { get; set; }
     public bool Processed { get; set; }

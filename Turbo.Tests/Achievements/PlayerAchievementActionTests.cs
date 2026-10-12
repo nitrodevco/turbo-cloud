@@ -112,7 +112,6 @@ public sealed class PlayerAchievementActionTests : IDisposable
             Name = "player-action-test",
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
             Motto = "existing",
         };
 }

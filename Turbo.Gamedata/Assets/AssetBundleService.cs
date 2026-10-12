@@ -376,13 +376,22 @@ internal sealed class AssetBundleService(
                 var token = separator + id.ToString(CultureInfo.InvariantCulture) + separator;
 
                 rows = rows.Where(x =>
-                    x.Name.Contains(text)
-                    || (x.Ids != null && (separator + x.Ids + separator).Contains(token))
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing(text),
+                        LikePatterns.ESCAPE
+                    ) || (x.Ids != null && (separator + x.Ids + separator).Contains(token))
                 );
             }
             else
             {
-                rows = rows.Where(x => x.Name.Contains(text));
+                rows = rows.Where(x =>
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing(text),
+                        LikePatterns.ESCAPE
+                    )
+                );
             }
         }
 

@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Players;
 /// (<see cref="ExpiresAt"/>) or the effect for good (<see cref="IsPermanent"/>), and is deleted
 /// when the last copy runs out. A permanent row holds no copies and no timer.
 /// </summary>
+[Comment("One avatar effect a player owns: a row per effect id, however many copies.")]
 [Table("player_effects")]
 [Index(nameof(PlayerEntityId), nameof(EffectId), IsUnique = true)]
 public class PlayerEffectEntity : TurboEntity

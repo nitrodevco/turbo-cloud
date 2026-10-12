@@ -12,10 +12,13 @@ namespace Turbo.Database.Entities.Permissions;
 /// Append-only: nothing updates or deletes a row. It keeps no foreign keys, so the history of a
 /// deleted group or player survives them.
 /// </summary>
-[Table("permission_audit")]
+[Comment(
+    "One change to a group's or a player's permissions, written in the same save as the change."
+)]
+[Table("permission_audit_logs")]
 // "What happened to this player / group", newest first.
 [Index(nameof(TargetType), nameof(TargetId), nameof(CreatedAt))]
-public class PermissionAuditEntity : TurboEntity
+public class PermissionAuditEntity : TurboLogEntity
 {
     /// <summary>Who made the change: a player id, or null for the console or the server itself (an expiry).</summary>
     [Column("actor_player_id")]

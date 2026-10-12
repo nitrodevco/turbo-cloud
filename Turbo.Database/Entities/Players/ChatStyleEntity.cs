@@ -1,0 +1,53 @@
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace Turbo.Database.Entities.Players;
+
+/// <summary>
+/// One chat bubble style the client can draw, and who may speak with it. A style with no row is
+/// one no player may pick. The flags combine: a style that is both club-only and purchasable
+/// needs a player who has the club and owns it.
+/// </summary>
+[Comment("One chat bubble style the client can draw, and who may speak with it.")]
+[Table("hotel_chat_styles")]
+public class ChatStyleEntity
+{
+    /// <summary>The client's own number for the style, which players' settings and chat name.</summary>
+    [Key]
+    [Column("id")]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public required int Id { get; set; }
+
+    /// <summary>The client's asset name for the style, so whoever reads the table knows which it is.</summary>
+    [Column("name")]
+    [MaxLength(64)]
+    public string? Name { get; set; }
+
+    [Column("club_only")]
+    [DefaultValue(false)]
+    public bool ClubOnly { get; set; }
+
+    /// <summary>Ambassadors may speak with it, and so may staff.</summary>
+    [Column("ambassador_only")]
+    [DefaultValue(false)]
+    public bool AmbassadorOnly { get; set; }
+
+    [Column("staff_only")]
+    [DefaultValue(false)]
+    public bool StaffOnly { get; set; }
+
+    /// <summary>Only a player with a row in <c>player_chat_styles_owned</c> may speak with it.</summary>
+    [Column("purchasable")]
+    [DefaultValue(false)]
+    public bool Purchasable { get; set; }
+
+    /// <summary>The server's own bubbles (bots, notifications, wired); never a player's.</summary>
+    [Column("system")]
+    [DefaultValue(false)]
+    public bool System { get; set; }
+
+    public List<PlayerChatStyleOwnedEntity>? OwnedChatStyles { get; set; }
+}

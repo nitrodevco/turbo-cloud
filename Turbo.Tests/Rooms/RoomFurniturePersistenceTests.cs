@@ -31,61 +31,10 @@ public sealed class RoomFurniturePersistenceTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_pickup_whose_first_write_fails_is_written_by_the_next_flush()
-    {
-        var db = new FailingOnceDb();
-        await using (var ctx = db.Inner.CreateDbContext())
-        {
-            ctx.Furnitures.Add(
-                new FurnitureEntity
-                {
-                    Id = ITEM,
-                    PlayerEntityId = OWNER,
-                    FurnitureDefinitionEntityId = 1,
-                    RoomEntityId = ROOM,
-                    X = 1,
-                    Y = 1,
-                }
-            );
-            await ctx.SaveChangesAsync(Ct);
-        }
-
-        var grain = NewGrain(db);
-
-        await ((IRoomPersistenceGrain)grain).EnqueueDirtyItemAsync(
-            ROOM,
-            Item(x: 4, y: 5),
-            Ct,
-            remove: true
-        );
-
-        await FlushItems(grain);
-        await FlushItems(grain);
-
-        await using var read = db.Inner.CreateDbContext();
-        var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
-        row.RoomEntityId.Should().BeNull("the owner picked it up, so it is in their inventory");
-    }
-
-    [Fact]
     public async Task A_move_whose_first_write_fails_is_written_by_the_next_flush()
     {
         var db = new FailingOnceDb();
-        await using (var ctx = db.Inner.CreateDbContext())
-        {
-            ctx.Furnitures.Add(
-                new FurnitureEntity
-                {
-                    Id = ITEM,
-                    PlayerEntityId = OWNER,
-                    FurnitureDefinitionEntityId = 1,
-                    RoomEntityId = ROOM,
-                    X = 1,
-                    Y = 1,
-                }
-            );
-            await ctx.SaveChangesAsync(Ct);
-        }
+        db.Inner.Insert(Row(ITEM, ROOM));
 
         var grain = NewGrain(db);
 
@@ -97,6 +46,55 @@ public sealed class RoomFurniturePersistenceTests
         await using var read = db.Inner.CreateDbContext();
         var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
         (row.RoomEntityId, row.X, row.Y).Should().Be((ROOM, 4, 5));
+    }
+
+    /// <summary>
+    /// A move queued before the furni left the room, written after: it went back into the room
+    /// the flush belonged to, while its new owner had it in their inventory or another room.
+    /// </summary>
+    [Fact]
+    public async Task A_move_written_after_the_furni_left_the_room_does_not_bring_it_back()
+    {
+        var db = new FailingOnceDb();
+        db.Inner.Insert(Row(ITEM, room: 9));
+
+        var grain = NewGrain(db);
+
+        await ((IRoomPersistenceGrain)grain).EnqueueDirtyItemsAsync(ROOM, [Item(x: 4, y: 5)], Ct);
+
+        await FlushItems(grain);
+        await FlushItems(grain);
+
+        await using var read = db.Inner.CreateDbContext();
+        var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
+        (row.RoomEntityId, row.X, row.Y).Should().Be((9, 1, 1));
+    }
+
+    /// <summary>
+    /// A furni whose row is gone (deleted by the panel, recycled) was written with the others,
+    /// and the missing row failed the whole batch on every flush, so nothing in it was saved.
+    /// </summary>
+    [Fact]
+    public async Task A_furni_whose_row_is_gone_does_not_stop_the_others_being_written()
+    {
+        var db = new FailingOnceDb();
+        db.Inner.Insert(Row(ITEM, ROOM));
+
+        var grain = NewGrain(db);
+
+        await ((IRoomPersistenceGrain)grain).EnqueueDirtyItemsAsync(
+            ROOM,
+            [Item(x: 3, y: 3) with { ObjectId = 999 }, Item(x: 4, y: 5)],
+            Ct
+        );
+
+        await FlushItems(grain);
+        await FlushItems(grain);
+
+        await using var read = db.Inner.CreateDbContext();
+        var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
+        (row.X, row.Y).Should().Be((4, 5));
+        read.Furnitures.Should().ContainSingle("a missing row is not written back into being");
     }
 
     [Fact]
@@ -113,11 +111,7 @@ public sealed class RoomFurniturePersistenceTests
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
         };
-        await using (var ctx = db.Inner.CreateDbContext())
-        {
-            ctx.Bots.Add(bot);
-            await ctx.SaveChangesAsync(Ct);
-        }
+        db.Inner.Insert(bot);
 
         var grain = NewGrain(db);
 
@@ -153,6 +147,17 @@ public sealed class RoomFurniturePersistenceTests
                 )!
                 .Invoke(grain, [CancellationToken.None])!;
 
+    private static FurnitureEntity Row(int id, int room) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = OWNER,
+            FurnitureDefinitionEntityId = 1,
+            RoomEntityId = room,
+            X = 1,
+            Y = 1,
+        };
+
     private static RoomFloorItemSnapshot Item(int x, int y) =>
         new()
         {
@@ -176,7 +181,15 @@ public sealed class RoomFurniturePersistenceTests
     {
         private bool _failed;
 
-        public InMemoryDb Inner { get; } = new();
+        public SqliteDb Inner { get; } = Seeded();
+
+        private static SqliteDb Seeded()
+        {
+            var db = new SqliteDb();
+            db.InsertOwnersAndRooms([OWNER], [ROOM, 9]);
+
+            return db;
+        }
 
         public TurboDbContext CreateDbContext() => Next();
 

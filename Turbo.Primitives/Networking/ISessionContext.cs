@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Server.Abstractions.Session;
@@ -45,6 +46,18 @@ public interface ISessionContext : IAppSession
 
     /// <summary>Why the server closed this connection, or null if it has not.</summary>
     public string? ServerCloseReason { get; }
+
+    /// <summary>
+    /// The address the player connected from (the client's, through a trusted proxy), set as the
+    /// connection opens; null when it could not be told.
+    /// </summary>
+    public IPAddress? ClientAddress { get; }
+
+    /// <summary>The machine id the client sent in its handshake, if it has.</summary>
+    public string? MachineId { get; }
+
+    public void SetClientAddress(IPAddress? address);
+    public void SetMachineId(string machineId);
 
     public void SetRevisionId(string revisionId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);

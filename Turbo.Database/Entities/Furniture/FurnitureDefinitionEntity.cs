@@ -8,8 +8,13 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Furniture;
 
+[Comment(
+    "The hotel's furni: one row per item class, with its size, behaviour (logic) and how it may be used."
+)]
 [Table("furniture_definitions")]
 [Index(nameof(SpriteId), nameof(ProductType), nameof(FurniCategory), IsUnique = true)]
+// A class name is one definition per type: imports and the room match furni by it.
+[Index(nameof(ProductType), nameof(Name), IsUnique = true)]
 public class FurnitureDefinitionEntity : TurboEntity
 {
     [Column("sprite_id")]
@@ -38,14 +43,14 @@ public class FurnitureDefinitionEntity : TurboEntity
     public int TotalStates { get; set; }
 
     [Column("width")]
-    [DefaultValue(0)]
+    [DefaultValue(1)]
     public required int Width { get; set; } // columns
 
     [Column("length")]
     [DefaultValue(1)]
     public required int Length { get; set; } // rows
 
-    [Column("stack_height", TypeName = "double(10,4)")]
+    [Column("stack_height")]
     [DefaultValue(0.0d)]
     public required double StackHeight { get; set; } // depth
 
@@ -88,7 +93,7 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     // Named JSON sections (a crackable's rewards, a vending machine's items...): longer than the
     // 512 characters a plain string column takes.
-    [Column("extra_data", TypeName = "longtext")]
+    [Column("extra_data", TypeName = "text")]
     public string? ExtraData { get; set; }
 
     // What only the client's furnidata says of the furniture. The rest of a furnidata item is

@@ -7,6 +7,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>A meta value a group sets (<c>client.security_level = 5</c>).</summary>
+[Comment("A meta value a group sets (client.security_level = 5).")]
 [Table("permission_group_meta")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(GroupEntityId), nameof(Key), nameof(IsTemporary), IsUnique = true)]

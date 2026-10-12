@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Guilds;
 
@@ -8,6 +9,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// How far a player has read a forum: the last message read, numbered within the forum.
 /// <see cref="ReadAt"/> is when they last read it, which the Most Viewed list counts.
 /// </summary>
+[Comment("How far a player has read a forum: the last message read, numbered within the forum.")]
 [Table("guild_forum_read_markers")]
 [Index(nameof(PlayerEntityId), nameof(GuildEntityId), IsUnique = true)]
 [Index(nameof(GuildEntityId), nameof(ReadAt))]
@@ -24,4 +26,11 @@ public class GuildForumReadMarkerEntity : TurboEntity
 
     [Column("read_at")]
     public DateTime ReadAt { get; set; }
+
+    // Part of the group and the player: the marker goes with either.
+    [ForeignKey(nameof(GuildEntityId))]
+    public GuildEntity? GuildEntity { get; set; }
+
+    [ForeignKey(nameof(PlayerEntityId))]
+    public PlayerEntity? PlayerEntity { get; set; }
 }

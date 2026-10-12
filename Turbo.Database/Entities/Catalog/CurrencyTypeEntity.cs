@@ -1,16 +1,20 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 
 namespace Turbo.Database.Entities.Catalog;
 
-[Table("currency_types")]
+[Comment(
+    "The currencies a hotel has (credits, duckets, diamonds, ...) and how the client knows them."
+)]
+[Table("catalog_currency_types")]
 public class CurrencyTypeEntity : TurboEntity
 {
     [Column("name")]
-    public required string? Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("type")]
     public required CurrencyType CurrencyType { get; set; }

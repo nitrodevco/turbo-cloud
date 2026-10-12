@@ -29,8 +29,6 @@ public sealed class AdminRoomQueries(
     TimeProvider timeProvider
 )
 {
-    private const string ESCAPE = "\\";
-
     public async Task<RoomListResponse> SearchAsync(
         string? text,
         RoomSearchMode mode,
@@ -53,21 +51,25 @@ public sealed class AdminRoomQueries(
 
         if (term.Length > 0)
         {
-            // LIKE, so case is ignored the same way on every database; the text is escaped so a
-            // % or _ in it is matched as itself.
-            var like = term.Replace(ESCAPE, ESCAPE + ESCAPE, StringComparison.Ordinal)
-                .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
-                .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
-
             rooms = mode switch
             {
                 RoomSearchMode.Id => int.TryParse(term, out var id)
                     ? rooms.Where(x => x.Id == id)
                     : rooms.Where(x => false),
                 RoomSearchMode.Owner => rooms.Where(x =>
-                    EF.Functions.Like(x.PlayerEntity.Name, like + "%", ESCAPE)
+                    EF.Functions.Like(
+                        x.PlayerEntity.NameKey,
+                        LikePatterns.StartingWith(term),
+                        LikePatterns.ESCAPE
+                    )
                 ),
-                _ => rooms.Where(x => EF.Functions.Like(x.Name, "%" + like + "%", ESCAPE)),
+                _ => rooms.Where(x =>
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing(term),
+                        LikePatterns.ESCAPE
+                    )
+                ),
             };
         }
 
@@ -203,8 +205,7 @@ public sealed class AdminRoomQueries(
             room.TradeType.ToString(),
             room.AllowPets,
             room.AllowPetsEat,
-            // Stored as AllowBlocking, read as walk-through, as the settings dialog does.
-            room.AllowBlocking,
+            room.AllowWalkThrough,
             room.ModSettings.WhoCanMute.ToString(),
             room.ModSettings.WhoCanKick.ToString(),
             room.ModSettings.WhoCanBan.ToString(),

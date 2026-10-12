@@ -6,6 +6,7 @@ using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Each player's Habbo Club and Builders Club membership.")]
 [Table("player_subscriptions")]
 [Index(nameof(PlayerEntityId), nameof(SubscriptionType), IsUnique = true)]
 // The lapse sweep looks for expiring subscriptions across every player, which the unique index
@@ -45,10 +46,6 @@ public class PlayerSubscriptionEntity : TurboEntity
     [DefaultValue(0)]
     public int PurchasedDaysSubscribed { get; set; }
 
-    [Column("periods_purchased")]
-    [DefaultValue(0)]
-    public int PeriodsPurchased { get; set; }
-
     /// <summary>Builders Club only: items the player may borrow at once. Zero elsewhere.</summary>
     [Column("furni_limit")]
     [DefaultValue(0)]
@@ -57,7 +54,7 @@ public class PlayerSubscriptionEntity : TurboEntity
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
 
-    /// <summary>When the row last changed; MySQL sets it on every update.</summary>
+    /// <summary>When the row last changed; a trigger sets it on every update.</summary>
     [Column("updated_at")]
     [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdatedAt { get; set; }

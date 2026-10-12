@@ -376,7 +376,6 @@ public sealed class CatalogEditServiceTests : IDisposable
                 Name = "builder",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _catalog.Db.Insert(
@@ -400,13 +399,12 @@ public sealed class CatalogEditServiceTests : IDisposable
                 PlayerEntityId = 1,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = true,
+                AllowWalkThrough = true,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,

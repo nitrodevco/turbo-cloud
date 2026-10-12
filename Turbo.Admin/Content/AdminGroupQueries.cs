@@ -9,9 +9,11 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Content;
 
@@ -46,7 +48,14 @@ public sealed partial class AdminGroupQueries(
         if (words.Length > 0)
             groups = int.TryParse(words, out var id)
                 ? groups.Where(x => x.Id == id || x.RoomEntityId == id)
-                : groups.Where(x => x.Name.Contains(words) || x.PlayerEntity!.Name == words);
+                : groups.Where(x =>
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing(words),
+                        LikePatterns.ESCAPE
+                    )
+                    || x.PlayerEntity!.NameKey == PlayerNames.Key(words)
+                );
 
         var total = await groups.CountAsync(ct).ConfigureAwait(false);
         var rows = await groups

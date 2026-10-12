@@ -76,6 +76,8 @@ public static class GrainHarness
                 f.SetValue(grain, new TestEventBus().System);
             else if (t == typeof(Turbo.Primitives.Moderation.IWordFilter))
                 f.SetValue(grain, new PassThroughWordFilter());
+            else if (t == typeof(Turbo.Primitives.Moderation.IModerationLog))
+                f.SetValue(grain, fakes.Create<Turbo.Primitives.Moderation.IModerationLog>());
         }
 
         fakes.Handlers.TryAdd(

@@ -14,6 +14,8 @@ using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -66,7 +68,6 @@ public sealed class GroupStaffTests : IDisposable
                     Name = name,
                     Figure = "hd-180-1",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
 
@@ -91,13 +92,12 @@ public sealed class GroupStaffTests : IDisposable
                 PlayerEntityId = OWNER,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -174,6 +174,54 @@ public sealed class GroupStaffTests : IDisposable
             .BeFalse("a group needs a name");
     }
 
+    /// <summary>
+    /// "Member since" is the day a request was approved. The member list showed the day the
+    /// row was written, which for a request is the day it was asked, however long it waited.
+    /// </summary>
+    [Fact]
+    public async Task A_member_approved_today_is_a_member_since_today_not_since_they_asked()
+    {
+        const int CAROL = 4;
+        _db.Insert(
+            new PlayerEntity
+            {
+                Id = CAROL,
+                Name = "carol",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+            }
+        );
+        _db.Insert(
+            new GuildMemberEntity
+            {
+                Id = 4,
+                GuildEntityId = GROUP,
+                PlayerEntityId = CAROL,
+                Rank = GuildMemberRank.Requested,
+                IsFavourite = false,
+                CreatedAt = DateTime.UtcNow.AddDays(-10),
+            }
+        );
+        var group = await GroupAsync();
+
+        (await group.ApproveRequestAsync(new PlayerId(OWNER), new PlayerId(CAROL), Ct))
+            .Should()
+            .NotBeNull();
+        var page = await group.GetMembersPageAsync(
+            new PlayerId(OWNER),
+            0,
+            "carol",
+            GuildMemberSearchType.All,
+            Ct
+        );
+
+        page!
+            .Members.Should()
+            .ContainSingle()
+            .Which.MemberSince.Should()
+            .BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
     [Fact]
     public async Task A_member_is_taken_out_but_the_owner_is_not()
     {
@@ -208,6 +256,55 @@ public sealed class GroupStaffTests : IDisposable
         dbCtx.Guilds.Should().BeEmpty();
         dbCtx.GuildMembers.Should().BeEmpty();
         _fakes.Log.Of("OnGuildRemovedAsync").Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Staff renaming a group, resetting its badge, removing a member or deleting it wrote only
+    /// to the server log. Each is in the moderation history, as done from the panel: a member
+    /// taken out in theirs, and the group's in the record of the group.
+    /// </summary>
+    [Fact]
+    public async Task Staff_changes_to_a_group_are_in_the_moderation_history()
+    {
+        var group = await GroupAsync();
+
+        await group.StaffRenameAsync(STAFF, "New name", "x", Ct);
+        await group.StaffRemoveMemberAsync(STAFF, new PlayerId(BOB), Ct);
+        await group.StaffDeleteAsync(STAFF, Ct);
+
+        _fakes
+            .Log.Of(nameof(IModerationLog.RecordAsync))
+            .Select(x => (ModerationRecord)x.Args[0]!)
+            .Select(x =>
+                (x.Action, x.Source, x.ActorId?.Value, x.TargetPlayerId?.Value, x.GuildId, x.Detail)
+            )
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.GroupRenamed,
+                    ModerationSource.Panel,
+                    (int?)STAFF.Value,
+                    (int?)null,
+                    (int?)GROUP,
+                    "New name"
+                ),
+                (
+                    ModerationActionType.GroupMemberRemoved,
+                    ModerationSource.Panel,
+                    STAFF.Value,
+                    BOB,
+                    GROUP,
+                    null
+                ),
+                (
+                    ModerationActionType.GroupDeleted,
+                    ModerationSource.Panel,
+                    STAFF.Value,
+                    null,
+                    GROUP,
+                    "New name"
+                )
+            );
     }
 
     [Fact]

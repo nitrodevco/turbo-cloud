@@ -22,9 +22,13 @@ public sealed class OperationsModule : IHostPluginModule
         services.Configure<OperationsConfig>(
             builder.Configuration.GetSection(OperationsConfig.SECTION_NAME)
         );
+        services.Configure<RetentionConfig>(
+            builder.Configuration.GetSection(RetentionConfig.SECTION_NAME)
+        );
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ISanctionService, SanctionService>();
+        services.AddSingleton<IModerationLog, ModerationLog>();
         services.AddSingleton<ICallForHelpService, CallForHelpService>();
         services.AddSingleton<IWordFilter, WordFilter>();
 
@@ -34,5 +38,9 @@ public sealed class OperationsModule : IHostPluginModule
             sp.GetRequiredService<HotelAvailabilityService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<HotelAvailabilityService>());
+
+        // Removes records past the keeping period the hotel set for each kind.
+        services.AddSingleton<DataRetentionService>();
+        services.AddHostedService(sp => sp.GetRequiredService<DataRetentionService>());
     }
 }

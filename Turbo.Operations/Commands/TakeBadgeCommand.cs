@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -25,7 +27,7 @@ public sealed record TakeBadgeArguments(
     Category = CommandCategories.SUPPORT
 )]
 [RequiresPermission(PermissionNodes.Command.TAKEBADGE)]
-public sealed class TakeBadgeCommand(IGrainFactory grainFactory)
+public sealed class TakeBadgeCommand(IGrainFactory grainFactory, IModerationLog moderationLog)
     : IOperatorCommand<TakeBadgeArguments>
 {
     private const string TAKEN = "taken";
@@ -74,6 +76,15 @@ public sealed class TakeBadgeCommand(IGrainFactory grainFactory)
                     )
                 )
         );
+
+        foreach (var target in batch.Targets.Where(x => x.Succeeded > 0))
+            await moderationLog.RecordAsync(
+                ctx,
+                ModerationActionType.BadgeTaken,
+                target.PlayerId,
+                ct,
+                detail: arguments.Code
+            );
 
         var completed = selection.IsSelector
             ? CommandResult.Done(

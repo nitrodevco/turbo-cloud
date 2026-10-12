@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
@@ -173,6 +174,51 @@ public sealed class WiredChestTests : IDisposable
         _fakes.Log.Of("ReceiveFurnitureAsync").Should().ContainSingle();
     }
 
+    /// <summary>
+    /// Furni deposited in someone else's chest, and paid out of it to someone else, changed
+    /// owner without a trace: a furni's history showed it reaching a player it was never traded to.
+    /// </summary>
+    [Fact]
+    public async Task A_deposit_and_a_withdrawal_between_players_are_in_the_furnis_history()
+    {
+        _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
+        var chest = await ChestAsync();
+
+        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10), default);
+        await chest.WithdrawAsync(
+            Withdraw(WiredChestKind.Furni, 1, WiredChestIterationMode.FirstInFirstOut),
+            default
+        );
+
+        await using var db = await _db.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        db.FurnitureTransfers.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.FurnitureId,
+                x.FromPlayerId,
+                x.ToPlayerId,
+                x.Reason,
+            })
+            .ToList()
+            .Should()
+            .Equal(
+                new
+                {
+                    FurnitureId = 10,
+                    FromPlayerId = ALICE,
+                    ToPlayerId = OWNER,
+                    Reason = FurnitureTransferReason.ChestDeposit,
+                },
+                new
+                {
+                    FurnitureId = 10,
+                    FromPlayerId = OWNER,
+                    ToPlayerId = ALICE,
+                    Reason = FurnitureTransferReason.ChestWithdrawal,
+                }
+            );
+    }
+
     [Fact]
     public async Task Credit_furni_become_the_chest_balance_and_leave_through_the_wallet()
     {
@@ -186,7 +232,7 @@ public sealed class WiredChestTests : IDisposable
         Rows(20).Should().BeEmpty();
 
         _fakes.Handlers["CreditAsync"] = call =>
-            call.Args.Length == 4 ? Task.FromResult(WalletCreditResult.Applied) : Fakes.NotHandled;
+            call.Args.Length == 5 ? Task.FromResult(WalletCreditResult.Applied) : Fakes.NotHandled;
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),
@@ -213,7 +259,7 @@ public sealed class WiredChestTests : IDisposable
         await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), default);
 
         _fakes.Handlers["CreditAsync"] = call =>
-            call.Args.Length == 4 ? Task.FromResult(WalletCreditResult.Rejected) : Fakes.NotHandled;
+            call.Args.Length == 5 ? Task.FromResult(WalletCreditResult.Rejected) : Fakes.NotHandled;
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),
@@ -386,7 +432,6 @@ public sealed class WiredChestTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static FurnitureEntity Furni(int id, int definitionId, int ownerId) =>

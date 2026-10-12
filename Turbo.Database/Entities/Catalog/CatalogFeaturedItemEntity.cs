@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
@@ -10,6 +11,9 @@ namespace Turbo.Database.Entities.Catalog;
 /// large on the left, the next three in a list. It goes live with the rest of the catalog when
 /// it is published.
 /// </summary>
+[Comment(
+    "A featured item of the catalog's front page, which the front page layouts draw: the first large on the left, the next three in a list."
+)]
 [Table("catalog_featured_items")]
 public class CatalogFeaturedItemEntity : TurboEntity
 {

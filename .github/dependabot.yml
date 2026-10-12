@@ -19,7 +19,7 @@ updates:
       nuget-compatible:
         patterns: ["*"]
         update-types: [minor, patch]
-    # EF stays on 9.x until the MySQL provider supports the next major version.
+    # A major EF version waits for the Npgsql provider's matching release.
     ignore:
       - dependency-name: "Microsoft.EntityFrameworkCore*"
         update-types: ["version-update:semver-major"]

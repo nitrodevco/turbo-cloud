@@ -4,10 +4,13 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.Room;
 using Turbo.Operations;
 using Turbo.Operations.Configuration;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -132,6 +135,27 @@ public sealed class CallForHelpReportTests : IDisposable
         Assert.Equal((int)CfhResultType.Refused, reply.PopInt());
         Assert.Contains("3 reports waiting", reply.PopString());
         (await Reports()).Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Reports_nobody_got_to_stop_counting_after_a_day()
+    {
+        for (var i = 0; i < new OperationsConfig().CfhMaxOpenReports; i++)
+            _db.Insert(
+                new CfhReportEntity
+                {
+                    Id = 100 + i,
+                    ReporterEntityId = REPORTER,
+                    TopicId = TOPIC,
+                    Message = "an old report",
+                    CreatedAt = NOW.AddHours(-new OperationsConfig().CfhOpenReportHours - 1),
+                }
+            );
+
+        var reply = Assert.Single(await SendReportAsync(TOPIC));
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+        (await Reports()).Should().HaveCount(4);
     }
 
     [Fact]
@@ -307,6 +331,60 @@ public sealed class CallForHelpReportTests : IDisposable
 
     private void InsertForumPost()
     {
+        // The group the forum belongs to, with the home room every group has.
+        _db.Insert(
+            new RoomModelEntity
+            {
+                Id = 1,
+                Name = "model_a",
+                Model = "00\r00",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.North,
+                Enabled = true,
+                Custom = false,
+            }
+        );
+        _db.Insert(
+            new RoomEntity
+            {
+                Id = GROUP,
+                Name = "group room",
+                PlayerEntityId = REPORTED,
+                RoomModelEntityId = 1,
+                DoorMode = RoomDoorModeType.Open,
+                PlayersMax = 25,
+                WallHeight = -1,
+                HideWalls = false,
+                ThicknessWall = RoomThicknessType.Normal,
+                ThicknessFloor = RoomThicknessType.Normal,
+                AllowWalkThrough = false,
+                AllowPets = true,
+                AllowPetsEat = true,
+                TradeType = RoomTradeModeType.Disabled,
+                MuteType = ModSettingType.Owner,
+                KickType = ModSettingType.Owner,
+                BanType = ModSettingType.Owner,
+                ChatFloodType = ChatFloodSensitivityType.Minimal,
+                PlayerEntity = null!,
+                RoomModelEntity = null!,
+            }
+        );
+        _db.Insert(
+            new GuildEntity
+            {
+                Id = GROUP,
+                Name = "Group",
+                Description = "A group",
+                BadgeCode = "b05114s19134",
+                PrimaryColorId = 1,
+                SecondaryColorId = 1,
+                GuildType = GuildType.Regular,
+                RightsLevel = GuildRightsLevel.Owner,
+                PlayerEntityId = REPORTED,
+                RoomEntityId = GROUP,
+            }
+        );
         _db.Insert(
             new GuildForumThreadEntity
             {
@@ -387,6 +465,5 @@ public sealed class CallForHelpReportTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 }

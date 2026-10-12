@@ -141,11 +141,11 @@ bash/zsh:
 DOTNET_ENVIRONMENT=Development dotnet run --project Turbo.Main/Turbo.Main.csproj
 ```
 
-## Troubleshooting MySQL connection
+## Troubleshooting the database connection
 
-If you get `Unable to connect to any of the specified MySQL hosts`:
+If you get `Cannot use the database` or `Failed to connect`:
 1. Verify `Turbo:Database:ConnectionString` in `appsettings.Development.json`.
-2. Verify MySQL is listening on that host and port.
+2. Verify PostgreSQL is listening on that host and port.
 3. Verify no `TURBO__...` environment variable overrides the connection string.
 
 ## Troubleshooting integrated solution build

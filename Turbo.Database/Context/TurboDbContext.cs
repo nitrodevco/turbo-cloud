@@ -1,4 +1,6 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Admin;
 using Turbo.Database.Entities.Assets;
@@ -20,7 +22,6 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Settings;
 using Turbo.Database.Entities.Sound;
-using Turbo.Database.Entities.Tracking;
 using Turbo.Database.Entities.WiredTrading;
 
 namespace Turbo.Database.Context;
@@ -36,10 +37,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AchievementAuditEntity> AchievementAudit { get; init; }
     public DbSet<AchievementWalletReceiptEntity> AchievementWalletReceipts { get; init; }
     public DbSet<WalletCreditReceiptEntity> WalletCreditReceipts { get; init; }
-    public DbSet<HumanRespectOperationEntity> HumanRespectOperations { get; init; }
-    public DbSet<HumanRespectParticipantReceiptEntity> HumanRespectParticipantReceipts { get; init; }
-    public DbSet<PetNutritionOperationEntity> PetNutritionOperations { get; init; }
-    public DbSet<PetRespectOperationEntity> PetRespectOperations { get; init; }
+    public DbSet<PlayerRespectEntity> PlayerRespects { get; init; }
+    public DbSet<PlayerRespectChangeEntity> PlayerRespectChanges { get; init; }
+    public DbSet<PetFeedingEntity> PetFeedings { get; init; }
+    public DbSet<PetRespectEntity> PetRespects { get; init; }
 
     public DbSet<CatalogBackupEntity> CatalogBackups { get; init; }
 
@@ -93,6 +94,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerUnseenItemEntity> PlayerUnseenItems { get; init; }
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
+    public DbSet<PlayerCurrencyLedgerEntity> PlayerCurrencyLedger { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
     public DbSet<PlayerFigureSetEntity> PlayerFigureSets { get; init; }
@@ -101,6 +103,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
     public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
+    public DbSet<PlayerSubscriptionGrantEntity> PlayerSubscriptionGrants { get; init; }
+    public DbSet<PlayerLoginEntity> PlayerLogins { get; init; }
+    public DbSet<FurnitureTransferEntity> FurnitureTransfers { get; init; }
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerBonusRareProgressEntity> PlayerBonusRareProgress { get; init; }
@@ -161,6 +166,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<RoomChatlogEntity> Chatlogs { get; init; }
     public DbSet<CommandLogEntity> CommandLogs { get; init; }
     public DbSet<PlayerSanctionEntity> PlayerSanctions { get; init; }
+
+    public DbSet<ModerationActionEntity> ModerationActions { get; init; }
     public DbSet<FilterWordEntity> FilterWords { get; init; }
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }
     public DbSet<PlayerDiscordLinkEntity> PlayerDiscordLinks { get; init; }
@@ -180,10 +187,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<NavigatorEventCategoryEntity> NavigatorEventCategories { get; init; }
 
-    public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
+    public DbSet<ChatStyleEntity> ChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
-
-    public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
 
@@ -232,6 +237,19 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerPermissionMetaEntity> PlayerPermissionMeta { get; init; }
     public DbSet<PermissionAuditEntity> PermissionAudit { get; init; }
 
+    /// <summary>
+    /// What a hotel defines once and many rows use. Deleting one is refused while anything still
+    /// uses it: a cascade took every copy of a furni out of every inventory and room, every room
+    /// built on a model, and every balance in a currency. The admin panel checks first and says
+    /// what still uses it.
+    /// </summary>
+    private static readonly System.Type[] DEFINITIONS =
+    [
+        typeof(FurnitureDefinitionEntity),
+        typeof(RoomModelEntity),
+        typeof(CurrencyTypeEntity),
+    ];
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
@@ -247,6 +265,13 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             .WithMany()
             .HasForeignKey(x => x.CurrencyTypeEntityId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // PostgreSQL keeps 63 characters of a name; the one made for this key ran to 64.
+        mb.Entity<PlayerDailyTaskEntity>()
+            .HasOne(x => x.Definition)
+            .WithMany()
+            .HasForeignKey(x => x.DefinitionEntityId)
+            .HasConstraintName("fk_player_daily_tasks_definition_id");
 
         mb.Entity<GamedataTextEntity>()
             .Property(x => x.Key)
@@ -269,5 +294,222 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         mb.Entity<GamedataVariableEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataVariableEntity.KEY_COLLATION);
+
+        // The recovery timer reads the rows still pending every few seconds. A partial index holds
+        // only those, so it stays a handful of entries however large the table grows; a scan of
+        // the whole table measured over a second a tick at 2-3 million rows.
+        mb.Entity<PlayerRespectEntity>()
+            .HasIndex(x => x.Id, "ix_player_respects_pending")
+            .HasFilter("status = 0");
+        mb.Entity<PetRespectEntity>()
+            .HasIndex(x => x.Id, "ix_pet_respects_pending")
+            .HasFilter("status = 0");
+        mb.Entity<AchievementFactEntity>()
+            .HasIndex(x => new { x.PlayerId, x.Id }, "ix_achievement_facts_unprocessed")
+            .HasFilter("NOT processed");
+        mb.Entity<AchievementProjectionEntity>()
+            .HasIndex(x => x.PlayerId, "ix_achievement_projections_publication_pending")
+            .HasFilter("publication_pending");
+        // The hourly prune finds processed facts past their retention.
+        mb.Entity<AchievementFactEntity>()
+            .HasIndex(x => x.OccurredAtUtc, "ix_achievement_facts_processed_occurred_at")
+            .HasFilter("processed");
+        // Each web sign-in deletes the sessions that have ended.
+        mb.Entity<WebSessionEntity>().HasIndex(x => x.ExpiresAt);
+        // A login replays the messages it hasn't been given, newest first: only undelivered ones.
+        mb.Entity<MessengerMessageEntity>()
+            .HasIndex(
+                x => new { x.ReceiverPlayerEntityId, x.CreatedAt },
+                "ix_messenger_messages_undelivered"
+            )
+            .HasFilter("NOT delivered");
+        // Moderators search chat by any part of a line (lower(message) LIKE '%...%'), which no
+        // b-tree can serve; the baseline adds a trigram index on lower(message) for it.
+        // A serial of an LTD series is sold once.
+        mb.Entity<LtdRaffleEntryEntity>()
+            .HasIndex(x => new { x.SeriesEntityId, x.SerialNumber })
+            .IsUnique()
+            .HasFilter("serial_number IS NOT NULL");
+
+        // A page with no images or texts has an empty list, never a missing one.
+        mb.Entity<CatalogPageEntity>().Property(x => x.ImageData).HasDefaultValueSql("'{}'");
+        mb.Entity<CatalogPageEntity>().Property(x => x.TextData).HasDefaultValueSql("'{}'");
+
+        // Not worn is null, never 0, so "is it worn" has one answer.
+        mb.Entity<PlayerBadgeEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint("ck_player_badges_slot_id", "slot_id IS NULL OR slot_id > 0")
+            );
+
+        // Rules the code keeps, kept by the database too, so a write from anywhere (the panel, a
+        // script, a plugin) cannot leave a row the game reads wrongly.
+        mb.Entity<PlayerQuestEntity>()
+            .HasIndex(x => x.PlayerEntityId, "ix_player_quests_accepted")
+            .IsUnique()
+            .HasFilter("accepted");
+        mb.Entity<GuildMemberEntity>()
+            .HasIndex(x => x.PlayerEntityId, "ix_guild_members_favourite")
+            .IsUnique()
+            .HasFilter("is_favourite");
+        mb.Entity<LtdSeriesEntity>()
+            .HasIndex(x => x.CatalogProductEntityId, "ix_catalog_ltd_series_active")
+            .IsUnique()
+            .HasFilter("is_active");
+        mb.Entity<LtdSeriesEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_ltd_series_quantity",
+                    "remaining_quantity >= 0 AND remaining_quantity <= total_quantity"
+                )
+            );
+        // A series' raffle entries and serials are the record of who owns which piece; deleting
+        // the product or its page must not take them.
+        mb.Entity<LtdSeriesEntity>()
+            .HasOne(x => x.CatalogProduct)
+            .WithMany()
+            .HasForeignKey(x => x.CatalogProductEntityId)
+            .OnDelete(DeleteBehavior.Restrict);
+        mb.Entity<CurrencyTypeEntity>()
+            .HasIndex(x => new { x.CurrencyType, x.ActivityPointType })
+            .IsUnique()
+            .AreNullsDistinct(false);
+        mb.Entity<CurrencyTypeEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_currency_types_activity_point_type",
+                    "(type = 4) = (activity_point_type IS NOT NULL)"
+                )
+            );
+        mb.Entity<CatalogOfferEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_offers_currency",
+                    "cost_currency = 0 OR currency_type_id IS NOT NULL"
+                )
+            );
+        mb.Entity<VoucherEntity>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "ck_vouchers_uses",
+                    "uses >= 0 AND (max_uses IS NULL OR (max_uses >= 1 AND uses <= max_uses))"
+                );
+                t.HasCheckConstraint(
+                    "ck_vouchers_amounts",
+                    "credits >= 0 AND currency_amount >= 0 AND furniture_quantity >= 0 "
+                        + "AND (currency_amount = 0 OR currency_type_id IS NOT NULL)"
+                );
+            });
+        mb.Entity<WiredChestEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_wired_chests_amounts",
+                    "coins >= 0 AND capacity_level >= 0"
+                )
+            );
+        mb.Entity<BonusRareCampaignEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_bonus_rare_campaigns_window",
+                    "ends_at > starts_at AND credits_required > 0"
+                )
+            );
+        // A room's save rewrites where its furni stand, all day, and no index covers those
+        // columns, so PostgreSQL can update a row in place (a HOT update, no new index entries)
+        // if its page has room. Full pages (the default fillfactor 100) never do. Measured on
+        // 200,000 furni over 20,000 room saves: fillfactor 80 updated 20% in place against none,
+        // left the indexes 35% smaller (70 MB against 108), and saved 11% faster; 70 gained
+        // nothing more in index size for more table.
+        mb.Entity<FurnitureEntity>().HasStorageParameter("fillfactor", 80);
+
+        // A furni is in one place: a room, or held by another furni (a chest, a jukebox, a
+        // present), or else its owner's inventory. Never a room and a holder at once.
+        mb.Entity<FurnitureEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_furniture_one_place",
+                    "room_id IS NULL OR chest_item_id IS NULL"
+                )
+            );
+        mb.Entity<GamedataVariableEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_gamedata_variables_source",
+                    "setting_path IS NULL OR linked_file IS NULL"
+                )
+            );
+
+        // Queries that run often enough to want their own index.
+        mb.Entity<BuildersClubFurnitureEntity>().HasIndex(x => x.CatalogOfferEntityId);
+        mb.Entity<GuildForumMessageEntity>().HasIndex(x => new { x.GuildEntityId, x.CreatedAt });
+        mb.Entity<GuildForumMessageEntity>()
+            .HasIndex(x => new { x.GuildEntityId, x.PlayerEntityId });
+        mb.Entity<CommandLogEntity>().HasIndex(x => new { x.Outcome, x.Id });
+        mb.Entity<RoomEntryLogEntity>().HasIndex(x => new { x.PlayerEntityId, x.CreatedAt });
+        mb.Entity<PlayerEntity>().HasIndex(x => x.LastLoginAt);
+        mb.Entity<AchievementProgressEntity>()
+            .HasIndex(x => x.PlayerId, "ix_achievement_progress_pending_delivery")
+            .HasFilter("pending_delivery");
+
+        // The logs the retention job trims, by age, every hour. Rows arrive in time order, so a
+        // BRIN index on created_at (a few kB, a summary per block range) finds the old end
+        // without reading the table. Measured on 5 million chat lines: the hourly pass with
+        // nothing to remove went from a 250 ms scan of the whole table to under a millisecond,
+        // with an index of 32 kB where a b-tree on the same column is 80 MB. New ranges are
+        // summarised as they fill (autosummarize), not only at the next vacuum.
+        foreach (
+            var log in new[]
+            {
+                typeof(RoomChatlogEntity),
+                typeof(MessengerMessageEntity),
+                typeof(RoomEntryLogEntity),
+                typeof(PlayerLoginEntity),
+                typeof(PlayerCurrencyLedgerEntity),
+                typeof(FurnitureTransferEntity),
+                typeof(CommandLogEntity),
+                typeof(ModerationActionEntity),
+                typeof(PlayerRespectEntity),
+                typeof(PlayerRespectChangeEntity),
+                typeof(PetFeedingEntity),
+                typeof(WalletCreditReceiptEntity),
+            }
+        )
+            mb.Entity(log)
+                .HasIndex(nameof(TurboLogEntity.CreatedAt))
+                .HasMethod("brin")
+                .HasStorageParameter("autosummarize", true);
+
+        mb.HasPostgresExtension("pg_trgm");
+
+        // What the code already holds to, held by the database too, so a bug or a hand edit
+        // can't leave a balance below nothing or an offer that pays the buyer.
+        mb.Entity<PlayerCurrencyEntity>()
+            .ToTable(t => t.HasCheckConstraint("ck_player_currencies_amount", "amount >= 0"));
+        mb.Entity<CatalogOfferEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint(
+                    "ck_catalog_offers_costs",
+                    "cost_credits >= 0 AND cost_currency >= 0"
+                )
+            );
+        mb.Entity<CatalogProductEntity>()
+            .ToTable(t => t.HasCheckConstraint("ck_catalog_products_quantity", "quantity >= 1"));
+
+        // Names are looked up by their key, by equality and by prefix (the friend search). In the
+        // byte-order C collation a b-tree serves a prefix LIKE; in a language collation it can't.
+        mb.Entity<PlayerEntity>().Property(x => x.NameKey).UseCollation("C");
+        // The key is the name lowered (names are ASCII), so a write that changes one and not
+        // the other is refused rather than leaving a player no lookup finds.
+        mb.Entity<PlayerEntity>()
+            .ToTable(t =>
+                t.HasCheckConstraint("ck_players_name_key", "name_key = lower(trim(name))")
+            );
+
+        foreach (var fk in mb.Model.GetEntityTypes().SelectMany(x => x.GetForeignKeys()))
+            if (
+                fk.DeleteBehavior == DeleteBehavior.Cascade
+                && DEFINITIONS.Contains(fk.PrincipalEntityType.ClrType)
+            )
+                fk.DeleteBehavior = DeleteBehavior.Restrict;
     }
 }

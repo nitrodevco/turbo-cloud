@@ -31,7 +31,6 @@ public sealed class PlayerSettingsPersistenceTests : IDisposable
                 Name = "player",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 
@@ -51,6 +50,27 @@ public sealed class PlayerSettingsPersistenceTests : IDisposable
         var settings = await (await SettingsAsync()).GetSettingsAsync(Ct);
 
         (settings.GenericVolume, settings.FurniVolume, settings.TraxVolume).Should().Be((0, 0, 0));
+    }
+
+    /// <summary>
+    /// A home room that was deleted is not where the player is sent at login. The column keeps
+    /// no foreign key, so the grain checks it as it reads the row.
+    /// </summary>
+    [Fact]
+    public async Task A_deleted_home_room_is_no_longer_the_home_room()
+    {
+        _db.Insert(
+            new PlayerSettingsEntity
+            {
+                Id = 1,
+                PlayerEntityId = PLAYER,
+                HomeRoomId = 404,
+            }
+        );
+
+        var settings = await (await SettingsAsync()).GetSettingsAsync(Ct);
+
+        settings.HomeRoomId.Value.Should().BeLessThanOrEqualTo(0);
     }
 
     private async Task<IPlayerSettingsGrain> SettingsAsync()

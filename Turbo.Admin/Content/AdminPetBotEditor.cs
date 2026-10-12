@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Pets;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
@@ -189,7 +190,14 @@ public sealed class AdminPetBotEditor(
         if (words.Length > 0)
             bots = int.TryParse(words, out var id)
                 ? bots.Where(x => x.Id == id || x.RoomEntityId == id)
-                : bots.Where(x => x.Name.Contains(words) || x.PlayerEntity!.Name == words);
+                : bots.Where(x =>
+                    EF.Functions.Like(
+                        x.Name.ToLower(),
+                        LikePatterns.Containing(words),
+                        LikePatterns.ESCAPE
+                    )
+                    || x.PlayerEntity!.NameKey == PlayerNames.Key(words)
+                );
 
         var total = await bots.CountAsync(ct).ConfigureAwait(false);
         var rows = await bots.OrderByDescending(x => x.Id)

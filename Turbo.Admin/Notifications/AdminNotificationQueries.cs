@@ -112,7 +112,7 @@ public sealed class AdminNotificationQueries(
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
-            var names = await NamesAsync(db, refused.Select(x => x.PlayerEntityId), ct)
+            var names = await NamesAsync(db, refused.Select(x => x.PlayerEntityId ?? 0), ct)
                 .ConfigureAwait(false);
 
             items.AddRange(
@@ -120,9 +120,9 @@ public sealed class AdminNotificationQueries(
                     $"refusedCommand:{x.Id}",
                     "refusedCommand",
                     x.CreatedAt,
-                    $"{Name(names, x.PlayerEntityId, "The console")} was refused :{x.Command}",
+                    $"{Name(names, x.PlayerEntityId ?? 0, "The console")} was refused :{x.Command}",
                     x.Arguments.Length > 0 ? $":{x.Command} {x.Arguments}" : null,
-                    x.PlayerEntityId == 0 ? null : x.PlayerEntityId
+                    x.PlayerEntityId
                 ))
             );
         }

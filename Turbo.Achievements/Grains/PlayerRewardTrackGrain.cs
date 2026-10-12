@@ -311,7 +311,11 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         {
             var debit = await _grainFactory
                 .GetPlayerWalletGrain(_state.PlayerId)
-                .TryDebitAsync(costs, ct);
+                .TryDebitAsync(
+                    costs,
+                    new WalletChange(WalletChangeReason.RewardTrack, $"premium {track.Id}"),
+                    ct
+                );
 
             if (!debit.Succeeded)
                 return debit.Failure?.CurrencyKind.CurrencyType switch
@@ -396,6 +400,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                         CurrencyKind.ActivityPoints(pointType),
                         prize.Amount,
                         $"{CREDIT_REFERENCE_PREFIX}{track.Id}:{prize.Id}",
+                        new WalletChange(WalletChangeReason.RewardTrack, $"prize {prize.Id}"),
                         ct
                     );
 

@@ -56,7 +56,7 @@ public sealed class WhoisCommand(
         {
             $"{target.Name} (player {target.Id})",
             $"Registered: {summary.CreatedAt.ToString(DATE_FORMAT, CultureInfo.InvariantCulture)}",
-            await WhereAsync(target.Id, online, summary.LastUpdated, ct),
+            await WhereAsync(target.Id, online, summary.LastSeen, ct),
             $"Groups: {GroupsOf(resolved)}",
             ban is null
                 ? "Ban: none"

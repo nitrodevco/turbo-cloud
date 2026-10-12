@@ -297,7 +297,7 @@ internal sealed class RoomEndpoints(
             return no;
 
         var cleared = await Room(id)
-            .ClearRoomBySystemAsync(AdminIdentity.Of(http).PlayerId, ct)
+            .ClearRoomBySystemAsync(Acting(http, id), ct)
             .ConfigureAwait(false);
         Log(http, "sent {Count} players out of room {RoomId}", cleared, id);
 
@@ -317,7 +317,7 @@ internal sealed class RoomEndpoints(
             return no;
 
         var changed = await Room(id)
-            .SetRoomMutedBySystemAsync(request.Muted, ct)
+            .SetRoomMutedBySystemAsync(Acting(http, id), request.Muted, ct)
             .ConfigureAwait(false);
 
         if (changed)
@@ -339,7 +339,7 @@ internal sealed class RoomEndpoints(
         if (await RefuseLoadedAsync(http, id, x => x.Unload, ct).ConfigureAwait(false) is { } no)
             return no;
 
-        await Room(id).EvictEveryoneAndUnloadAsync(ct).ConfigureAwait(false);
+        await Room(id).EvictEveryoneAndUnloadAsync(Acting(http, id), ct).ConfigureAwait(false);
         Log(http, "unloaded room {RoomId}", id);
 
         return Done("The room was unloaded.");
@@ -416,7 +416,7 @@ internal sealed class RoomEndpoints(
 
     /// <summary>The staff member, acting on the room as if standing in it.</summary>
     private static ActionContext Acting(HttpContext http, int id) =>
-        ActionContext.CreateForPlayer(AdminIdentity.Of(http).PlayerId, new RoomId(id));
+        ActionContext.CreateForPanel(AdminIdentity.Of(http).PlayerId, new RoomId(id));
 
     private IRoomGrain Room(int id) => grainFactory.GetRoomGrain(new RoomId(id));
 

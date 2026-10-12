@@ -7,6 +7,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Events players are running in their rooms, as the navigator lists them.")]
 [Table("room_events")]
 [Index(nameof(RoomEntityId))]
 [Index(nameof(ExpiresAt))]

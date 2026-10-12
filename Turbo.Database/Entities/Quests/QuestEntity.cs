@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Quests;
 /// <see cref="Type"/> is what counts towards it and <see cref="Target"/>, when set, the one value
 /// that counts (a badge code for WEAR_BADGE).
 /// </summary>
+[Comment("One quest of a campaign, done in SortOrder.")]
 [Table("quests")]
 [Index(nameof(CampaignEntityId), nameof(LocalizationCode), IsUnique = true)]
 public class QuestEntity : TurboEntity

@@ -346,7 +346,7 @@ public class BotDecoderRoundTripTests
                                 Ranking = 0,
                                 CategoryId = 1,
                                 Tags = ["bots", "load"],
-                                AllowBlocking = false,
+                                AllowWalkThrough = false,
                                 AllowPets = true,
                                 AllowPetsEat = false,
                             },

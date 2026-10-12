@@ -76,11 +76,12 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
     /// <summary>
     /// Takes every requested currency or none. Each currency is one conditional update
     /// (<c>amount = amount - cost WHERE amount &gt;= cost</c>), so the database refuses a short
-    /// balance itself; with more than one currency they share a transaction, and the first one
-    /// the balance cannot cover rolls the others back. Memory moves only after the commit.
+    /// balance itself; they share a transaction with their ledger rows, and the first one the
+    /// balance cannot cover rolls the others back. Memory moves only after the commit.
     /// </summary>
     public async Task<WalletDebitResult> TryDebitAsync(
         List<WalletDebitRequest> requests,
+        WalletChange why,
         CancellationToken ct
     )
     {
@@ -96,11 +97,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-            // One statement is atomic on its own; only several need a transaction around them.
-            await using var tx =
-                normalizedRequests.Count > 1
-                    ? await dbCtx.Database.BeginTransactionAsync(ct)
-                    : null;
+            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
 
             foreach (var request in normalizedRequests)
             {
@@ -130,11 +127,18 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
                         request.CurrencyKind
                     );
 
-                    if (tx is not null)
-                        await tx.RollbackAsync(ct);
+                    await tx.RollbackAsync(ct);
 
                     return InsufficientBalance(request);
                 }
+
+                // The balance as the database left it, for the ledger and the client alike.
+                var after = await dbCtx
+                    .PlayerCurrencies.Where(x => x.Id == snapshot!.Id)
+                    .Select(x => new { x.Amount, x.CurrencyTypeEntityId })
+                    .SingleAsync(ct);
+
+                RecordChange(dbCtx, after.CurrencyTypeEntityId, -cost, after.Amount, why);
 
                 // ChangedBy is the signed delta: a debit is negative, so the client shows it as
                 // spent rather than received.
@@ -143,13 +147,13 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
                     {
                         CurrencyKind = request.CurrencyKind,
                         ChangedBy = -cost,
-                        Amount = snapshot!.Amount - cost,
+                        Amount = after.Amount,
                     }
                 );
             }
 
-            if (tx is not null)
-                await tx.CommitAsync(ct);
+            await dbCtx.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
         }
         catch (Exception ex)
         {
@@ -217,15 +221,46 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             new WalletDebitFailure { CurrencyKind = request.CurrencyKind, Amount = request.Amount }
         );
 
-    public Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
-        CreditCoreAsync(kind, amount, reward: false, ct);
+    public Task<bool> CreditAsync(
+        CurrencyKind kind,
+        int amount,
+        WalletChange why,
+        CancellationToken ct
+    ) => CreditCoreAsync(kind, amount, why, reward: false, ct);
 
-    public Task<bool> CreditRewardAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
-        CreditCoreAsync(kind, amount, reward: true, ct);
+    public Task<bool> CreditRewardAsync(
+        CurrencyKind kind,
+        int amount,
+        WalletChange why,
+        CancellationToken ct
+    ) => CreditCoreAsync(kind, amount, why, reward: true, ct);
+
+    /// <summary>A ledger row for a change about to be saved, in the same save as the balance.</summary>
+    private void RecordChange(
+        TurboDbContext dbCtx,
+        int currencyTypeId,
+        int change,
+        int balanceAfter,
+        WalletChange why
+    ) =>
+        dbCtx.PlayerCurrencyLedger.Add(
+            new PlayerCurrencyLedgerEntity
+            {
+                PlayerEntityId = PlayerId.Value,
+                CurrencyTypeId = currencyTypeId,
+                Change = change,
+                BalanceAfter = balanceAfter,
+                Reason = why.Reason,
+                Detail = why.Detail is { Length: > WalletChange.DETAIL_MAX_LENGTH } detail
+                    ? detail[..WalletChange.DETAIL_MAX_LENGTH]
+                    : why.Detail,
+            }
+        );
 
     private async Task<bool> CreditCoreAsync(
         CurrencyKind kind,
         int amount,
+        WalletChange why,
         bool reward,
         CancellationToken ct
     )
@@ -253,6 +288,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             if (reward)
                 entity.PendingRewardAmount = checked(entity.PendingRewardAmount + amount);
             newAmount = entity.Amount;
+            RecordChange(dbCtx, entity.CurrencyTypeEntityId, amount, newAmount, why);
 
             await dbCtx.SaveChangesAsync(ct);
 
@@ -282,6 +318,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             };
 
             dbCtx.PlayerCurrencies.Add(entity);
+            RecordChange(dbCtx, typeId, amount, amount, why);
 
             await dbCtx.SaveChangesAsync(ct);
 

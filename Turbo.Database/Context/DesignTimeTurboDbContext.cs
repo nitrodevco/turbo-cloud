@@ -2,6 +2,8 @@ using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Turbo.Database.Configuration;
+using Turbo.Database.Extensions;
 
 namespace Turbo.Database.Context
 {
@@ -19,15 +21,15 @@ namespace Turbo.Database.Context
                 .AddEnvironmentVariables()
                 .Build();
 
-            var connectionString = configuration["Turbo:Database:ConnectionString"];
-
-            optionsBuilder.UseMySql(
-                connectionString,
-                ServerVersion.AutoDetect(connectionString),
-                options =>
+            ServiceCollectionExtensions.UseTurboPostgres(
+                optionsBuilder,
+                new DatabaseConfig
                 {
-                    options.MigrationsAssembly("Turbo.Database");
-                }
+                    ConnectionString =
+                        configuration["Turbo:Database:ConnectionString"] ?? string.Empty,
+                    LoggingEnabled = true,
+                },
+                npgsql => npgsql.MigrationsAssembly("Turbo.Database")
             );
 
             return new TurboDbContext(optionsBuilder.Options);

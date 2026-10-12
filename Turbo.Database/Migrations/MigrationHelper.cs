@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Configuration;
 using Turbo.Database.Delegates;
 
 namespace Turbo.Database.Migrations;
@@ -59,19 +61,28 @@ public static class MigrationHelper
                 $"Refusing to uninstall {typeof(TContext).Name}: table prefix '{prefix}' is empty or not a plain identifier, so its tables cannot be told apart from the hotel's."
             );
 
-        // `_` is a LIKE wildcard: "tsp_" would otherwise also match "tspx...".
+        // `_` is a LIKE wildcard: "tsp_" would otherwise also match "tspx...". CASCADE drops the
+        // foreign keys other tables hold on them.
         var tablePrefix = prefix.Replace("_", @"\_");
 
         var sql =
             $@"
-SET @sql = (
-  SELECT GROUP_CONCAT(CONCAT('DROP TABLE IF EXISTS `', TABLE_SCHEMA, '`.`', TABLE_NAME, '`') SEPARATOR ';')
-  FROM INFORMATION_SCHEMA.TABLES
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE '{tablePrefix}%'
-);
-SET FOREIGN_KEY_CHECKS = 0;
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET FOREIGN_KEY_CHECKS = 1;";
-        await db.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
+DO $$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables
+           WHERE schemaname = current_schema() AND tablename LIKE '{tablePrefix}%'
+  LOOP
+    EXECUTE format('DROP TABLE IF EXISTS %I CASCADE', t.tablename);
+  END LOOP;
+END $$;";
+        // Dropping tables is the schema owner's to do, as migrating them is.
+        var config = sp.GetRequiredService<IHostServices>()
+            .GetRequiredService<IOptions<DatabaseConfig>>()
+            .Value;
+        var owner = DatabaseMigrator.AsSchemaOwner(db, config);
+
+        await using (owner.ConfigureAwait(false))
+            await db.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
     }
 }

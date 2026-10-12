@@ -13,13 +13,15 @@ namespace Turbo.Database.Entities.Assets;
 /// in <see cref="Error"/> and has no file; it is tried again only when that may pass
 /// (<see cref="Retry"/>) or its revision changes.
 /// </summary>
+[Comment(
+    "A .nitro bundle the hotel keeps, by its kind and name: the file itself is on disk (bundled/<kind>/<name>.nitro under the asset directory), and this row is what is known of it without opening it."
+)]
 [Table("asset_bundles")]
 [Index(nameof(Kind), nameof(Name), IsUnique = true)]
 public class AssetBundleEntity : TurboEntity
 {
     public const int NAME_MAX_LENGTH = 128;
     public const int ERROR_MAX_LENGTH = 512;
-    public const int IDS_MAX_LENGTH = 1024;
 
     [Column("kind")]
     public required AssetBundleKind Kind { get; set; }
@@ -52,7 +54,6 @@ public class AssetBundleEntity : TurboEntity
     /// type. Null for a furniture, which is found by its name.
     /// </summary>
     [Column("ids")]
-    [MaxLength(IDS_MAX_LENGTH)]
     public string? Ids { get; set; }
 
     [Column("error")]

@@ -34,8 +34,19 @@ public sealed partial class RoomActionModule
         )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
+        // The database says whether the furni is still in its owner's inventory, and takes it
+        // into the room in the same write, before the room shows it to anyone.
+        if (!await ClaimForRoomAsync(item, x, y, rot, null, null, ct))
+            return false;
+
         // The spot and the room's limits are checked by the placement itself.
-        if (!await FurniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
+        if (
+            !await PlaceClaimedAsync(
+                item,
+                () => FurniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct),
+                ct
+            )
+        )
             return false;
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);

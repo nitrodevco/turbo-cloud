@@ -1,11 +1,15 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Navigator;
 
-[Table("navigator_flatcats")]
+[Comment("The categories a room can be put in, as the navigator lists them.")]
+[Table("navigator_room_categories")]
+// The admin panel refuses a second category of the same name; this holds it to that.
+[Index(nameof(Name), IsUnique = true)]
 public class NavigatorFlatCategoryEntity : TurboEntity
 {
     [Key]
@@ -20,7 +24,7 @@ public class NavigatorFlatCategoryEntity : TurboEntity
     public required bool Visible { get; set; }
 
     [Column("automatic")]
-    [DefaultValue(true)] // TODO hmm
+    [DefaultValue(false)]
     public required bool Automatic { get; set; }
 
     [Column("automatic_category")]

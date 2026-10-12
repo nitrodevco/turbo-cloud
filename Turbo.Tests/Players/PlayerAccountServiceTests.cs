@@ -34,7 +34,6 @@ public sealed class PlayerAccountServiceTests : IDisposable
                 Name = "Alice",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Female,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _accounts = new PlayerAccountService(
@@ -100,7 +99,6 @@ public sealed class PlayerAccountServiceTests : IDisposable
         bob.Motto.Should().Be("Hello");
         bob.Gender.Should().Be(AvatarGenderType.Female);
         bob.Figure.Should().Be(PlayerAccountService.FEMALE_FIGURE);
-        bob.PlayerStatus.Should().Be(PlayerStatusType.Offline);
     }
 
     [Fact]

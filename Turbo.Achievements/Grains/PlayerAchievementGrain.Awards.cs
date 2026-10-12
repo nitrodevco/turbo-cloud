@@ -161,7 +161,7 @@ internal sealed partial class PlayerAchievementGrain
                     db.AchievementProjections.Add(projection);
                 }
                 projection.Score = checked(projection.Score + level.Score);
-                projection.EarnedLevels = checked(projection.EarnedLevels + added);
+                projection.CompletedLevels = checked(projection.CompletedLevels + added);
                 projection.PublicationPending = true;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
@@ -257,10 +257,10 @@ internal sealed partial class PlayerAchievementGrain
             .ToListAsync(ct);
         var score = checked(completed.Sum(x => (long)x.ScoreEarned));
         var levels = completed.Sum(x => x.CompletedLevel);
-        if (projection.Score == score && projection.EarnedLevels == levels)
+        if (projection.Score == score && projection.CompletedLevels == levels)
             return;
         projection.Score = checked((int)score);
-        projection.EarnedLevels = levels;
+        projection.CompletedLevels = levels;
         projection.PublicationPending = true;
     }
 }

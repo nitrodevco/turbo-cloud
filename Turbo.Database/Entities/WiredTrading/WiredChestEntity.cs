@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.WiredTrading;
 /// times its capacity was bought up. One row per chest furni, created on first use and removed
 /// with the furni. The furni a furni chest holds are <c>furniture</c> rows pointing at it.
 /// </summary>
+[Comment(
+    "What a wired chest holds besides its furni rows: the credits in a credit chest and how many times its capacity was bought up."
+)]
 [Table("wired_chests")]
 public class WiredChestEntity
 {

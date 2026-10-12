@@ -10,6 +10,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// JSON objects of the fields that changed, by furnidata key; for Habbo's furniture, its item
 /// whole. A row the set made has no <see cref="Before"/>, and a row it removed no <see cref="After"/>.
 /// </summary>
+[Comment("One row a change set touched.")]
 [Table("gamedata_changes")]
 [Index(nameof(ChangeSetEntityId))]
 public class GamedataChangeEntity : TurboEntity
@@ -30,10 +31,10 @@ public class GamedataChangeEntity : TurboEntity
     [MaxLength(LABEL_MAX_LENGTH)]
     public required string Label { get; set; }
 
-    [Column("before", TypeName = "longtext")]
+    [Column("before", TypeName = "text")]
     public string? Before { get; set; }
 
-    [Column("after", TypeName = "longtext")]
+    [Column("after", TypeName = "text")]
     public string? After { get; set; }
 
     [ForeignKey(nameof(ChangeSetEntityId))]

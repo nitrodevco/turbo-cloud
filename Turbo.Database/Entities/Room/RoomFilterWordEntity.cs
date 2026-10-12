@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment("Words a room's owner has chosen to filter in their room's chat.")]
 [Table("room_filter_words")]
 [Index(nameof(RoomEntityId), nameof(Word), IsUnique = true)]
 public class RoomFilterWordEntity : TurboEntity

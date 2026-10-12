@@ -163,10 +163,12 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
     }
 
     /// <summary>
-    /// Writes the playlist as <paramref name="order"/> in one save: the disk taken from
+    /// Writes the playlist as <paramref name="order"/> in one transaction: the disk taken from
     /// <paramref name="ownerId"/>'s inventory comes in, the one given back goes out, and every
-    /// disk held is numbered by its place. False when a row is not where the list says it is
-    /// (the disk to take was placed or traded meanwhile, the one to give back is gone).
+    /// disk held is numbered by its place. Taking and giving back are conditional writes on where
+    /// the row is now, as every other move of a furni is, so a disk placed or traded a moment
+    /// before is refused rather than held by the jukebox and somewhere else at once. False when a
+    /// row is not where the list says it is, and nothing is written.
     /// </summary>
     private async Task<bool> SaveOrderAsync(
         List<FurnitureItemSnapshot> order,
@@ -177,35 +179,46 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
     )
     {
         var jukeboxId = _state.JukeboxId.Value;
-        var takenId = taken?.ItemId.Value;
-        var givenId = given?.ItemId.Value;
         var owner = ownerId.Value;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var transaction = await dbCtx.Database.BeginTransactionAsync(ct);
 
-        var rows = await dbCtx
-            .Furnitures.Where(x =>
-                x.ChestItemEntityId == jukeboxId
-                || (
+        if (taken is not null)
+        {
+            var takenId = taken.ItemId.Value;
+            var took = await dbCtx
+                .Furnitures.Where(x =>
                     x.Id == takenId
                     && x.PlayerEntityId == owner
                     && x.RoomEntityId == null
                     && x.ChestItemEntityId == null
                 )
-            )
-            .ToDictionaryAsync(x => x.Id, ct);
+                .ExecuteUpdateAsync(up => up.SetProperty(x => x.ChestItemEntityId, jukeboxId), ct);
 
-        if (takenId is { } id && !rows.ContainsKey(id))
-            return false;
-
-        if (givenId is { } returned)
-        {
-            if (!rows.Remove(returned, out var row))
+            if (took == 0)
                 return false;
-
-            row.ChestItemEntityId = null;
-            row.HeldPosition = null;
         }
+
+        if (given is not null)
+        {
+            var givenId = given.ItemId.Value;
+            var gave = await dbCtx
+                .Furnitures.Where(x => x.Id == givenId && x.ChestItemEntityId == jukeboxId)
+                .ExecuteUpdateAsync(
+                    up =>
+                        up.SetProperty(x => x.ChestItemEntityId, (int?)null)
+                            .SetProperty(x => x.HeldPosition, (int?)null),
+                    ct
+                );
+
+            if (gave == 0)
+                return false;
+        }
+
+        var rows = await dbCtx
+            .Furnitures.Where(x => x.ChestItemEntityId == jukeboxId)
+            .ToDictionaryAsync(x => x.Id, ct);
 
         for (var position = 0; position < order.Count; position++)
         {
@@ -220,11 +233,11 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
                 return false;
             }
 
-            row.ChestItemEntityId = jukeboxId;
             row.HeldPosition = position;
         }
 
         await dbCtx.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return true;
     }

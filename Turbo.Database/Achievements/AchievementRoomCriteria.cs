@@ -41,12 +41,40 @@ public static class AchievementRoomCriteria
                 rooms[index],
                 new AchievementFact
                 {
-                    OperationId = $"room-rank:{Guid.NewGuid():N}",
+                    OperationId = $"room-rank:{Guid.CreateVersion7():N}",
                     Source = AchievementSources.ROOM_RANK,
                     OccurredAtUtc = now,
                     Amount = index + 1,
                 }
             );
+    }
+
+    /// <summary>
+    /// The standing of a player's best room, after a vote for one of their rooms. A vote moves
+    /// only the room voted for, and a standing counts its best ever, so an up vote is all that can
+    /// earn anything: the other owners' standings are recorded with the rest of their state.
+    /// </summary>
+    public static async Task RecordRankAsync(
+        TurboDbContext db,
+        IAchievementFactRecorder recorder,
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        if (await ReadBestRankAsync(db, playerId, ct).ConfigureAwait(false) is not { } rank)
+            return;
+
+        recorder.Record(
+            db,
+            playerId,
+            new AchievementFact
+            {
+                OperationId = $"room-rank:{Guid.CreateVersion7():N}",
+                Source = AchievementSources.ROOM_RANK,
+                OccurredAtUtc = DateTime.UtcNow,
+                Amount = rank,
+            }
+        );
     }
 
     /// <summary>The current floor-height count of a player's rooms and the standing of their best room.</summary>
@@ -70,6 +98,19 @@ public static class AchievementRoomCriteria
         )
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        return new(
+            models.Select(CountFloorHeights).DefaultIfEmpty(0).Max(),
+            await ReadBestRankAsync(db, playerId, ct).ConfigureAwait(false)
+        );
+    }
+
+    private static async Task<long?> ReadBestRankAsync(
+        TurboDbContext db,
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
         var eligible = db
             .Rooms.AsNoTracking()
             .Where(x => !x.HiddenByBc && x.DoorMode != RoomDoorModeType.Invisible && x.Score > 0);
@@ -80,16 +121,15 @@ public static class AchievementRoomCriteria
             .Select(x => new { x.Score, x.Id })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
-        long? rank = null;
-        if (best is not null)
-            rank =
-                1
-                + await eligible
-                    .CountAsync(
-                        x => x.Score > best.Score || (x.Score == best.Score && x.Id > best.Id),
-                        ct
-                    )
-                    .ConfigureAwait(false);
-        return new(models.Select(CountFloorHeights).DefaultIfEmpty(0).Max(), rank);
+        if (best is null)
+            return null;
+
+        return 1
+            + await eligible
+                .CountAsync(
+                    x => x.Score > best.Score || (x.Score == best.Score && x.Id > best.Id),
+                    ct
+                )
+                .ConfigureAwait(false);
     }
 }

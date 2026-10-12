@@ -6,7 +6,7 @@ and echo the original schedule or timestamp so the client can match the response
 ## Bonus rare
 
 The bonus rare widget shows how many credits a player still needs before a furniture is theirs.
-Campaigns are kept in `bonus_rare_campaigns` and edited on the admin panel's **Hotel view >
+Campaigns are kept in `catalog_bonus_rare_campaigns` and edited on the admin panel's **Hotel view >
 Bonus rare** tab; the last one started and not ended runs, and with none the widget is hidden.
 
 | Field | What it is |
@@ -20,7 +20,7 @@ Bonus rare** tab; the last one started and not ended runs, and with none the wid
 - **Credits bought** count only when recorded with the purchase's own reference
   (`IBonusRareService.RecordPurchaseAsync`): by the hotel's shop, or by staff on the panel
   (**Record bought credits**, `POST /api/hotel-view/bonus-rare/purchases`). Each reference is kept
-  in `bonus_rare_receipts` and counts once. Wallet balances and client requests are never taken as
+  in `catalog_bonus_rare_receipts` and counts once. Wallet balances and client requests are never taken as
   evidence of a purchase.
 - **Credits spent in the catalogue** are what the server debited for an offer in the normal
   catalogue (not gifts, not the Builders Club).

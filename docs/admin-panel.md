@@ -78,7 +78,7 @@ undone open as a sheet from the bottom.
    The API listens on `http://127.0.0.1:8090`. `PanelUrl` defaults to `http://localhost:5173`,
    where the panel's dev server runs.
 
-2. **Apply the migrations.** The admin panel adds the `admin_passkeys` table. Turbo migrates its
+2. **Apply the migrations.** The admin panel adds the `auth_admin_passkeys` table. Turbo migrates its
    own database when it starts (see [database.md](database.md)), so there is nothing to do; to
    do it ahead of time, run `dotnet run --project Turbo.Main -- migrate`.
 
@@ -119,7 +119,7 @@ TURBO_ADMIN_ENABLED=true
 TURBO_ADMIN_PANEL_URL=https://admin.example.com
 ```
 
-Then deploy. The deploy applies the `admin_passkeys` migration, and Turbo starts the API on
+Then deploy. The deploy applies the `auth_admin_passkeys` migration, and Turbo starts the API on
 `127.0.0.1:8090`.
 
 - `TURBO_ADMIN_PANEL_URL` must be the panel's exact address. Passkeys are bound to its domain,
@@ -203,6 +203,11 @@ Discord id, or set `TURBO_WEB_REGISTRATION_OPEN=false` until you have signed up.
 
 Locally, in the Development environment with no owner named, the first player created becomes the
 owner (`Turbo:Owner:FirstPlayerInDevelopment`, on by default).
+
+**A hotel without the public site or Discord** makes its first player at the server console
+(see below for reaching it): `createplayer <name> [male|female]` creates the player and prints a
+ticket that signs them in once, within the hour, as a link to the client when `Turbo:Web:ClientUrl`
+is set. With `TURBO_OWNER_NAME` naming them, they become the owner at once.
 
 Without naming an owner, or to rescue a hotel, the setup link can be made by hand. Either:
 
@@ -356,7 +361,12 @@ Actions on the people inside a room need it loaded, and the panel refuses them f
 isn't. Editing the settings, rights or bans of an unloaded room loads it lightly (its details,
 rights and bans, not its furniture), as visiting its settings in the hotel would.
 
-Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it.
+Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it, and each
+kick, mute, ban, lifted ban, room-wide mute, kick-everyone, unload and rights taken away goes
+into the moderation history (`moderation_actions`) as done from the panel, beside the same
+actions taken in game. Saving the settings of a room you don't own is recorded too, with which
+settings changed (never a password itself). So are a group's rename, badge reset, member removal
+and deletion from the Content page.
 
 Chat and visit logs, deleting rooms and changing owners aren't in the panel yet.
 
@@ -397,10 +407,30 @@ notice, and it's written to the command log under your name. Only what you may d
 | Give or take credits, duckets, diamonds, ... | `:give` | `command.give` |
 | Disconnect (online players only) | `:disconnect` | `command.disconnect` |
 
+Every action takes a reason, which goes into the player's moderation history with your name, as
+done from the panel.
+
 The command's answer is shown under the card. A command that asks to be confirmed gets a
 **Confirm** button. Messages need the player online, as in the hotel. A player whose name starts
 with `@` or has a space can't be acted on from the panel, because the commands would misread it.
 Use the console for them.
+
+### History, logins and other accounts
+
+The API serves what the hotel records about a player, for the panel's player page (the pages
+themselves are the `turbo-admin` front end's). Each list is newest first and paged by a cursor
+(`before`), so a page costs the same however much history a player has.
+
+| Endpoint | What | Needs |
+| --- | --- | --- |
+| `GET /api/players/{id}/timeline?before=` | One history across the hotel's records: moderation done to them and by them, logins, every balance change, furni they gave or got, rooms they entered; the commands they ran and what they said too, for staff who may read those logs. | `admin.players.view` (+ `admin.commandlog.view`, `admin.chatlog.view`) |
+| `GET /api/players/moderation?target=&actor=&room=&action=&before=` | The moderation history: to a player, by a staff member, in a room, of one kind (`Ban`, `RoomKick`, ...), any mix. | `admin.players.view` |
+| `GET /api/players/{id}/logins?before=` | Their sessions; where from (address, machine) only with the next node. | `admin.players.view` |
+| `GET /api/players/{id}/alts` | Other accounts that logged in from their addresses or machines: a shared machine first, then by how many addresses, banned ones marked. | `admin.players.identity` |
+
+Where a player logged in from is personal data, so it has its own node, `admin.players.identity`,
+apart from seeing players at all: a moderator looking for a banned player's new account needs it,
+most staff do not.
 
 ## Catalog
 
@@ -625,10 +655,20 @@ since members may have claimed it; hide it, or turn **Club gift** off first.
 limited:
 
 - **How many:** the size of the series.
-- **Raffle window:** how long the opening raffle gathers buyers before it draws. 0 sells first
-  come, first served.
+- **Raffle window:** how long the opening raffle gathers buyers before it draws; 20 s for a new
+  series, as on Habbo. 0 sells first come, first served. With an **On sale from** time the window
+  runs from then, so it closes on time however fast the first buyer is; otherwise the first buyer
+  opens it.
 - **On sale from / until:** a later start shows as the next limited item.
 - **On sale:** a switch to stop selling it.
+
+How the raffle goes, as Habbo runs one: players press buy as usual and are told they are in. When
+the window closes the hotel puts everyone who entered in order, favouring experienced players (the
+`Turbo:Catalog:LtdRaffle` weights: account age, badges, rooms, furni and the rest; or pure chance),
+and sells down that order while stock lasts. Only those who get one are charged; one who can no
+longer pay is passed over for the next. Everyone is told whether they got one, and anything left
+is then sold first come, first served. A sold-out series shows the client's own "Sold Out!" alert.
+A raffle still open when the server stops is drawn before it stops.
 
 The editor never counts what is left; the hotel does. A new total moves what is left by as much,
 and can't drop below what is sold. A series can only come off an offer while none of it is sold or
@@ -636,7 +676,7 @@ raffled; after that, switch it off. A club gift can't be limited. Saving tells a
 read the series again, so switching it off stops it at once. Players see the new numbers when you
 publish.
 
-**Currencies.** An offer's second price names a row of `currency_types`, and the hotel charges
+**Currencies.** An offer's second price names a row of `catalog_currency_types`, and the hotel charges
 that row's activity-point type. Duckets are row 4 but type 0, so earlier code that charged the row
 number charged the wrong currency. The editor only offers activity-point currencies that are
 enabled.
@@ -743,7 +783,7 @@ player whose every permission you hold, the same rule as passkey setup links. A 
 that never runs out is a standing login; the card warns you, so keep it like a password.
 
 Tickets are 32 random bytes and aren't tied to an address. The server stores only a SHA-256 hash
-of each ticket it issues (`sha256:…` in `security_tickets.ticket`), so a copy of the table logs
+of each ticket it issues (`sha256:…` in `auth_login_tickets.ticket`), so a copy of the table logs
 nobody in; that is also why the card can't show the ticket again. Tickets written by something
 else (a CMS, the load-test bots) are stored as written and work as before: without an end time, a plain one is used up by its first
 login and a reusable ("locked") one never is. A plain ticket can only ever log in once, even if two
@@ -895,6 +935,7 @@ passkey; they add more while signed in instead.
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
+| `admin.players.identity` | Where a player logged in from (address and machine) and the other accounts that share them. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
 | `admin.accounts.manage` | Unlinking a player's Discord and signing them out of the public site, for players whose every permission they hold. |
@@ -920,7 +961,7 @@ The **Content** page is the game's content, each change made at once and on reco
 - **Achievements**, from the achievement catalog, by category. An edit (a level's requirement,
   badge, score or reward, the state, the dates, or the whole definition as JSON) is **checked** as
   the catalog checks every definition, then **published** as the achievement's next revision with
-  a reason, kept in `achievement_audit`, and live at once. **Copy as a new achievement** starts one
+  a reason, kept in `achievement_audit_logs`, and live at once. **Copy as a new achievement** starts one
   from another. Retiring keeps what players earned and gives nothing more.
 - **Badges**: every code players hold or that has a pinned rarity, most held first. Pin a rarity
   (it reaches the hotel within the badge directory's `OwnerCountRefreshMs`), see who holds a badge,

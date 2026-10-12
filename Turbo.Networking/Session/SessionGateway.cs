@@ -196,6 +196,52 @@ public sealed class SessionGateway(
 
     public IReadOnlyCollection<PlayerId> GetOnlinePlayerIds() => [.. _playerToSession.Keys];
 
+    /// <summary>Each session being ended holds a database connection while it writes.</summary>
+    private const int SESSIONS_ENDED_AT_ONCE = 16;
+
+    public async Task<int> EndAllSessionsAsync(CancellationToken ct)
+    {
+        var ended = 0;
+
+        await Parallel
+            .ForEachAsync(
+                _sessionToPlayer.ToArray(),
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = SESSIONS_ENDED_AT_ONCE,
+                    CancellationToken = ct,
+                },
+                async (session, token) =>
+                {
+                    try
+                    {
+                        await RemoveSessionAsync(session.Key, token).ConfigureAwait(false);
+
+                        // The presence grain marks the player offline without waiting, because the
+                        // player grain calls it back; here it is waited for. The player grain takes
+                        // one call at a time, so this one runs after it and changes nothing more.
+                        await _grainFactory
+                            .GetPlayerGrain(session.Value)
+                            .SetOnlineStatusAsync(false, token)
+                            .ConfigureAwait(false);
+
+                        Interlocked.Increment(ref ended);
+                    }
+                    catch (Exception ex) when (!token.IsCancellationRequested)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to end the session of player {PlayerId} as the server stops",
+                            session.Value
+                        );
+                    }
+                }
+            )
+            .ConfigureAwait(false);
+
+        return ended;
+    }
+
     public async Task<bool> DisconnectPlayerAsync(
         PlayerId playerId,
         IComposer? farewell,

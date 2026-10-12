@@ -98,6 +98,23 @@ jobs:
         if: steps.scope.outputs.docs_only != 'true'
         run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
 
+      # The migrator's real-database tests (PostgresMigrationTests) run on Linux, which has Docker;
+      # elsewhere they skip.
+      - name: Start PostgreSQL
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        shell: bash
+        run: |
+          docker run -d --name turbo-postgres -e POSTGRES_PASSWORD=turbo -p 127.0.0.1:5432:5432 postgres:16
+          for _ in $(seq 1 30); do
+            if docker exec turbo-postgres pg_isready -U postgres -q; then
+              echo "TURBO_TEST_POSTGRES=Host=127.0.0.1;Port=5432;Username=postgres;Password=turbo;Database=postgres" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs turbo-postgres
+          exit 1
+
       - name: Test
         if: steps.scope.outputs.docs_only != 'true'
         run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1

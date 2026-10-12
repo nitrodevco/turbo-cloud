@@ -37,7 +37,7 @@ public sealed record StarterRoomPicturePaths(
 );
 
 /// <summary>
-/// The hotel's own starter rooms (<c>starter_rooms</c>): rooms built in the hotel and offered to
+/// The hotel's own starter rooms (<c>room_starters</c>): rooms built in the hotel and offered to
 /// new players, each copied for whoever picks it. Every change keeps the client's side in step -
 /// the room types it offers (<c>new.user.flow.roomTypes</c>), where their pictures are
 /// (<c>new.user.flow.room.image.url</c>) and their names and descriptions

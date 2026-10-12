@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Pets;
 
+[Comment("Pets players own: in their inventory or placed in a room.")]
 [Table("pets")]
 // An inventory is the owner's units in no room (player_id = ? AND room_id IS NULL).
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
@@ -93,7 +94,7 @@ public class PetEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(0)]
     public int Y { get; set; }
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 

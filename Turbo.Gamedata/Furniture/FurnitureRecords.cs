@@ -13,7 +13,8 @@ namespace Turbo.Gamedata.Furniture;
 internal static class FurnitureRecords
 {
     // The logic the room object provider falls back to (RoomObjectLogicProvider): a new item of
-    // Habbo's behaves as plain furniture until staff give it its own.
+    // Habbo's behaves as plain furniture until staff give it its own, unless its class has a
+    // known behaviour (FurnitureBehaviours).
     public const string DEFAULT_FLOOR_LOGIC = "default_floor";
     public const string DEFAULT_WALL_LOGIC = "default_wall";
 
@@ -55,6 +56,8 @@ internal static class FurnitureRecords
         foreach (var field in FurnitureFields.All)
             if (field.AppliesTo(type == ProductType.Wall) && field.IsIn(habbo))
                 field.Write(definition, habbo[field.Key]);
+
+        FurnitureBehaviours.Apply(definition);
 
         return definition;
     }

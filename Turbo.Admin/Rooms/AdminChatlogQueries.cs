@@ -9,6 +9,7 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Rooms;
@@ -24,8 +25,6 @@ public sealed class AdminChatlogQueries(
     IOptions<AdminConfig> config
 )
 {
-    private const string ESCAPE = "\\";
-
     /// <summary>
     /// A run of the log. <paramref name="before"/> asks for the lines older than that one,
     /// <paramref name="after"/> for those newer; with neither, the newest.
@@ -34,8 +33,8 @@ public sealed class AdminChatlogQueries(
         string? player,
         int? room,
         string? text,
-        int? before,
-        int? after,
+        long? before,
+        long? after,
         CancellationToken ct
     )
     {
@@ -73,14 +72,17 @@ public sealed class AdminChatlogQueries(
 
         if (words.Length > 0)
         {
-            // LIKE, so case is ignored the same way on every database; the text is escaped so a
-            // % or _ in it is matched as itself.
-            var like = words
-                .Replace(ESCAPE, ESCAPE + ESCAPE, StringComparison.Ordinal)
-                .Replace("%", ESCAPE + "%", StringComparison.Ordinal)
-                .Replace("_", ESCAPE + "_", StringComparison.Ordinal);
+            // Served by the trigram indexes on lower(message) and lower(typed_message): a word
+            // the filter caught is found by what was typed.
+            var like = LikePatterns.Containing(words);
 
-            lines = lines.Where(x => EF.Functions.Like(x.Message, "%" + like + "%", ESCAPE));
+            lines = lines.Where(x =>
+                EF.Functions.Like(x.Message.ToLower(), like, LikePatterns.ESCAPE)
+                || (
+                    x.TypedMessage != null
+                    && EF.Functions.Like(x.TypedMessage.ToLower(), like, LikePatterns.ESCAPE)
+                )
+            );
         }
 
         List<RoomChatlogEntity> rows;
@@ -126,7 +128,7 @@ public sealed class AdminChatlogQueries(
     /// One line in context: the lines said around it in its room, before and after, newest first.
     /// Empty when there is no such line.
     /// </summary>
-    public async Task<ChatlogResponse> AroundAsync(int lineId, CancellationToken ct)
+    public async Task<ChatlogResponse> AroundAsync(long lineId, CancellationToken ct)
     {
         var side = Math.Max(1, PageSize / 2);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -203,7 +205,8 @@ public sealed class AdminChatlogQueries(
                 rooms.GetValueOrDefault(x.RoomEntityId),
                 x.TargetPlayerEntityId,
                 x.TargetPlayerEntityId is { } target ? players.GetValueOrDefault(target) : null,
-                x.Message
+                x.Message,
+                x.TypedMessage
             )),
         ];
     }

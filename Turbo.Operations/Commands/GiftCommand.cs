@@ -15,6 +15,8 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -48,7 +50,8 @@ public sealed class GiftCommand(
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider definitionProvider,
     IGiftWrappingProvider giftWrappingProvider,
-    IOptions<OperationsConfig> config
+    IOptions<OperationsConfig> config,
+    IModerationLog moderationLog
 ) : IOperatorCommand<GiftArguments>
 {
     private const string SENT = "sent";
@@ -127,6 +130,17 @@ public sealed class GiftCommand(
             },
             ct
         );
+
+        foreach (var target in batch.Targets.Where(x => x.Succeeded > 0))
+            await moderationLog.RecordAsync(
+                ctx,
+                ModerationActionType.GiftSent,
+                target.PlayerId,
+                ct,
+                detail: request.BadgeCode is { } badge
+                    ? $"{content.Name}, badge {badge}: {message}"
+                    : $"{content.Name}: {message}"
+            );
 
         var completed = selection.IsSelector
             ? CommandResult.Done(

@@ -404,7 +404,7 @@ on the directory grain, capped by `Permissions.LookupPageLimit` and `AuditPageLi
 
 ## 10. Audit and the check trace
 
-**`permission_audit`** records every write: when, who (a player id, or null for the console or
+**`permission_audit_logs`** records every write: when, who (a player id, or null for the console or
 the system), the target (a player or a group), the action (node set/unset, meta set/unset, group
 added/removed, parent added/removed, group created/deleted/reweighted, **expired**), the node or
 key, the value, and the expiry. Written by the two grains in the same save as the change. Nothing
@@ -547,14 +547,14 @@ permission_group_meta         group_id, meta_key, value, expires_at?, is_tempora
 player_permission_groups      player_id, group_id, expires_at?, is_temporary         unique (player_id, group_id, is_temporary)
 player_permission_nodes       player_id, node, value, expires_at?, is_temporary      unique (player_id, node, is_temporary)
 player_permission_meta        player_id, meta_key, value, expires_at?, is_temporary  unique (player_id, meta_key, is_temporary)
-permission_audit              actor_player_id?, target_type, target_id, action, subject, value?,
+permission_audit_logs         actor_player_id?, target_type, target_id, action, subject, value?,
                               expires_at?                                  index (target_type, target_id, created_at)
 ```
 
 `target_type` and `action` are enums stored as ints (`PermissionAuditTargetType`,
 `PermissionAuditActionType`), like every other enum in `Turbo.Database`. `node`, `meta_key` and
 `subject` are capped at `PermissionNodeFormat.MAX_LENGTH`. Deleting a group or a player cascades
-to its rows; `permission_audit` has no foreign keys, so history outlives both. Row-to-snapshot
+to its rows; `permission_audit_logs` has no foreign keys, so history outlives both. Row-to-snapshot
 mapping is `PermissionEntityExtensions`.
 
 `SeedPermissions` also carries `players.perk_flags` over: a set flag that `default` does not

@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Bots;
 
+[Comment("Bots players own: in their inventory or placed in a room.")]
 [Table("bots")]
 // An inventory is the owner's units in no room (player_id = ? AND room_id IS NULL).
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
@@ -16,7 +17,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
 {
     public const int NAME_MAX_LENGTH = 32;
     public const int MOTTO_MAX_LENGTH = 128;
-    public const int FIGURE_MAX_LENGTH = 279;
+    public const int FIGURE_MAX_LENGTH = PlayerEntity.FIGURE_MAX_LENGTH;
     public const int CHAT_TEXT_MAX_LENGTH = 2000;
 
     [Column("player_id")]
@@ -50,7 +51,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(0)]
     public int Y { get; set; }
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 
@@ -71,7 +72,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool AutoChat { get; set; }
 
-    [Column("chat_delay")]
+    [Column("chat_delay_seconds")]
     [DefaultValue(0)]
     public int ChatDelaySeconds { get; set; }
 
@@ -79,7 +80,7 @@ public class BotEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool MixSentences { get; set; }
 
-    [Column("dance")]
+    [Column("dance_type")]
     [DefaultValue(AvatarDanceType.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public AvatarDanceType DanceType { get; set; }

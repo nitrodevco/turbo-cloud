@@ -20,6 +20,8 @@ using Turbo.Primitives.Guilds.Forums.Snapshots;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Messages.Outgoing.Groupforums;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -41,6 +43,7 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly GuildConfig _config;
     private readonly IGrainFactory _grainFactory;
+    private readonly IModerationLog _moderationLog;
     private readonly ILogger<IGuildForumGrain> _logger;
 
     private readonly GuildForumLiveState _state;
@@ -49,12 +52,14 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<GuildConfig> config,
         IGrainFactory grainFactory,
+        IModerationLog moderationLog,
         ILogger<IGuildForumGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _config = config.Value;
         _grainFactory = grainFactory;
+        _moderationLog = moderationLog;
         _logger = logger;
 
         _state = new() { GuildId = this.GetGuildId() };
@@ -455,6 +460,16 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
         thread.ModeratedAt = DateTime.UtcNow;
         await dbCtx.SaveChangesAsync(ct);
 
+        await RecordModerationAsync(
+            actor,
+            thread.State == GuildForumState.Restored
+                ? ModerationActionType.ForumThreadRestored
+                : ModerationActionType.ForumThreadHidden,
+            thread.PlayerEntityId,
+            $"thread {threadId}",
+            ct
+        );
+
         await SendAsync(
             actor,
             new UpdateThreadMessageComposer
@@ -508,6 +523,16 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
         message.ModeratedAt = DateTime.UtcNow;
         await dbCtx.SaveChangesAsync(ct);
 
+        await RecordModerationAsync(
+            actor,
+            message.State == GuildForumState.Restored
+                ? ModerationActionType.ForumPostRestored
+                : ModerationActionType.ForumPostHidden,
+            message.PlayerEntityId,
+            $"thread {threadId}, post {messageId}",
+            ct
+        );
+
         await SendAsync(
             actor,
             new UpdateMessageMessageComposer
@@ -526,6 +551,29 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
             ct
         );
     }
+
+    /// <summary>
+    /// A thread or post hidden or shown again, in the moderation history of whoever wrote it.
+    /// </summary>
+    private Task RecordModerationAsync(
+        PlayerId actor,
+        ModerationActionType action,
+        int author,
+        string detail,
+        CancellationToken ct
+    ) =>
+        _moderationLog.RecordAsync(
+            new ModerationRecord
+            {
+                Action = action,
+                Source = ModerationSource.Game,
+                ActorId = actor,
+                TargetPlayerId = author,
+                GuildId = _state.GuildId.Value,
+                Detail = detail,
+            },
+            ct
+        );
 
     public async Task UpdateThreadAsync(
         PlayerId actor,

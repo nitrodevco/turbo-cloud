@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Quests;
 
@@ -9,6 +10,9 @@ namespace Turbo.Database.Entities.Quests;
 /// A player's progress on a quest: accepted (the one they are doing), the steps done, and when
 /// it was completed. A quest with no row was never started.
 /// </summary>
+[Comment(
+    "A player's progress on a quest: accepted (the one they are doing), the steps done, and when it was completed."
+)]
 [Table("player_quests")]
 [Index(nameof(PlayerEntityId), nameof(QuestEntityId), IsUnique = true)]
 public class PlayerQuestEntity : TurboEntity
@@ -29,6 +33,9 @@ public class PlayerQuestEntity : TurboEntity
 
     [Column("completed_at")]
     public DateTime? CompletedAt { get; set; }
+
+    [ForeignKey(nameof(PlayerEntityId))]
+    public PlayerEntity? PlayerEntity { get; set; }
 
     [ForeignKey(nameof(QuestEntityId))]
     public QuestEntity? Quest { get; set; }

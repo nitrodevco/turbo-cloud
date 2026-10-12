@@ -10,25 +10,26 @@ using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Respect;
 
 namespace Turbo.Players.Grains.Respect;
 
 /// <summary>
-/// Coordinates a human respect across the two player grains. Admission, rejection or completion,
-/// and the paired achievement facts are written through; the participant grains persist their
-/// idempotent debit and credit receipts with their own player mutations.
+/// Gives one respect, keyed by its id (<c>player_respects.id</c>), across the two player grains.
+/// The respect is written as pending first; the giver's grain spends it and the receiver's grain
+/// credits it, each recording that change with its own write; then it is marked given with the
+/// achievement facts for both. Run again with the same id it finishes what is left, or answers
+/// with how it ended.
 /// </summary>
 internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperationGrain
 {
-    private const int MAX_OPERATION_ID_LENGTH = 100;
-
     private readonly IDbContextFactory<TurboDbContext> _database;
     private readonly IGrainFactory _grains;
     private readonly IAchievementFactRecorder _facts;
     private readonly ILogger<IHumanRespectOperationGrain> _logger;
-    private readonly string _operationId;
+    private readonly Guid _respectId;
 
     public HumanRespectOperationGrain(
         IDbContextFactory<TurboDbContext> database,
@@ -41,7 +42,7 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
         _grains = grains;
         _facts = facts;
         _logger = logger;
-        _operationId = this.GetPrimaryKeyString();
+        _respectId = this.GetPrimaryKey();
     }
 
     public async Task<HumanRespectOperationResult> ExecuteAsync(
@@ -50,50 +51,46 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
         CancellationToken ct
     )
     {
-        var operationId = _operationId;
-        ValidateRequest(operationId, actorId, targetId);
+        var respectId = _respectId;
+        ValidateRequest(respectId, actorId, targetId);
 
         await using (var db = await _database.CreateDbContextAsync(ct))
         {
-            var operation = await db.HumanRespectOperations.SingleOrDefaultAsync(
-                x => x.OperationId == operationId,
-                ct
-            );
-            if (operation is null)
+            var respect = await db.PlayerRespects.SingleOrDefaultAsync(x => x.Id == respectId, ct);
+            if (respect is null)
             {
-                operation = new HumanRespectOperationEntity
+                respect = new PlayerRespectEntity
                 {
-                    OperationId = operationId,
-                    ActorId = actorId.Value,
-                    TargetId = targetId.Value,
+                    Id = respectId,
+                    GiverId = actorId.Value,
+                    ReceiverId = targetId.Value,
+                    Status = RespectStatus.Pending,
                 };
-                db.HumanRespectOperations.Add(operation);
+                db.PlayerRespects.Add(respect);
                 await db.SaveChangesAsync(ct);
             }
             else
             {
-                EnsureSameParticipants(operation, actorId, targetId);
-                if (operation.Rejected)
+                EnsureSameParticipants(respect, actorId, targetId);
+                if (respect.Status == RespectStatus.Refused)
                     return new() { Accepted = false };
-                if (operation.Completed)
-                    return new() { Accepted = true, TargetRespectTotal = operation.ResultTotal };
+                if (respect.Status == RespectStatus.Given)
+                    return new() { Accepted = true, TargetRespectTotal = respect.ReceiverTotal };
             }
         }
 
-        var spent = await _grains
-            .GetPlayerGrain(actorId)
-            .SpendRespectOperationAsync(operationId, ct);
+        var spent = await _grains.GetPlayerGrain(actorId).SpendRespectOperationAsync(respectId, ct);
         if (!spent)
         {
             await using var db = await _database.CreateDbContextAsync(ct);
-            var operation = await GetOperationAsync(db, operationId, actorId, targetId, ct);
-            if (operation.Completed)
-                return new() { Accepted = true, TargetRespectTotal = operation.ResultTotal };
-            operation.Rejected = true;
+            var respect = await GetRespectAsync(db, respectId, actorId, targetId, ct);
+            if (respect.Status == RespectStatus.Given)
+                return new() { Accepted = true, TargetRespectTotal = respect.ReceiverTotal };
+            respect.Status = RespectStatus.Refused;
             await db.SaveChangesAsync(ct);
             _logger.LogWarning(
-                "Respect operation {OperationId} from player {ActorId} to player {TargetId} was rejected because no respect remained",
-                operationId,
+                "Respect {RespectId} from player {ActorId} to player {TargetId} was refused because no respect remained",
+                respectId,
                 actorId,
                 targetId
             );
@@ -102,18 +99,16 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
 
         var total = await _grains
             .GetPlayerGrain(targetId)
-            .ReceiveRespectOperationAsync(operationId, ct);
+            .ReceiveRespectOperationAsync(respectId, ct);
 
         await using (var db = await _database.CreateDbContextAsync(ct))
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
-            var operation = await GetOperationAsync(db, operationId, actorId, targetId, ct);
-            if (operation.Rejected)
-                throw new InvalidOperationException(
-                    "A spent respect operation is marked rejected."
-                );
-            if (operation.Completed)
-                return new() { Accepted = true, TargetRespectTotal = operation.ResultTotal };
+            var respect = await GetRespectAsync(db, respectId, actorId, targetId, ct);
+            if (respect.Status == RespectStatus.Refused)
+                throw new InvalidOperationException("A spent respect is marked refused.");
+            if (respect.Status == RespectStatus.Given)
+                return new() { Accepted = true, TargetRespectTotal = respect.ReceiverTotal };
 
             var occurredAt = DateTime.UtcNow;
             _facts.Record(
@@ -121,7 +116,7 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
                 actorId,
                 new AchievementFact
                 {
-                    OperationId = $"human-respect:{operationId}:given",
+                    OperationId = $"human-respect:{respectId:N}:given",
                     Source = AchievementSources.RESPECT_GIVEN,
                     OccurredAtUtc = occurredAt,
                     Amount = 1,
@@ -132,14 +127,14 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
                 targetId,
                 new AchievementFact
                 {
-                    OperationId = $"human-respect:{operationId}:received",
+                    OperationId = $"human-respect:{respectId:N}:received",
                     Source = AchievementSources.RESPECT_RECEIVED,
                     OccurredAtUtc = occurredAt,
                     Amount = 1,
                 }
             );
-            operation.Completed = true;
-            operation.ResultTotal = total;
+            respect.Status = RespectStatus.Given;
+            respect.ReceiverTotal = total;
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
@@ -147,40 +142,34 @@ internal sealed class HumanRespectOperationGrain : Grain, IHumanRespectOperation
         return new() { Accepted = true, TargetRespectTotal = total };
     }
 
-    private static void ValidateRequest(string operationId, PlayerId actorId, PlayerId targetId)
+    private static void ValidateRequest(Guid respectId, PlayerId actorId, PlayerId targetId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-        if (operationId.Length > MAX_OPERATION_ID_LENGTH)
-            throw new ArgumentException("Respect operation id is too long.", nameof(operationId));
+        if (respectId == Guid.Empty)
+            throw new ArgumentException("A respect needs an id.", nameof(respectId));
         if (actorId.Value <= 0 || targetId.Value <= 0 || actorId == targetId)
             throw new ArgumentException("Respect requires two distinct valid players.");
     }
 
     private static void EnsureSameParticipants(
-        HumanRespectOperationEntity operation,
+        PlayerRespectEntity respect,
         PlayerId actorId,
         PlayerId targetId
     )
     {
-        if (operation.ActorId != actorId.Value || operation.TargetId != targetId.Value)
-            throw new InvalidOperationException(
-                "Respect operation id is already bound to other players."
-            );
+        if (respect.GiverId != actorId.Value || respect.ReceiverId != targetId.Value)
+            throw new InvalidOperationException("The respect id is already another pair's.");
     }
 
-    private static async Task<HumanRespectOperationEntity> GetOperationAsync(
+    private static async Task<PlayerRespectEntity> GetRespectAsync(
         TurboDbContext db,
-        string operationId,
+        Guid respectId,
         PlayerId actorId,
         PlayerId targetId,
         CancellationToken ct
     )
     {
-        var operation = await db.HumanRespectOperations.SingleAsync(
-            x => x.OperationId == operationId,
-            ct
-        );
-        EnsureSameParticipants(operation, actorId, targetId);
-        return operation;
+        var respect = await db.PlayerRespects.SingleAsync(x => x.Id == respectId, ct);
+        EnsureSameParticipants(respect, actorId, targetId);
+        return respect;
     }
 }

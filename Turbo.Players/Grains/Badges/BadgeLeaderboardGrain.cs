@@ -377,7 +377,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
         if (board.Type == BadgeLeaderboardType.AchievementLevel)
             return await dbCtx
                 .AchievementProjections.Where(x => x.PlayerId == playerId.Value)
-                .Select(x => x.EarnedLevels)
+                .Select(x => x.CompletedLevels)
                 .SingleOrDefaultAsync(ct);
 
         var owned = dbCtx
@@ -426,8 +426,8 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
         if (type == BadgeLeaderboardType.AchievementLevel)
             return dbCtx
                 .AchievementProjections.AsNoTracking()
-                .Where(x => x.EarnedLevels > 0)
-                .Select(x => new PlayerScore { PlayerId = x.PlayerId, Score = x.EarnedLevels });
+                .Where(x => x.CompletedLevels > 0)
+                .Select(x => new PlayerScore { PlayerId = x.PlayerId, Score = x.CompletedLevels });
         var badges = dbCtx.PlayerBadges.AsNoTracking();
 
         if (codes is { } list)

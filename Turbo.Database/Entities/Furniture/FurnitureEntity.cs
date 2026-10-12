@@ -7,6 +7,9 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Furniture;
 
+[Comment(
+    "Every furni a player owns: in their inventory, placed in a room, or held inside another item."
+)]
 [Table("furniture")]
 // An inventory is the rows a player owns that are in no room (player_id = ? AND room_id IS NULL).
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
@@ -30,7 +33,7 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     [DefaultValue(0)]
     public int Y { get; set; } = 0;
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("z")]
     [DefaultValue(0.0d)]
     public double Z { get; set; }
 

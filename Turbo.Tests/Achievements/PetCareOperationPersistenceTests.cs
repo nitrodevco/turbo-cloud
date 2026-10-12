@@ -64,13 +64,12 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
                 PlayerEntityId = OWNER_ID,
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = false,
+                AllowWalkThrough = false,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -97,7 +96,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         var persistence = CreatePersistenceGrain().Persistence;
 
         var first = await persistence.ApplyPetNutritionOperationAsync(
-            "bowl-feed-1",
+            TestIds.Of("bowl-feed-1"),
             PET_ID,
             OWNER_ID,
             OWNER_ID,
@@ -107,7 +106,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             Ct
         );
         var replay = await persistence.ApplyPetNutritionOperationAsync(
-            "bowl-feed-1",
+            TestIds.Of("bowl-feed-1"),
             PET_ID,
             OWNER_ID,
             OWNER_ID,
@@ -121,9 +120,8 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         replay.Should().Be(first);
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.Pets.SingleAsync(Ct)).Nutrition.Should().Be(100);
-        var operation = await db.PetNutritionOperations.SingleAsync(Ct);
-        operation.ActualGain.Should().Be(5);
-        operation.Completed.Should().BeTrue();
+        var feeding = await db.PetFeedings.SingleAsync(Ct);
+        (feeding.NutritionBefore, feeding.NutritionAfter).Should().Be((95, 100));
         var facts = await db.AchievementFacts.ToListAsync(Ct);
         facts.Should().ContainSingle();
         using var json = JsonDocument.Parse(facts[0].FactJson);
@@ -141,7 +139,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         var persistence = CreatePersistenceGrain().Persistence;
 
         var result = await persistence.ApplyPetNutritionOperationAsync(
-            "bowl-feed-full",
+            TestIds.Of("bowl-feed-full"),
             PET_ID,
             OWNER_ID,
             OWNER_ID,
@@ -153,7 +151,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
 
         result.Should().Be(new PetNutritionOperationResult { Nutrition = 100, ActualGain = 0 });
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.PetNutritionOperations.CountAsync(Ct)).Should().Be(1);
+        (await db.PetFeedings.CountAsync(Ct)).Should().Be(1);
         (await db.AchievementFacts.CountAsync(Ct)).Should().Be(0);
     }
 
@@ -162,7 +160,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
     {
         var persistence = CreatePersistenceGrain().Persistence;
         var first = await persistence.ApplyPetNutritionOperationAsync(
-            "feed-action-1",
+            TestIds.Of("feed-action-1"),
             PET_ID,
             OWNER_ID,
             OWNER_ID,
@@ -181,7 +179,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         }
 
         var second = await persistence.ApplyPetNutritionOperationAsync(
-            "feed-action-2",
+            TestIds.Of("feed-action-2"),
             PET_ID,
             OWNER_ID,
             OWNER_ID,
@@ -193,7 +191,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
 
         second.Should().Be(new PetNutritionOperationResult { Nutrition = 100, ActualGain = 5 });
         await using var check = await _db.CreateDbContextAsync(Ct);
-        (await check.PetNutritionOperations.CountAsync(Ct)).Should().Be(2);
+        (await check.PetFeedings.CountAsync(Ct)).Should().Be(2);
         (await check.AchievementFacts.CountAsync(Ct)).Should().Be(2);
     }
 
@@ -203,7 +201,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         var (persistence, fakes) = CreatePersistenceGrain(acceptPetRespect: true);
 
         var first = await persistence.ApplyPetRespectOperationAsync(
-            "pet-respect-1",
+            TestIds.Of("pet-respect-1"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -211,7 +209,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             Ct
         );
         var replay = await persistence.ApplyPetRespectOperationAsync(
-            "pet-respect-1",
+            TestIds.Of("pet-respect-1"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -224,7 +222,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         fakes.Log.Of(nameof(IPlayerGrain.SpendPetRespectOperationAsync)).Should().ContainSingle();
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.Pets.SingleAsync(Ct)).Respect.Should().Be(5);
-        (await db.PetRespectOperations.SingleAsync(Ct)).Completed.Should().BeTrue();
+        (await db.PetRespects.SingleAsync(Ct)).Status.Should().Be(RespectStatus.Given);
         var facts = await db.AchievementFacts.OrderBy(x => x.PlayerId).ToListAsync(Ct);
         var factSources = new List<(int PlayerId, string? Source)>();
         foreach (var fact in facts)
@@ -246,7 +244,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         var (persistence, _) = CreatePersistenceGrain(acceptPetRespect: false);
 
         var result = await persistence.ApplyPetRespectOperationAsync(
-            "pet-respect-rejected",
+            TestIds.Of("pet-respect-rejected"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -257,7 +255,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         result.Accepted.Should().BeFalse();
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.Pets.SingleAsync(Ct)).Respect.Should().Be(0);
-        (await db.PetRespectOperations.SingleAsync(Ct)).Rejected.Should().BeTrue();
+        (await db.PetRespects.SingleAsync(Ct)).Status.Should().Be(RespectStatus.Refused);
         (await db.AchievementFacts.CountAsync(Ct)).Should().Be(0);
     }
 
@@ -271,7 +269,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         var persistence = CreatePersistenceGrain(fakes);
 
         var rejected = await persistence.ApplyPetRespectOperationAsync(
-            "respect-action-rejected",
+            TestIds.Of("respect-action-rejected"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -280,7 +278,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         );
         allowed = true;
         var accepted = await persistence.ApplyPetRespectOperationAsync(
-            "respect-action-next-day",
+            TestIds.Of("respect-action-next-day"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -291,7 +289,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         rejected.Accepted.Should().BeFalse();
         accepted.Should().Be(new PetRespectOperationResult { Accepted = true, Respect = 1 });
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.PetRespectOperations.CountAsync(Ct)).Should().Be(2);
+        (await db.PetRespects.CountAsync(Ct)).Should().Be(2);
         (await db.AchievementFacts.CountAsync(Ct)).Should().Be(2);
     }
 
@@ -307,7 +305,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         }
 
         var result = await persistence.ApplyPetRespectOperationAsync(
-            "respect-action-stale-base",
+            TestIds.Of("respect-action-stale-base"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -329,7 +327,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
 
         var pending = () =>
             persistence.ApplyPetRespectOperationAsync(
-                "pet-respect-retry",
+                TestIds.Of("pet-respect-retry"),
                 ACTOR_ID,
                 PET_ID,
                 OWNER_ID,
@@ -344,7 +342,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         }
 
         var result = await persistence.ApplyPetRespectOperationAsync(
-            "pet-respect-retry",
+            TestIds.Of("pet-respect-retry"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -382,7 +380,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         }
         var (persistence, _) = CreatePersistenceGrain();
         await persistence.ApplyPetRespectOperationAsync(
-            "recovered-before-stale-snapshot",
+            TestIds.Of("recovered-before-stale-snapshot"),
             ACTOR_ID,
             PET_ID,
             OWNER_ID,
@@ -436,11 +434,11 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
     public async Task PetDeletionWaitsForAdmittedRespectToComplete()
     {
         _db.Insert(
-            new PetRespectOperationEntity
+            new PetRespectEntity
             {
-                OperationId = "pending-before-delete",
+                Id = TestIds.Of("pending-before-delete"),
                 RoomId = ROOM_ID,
-                ActorId = ACTOR_ID,
+                GiverId = ACTOR_ID,
                 PetId = PET_ID,
                 OwnerId = OWNER_ID,
             }
@@ -449,7 +447,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         Assert.False(await inventory.DeletePetAsync(PET_ID, Ct));
         await using (var db = await _db.CreateDbContextAsync(Ct))
         {
-            (await db.PetRespectOperations.SingleAsync(Ct)).Completed = true;
+            (await db.PetRespects.SingleAsync(Ct)).Status = RespectStatus.Given;
             await db.SaveChangesAsync(Ct);
         }
         Assert.True(await inventory.DeletePetAsync(PET_ID, Ct));
@@ -510,7 +508,6 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
         };
 
     private static PetEntity NewPet() =>

@@ -14,6 +14,7 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Orleans;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Respect;
 
 namespace Turbo.Achievements;
@@ -70,9 +71,9 @@ internal sealed class AchievementRecoveryService(
                     rankedCatalog = current;
                 }
                 var humanPending = db
-                    .HumanRespectOperations.AsNoTracking()
-                    .Where(x => !x.Completed && !x.Rejected)
-                    .OrderBy(x => x.OperationId);
+                    .PlayerRespects.AsNoTracking()
+                    .Where(x => x.Status == RespectStatus.Pending)
+                    .OrderBy(x => x.Id);
                 var operations = await humanPending
                     .Skip(humanOffset)
                     .Take(config.Value.RecoveryBatchSize)
@@ -92,8 +93,8 @@ internal sealed class AchievementRecoveryService(
                     try
                     {
                         await grains
-                            .GetHumanRespectOperationGrain(operation.OperationId)
-                            .ExecuteAsync(operation.ActorId, operation.TargetId, stoppingToken)
+                            .GetHumanRespectOperationGrain(operation.Id)
+                            .ExecuteAsync(operation.GiverId, operation.ReceiverId, stoppingToken)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -104,15 +105,15 @@ internal sealed class AchievementRecoveryService(
                     {
                         logger.LogError(
                             ex,
-                            "Respect recovery failed for operation {OperationId}",
-                            operation.OperationId
+                            "Respect recovery failed for respect {RespectId}",
+                            operation.Id
                         );
                     }
                 }
                 var petPending = db
-                    .PetRespectOperations.AsNoTracking()
-                    .Where(x => !x.Completed && !x.Rejected)
-                    .OrderBy(x => x.OperationId);
+                    .PetRespects.AsNoTracking()
+                    .Where(x => x.Status == RespectStatus.Pending)
+                    .OrderBy(x => x.Id);
                 var petOperations = await petPending
                     .Skip(petOffset)
                     .Take(config.Value.RecoveryBatchSize)
@@ -134,11 +135,11 @@ internal sealed class AchievementRecoveryService(
                         await grains
                             .GetRoomPersistenceGrain(operation.RoomId)
                             .ApplyPetRespectOperationAsync(
-                                operation.OperationId,
-                                operation.ActorId,
+                                operation.Id,
+                                operation.GiverId,
                                 operation.PetId,
                                 operation.OwnerId,
-                                operation.BaseRespect,
+                                operation.RespectBefore,
                                 stoppingToken
                             )
                             .ConfigureAwait(false);
@@ -151,8 +152,8 @@ internal sealed class AchievementRecoveryService(
                     {
                         logger.LogError(
                             ex,
-                            "Pet respect recovery failed for operation {OperationId}",
-                            operation.OperationId
+                            "Pet respect recovery failed for respect {RespectId}",
+                            operation.Id
                         );
                     }
                 }
@@ -234,7 +235,7 @@ internal sealed class AchievementRecoveryService(
             return;
         var cutoff = now.AddDays(-config.Value.FactRetentionDays);
         var batch = config.Value.RecoveryBatchSize * 10;
-        // MySQL rejects LIMIT inside an IN subquery, so select the ids first.
+        // Select the ids first, so each delete is one bounded batch.
         var ids = await db
             .AchievementFacts.AsNoTracking()
             .Where(x => x.Processed && x.OccurredAtUtc < cutoff)

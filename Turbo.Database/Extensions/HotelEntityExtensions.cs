@@ -32,20 +32,9 @@ public static class HotelEntityExtensions
             Mode = entity.Mode,
             StartsAt = DateTime.SpecifyKind(entity.StartsAt, DateTimeKind.Utc),
             EndsAt = DateTime.SpecifyKind(entity.EndsAt, DateTimeKind.Utc),
-            LevelScores = Numbers(entity.LevelScores),
-            RewardRanks = Numbers(entity.RewardRanks),
+            LevelScores = [.. entity.LevelScores],
+            RewardRanks = [.. entity.RewardRanks],
             SideOnePageId = entity.SideOnePageId,
             SideTwoPageId = entity.SideTwoPageId,
         };
-
-    /// <summary>A list kept as <c>1,10,100</c>; anything that isn't a number is left out.</summary>
-    private static ImmutableArray<int> Numbers(string list) =>
-        [
-            .. list.Split(
-                    ',',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                )
-                .Select(x => int.TryParse(x, out var n) ? (int?)n : null)
-                .OfType<int>(),
-        ];
 }

@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
@@ -36,6 +37,7 @@ public sealed class BanCommand(
     IGrainFactory grainFactory,
     IHotelTextProvider textProvider,
     TimeProvider timeProvider,
+    IModerationLog moderationLog,
     ILogger<BanCommand> logger
 ) : IOperatorCommand<BanArguments>
 {
@@ -87,6 +89,15 @@ public sealed class BanCommand(
             reason,
             ctx.Executor.PlayerId,
             ct
+        );
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.Ban,
+            target.Id,
+            ct,
+            ban.Reason,
+            ban.ExpiresAtUtc
         );
 
         try

@@ -22,7 +22,7 @@ internal sealed partial class PlayerAchievementGrain
         {
             await _grains
                 .GetPlayerGrain(_state.PlayerId)
-                .SetAchievementTotalsAsync(projection.Score, projection.EarnedLevels, ct);
+                .SetAchievementTotalsAsync(projection.Score, projection.CompletedLevels, ct);
             await _grains.SendComposerToPlayerAsync(
                 _state.PlayerId,
                 new AchievementsScoreEventMessageComposer { Score = projection.Score },

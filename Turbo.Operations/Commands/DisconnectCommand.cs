@@ -4,13 +4,15 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record DisconnectArguments(PlayerTarget Who);
+public sealed record DisconnectArguments(PlayerTarget Who, RestOfLine? Reason = null);
 
 /// <summary>
 /// <c>:disconnect name</c>. Closes a player's connection to the hotel: for a stuck client or a
@@ -25,7 +27,8 @@ public sealed record DisconnectArguments(PlayerTarget Who);
 public sealed class DisconnectCommand(
     IGrainFactory grainFactory,
     ISessionGateway sessionGateway,
-    IHotelTextProvider texts
+    IHotelTextProvider texts,
+    IModerationLog moderationLog
 ) : IOperatorCommand<DisconnectArguments>
 {
     private const string DISCONNECTED = "disconnected";
@@ -67,12 +70,23 @@ public sealed class DisconnectCommand(
         var message =
             await texts.GetTextAsync("command.disconnect.notice", ct)
             ?? "A moderator has closed your connection. You can reconnect to the hotel.";
-        return await sessionGateway.DisconnectPlayerAsync(
-            target.Id,
-            new ModeratorMessageComposer { Message = message, Url = string.Empty },
-            ct
+        if (
+            !await sessionGateway.DisconnectPlayerAsync(
+                target.Id,
+                new ModeratorMessageComposer { Message = message, Url = string.Empty },
+                ct
+            )
         )
-            ? CommandResult.Done(DISCONNECTED, target.Name)
-            : CommandResult.Fail(NOT_ONLINE, target.Name);
+            return CommandResult.Fail(NOT_ONLINE, target.Name);
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.Disconnect,
+            target.Id,
+            ct,
+            CommandModeration.ReasonOf(arguments.Reason)
+        );
+
+        return CommandResult.Done(DISCONNECTED, target.Name);
     }
 }

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -208,7 +209,12 @@ internal sealed partial class GuildGrain
                 .GuildMembers.Where(x =>
                     x.GuildEntityId == GuildId.Value && ids.Contains(x.PlayerEntityId)
                 )
-                .ExecuteUpdateAsync(x => x.SetProperty(m => m.Rank, GuildMemberRank.Member), ct);
+                .ExecuteUpdateAsync(
+                    x =>
+                        x.SetProperty(m => m.Rank, GuildMemberRank.Member)
+                            .SetProperty(m => m.JoinedAt, DateTime.UtcNow),
+                    ct
+                );
         }
 
         foreach (var playerId in joining)
@@ -365,13 +371,19 @@ internal sealed partial class GuildGrain
             {
                 member.PlayerEntityId,
                 member.Rank,
-                member.CreatedAt,
+                MemberSince = member.JoinedAt ?? member.CreatedAt,
                 player.Name,
                 player.Figure,
             };
 
         if (!string.IsNullOrEmpty(filter))
-            query = query.Where(x => x.Name.Contains(filter));
+            query = query.Where(x =>
+                EF.Functions.Like(
+                    x.Name.ToLower(),
+                    LikePatterns.Containing(filter),
+                    LikePatterns.ESCAPE
+                )
+            );
 
         var total = await query.CountAsync(ct);
         var rows = await query
@@ -393,7 +405,7 @@ internal sealed partial class GuildGrain
                     PlayerId = PlayerId.Parse(row.PlayerEntityId),
                     PlayerName = row.Name ?? string.Empty,
                     Figure = row.Figure ?? string.Empty,
-                    MemberSince = row.CreatedAt,
+                    MemberSince = row.MemberSince,
                 }),
             ],
             AllowedToManage = allowedToManage,
@@ -448,11 +460,19 @@ internal sealed partial class GuildGrain
                         PlayerEntityId = playerId.Value,
                         Rank = rank,
                         IsFavourite = false,
+                        JoinedAt = GuildMemberRanks.IsMember(rank) ? DateTime.UtcNow : null,
                     }
                 );
             }
             else
             {
+                // A member promoted or demoted keeps the day they joined; one who stops being a
+                // member loses it, and joining again starts it over.
+                if (!GuildMemberRanks.IsMember(rank))
+                    entity.JoinedAt = null;
+                else if (!GuildMemberRanks.IsMember(entity.Rank))
+                    entity.JoinedAt = DateTime.UtcNow;
+
                 entity.Rank = rank;
             }
 
@@ -566,8 +586,8 @@ internal sealed partial class GuildGrain
         var memberSinceByPlayerId = await dbCtx
             .GuildMembers.AsNoTracking()
             .Where(x => x.GuildEntityId == GuildId.Value && ids.Contains(x.PlayerEntityId))
-            .Select(x => new { x.PlayerEntityId, x.CreatedAt })
-            .ToDictionaryAsync(x => x.PlayerEntityId, x => x.CreatedAt, ct);
+            .Select(x => new { x.PlayerEntityId, Since = x.JoinedAt ?? x.CreatedAt })
+            .ToDictionaryAsync(x => x.PlayerEntityId, x => x.Since, ct);
 
         return
         [

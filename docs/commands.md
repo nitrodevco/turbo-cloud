@@ -6,7 +6,7 @@ machinery and the few commands the Habbo clients already expect a server to answ
 else (a roleplay's `:hit`, a casino's `:roll`) belongs in a plugin.
 
 **Status: being built on top of the merged permission system (`docs/permissions.md`).** The first
-change ships the engine, `:commands`, `:kick`, `:mute` and the `command_logs` table; the console executor,
+change ships the engine, `:commands`, `:kick`, `:mute` and the `moderation_command_logs` table; the console executor,
 the owner commands (`:pickall` and friends) and a client extension for autocomplete follow. Commands complement a hotel's UI rather than replace it, so core keeps its own
 commands to the minimum.
 
@@ -228,26 +228,37 @@ what suits it; `admin` holds `*`.
 
 | Area | Command | Node | Behind it |
 | --- | --- | --- | --- |
-| Moderation | `:ban <who> <duration> [reason]`, `:unban <who>` | `command.ban`, `command.unban` | `ISanctionService` and the `player_sanctions` table; checked at login; a lifted ban is stamped, never deleted. Staff holding the node are out of reach. |
-| | `:silence <who> <duration>`, `:unsilence <who>` | `command.silence` | A temporary denial of `chat.speak` through the permission grains, so audited already; the player is told. |
-| | `:tradelock <who> <duration>`, `:untradelock <who>` | `command.tradelock` | The same, denying `trade`. |
-| | `:disconnect <who>` | `command.disconnect` | `ISessionGateway.DisconnectPlayerAsync`. |
+| Moderation | `:ban <who> <duration> [reason]`, `:unban <who> [reason]` | `command.ban`, `command.unban` | `ISanctionService` and the `moderation_sanctions` table; checked at login; a lifted ban is stamped, never deleted. Staff holding the node are out of reach. |
+| | `:silence <who> <duration> [reason]`, `:unsilence <who> [reason]` | `command.silence` | A temporary denial of `chat.speak` through the permission grains; the player is told. |
+| | `:tradelock <who> <duration> [reason]`, `:untradelock <who> [reason]` | `command.tradelock` | The same, denying `trade`. |
+| | `:disconnect <who> [reason]` | `command.disconnect` | `ISessionGateway.DisconnectPlayerAsync`. |
+| | `:history <who>` | `command.history` | The player's last 15 moderation actions from `moderation_actions`, newest first: what, by whom, when, why, until when. |
+| | `:alts <who>` | `command.alts` | The accounts that logged in from the player's addresses or machines (`player_logins`), a shared machine first, banned ones marked. How many addresses are shared, never which. |
 | | `:roomkickall`, `:roommute`, `:roomunmute` | `command.roomkickall`, `.roommute`, `.roomunmute` | Room commands. Clearing skips the owner, anyone with `room.moderate.any`, and the executor. |
 | Announcements | `:warn <who> <msg>`, `:alert <who> <msg>` | `command.warn`, `command.alert` | `ModeratorMessage` / `HabboBroadcast`. `@room` and `@online` need `command.alert.mass`. |
 | | `:roomalert <msg>`, `:hotelalert <msg>` | `command.roomalert`, `command.hotelalert` | The room's players when the line was typed; everyone online. |
 | | `:eventalert [msg]` | `command.eventalert` | A hotel notice naming the room, with an `event:navigator/goto/<id>` link. Whether a client follows that link is not verified; the room name and number are in the text. |
 | Support | `:whois <who>` | `command.whois` | Online state and room, groups, ban, silence and trade lock, wallet. The player rows hold no address, so none is shown. |
 | | `:follow <who>`, `:summon <who>` | `command.follow`, `command.summon` | `ForwardPlayerToRoomAsync`: the room's door still applies. |
-| | `:give <who> <currency> <amount>` | `command.give` | Wallet grain; negative takes, never below nothing; currencies are the hotel's `currency_types` names; capped by `MaxCurrencyAmount`. |
+| | `:give <who> <currency> <amount>` | `command.give` | Wallet grain; negative takes, never below nothing; currencies are the hotel's `catalog_currency_types` names; capped by `MaxCurrencyAmount`. |
 | | `:givebadge`, `:takebadge <who> <code>` | `command.givebadge`, `command.takebadge` | Badge grain. |
 | | `:giveitem <who> <furni> [count]` | `command.giveitem` | `GrantFurnitureAsync`, furni by definition name; capped by `MaxGiveItemCount`. |
 | | `:gift <who> <furni> "<note>" [badge] [trusted]` | `command.gift` | `ReceiveStaffPresentAsync`: a gift wrapped present with no sender on the tag (the client's "Special Gift"), furni by definition name or id; the badge is given as it is opened; `true` drops the client's untrusted-sender warning, which Habbo's own staff gift keeps. Note capped by `MaxGiftMessageLength`. |
 | Administration | `:group add\|remove <who> <group> [duration]` | `command.group` and `permissions.manage` | The permission grains and audit; needs both nodes, so the command alone cannot hand out a group. |
+| Administration | `createplayer <name> [male\|female]` | `admin.players.create` | `IPlayerAccountService` and `ILoginTicketService`; prints a ticket that signs the new player in once within the hour, as a client link when `Turbo:Web:ClientUrl` is set. How a hotel without Discord makes its first player at the console. |
 | | `:perm check <who> <node>` | `command.perm` | `ExplainAsync`: what decided, and what it beat. |
 | | `:status`, `:online` | `command.status`, `command.online` (`command.online.list` for names) | Uptime, players, rooms, silos, memory, availability. |
 | | `:maintenance <minutes\|off> [reason]`, `:shutdown [minutes\|cancel] [reason]` | `command.maintenance`, `command.shutdown` | `IHotelAvailability`: reminders as the countdown runs, then maintenance closes login to players without `hotel.maintenance.bypass`, or a shutdown sends everyone home and stops the host. A bare `:shutdown` counts down `DefaultShutdownMinutes`. |
 | | `:reload <subject>` | `command.reload` | Subjects: `catalog`, `texts`, `furni`, `navigator`, `currencies`, `chatstyles`, `roommodels`, `petbreeds`, `petspeech`, `achievements`, `plugins`, `filter`. |
 | | `:unloadroom` | `command.unloadroom` | Room command: everyone out, the owner too, and the room unloads. |
+
+**Moderation history.** Every command that acts on a player records what it did in
+`moderation_actions` (`IModerationLog`), beside the command log's line: the ban, silence, trade
+lock and their lifting with the reason given and when they end, a disconnect, a warning or alert
+to one player with its text, a badge given or taken, furni given, a present sent with `:gift`
+(what it held, its badge and its note). Where it came from is recorded
+as the executor's source: the game, the panel (which runs these commands) or the console. A
+command that changed nothing (a player already silenced) records nothing.
 
 **Targets.** `:give`, `:givebadge`, `:takebadge`, `:giveitem`, `:alert` and `:warn` accept `@room`
 or `@online` rather than having a mass variant each. A command declares which node lets an executor
@@ -381,7 +392,7 @@ Opt-in, like the room telemetry (`docs/telemetry.md`), and silent when nothing l
 
 ## 8. Command log
 
-A use by an executor holding command.log is written to command_logs: room, player, command
+A use by an executor holding command.log is written to moderation_command_logs: room, player, command
 name, the arguments as typed (cut at 255, redacted for sensitive commands), the outcome and the time it ran. A hotel
 logs staff and nobody else by giving the node to the groups it wants; the migration gives it to
 	rial_moderator, and so to everything that inherits it. A flooded line is not logged.
@@ -434,7 +445,7 @@ audience and checks current permissions and registration. Suggestion windows are
 and periodically expired. Limits and deadlines are in `Turbo:Commands`.
 
 Migration `AddCommandExecutionAudit` adds nullable execution, parent and confirmation IDs, source,
-resolved-audience JSON and per-target batch accounting to `command_logs`. Existing rows and room
+resolved-audience JSON and per-target batch accounting to `moderation_command_logs`. Existing rows and room
 logs remain valid. Operator audit writes remain best effort after execution: a database failure
 is logged, cannot roll back already completed cross-grain operations, and must not trigger retry.
 Apply the migration before running this version of the server. No live database migration is

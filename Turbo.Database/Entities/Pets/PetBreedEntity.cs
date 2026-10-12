@@ -9,6 +9,7 @@ namespace Turbo.Database.Entities.Pets;
 /// palette is the figure's colour variant; several palettes may share a breed (a horse's body
 /// shape), which is what the info stand names.
 /// </summary>
+[Comment("A sellable palette of a pet type: what the catalog offers and what breeding yields.")]
 [Table("pet_breeds")]
 [Index(nameof(TypeId), nameof(PaletteId), IsUnique = true)]
 public class PetBreedEntity : TurboEntity

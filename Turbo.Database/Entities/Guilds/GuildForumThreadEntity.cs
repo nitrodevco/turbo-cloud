@@ -8,6 +8,7 @@ using Turbo.Primitives.Guilds.Forums.Enums;
 namespace Turbo.Database.Entities.Guilds;
 
 /// <summary>A forum thread. Its first message is the opening post.</summary>
+[Comment("A forum thread.")]
 [Table("guild_forum_threads")]
 [Index(nameof(GuildEntityId), nameof(IsSticky), nameof(LastMessageAt))]
 public class GuildForumThreadEntity : TurboEntity
@@ -49,4 +50,8 @@ public class GuildForumThreadEntity : TurboEntity
 
     [Column("last_message_at")]
     public DateTime LastMessageAt { get; set; }
+
+    // Part of the group: the threads go when it does (its messages cascade from the thread).
+    [ForeignKey(nameof(GuildEntityId))]
+    public GuildEntity? GuildEntity { get; set; }
 }

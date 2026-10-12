@@ -309,7 +309,6 @@ public sealed class NewUserLobbyTests : IDisposable
             Name = name,
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
-            PlayerStatus = PlayerStatusType.Offline,
             CreatedAt = createdAt,
         };
 
@@ -321,13 +320,12 @@ public sealed class NewUserLobbyTests : IDisposable
             PlayerEntityId = OLD_PLAYER,
             RoomModelEntityId = 1,
             DoorMode = doorMode,
-            UsersNow = 0,
             PlayersMax = max,
             WallHeight = -1,
             HideWalls = false,
             ThicknessWall = RoomThicknessType.Normal,
             ThicknessFloor = RoomThicknessType.Normal,
-            AllowBlocking = false,
+            AllowWalkThrough = false,
             AllowPets = false,
             AllowPetsEat = false,
             TradeType = RoomTradeModeType.Disabled,

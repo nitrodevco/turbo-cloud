@@ -11,20 +11,25 @@ namespace Turbo.Database.Entities.Room;
 /// and outlives the room it was typed in. Indexed by who ran it and by command, newest first, for
 /// the admin panel's log.
 /// </summary>
-[Table("command_logs")]
+[Comment(
+    "One use of a chat command by an executor who holds command.log, so an operator logs staff and nobody else."
+)]
+[Table("moderation_command_logs")]
 [Index(nameof(PlayerEntityId), nameof(Id))]
 [Index(nameof(Command), nameof(Id))]
-public class CommandLogEntity : TurboEntity
+public class CommandLogEntity : TurboLogEntity
 {
     public const int COMMAND_MAX_LENGTH = 32;
     public const int ARGUMENTS_MAX_LENGTH = 255;
     public const int OUTCOME_MAX_LENGTH = 16;
 
+    /// <summary>The room it was used in; null from the console or the panel.</summary>
     [Column("room_id")]
-    public required int RoomEntityId { get; set; }
+    public int? RoomEntityId { get; set; }
 
+    /// <summary>Who used it; null for the console.</summary>
     [Column("player_id")]
-    public required int PlayerEntityId { get; set; }
+    public int? PlayerEntityId { get; set; }
 
     [Column("command")]
     [StringLength(COMMAND_MAX_LENGTH)]
@@ -51,9 +56,9 @@ public class CommandLogEntity : TurboEntity
     [StringLength(16)]
     public string? Source { get; set; }
 
-    [Column("resolved_audience_json", TypeName = "json")]
+    [Column("resolved_audience_json", TypeName = "jsonb")]
     public string? ResolvedAudienceJson { get; set; }
 
-    [Column("batch_target_results_json", TypeName = "json")]
+    [Column("batch_target_results_json", TypeName = "jsonb")]
     public string? BatchTargetResultsJson { get; set; }
 }

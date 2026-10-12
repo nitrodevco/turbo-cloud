@@ -5,7 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Achievements;
 
-[Table("achievement_audit")]
+[Comment(
+    "Every operator change to the achievements (imports, retiring, enabling), with who made it and why."
+)]
+[Table("achievement_audit_logs")]
 [Index(nameof(OperationId), IsUnique = true)]
 public sealed class AchievementAuditEntity
 {
@@ -17,16 +20,18 @@ public sealed class AchievementAuditEntity
     public required string Actor { get; set; }
     public required string Reason { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string RequestJson { get; set; } = "{}";
+
+    [Column("occurred_at")]
     public DateTime OccurredAtUtc { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public required string BeforeJson { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public required string AfterJson { get; set; }
 }

@@ -8,6 +8,9 @@ namespace Turbo.Database.Entities.Assets;
 /// A file a publish target holds, as it was last sent there: a publish sends only what is new or
 /// whose hash changed, and one that stops part way resumes from what is recorded.
 /// </summary>
+[Comment(
+    "A file a publish target holds, as it was last sent there: a publish sends only what is new or whose hash changed, and one that stops part way resumes from what is recorded."
+)]
 [Table("asset_published_files")]
 [Index(nameof(TargetEntityId), nameof(Path), IsUnique = true)]
 public class AssetPublishedFileEntity : TurboEntity

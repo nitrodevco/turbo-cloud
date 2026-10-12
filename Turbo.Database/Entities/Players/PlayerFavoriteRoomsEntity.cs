@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Room;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("The rooms each player has marked as a favourite.")]
 [Table("player_favorite_rooms")]
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId), IsUnique = true)]
 public class PlayerFavoriteRoomsEntity : TurboEntity

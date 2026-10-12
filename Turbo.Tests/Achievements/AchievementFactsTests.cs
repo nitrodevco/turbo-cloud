@@ -28,7 +28,6 @@ public sealed class AchievementFactsTests : IDisposable
                 Name = "facts-test",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
                 CreatedAt = DateTime.UtcNow.AddDays(-10),
             }
         );

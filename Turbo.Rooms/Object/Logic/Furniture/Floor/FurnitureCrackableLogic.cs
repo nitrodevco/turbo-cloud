@@ -294,7 +294,12 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (reward.Credits > 0)
             await _roomGrain
                 ._grainFactory.GetPlayerWalletGrain(recipient)
-                .CreditAsync(CurrencyKind.Credits, reward.Credits, ct);
+                .CreditAsync(
+                    CurrencyKind.Credits,
+                    reward.Credits,
+                    new WalletChange(WalletChangeReason.Crackable, _ctx.Definition.Name),
+                    ct
+                );
 
         if (string.IsNullOrWhiteSpace(reward.Furni))
             return;
@@ -395,7 +400,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                 {
                     Source = AchievementSources.CRACKABLE_HIT,
                     Value = hit,
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = now,
                 }
             );
@@ -409,7 +414,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                     Source = AchievementSources.CRACKABLE_CRACKED,
                     Value = final,
                     Amount = Math.Max(1, _data.FinalHitAchievementCount),
-                    OperationId = Guid.NewGuid().ToString("N"),
+                    OperationId = Guid.CreateVersion7().ToString("N"),
                     OccurredAtUtc = now,
                 }
             );

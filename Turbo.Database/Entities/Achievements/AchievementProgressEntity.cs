@@ -10,18 +10,25 @@ namespace Turbo.Database.Entities.Achievements;
 /// still being delivered or announced. Levels deliver strictly in order, so a single cursor and a
 /// short list of open awards replace a row per level.
 /// </summary>
+[Comment(
+    "Everything about one player's one achievement: reducer state, the levels earned, and the levels still being delivered or announced."
+)]
 [Table("achievement_progress")]
 [PrimaryKey(nameof(PlayerId), nameof(AchievementId))]
-// Recovery looks for players with an undelivered award across every player.
-[Index(nameof(PendingDelivery), nameof(PlayerId))]
+// Recovery looks for players with an undelivered award across every player: a partial index on
+// player_id where pending_delivery (TurboDbContext).
 public sealed class AchievementProgressEntity
 {
     public int PlayerId { get; set; }
     public int AchievementId { get; set; }
     public long Value { get; set; }
     public long ForwardAdjustment { get; set; }
-    public long Streak { get; set; }
-    public DateTime? LastDayUtc { get; set; }
+
+    /// <summary>A calendar-streak achievement's run of consecutive UTC days, up to <see cref="LastStreakDay"/>.</summary>
+    public long CurrentStreak { get; set; }
+
+    /// <summary>The last UTC day a calendar streak counted.</summary>
+    public DateOnly? LastStreakDay { get; set; }
 
     /// <summary>The highest level the progress qualifies for. Each level above <see cref="CompletedLevel"/> is an open award.</summary>
     public int EarnedLevel { get; set; }
@@ -33,17 +40,18 @@ public sealed class AchievementProgressEntity
     public int ScoreEarned { get; set; }
 
     /// <summary>When the last level was completed, for support questions. History is not kept per level.</summary>
+    [Column("last_level_at")]
     public DateTime? LastLevelAtUtc { get; set; }
 
     /// <summary>Distinct values counted so far; the values live in <c>achievement_distinct_values</c>.</summary>
     public int DistinctCount { get; set; }
 
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string IntervalsJson { get; set; } = "[]";
 
     /// <summary>Earned levels not yet finished, as JSON. Read and written through <c>AchievementOpenAwards</c>.</summary>
-    [Column(TypeName = "longtext")]
+    [Column(TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string OpenAwards { get; set; } = "[]";
 

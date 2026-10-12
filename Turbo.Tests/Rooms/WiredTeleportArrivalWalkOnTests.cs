@@ -116,7 +116,7 @@ public sealed class WiredTeleportArrivalWalkOnTests
                     BadgesRank = 0,
                     IsOnline = true,
                     CreatedAt = DateTime.UtcNow,
-                    LastUpdated = DateTime.UtcNow,
+                    LastSeen = DateTime.UtcNow,
                     RespectPoints = 0,
                     RespectsLeft = 0,
                     PetRespectsLeft = 0,

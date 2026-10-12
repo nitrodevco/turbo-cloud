@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Catalog;
 
 namespace Turbo.Database.Entities.Players;
 
+[Comment("Each player's balance in each currency.")]
 [Table("player_currencies")]
 [Index(nameof(PlayerEntityId), nameof(CurrencyTypeEntityId), IsUnique = true)]
 public class PlayerCurrencyEntity : TurboEntity

@@ -156,7 +156,13 @@ internal sealed partial class PermissionGroupDirectoryGrain
         var query = dbCtx.PermissionAudit.AsNoTracking();
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(x => x.Subject.Contains(search));
+            query = query.Where(x =>
+                EF.Functions.Like(
+                    x.Subject.ToLower(),
+                    LikePatterns.Containing(search),
+                    LikePatterns.ESCAPE
+                )
+            );
 
         // Append-only, so the key orders rows as they were written and needs no other index.
         var rows = await query.OrderByDescending(x => x.Id).Take(take).ToListAsync(ct);

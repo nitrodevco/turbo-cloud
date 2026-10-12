@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[Comment("What one catalog offer gives: furni, a badge, an effect, a pet or club time.")]
 [Table("catalog_products")]
 public class CatalogProductEntity : TurboEntity
 {

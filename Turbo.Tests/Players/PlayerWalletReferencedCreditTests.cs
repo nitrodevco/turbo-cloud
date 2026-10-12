@@ -37,7 +37,6 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
                     Name = $"wallet-credit-{id}",
                     Figure = "hd-180-1",
                     Gender = AvatarGenderType.Male,
-                    PlayerStatus = PlayerStatusType.Offline,
                 }
             );
         }
@@ -78,7 +77,14 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
-        var act = () => wallet.CreditAsync(CurrencyKind.Credits, 10, reference, Ct);
+        var act = () =>
+            wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                reference,
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            );
 
         await act.Should().ThrowAsync<ArgumentException>();
         (await BalanceAsync(PLAYER_ID)).Should().Be(0);
@@ -90,7 +96,14 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
         var wallet = await NewWalletAsync(PLAYER_ID);
         var tooLong = new string('x', WalletCreditReference.MaxLength + 1);
 
-        var act = () => wallet.CreditAsync(CurrencyKind.Credits, 10, tooLong, Ct);
+        var act = () =>
+            wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                tooLong,
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            );
 
         await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
         (await BalanceAsync(PLAYER_ID)).Should().Be(0);
@@ -102,7 +115,15 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
         var wallet = await NewWalletAsync(PLAYER_ID);
         var longest = new string('x', WalletCreditReference.MaxLength);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 10, longest, Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                longest,
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Applied);
     }
@@ -114,7 +135,15 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, amount, "plugin:1", Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                amount,
+                "plugin:1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Rejected);
 
@@ -127,9 +156,23 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     public async Task OverflowIsRejectedAndLeavesNoReceipt()
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
-        await wallet.CreditAsync(CurrencyKind.Credits, int.MaxValue, "plugin:max", Ct);
+        await wallet.CreditAsync(
+            CurrencyKind.Credits,
+            int.MaxValue,
+            "plugin:max",
+            new WalletChange(WalletChangeReason.Staff),
+            Ct
+        );
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 1, "plugin:over", Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                1,
+                "plugin:over",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Rejected);
 
@@ -143,10 +186,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                25,
+                "plugin:order-1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Applied);
-        (await wallet.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                25,
+                "plugin:order-1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.AlreadyApplied);
 
@@ -158,11 +217,25 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     public async Task RepeatedReferenceIsANoOpAfterReactivation()
     {
         var first = await NewWalletAsync(PLAYER_ID);
-        await first.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Ct);
+        await first.CreditAsync(
+            CurrencyKind.Credits,
+            25,
+            "plugin:order-1",
+            new WalletChange(WalletChangeReason.Staff),
+            Ct
+        );
 
         var second = await NewWalletAsync(PLAYER_ID);
 
-        (await second.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Ct))
+        (
+            await second.CreditAsync(
+                CurrencyKind.Credits,
+                25,
+                "plugin:order-1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.AlreadyApplied);
         (await BalanceAsync(PLAYER_ID)).Should().Be(25);
@@ -173,8 +246,22 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
-        await wallet.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Ct);
-        (await wallet.CreditAsync(CurrencyKind.Credits, 5, "plugin:order-2", Ct))
+        await wallet.CreditAsync(
+            CurrencyKind.Credits,
+            25,
+            "plugin:order-1",
+            new WalletChange(WalletChangeReason.Staff),
+            Ct
+        );
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                5,
+                "plugin:order-2",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Applied);
 
@@ -188,10 +275,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
         var wallet = await NewWalletAsync(PLAYER_ID);
         var other = await NewWalletAsync(OTHER_PLAYER_ID);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 10, "plugin:order-1", Ct))
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                "plugin:order-1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Applied);
-        (await other.CreditAsync(CurrencyKind.Credits, 10, "plugin:order-1", Ct))
+        (
+            await other.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                "plugin:order-1",
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
             .Should()
             .Be(WalletCreditResult.Applied);
 
@@ -203,12 +306,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     public async Task ConcurrentCreditsWithOneReferenceApplyOnce()
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
-        await wallet.CreditAsync(CurrencyKind.Credits, 1, "plugin:seed", Ct);
+        await wallet.CreditAsync(
+            CurrencyKind.Credits,
+            1,
+            "plugin:seed",
+            new WalletChange(WalletChangeReason.Staff),
+            Ct
+        );
 
         var results = await Task.WhenAll(
             Enumerable
                 .Range(0, 5)
-                .Select(_ => wallet.CreditAsync(CurrencyKind.Credits, 10, "plugin:order-1", Ct))
+                .Select(_ =>
+                    wallet.CreditAsync(
+                        CurrencyKind.Credits,
+                        10,
+                        "plugin:order-1",
+                        new WalletChange(WalletChangeReason.Staff),
+                        Ct
+                    )
+                )
         );
 
         results.Count(x => x == WalletCreditResult.Applied).Should().Be(1);
@@ -221,12 +338,95 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 10, Ct)).Should().BeTrue();
-        (await wallet.CreditAsync(CurrencyKind.Credits, 10, Ct)).Should().BeTrue();
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await wallet.CreditAsync(
+                CurrencyKind.Credits,
+                10,
+                new WalletChange(WalletChangeReason.Staff),
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
 
         (await BalanceAsync(PLAYER_ID)).Should().Be(20);
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.WalletCreditReceipts.CountAsync(Ct)).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Every balance change leaves a ledger row saying how much, why and what it left, so a
+    /// player's history adds up to their balance and a disputed charge can be looked up.
+    /// </summary>
+    [Fact]
+    public async Task EveryChangeIsInTheLedgerWithItsReasonAndTheBalanceItLeft()
+    {
+        var wallet = await NewWalletAsync(PLAYER_ID);
+
+        await wallet.CreditAsync(
+            CurrencyKind.Credits,
+            50,
+            new WalletChange(WalletChangeReason.Voucher, "WELCOME"),
+            Ct
+        );
+        (
+            await wallet.TryDebitAsync(
+                [new WalletDebitRequest { CurrencyKind = CurrencyKind.Credits, Amount = 20 }],
+                new WalletChange(WalletChangeReason.CatalogPurchase, "offer 7"),
+                Ct
+            )
+        )
+            .Succeeded.Should()
+            .BeTrue();
+        // Refused for want of credits: nothing moved, so nothing is recorded.
+        (
+            await wallet.TryDebitAsync(
+                [new WalletDebitRequest { CurrencyKind = CurrencyKind.Credits, Amount = 999 }],
+                new WalletChange(WalletChangeReason.CatalogPurchase, "offer 8"),
+                Ct
+            )
+        )
+            .Succeeded.Should()
+            .BeFalse();
+        await wallet.CreditAsync(
+            CurrencyKind.Credits,
+            5,
+            "plugin:1",
+            new WalletChange(WalletChangeReason.Referenced, "plugin:1"),
+            Ct
+        );
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var ledger = await db.PlayerCurrencyLedger.OrderBy(x => x.Id).ToListAsync(Ct);
+
+        ledger
+            .Select(x =>
+                (x.PlayerEntityId, x.CurrencyTypeId, x.Change, x.BalanceAfter, x.Reason, x.Detail)
+            )
+            .Should()
+            .Equal(
+                (PLAYER_ID, CURRENCY_TYPE_ID, 50, 50, WalletChangeReason.Voucher, "WELCOME"),
+                (
+                    PLAYER_ID,
+                    CURRENCY_TYPE_ID,
+                    -20,
+                    30,
+                    WalletChangeReason.CatalogPurchase,
+                    "offer 7"
+                ),
+                (PLAYER_ID, CURRENCY_TYPE_ID, 5, 35, WalletChangeReason.Referenced, "plugin:1")
+            );
+        ledger.Sum(x => x.Change).Should().Be(await BalanceAsync(PLAYER_ID));
     }
 
     private async Task<int> BalanceAsync(int playerId)

@@ -5,6 +5,9 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Room;
 
+[Comment(
+    "Room layouts: the standard models rooms are created on, and each room's own saved floor plan."
+)]
 [Table("room_models")]
 [Index(nameof(Name), IsUnique = true)]
 public class RoomModelEntity : TurboEntity
@@ -12,7 +15,7 @@ public class RoomModelEntity : TurboEntity
     [Column("name")]
     public required string Name { get; set; }
 
-    [Column("model", TypeName = "longtext")]
+    [Column("model", TypeName = "text")]
     public required string Model { get; set; }
 
     [Column("door_x")]

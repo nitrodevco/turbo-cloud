@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// apart by their rank — which is what lets a request be rejected without losing that it was
 /// made, and a block outlive the kick that caused it.
 /// </summary>
+[Comment("One player's standing in one group.")]
 [Table("guild_members")]
 [Index(nameof(GuildEntityId), nameof(PlayerEntityId), IsUnique = true)]
 // "My groups" reads by player across every group, which the unique index above (guild first)
@@ -38,6 +40,14 @@ public class GuildMemberEntity : TurboEntity
     [Column("is_favourite")]
     [DefaultValue(false)]
     public required bool IsFavourite { get; set; }
+
+    /// <summary>
+    /// When they became a member, which the member list shows as "member since"; null while
+    /// the row is a request or a block. <c>created_at</c> is when the row was first written,
+    /// often a request made days before it was approved.
+    /// </summary>
+    [Column("joined_at")]
+    public DateTime? JoinedAt { get; set; }
 
     [ForeignKey(nameof(GuildEntityId))]
     public GuildEntity? GuildEntity { get; set; }

@@ -10,6 +10,9 @@ namespace Turbo.Database.Entities.Gamedata;
 /// A file that could not be fetched or read keeps why in <see cref="Error"/>; it is tried again
 /// only when that may pass (<see cref="Retry"/>).
 /// </summary>
+[Comment(
+    "What one of Habbo's furniture asset files said, by its asset name (a classname without its *N colour) and the revision furnidata gave it: the file is read once per revision."
+)]
 [Table("habbo_furniture_assets")]
 [Index(nameof(AssetName), nameof(Revision), IsUnique = true)]
 public class HabboFurnitureAssetEntity : TurboEntity
@@ -27,16 +30,8 @@ public class HabboFurnitureAssetEntity : TurboEntity
     [Column("states")]
     public int States { get; set; }
 
-    [Column("logic_type")]
-    [MaxLength(64)]
-    public string? LogicType { get; set; }
-
-    [Column("visualization_type")]
-    [MaxLength(64)]
-    public string? VisualizationType { get; set; }
-
     /// <summary>Everything read from the file (<c>FurnitureAssetInfo</c>), as JSON.</summary>
-    [Column("info", TypeName = "longtext")]
+    [Column("info", TypeName = "text")]
     public string? Info { get; set; }
 
     [Column("error")]

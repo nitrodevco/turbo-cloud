@@ -7,11 +7,11 @@ crashes before recording success, it repeats the call and the player is not paid
 
 - `reference` is opaque. By convention it is `<plugin-key>:<id>`, for example `shop:order-1042`.
   It must be non-blank and at most `WalletCreditReference.MaxLength` (128) characters, otherwise
-  the call throws. MySQL compares it case-insensitively, so do not rely on case to tell two apart.
+  the call throws. It is compared exactly: `shop:A` and `shop:a` are two references.
 - The scope is the player, not the currency: one reference credits one currency once.
 - Results: `Applied`, `AlreadyApplied` (nothing changed; treat as success), `Rejected`
   (non-positive amount, unknown currency, or the balance would overflow; no receipt is kept).
-- The balance and the receipt (`wallet_credit_receipts`) are saved in one `SaveChanges`.
+- The balance and the receipt (`player_wallet_credit_receipts`) are saved in one `SaveChanges`.
 
 ```csharp
 var wallet = grains.GetPlayerWalletGrain(playerId);

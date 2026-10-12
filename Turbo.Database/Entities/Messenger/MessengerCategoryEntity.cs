@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[Comment("The categories a player sorts their friend list into.")]
 [Table("messenger_categories")]
 [Index(nameof(PlayerEntityId), nameof(Name), IsUnique = true)]
 public class MessengerCategoryEntity : TurboEntity

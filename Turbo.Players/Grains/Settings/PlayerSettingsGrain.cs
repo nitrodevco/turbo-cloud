@@ -367,10 +367,22 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         );
         _state.IsDirty = false;
 
+        // A home room that has since been deleted would send the player at login to a room that
+        // isn't there. The column has no foreign key, because the row is written whole from here
+        // and a stale id would fail the whole save, so it is checked as it is read.
+        if (
+            _state.Settings.HomeRoomId.Value > 0
+            && !await dbCtx.Rooms.AnyAsync(x => x.Id == _state.Settings.HomeRoomId.Value, ct)
+        )
+        {
+            _state.Settings = _state.Settings with { HomeRoomId = RoomId.Invalid };
+            _state.IsDirty = true;
+        }
+
         var ownedChatStyleIds = await dbCtx
             .PlayerOwnedChatStyles.AsNoTracking()
             .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
-            .Select(x => x.ChatStyle.ClientStyleId)
+            .Select(x => x.ChatStyleId)
             .ToListAsync(ct);
 
         _state.OwnedChatStyleIds = ownedChatStyleIds.ToFrozenSet();

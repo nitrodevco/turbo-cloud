@@ -8,6 +8,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// One of Habbo's texts as it was last taken in. The next import compares against it to tell what
 /// Habbo changed from what the hotel changed.
 /// </summary>
+[Comment("One of Habbo's texts as it was last taken in.")]
 [Table("habbo_texts")]
 [Index(nameof(Key), IsUnique = true)]
 public class HabboTextEntity : TurboEntity
@@ -16,7 +17,7 @@ public class HabboTextEntity : TurboEntity
     [MaxLength(GamedataTextEntity.KEY_MAX_LENGTH)]
     public required string Key { get; set; }
 
-    [Column("value", TypeName = "longtext")]
+    [Column("value", TypeName = "text")]
     public required string Value { get; set; }
 
     /// <summary>The version it was last taken in from.</summary>

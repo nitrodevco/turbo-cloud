@@ -359,19 +359,51 @@ internal sealed class InventoryFurniModule(
         FurnitureEntity? row;
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        await using (var tx = await dbCtx.Database.BeginTransactionAsync(ct))
         {
             row = await dbCtx
-                .Furnitures.Where(x => x.ChestItemEntityId == presentId.Value)
+                .Furnitures.AsNoTracking()
+                .Where(x => x.ChestItemEntityId == presentId.Value)
                 .OrderBy(x => x.Id)
                 .FirstOrDefaultAsync(ct);
 
             if (row is null)
                 return null;
 
-            row.ChestItemEntityId = null;
-            row.PlayerEntityId = (int)PlayerId;
+            // Taken out only while the present still holds it: of two openings that race, one
+            // gets the item and the other finds the present empty.
+            var unwrapped = await dbCtx
+                .Furnitures.Where(x => x.Id == row.Id && x.ChestItemEntityId == presentId.Value)
+                .ExecuteUpdateAsync(
+                    up =>
+                        up.SetProperty(x => x.ChestItemEntityId, (int?)null)
+                            .SetProperty(x => x.ChestTransactionId, (long?)null)
+                            .SetProperty(x => x.HeldPosition, (int?)null)
+                            .SetProperty(x => x.PlayerEntityId, (int)PlayerId),
+                    ct
+                );
 
-            await dbCtx.SaveChangesAsync(ct);
+            if (unwrapped == 0)
+                return null;
+
+            // A present that changed hands while wrapped gives its contents to whoever opens it.
+            if (row.PlayerEntityId != PlayerId.Value)
+            {
+                dbCtx.FurnitureTransfers.Add(
+                    new FurnitureTransferEntity
+                    {
+                        FurnitureId = row.Id,
+                        DefinitionId = row.FurnitureDefinitionEntityId,
+                        FromPlayerId = row.PlayerEntityId,
+                        ToPlayerId = PlayerId.Value,
+                        Reason = FurnitureTransferReason.PresentOpened,
+                    }
+                );
+
+                await dbCtx.SaveChangesAsync(ct);
+            }
+
+            await tx.CommitAsync(ct);
         }
 
         var definition = GetDefinitionOrThrow(row.FurnitureDefinitionEntityId);
@@ -545,6 +577,7 @@ internal sealed class InventoryFurniModule(
     public async Task<bool> TransferAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        FurnitureTransferReason reason,
         CancellationToken ct
     )
     {
@@ -619,6 +652,18 @@ internal sealed class InventoryFurniModule(
                 return false;
             }
 
+            dbCtx.FurnitureTransfers.AddRange(
+                items.Select(x => new FurnitureTransferEntity
+                {
+                    FurnitureId = x.ItemId.Value,
+                    DefinitionId = x.Definition.Id,
+                    FromPlayerId = PlayerId.Value,
+                    ToPlayerId = toPlayerId.Value,
+                    Reason = reason,
+                })
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
 

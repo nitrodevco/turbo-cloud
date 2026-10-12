@@ -238,7 +238,6 @@ public sealed class OwnerBootstrapTests : IDisposable
                 Name = name,
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Female,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
 

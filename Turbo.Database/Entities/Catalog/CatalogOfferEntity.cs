@@ -1,16 +1,18 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[Comment("What the catalog sells: an offer on a page, its price, and who may buy or gift it.")]
 [Table("catalog_offers")]
 public class CatalogOfferEntity : TurboEntity
 {
     [Column("page_id")]
     public required int CatalogPageEntityId { get; set; }
 
-    [Column("localization_id")]
+    [Column("product_code")]
     public required string LocalizationId { get; set; }
 
     [Column("cost_credits")]

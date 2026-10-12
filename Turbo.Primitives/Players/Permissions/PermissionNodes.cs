@@ -152,6 +152,15 @@ public static class PermissionNodes
         /// <summary>Aim an alert or a warning at <c>@room</c> or <c>@online</c>.</summary>
         public const string ALERT_MASS = "command.alert.mass";
         public const string WHOIS = "command.whois";
+
+        /// <summary>Use <c>:history</c> to read a player's moderation history.</summary>
+        public const string HISTORY = "command.history";
+
+        /// <summary>
+        /// Use <c>:alts</c> to list the accounts that share a player's addresses or machines:
+        /// personal data, as <see cref="Admin.PLAYERS_IDENTITY"/> is in the panel.
+        /// </summary>
+        public const string ALTS = "command.alts";
         public const string FOLLOW = "command.follow";
         public const string SUMMON = "command.summon";
         public const string GIVE = "command.give";
@@ -262,6 +271,14 @@ public static class PermissionNodes
         /// <see cref="Gamedata.MANAGE"/> as well.
         /// </summary>
         public const string GAMEDATA_VIEW = "admin.gamedata.view";
+
+        /// <summary>
+        /// See where a player logged in from (address and machine) and the other accounts that
+        /// share them, in the panel and with <c>:alts</c>. Personal data, so apart from
+        /// <see cref="PLAYERS_VIEW"/>: a moderator looking for a banned player's new account needs
+        /// it, most staff do not.
+        /// </summary>
+        public const string PLAYERS_IDENTITY = "admin.players.identity";
 
         /// <summary>Create new players in the panel. Seeing players needs <see cref="PLAYERS_VIEW"/>.</summary>
         public const string PLAYERS_CREATE = "admin.players.create";

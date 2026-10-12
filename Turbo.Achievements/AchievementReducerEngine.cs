@@ -31,13 +31,15 @@ public static class AchievementReducerEngine
                     "Distinct facts are applied against the value table by ApplyDistinct."
                 );
             case AchievementReducer.CalendarStreak:
-                var day = fact.OccurredAtUtc.Date;
-                if (progress.LastDayUtc is { } last && day <= last)
+                var day = DateOnly.FromDateTime(fact.OccurredAtUtc);
+                if (progress.LastStreakDay is { } last && day <= last)
                     break;
-                progress.Streak =
-                    progress.LastDayUtc == day.AddDays(-1) ? checked(progress.Streak + 1) : 1;
-                progress.LastDayUtc = day;
-                progress.Value = Math.Max(progress.Value, progress.Streak);
+                progress.CurrentStreak =
+                    progress.LastStreakDay == day.AddDays(-1)
+                        ? checked(progress.CurrentStreak + 1)
+                        : 1;
+                progress.LastStreakDay = day;
+                progress.Value = Math.Max(progress.Value, progress.CurrentStreak);
                 break;
             case AchievementReducer.ElapsedSeconds:
                 if (

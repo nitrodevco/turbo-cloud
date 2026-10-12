@@ -8,8 +8,8 @@ namespace Turbo.Database.Entities.Sound;
 /// A trax song: the track a song disk plays in a jukebox. Staff add them in the admin panel; the
 /// song directory grain owns the table, so every change goes through it.
 /// </summary>
+[Comment("A trax song: the track a song disk plays in a jukebox.")]
 [Table("songs")]
-[Index(nameof(Code), IsUnique = true)]
 public class SongEntity : TurboEntity
 {
     public const int CODE_MAX_LENGTH = 64;
@@ -30,7 +30,7 @@ public class SongEntity : TurboEntity
     public required string Author { get; set; }
 
     /// <summary>The trax track in the client's format, read by the client only.</summary>
-    [Column("track", TypeName = "longtext")]
+    [Column("track", TypeName = "text")]
     public required string Track { get; set; }
 
     [Column("length_seconds")]

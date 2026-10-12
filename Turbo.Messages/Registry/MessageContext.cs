@@ -32,6 +32,14 @@ public sealed class MessageContext(ISessionContext session, PlayerId playerId, R
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct) =>
         await _session.SendComposerAsync(composer, ct).ConfigureAwait(false);
 
+    /// <summary>The address the player connected from, as the connection resolved it.</summary>
+    public System.Net.IPAddress? ClientAddress => _session.ClientAddress;
+
+    /// <summary>The machine id the client sent in its handshake, if it has.</summary>
+    public string? MachineId => _session.MachineId;
+
+    public void SetMachineId(string machineId) => _session.SetMachineId(machineId);
+
     public void SetRevisionId(string production) => _session.SetRevisionId(production);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false) =>

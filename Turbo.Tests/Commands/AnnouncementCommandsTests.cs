@@ -4,6 +4,7 @@ using Turbo.Operations.Commands;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
@@ -19,8 +20,8 @@ public class AnnouncementCommandsTests : OperatorCommandsTestBase
         var texts = Hotel.Fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>();
 
         Hotel.Commands.Register([
-            new WarnCommand(Grains, sessions, Config),
-            new AlertCommand(Grains, sessions, Config),
+            new WarnCommand(Grains, sessions, Config, Moderation),
+            new AlertCommand(Grains, sessions, Config, Moderation),
             new RoomAlertCommand(Grains, Config),
             new HotelAlertCommand(Grains, sessions, Config),
             new EventAlertCommand(Grains, sessions, texts, Config),
@@ -102,6 +103,28 @@ public class AnnouncementCommandsTests : OperatorCommandsTestBase
         await Hotel.RunAsync("alert", staff, "alice");
 
         staff.Replies.Should().Equal("Usage: :alert <who> <message>");
+    }
+
+    /// <summary>
+    /// A warning or alert to one player is part of their history, with what it said; one to a
+    /// room or the hotel is an announcement, left to the command log.
+    /// </summary>
+    [Fact]
+    public async Task AWarningToOnePlayer_IsInTheirHistory_AndAnAnnouncementIsNot()
+    {
+        var staff = Staff(
+            PermissionNodes.Command.WARN,
+            PermissionNodes.Command.ALERT,
+            PermissionNodes.Command.ALERT_MASS
+        );
+
+        await Hotel.RunAsync("warn", staff, "alice stop spamming");
+        await Hotel.RunAsync("alert", staff, "@room hello everyone");
+
+        History()
+            .Select(x => (x.Action, x.ActorId, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal((ModerationActionType.Warn, STAFF, ALICE, "stop spamming"));
     }
 
     [Fact]

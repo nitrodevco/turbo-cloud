@@ -14,6 +14,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Commands;
@@ -23,6 +24,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
@@ -97,6 +99,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         _chatlogTimer?.Dispose();
         _chatlogTimer = null;
 
+        await SaveAllAsync(ct);
+    }
+
+    public async Task<bool> SaveAllAsync(CancellationToken ct)
+    {
         // Everything that is left, not one timer's worth. Each queue still stops at its first
         // batch that cannot be written: a database that is down must not hold the deactivation
         // in a loop.
@@ -105,6 +112,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
 
         while (_state.PendingCommandLogs.Count > 0 && await FlushCommandLogsAsync(ct)) { }
+
+        return _state.DirtyItems.Count == 0
+            && _state.DeletedItemIds.Count == 0
+            && _state.DirtyPets.Count == 0
+            && _state.DirtyBots.Count == 0
+            && _state.PendingChatlogs.Count == 0
+            && _state.PendingCommandLogs.Count == 0;
     }
 
     /// <summary>The chatlog timer's tick: the two audit buffers share it, and neither holds up the other.</summary>
@@ -249,20 +263,16 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             taken.Add(snapshot);
 
-            var message =
-                snapshot.Text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
-                    ? snapshot.Text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
-                    : snapshot.Text;
-
             batch.Add(
                 new RoomChatlogEntity
                 {
                     RoomEntityId = snapshot.RoomId.Value,
                     PlayerEntityId = snapshot.PlayerId.Value,
                     TargetPlayerEntityId = snapshot.TargetPlayerId?.Value,
-                    Message = message,
-                    RoomEntity = null!,
-                    PlayerEntity = null!,
+                    Message = Fit(snapshot.Text),
+                    TypedMessage = snapshot.Typed is { } typed ? Fit(typed) : null,
+                    // When it was said, not when this batch is written.
+                    CreatedAt = snapshot.SaidAt,
                 }
             );
         }
@@ -271,9 +281,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            dbCtx.Chatlogs.AddRange(batch);
-
-            await dbCtx.SaveChangesAsync(ct);
+            await dbCtx.InsertChatlogsAsync(batch, ct);
 
             return true;
         }
@@ -291,6 +299,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             return false;
         }
     }
+
+    private static string Fit(string text) =>
+        text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
+            ? text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
+            : text;
 
     /// <summary>Puts a failed batch back in front, oldest first, dropping the newest past the cap.</summary>
     private void RequeueChatlogs(List<RoomChatlogSnapshot> failed)
@@ -321,7 +334,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             if (ownedIds.Count > 0)
-                await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
+                // Only rows still in this room: a furni the room let go of meanwhile is not its to delete.
+                await dbCtx
+                    .Furnitures.Where(x =>
+                        ownedIds.Contains(x.Id) && x.RoomEntityId == _state.RoomId.Value
+                    )
+                    .ExecuteDeleteAsync(ct);
 
             if (borrowedIds.Count > 0)
                 await dbCtx
@@ -352,19 +370,19 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         bool remove = false
     )
     {
-        _state.DirtyItems[snapshot.ObjectId] = snapshot;
-
+        // A furni leaving the room was written out of it as it left, data and all; a position
+        // still pending for it has nothing left to write.
         if (remove)
-            _state.RemovedItemIds.Add(snapshot.ObjectId);
+            _state.DirtyItems.Remove(snapshot.ObjectId);
+        else
+            _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
         return Task.CompletedTask;
     }
 
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
     {
-        // A pending update for the same item would only resurrect the row.
         _state.DirtyItems.Remove(itemId);
-        _state.RemovedItemIds.Remove(itemId);
         _state.DeletedItemIds.Add(itemId);
 
         return Task.CompletedTask;
@@ -377,13 +395,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         foreach (var snapshot in snapshots)
-        {
             _state.DirtyItems[snapshot.ObjectId] = snapshot;
-
-            // The room hands over only what stands in it. An item picked up and put back before
-            // the next flush still had its pick-up queued, which wrote it out of the room again.
-            _state.RemovedItemIds.Remove(snapshot.ObjectId);
-        }
 
         return Task.CompletedTask;
     }
@@ -397,7 +409,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     }
 
     public async Task<PetNutritionOperationResult> ApplyPetNutritionOperationAsync(
-        string operationId,
+        Guid feedingId,
         int petId,
         PlayerId ownerId,
         PlayerId supplierId,
@@ -407,7 +419,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        ValidateOperationId(operationId);
+        ValidateOperationId(feedingId);
         if (
             petId <= 0
             || ownerId.Value <= 0
@@ -422,13 +434,10 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         var roomId = _state.RoomId.Value;
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var previous = await db.PetNutritionOperations.SingleOrDefaultAsync(
-            x => x.OperationId == operationId,
-            ct
-        );
+        var previous = await db.PetFeedings.SingleOrDefaultAsync(x => x.Id == feedingId, ct);
         if (previous is not null)
         {
-            EnsureSameNutritionOperation(
+            EnsureSameFeeding(
                 previous,
                 roomId,
                 petId,
@@ -438,15 +447,17 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 requestedNutrition,
                 maxNutrition
             );
-            if (!previous.Completed)
-                throw new InvalidOperationException("Pet nutrition operation is not complete.");
             MergePetNutrition(
                 previous.PetId,
-                previous.BaseNutrition,
+                previous.NutritionBefore,
                 previous.NutritionAfter,
                 replay: true
             );
-            return new() { Nutrition = previous.NutritionAfter, ActualGain = previous.ActualGain };
+            return new()
+            {
+                Nutrition = previous.NutritionAfter,
+                ActualGain = previous.NutritionAfter - previous.NutritionBefore,
+            };
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -462,28 +473,27 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         var actualGain = Math.Min(requestedNutrition, Math.Max(0, maxNutrition - baseNutrition));
         var nutritionAfter = checked(baseNutrition + actualGain);
         pet.Nutrition = nutritionAfter;
-        var operation = new PetNutritionOperationEntity
-        {
-            OperationId = operationId,
-            RoomId = roomId,
-            PetId = petId,
-            OwnerId = ownerId.Value,
-            SupplierId = supplierId.Value,
-            BaseNutrition = baseNutrition,
-            RequestedNutrition = requestedNutrition,
-            MaxNutrition = maxNutrition,
-            NutritionAfter = nutritionAfter,
-            ActualGain = actualGain,
-            Completed = true,
-        };
-        db.PetNutritionOperations.Add(operation);
+        db.PetFeedings.Add(
+            new PetFeedingEntity
+            {
+                Id = feedingId,
+                RoomId = roomId,
+                PetId = petId,
+                OwnerId = ownerId.Value,
+                FedById = supplierId.Value,
+                NutritionBefore = baseNutrition,
+                NutritionOffered = requestedNutrition,
+                NutritionMax = maxNutrition,
+                NutritionAfter = nutritionAfter,
+            }
+        );
         if (actualGain > 0 && supplierId.Value > 0)
             _achievementFacts.Record(
                 db,
                 supplierId,
                 new()
                 {
-                    OperationId = $"pet-nutrition:{operationId}:supplied",
+                    OperationId = $"pet-nutrition:{feedingId:N}:supplied",
                     Source = AchievementSources.NUTRITION,
                     OccurredAtUtc = DateTime.UtcNow,
                     Amount = actualGain,
@@ -497,7 +507,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     }
 
     public async Task<PetRespectOperationResult> ApplyPetRespectOperationAsync(
-        string operationId,
+        Guid respectId,
         PlayerId actorId,
         int petId,
         PlayerId ownerId,
@@ -505,60 +515,54 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        ValidateOperationId(operationId);
+        ValidateOperationId(respectId);
         if (actorId.Value <= 0 || petId <= 0 || ownerId.Value <= 0 || baseRespect < 0)
             throw new ArgumentOutOfRangeException(nameof(petId), "Invalid pet respect operation.");
 
         var roomId = _state.RoomId.Value;
         await using (var admissionDb = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
-            var operation = await admissionDb.PetRespectOperations.SingleOrDefaultAsync(
-                x => x.OperationId == operationId,
+            var respect = await admissionDb.PetRespects.SingleOrDefaultAsync(
+                x => x.Id == respectId,
                 ct
             );
-            if (operation is null)
+            if (respect is null)
             {
-                operation = new PetRespectOperationEntity
+                respect = new PetRespectEntity
                 {
-                    OperationId = operationId,
+                    Id = respectId,
                     RoomId = roomId,
-                    ActorId = actorId.Value,
+                    GiverId = actorId.Value,
                     PetId = petId,
                     OwnerId = ownerId.Value,
-                    BaseRespect = baseRespect,
+                    RespectBefore = baseRespect,
+                    Status = RespectStatus.Pending,
                 };
-                admissionDb.PetRespectOperations.Add(operation);
+                admissionDb.PetRespects.Add(respect);
                 await admissionDb.SaveChangesAsync(ct);
             }
             else
             {
-                EnsureSamePetRespectOperation(
-                    operation,
-                    roomId,
-                    actorId,
-                    petId,
-                    ownerId,
-                    baseRespect
-                );
-                if (operation.Rejected)
+                EnsureSamePetRespect(respect, roomId, actorId, petId, ownerId, baseRespect);
+                if (respect.Status == RespectStatus.Refused)
                     return new() { Accepted = false };
-                if (operation.Completed)
+                if (respect.Status == RespectStatus.Given)
                 {
-                    MergePetRespect(petId, operation.ResultRespect);
-                    return new() { Accepted = true, Respect = operation.ResultRespect };
+                    MergePetRespect(petId, respect.RespectAfter);
+                    return new() { Accepted = true, Respect = respect.RespectAfter };
                 }
             }
         }
 
         var spent = await _grainFactory
             .GetPlayerGrain(actorId)
-            .SpendPetRespectOperationAsync(operationId, ct);
+            .SpendPetRespectOperationAsync(respectId, ct);
         if (!spent)
         {
             await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-            var operation = await GetPetRespectOperationAsync(
+            var respect = await GetPetRespectAsync(
                 db,
-                operationId,
+                respectId,
                 roomId,
                 actorId,
                 petId,
@@ -566,11 +570,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 baseRespect,
                 ct
             );
-            operation.Rejected = true;
+            respect.Status = RespectStatus.Refused;
             await db.SaveChangesAsync(ct);
             _logger.LogWarning(
-                "Pet respect operation {OperationId} from player {ActorId} to pet {PetId} was rejected because no pet respect remained",
-                operationId,
+                "Pet respect {RespectId} from player {ActorId} to pet {PetId} was refused because no pet respect remained",
+                respectId,
                 actorId,
                 petId
             );
@@ -580,9 +584,9 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         await using (var db = await _dbCtxFactory.CreateDbContextAsync(ct))
         await using (var transaction = await db.Database.BeginTransactionAsync(ct))
         {
-            var operation = await GetPetRespectOperationAsync(
+            var respect = await GetPetRespectAsync(
                 db,
-                operationId,
+                respectId,
                 roomId,
                 actorId,
                 petId,
@@ -590,14 +594,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 baseRespect,
                 ct
             );
-            if (operation.Rejected)
-                throw new InvalidOperationException(
-                    "A spent pet respect operation is marked rejected."
-                );
-            if (operation.Completed)
+            if (respect.Status == RespectStatus.Refused)
+                throw new InvalidOperationException("A spent pet respect is marked refused.");
+            if (respect.Status == RespectStatus.Given)
             {
-                MergePetRespect(petId, operation.ResultRespect);
-                return new() { Accepted = true, Respect = operation.ResultRespect };
+                MergePetRespect(petId, respect.RespectAfter);
+                return new() { Accepted = true, Respect = respect.RespectAfter };
             }
 
             var pet = await db.Pets.SingleOrDefaultAsync(
@@ -617,7 +619,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 actorId,
                 new()
                 {
-                    OperationId = $"pet-respect:{operationId}:given",
+                    OperationId = $"pet-respect:{respectId:N}:given",
                     Source = AchievementSources.PET_RESPECT_GIVEN,
                     OccurredAtUtc = occurredAt,
                 }
@@ -627,13 +629,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 ownerId,
                 new()
                 {
-                    OperationId = $"pet-respect:{operationId}:received",
+                    OperationId = $"pet-respect:{respectId:N}:received",
                     Source = AchievementSources.PET_RESPECT_RECEIVED,
                     OccurredAtUtc = occurredAt,
                 }
             );
-            operation.Completed = true;
-            operation.ResultRespect = resultRespect;
+            respect.Status = RespectStatus.Given;
+            respect.RespectAfter = resultRespect;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             MergePetRespect(petId, resultRespect);
@@ -641,15 +643,14 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         }
     }
 
-    private static void ValidateOperationId(string operationId)
+    private static void ValidateOperationId(Guid id)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
-        if (operationId.Length > 100)
-            throw new ArgumentException("Pet operation id is too long.", nameof(operationId));
+        if (id == Guid.Empty)
+            throw new ArgumentException("A pet care operation needs an id.", nameof(id));
     }
 
-    private static void EnsureSameNutritionOperation(
-        PetNutritionOperationEntity operation,
+    private static void EnsureSameFeeding(
+        PetFeedingEntity feeding,
         int roomId,
         int petId,
         PlayerId ownerId,
@@ -660,21 +661,19 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         if (
-            operation.RoomId != roomId
-            || operation.PetId != petId
-            || operation.OwnerId != ownerId.Value
-            || operation.SupplierId != supplierId.Value
-            || operation.BaseNutrition != baseNutrition
-            || operation.RequestedNutrition != requestedNutrition
-            || operation.MaxNutrition != maxNutrition
+            feeding.RoomId != roomId
+            || feeding.PetId != petId
+            || feeding.OwnerId != ownerId.Value
+            || feeding.FedById != supplierId.Value
+            || feeding.NutritionBefore != baseNutrition
+            || feeding.NutritionOffered != requestedNutrition
+            || feeding.NutritionMax != maxNutrition
         )
-            throw new InvalidOperationException(
-                "Pet nutrition operation id is bound to different input."
-            );
+            throw new InvalidOperationException("The feeding id is bound to different input.");
     }
 
-    private static void EnsureSamePetRespectOperation(
-        PetRespectOperationEntity operation,
+    private static void EnsureSamePetRespect(
+        PetRespectEntity respect,
         int roomId,
         PlayerId actorId,
         int petId,
@@ -683,20 +682,18 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         if (
-            operation.RoomId != roomId
-            || operation.ActorId != actorId.Value
-            || operation.PetId != petId
-            || operation.OwnerId != ownerId.Value
-            || operation.BaseRespect != baseRespect
+            respect.RoomId != roomId
+            || respect.GiverId != actorId.Value
+            || respect.PetId != petId
+            || respect.OwnerId != ownerId.Value
+            || respect.RespectBefore != baseRespect
         )
-            throw new InvalidOperationException(
-                "Pet respect operation id is bound to different input."
-            );
+            throw new InvalidOperationException("The pet respect id is bound to different input.");
     }
 
-    private static async Task<PetRespectOperationEntity> GetPetRespectOperationAsync(
+    private static async Task<PetRespectEntity> GetPetRespectAsync(
         TurboDbContext db,
-        string operationId,
+        Guid respectId,
         int roomId,
         PlayerId actorId,
         int petId,
@@ -705,12 +702,9 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         CancellationToken ct
     )
     {
-        var operation = await db.PetRespectOperations.SingleAsync(
-            x => x.OperationId == operationId,
-            ct
-        );
-        EnsureSamePetRespectOperation(operation, roomId, actorId, petId, ownerId, baseRespect);
-        return operation;
+        var respect = await db.PetRespects.SingleAsync(x => x.Id == respectId, ct);
+        EnsureSamePetRespect(respect, roomId, actorId, petId, ownerId, baseRespect);
+        return respect;
     }
 
     private void MergePetNutrition(int petId, int baseNutrition, int nutritionAfter, bool replay)
@@ -786,7 +780,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                         {
                             Source = AchievementSources.PET_LEVEL,
                             Amount = pet.Level - row.Level,
-                            OperationId = Guid.NewGuid().ToString("N"),
+                            OperationId = Guid.CreateVersion7().ToString("N"),
                             OccurredAtUtc = DateTime.UtcNow,
                         }
                     );
@@ -921,7 +915,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         }
     }
 
-    /// <summary>Writes one batch of furni. False when the batch could not be written.</summary>
+    /// <summary>
+    /// Writes one batch of furni: where each stands and its data, only for rows the database
+    /// still has in this room. Whether a furni is in the room at all is not this write's to say:
+    /// that is decided as it is placed and picked up (<see cref="FurnitureLocations"/>), so a
+    /// batch written late, or again after a failure, cannot put a furni back in a room it has
+    /// left. False when the batch could not be written.
+    /// </summary>
     private async Task<bool> FlushDirtyItemBatchAsync(CancellationToken ct)
     {
         var batch = _state
@@ -932,56 +932,30 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         foreach (var item in batch)
             _state.DirtyItems.Remove(item.ObjectId);
 
-        // Read, not taken: a pickup's mark is cleared only once its write has landed.
-        var removed = batch
-            .Select(x => x.ObjectId)
-            .Where(_state.RemovedItemIds.Contains)
-            .ToHashSet();
-
         try
         {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            foreach (var item in batch)
-            {
-                if (FurniIdBands.IsBuildersClub(item.ObjectId))
-                {
-                    FlushBorrowedItem(dbCtx, item);
+            var borrowed = batch.Where(x => FurniIdBands.IsBuildersClub(x.ObjectId)).ToArray();
+            var owned = batch.Where(x => !FurniIdBands.IsBuildersClub(x.ObjectId)).ToArray();
 
-                    continue;
-                }
+            if (owned.Length > 0)
+                await FurnitureLocations.WritePlacementsAsync(
+                    dbCtx,
+                    _state.RoomId.Value,
+                    owned,
+                    borrowed: false,
+                    ct
+                );
 
-                var dbEntity = new FurnitureEntity
-                {
-                    Id = item.ObjectId.Value,
-                    PlayerEntityId = item.OwnerId.Value,
-                };
-
-                dbCtx.Attach(dbEntity);
-
-                var e = dbCtx.Entry(dbEntity);
-
-                WritePlacement(e, item);
-
-                e.Property(x => x.PlayerEntityId).IsModified = true;
-
-                // A removed item leaves the room; anything else is written as standing in it.
-                dbEntity.RoomEntityId = removed.Contains(item.ObjectId)
-                    ? null
-                    : _state.RoomId.Value;
-
-                e.Property(x => x.RoomEntityId).IsModified = true;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-
-            // The enqueues interleave with this write: an item queued again meanwhile keeps the
-            // mark its newer change gave it.
-            foreach (var itemId in removed)
-            {
-                if (!_state.DirtyItems.ContainsKey(itemId))
-                    _state.RemovedItemIds.Remove(itemId);
-            }
+            if (borrowed.Length > 0)
+                await FurnitureLocations.WritePlacementsAsync(
+                    dbCtx,
+                    _state.RoomId.Value,
+                    borrowed,
+                    borrowed: true,
+                    ct
+                );
 
             return true;
         }
@@ -999,64 +973,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 _state.DirtyItems.TryAdd(item.ObjectId, item);
 
             return false;
-        }
-    }
-
-    /// <summary>
-    /// Writes a borrowed furni's position back. There is no "taken out of the room but kept"
-    /// state for one, because nobody owns it and it has no inventory to go to: leaving the room
-    /// is the same as being given back, which the delete queue handles.
-    /// </summary>
-    private void FlushBorrowedItem(TurboDbContext dbCtx, RoomItemSnapshot item)
-    {
-        // Leaving the room is the same as being given back for a borrowed furni, which the
-        // delete queue handles, so nothing should ever mark one as merely removed.
-        _state.RemovedItemIds.Remove(item.ObjectId);
-
-        var dbEntity = new BuildersClubFurnitureEntity
-        {
-            RoomEntityId = _state.RoomId.Value,
-            RoomObjectId = item.ObjectId.Value,
-            FurnitureDefinitionEntityId = item.DefinitionId,
-            PlacedByPlayerEntityId = item.OwnerId.Value,
-            // Only the columns marked modified are written; the rest are here to satisfy the
-            // entity and never reach the database.
-            CatalogOfferEntityId = 0,
-        };
-
-        dbCtx.Attach(dbEntity);
-
-        WritePlacement(dbCtx.Entry(dbEntity), item);
-    }
-
-    /// <summary>
-    /// Writes where an attached furni row stands and its data, and marks exactly those columns
-    /// modified, so nothing else on the row is touched. A hotel furni and a borrowed one share
-    /// these columns and were written by two copies of this block; a wall item also writes its
-    /// offset. Marked by name, which EF resolves on the concrete entity.
-    /// </summary>
-    private static void WritePlacement<TEntity>(EntityEntry<TEntity> entry, RoomItemSnapshot item)
-        where TEntity : class, IPlacedFurnitureEntity
-    {
-        var entity = entry.Entity;
-
-        entity.X = item.X;
-        entity.Y = item.Y;
-        entity.Z = item.Z;
-        entity.Rotation = item.Rotation;
-        entity.ExtraData = item.ExtraData;
-
-        entry.Property(nameof(IPlacedFurnitureEntity.X)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Y)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Z)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Rotation)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.ExtraData)).IsModified = true;
-
-        if (item is RoomWallItemSnapshot wallItem)
-        {
-            entity.WallOffset = wallItem.WallOffset;
-
-            entry.Property(nameof(IPlacedFurnitureEntity.WallOffset)).IsModified = true;
         }
     }
 

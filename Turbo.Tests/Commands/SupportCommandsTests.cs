@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Permissions;
@@ -49,14 +50,15 @@ public class SupportCommandsTests : OperatorCommandsTestBase
             new FollowCommand(Grains, sessions),
             new SummonCommand(Grains, sessions),
             new GiveCommand(Grains, _currencies, Config),
-            new GiveBadgeCommand(Grains),
-            new TakeBadgeCommand(Grains),
-            new GiveItemCommand(Grains, definitions, Config),
+            new GiveBadgeCommand(Grains, Moderation),
+            new TakeBadgeCommand(Grains, Moderation),
+            new GiveItemCommand(Grains, definitions, Config, Moderation),
             new GiftCommand(
                 Grains,
                 definitions,
                 Hotel.Fakes.Create<Turbo.Primitives.Catalog.Providers.IGiftWrappingProvider>(),
-                Config
+                Config,
+                Moderation
             ),
         ]);
 
@@ -113,7 +115,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                         BadgesRank = 0,
                         IsOnline = false,
                         CreatedAt = new DateTime(2025, 3, 4, 5, 6, 0, DateTimeKind.Utc),
-                        LastUpdated = new DateTime(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc),
+                        LastSeen = new DateTime(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc),
                         RespectPoints = 0,
                         RespectsLeft = 0,
                         PetRespectsLeft = 0,
@@ -545,6 +547,35 @@ public class SupportCommandsTests : OperatorCommandsTestBase
         staff.Replies.Should().Equal("Alice was given 3 x throne.");
     }
 
+    /// <summary>
+    /// What staff hand out and take away is in each player's history: badges and furni change
+    /// what a player has, and a support grant had no record outside the free-text command log.
+    /// </summary>
+    [Fact]
+    public async Task Badges_AndFurni_GivenOrTaken_AreInEachPlayersHistory()
+    {
+        _badges.Add((BOB, "XXX"));
+        var staff = Staff(
+            PermissionNodes.Command.GIVEBADGE,
+            PermissionNodes.Command.TAKEBADGE,
+            PermissionNodes.Command.GIVEITEM
+        );
+
+        await Hotel.RunAsync("givebadge", staff, "alice ADM");
+        await Hotel.RunAsync("givebadge", staff, "alice ADM");
+        await Hotel.RunAsync("takebadge", staff, "bob XXX");
+        await Hotel.RunAsync("giveitem", staff, "alice throne 3");
+
+        History()
+            .Select(x => (x.Action, x.ActorId, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal(
+                (ModerationActionType.BadgeGiven, STAFF, ALICE, "ADM"),
+                (ModerationActionType.BadgeTaken, STAFF, BOB, "XXX"),
+                (ModerationActionType.ItemGiven, STAFF, ALICE, "3 x throne")
+            );
+    }
+
     [Fact]
     public async Task GiveItem_DefaultsToOne_AndRefusesAnUnknownFurniOrACountOutOfRange()
     {
@@ -592,6 +623,18 @@ public class SupportCommandsTests : OperatorCommandsTestBase
         _presents[1].Player.Should().Be(BOB);
         _presents[1].Request.BadgeCode.Should().BeNull();
         _presents[1].Request.TrustedSender.Should().BeTrue();
+        // A present from the hotel is in each player's history, with what it held.
+        History()
+            .Select(x => (x.Action, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal(
+                (
+                    ModerationActionType.GiftSent,
+                    ALICE,
+                    "throne, badge ADM: Thanks for playing Habbo. Enjoy the throne and the badge!"
+                ),
+                (ModerationActionType.GiftSent, BOB, "throne: From the team")
+            );
         staff
             .Replies.Should()
             .Equal(

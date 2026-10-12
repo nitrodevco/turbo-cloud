@@ -6,6 +6,7 @@ using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[Comment("Friendships, one row for each side of each friendship.")]
 [Table("messenger_friends")]
 [Index(nameof(PlayerEntityId), nameof(FriendPlayerEntityId), IsUnique = true)]
 public class MessengerFriendEntity : TurboEntity
@@ -13,7 +14,7 @@ public class MessengerFriendEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("requested_id")]
+    [Column("friend_id")]
     public required int FriendPlayerEntityId { get; set; }
 
     [Column("category_id")]

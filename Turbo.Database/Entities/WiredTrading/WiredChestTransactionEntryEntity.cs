@@ -8,6 +8,9 @@ namespace Turbo.Database.Entities.WiredTrading;
 /// How much of one kind went into or out of one chest in a transaction: credits, or furni of
 /// one type. The chest is not a foreign key, so the log keeps its entries after the chest is gone.
 /// </summary>
+[Comment(
+    "How much of one kind went into or out of one chest in a transaction: credits, or furni of one type."
+)]
 [Table("wired_chest_transaction_entries")]
 [Index(nameof(ChestItemId), nameof(TransactionEntityId))]
 public class WiredChestTransactionEntryEntity
@@ -33,7 +36,8 @@ public class WiredChestTransactionEntryEntity
     [Column("is_wall_item")]
     public bool IsWallItem { get; set; }
 
-    [Column("type_id")]
+    /// <summary>The furni's sprite id, which the client calls the item's type.</summary>
+    [Column("sprite_id")]
     public int TypeId { get; set; }
 
     [Column("poster_id")]

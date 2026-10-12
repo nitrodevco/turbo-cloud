@@ -217,6 +217,7 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
                     CurrencyKind.ActivityPoints(quest.ActivityPointType),
                     quest.RewardAmount,
                     $"{CREDIT_REFERENCE_PREFIX}{quest.Id}",
+                    new WalletChange(WalletChangeReason.Quest, quest.LocalizationCode),
                     ct
                 );
 

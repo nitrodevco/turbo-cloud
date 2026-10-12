@@ -277,12 +277,7 @@ public sealed partial class CommunityGoalService(
 
         if (goal.Id == 0)
         {
-            row = new CommunityGoalEntity
-            {
-                Code = code,
-                LevelScores = "",
-                RewardRanks = "",
-            };
+            row = new CommunityGoalEntity { Code = code };
             dbCtx.CommunityGoals.Add(row);
         }
         else
@@ -301,12 +296,12 @@ public sealed partial class CommunityGoalService(
         row.Mode = goal.Mode;
         row.StartsAt = DateTime.SpecifyKind(goal.StartsAt, DateTimeKind.Utc);
         row.EndsAt = DateTime.SpecifyKind(goal.EndsAt, DateTimeKind.Utc);
-        row.LevelScores = string.Join(',', goal.LevelScores);
-        row.RewardRanks = string.Join(',', goal.RewardRanks);
+        row.LevelScores = [.. goal.LevelScores];
+        row.RewardRanks = [.. goal.RewardRanks];
         row.SideOnePageId = goal.SideOnePageId;
         row.SideTwoPageId = goal.IsVersus ? goal.SideTwoPageId : null;
 
-        if (row.RewardRanks.Length > CommunityGoalEntity.LIST_MAX_LENGTH)
+        if (row.RewardRanks.Count > CommunityGoalEntity.REWARD_BANDS_MAX)
             throw new ArgumentException("Too many prize bands.", nameof(goal));
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);

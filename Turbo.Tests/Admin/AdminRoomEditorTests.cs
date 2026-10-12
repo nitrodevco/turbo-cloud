@@ -45,7 +45,6 @@ public sealed class AdminRoomEditorTests : IDisposable
                 Name = "alice",
                 Figure = "hd-180-1",
                 Gender = AvatarGenderType.Female,
-                PlayerStatus = PlayerStatusType.Offline,
             }
         );
         _db.Insert(
@@ -82,13 +81,12 @@ public sealed class AdminRoomEditorTests : IDisposable
                 RoomModelEntityId = 1,
                 DoorMode = RoomDoorModeType.Password,
                 Password = "secret",
-                UsersNow = 0,
                 PlayersMax = 25,
                 WallHeight = -1,
                 HideWalls = false,
                 ThicknessWall = RoomThicknessType.Normal,
                 ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = true,
+                AllowWalkThrough = true,
                 AllowPets = true,
                 AllowPetsEat = true,
                 TradeType = RoomTradeModeType.Disabled,
@@ -119,8 +117,9 @@ public sealed class AdminRoomEditorTests : IDisposable
 
         result.Outcome.Should().Be(AdminRoomSaveOutcome.Saved);
         var (ctx, settings) = Saved();
-        // The room checks the staff member owns it or holds room.control.any, as in the hotel.
-        ctx.Origin.Should().Be(ActionOrigin.Player);
+        // The room checks the staff member owns it or holds room.control.any, as in the hotel,
+        // and records the change as made from the panel.
+        ctx.Origin.Should().Be(ActionOrigin.Panel);
         ctx.PlayerId.Should().Be(STAFF);
         settings.Name.Should().Be("Cafe");
         settings.DoorMode.Should().Be((int)RoomDoorModeType.Open);

@@ -11,6 +11,7 @@ namespace Turbo.Database.Entities.Quests;
 /// <see cref="ProgressJson"/> holds each task's count, the values a distinct task has counted
 /// and the claimed prize ids.
 /// </summary>
+[Comment("A player's progress on one reward track (the tracks themselves are configuration).")]
 [Table("player_reward_tracks")]
 [Index(nameof(PlayerEntityId), nameof(TrackId), IsUnique = true)]
 public class PlayerRewardTrackEntity : TurboEntity
@@ -30,7 +31,7 @@ public class PlayerRewardTrackEntity : TurboEntity
     [DefaultValue(false)]
     public bool Premium { get; set; }
 
-    [Column("progress_json", TypeName = "longtext")]
+    [Column("progress_json", TypeName = "text")]
     [MaxLength(int.MaxValue)]
     public string ProgressJson { get; set; } = "{}";
 

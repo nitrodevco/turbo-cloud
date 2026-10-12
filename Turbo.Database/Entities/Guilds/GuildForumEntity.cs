@@ -12,6 +12,7 @@ namespace Turbo.Database.Entities.Guilds;
 /// what a read marker counts: the client works a forum's unread count out as total minus the
 /// last read message (AS3 ForumData).
 /// </summary>
+[Comment("A group's forum, opened when the group's owner buys a forum terminal for it.")]
 [Table("guild_forums")]
 [Index(nameof(GuildEntityId), IsUnique = true)]
 public class GuildForumEntity : TurboEntity

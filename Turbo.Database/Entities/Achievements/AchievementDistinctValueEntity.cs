@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Turbo.Database.Entities.Achievements;
 
 /// <summary>One distinct value a player has contributed to a distinct-count achievement.</summary>
+[Comment("One distinct value a player has contributed to a distinct-count achievement.")]
 [Table("achievement_distinct_values")]
 [PrimaryKey(nameof(PlayerId), nameof(AchievementId), nameof(Value))]
 public sealed class AchievementDistinctValueEntity

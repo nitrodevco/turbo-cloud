@@ -2,6 +2,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 
@@ -39,6 +41,7 @@ internal sealed partial class GuildGrain
         );
 
         await PublishChangedAsync(guild.OwnerId, ct);
+        await RecordAsync(staffId, ModerationActionType.GroupRenamed, null, clampedName, ct);
 
         _logger.LogInformation(
             "Staff {StaffId} renamed group {GuildId} to {Name}",
@@ -65,6 +68,7 @@ internal sealed partial class GuildGrain
         await SaveAsync(entity => entity.BadgeCode = badgeCode, ct);
 
         await PublishChangedAsync(guild.OwnerId, ct, repaintFurni: true);
+        await RecordAsync(staffId, ModerationActionType.GroupBadgeReset, null, null, ct);
 
         _logger.LogInformation(
             "Staff {StaffId} reset the badge of group {GuildId}",
@@ -89,6 +93,7 @@ internal sealed partial class GuildGrain
 
         await RemoveMemberAsync(targetId, ct);
         await PublishMembershipUpdatedAsync(targetId, ct);
+        await RecordAsync(staffId, ModerationActionType.GroupMemberRemoved, targetId, null, ct);
 
         _logger.LogInformation(
             "Staff {StaffId} removed player {PlayerId} from group {GuildId}",
@@ -107,16 +112,41 @@ internal sealed partial class GuildGrain
 
         var deleted = await DeleteAsync(guild, ct);
 
-        if (deleted)
-            _logger.LogInformation(
-                "Staff {StaffId} deleted group {GuildId} ({Name})",
-                staffId.Value,
-                guild.GuildId.Value,
-                guild.Name
-            );
+        if (!deleted)
+            return false;
 
-        return deleted;
+        await RecordAsync(staffId, ModerationActionType.GroupDeleted, null, guild.Name, ct);
+
+        _logger.LogInformation(
+            "Staff {StaffId} deleted group {GuildId} ({Name})",
+            staffId.Value,
+            guild.GuildId.Value,
+            guild.Name
+        );
+
+        return true;
     }
+
+    /// <summary>A staff change to the group, in the moderation history, as done from the panel.</summary>
+    private Task RecordAsync(
+        PlayerId staffId,
+        ModerationActionType action,
+        PlayerId? target,
+        string? detail,
+        CancellationToken ct
+    ) =>
+        _moderationLog.RecordAsync(
+            new ModerationRecord
+            {
+                Action = action,
+                Source = ModerationSource.Panel,
+                ActorId = staffId,
+                TargetPlayerId = target,
+                GuildId = GuildId.Value,
+                Detail = detail,
+            },
+            ct
+        );
 
     private static string Clamp(string text, int max)
     {

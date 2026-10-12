@@ -9,6 +9,9 @@ namespace Turbo.Database.Entities.Settings;
 /// (<c>Turbo:Rooms:MaxUsersPerRoom</c>) and its value as JSON. The overrides are read as the
 /// server starts, above <c>appsettings.json</c> and below the environment.
 /// </summary>
+[Comment(
+    "A server setting overridden in the admin panel: its configuration path (Turbo:Rooms:MaxUsersPerRoom) and its value as JSON."
+)]
 [Table("server_settings")]
 [Index(nameof(Path), IsUnique = true)]
 public class ServerSettingEntity : TurboEntity
@@ -19,6 +22,6 @@ public class ServerSettingEntity : TurboEntity
     [MaxLength(PATH_MAX_LENGTH)]
     public required string Path { get; set; }
 
-    [Column("value", TypeName = "longtext")]
+    [Column("value", TypeName = "text")]
     public required string Value { get; set; }
 }

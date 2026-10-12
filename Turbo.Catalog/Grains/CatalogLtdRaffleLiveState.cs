@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Catalog.Snapshots;
 
@@ -10,7 +11,7 @@ internal sealed class CatalogLtdRaffleLiveState
 
     /// <summary>Entrants of the batch being collected, with their raffle weight.</summary>
     public Dictionary<int, double> CurrentBatchEntries { get; } = [];
-    public string? CurrentBatchId { get; set; }
+    public Guid? CurrentBatchId { get; set; }
     public bool IsInBufferPeriod { get; set; }
     public bool RaffleFinished { get; set; }
 }
