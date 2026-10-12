@@ -28,6 +28,7 @@ public sealed class OperationsModule : IHostPluginModule
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ISanctionService, SanctionService>();
+        services.AddSingleton<IModerationLog, ModerationLog>();
         services.AddSingleton<ICallForHelpService, CallForHelpService>();
         services.AddSingleton<IWordFilter, WordFilter>();
 

@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -32,7 +34,9 @@ internal static class OperatorMessaging
 
     /// <summary>
     /// Sends one composer to the players a target names, only those online: an offline player is
-    /// not woken up just to be told something they cannot see.
+    /// not woken up just to be told something they cannot see. A message to one named player is
+    /// part of their moderation history, recorded as <paramref name="action"/>; one to a room or
+    /// the hotel is an announcement, which the command log keeps.
     /// </summary>
     public static async ValueTask<CommandResult> SendAsync(
         IOperatorCommandContext ctx,
@@ -42,6 +46,8 @@ internal static class OperatorMessaging
         string message,
         int maxLength,
         IComposer composer,
+        IModerationLog moderationLog,
+        ModerationActionType action,
         CancellationToken ct
     )
     {
@@ -63,6 +69,9 @@ internal static class OperatorMessaging
             return CommandResult.Fail(NOT_ONLINE, selection.Players[0].Name);
 
         await grainFactory.SendComposerToPlayersAsync(recipients, composer, ct);
+
+        if (!selection.IsSelector)
+            await moderationLog.RecordAsync(ctx, action, recipients[0], ct, detail: message);
 
         return CommandResult.Done(SENT, recipients.Count.ToString());
     }

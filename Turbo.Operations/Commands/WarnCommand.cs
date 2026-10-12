@@ -6,6 +6,8 @@ using Orleans;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
 
@@ -30,7 +32,8 @@ public sealed record WarnArguments(
 public sealed class WarnCommand(
     IGrainFactory grainFactory,
     ISessionGateway sessionGateway,
-    IOptions<OperationsConfig> config
+    IOptions<OperationsConfig> config,
+    IModerationLog moderationLog
 ) : IOperatorCommand<WarnArguments>
 {
     public IReadOnlyDictionary<string, string> DefaultTexts => OperatorMessaging.DefaultTexts;
@@ -48,6 +51,8 @@ public sealed class WarnCommand(
             arguments.Message.Text,
             config.Value.MaxAlertLength,
             new ModeratorMessageComposer { Message = arguments.Message.Text, Url = string.Empty },
+            moderationLog,
+            ModerationActionType.Warn,
             ct
         );
 }

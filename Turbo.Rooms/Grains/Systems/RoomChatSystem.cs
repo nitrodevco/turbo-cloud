@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -110,6 +111,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (text.Length == 0)
             return false;
 
+        var typed = text;
+
         text = ModerationModule.ApplyFilter(text);
 
         if (text.Length == 0)
@@ -166,6 +169,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                     PlayerId = evt.PlayerId,
                     TargetPlayerId = evt.TargetPlayerId,
                     Text = evt.Text,
+                    SaidAt = DateTime.UtcNow,
+                    Typed = typed == evt.Text ? null : typed,
                 }
             );
 
@@ -501,6 +506,15 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                     Seconds = (int)Math.Ceiling(config.ChatFloodMuteMs / 1000d),
                 },
                 ct
+            );
+
+            // Kept, so staff can see who keeps tripping it.
+            await _roomGrain.ModerationModule.RecordBySystemAsync(
+                ModerationActionType.RoomFloodMute,
+                playerId,
+                ct,
+                DateTime.UtcNow.AddMilliseconds(config.ChatFloodMuteMs),
+                "flood protection"
             );
 
             return true;

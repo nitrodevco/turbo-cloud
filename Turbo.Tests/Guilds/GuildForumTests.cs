@@ -16,6 +16,8 @@ using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Groupforums;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -288,6 +290,29 @@ public sealed class GuildForumTests : IDisposable
             .Threads[0]
             .Subject.Should()
             .Be("A first subject");
+    }
+
+    /// <summary>
+    /// Hiding a thread or post kept only the last moderator on the row, so hiding, restoring and
+    /// hiding again left no trace of who did what. Each is in the author's moderation history.
+    /// </summary>
+    [Fact]
+    public async Task Hiding_and_restoring_are_in_the_authors_moderation_history()
+    {
+        var thread = await PostThreadAsync(MEMBER, "A first subject");
+
+        await (await ForumAsync()).ModerateThreadAsync(ADMIN, thread, 10, Ct);
+        await (await ForumAsync()).ModerateThreadAsync(ADMIN, thread, 1, Ct);
+
+        _fakes
+            .Log.Of(nameof(IModerationLog.RecordAsync))
+            .Select(x => (ModerationRecord)x.Args[0]!)
+            .Select(x => (x.Action, x.ActorId?.Value, x.TargetPlayerId?.Value, x.GuildId))
+            .Should()
+            .Equal(
+                (ModerationActionType.ForumThreadHidden, ADMIN, MEMBER, GROUP),
+                (ModerationActionType.ForumThreadRestored, ADMIN, MEMBER, GROUP)
+            );
     }
 
     [Fact]

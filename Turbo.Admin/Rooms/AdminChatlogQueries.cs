@@ -72,11 +72,16 @@ public sealed class AdminChatlogQueries(
 
         if (words.Length > 0)
         {
-            // Served by the trigram index on lower(message).
+            // Served by the trigram indexes on lower(message) and lower(typed_message): a word
+            // the filter caught is found by what was typed.
             var like = LikePatterns.Containing(words);
 
             lines = lines.Where(x =>
                 EF.Functions.Like(x.Message.ToLower(), like, LikePatterns.ESCAPE)
+                || (
+                    x.TypedMessage != null
+                    && EF.Functions.Like(x.TypedMessage.ToLower(), like, LikePatterns.ESCAPE)
+                )
             );
         }
 
@@ -200,7 +205,8 @@ public sealed class AdminChatlogQueries(
                 rooms.GetValueOrDefault(x.RoomEntityId),
                 x.TargetPlayerEntityId,
                 x.TargetPlayerEntityId is { } target ? players.GetValueOrDefault(target) : null,
-                x.Message
+                x.Message,
+                x.TypedMessage
             )),
         ];
     }

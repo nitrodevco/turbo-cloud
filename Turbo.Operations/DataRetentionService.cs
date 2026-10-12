@@ -96,6 +96,17 @@ public sealed class DataRetentionService(
         // Each takes the oldest first, by an id that grows with time, so a batch is the front
         // of the table's own index rather than a scan of it.
         await RuleAsync(
+                "moderation actions",
+                _config.ModerationDays,
+                (db, cutoff, n, c) =>
+                    db
+                        .ModerationActions.Where(x => x.CreatedAt < cutoff)
+                        .OrderBy(x => x.Id)
+                        .Take(n)
+                        .ExecuteDeleteAsync(c)
+            )
+            .ConfigureAwait(false);
+        await RuleAsync(
                 "room chat lines",
                 _config.ChatDays,
                 (db, cutoff, n, c) =>

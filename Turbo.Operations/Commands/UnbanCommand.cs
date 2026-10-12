@@ -3,11 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record UnbanArguments(PlayerTarget Who);
+public sealed record UnbanArguments(PlayerTarget Who, RestOfLine? Reason = null);
 
 /// <summary>
 /// <c>:unban name</c>. Lifts the ban in force. The row stays, stamped with who lifted it and
@@ -19,7 +20,7 @@ public sealed record UnbanArguments(PlayerTarget Who);
     Category = CommandCategories.MODERATION
 )]
 [RequiresPermission(PermissionNodes.Command.UNBAN)]
-public sealed class UnbanCommand(ISanctionService sanctionService)
+public sealed class UnbanCommand(ISanctionService sanctionService, IModerationLog moderationLog)
     : IOperatorCommand<UnbanArguments>
 {
     private const string UNBANNED = "unbanned";
@@ -47,6 +48,14 @@ public sealed class UnbanCommand(ISanctionService sanctionService)
 
         if (!await sanctionService.UnbanAsync(target.Id, ctx.Executor.PlayerId, ct))
             return CommandResult.Fail(NOT_BANNED, target.Name);
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.Unban,
+            target.Id,
+            ct,
+            CommandModeration.ReasonOf(arguments.Reason)
+        );
 
         await ctx.NotifyAsync(
             target.Id,

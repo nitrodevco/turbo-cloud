@@ -40,6 +40,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminRoomVisits>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
+        services.AddSingleton<AdminPlayerAudit>();
         services.AddSingleton<AdminTicketPolicy>();
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();

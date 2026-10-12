@@ -186,6 +186,14 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             PermissionNodes.Command.WHOIS,
             "Use :whois to look up a player: where they are, their groups and balances."
         ),
+        new(
+            PermissionNodes.Command.HISTORY,
+            "Use :history to read a player's moderation history: bans, mutes, kicks and warnings, by whom and why."
+        ),
+        new(
+            PermissionNodes.Command.ALTS,
+            "Use :alts to list the accounts that log in from a player's addresses or machines."
+        ),
         new(PermissionNodes.Command.FOLLOW, "Use :follow to go to the room a player is in."),
         new(
             PermissionNodes.Command.SUMMON,
@@ -279,6 +287,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         new(
             PermissionNodes.Admin.PLAYERS_VIEW,
             "Find any player in the admin panel and see their profile, wallet, rooms and sanctions."
+        ),
+        new(
+            PermissionNodes.Admin.PLAYERS_IDENTITY,
+            "See where a player logged in from (address and machine) and the other accounts that share them."
         ),
         new(
             PermissionNodes.Admin.CATALOG_VIEW,

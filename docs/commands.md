@@ -228,10 +228,12 @@ what suits it; `admin` holds `*`.
 
 | Area | Command | Node | Behind it |
 | --- | --- | --- | --- |
-| Moderation | `:ban <who> <duration> [reason]`, `:unban <who>` | `command.ban`, `command.unban` | `ISanctionService` and the `moderation_sanctions` table; checked at login; a lifted ban is stamped, never deleted. Staff holding the node are out of reach. |
-| | `:silence <who> <duration>`, `:unsilence <who>` | `command.silence` | A temporary denial of `chat.speak` through the permission grains, so audited already; the player is told. |
-| | `:tradelock <who> <duration>`, `:untradelock <who>` | `command.tradelock` | The same, denying `trade`. |
-| | `:disconnect <who>` | `command.disconnect` | `ISessionGateway.DisconnectPlayerAsync`. |
+| Moderation | `:ban <who> <duration> [reason]`, `:unban <who> [reason]` | `command.ban`, `command.unban` | `ISanctionService` and the `moderation_sanctions` table; checked at login; a lifted ban is stamped, never deleted. Staff holding the node are out of reach. |
+| | `:silence <who> <duration> [reason]`, `:unsilence <who> [reason]` | `command.silence` | A temporary denial of `chat.speak` through the permission grains; the player is told. |
+| | `:tradelock <who> <duration> [reason]`, `:untradelock <who> [reason]` | `command.tradelock` | The same, denying `trade`. |
+| | `:disconnect <who> [reason]` | `command.disconnect` | `ISessionGateway.DisconnectPlayerAsync`. |
+| | `:history <who>` | `command.history` | The player's last 15 moderation actions from `moderation_actions`, newest first: what, by whom, when, why, until when. |
+| | `:alts <who>` | `command.alts` | The accounts that logged in from the player's addresses or machines (`player_logins`), a shared machine first, banned ones marked. How many addresses are shared, never which. |
 | | `:roomkickall`, `:roommute`, `:roomunmute` | `command.roomkickall`, `.roommute`, `.roomunmute` | Room commands. Clearing skips the owner, anyone with `room.moderate.any`, and the executor. |
 | Announcements | `:warn <who> <msg>`, `:alert <who> <msg>` | `command.warn`, `command.alert` | `ModeratorMessage` / `HabboBroadcast`. `@room` and `@online` need `command.alert.mass`. |
 | | `:roomalert <msg>`, `:hotelalert <msg>` | `command.roomalert`, `command.hotelalert` | The room's players when the line was typed; everyone online. |
@@ -249,6 +251,13 @@ what suits it; `admin` holds `*`.
 | | `:maintenance <minutes\|off> [reason]`, `:shutdown [minutes\|cancel] [reason]` | `command.maintenance`, `command.shutdown` | `IHotelAvailability`: reminders as the countdown runs, then maintenance closes login to players without `hotel.maintenance.bypass`, or a shutdown sends everyone home and stops the host. A bare `:shutdown` counts down `DefaultShutdownMinutes`. |
 | | `:reload <subject>` | `command.reload` | Subjects: `catalog`, `texts`, `furni`, `navigator`, `currencies`, `chatstyles`, `roommodels`, `petbreeds`, `petspeech`, `achievements`, `plugins`, `filter`. |
 | | `:unloadroom` | `command.unloadroom` | Room command: everyone out, the owner too, and the room unloads. |
+
+**Moderation history.** Every command that acts on a player records what it did in
+`moderation_actions` (`IModerationLog`), beside the command log's line: the ban, silence, trade
+lock and their lifting with the reason given and when they end, a disconnect, a warning or alert
+to one player with its text, a badge given or taken, furni given. Where it came from is recorded
+as the executor's source: the game, the panel (which runs these commands) or the console. A
+command that changed nothing (a player already silenced) records nothing.
 
 **Targets.** `:give`, `:givebadge`, `:takebadge`, `:giveitem`, `:alert` and `:warn` accept `@room`
 or `@online` rather than having a mass variant each. A command declares which node lets an executor

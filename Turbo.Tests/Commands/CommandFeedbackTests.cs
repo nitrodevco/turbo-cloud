@@ -89,7 +89,11 @@ public class CommandFeedbackTests
     {
         var hotel = new OperatorFixture().WithPlayer(2, "Alice");
         hotel.Commands.Register([
-            new TradelockCommand(hotel.Fakes.Create<IGrainFactory>(), hotel.Clock),
+            new TradelockCommand(
+                hotel.Fakes.Create<IGrainFactory>(),
+                hotel.Clock,
+                hotel.Fakes.Create<Turbo.Primitives.Moderation.IModerationLog>()
+            ),
         ]);
         hotel.Fakes.Handlers["SetNodeAsync"] = _ =>
             Task.FromResult(PermissionChangeResultType.Changed);
@@ -111,7 +115,11 @@ public class CommandFeedbackTests
     {
         var hotel = new OperatorFixture().WithPlayer(2, "Alice", online: false);
         hotel.Commands.Register([
-            new TradelockCommand(hotel.Fakes.Create<IGrainFactory>(), hotel.Clock),
+            new TradelockCommand(
+                hotel.Fakes.Create<IGrainFactory>(),
+                hotel.Clock,
+                hotel.Fakes.Create<Turbo.Primitives.Moderation.IModerationLog>()
+            ),
         ]);
         hotel.Fakes.Handlers["SetNodeAsync"] = _ =>
             Task.FromResult(PermissionChangeResultType.Changed);

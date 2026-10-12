@@ -18,6 +18,7 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Providers;
@@ -663,6 +664,240 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             plan.AppendLine(reader.GetString(0));
 
         return plan.ToString();
+    }
+
+    /// <summary>
+    /// A furni is in one place on PostgreSQL too: never a room and a holder at once; a room's
+    /// save writes only what it still has, in one statement, past a row that is gone; a pickup
+    /// says which furni it took; and a furni leaving its holder (here, the holder's row being
+    /// deleted, which reaches no code) loses its place among the holder's contents.
+    /// </summary>
+    [Fact]
+    public async Task AFurni_IsInOnePlace()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO players (id, name, name_key, figure, gender)
+            SELECT g, 'p' || g, 'p' || g, 'hd-180-1', 0 FROM generate_series(1, 2) g;
+            """,
+            Ct
+        );
+        var model = await db.RoomModels.MinAsync(x => x.Id, Ct);
+        // The seed's furni definitions.
+        var definition = await db.FurnitureDefinitions.MinAsync(x => x.Id, Ct);
+        db.AddRange(Room(1, model), Room(2, model));
+        await db.SaveChangesAsync(Ct);
+        db.ChangeTracker.Clear();
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO furniture (id, player_id, definition_id, room_id, x, y) VALUES
+                (10, 1, {0}, 1, 1, 1), (11, 1, {0}, 2, 1, 1), (12, 1, {0}, NULL, 0, 0);
+            INSERT INTO furniture (id, player_id, definition_id, chest_item_id, held_position, chest_transaction_id)
+            VALUES (13, 1, {0}, 12, 0, 7);
+            """,
+            [definition],
+            Ct
+        );
+
+        var inRoomAndChest = () =>
+            db.Database.ExecuteSqlRawAsync("UPDATE furniture SET room_id = 1 WHERE id = 13", Ct);
+        await inRoomAndChest
+            .Should()
+            .ThrowAsync<PostgresException>()
+            .Where(x => x.SqlState == "23514");
+
+        var locations = typeof(Turbo.Rooms.Grains.RoomGrain).Assembly.GetType(
+            "Turbo.Rooms.Grains.FurnitureLocations"
+        )!;
+
+        // Room 1 saves 10 (its own), 11 (in room 2 now) and 99 (gone).
+        await (Task)
+            locations
+                .GetMethod("WritePlacementsAsync")!
+                .Invoke(
+                    null,
+                    [
+                        db,
+                        1,
+                        new[] { Placed(10, 4, 5), Placed(11, 6, 6), Placed(99, 2, 2) },
+                        false,
+                        Ct,
+                    ]
+                )!;
+
+        var rows = await db.Furnitures.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct);
+        rows.Where(x => x.Id < 12)
+            .Select(x => (x.Id, x.RoomEntityId, x.X, x.Y))
+            .Should()
+            .Equal((10, 1, 4, 5), (11, 2, 1, 1));
+
+        // Room 1 hands 10 and 11 to player 2: only 10 is in room 1 to take.
+        var released = await (Task<HashSet<int>>)
+            locations
+                .GetMethod("ReleaseFromRoomAsync")!
+                .Invoke(
+                    null,
+                    [new Factory(this), new[] { Placed(10, 4, 5), Placed(11, 6, 6) }, 1, 2, Ct]
+                )!;
+        released.Should().Equal(10);
+
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM furniture WHERE id = 12", Ct);
+
+        rows = await db.Furnitures.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct);
+        rows.Single(x => x.Id == 10)
+            .Should()
+            .Match<Turbo.Database.Entities.Furniture.FurnitureEntity>(x =>
+                x.RoomEntityId == null && x.PlayerEntityId == 2
+            );
+        rows.Single(x => x.Id == 13)
+            .Should()
+            .Match<Turbo.Database.Entities.Furniture.FurnitureEntity>(x =>
+                x.ChestItemEntityId == null
+                && x.HeldPosition == null
+                && x.ChestTransactionId == null
+            );
+        (await db.FurnitureTransfers.Select(x => x.FurnitureId).ToListAsync(Ct)).Should().Equal(10);
+    }
+
+    private static Turbo.Database.Entities.Room.RoomEntity Room(int id, int model) =>
+        new()
+        {
+            Id = id,
+            Name = $"room {id}",
+            PlayerEntityId = 1,
+            RoomModelEntityId = model,
+            DoorMode = RoomDoorModeType.Open,
+            PlayersMax = 25,
+            WallHeight = -1,
+            HideWalls = false,
+            ThicknessWall = RoomThicknessType.Normal,
+            ThicknessFloor = RoomThicknessType.Normal,
+            AllowWalkThrough = true,
+            AllowPets = false,
+            AllowPetsEat = false,
+            TradeType = RoomTradeModeType.Disabled,
+            MuteType = ModSettingType.Owner,
+            KickType = ModSettingType.Owner,
+            BanType = ModSettingType.Owner,
+            ChatFloodType = ChatFloodSensitivityType.Minimal,
+            PlayerEntity = null!,
+            RoomModelEntity = null!,
+        };
+
+    private static Turbo.Primitives.Rooms.Snapshots.Furniture.RoomFloorItemSnapshot Placed(
+        int id,
+        int x,
+        int y
+    ) =>
+        new()
+        {
+            ObjectId = id,
+            OwnerId = 1,
+            OwnerName = "p1",
+            DefinitionId = 1,
+            SpriteId = 1,
+            X = x,
+            Y = y,
+            Z = Turbo.Primitives.Rooms.Object.Altitude.Zero,
+            Rotation = Rotation.North,
+            StackHeight = Turbo.Primitives.Rooms.Object.Altitude.FromInt(100),
+            StuffData = new Turbo.Primitives.Furniture.Snapshots.StuffData.LegacyStuffSnapshot
+            {
+                StuffBitmask = 0,
+                Data = "",
+            },
+            ExtraData = "{}",
+            UsagePolicy = FurnitureUsageType.Everybody,
+        };
+
+    /// <summary>
+    /// Chat lines go in by binary COPY on PostgreSQL, naming the table's columns itself: a column
+    /// renamed in the model and not in the COPY would fail every flush. Read back through EF,
+    /// each line has its room, speaker, whisper target, text, what was typed and when it was said,
+    /// and the BRIN index the retention job reads by age is there.
+    /// </summary>
+    [Fact]
+    public async Task ChatLines_CopiedIn_ReadBackAsWritten()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+        var said = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        await db.InsertChatlogsAsync(
+            [
+                new Turbo.Database.Entities.Room.RoomChatlogEntity
+                {
+                    RoomEntityId = 4,
+                    PlayerEntityId = 7,
+                    TargetPlayerEntityId = 8,
+                    Message = "oh bobba it",
+                    TypedMessage = "oh darn it",
+                    CreatedAt = said,
+                },
+                new Turbo.Database.Entities.Room.RoomChatlogEntity
+                {
+                    RoomEntityId = 4,
+                    PlayerEntityId = 8,
+                    Message = "hello",
+                    CreatedAt = said.AddSeconds(1),
+                },
+            ],
+            Ct
+        );
+
+        (
+            await db
+                .Chatlogs.AsNoTracking()
+                .OrderBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.RoomEntityId,
+                    x.PlayerEntityId,
+                    x.TargetPlayerEntityId,
+                    x.Message,
+                    x.TypedMessage,
+                    x.CreatedAt,
+                })
+                .ToListAsync(Ct)
+        )
+            .Should()
+            .Equal(
+                new
+                {
+                    RoomEntityId = 4,
+                    PlayerEntityId = 7,
+                    TargetPlayerEntityId = (int?)8,
+                    Message = "oh bobba it",
+                    TypedMessage = (string?)"oh darn it",
+                    CreatedAt = said,
+                },
+                new
+                {
+                    RoomEntityId = 4,
+                    PlayerEntityId = 8,
+                    TargetPlayerEntityId = (int?)null,
+                    Message = "hello",
+                    TypedMessage = (string?)null,
+                    CreatedAt = said.AddSeconds(1),
+                }
+            );
+
+        (
+            await db
+                .Database.SqlQueryRaw<string>(
+                    "SELECT indexdef AS \"Value\" FROM pg_indexes WHERE tablename = 'room_chat_logs' AND indexdef LIKE '%brin%'"
+                )
+                .ToListAsync(Ct)
+        )
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Contain("created_at")
+            .And.Contain("autosummarize");
     }
 
     private sealed class Factory(PostgresMigrationTests owner) : IDbContextFactory<TurboDbContext>

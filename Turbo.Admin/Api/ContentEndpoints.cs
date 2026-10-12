@@ -14,6 +14,8 @@ using Turbo.Admin.Content;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -37,6 +39,7 @@ internal sealed partial class ContentEndpoints(
     AdminGroupQueries groups,
     AdminPetBotEditor petsAndBots,
     AdminCurrencyEditor currencies,
+    IModerationLog moderationLog,
     ILogger<ContentEndpoints> logger
 )
 {
@@ -615,6 +618,10 @@ internal sealed partial class ContentEndpoints(
                     given
                 );
 
+                if (given)
+                    await RecordBadgeAsync(http, ModerationActionType.BadgeGiven, player, code, ct)
+                        .ConfigureAwait(false);
+
                 return given
                     ? Results.NoContent()
                     : AdminResults.Error(
@@ -648,8 +655,37 @@ internal sealed partial class ContentEndpoints(
                     taken
                 );
 
+                if (taken)
+                    await RecordBadgeAsync(
+                            http,
+                            ModerationActionType.BadgeTaken,
+                            new PlayerId(playerId),
+                            code,
+                            ct
+                        )
+                        .ConfigureAwait(false);
+
                 return taken ? Results.NoContent() : Results.NotFound();
             }
+        );
+
+    private Task RecordBadgeAsync(
+        HttpContext http,
+        ModerationActionType action,
+        PlayerId player,
+        string code,
+        CancellationToken ct
+    ) =>
+        moderationLog.RecordAsync(
+            new ModerationRecord
+            {
+                Action = action,
+                Source = ModerationSource.Panel,
+                ActorId = AdminIdentity.Of(http).PlayerId,
+                TargetPlayerId = player,
+                Detail = code,
+            },
+            ct
         );
 
     /// <summary>A staff change to a group through its grain: no content, or 400 with why not.</summary>

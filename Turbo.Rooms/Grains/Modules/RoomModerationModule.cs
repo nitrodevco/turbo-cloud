@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -78,7 +80,9 @@ public sealed class RoomModerationModule(
         if (durationMinutes <= 0 || !await CanMutePlayerAsync(ctx, playerId))
             return false;
 
-        await StoreMuteAsync(playerId, durationMinutes, ct);
+        var expiresAt = await StoreMuteAsync(playerId, durationMinutes, ct);
+
+        await RecordAsync(ctx, ModerationActionType.RoomMute, playerId, ct, expiresAt);
 
         return true;
     }
@@ -98,13 +102,21 @@ public sealed class RoomModerationModule(
         if (controllerLevel >= RoomControllerType.Owner)
             return false;
 
-        await StoreMuteAsync(playerId, durationMinutes, ct);
+        var expiresAt = await StoreMuteAsync(playerId, durationMinutes, ct);
+
+        await RecordBySystemAsync(ModerationActionType.RoomMute, playerId, ct, expiresAt, "wired");
 
         return true;
     }
 
-    /// <summary>Writes the mute, capped at the room's maximum, and starts applying it.</summary>
-    private async Task StoreMuteAsync(PlayerId playerId, int durationMinutes, CancellationToken ct)
+    /// <summary>
+    /// Writes the mute, capped at the room's maximum, and starts applying it. Returns when it ends.
+    /// </summary>
+    private async Task<DateTime> StoreMuteAsync(
+        PlayerId playerId,
+        int durationMinutes,
+        CancellationToken ct
+    )
     {
         durationMinutes = Math.Min(
             durationMinutes,
@@ -141,6 +153,8 @@ public sealed class RoomModerationModule(
         await dbCtx.SaveChangesAsync(ct);
 
         _roomGrain._state.MutedUntilByPlayerId[playerId] = expiresAt;
+
+        return expiresAt;
     }
 
     public async Task<bool> UnmutePlayerAsync(
@@ -160,7 +174,12 @@ public sealed class RoomModerationModule(
             )
             .ExecuteDeleteAsync(ct);
 
-        return _roomGrain._state.MutedUntilByPlayerId.Remove(playerId);
+        if (!_roomGrain._state.MutedUntilByPlayerId.Remove(playerId))
+            return false;
+
+        await RecordAsync(ctx, ModerationActionType.RoomUnmute, playerId, ct);
+
+        return true;
     }
 
     public async Task<bool> ToggleRoomMuteAsync(ActionContext ctx, CancellationToken ct)
@@ -174,6 +193,15 @@ public sealed class RoomModerationModule(
 
         await _roomGrain.SendComposerToRoomAsync(
             new MuteAllInRoomEventMessageComposer { IsMuted = _roomGrain._state.IsRoomMuted },
+            ct
+        );
+
+        await RecordAsync(
+            ctx,
+            _roomGrain._state.IsRoomMuted
+                ? ModerationActionType.RoomMuteAll
+                : ModerationActionType.RoomUnmuteAll,
+            null,
             ct
         );
 
@@ -221,6 +249,8 @@ public sealed class RoomModerationModule(
 
         await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
+        await RecordAsync(ctx, ModerationActionType.RoomKick, playerId, ct);
+
         return true;
     }
 
@@ -232,6 +262,24 @@ public sealed class RoomModerationModule(
     /// whispered to the player first.
     /// </summary>
     public async Task<bool> KickPlayerBySystemAsync(
+        PlayerId playerId,
+        string partingWords,
+        CancellationToken ct
+    )
+    {
+        if (!await SendOutBySystemAsync(playerId, partingWords, ct))
+            return false;
+
+        await RecordBySystemAsync(ModerationActionType.RoomKick, playerId, ct, null, "wired");
+
+        return true;
+    }
+
+    /// <summary>
+    /// Sends a player out on the room's own authority, unless they own the room or outrank its
+    /// owner. Recorded by the caller, which knows why.
+    /// </summary>
+    private async Task<bool> SendOutBySystemAsync(
         PlayerId playerId,
         string partingWords,
         CancellationToken ct
@@ -270,24 +318,32 @@ public sealed class RoomModerationModule(
     /// <summary>
     /// Clears the room of everyone who is neither its owner nor allowed to moderate any room, the
     /// way a wired kick would: each is sent out by the room itself, with no "who can kick"
-    /// setting in the way. <paramref name="except"/> is the one who asked, who stays whatever
-    /// they hold. Returns how many left.
+    /// setting in the way. Whoever <paramref name="ctx"/> names asked, and stays whatever they
+    /// hold. Returns how many left.
     /// </summary>
-    public async Task<int> ClearRoomBySystemAsync(PlayerId except, CancellationToken ct)
+    public async Task<int> ClearRoomBySystemAsync(ActionContext ctx, CancellationToken ct)
     {
         var cleared = 0;
 
         foreach (var player in AvatarModule.Players.ToList())
         {
             if (
-                player.PlayerId == except
+                player.PlayerId == ctx.PlayerId
                 || SecurityModule.HasPermission(player, PermissionNodes.Room.MODERATE_ANY)
             )
                 continue;
 
-            if (await KickPlayerBySystemAsync(player.PlayerId, string.Empty, ct))
+            if (await SendOutBySystemAsync(player.PlayerId, string.Empty, ct))
                 cleared++;
         }
+
+        await RecordAsync(
+            ctx,
+            ModerationActionType.RoomKickAll,
+            null,
+            ct,
+            detail: cleared.ToString(CultureInfo.InvariantCulture)
+        );
 
         return cleared;
     }
@@ -296,7 +352,11 @@ public sealed class RoomModerationModule(
     /// Mutes or unmutes the whole room on the room's own authority, and tells everyone in it, as
     /// the owner's toggle does. False when the room already was as asked.
     /// </summary>
-    public async Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct)
+    public async Task<bool> SetRoomMutedBySystemAsync(
+        ActionContext ctx,
+        bool muted,
+        CancellationToken ct
+    )
     {
         if (_roomGrain._state.IsRoomMuted == muted)
             return false;
@@ -308,6 +368,13 @@ public sealed class RoomModerationModule(
             ct
         );
 
+        await RecordAsync(
+            ctx,
+            muted ? ModerationActionType.RoomMuteAll : ModerationActionType.RoomUnmuteAll,
+            null,
+            ct
+        );
+
         return true;
     }
 
@@ -316,8 +383,10 @@ public sealed class RoomModerationModule(
     /// turn is over. Each session is told to leave without being awaited: the presence may itself
     /// be waiting on this room.
     /// </summary>
-    public async Task EvictEveryoneAndUnloadAsync(CancellationToken ct)
+    public async Task EvictEveryoneAndUnloadAsync(ActionContext ctx, CancellationToken ct)
     {
+        await RecordAsync(ctx, ModerationActionType.RoomUnload, null, ct);
+
         foreach (var player in AvatarModule.Players.ToList())
         {
             await AvatarModule.RemoveAvatarFromPlayerAsync(
@@ -397,6 +466,15 @@ public sealed class RoomModerationModule(
         if (AvatarModule.TryGetPlayer(playerId, out _))
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
+        await RecordAsync(
+            ctx,
+            ModerationActionType.RoomBan,
+            playerId,
+            ct,
+            duration == RoomBanDurationType.Permanent ? null : expiresAt,
+            duration.ToString()
+        );
+
         return true;
     }
 
@@ -417,7 +495,12 @@ public sealed class RoomModerationModule(
             )
             .ExecuteDeleteAsync(ct);
 
-        return _roomGrain._state.BannedUntilByPlayerId.Remove(playerId);
+        if (!_roomGrain._state.BannedUntilByPlayerId.Remove(playerId))
+            return false;
+
+        await RecordAsync(ctx, ModerationActionType.RoomUnban, playerId, ct);
+
+        return true;
     }
 
     public async Task<ImmutableArray<RoomBannedPlayerSnapshot>?> GetBannedPlayersAsync(
@@ -603,4 +686,48 @@ public sealed class RoomModerationModule(
 
         return actorLevel.IsAllowedBy(setting);
     }
+
+    /// <summary>Records an action taken in this room by whoever <paramref name="ctx"/> names.</summary>
+    internal Task RecordAsync(
+        ActionContext ctx,
+        ModerationActionType action,
+        PlayerId? target,
+        CancellationToken ct,
+        DateTime? expiresAt = null,
+        string? detail = null
+    ) =>
+        _roomGrain._moderationLog.RecordAsync(
+            new ModerationRecord
+            {
+                Action = action,
+                Source = ModerationRecord.SourceOf(ctx),
+                ActorId = ModerationRecord.ActorOf(ctx),
+                TargetPlayerId = target,
+                RoomId = _roomGrain.RoomId,
+                ExpiresAt = expiresAt,
+                Detail = detail,
+            },
+            ct
+        );
+
+    /// <summary>Records an action the room took on its own: its wired, its flood protection.</summary>
+    internal Task RecordBySystemAsync(
+        ModerationActionType action,
+        PlayerId? target,
+        CancellationToken ct,
+        DateTime? expiresAt,
+        string reason
+    ) =>
+        _roomGrain._moderationLog.RecordAsync(
+            new ModerationRecord
+            {
+                Action = action,
+                Source = ModerationSource.System,
+                TargetPlayerId = target,
+                RoomId = _roomGrain.RoomId,
+                Reason = reason,
+                ExpiresAt = expiresAt,
+            },
+            ct
+        );
 }

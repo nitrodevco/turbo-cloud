@@ -235,6 +235,20 @@ public sealed class PresentInventoryTests : IDisposable
 
         inside.Should().NotBeNull();
         (await Rows()).Single(x => x.Id == inside!.ItemId).PlayerEntityId.Should().Be(TRADED_TO);
+
+        // What was inside changed hands too, and its history says how.
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.FurnitureTransfers.SingleAsync(Ct))
+            .Should()
+            .BeEquivalentTo(
+                new
+                {
+                    FurnitureId = inside!.ItemId.Value,
+                    FromPlayerId = RECEIVER,
+                    ToPlayerId = TRADED_TO,
+                    Reason = FurnitureTransferReason.PresentOpened,
+                }
+            );
     }
 
     [Fact]

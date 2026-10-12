@@ -289,6 +289,27 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
 
         _fakes.Log.Of("GiveBadgeAsync").Should().ContainSingle().Which.Key.Should().Be(3L);
         _fakes.Log.Of("RemoveBadgeAsync").Should().ContainSingle().Which.Key.Should().Be(2L);
+
+        // Each is in the player's moderation history, as done from the panel.
+        _fakes
+            .Log.Of("RecordAsync")
+            .Select(x => (Turbo.Primitives.Moderation.ModerationRecord)x.Args[0]!)
+            .Select(x => (x.Action, x.Source, x.TargetPlayerId?.Value, x.Detail))
+            .Should()
+            .Equal(
+                (
+                    Turbo.Primitives.Moderation.Enums.ModerationActionType.BadgeGiven,
+                    Turbo.Primitives.Moderation.Enums.ModerationSource.Panel,
+                    3,
+                    "XMAS26"
+                ),
+                (
+                    Turbo.Primitives.Moderation.Enums.ModerationActionType.BadgeTaken,
+                    Turbo.Primitives.Moderation.Enums.ModerationSource.Panel,
+                    2,
+                    "XMAS26"
+                )
+            );
     }
 
     [Fact]

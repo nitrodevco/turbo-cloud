@@ -1596,6 +1596,49 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "moderation_actions",
+                columns: table => new
+                {
+                    id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    action = table.Column<short>(type: "smallint", nullable: false),
+                    source = table.Column<byte>(type: "smallint", nullable: false),
+                    actor_id = table.Column<int>(type: "integer", nullable: true),
+                    target_player_id = table.Column<int>(type: "integer", nullable: true),
+                    room_id = table.Column<int>(type: "integer", nullable: true),
+                    guild_id = table.Column<int>(type: "integer", nullable: true),
+                    reason = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    expires_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    detail = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    created_at = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "CURRENT_TIMESTAMP"
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_moderation_actions", x => x.id);
+                },
+                comment: "Every moderation action: who did what to which player or room, from where, why and until when."
+            );
+
+            migrationBuilder.CreateTable(
                 name: "moderation_cfh_reports",
                 columns: table => new
                 {
@@ -2513,6 +2556,11 @@ namespace Turbo.Database.Migrations
                         type: "character varying(100)",
                         maxLength: 100,
                         nullable: false
+                    ),
+                    typed_message = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: true
                     ),
                     created_at = table.Column<DateTime>(
                         type: "timestamp with time zone",
@@ -5221,6 +5269,10 @@ namespace Turbo.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_furniture", x => x.id);
+                    table.CheckConstraint(
+                        "ck_furniture_one_place",
+                        "room_id IS NULL OR chest_item_id IS NULL"
+                    );
                     table.ForeignKey(
                         name: "fk_furniture_furniture_chest_item_id",
                         column: x => x.chest_item_id,
@@ -6585,6 +6637,15 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_furniture_transfers_created_at",
+                    table: "furniture_transfers",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_furniture_transfers_from_player_id_id",
                 table: "furniture_transfers",
@@ -6915,6 +6976,15 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_messenger_messages_created_at",
+                    table: "messenger_messages",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_messenger_messages_receiver_id_created_at",
                 table: "messenger_messages",
@@ -6948,6 +7018,39 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "ix_moderation_actions_action_id",
+                table: "moderation_actions",
+                columns: new[] { "action", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_moderation_actions_actor_id_id",
+                table: "moderation_actions",
+                columns: new[] { "actor_id", "id" }
+            );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_moderation_actions_created_at",
+                    table: "moderation_actions",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_moderation_actions_room_id_id",
+                table: "moderation_actions",
+                columns: new[] { "room_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "ix_moderation_actions_target_player_id_id",
+                table: "moderation_actions",
+                columns: new[] { "target_player_id", "id" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "ix_moderation_cfh_report_chat_lines_report_id_position",
                 table: "moderation_cfh_report_chat_lines",
                 columns: new[] { "report_id", "position" }
@@ -6964,6 +7067,15 @@ namespace Turbo.Database.Migrations
                 table: "moderation_command_logs",
                 columns: new[] { "command", "id" }
             );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_moderation_command_logs_created_at",
+                    table: "moderation_command_logs",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_moderation_command_logs_outcome_id",
@@ -7043,6 +7155,15 @@ namespace Turbo.Database.Migrations
                 columns: new[] { "type_id", "palette_id" },
                 unique: true
             );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_pet_feedings_created_at",
+                    table: "pet_feedings",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_pet_feedings_pet_id",
@@ -7142,6 +7263,15 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_player_currency_ledger_created_at",
+                    table: "player_currency_ledger",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_player_currency_ledger_player_id_id",
                 table: "player_currency_ledger",
@@ -7187,6 +7317,15 @@ namespace Turbo.Database.Migrations
                 columns: new[] { "player_id", "set_id" },
                 unique: true
             );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_player_logins_created_at",
+                    table: "player_logins",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_player_logins_ip_address",
@@ -7282,11 +7421,29 @@ namespace Turbo.Database.Migrations
                 column: "quest_id"
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_player_respect_changes_created_at",
+                    table: "player_respect_changes",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_player_respect_changes_player_id",
                 table: "player_respect_changes",
                 column: "player_id"
             );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_player_respects_created_at",
+                    table: "player_respects",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_player_respects_giver_id_created_at",
@@ -7347,6 +7504,15 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_player_wallet_credit_receipts_created_at",
+                    table: "player_wallet_credit_receipts",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_players_last_login_at",
                 table: "players",
@@ -7394,6 +7560,15 @@ namespace Turbo.Database.Migrations
                 unique: true
             );
 
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_room_chat_logs_created_at",
+                    table: "room_chat_logs",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
+
             migrationBuilder.CreateIndex(
                 name: "ix_room_chat_logs_player_id_id",
                 table: "room_chat_logs",
@@ -7411,6 +7586,15 @@ namespace Turbo.Database.Migrations
                 table: "room_chat_logs",
                 columns: new[] { "target_player_id", "id" }
             );
+
+            migrationBuilder
+                .CreateIndex(
+                    name: "ix_room_entry_logs_created_at",
+                    table: "room_entry_logs",
+                    column: "created_at"
+                )
+                .Annotation("Npgsql:IndexMethod", "brin")
+                .Annotation("Npgsql:StorageParameter:autosummarize", true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_room_entry_logs_player_id_created_at",
@@ -7609,6 +7793,10 @@ namespace Turbo.Database.Migrations
             migrationBuilder.Sql(
                 "CREATE INDEX ix_room_chat_logs_message_trgm ON room_chat_logs USING gin (lower(message) gin_trgm_ops);"
             );
+            // And by what was typed, for the few lines the word filter changed.
+            migrationBuilder.Sql(
+                "CREATE INDEX ix_room_chat_logs_typed_message_trgm ON room_chat_logs USING gin (lower(typed_message) gin_trgm_ops) WHERE typed_message IS NOT NULL;"
+            );
             migrationBuilder.Sql(
                 "CREATE INDEX ix_rooms_name_trgm ON rooms USING gin (lower(name) gin_trgm_ops);"
             );
@@ -7649,6 +7837,28 @@ END $$;"
                     $"CREATE TRIGGER {table}_set_updated_at BEFORE UPDATE ON {table} "
                         + "FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
                 );
+
+            // A row's place among its holder's contents, and the chest transaction that put it
+            // there, mean nothing once it leaves the holder, however it leaves: a release, or
+            // the holder's row going, which clears chest_item_id through its foreign key and
+            // reaches no code. The trigger clears them as it leaves; the check keeps them so.
+            migrationBuilder.Sql(
+                @"CREATE FUNCTION furniture_leave_holder() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.held_position = NULL;
+  NEW.chest_transaction_id = NULL;
+  RETURN NEW;
+END $$;"
+            );
+            migrationBuilder.Sql(
+                "CREATE TRIGGER furniture_leave_holder BEFORE UPDATE OF chest_item_id ON furniture "
+                    + "FOR EACH ROW WHEN (NEW.chest_item_id IS NULL) "
+                    + "EXECUTE FUNCTION furniture_leave_holder();"
+            );
+            migrationBuilder.Sql(
+                "ALTER TABLE furniture ADD CONSTRAINT ck_furniture_held "
+                    + "CHECK (chest_item_id IS NOT NULL OR (held_position IS NULL AND chest_transaction_id IS NULL));"
+            );
         }
 
         /// <inheritdoc />
@@ -7759,6 +7969,8 @@ END $$;"
             migrationBuilder.DropTable(name: "messenger_messages");
 
             migrationBuilder.DropTable(name: "messenger_requests");
+
+            migrationBuilder.DropTable(name: "moderation_actions");
 
             migrationBuilder.DropTable(name: "moderation_cfh_report_chat_lines");
 

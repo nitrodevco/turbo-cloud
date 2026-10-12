@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
@@ -171,6 +172,51 @@ public sealed class WiredChestTests : IDisposable
         given.PlayerEntityId.Should().Be(ALICE);
         Rows(11).Single().ChestItemEntityId.Should().Be(CHEST);
         _fakes.Log.Of("ReceiveFurnitureAsync").Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Furni deposited in someone else's chest, and paid out of it to someone else, changed
+    /// owner without a trace: a furni's history showed it reaching a player it was never traded to.
+    /// </summary>
+    [Fact]
+    public async Task A_deposit_and_a_withdrawal_between_players_are_in_the_furnis_history()
+    {
+        _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
+        var chest = await ChestAsync();
+
+        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10), default);
+        await chest.WithdrawAsync(
+            Withdraw(WiredChestKind.Furni, 1, WiredChestIterationMode.FirstInFirstOut),
+            default
+        );
+
+        await using var db = await _db.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        db.FurnitureTransfers.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.FurnitureId,
+                x.FromPlayerId,
+                x.ToPlayerId,
+                x.Reason,
+            })
+            .ToList()
+            .Should()
+            .Equal(
+                new
+                {
+                    FurnitureId = 10,
+                    FromPlayerId = ALICE,
+                    ToPlayerId = OWNER,
+                    Reason = FurnitureTransferReason.ChestDeposit,
+                },
+                new
+                {
+                    FurnitureId = 10,
+                    FromPlayerId = OWNER,
+                    ToPlayerId = ALICE,
+                    Reason = FurnitureTransferReason.ChestWithdrawal,
+                }
+            );
     }
 
     [Fact]

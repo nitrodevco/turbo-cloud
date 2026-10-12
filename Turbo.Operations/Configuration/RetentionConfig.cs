@@ -34,6 +34,13 @@ public sealed class RetentionConfig
     /// <summary>Commands staff and players used: what staff did, and when.</summary>
     public int CommandLogDays { get; init; } = 365;
 
+    /// <summary>
+    /// The moderation history: every ban, mute, kick and warning, by whom and why. A player's
+    /// record is what the next moderator judges them by, so it is kept for good unless the
+    /// hotel sets a number of days here.
+    /// </summary>
+    public int ModerationDays { get; init; } = 0;
+
     /// <summary>Who respected whom: spotting respect farming between accounts.</summary>
     public int RespectDays { get; init; } = 90;
 

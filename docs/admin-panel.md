@@ -361,7 +361,9 @@ Actions on the people inside a room need it loaded, and the panel refuses them f
 isn't. Editing the settings, rights or bans of an unloaded room loads it lightly (its details,
 rights and bans, not its furniture), as visiting its settings in the hotel would.
 
-Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it.
+Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it, and each
+kick, mute, ban, lifted ban, room-wide mute, kick-everyone and unload goes into the moderation
+history (`moderation_actions`) as done from the panel, beside the same actions taken in game.
 
 Chat and visit logs, deleting rooms and changing owners aren't in the panel yet.
 
@@ -402,10 +404,30 @@ notice, and it's written to the command log under your name. Only what you may d
 | Give or take credits, duckets, diamonds, ... | `:give` | `command.give` |
 | Disconnect (online players only) | `:disconnect` | `command.disconnect` |
 
+Every action takes a reason, which goes into the player's moderation history with your name, as
+done from the panel.
+
 The command's answer is shown under the card. A command that asks to be confirmed gets a
 **Confirm** button. Messages need the player online, as in the hotel. A player whose name starts
 with `@` or has a space can't be acted on from the panel, because the commands would misread it.
 Use the console for them.
+
+### History, logins and other accounts
+
+The API serves what the hotel records about a player, for the panel's player page (the pages
+themselves are the `turbo-admin` front end's). Each list is newest first and paged by a cursor
+(`before`), so a page costs the same however much history a player has.
+
+| Endpoint | What | Needs |
+| --- | --- | --- |
+| `GET /api/players/{id}/timeline?before=` | One history across the hotel's records: moderation done to them and by them, logins, every balance change, furni they gave or got, rooms they entered; the commands they ran and what they said too, for staff who may read those logs. | `admin.players.view` (+ `admin.commandlog.view`, `admin.chatlog.view`) |
+| `GET /api/players/moderation?target=&actor=&room=&action=&before=` | The moderation history: to a player, by a staff member, in a room, of one kind (`Ban`, `RoomKick`, ...), any mix. | `admin.players.view` |
+| `GET /api/players/{id}/logins?before=` | Their sessions; where from (address, machine) only with the next node. | `admin.players.view` |
+| `GET /api/players/{id}/alts` | Other accounts that logged in from their addresses or machines: a shared machine first, then by how many addresses, banned ones marked. | `admin.players.identity` |
+
+Where a player logged in from is personal data, so it has its own node, `admin.players.identity`,
+apart from seeing players at all: a moderator looking for a banned player's new account needs it,
+most staff do not.
 
 ## Catalog
 
@@ -900,6 +922,7 @@ passkey; they add more while signed in instead.
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
+| `admin.players.identity` | Where a player logged in from (address and machine) and the other accounts that share them. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
 | `admin.accounts.manage` | Unlinking a player's Discord and signing them out of the public site, for players whose every permission they hold. |

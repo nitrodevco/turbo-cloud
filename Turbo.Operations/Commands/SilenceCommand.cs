@@ -4,16 +4,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record SilenceArguments(PlayerTarget Who, CommandDuration Duration);
+public sealed record SilenceArguments(
+    PlayerTarget Who,
+    CommandDuration Duration,
+    RestOfLine? Reason = null
+);
 
 /// <summary>
-/// <c>:silence name 2h</c>. Stops a player speaking anywhere in the hotel, as a temporary denial
+/// <c>:silence name 2h [reason]</c>. Stops a player speaking anywhere in the hotel, as a temporary denial
 /// of <c>chat.speak</c>, which the permission grains expire and audit. The player is told, since
 /// a silence with no explanation looks like a fault.
 /// </summary>
@@ -23,8 +29,11 @@ public sealed record SilenceArguments(PlayerTarget Who, CommandDuration Duration
     Category = CommandCategories.MODERATION
 )]
 [RequiresPermission(PermissionNodes.Command.SILENCE)]
-public sealed class SilenceCommand(IGrainFactory grainFactory, TimeProvider timeProvider)
-    : IOperatorCommand<SilenceArguments>
+public sealed class SilenceCommand(
+    IGrainFactory grainFactory,
+    TimeProvider timeProvider,
+    IModerationLog moderationLog
+) : IOperatorCommand<SilenceArguments>
 {
     private const string SILENCED = "silenced";
     private const string ALREADY = "already";
@@ -66,11 +75,12 @@ public sealed class SilenceCommand(IGrainFactory grainFactory, TimeProvider time
         )
             return CommandResult.Fail(PROTECTED, target.Name);
 
+        var endsAt = arguments.Duration.EndsAt(timeProvider.GetUtcNow().UtcDateTime);
         var result = await PermissionDenials.DenyAsync(
             grainFactory,
             target.Id,
             PermissionNodes.Chat.SPEAK,
-            arguments.Duration.EndsAt(timeProvider.GetUtcNow().UtcDateTime),
+            endsAt,
             ctx.Executor.PlayerId,
             ct
         );
@@ -80,6 +90,15 @@ public sealed class SilenceCommand(IGrainFactory grainFactory, TimeProvider time
 
         if (result != PermissionChangeResultType.Changed)
             return CommandResult.Fail(FAILED, target.Name, result.ToString());
+
+        await moderationLog.RecordAsync(
+            ctx,
+            ModerationActionType.Silence,
+            target.Id,
+            ct,
+            CommandModeration.ReasonOf(arguments.Reason),
+            endsAt
+        );
 
         await ctx.NotifyAsync(
             target.Id,

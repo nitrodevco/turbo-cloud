@@ -69,9 +69,32 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (pickupType is FurniturePickupType.SendToCtx)
             pickerId = ctx.PlayerId;
 
-        item.SetOwnerId(pickerId);
+        // Out of the room in the database first, in the hands it goes to: only once that has
+        // landed is it listed in an inventory, so it is never in a room and an inventory at once.
+        var released = await FurnitureLocations.ReleaseFromRoomAsync(
+            _roomGrain._dbCtxFactory,
+            [item.GetSnapshot()],
+            _roomGrain.RoomId.Value,
+            pickerId == item.OwnerId ? null : pickerId.Value,
+            ct
+        );
 
         await ObjectModule.RemoveObjectAsync(ctx, item, ct, pickerId);
+
+        if (!released.Contains(item.ObjectId.Value))
+        {
+            // The database has it somewhere else, or not at all: the room was showing a furni
+            // that is not here. It goes from the room and is listed nowhere.
+            _roomGrain._logger.LogWarning(
+                "Item {ItemId} picked up in room {RoomId} was not in the room in the database; it is not listed in an inventory",
+                item.ObjectId,
+                _roomGrain.RoomId
+            );
+
+            return false;
+        }
+
+        item.SetOwnerId(pickerId);
 
         var snapshot = item.GetSnapshot();
 
@@ -99,6 +122,16 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
         var borrowsGivenBack = new Dictionary<PlayerId, int>();
+
+        // Out of the room in the database first, all together; only those it still had here
+        // go back to an inventory.
+        var released = await FurnitureLocations.ReleaseFromRoomAsync(
+            _roomGrain._dbCtxFactory,
+            [.. items.Where(x => !x.IsBuildersClub && !x.IsTemporary).Select(x => x.GetSnapshot())],
+            _roomGrain.RoomId.Value,
+            null,
+            ct
+        );
 
         foreach (var item in items)
         {
@@ -129,6 +162,17 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             // A temporary furni leaves the room like any other and then is simply gone.
             if (item.IsTemporary)
                 continue;
+
+            if (!released.Contains(item.ObjectId.Value))
+            {
+                _roomGrain._logger.LogWarning(
+                    "Item {ItemId} returned from room {RoomId} was not in the room in the database; it is not listed in an inventory",
+                    item.ObjectId,
+                    _roomGrain.RoomId
+                );
+
+                continue;
+            }
 
             if (!returned.TryGetValue(item.OwnerId, out var owned))
                 returned[item.OwnerId] = owned = [];

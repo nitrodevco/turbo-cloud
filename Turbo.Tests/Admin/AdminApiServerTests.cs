@@ -195,6 +195,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
+                typeof(Turbo.Primitives.Moderation.IModerationLog),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -207,6 +208,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminRoomVisits>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
+        services.AddSingleton<Turbo.Admin.Players.AdminPlayerAudit>();
         services.AddSingleton<AdminTicketPolicy>();
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();

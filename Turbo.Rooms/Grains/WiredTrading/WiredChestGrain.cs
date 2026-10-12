@@ -9,10 +9,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.WiredTrading;
 using Turbo.Logging;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Vault;
@@ -410,6 +412,23 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 );
             }
 
+            // Furni deposited in someone else's chest is theirs now, in its history too.
+            if (depositorId != request.Chest.OwnerId.Value)
+            {
+                dbCtx.FurnitureTransfers.AddRange(
+                    items.Select(x => new FurnitureTransferEntity
+                    {
+                        FurnitureId = x.ItemId.Value,
+                        DefinitionId = x.Definition.Id,
+                        FromPlayerId = depositorId,
+                        ToPlayerId = request.Chest.OwnerId.Value,
+                        Reason = FurnitureTransferReason.ChestDeposit,
+                    })
+                );
+
+                await dbCtx.SaveChangesAsync(ct);
+            }
+
             await tx.CommitAsync(ct);
         }
 
@@ -676,6 +695,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                     up =>
                         up.SetProperty(x => x.ChestItemEntityId, (int?)null)
                             .SetProperty(x => x.ChestTransactionId, (long?)null)
+                            .SetProperty(x => x.HeldPosition, (int?)null)
                             .SetProperty(x => x.PlayerEntityId, request.ReceiverId.Value),
                     ct
                 );
@@ -697,6 +717,22 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                     WiredTransactionFailureType.FundsGone,
                     BuildSummary(request.Chest)
                 );
+            }
+
+            if (request.ReceiverId != request.Chest.OwnerId)
+            {
+                dbCtx.FurnitureTransfers.AddRange(
+                    taken.Select(x => new FurnitureTransferEntity
+                    {
+                        FurnitureId = x.Item.ItemId.Value,
+                        DefinitionId = x.Item.Definition.Id,
+                        FromPlayerId = request.Chest.OwnerId.Value,
+                        ToPlayerId = request.ReceiverId.Value,
+                        Reason = FurnitureTransferReason.ChestWithdrawal,
+                    })
+                );
+
+                await dbCtx.SaveChangesAsync(ct);
             }
 
             await tx.CommitAsync(ct);

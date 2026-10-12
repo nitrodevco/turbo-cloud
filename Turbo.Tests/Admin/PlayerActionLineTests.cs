@@ -21,6 +21,11 @@ public sealed class PlayerActionLineTests
     [InlineData("unsilence", null, null, "unsilence alice")]
     [InlineData("untradelock", null, null, "untradelock alice")]
     [InlineData("disconnect", null, null, "disconnect alice")]
+    // A reason goes with every sanction and its lifting, for the moderation history.
+    [InlineData("silence", "30m", "shouting", "silence alice 30m shouting")]
+    [InlineData("tradelock", "2w", "scam report 12", "tradelock alice 2w scam report 12")]
+    [InlineData("unban", null, "appeal upheld", "unban alice appeal upheld")]
+    [InlineData("disconnect", null, "stuck session", "disconnect alice stuck session")]
     [InlineData("warn", null, "Please stop.", "warn alice Please stop.")]
     [InlineData("alert", null, "Hello", "alert alice Hello")]
     public void EachAction_IsTheCommandThatDoesIt(

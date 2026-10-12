@@ -120,7 +120,9 @@ INSERT INTO permission_group_nodes (id, group_id, node, value, expires_at, is_te
   (89, 7, 'command.follow', TRUE, NULL, FALSE),
   (90, 7, 'command.online', TRUE, NULL, FALSE),
   (91, 7, 'hotel.maintenance.bypass', TRUE, NULL, FALSE),
-  (96, 10, 'command.gift', TRUE, NULL, FALSE);
+  (96, 10, 'command.gift', TRUE, NULL, FALSE),
+  (97, 7, 'command.history', TRUE, NULL, FALSE),
+  (98, 8, 'command.alts', TRUE, NULL, FALSE);
 SELECT setval(pg_get_serial_sequence('permission_group_nodes', 'id'), (SELECT MAX(id) FROM permission_group_nodes));
 
 INSERT INTO permission_group_meta (id, group_id, meta_key, value, expires_at, is_temporary) VALUES

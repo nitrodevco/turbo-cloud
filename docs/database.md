@@ -226,12 +226,27 @@ transaction as the change it records, so the record and the change can't disagre
 | Table | One row per | Answers |
 | --- | --- | --- |
 | `player_currency_ledger` | change to a balance, with its reason, detail and the balance it left | "my credits vanished", a disputed charge, a duplicated reward |
-| `furniture_transfers` | furni changing owner in a trade (or a trade undone) | "my rare was taken", a duplicated item |
+| `furniture_transfers` | furni changing owner: a trade (or one undone), a staff pickup that keeps it, a wired chest deposit or payout between players, a present opened by someone it changed hands to | "my rare was taken", a duplicated item |
+| `moderation_actions` | moderation action: ban, silence, trade lock, disconnect, warning, room kick, ban and mute, room-wide mute, flood mute, badge or furni given, forum post hidden; by whom, from where (game, panel, console, the hotel itself), to whom, why, until when | what has been done to a player, what a staff member did, what happened in a room |
 | `catalog_ltd_entries` | raffle entry or sale of an LTD, with the serial won | who owns which serial; no serial is sold twice |
 | `player_subscription_grants` | extension of a membership: days, bought or given, until when | a disputed purchase, a gift |
 | `player_logins` | session: address (through a trusted proxy), machine id, when it ended | a banned player's other accounts |
 | `player_respects` | respect given, and whether it went through | respect farming between accounts |
 | `wired_chest_transactions` | deposit or withdrawal at a wired chest | what went into and out of a chest |
+
+`moderation_sanctions` and the permission grains hold what is in force (a ban, a silence);
+`moderation_actions` is the history of every action, from every place it can be taken. It is
+written as the action is taken, one row at a time (a few a minute at most, and staff look for one
+the moment it is done), and a write that fails is logged with everything it would have recorded
+and never fails the action itself, as OWASP's logging guidance asks. The panel reads it per
+player, per staff member, per room or per kind, newest first, paged by id; `:history` shows a
+player's last ones in game.
+
+`room_chat_logs.created_at` is when the line was said: lines reach the database seconds later,
+through the room's buffer and then the persistence grain's, so the time is taken as the room
+hears the line. `message` is what the room heard, after the word filter; `typed_message` is what
+the player typed, when the filter changed it, and null otherwise (nearly always, so it costs
+nothing then). A chat search finds a line by either.
 
 `players.last_seen_at` is the end of the player's last session. It is kept on the player as well
 as in `player_logins`, so "last seen" survives the login log being trimmed.
@@ -253,6 +268,41 @@ again. A step already done finds its `player_respect_changes` row and does nothi
 charged or credited twice. A scratch for a pet (`pet_respects`) is the same, and a pet fed
 (`pet_feedings`) is one step, written with the pet's new nutrition.
 
+## A furni is in one place
+
+A furni is in an inventory (`room_id` and `chest_item_id` null), a room (`room_id`), or held by
+another furni (`chest_item_id`: a wired chest, a jukebox's playlist, a present). The database
+decides which as each move happens, not at the room's next save:
+
+- **Placing** takes the furni into the room with one conditional write, only while the row is in
+  its owner's inventory. A furni traded, deposited or placed elsewhere a moment before is refused,
+  and the client's stale inventory entry is removed. A spot the room then refuses hands it back.
+- **Picking up** and sending furni home (a room deleted, a floor plan changed, a rented space run
+  out) take it out of the room in the database before any inventory lists it, and only what the
+  database still has in that room. A staff member who keeps what they pick up becomes its owner
+  in the same write, recorded in `furniture_transfers`.
+- **The room's save** writes positions and data only, one statement per batch, and only for rows
+  the database still has in that room, so a save written late, or again after a failure, can't
+  put a furni back in a room it has left, and a row deleted meanwhile can't fail the rest.
+- **The database holds it too.** `ck_furniture_one_place` refuses a row in a room and a holder at
+  once; `ck_furniture_held` refuses a place among a holder's contents (`held_position`,
+  `chest_transaction_id`) on a row in no holder, and the `furniture_leave_holder` trigger clears
+  them however a row leaves its holder, including the holder's own row being deleted.
+
+## Indexes for the logs
+
+The logs the retention job trims by age (chat, private messages, room entries, logins, the
+currency ledger, furni transfers, the command log, the moderation history, respects, pet
+feedings, wallet receipts) each have a BRIN index on `created_at`, with `autosummarize` on. Rows
+arrive in time order, so a summary per block range finds the old end of the table without
+reading it. Measured on 5 million chat lines (a 444 MB table): the hourly pass with nothing to
+remove went from a parallel scan of the whole table, 244 to 274 ms, to under a millisecond,
+with an index of 32 kB where a b-tree on the same column is 80 MB.
+
+Chat lines, the busiest log, are written by binary `COPY` (PostgreSQL's guidance for loading many
+rows): a batch of 200 took 10 ms, against 50 ms through EF's batched inserts, on the same table
+and indexes.
+
 ## What the hotel keeps, and for how long
 
 Under UK and EU data protection law (storage limitation, as the ICO explains it) a record about a
@@ -269,6 +319,7 @@ never holds a long lock.
 | `CurrencyLedgerDays` | 365 | disputed charges, refunds, duplicated rewards |
 | `FurnitureTransferDays` | 730 | tracing an item a player says was taken |
 | `CommandLogDays` | 365 | what staff did, and when |
+| `ModerationDays` | 0 (kept) | every ban, mute, kick and warning: what the next moderator judges a player by |
 | `RespectDays` | 90 | spotting respect farming |
 | `ReceiptDays` | 30 | records that only make a retried action safe |
 | `DailyTaskDays` | 30 | daily tasks of past days |
@@ -281,7 +332,9 @@ never holds a long lock.
 
 A hotel that needs longer, or shorter, sets its own, and says so in its privacy notice. A
 pending respect is never removed; the permission audit, sanctions and subscription grants are
-kept for good.
+kept for good. Where a player logged in from (address and machine) is shown only to staff with
+`admin.players.identity` in the panel, or `command.alts` in game, and even `:alts` shows how many
+addresses two accounts share, never the addresses.
 
 `Turbo:Networking:TrustedProxies` lists the proxies whose `X-Forwarded-For` is believed (by default
 the server itself, for nginx on the same machine). Behind any other proxy, add its address, or every

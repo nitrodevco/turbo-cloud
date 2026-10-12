@@ -8,6 +8,8 @@ using Orleans;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -34,7 +36,8 @@ public sealed record GiveItemArguments(
 public sealed class GiveItemCommand(
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider definitionProvider,
-    IOptions<OperationsConfig> config
+    IOptions<OperationsConfig> config,
+    IModerationLog moderationLog
 ) : IOperatorCommand<GiveItemArguments>
 {
     private const string GIVEN = "given";
@@ -97,6 +100,15 @@ public sealed class GiveItemCommand(
                     )
                 )
         );
+
+        foreach (var target in batch.Targets.Where(x => x.Succeeded > 0))
+            await moderationLog.RecordAsync(
+                ctx,
+                ModerationActionType.ItemGiven,
+                target.PlayerId,
+                ct,
+                detail: $"{target.Succeeded.ToString(CultureInfo.InvariantCulture)} x {definition.Name}"
+            );
 
         var completed = selection.IsSelector
             ? CommandResult.Done(

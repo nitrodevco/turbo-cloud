@@ -14,6 +14,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Commands;
@@ -250,18 +251,16 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             taken.Add(snapshot);
 
-            var message =
-                snapshot.Text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
-                    ? snapshot.Text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
-                    : snapshot.Text;
-
             batch.Add(
                 new RoomChatlogEntity
                 {
                     RoomEntityId = snapshot.RoomId.Value,
                     PlayerEntityId = snapshot.PlayerId.Value,
                     TargetPlayerEntityId = snapshot.TargetPlayerId?.Value,
-                    Message = message,
+                    Message = Fit(snapshot.Text),
+                    TypedMessage = snapshot.Typed is { } typed ? Fit(typed) : null,
+                    // When it was said, not when this batch is written.
+                    CreatedAt = snapshot.SaidAt,
                 }
             );
         }
@@ -270,9 +269,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            dbCtx.Chatlogs.AddRange(batch);
-
-            await dbCtx.SaveChangesAsync(ct);
+            await dbCtx.InsertChatlogsAsync(batch, ct);
 
             return true;
         }
@@ -290,6 +287,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             return false;
         }
     }
+
+    private static string Fit(string text) =>
+        text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
+            ? text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
+            : text;
 
     /// <summary>Puts a failed batch back in front, oldest first, dropping the newest past the cap.</summary>
     private void RequeueChatlogs(List<RoomChatlogSnapshot> failed)
@@ -320,7 +322,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             if (ownedIds.Count > 0)
-                await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
+                // Only rows still in this room: a furni the room let go of meanwhile is not its to delete.
+                await dbCtx
+                    .Furnitures.Where(x =>
+                        ownedIds.Contains(x.Id) && x.RoomEntityId == _state.RoomId.Value
+                    )
+                    .ExecuteDeleteAsync(ct);
 
             if (borrowedIds.Count > 0)
                 await dbCtx
@@ -351,19 +358,19 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         bool remove = false
     )
     {
-        _state.DirtyItems[snapshot.ObjectId] = snapshot;
-
+        // A furni leaving the room was written out of it as it left, data and all; a position
+        // still pending for it has nothing left to write.
         if (remove)
-            _state.RemovedItemIds.Add(snapshot.ObjectId);
+            _state.DirtyItems.Remove(snapshot.ObjectId);
+        else
+            _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
         return Task.CompletedTask;
     }
 
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
     {
-        // A pending update for the same item would only resurrect the row.
         _state.DirtyItems.Remove(itemId);
-        _state.RemovedItemIds.Remove(itemId);
         _state.DeletedItemIds.Add(itemId);
 
         return Task.CompletedTask;
@@ -376,13 +383,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         foreach (var snapshot in snapshots)
-        {
             _state.DirtyItems[snapshot.ObjectId] = snapshot;
-
-            // The room hands over only what stands in it. An item picked up and put back before
-            // the next flush still had its pick-up queued, which wrote it out of the room again.
-            _state.RemovedItemIds.Remove(snapshot.ObjectId);
-        }
 
         return Task.CompletedTask;
     }
@@ -902,7 +903,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         }
     }
 
-    /// <summary>Writes one batch of furni. False when the batch could not be written.</summary>
+    /// <summary>
+    /// Writes one batch of furni: where each stands and its data, only for rows the database
+    /// still has in this room. Whether a furni is in the room at all is not this write's to say:
+    /// that is decided as it is placed and picked up (<see cref="FurnitureLocations"/>), so a
+    /// batch written late, or again after a failure, cannot put a furni back in a room it has
+    /// left. False when the batch could not be written.
+    /// </summary>
     private async Task<bool> FlushDirtyItemBatchAsync(CancellationToken ct)
     {
         var batch = _state
@@ -913,56 +920,30 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         foreach (var item in batch)
             _state.DirtyItems.Remove(item.ObjectId);
 
-        // Read, not taken: a pickup's mark is cleared only once its write has landed.
-        var removed = batch
-            .Select(x => x.ObjectId)
-            .Where(_state.RemovedItemIds.Contains)
-            .ToHashSet();
-
         try
         {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            foreach (var item in batch)
-            {
-                if (FurniIdBands.IsBuildersClub(item.ObjectId))
-                {
-                    FlushBorrowedItem(dbCtx, item);
+            var borrowed = batch.Where(x => FurniIdBands.IsBuildersClub(x.ObjectId)).ToArray();
+            var owned = batch.Where(x => !FurniIdBands.IsBuildersClub(x.ObjectId)).ToArray();
 
-                    continue;
-                }
+            if (owned.Length > 0)
+                await FurnitureLocations.WritePlacementsAsync(
+                    dbCtx,
+                    _state.RoomId.Value,
+                    owned,
+                    borrowed: false,
+                    ct
+                );
 
-                var dbEntity = new FurnitureEntity
-                {
-                    Id = item.ObjectId.Value,
-                    PlayerEntityId = item.OwnerId.Value,
-                };
-
-                dbCtx.Attach(dbEntity);
-
-                var e = dbCtx.Entry(dbEntity);
-
-                WritePlacement(e, item);
-
-                e.Property(x => x.PlayerEntityId).IsModified = true;
-
-                // A removed item leaves the room; anything else is written as standing in it.
-                dbEntity.RoomEntityId = removed.Contains(item.ObjectId)
-                    ? null
-                    : _state.RoomId.Value;
-
-                e.Property(x => x.RoomEntityId).IsModified = true;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-
-            // The enqueues interleave with this write: an item queued again meanwhile keeps the
-            // mark its newer change gave it.
-            foreach (var itemId in removed)
-            {
-                if (!_state.DirtyItems.ContainsKey(itemId))
-                    _state.RemovedItemIds.Remove(itemId);
-            }
+            if (borrowed.Length > 0)
+                await FurnitureLocations.WritePlacementsAsync(
+                    dbCtx,
+                    _state.RoomId.Value,
+                    borrowed,
+                    borrowed: true,
+                    ct
+                );
 
             return true;
         }
@@ -980,64 +961,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 _state.DirtyItems.TryAdd(item.ObjectId, item);
 
             return false;
-        }
-    }
-
-    /// <summary>
-    /// Writes a borrowed furni's position back. There is no "taken out of the room but kept"
-    /// state for one, because nobody owns it and it has no inventory to go to: leaving the room
-    /// is the same as being given back, which the delete queue handles.
-    /// </summary>
-    private void FlushBorrowedItem(TurboDbContext dbCtx, RoomItemSnapshot item)
-    {
-        // Leaving the room is the same as being given back for a borrowed furni, which the
-        // delete queue handles, so nothing should ever mark one as merely removed.
-        _state.RemovedItemIds.Remove(item.ObjectId);
-
-        var dbEntity = new BuildersClubFurnitureEntity
-        {
-            RoomEntityId = _state.RoomId.Value,
-            RoomObjectId = item.ObjectId.Value,
-            FurnitureDefinitionEntityId = item.DefinitionId,
-            PlacedByPlayerEntityId = item.OwnerId.Value,
-            // Only the columns marked modified are written; the rest are here to satisfy the
-            // entity and never reach the database.
-            CatalogOfferEntityId = 0,
-        };
-
-        dbCtx.Attach(dbEntity);
-
-        WritePlacement(dbCtx.Entry(dbEntity), item);
-    }
-
-    /// <summary>
-    /// Writes where an attached furni row stands and its data, and marks exactly those columns
-    /// modified, so nothing else on the row is touched. A hotel furni and a borrowed one share
-    /// these columns and were written by two copies of this block; a wall item also writes its
-    /// offset. Marked by name, which EF resolves on the concrete entity.
-    /// </summary>
-    private static void WritePlacement<TEntity>(EntityEntry<TEntity> entry, RoomItemSnapshot item)
-        where TEntity : class, IPlacedFurnitureEntity
-    {
-        var entity = entry.Entity;
-
-        entity.X = item.X;
-        entity.Y = item.Y;
-        entity.Z = item.Z;
-        entity.Rotation = item.Rotation;
-        entity.ExtraData = item.ExtraData;
-
-        entry.Property(nameof(IPlacedFurnitureEntity.X)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Y)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Z)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.Rotation)).IsModified = true;
-        entry.Property(nameof(IPlacedFurnitureEntity.ExtraData)).IsModified = true;
-
-        if (item is RoomWallItemSnapshot wallItem)
-        {
-            entity.WallOffset = wallItem.WallOffset;
-
-            entry.Property(nameof(IPlacedFurnitureEntity.WallOffset)).IsModified = true;
         }
     }
 

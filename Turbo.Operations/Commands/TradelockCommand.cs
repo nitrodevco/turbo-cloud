@@ -4,12 +4,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Operations.Commands;
 
-public sealed record TradelockArguments(PlayerTarget Who, CommandDuration Duration);
+public sealed record TradelockArguments(
+    PlayerTarget Who,
+    CommandDuration Duration,
+    RestOfLine? Reason = null
+);
 
 /// <summary>
 /// <c>:tradelock name 7d</c>. Stops a player trading, as a temporary denial of <c>trade</c>. The
@@ -21,8 +27,11 @@ public sealed record TradelockArguments(PlayerTarget Who, CommandDuration Durati
     Category = CommandCategories.MODERATION
 )]
 [RequiresPermission(PermissionNodes.Command.TRADELOCK)]
-public sealed class TradelockCommand(IGrainFactory grainFactory, TimeProvider timeProvider)
-    : IOperatorCommand<TradelockArguments>
+public sealed class TradelockCommand(
+    IGrainFactory grainFactory,
+    TimeProvider timeProvider,
+    IModerationLog moderationLog
+) : IOperatorCommand<TradelockArguments>
 {
     private const string LOCKED = "locked";
     private const string ALREADY = "already";
@@ -62,16 +71,27 @@ public sealed class TradelockCommand(IGrainFactory grainFactory, TimeProvider ti
         )
             return CommandResult.Fail(PROTECTED, target.Name);
 
+        var endsAt = arguments.Duration.EndsAt(timeProvider.GetUtcNow().UtcDateTime);
         var result = await PermissionDenials.DenyAsync(
             grainFactory,
             target.Id,
             PermissionNodes.TRADE,
-            arguments.Duration.EndsAt(timeProvider.GetUtcNow().UtcDateTime),
+            endsAt,
             ctx.Executor.PlayerId,
             ct
         );
 
         if (result == PermissionChangeResultType.Changed)
+        {
+            await moderationLog.RecordAsync(
+                ctx,
+                ModerationActionType.TradeLock,
+                target.Id,
+                ct,
+                CommandModeration.ReasonOf(arguments.Reason),
+                endsAt
+            );
+
             await ctx.NotifyAsync(
                 target.Id,
                 "command.tradelock.notice",
@@ -79,6 +99,7 @@ public sealed class TradelockCommand(IGrainFactory grainFactory, TimeProvider ti
                 [arguments.Duration.ToString()],
                 ct
             );
+        }
 
         return result switch
         {

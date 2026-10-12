@@ -43,12 +43,23 @@ public static class PlayerActionLine
                 request.Duration,
                 CommandText.OneLine(request.Reason)
             ),
-            "unban" => ($"unban {playerName}", null),
-            "silence" => WithDuration("silence", playerName, request.Duration, null),
-            "unsilence" => ($"unsilence {playerName}", null),
-            "tradelock" => WithDuration("tradelock", playerName, request.Duration, null),
-            "untradelock" => ($"untradelock {playerName}", null),
-            "disconnect" => ($"disconnect {playerName}", null),
+            // Every sanction and its lifting takes a reason, which the moderation history keeps.
+            "unban" => WithReason("unban", playerName, request.Reason),
+            "silence" => WithDuration(
+                "silence",
+                playerName,
+                request.Duration,
+                CommandText.OneLine(request.Reason)
+            ),
+            "unsilence" => WithReason("unsilence", playerName, request.Reason),
+            "tradelock" => WithDuration(
+                "tradelock",
+                playerName,
+                request.Duration,
+                CommandText.OneLine(request.Reason)
+            ),
+            "untradelock" => WithReason("untradelock", playerName, request.Reason),
+            "disconnect" => WithReason("disconnect", playerName, request.Reason),
             "warn" => WithMessage("warn", playerName, request.Reason),
             "alert" => WithMessage("alert", playerName, request.Reason),
             "give" => Give(playerName, request.Currency, request.Amount),
@@ -76,6 +87,11 @@ public static class PlayerActionLine
             null
         );
     }
+
+    private static (string?, string?) WithReason(string command, string name, string? reason) =>
+        CommandText.OneLine(reason) is { } text
+            ? ($"{command} {name} {text}", null)
+            : ($"{command} {name}", null);
 
     private static (string?, string?) WithMessage(string command, string name, string? message) =>
         CommandText.OneLine(message) is { } text

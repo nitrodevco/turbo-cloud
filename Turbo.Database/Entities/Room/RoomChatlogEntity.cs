@@ -27,7 +27,17 @@ public class RoomChatlogEntity : TurboLogEntity
     [Column("target_player_id")]
     public int? TargetPlayerEntityId { get; set; }
 
+    /// <summary>The line as the room heard it, after the word filter.</summary>
     [Column("message")]
     [StringLength(MESSAGE_MAX_LENGTH)]
     public required string Message { get; set; }
+
+    /// <summary>
+    /// What the player typed, when the word filter changed it; null when the line went out as
+    /// typed, which is nearly always, so it costs nothing then. A moderator judges what was
+    /// typed, not what the filter let through.
+    /// </summary>
+    [Column("typed_message")]
+    [StringLength(MESSAGE_MAX_LENGTH)]
+    public string? TypedMessage { get; set; }
 }

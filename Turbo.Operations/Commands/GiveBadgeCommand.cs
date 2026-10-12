@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -21,7 +24,7 @@ public sealed record GiveBadgeArguments(
 /// </summary>
 [Command("givebadge", Description = "Give a player a badge", Category = CommandCategories.SUPPORT)]
 [RequiresPermission(PermissionNodes.Command.GIVEBADGE)]
-public sealed class GiveBadgeCommand(IGrainFactory grainFactory)
+public sealed class GiveBadgeCommand(IGrainFactory grainFactory, IModerationLog moderationLog)
     : IOperatorCommand<GiveBadgeArguments>
 {
     private const string GIVEN = "given";
@@ -57,6 +60,15 @@ public sealed class GiveBadgeCommand(IGrainFactory grainFactory)
                     .GiveBadgeAsync(arguments.Code, token),
             ct
         );
+
+        foreach (var target in batch.Targets.Where(x => x.Succeeded > 0))
+            await moderationLog.RecordAsync(
+                ctx,
+                ModerationActionType.BadgeGiven,
+                target.PlayerId,
+                ct,
+                detail: arguments.Code
+            );
 
         var completed = selection.IsSelector
             ? CommandResult.Done(

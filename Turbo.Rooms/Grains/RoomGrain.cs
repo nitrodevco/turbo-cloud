@@ -88,6 +88,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
+    internal readonly IModerationLog _moderationLog;
 
     internal readonly RoomLiveState _state;
 
@@ -153,6 +154,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomEventListenerRegistry eventListeners,
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
+        IModerationLog moderationLog,
         ILogger<IRoomGrain> logger
     )
     {
@@ -185,6 +187,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _eventSystem = eventSystem;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _moderationLog = moderationLog;
 
         _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);

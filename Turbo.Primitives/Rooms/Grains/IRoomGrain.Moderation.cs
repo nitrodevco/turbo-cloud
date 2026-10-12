@@ -22,22 +22,28 @@ public partial interface IRoomGrain
 
     /// <summary>
     /// Sends everyone out who is neither the owner nor allowed to moderate every room, as
-    /// <c>:roomkickall</c> does; <paramref name="except"/> stays whatever they hold. No check
-    /// here: the caller holds <c>command.roomkickall</c>. Returns how many left.
+    /// <c>:roomkickall</c> does; whoever <paramref name="ctx"/> names stays whatever they hold,
+    /// and is recorded as having done it. No check here: the caller holds
+    /// <c>command.roomkickall</c>. Returns how many left.
     /// </summary>
-    public Task<int> ClearRoomBySystemAsync(PlayerId except, CancellationToken ct);
+    public Task<int> ClearRoomBySystemAsync(ActionContext ctx, CancellationToken ct);
 
     /// <summary>
     /// Mutes or unmutes the room for everyone, as <c>:roommute</c> and <c>:roomunmute</c> do. No
-    /// check here: the caller holds those nodes. False when it already was so.
+    /// check here: the caller holds those nodes, and <paramref name="ctx"/> names them for the
+    /// record. False when it already was so.
     /// </summary>
-    public Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct);
+    public Task<bool> SetRoomMutedBySystemAsync(
+        ActionContext ctx,
+        bool muted,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Sends everyone out and unloads the room, as <c>:unloadroom</c> does. No check here: the
-    /// caller holds <c>command.unloadroom</c>.
+    /// caller holds <c>command.unloadroom</c>, and <paramref name="ctx"/> names them for the record.
     /// </summary>
-    public Task EvictEveryoneAndUnloadAsync(CancellationToken ct);
+    public Task EvictEveryoneAndUnloadAsync(ActionContext ctx, CancellationToken ct);
 
     /// <summary>
     /// Removes the target's avatar. The caller then closes the target's room session; the grain

@@ -6,6 +6,8 @@ using Orleans;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
 
@@ -29,7 +31,8 @@ public sealed record AlertArguments(
 public sealed class AlertCommand(
     IGrainFactory grainFactory,
     ISessionGateway sessionGateway,
-    IOptions<OperationsConfig> config
+    IOptions<OperationsConfig> config,
+    IModerationLog moderationLog
 ) : IOperatorCommand<AlertArguments>
 {
     public IReadOnlyDictionary<string, string> DefaultTexts => OperatorMessaging.DefaultTexts;
@@ -47,6 +50,8 @@ public sealed class AlertCommand(
             arguments.Message.Text,
             config.Value.MaxAlertLength,
             new HabboBroadcastMessageComposer { Message = arguments.Message.Text },
+            moderationLog,
+            ModerationActionType.Alert,
             ct
         );
 }

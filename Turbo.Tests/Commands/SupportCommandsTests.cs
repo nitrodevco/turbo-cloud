@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Permissions;
@@ -49,9 +50,9 @@ public class SupportCommandsTests : OperatorCommandsTestBase
             new FollowCommand(Grains, sessions),
             new SummonCommand(Grains, sessions),
             new GiveCommand(Grains, _currencies, Config),
-            new GiveBadgeCommand(Grains),
-            new TakeBadgeCommand(Grains),
-            new GiveItemCommand(Grains, definitions, Config),
+            new GiveBadgeCommand(Grains, Moderation),
+            new TakeBadgeCommand(Grains, Moderation),
+            new GiveItemCommand(Grains, definitions, Config, Moderation),
             new GiftCommand(
                 Grains,
                 definitions,
@@ -543,6 +544,35 @@ public class SupportCommandsTests : OperatorCommandsTestBase
 
         _granted.Should().Equal((ALICE, 77), (ALICE, 77), (ALICE, 77));
         staff.Replies.Should().Equal("Alice was given 3 x throne.");
+    }
+
+    /// <summary>
+    /// What staff hand out and take away is in each player's history: badges and furni change
+    /// what a player has, and a support grant had no record outside the free-text command log.
+    /// </summary>
+    [Fact]
+    public async Task Badges_AndFurni_GivenOrTaken_AreInEachPlayersHistory()
+    {
+        _badges.Add((BOB, "XXX"));
+        var staff = Staff(
+            PermissionNodes.Command.GIVEBADGE,
+            PermissionNodes.Command.TAKEBADGE,
+            PermissionNodes.Command.GIVEITEM
+        );
+
+        await Hotel.RunAsync("givebadge", staff, "alice ADM");
+        await Hotel.RunAsync("givebadge", staff, "alice ADM");
+        await Hotel.RunAsync("takebadge", staff, "bob XXX");
+        await Hotel.RunAsync("giveitem", staff, "alice throne 3");
+
+        History()
+            .Select(x => (x.Action, x.ActorId, x.TargetPlayerId, x.Detail))
+            .Should()
+            .Equal(
+                (ModerationActionType.BadgeGiven, STAFF, ALICE, "ADM"),
+                (ModerationActionType.BadgeTaken, STAFF, BOB, "XXX"),
+                (ModerationActionType.ItemGiven, STAFF, ALICE, "3 x throne")
+            );
     }
 
     [Fact]

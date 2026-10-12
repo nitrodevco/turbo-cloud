@@ -136,11 +136,11 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
 
     // Both eviction paths already send the native RoomKicked notice through presence.
     public Task<int> ClearAsync(CancellationToken ct) =>
-        roomGrain.ModerationModule.ClearRoomBySystemAsync(action.PlayerId, ct);
+        roomGrain.ModerationModule.ClearRoomBySystemAsync(action, ct);
 
     public Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct) =>
-        roomGrain.ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
+        roomGrain.ModerationModule.SetRoomMutedBySystemAsync(action, muted, ct);
 
     public Task UnloadAsync(CancellationToken ct) =>
-        roomGrain.ModerationModule.EvictEveryoneAndUnloadAsync(ct);
+        roomGrain.ModerationModule.EvictEveryoneAndUnloadAsync(action, ct);
 }

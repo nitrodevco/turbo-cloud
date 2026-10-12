@@ -1973,6 +1973,8 @@ namespace Turbo.Database.Migrations
                     b.ToTable("furniture", null, t =>
                         {
                             t.HasComment("Every furni a player owns: in their inventory, placed in a room, or held inside another item.");
+
+                            t.HasCheckConstraint("ck_furniture_one_place", "room_id IS NULL OR chest_item_id IS NULL");
                         });
                 });
 
@@ -2013,6 +2015,12 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_furniture_transfers");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_furniture_transfers_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
 
                     b.HasIndex("FromPlayerId", "Id")
                         .HasDatabaseName("ix_furniture_transfers_from_player_id_id");
@@ -3789,6 +3797,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_messenger_messages");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_messenger_messages_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("ReceiverPlayerEntityId", "SenderPlayerEntityId", "CreatedAt")
                         .HasDatabaseName("ix_messenger_messages_receiver_id_sender_id_created_at");
 
@@ -4071,6 +4085,86 @@ namespace Turbo.Database.Migrations
                     b.ToTable("moderation_filter_words", null, t =>
                         {
                             t.HasComment("A word of the hotel's filter, kept out of everything players type (see IWordFilter).");
+                        });
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Moderation.ModerationActionEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<short>("Action")
+                        .HasColumnType("smallint")
+                        .HasColumnName("action");
+
+                    b.Property<int?>("ActorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("actor_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("detail");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<int?>("GuildId")
+                        .HasColumnType("integer")
+                        .HasColumnName("guild_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("reason");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("integer")
+                        .HasColumnName("room_id");
+
+                    b.Property<byte>("Source")
+                        .HasColumnType("smallint")
+                        .HasColumnName("source");
+
+                    b.Property<int?>("TargetPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_player_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_moderation_actions");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_moderation_actions_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
+                    b.HasIndex("Action", "Id")
+                        .HasDatabaseName("ix_moderation_actions_action_id");
+
+                    b.HasIndex("ActorId", "Id")
+                        .HasDatabaseName("ix_moderation_actions_actor_id_id");
+
+                    b.HasIndex("RoomId", "Id")
+                        .HasDatabaseName("ix_moderation_actions_room_id_id");
+
+                    b.HasIndex("TargetPlayerId", "Id")
+                        .HasDatabaseName("ix_moderation_actions_target_player_id_id");
+
+                    b.ToTable("moderation_actions", null, t =>
+                        {
+                            t.HasComment("Every moderation action: who did what to which player or room, from where, why and until when.");
                         });
                 });
 
@@ -4924,6 +5018,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_pet_feedings");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_pet_feedings_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("PetId")
                         .HasDatabaseName("ix_pet_feedings_pet_id");
 
@@ -5374,6 +5474,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_player_currency_ledger");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_player_currency_ledger_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("PlayerEntityId", "Id")
                         .HasDatabaseName("ix_player_currency_ledger_player_id_id");
 
@@ -5644,6 +5750,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_player_logins");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_player_logins_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("IpAddress")
                         .HasDatabaseName("ix_player_logins_ip_address");
 
@@ -5865,6 +5977,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("RespectId", "Kind")
                         .HasName("pk_player_respect_changes");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_player_respect_changes_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("PlayerId")
                         .HasDatabaseName("ix_player_respect_changes_player_id");
 
@@ -5906,6 +6024,12 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_player_respects");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_player_respects_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
 
                     b.HasIndex("GiverId", "CreatedAt")
                         .HasDatabaseName("ix_player_respects_giver_id_created_at");
@@ -6272,6 +6396,12 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("PlayerId", "Reference")
                         .HasName("pk_player_wallet_credit_receipts");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_player_wallet_credit_receipts_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
 
                     b.ToTable("player_wallet_credit_receipts", null, t =>
                         {
@@ -6755,6 +6885,12 @@ namespace Turbo.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_moderation_command_logs");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_moderation_command_logs_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
+
                     b.HasIndex("Command", "Id")
                         .HasDatabaseName("ix_moderation_command_logs_command_id");
 
@@ -6846,8 +6982,19 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("target_player_id");
 
+                    b.Property<string>("TypedMessage")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("typed_message");
+
                     b.HasKey("Id")
                         .HasName("pk_room_chat_logs");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_room_chat_logs_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
 
                     b.HasIndex("PlayerEntityId", "Id")
                         .HasDatabaseName("ix_room_chat_logs_player_id_id");
@@ -7115,6 +7262,12 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_room_entry_logs");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_room_entry_logs_created_at")
+                        .HasAnnotation("Npgsql:StorageParameter:autosummarize", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CreatedAt"), "brin");
 
                     b.HasIndex("PlayerEntityId", "CreatedAt")
                         .HasDatabaseName("ix_room_entry_logs_player_id_created_at");

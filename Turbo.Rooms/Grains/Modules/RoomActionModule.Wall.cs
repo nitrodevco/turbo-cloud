@@ -32,8 +32,18 @@ public sealed partial class RoomActionModule
         if (item is not IRoomWallItem wallItem)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
+        // As for a floor item: the database takes it out of the inventory first.
+        if (!await ClaimForRoomAsync(item, x, y, rot, z.Value, wallOffset, ct))
+            return false;
+
         // The spot and the room's limits are checked by the placement itself.
-        if (!await FurniModule.PlaceWallItemAsync(ctx, wallItem, x, y, z, wallOffset, rot, ct))
+        if (
+            !await PlaceClaimedAsync(
+                item,
+                () => FurniModule.PlaceWallItemAsync(ctx, wallItem, x, y, z, wallOffset, rot, ct),
+                ct
+            )
+        )
             return false;
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);

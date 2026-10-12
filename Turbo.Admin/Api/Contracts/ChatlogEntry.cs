@@ -15,5 +15,7 @@ public sealed record ChatlogEntry(
     string? RoomName,
     int? TargetPlayerId,
     string? TargetPlayerName,
-    string Message
+    string Message,
+    // What the player typed, when the word filter changed it; null when it went out as typed.
+    string? Typed = null
 );
