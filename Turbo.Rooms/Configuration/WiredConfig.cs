@@ -12,6 +12,12 @@ public class WiredConfig
 
     public int TickMs { get; init; } = 50;
 
+    /// <summary>
+    /// How often the floor states wired changed go out, together in one message (Habbo: every
+    /// 500 ms).
+    /// </summary>
+    public int StateUpdateMs { get; init; } = 500;
+
     /// <summary>How deep signals and stack calls may nest before the chain is cut and logged.</summary>
     public int MaxDepth { get; init; } = 20;
     public int MaxScheduledPerTick { get; init; } = 64;

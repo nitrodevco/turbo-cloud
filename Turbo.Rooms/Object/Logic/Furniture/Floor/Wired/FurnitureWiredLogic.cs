@@ -64,14 +64,14 @@ public abstract partial class FurnitureWiredLogic(
 
     /// <summary>The box's activation flash: Habbo flips most boxes between 0 and 1 each time they act.</summary>
     public virtual Task FlashActivationStateAsync(CancellationToken ct) =>
-        SetStateAsync(GetState() == 1 ? 0 : 1);
+        WiredSystem.SetFlashStateAsync(_ctx.RoomObject, GetState() == 1 ? 0 : 1);
 
     /// <summary>
     /// Flips the box between two states, landing on <paramref name="first"/> from any other: how
     /// Habbo flashes boxes whose resting state is not 0 (selectors, variable boxes).
     /// </summary>
     protected Task FlashWithinAsync(int first, int second) =>
-        SetStateAsync(GetState() == first ? second : first);
+        WiredSystem.SetFlashStateAsync(_ctx.RoomObject, GetState() == first ? second : first);
 
     // The picked furni that are still in the room, worked out again only when the box's picks
     // (a new list is stored on every save) or the room's furni have changed since. Every trigger

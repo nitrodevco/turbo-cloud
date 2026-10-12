@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -19,6 +20,7 @@ using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -46,6 +48,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
     private readonly Dictionary<int, int> _nextUnseenIndexByStackId = [];
     private readonly Queue<RoomEvent> _eventQueue = new();
+
+    // Floor furni whose state wired changed since the last state update. Habbo sends them as one
+    // ObjectsDataUpdate every 500 ms (recorded on hhus, WIN63-202610121709: one message every
+    // 500 ms carrying about 65 furni, the tiles the effects changed and the boxes that flashed).
+    private readonly HashSet<RoomObjectId> _pendingFloorStates = [];
+    private bool _collectingTickStates;
+    private long _nextStateUpdateMs;
     private readonly Dictionary<
         WiredExecutionKey,
         WiredPendingStackExecution
@@ -92,6 +101,28 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             _droppedEvents = 0;
         }
 
+        _collectingTickStates = true;
+
+        try
+        {
+            await ProcessWiredTickAsync(now, dormant, ct);
+        }
+        finally
+        {
+            _collectingTickStates = false;
+
+            if (now >= _nextStateUpdateMs)
+            {
+                var stateUpdateMs = Math.Max(1, _roomGrain._wiredConfig.StateUpdateMs);
+                _nextStateUpdateMs = now - now % stateUpdateMs + stateUpdateMs;
+
+                FlushPendingFloorStates();
+            }
+        }
+    }
+
+    private async Task ProcessWiredTickAsync(long now, bool dormant, CancellationToken ct)
+    {
         RollExecutionWindow(now);
 
         if (_firstRun)
@@ -861,9 +892,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         composers.AddRange(shownOrHidden);
 
         if (ctx.FloorItemStateUpdates.Count > 0)
-            composers.Add(
-                new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
-            );
+        {
+            if (_collectingTickStates)
+            {
+                foreach (var (objectId, _) in ctx.FloorItemStateUpdates)
+                    _pendingFloorStates.Add(objectId);
+            }
+            else
+                composers.Add(
+                    new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
+                );
+        }
 
         if (ctx.WallItemStateUpdates.Count > 0)
             composers.Add(
@@ -1028,6 +1067,45 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// Sets a box or antenna's flash state. During a wired tick it waits for the next state update;
+    /// otherwise it is sent at once.
+    /// </summary>
+    public Task SetFlashStateAsync(IRoomFloorItem item, int state)
+    {
+        if (!_collectingTickStates)
+            return item.Logic.SetStateAsync(state);
+
+        _pendingFloorStates.Add(item.ObjectId);
+
+        return item.Logic.SetStateAsync(state, false);
+    }
+
+    // Sends each pending furni's state as it is now, so a change made outside wired since (a
+    // player's double-click, already sent) is never overwritten by an older one.
+    private void FlushPendingFloorStates()
+    {
+        if (_pendingFloorStates.Count == 0)
+            return;
+
+        List<(RoomObjectId, StuffDataSnapshot)> stuffDatas = [];
+
+        foreach (var objectId in _pendingFloorStates)
+        {
+            if (FurniModule.TryGetFloorItem(objectId, out var item))
+                stuffDatas.Add((objectId, item.Logic.StuffData.GetSnapshot()));
+        }
+
+        _pendingFloorStates.Clear();
+
+        if (stuffDatas.Count == 0)
+            return;
+
+        _roomGrain.SendComposersToRoomAndForget([
+            new ObjectsDataUpdateMessageComposer { StuffDatas = stuffDatas },
+        ]);
+    }
+
     private void Flash(IWiredBox box) =>
         box.FlashActivationStateAsync(CancellationToken.None)
             .LogAndForget(
@@ -1047,8 +1125,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             if (!FurniModule.TryGetFloorItem(antennaId, out var antenna))
                 continue;
 
-            antenna
-                .Logic.SetStateAsync(antenna.Logic.GetState() == 1 ? 0 : 1)
+            SetFlashStateAsync(antenna, antenna.Logic.GetState() == 1 ? 0 : 1)
                 .LogAndForget(
                     _roomGrain._logger,
                     "flash an antenna in room {RoomId}",
