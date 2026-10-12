@@ -104,7 +104,7 @@ public static class ServiceCollectionExtensions
     )
     {
         options
-            .UseNpgsql(WithAutoPrepare(dbConfig), configureNpgsql)
+            .UseNpgsql(WithServerDefaults(dbConfig), configureNpgsql)
             .UseSnakeCaseNamingConvention();
 
         if (!dbConfig.LoggingEnabled)
@@ -114,23 +114,57 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// The connection string with automatic preparation on (<see cref="DatabaseConfig.MaxAutoPrepare"/>),
-    /// unless it says otherwise itself. A statement is prepared on its second use, so a query run
-    /// once (an admin search, a migration) costs nothing extra.
+    /// The connection string with the server's defaults wherever it says nothing itself:
+    /// automatic preparation on (<see cref="DatabaseConfig.MaxAutoPrepare"/>; a statement is
+    /// prepared on its second use, so a query run once costs nothing extra), and a pool smaller
+    /// than the server allows (<see cref="DatabaseConfig.MaxPoolSize"/>), so a burst waits for a
+    /// connection instead of being refused.
     /// </summary>
-    public static string WithAutoPrepare(DatabaseConfig dbConfig)
+    public static string WithServerDefaults(DatabaseConfig dbConfig)
     {
-        if (string.IsNullOrEmpty(dbConfig.ConnectionString) || dbConfig.MaxAutoPrepare <= 0)
+        if (string.IsNullOrEmpty(dbConfig.ConnectionString))
             return dbConfig.ConnectionString;
 
         var builder = new NpgsqlConnectionStringBuilder(dbConfig.ConnectionString);
+        var changed = false;
 
-        if (builder.MaxAutoPrepare > 0)
-            return dbConfig.ConnectionString;
+        if (dbConfig.MaxAutoPrepare > 0 && builder.MaxAutoPrepare <= 0)
+        {
+            builder.MaxAutoPrepare = dbConfig.MaxAutoPrepare;
+            builder.AutoPrepareMinUsages = 2;
+            changed = true;
+        }
 
-        builder.MaxAutoPrepare = dbConfig.MaxAutoPrepare;
-        builder.AutoPrepareMinUsages = 2;
+        if (dbConfig.MaxPoolSize > 0 && !SetsPoolSize(dbConfig.ConnectionString))
+        {
+            builder.MaxPoolSize = dbConfig.MaxPoolSize;
+            changed = true;
+        }
 
-        return builder.ConnectionString;
+        return changed ? builder.ConnectionString : dbConfig.ConnectionString;
+    }
+
+    /// <summary>
+    /// Whether the connection string names a pool size, under any of the names Npgsql takes
+    /// for it: its parsed value cannot tell a written 100 from the default.
+    /// </summary>
+    private static bool SetsPoolSize(string connectionString)
+    {
+        var written = new System.Data.Common.DbConnectionStringBuilder
+        {
+            ConnectionString = connectionString,
+        };
+
+        foreach (string key in written.Keys)
+        {
+            if (
+                key.Replace(" ", "", StringComparison.Ordinal).ToLowerInvariant()
+                is "maximumpoolsize"
+                    or "maxpoolsize"
+            )
+                return true;
+        }
+
+        return false;
     }
 }

@@ -135,6 +135,7 @@ turbo_export_app_env() {
 
   turbo_map TURBO_DB_LOGGING Turbo__Database__LoggingEnabled
   turbo_map TURBO_DB_MAX_AUTO_PREPARE Turbo__Database__MaxAutoPrepare
+  turbo_map TURBO_DB_MAX_POOL_SIZE Turbo__Database__MaxPoolSize
   turbo_map TURBO_DB_MIGRATE Turbo__Database__Migrate
   turbo_map TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS Turbo__Database__AllowDestructiveMigrations
   turbo_map TURBO_DB_MIGRATION_LOCK_SECONDS Turbo__Database__MigrationLockSeconds

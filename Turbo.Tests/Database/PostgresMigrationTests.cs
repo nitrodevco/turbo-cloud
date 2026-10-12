@@ -1025,6 +1025,63 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    /// More queries at once than the server lets this role connect: they wait for one of the
+    /// pool's connections. Npgsql's default pool (100) is more than a default server leaves an
+    /// ordinary role (97), so the hundreds of grains saving as the server stopped were refused
+    /// with "too many clients" and their writes lost.
+    /// </summary>
+    [Fact]
+    public async Task ABurstLargerThanTheServerAllows_WaitsForAConnection_InsteadOfBeingRefused()
+    {
+        RequireServer();
+        var role = $"turbo_burst_{Guid.NewGuid().ToString("N")[..8]}";
+
+        await ExecuteAsync(
+            On("postgres"),
+            $"CREATE ROLE {role} LOGIN PASSWORD 'burst-pw' CONNECTION LIMIT 6"
+        );
+
+        try
+        {
+            var config = new DatabaseConfig
+            {
+                ConnectionString = new NpgsqlConnectionStringBuilder(On("postgres"))
+                {
+                    Username = role,
+                    Password = "burst-pw",
+                }.ConnectionString,
+                MaxPoolSize = 5,
+            };
+            var refused = 0;
+
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, 40),
+                new ParallelOptions { MaxDegreeOfParallelism = 40, CancellationToken = Ct },
+                async (_, ct) =>
+                {
+                    await using var db = ServerContext(config);
+
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync("SELECT pg_sleep(0.05)", ct);
+                    }
+                    catch (Exception)
+                    {
+                        Interlocked.Increment(ref refused);
+                    }
+                }
+            );
+
+            refused.Should().Be(0);
+        }
+        finally
+        {
+            NpgsqlConnection.ClearAllPools();
+            await ExecuteAsync(On("postgres"), $"DROP ROLE IF EXISTS {role}");
+        }
+    }
+
     private static TurboDbContext ServerContext(DatabaseConfig config) =>
         new(
             (DbContextOptions<TurboDbContext>)

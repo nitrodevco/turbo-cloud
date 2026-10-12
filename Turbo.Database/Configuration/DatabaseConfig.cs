@@ -37,6 +37,17 @@ public class DatabaseConfig
     public int MaxAutoPrepare { get; init; } = 50;
 
     /// <summary>
+    /// The most connections the server holds open at once; past it, a query waits for one to
+    /// come free. Npgsql's own default is 100, but PostgreSQL's default <c>max_connections</c>
+    /// of 100 keeps 3 for superusers, so a burst (hundreds of grains saving as the server stops)
+    /// was refused with "too many clients" and its writes lost. Measured with 500 players saving
+    /// at once: 1 to 2 writes of 1,500 lost at 100, none at 50. Keep it below what the server
+    /// allows this role, with room for the panel, backups and psql. A <c>Maximum Pool Size</c>
+    /// in the connection string wins; 0 leaves Npgsql's default.
+    /// </summary>
+    public int MaxPoolSize { get; init; } = 50;
+
+    /// <summary>
     /// What the server does about migrations at startup, for its own tables and for each plugin's:
     /// <see cref="MigrationMode.Auto"/> applies what is pending, <see cref="MigrationMode.Check"/>
     /// refuses to start while anything is, <see cref="MigrationMode.Off"/> does not look.

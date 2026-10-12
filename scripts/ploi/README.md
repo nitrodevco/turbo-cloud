@@ -73,6 +73,7 @@ All of these are set in `.env`. Restart the daemon (or deploy) after changing th
 | `TURBO_DB_*` or `TURBO_DB_CONNECTION_STRING` | `Turbo:Database:ConnectionString` | from appsettings |
 | `TURBO_DB_MIGRATION_USERNAME` and `TURBO_DB_MIGRATION_PASSWORD`, or `TURBO_DB_MIGRATION_CONNECTION_STRING` | `Turbo:Database:MigrationConnectionString` (the owner role of `scripts/sql/least-privilege.sql`) | empty: migrations use the server's connection |
 | `TURBO_DB_MAX_AUTO_PREPARE` | `Turbo:Database:MaxAutoPrepare` | 50 |
+| `TURBO_DB_MAX_POOL_SIZE` | `Turbo:Database:MaxPoolSize` | 50 |
 
 Orleans listens on every interface for its silo and gateway ports. Leave them closed in the firewall.
 
