@@ -258,4 +258,21 @@ public class RoomConfig
     /// (<c>GUARD_DURATION_VALUES</c>), 5 minutes to 3 hours.
     /// </summary>
     public int[] RaidGuardDurationsSeconds { get; init; } = [300, 900, 1800, 3600, 10800];
+
+    /// <summary>
+    /// Furniture class names the client draws with another class's assets (FurnitureAliases,
+    /// asked for at login): name to the class whose assets it uses. Empty by default. Habbo
+    /// sends 14, its advertising furni drawn with their campaign assets
+    /// (recorded on hhus, 2026-10-12).
+    /// </summary>
+    /// <remarks>
+    /// Habbo's: footylamp_campaign = footylamp_campaign_ing, ads_711 = ads_711c,
+    /// ads_711shelf = ads_711shelfcmp, ads_oc_soda = ads_oc_soda_cmp, ads_boost_surfb =
+    /// ads_boost_surfbcmp, ads_target_wall = ads_target_wall_cmp, ads_capri_chair =
+    /// ads_capri_chair_camp, ads_capri_lava = ads_capri_lava_camp, ads_capri_arcade =
+    /// ads_capri_arcade_camp, ads_pepsi0 = ads_pepsi0_camp, ads_oc_soda_cherry =
+    /// ads_oc_soda_cherry_cmp, ads_rangocactus = ads_rangocactus_camp, ads_wowpball =
+    /// ads_wowpball_camp, ads_alvinsurf = ads_alvinsurfcmp.
+    /// </remarks>
+    public Dictionary<string, string> FurnitureAliases { get; init; } = [];
 }
