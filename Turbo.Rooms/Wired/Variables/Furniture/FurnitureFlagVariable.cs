@@ -17,7 +17,7 @@ public abstract class FurnitureFlagVariable<TItem>(RoomGrain roomGrain)
 {
     protected sealed override bool TryGetValueForItem(TItem item, out WiredVariableValue value)
     {
-        value = WiredVariableValue.Default;
+        value = WiredVariableValue.HeldFlag;
 
         return HasFlag(item);
     }

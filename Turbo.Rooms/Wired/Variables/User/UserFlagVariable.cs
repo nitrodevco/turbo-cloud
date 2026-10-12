@@ -20,7 +20,8 @@ public abstract class UserFlagVariable<TAvatar>(RoomGrain roomGrain)
         out WiredVariableValue value
     )
     {
-        value = WiredVariableValue.Default;
+        // The same as a furni flag (inference: only furni flags were captured).
+        value = WiredVariableValue.HeldFlag;
 
         return HasFlag(avatar);
     }
