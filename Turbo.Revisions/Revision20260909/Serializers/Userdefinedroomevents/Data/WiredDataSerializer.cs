@@ -31,10 +31,10 @@ internal class WiredDataSerializer
 
         packet.WriteInteger(snapshot.VariableIds.Count);
 
-        // Zero is "no variable in this slot" for a box whose variable ids are positional; the
-        // client's editor expects that slot empty, not "0".
+        // Zero is "no variable in this slot", sent as "0" as Habbo sends it (official client
+        // capture, WIN63-202610121709: Variable Age ["0","0"], Variable FX ["0","0","0"]).
         foreach (var variableId in snapshot.VariableIds)
-            packet.WriteString(variableId.Value == 0 ? string.Empty : variableId.ToString());
+            packet.WriteString(variableId.ToString());
 
         packet.WriteInteger(snapshot.FurniSourceTypes.Count);
 

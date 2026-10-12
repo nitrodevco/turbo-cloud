@@ -108,13 +108,30 @@ public sealed class WiredTextConnectorFallbackTests
     }
 
     [Fact]
-    public void A_context_variable_requires_an_execution_context()
+    public async Task An_empty_text_connector_still_marks_the_variable()
     {
+        // Habbo sends "hp" with an empty Text Connector on its stack as text connected with no
+        // entries and no fallback (official client capture, WIN63-202610121709).
+        var variable = await UserVariableWithConnectorAsync("");
+        var packet = Encode(variable.GetVarSnapshot());
+
+        ReadUpToTextConnector(packet);
+        packet.PopBoolean().Should().BeTrue("hasTextConnector");
+        packet.PopInt().Should().Be(0);
+        packet.PopBoolean().Should().BeFalse("hasFallback");
+        packet.End.Should().BeTrue();
+    }
+
+    [Fact]
+    public void A_context_variable_does_not_require_an_execution_context()
+    {
+        // Habbo's list (official client capture, WIN63-202610121709, 163 variables) has the flag
+        // false for all of them, the 21 context variables (@signal_user_count ...) included.
         var packet = Encode(
             new ContextSignalUserCountVariable(_room.Harness.Room).GetVarSnapshot()
         );
 
-        ReadUpToTextConnector(packet).Should().BeTrue();
+        ReadUpToTextConnector(packet).Should().BeFalse();
     }
 
     private async Task<WiredVariableUser> UserVariableWithConnectorAsync(string connectorText)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -486,6 +487,17 @@ public abstract class FurnitureWiredVariableLogic
         return fallback;
     }
 
+    /// <summary>
+    /// Whether a text connector addon applies to the variable: one stands on its tile. Habbo
+    /// flags the variable as text connected for an empty addon too (official client capture,
+    /// WIN63-202610121709: "hp" with an empty Text Connector on its stack, hasTextConnector with
+    /// 0 entries).
+    /// </summary>
+    public virtual bool HasTextConnector() =>
+        FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Any(item => item.Logic is Addons.WiredAddonVariableTextConnector);
+
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
@@ -608,12 +620,10 @@ public abstract class FurnitureWiredVariableLogic
     {
         var textConnectors = GetTextConnectors();
         var fallback = GetTextConnectorFallback();
-        var flags = WiredVariableExecutionContext.WithRequirement(
-            textConnectors.Count > 0 || fallback is not null
+        var flags =
+            HasTextConnector() || textConnectors.Count > 0 || fallback is not null
                 ? Flags | WiredVariableFlags.HasTextConnector
-                : Flags,
-            TargetType
-        );
+                : Flags;
         var variableHash = WiredVariableHashBuilder.HashValues(
             _wiredData.StringParam,
             AvailabilityType,

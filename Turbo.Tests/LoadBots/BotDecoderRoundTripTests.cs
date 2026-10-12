@@ -535,7 +535,8 @@ public class BotDecoderRoundTripTests
         Assert.Equal([12], box.StuffIds2);
         Assert.Equal("param", box.StringParam);
         Assert.Equal([1, 2], box.IntParams);
-        Assert.Equal([string.Empty, "77"], box.VariableIds);
+        // An empty slot goes out as "0", as Habbo sends it (WIN63-202610121709 capture).
+        Assert.Equal(["0", "77"], box.VariableIds);
         Assert.Equal(
             [(int)WiredFurniSourceTypeExtensions.GetProtocolId(WiredFurniSourceType.SelectedItems)],
             box.FurniSources

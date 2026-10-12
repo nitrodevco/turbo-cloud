@@ -75,7 +75,7 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
 
     private WiredVariableSnapshot BuildSnapshot()
     {
-        var flags = WiredVariableExecutionContext.WithRequirement(Flags, TargetType);
+        var flags = Flags;
         var variableHash = WiredVariableHashBuilder.HashValues(
             VariableName,
             AvailabilityType,

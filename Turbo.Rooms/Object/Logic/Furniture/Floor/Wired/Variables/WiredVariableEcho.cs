@@ -94,6 +94,11 @@ public class WiredVariableEcho(
         return own.Count > 0 ? own : GetSource()?.GetVarSnapshot().TextConnectors ?? [];
     }
 
+    /// <summary>A Text Connector on the echo's own tile, else whatever the source has.</summary>
+    public override bool HasTextConnector() =>
+        base.HasTextConnector()
+        || (GetSource()?.GetVarSnapshot().Flags.Has(WiredVariableFlags.HasTextConnector) ?? false);
+
     /// <summary>The fallback of a Text Connector on the echo's own tile, else the source's.</summary>
     public override string? GetTextConnectorFallback() =>
         base.GetTextConnectorFallback() ?? GetSource()?.GetVarSnapshot().TextConnectorFallback;

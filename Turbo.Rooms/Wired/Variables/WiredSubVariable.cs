@@ -126,10 +126,7 @@ public sealed class WiredSubVariable(
     private WiredVariableSnapshot Build()
     {
         var parentSnapshot = parent.GetVarSnapshot();
-        var flags = WiredVariableExecutionContext.WithRequirement(
-            WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
-            parentSnapshot.TargetType
-        );
+        var flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
         var connectors = new Dictionary<WiredVariableValue, string>();
 
         return new WiredVariableSnapshot

@@ -19,9 +19,12 @@ public enum WiredVariableFlags
     IsStored = 1 << 9,
 
     /// <summary>
-    /// Only has a value inside a running stack (a context variable). The client keeps such a
-    /// variable out of pickers that read it outside one: Echo, the Variable Changed trigger, the
-    /// fx audience and the overview's holder list (AS3 <c>WiredVariable.requiresExecutionContext</c>).
+    /// AS3 <c>WiredVariable.requiresExecutionContext</c>: the client only reads it to keep a
+    /// variable out of the pickers that use one outside a running stack (Echo, the Variable
+    /// Changed trigger, the fx override and audience rows, the overview's holder actions, the
+    /// leaderboard and pointer pickers). Habbo sends it false for every variable it lists today,
+    /// the context ones included (official client capture, WIN63-202610121709, 163 variables), so
+    /// no variable here sets it.
     /// </summary>
     RequiresExecutionContext = 1 << 10,
 }
