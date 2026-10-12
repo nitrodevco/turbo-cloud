@@ -14,6 +14,7 @@ using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -62,7 +63,19 @@ public sealed partial class RoomGrain
             _roomConfig.RoomDescriptionMaxLength
         );
 
-        if (!Enum.IsDefined((RoomDoorModeType)settings.DoorMode))
+        // A new user lobby is made with :nooblobby or by staff in the panel; the room settings
+        // window does not offer it, so it may only keep one as it is.
+        if (
+            !Enum.IsDefined((RoomDoorModeType)settings.DoorMode)
+            || (
+                (RoomDoorModeType)settings.DoorMode == RoomDoorModeType.NoobLobby
+                && current.DoorMode != RoomDoorModeType.NoobLobby
+                && !await SecurityModule.HasPermissionAsync(
+                    ctx.PlayerId,
+                    PermissionNodes.Command.NOOBLOBBY
+                )
+            )
+        )
             return Rejected(ctx, "door mode", settings.DoorMode);
 
         var doorMode = (RoomDoorModeType)settings.DoorMode;
@@ -192,6 +205,28 @@ public sealed partial class RoomGrain
         await ApplySettingsAsync(current, next, ct);
 
         return RoomSettingsSaveResultSnapshot.Success;
+    }
+
+    public async Task<bool> SetNoobLobbyAsync(bool isLobby, CancellationToken ct)
+    {
+        var current = _state.RoomSnapshot;
+        var doorMode = isLobby ? RoomDoorModeType.NoobLobby : RoomDoorModeType.Open;
+
+        if (current.DoorMode == doorMode)
+            return false;
+
+        // Turning a lobby back into a room opens its door; it was never locked by its owner.
+        if (!isLobby && current.DoorMode != RoomDoorModeType.NoobLobby)
+            return false;
+
+        var next = current with { DoorMode = doorMode };
+
+        if (!await PersistSettingsAsync(next, ct))
+            return false;
+
+        await ApplySettingsAsync(current, next, ct);
+
+        return true;
     }
 
     public async Task<ImmutableArray<PlayerId>?> PrepareRoomDeletionAsync(

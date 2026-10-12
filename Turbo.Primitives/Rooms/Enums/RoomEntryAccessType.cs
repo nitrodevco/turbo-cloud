@@ -17,4 +17,7 @@ public enum RoomEntryAccessType
     /// off the navigator and open only to its owner.
     /// </summary>
     HiddenByBuildersClub = 7,
+
+    /// <summary>A new user lobby (<see cref="RoomDoorModeType.NoobLobby"/>), and the player is not new.</summary>
+    NewUsersOnly = 8,
 }

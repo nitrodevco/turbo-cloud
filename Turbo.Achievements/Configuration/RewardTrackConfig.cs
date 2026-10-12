@@ -4,8 +4,9 @@ using System.Linq;
 namespace Turbo.Achievements.Configuration;
 
 /// <summary>
-/// The hotel's reward tracks. Habbo's content (the Introduction track's 30 tasks and 49 prizes)
-/// is not shown in full anywhere, so the server ships with no track; a hotel lists its own here.
+/// The hotel's reward tracks. With none listed, Habbo's Introduction track is offered
+/// (<see cref="HabboIntroduction"/>, <see cref="HabboRewardTracks"/>) - what the client's
+/// "Start your Habbo Journey!" points at.
 /// </summary>
 public sealed class RewardTrackConfig
 {
@@ -15,6 +16,12 @@ public sealed class RewardTrackConfig
     public bool Enabled { get; set; } = true;
 
     public List<RewardTrackDefinition> Tracks { get; set; } = [];
+
+    /// <summary>
+    /// Offers Habbo's Introduction track when <see cref="Tracks"/> lists none. A hotel that lists
+    /// tracks of its own offers only those.
+    /// </summary>
+    public bool HabboIntroduction { get; set; } = true;
 
     /// <summary>What is wrong with the tracks, or null when they can be used.</summary>
     public string? Problem()

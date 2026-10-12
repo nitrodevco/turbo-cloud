@@ -6,6 +6,9 @@ using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
@@ -324,6 +327,55 @@ public sealed class RewardTrackTests : IDisposable
         credit.Args[0].Should().Be(CurrencyKind.ActivityPoints(0));
         credit.Args[1].Should().Be(5);
         credit.Args[2].Should().Be("rewardtrack:introduction:duckets");
+    }
+
+    [Fact]
+    public async Task A_furniture_prize_named_by_sprite_gives_the_hotels_furni_with_that_sprite()
+    {
+        // Habbo's prizes name a furni by its sprite (free_010: sprite 1534, ten of them).
+        _config
+            .Tracks[0]
+            .Prizes.Add(
+                new()
+                {
+                    Id = "free_010",
+                    RequiredPoints = 10,
+                    ProductType = ProductDisplayType.FloorItem,
+                    RewardTypeId = "1534",
+                    Amount = 2,
+                }
+            );
+
+        var definitions = _fakes.Create<IFurnitureDefinitionProvider>();
+        _fakes.Handlers["TryGetDefinitionBySprite"] = call =>
+            (ProductType)call.Args[0]! == ProductType.Floor && (int)call.Args[1]! == 1534
+                ? Definition(77)
+                : null;
+        _fakes.Handlers["GrantFurnitureAsync"] = _ =>
+            Task.FromResult<FurnitureItemSnapshot?>(
+                (FurnitureItemSnapshot)
+                    RuntimeHelpers.GetUninitializedObject(typeof(FurnitureItemSnapshot))
+            );
+
+        var grain = await GrainAsync();
+        RoomHarness.SetField(grain, "_definitions", definitions);
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "free_010", Ct);
+
+        _fakes.Log.Of("GrantFurnitureAsync").Select(x => x.Args[0]).Should().Equal(77, 77);
+        Sent<RewardTrackClaimResultMessageComposer>()
+            .Single()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.Success);
+    }
+
+    private static FurnitureDefinitionSnapshot Definition(int id)
+    {
+        var definition = (FurnitureDefinitionSnapshot)
+            RuntimeHelpers.GetUninitializedObject(typeof(FurnitureDefinitionSnapshot));
+        RoomHarness.SetMember(definition, "Id", id);
+
+        return definition;
     }
 
     [Fact]

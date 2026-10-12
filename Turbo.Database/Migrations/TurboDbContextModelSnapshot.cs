@@ -3911,6 +3911,56 @@ namespace Turbo.Database.Migrations
                     b.ToTable("navigator_top_level_contexts");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.StarterRoomEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int?>("CreatedByPlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("created_by_player_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("PictureTakenAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("picture_taken_at");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomEntityId")
+                        .IsUnique();
+
+                    b.ToTable("starter_rooms");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionAuditEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -5029,6 +5079,18 @@ namespace Turbo.Database.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_login");
+
+                    b.Property<bool>("OnboardingNamePending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_name_pending");
+
+                    b.Property<bool>("OnboardingRoomPending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_room_pending");
 
                     b.Property<string>("Motto")
                         .HasMaxLength(512)
@@ -7713,6 +7775,17 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.StarterRoomEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoomEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupMetaEntity", b =>

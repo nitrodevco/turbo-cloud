@@ -33,12 +33,16 @@ let cacheDir = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za
 let furniUrl = 'https://images.nitrodev.co/bundled/furniture/%libname%.nitro';
 const externalUrls = [];
 let writeSmall = false;
+let frame = '';
+let scenePath = '';
 
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--cache') cacheDir = args[++i];
     else if (args[i] === '--furni-url') furniUrl = args[++i];
     else if (args[i] === '--external-url') externalUrls.push(new URL(args[++i]));
     else if (args[i] === '--small') writeSmall = true;
+    else if (args[i] === '--frame') frame = args[++i];
+    else if (args[i] === '--scene') scenePath = args[++i];
     else positional.push(args[i]);
 }
 
@@ -54,7 +58,7 @@ const LIBRARY_NAME = /^[A-Za-z0-9_-]+$/;
 const [ inPath, outPath ] = positional;
 
 if (!inPath || !outPath) {
-    console.error('usage: node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url>]');
+    console.error('usage: node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url>] [--small] [--frame starter-room [--scene <view.png>]]');
     process.exit(2);
 }
 
@@ -412,6 +416,119 @@ const fillQuad = (canvas, points, color) => {
     }
 };
 
+
+// ---------- frames ----------
+
+/**
+ * `starter-room`: the new user flow's round room picture, drawn as Habbo's own
+ * (`nux_room_<type>_round.png`, measured): a 296x315 canvas holding an ellipse centred at
+ * 147.5,151.5 with radii 148 x 142, its outer 10px a white ring, the room inside it, and the whole
+ * shape repeated 4px lower in black at 30% as its shadow. Furni at the front that the ring cuts in
+ * the lower half are drawn again whole over it, the way Habbo's pictures let a chair or a basket
+ * break out of the frame. The render data is the room under a 296x284 viewfinder, the ellipse's
+ * bounding box, which sits 9 down on the canvas.
+ */
+const STARTER_ROOM = {
+    width: 296, height: 315, top: 9,
+    cx: 147.5, cy: 151.5, rx: 148, ry: 142, ring: 10,
+    shadowOffset: 4, shadowAlpha: 77,
+};
+
+/** Where a point is against an ellipse grown or shrunk by `inset`: below 1 inside. */
+const ellipseDistance = (f, x, y, inset) => Math.hypot((x + 0.5 - f.cx) / (f.rx - inset), (y + 0.5 - f.cy) / (f.ry - inset));
+
+/**
+ * Whether a furni breaks out of the frame: it stands in the picture (its middle inside the circle),
+ * reaches into the lower half, and only a little of it - a corner of a chair, the rim of a
+ * basket - lies outside the circle. Something mostly outside
+ * is the room going on past the frame, and stays cut.
+ */
+const isFrontPopOut = (f, image, x, y) => {
+    if (y + image.height < f.cy + (f.ry * 0.5)) return false;
+
+    // It stands in the picture: its middle is inside the circle.
+    if (ellipseDistance(f, x + (image.width / 2), y + (image.height / 2), f.ring) > 1) return false;
+
+    let inside = 0, outside = 0;
+
+    for (let py = 0; py < image.height; py += 2) {
+        for (let px = 0; px < image.width; px += 2) {
+            if (image.data[((py * image.width) + px) * 4 + 3] < 128) continue;
+
+            if (ellipseDistance(f, x + px, y + py, f.ring) > 1) outside++;
+            else inside++;
+        }
+    }
+
+    const share = outside / Math.max(1, inside + outside);
+
+    return (share > POP_OUT_SHARE.min) && (share < POP_OUT_SHARE.max);
+};
+
+/** How much of a furni may lie outside the circle for it to break out: some, not most. */
+const POP_OUT_SHARE = { min: 0.05, max: 0.35 };
+
+const drawStarterRoomFrame = (scene, drawnSprites) => {
+    const f = STARTER_ROOM;
+    const out = { width: f.width, height: f.height, data: new Uint8Array(f.width * f.height * 4) };
+
+    // The room, cut to the inside of the ring.
+    for (let y = 0; y < f.height; y++) {
+        for (let x = 0; x < f.width; x++) {
+            const d = ellipseDistance(f, x, y, 0);
+
+            if (d > 1) continue;
+
+            const o = ((y * f.width) + x) * 4;
+
+            if (ellipseDistance(f, x, y, f.ring) > 1) {
+                out.data[o] = out.data[o + 1] = out.data[o + 2] = out.data[o + 3] = 255;
+                continue;
+            }
+
+            const sy = y - f.top;
+
+            if (sy < 0 || sy >= scene.height || x >= scene.width) continue;
+
+            const i = ((sy * scene.width) + x) * 4;
+
+            out.data[o] = scene.data[i]; out.data[o + 1] = scene.data[i + 1]; out.data[o + 2] = scene.data[i + 2]; out.data[o + 3] = 255;
+        }
+    }
+
+    // The front furni the ring cut, whole again over it.
+    for (const { image, x, y, options } of drawnSprites) {
+        if (isFrontPopOut(f, image, x, y + f.top)) blit(out, image, x, y + f.top, options);
+    }
+
+    // The shadow: the picture's shape, 4px lower, black at 30%, under it.
+    const result = new Uint8Array(out.data.length);
+
+    for (let y = 0; y < f.height; y++) {
+        for (let x = 0; x < f.width; x++) {
+            const o = ((y * f.width) + x) * 4;
+            const above = y - f.shadowOffset;
+            const shadow = (above >= 0 && out.data[((above * f.width) + x) * 4 + 3] > 0) ? f.shadowAlpha : 0;
+            const a = out.data[o + 3] / 255;
+            const sa = (shadow / 255) * (1 - a);
+            const alpha = a + sa;
+
+            if (alpha <= 0) continue;
+
+            result[o] = Math.round((out.data[o] * a) / alpha);
+            result[o + 1] = Math.round((out.data[o + 1] * a) / alpha);
+            result[o + 2] = Math.round((out.data[o + 2] * a) / alpha);
+            result[o + 3] = Math.round(alpha * 255);
+        }
+    }
+
+    return { width: f.width, height: f.height, data: result };
+};
+
+const FRAMES = { 'starter-room': drawStarterRoomFrame };
+
+// ---------- render ----------
+
 const render = async () => {
     const data = JSON.parse(readFileSync(inPath, 'utf8'));
     const planes = [ ...(data.planes ?? []) ];
@@ -433,6 +550,9 @@ const render = async () => {
         ...sprites.map(sprite => ({ z: sprite.z, sprite })),
     ].sort((a, b) => b.z - a.z);
     let drawn = 0, skipped = [];
+    const drawnSprites = [];
+
+    if (frame && !FRAMES[frame]) throw new Error(`unknown frame: ${frame}`);
 
     for (const item of items) {
         if (item.plane) { fillQuad(canvas, item.plane.cornerPoints, item.plane.color ?? 0); continue; }
@@ -461,16 +581,39 @@ const render = async () => {
 
         if (!image) { skipped.push(name); continue; }
 
-        blit(canvas, image, Math.round(sprite.x), Math.round(sprite.y), {
+        const options = {
             alpha: sprite.alpha ?? 255,
             color: sprite.color ?? 0xffffff,
             flipH: !!sprite.flipH,
             blendMode: sprite.blendMode ?? 'normal',
-        });
+        };
+
+        blit(canvas, image, Math.round(sprite.x), Math.round(sprite.y), options);
+        drawnSprites.push({ image, x: Math.round(sprite.x), y: Math.round(sprite.y), options });
         drawn++;
     }
 
     mkdirSync(dirname(outPath), { recursive: true });
+
+    if (frame) {
+        // The client's own view of the room, when it sent one: textured as the player saw it.
+        let scene = canvas;
+
+        if (scenePath) {
+            const view = decodePng(readFileSync(scenePath));
+
+            if (view.width === width && view.height === height) scene = view;
+            else console.error(`scene ${view.width}x${view.height} is not the render's ${width}x${height}; drawn from the data`);
+        }
+
+        const framed = FRAMES[frame](scene, drawnSprites);
+
+        writeFileSync(outPath, encodePng(framed.width, framed.height, framed.data));
+        console.log(`${outPath}: ${framed.width}x${framed.height} (${frame}) from ${width}x${height}, ${drawn}/${sprites.length} sprites`);
+
+        return;
+    }
+
     writeFileSync(outPath, encodePng(width, height, canvas.data));
 
     if (writeSmall) {

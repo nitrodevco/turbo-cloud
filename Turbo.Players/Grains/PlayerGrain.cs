@@ -170,6 +170,55 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     public Task RefitFigureAsync(CancellationToken ct) =>
         SetFigureAsync(_state.Figure, _state.Gender, ct);
 
+    public async Task<NameCheckResult> ChooseNameAsync(string name, CancellationToken ct)
+    {
+        name = name.Trim();
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entity = await dbCtx.Players.SingleOrDefaultAsync(
+            x => x.Id == (int)_state.PlayerId,
+            ct
+        );
+
+        if (entity is null || !entity.OnboardingNamePending)
+            return NameCheckResult.ChangeNotAllowed;
+
+        // Tracked rather than ExecuteUpdate: setting Name sets the name key the index is on.
+        entity.Name = name;
+        entity.OnboardingNamePending = false;
+
+        try
+        {
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Taken between the check and the write: the unique name key says so.
+            return NameCheckResult.Taken;
+        }
+
+        if (_state.Name == name)
+            return NameCheckResult.Available;
+
+        var previous = _state.Name;
+        _state.Name = name;
+
+        _logger.LogInformation(
+            "Player {PlayerId} chose the name {PlayerName} (was {PreviousName})",
+            PlayerId,
+            name,
+            previous
+        );
+
+        await _grainFactory.GetPlayerDirectoryGrain().SetPlayerNameAsync(PlayerId, name, ct);
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+
+        return NameCheckResult.Available;
+    }
+
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {
         text = _wordFilter.Filter(text);

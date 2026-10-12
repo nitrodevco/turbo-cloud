@@ -214,6 +214,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerDirectoryG
   859B846F: SetPlayerNameAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] Turbo.Primitives.Players.Grains.IPlayerGrain [Version(0)]
+  3956094B: ChooseNameAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.NameCheckResult>
   30E4F44A: GetExtendedProfileSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerExtendedProfileSnapshot>
   213E1401: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot>
   FBEF7436: ReceiveRespectAsync(System.Threading.CancellationToken) -> Task<int>
@@ -555,6 +556,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   AE508B0D: SetAvatarTypingAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>
   3E49D1E1: SetHiddenByBuildersClubAsync(bool, System.Threading.CancellationToken) -> Task
   D7AFFDF1: SetItemDataAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, string, string, System.Threading.CancellationToken) -> Task<bool>
+  2678C27A: SetNoobLobbyAsync(bool, System.Threading.CancellationToken) -> Task<bool>
   B3825D43: SetObjectDataAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Collections.Generic.IReadOnlyDictionary<string, string>, System.Threading.CancellationToken) -> Task<bool>
   2F7D4AC3: SetPlayerBadgesAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>, System.Threading.CancellationToken) -> Task
   70B8FFB5: SetPlayerEffectAsync(Turbo.Primitives.Action.ActionContext, int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>

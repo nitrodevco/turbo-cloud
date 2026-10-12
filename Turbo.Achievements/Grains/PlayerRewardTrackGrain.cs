@@ -13,6 +13,8 @@ using Orleans;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Quests;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -39,6 +41,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RewardTrackConfig _config;
     private readonly IGrainFactory _grainFactory;
+    private readonly IFurnitureDefinitionProvider _definitions;
     private readonly ILogger<IPlayerRewardTrackGrain> _logger;
 
     private readonly PlayerRewardTrackLiveState _state;
@@ -47,12 +50,14 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RewardTrackConfig> config,
         IGrainFactory grainFactory,
+        IFurnitureDefinitionProvider definitions,
         ILogger<IPlayerRewardTrackGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _config = config.Value;
         _grainFactory = grainFactory;
+        _definitions = definitions;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -339,6 +344,36 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         return RewardTrackPremiumResult.Success;
     }
 
+    /// <summary>
+    /// The furniture a furni prize gives: the definition it names, else the hotel's furni drawn
+    /// by its sprite (<see cref="RewardTrackPrizeDefinition.RewardTypeId"/>), as Habbo's prizes
+    /// name them.
+    /// </summary>
+    private int? FurnitureOf(RewardTrackPrizeDefinition prize)
+    {
+        if (prize.FurnitureDefinitionId is { } definitionId)
+            return definitionId;
+
+        if (
+            !int.TryParse(
+                prize.RewardTypeId,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var spriteId
+            )
+        )
+            return null;
+
+        return _definitions
+            .TryGetDefinitionBySprite(
+                prize.ProductType == ProductDisplayType.WallItem
+                    ? ProductType.Wall
+                    : ProductType.Floor,
+                spriteId
+            )
+            ?.Id;
+    }
+
     private async Task<bool> GrantAsync(
         RewardTrackDefinition track,
         RewardTrackPrizeDefinition prize,
@@ -374,7 +409,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 
                 return true;
             case ProductDisplayType.FloorItem
-            or ProductDisplayType.WallItem when prize.FurnitureDefinitionId is { } definitionId:
+            or ProductDisplayType.WallItem when FurnitureOf(prize) is { } definitionId:
             {
                 // Unlike a credit or a badge, a second grant is a second item, so each one given is
                 // saved before the next: a claim that failed part way gives only the rest on retry.

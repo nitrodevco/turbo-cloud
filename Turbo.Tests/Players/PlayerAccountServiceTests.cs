@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Accounts;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
@@ -39,6 +41,10 @@ public sealed class PlayerAccountServiceTests : IDisposable
             _db,
             new NoOwner(),
             new PassThroughWordFilter(),
+            Options.Create(new OnboardingConfig()),
+            new PlayerNamePolicy(
+                Options.Create(new PlayerConfig { BlockedNames = ["Admin", "MOD-*"] })
+            ),
             NullLogger<IPlayerAccountService>.Instance
         );
     }
@@ -62,6 +68,20 @@ public sealed class PlayerAccountServiceTests : IDisposable
         await using var db = await _db.CreateDbContextAsync(Ct);
 
         return await db.Players.SingleAsync(x => x.Id == id, Ct);
+    }
+
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("MOD-Bob")]
+    [InlineData("mod-x")]
+    public async Task ANameTheHotelBlocks_IsRefused_WhateverItsCase(string name)
+    {
+        var result = await _accounts.CreateAsync(
+            new NewPlayer(name, null, AvatarGenderType.Male, null),
+            Ct
+        );
+
+        result.Error.Should().Be(PlayerNames.FILTERED);
     }
 
     [Fact]

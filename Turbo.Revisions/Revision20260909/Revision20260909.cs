@@ -1391,6 +1391,10 @@ public class Revision20260909 : IRevision
                 MessageEvent.TurboCommandSuggestMessageEvent,
                 new TurboCommandSuggestMessageParser()
             },
+            {
+                MessageEvent.TurboStarterRoomPictureMessageEvent,
+                new TurboStarterRoomPictureMessageParser()
+            },
             #endregion
 
             #region Userclassification
@@ -4774,6 +4778,18 @@ public class Revision20260909 : IRevision
                 typeof(TurboCommandSuggestionsMessage),
                 new TurboCommandSuggestionsMessageSerializer(
                     MessageComposer.TurboCommandSuggestionsMessageComposer
+                )
+            },
+            {
+                typeof(TurboStarterRoomCameraMessage),
+                new TurboStarterRoomCameraMessageSerializer(
+                    MessageComposer.TurboStarterRoomCameraMessageComposer
+                )
+            },
+            {
+                typeof(TurboStarterRoomPictureResultMessage),
+                new TurboStarterRoomPictureResultMessageSerializer(
+                    MessageComposer.TurboStarterRoomPictureResultMessageComposer
                 )
             },
             #endregion

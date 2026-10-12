@@ -231,6 +231,9 @@ internal sealed partial class RoomService(
                 return;
 
             case RoomEntryAccessType.Closed:
+            // Flash keeps a player who is not new from a new user lobby before asking; this is
+            // the answer to one who asks anyway.
+            case RoomEntryAccessType.NewUsersOnly:
                 await RejectEntryAsync(
                         playerPresence,
                         new CantConnectMessageComposer

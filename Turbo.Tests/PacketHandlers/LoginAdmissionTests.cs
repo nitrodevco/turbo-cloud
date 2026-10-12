@@ -40,6 +40,7 @@ public class LoginAdmissionTests
     private readonly SSOTicketMessageHandler _handler;
     private PlayerSanctionSnapshot? _ban;
     private bool _admitted = true;
+    private readonly System.Collections.Immutable.ImmutableArray<short> _loginActions = [];
 
     public LoginAdmissionTests()
     {
@@ -49,6 +50,8 @@ public class LoginAdmissionTests
         _fakes.Handlers["GetActiveBanAsync"] = _ => Task.FromResult(_ban);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(_admitted);
         HotelTextFakes.Use(_fakes, key => _hotelTexts.GetValueOrDefault(key));
+
+        _fakes.Handlers["GetLoginActionsAsync"] = _ => Task.FromResult(_loginActions);
 
         _session = _fakes.Create<ISessionContext>("session");
         _handler = new SSOTicketMessageHandler(
@@ -60,7 +63,8 @@ public class LoginAdmissionTests
             _fakes.Create<IHotelAvailability>(),
             _fakes.Create<IHotelTextProvider>(),
             _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>(),
-            _fakes.Create<ICallForHelpService>()
+            _fakes.Create<ICallForHelpService>(),
+            _fakes.Create<Turbo.Primitives.Players.Onboarding.IPlayerOnboardingService>()
         );
     }
 

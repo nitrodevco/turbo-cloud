@@ -120,6 +120,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<RoomEntity> Rooms { get; init; }
 
+    public DbSet<StarterRoomEntity> StarterRooms { get; init; }
+
     public DbSet<RoomModelEntity> RoomModels { get; init; }
 
     public DbSet<RoomMuteEntity> RoomMutes { get; init; }
