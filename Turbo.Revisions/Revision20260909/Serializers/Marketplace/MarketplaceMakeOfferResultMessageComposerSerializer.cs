@@ -11,6 +11,6 @@ internal class MarketplaceMakeOfferResultMessageComposerSerializer(int header)
         MarketplaceMakeOfferResultMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Result);
     }
 }

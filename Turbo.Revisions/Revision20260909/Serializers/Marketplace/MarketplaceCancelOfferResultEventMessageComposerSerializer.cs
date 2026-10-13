@@ -11,6 +11,6 @@ internal class MarketplaceCancelOfferResultEventMessageComposerSerializer(int he
         MarketplaceCancelOfferResultEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.OfferId).WriteBoolean(message.Success);
     }
 }

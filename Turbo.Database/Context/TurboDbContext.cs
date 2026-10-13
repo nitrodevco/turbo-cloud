@@ -114,6 +114,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<VoucherEntity> Vouchers { get; init; }
 
     public DbSet<VoucherRedemptionEntity> VoucherRedemptions { get; init; }
+
+    public DbSet<MarketplaceOfferEntity> MarketplaceOffers { get; init; }
+
+    public DbSet<MarketplaceTokenEntity> MarketplaceTokens { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }

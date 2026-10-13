@@ -11,6 +11,24 @@ internal class MarketplaceItemStatsEventMessageComposerSerializer(int header)
         MarketplaceItemStatsEventMessageComposer message
     )
     {
-        //
+        var stats = message.Stats;
+
+        packet
+            .WriteInteger(stats.AveragePrice)
+            .WriteInteger(stats.OfferCount)
+            .WriteInteger(stats.HistoryLength)
+            .WriteInteger(stats.Days.Length);
+
+        foreach (var day in stats.Days)
+            packet
+                .WriteInteger(day.DayOffset)
+                .WriteInteger(day.AveragePrice)
+                .WriteInteger(day.SoldAmount);
+
+        packet
+            .WriteInteger(stats.FurniCategoryId)
+            .WriteInteger(stats.FurniTypeId)
+            .WriteInteger(stats.LowestCurrentPrice)
+            .WriteInteger(stats.SuggestedPrice);
     }
 }

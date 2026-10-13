@@ -1335,6 +1335,106 @@ namespace Turbo.Database.Migrations
                     b.ToTable("ltd_series");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.MarketplaceOfferEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BuyerPlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("buyer_player_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("CreditsRedeemed")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("credits_redeemed");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("ExtraData")
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("extra_data");
+
+                    b.Property<int>("FurnitureDefinitionEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("definition_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Price")
+                        .HasColumnType("int")
+                        .HasColumnName("price");
+
+                    b.Property<int>("Revenue")
+                        .HasColumnType("int")
+                        .HasColumnName("revenue");
+
+                    b.Property<DateTime?>("SoldAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("sold_at");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FurnitureDefinitionEntityId");
+
+                    b.HasIndex("PlayerEntityId", "State");
+
+                    b.HasIndex("State", "FurnitureDefinitionEntityId");
+
+                    b.ToTable("marketplace_offers");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.MarketplaceTokenEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Tokens")
+                        .HasColumnType("int")
+                        .HasColumnName("tokens");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("marketplace_tokens");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -7469,6 +7569,36 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("CatalogProduct");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.MarketplaceOfferEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", "FurnitureDefinitionEntity")
+                        .WithMany()
+                        .HasForeignKey("FurnitureDefinitionEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FurnitureDefinitionEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.MarketplaceTokenEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
