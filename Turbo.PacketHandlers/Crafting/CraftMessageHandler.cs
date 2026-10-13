@@ -1,11 +1,15 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.PacketHandlers.Room;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Crafting;
 
 namespace Turbo.PacketHandlers.Crafting;
 
-public class CraftMessageHandler : IMessageHandler<CraftMessage>
+/// <summary>Crafts a listed recipe on a table (Flash CraftingWidgetHandler.doCraftingWithRecipe).</summary>
+public class CraftMessageHandler(IGrainFactory grainFactory) : IMessageHandler<CraftMessage>
 {
     public async ValueTask HandleAsync(
         CraftMessage message,
@@ -13,6 +17,12 @@ public class CraftMessageHandler : IMessageHandler<CraftMessage>
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await ctx.InteractWithRoomItemAsync(
+                grainFactory,
+                message.ObjectId,
+                new CraftInteraction { RecipeCode = message.RecipeCode },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

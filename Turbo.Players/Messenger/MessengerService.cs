@@ -171,6 +171,43 @@ public sealed class MessengerService(
             : null;
     }
 
+    public async Task<IComposer?> SendHabbiconAsync(
+        PlayerId playerId,
+        int chatId,
+        int habbiconId,
+        int confirmationId,
+        CancellationToken ct
+    )
+    {
+        var habbicons = _grainFactory.GetPlayerHabbiconGrain(playerId);
+
+        if (!await habbicons.CanUseAsync(habbiconId, ct).ConfigureAwait(false))
+            return null;
+
+        var sender = await _grainFactory
+            .GetPlayerGrain(playerId)
+            .GetSummaryAsync(ct)
+            .ConfigureAwait(false);
+
+        var error = await _grainFactory
+            .GetPlayerMessengerGrain(playerId)
+            .SendHabbiconAsync(chatId, habbiconId, confirmationId, sender.Name, sender.Figure, ct)
+            .ConfigureAwait(false);
+
+        if (error is { } errorCode)
+            return new InstantMessageErrorMessageComposer
+            {
+                ErrorCode = errorCode,
+                PlayerId = chatId,
+                Message = string.Empty,
+            };
+
+        // MainView.onHabbiconSelected: a sent Habbicon goes to the front of the recent ones.
+        await habbicons.NoteUsedAsync(habbiconId, ct).ConfigureAwait(false);
+
+        return null;
+    }
+
     public async Task<IComposer?> GetMessageHistoryAsync(
         PlayerId playerId,
         int chatId,

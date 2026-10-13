@@ -8,6 +8,9 @@ internal class CraftingRecipeMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CraftingRecipeMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Ingredients.Length);
+
+        foreach (var ingredient in message.Ingredients)
+            packet.WriteInteger(ingredient.Count).WriteString(ingredient.FurnitureClassName);
     }
 }

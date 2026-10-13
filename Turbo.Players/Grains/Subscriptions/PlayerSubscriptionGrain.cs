@@ -16,6 +16,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -190,23 +191,16 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
     /// </summary>
     private async Task NotifyChangedAsync(SubscriptionType subscriptionType, CancellationToken ct)
     {
-        await SendStatusAsync(ct);
-
         if (subscriptionType == SubscriptionType.HabboClub)
         {
             var club = await SnapshotAsync(SubscriptionType.HabboClub, ct);
 
-            await SendClubInfoAsync(ScrUserInfoResponseType.SubscriptionChanged, ct);
-
-            // UserRights carries the club level beside the security level, and the permission
-            // grain sends it. Not awaited: that grain reads the club level back from this one,
-            // which it could not do while this call waited on it.
-            _grainFactory
-                .GetPlayerPermissionGrain(PlayerId)
-                .SendClientStateAsync(ct)
+            // Not awaited: the permission grain and the catalog both read the club back from
+            // this grain, which they could not do while this call waited on them.
+            AnnounceClubChangedAsync(ct)
                 .LogAndForget(
                     _logger,
-                    "resend the rights of player {PlayerId} after a Habbo Club change",
+                    "tell player {PlayerId} about their Habbo Club change",
                     PlayerId
                 );
 
@@ -224,6 +218,9 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         }
 
         if (subscriptionType == SubscriptionType.BuildersClub)
+        {
+            await SendStatusAsync(ct);
+
             // Rooms hidden while this membership was lapsed can come back. Not awaited: the
             // club has rooms of its own to talk to and this grain has nothing to do with them.
             _grainFactory
@@ -234,6 +231,30 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                     "refresh the Builders Club rooms of player {PlayerId}",
                     PlayerId
                 );
+        }
+    }
+
+    /// <summary>
+    /// What Habbo sends the moment a Habbo Club membership starts, in one go and in this order
+    /// (official client capture of the 31 days HC box): <c>UserRights</c> with the new club level,
+    /// <c>ScrSendUserInfo</c> as a subscription change, and <c>ClubGiftNotification</c> when club
+    /// gifts are waiting - the same notice that follows every <c>ScrSendUserInfo</c> of a member.
+    /// No Builders Club status: that membership did not change.
+    /// </summary>
+    private async Task AnnounceClubChangedAsync(CancellationToken ct)
+    {
+        await _grainFactory.GetPlayerPermissionGrain(PlayerId).SendClubLevelAsync(ct);
+
+        await SendClubInfoAsync(ScrUserInfoResponseType.SubscriptionChanged, ct);
+
+        var gifts = await _grainFactory.GetCatalogPurchaseGrain(PlayerId).GetClubGiftInfoAsync(ct);
+
+        if (gifts is { GiftsAvailable: > 0 })
+            await _grainFactory.SendComposerToPlayerAsync(
+                PlayerId,
+                new ClubGiftNotificationEventMessageComposer { NumGifts = gifts.GiftsAvailable },
+                ct
+            );
     }
 
     public async Task SendStatusAsync(CancellationToken ct)

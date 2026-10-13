@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Marketplace;
 
 internal class CancelMarketplaceOfferMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new CancelMarketplaceOfferMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new CancelMarketplaceOfferMessage { OfferId = packet.PopInt() };
 }

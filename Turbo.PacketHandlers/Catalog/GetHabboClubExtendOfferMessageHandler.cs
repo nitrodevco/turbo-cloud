@@ -39,6 +39,11 @@ public class GetHabboClubExtendOfferMessageHandler(
             .GetAsync(SubscriptionType.HabboClub, ct)
             .ConfigureAwait(false);
 
+        // Only a running membership can be extended: Habbo answers a non-member nothing
+        // (recorded on hhus, 2026-10-13).
+        if (!subscription.IsActive)
+            return;
+
         await ctx.SendComposerAsync(
                 new HabboClubExtendOfferMessageComposer
                 {

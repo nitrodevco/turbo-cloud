@@ -6,6 +6,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Wallet;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -72,19 +74,74 @@ public sealed class CrackableFurniTests
 
         await UseAsync(OWNER);
 
-        // The cracking hit: the opening state (2), "Hits: 1 / 1", the box still there.
+        // The cracking hit: the opening state (2), "Hits: 1 / 1", and at once - no timer runs -
+        // the removal and the membership, as Habbo sends them on the HC box (official client
+        // capture: ObjectDataUpdate state 2, 25 ms later ObjectRemove delay 1575 pickerId -1,
+        // then UserRights / ScrSendUserInfo / ClubGiftNotification in the same millisecond).
         Progress(box).Should().Be((1, 1, "2"));
-        ItemExists().Should().BeTrue();
-        Extensions().Should().BeEmpty();
-
-        await RunTimersAsync();
-
         ItemExists().Should().BeFalse();
+        Removes()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<ObjectRemoveMessageComposer>(x =>
+                x.ObjectId == BOX && x.Delay == 1575 && x.PickerId == -1 && !x.IsExpired
+            );
         Extensions()
             .Should()
             .ContainSingle()
             .Which.Should()
             .Be((OWNER, SubscriptionType.BuildersClub, 14));
+    }
+
+    [Fact]
+    public async Task One_use_from_across_the_room_walks_over_and_hits_once_there()
+    {
+        var owner = _room.Enter(OWNER_AVATAR, 8, 8);
+        var box = AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
+
+        await UseAsync(OWNER);
+
+        Progress(box).Should().Be((0, 1, "0"));
+
+        for (var tick = 1; tick <= 20 && ItemExists(); tick++)
+        {
+            await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(tick * 10_000L, Ct);
+            await RunTimersAsync();
+        }
+
+        // Habbo: one UseFurniture, four steps, then the hit and the opening as the avatar takes
+        // its last step, before it stands still; no second use.
+        Progress(box).Should().Be((1, 1, "2"));
+        ItemExists().Should().BeFalse();
+        Extensions().Should().ContainSingle();
+        owner.IsWalking.Should().BeTrue();
+        _room.Map.GetTileXY(owner.NextTileId).Should().Be((4, 4));
+    }
+
+    [Fact]
+    public async Task A_use_walk_turned_elsewhere_on_the_way_is_no_hit()
+    {
+        var owner = _room.Enter(OWNER_AVATAR, 8, 8);
+        var box = AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
+
+        await UseAsync(OWNER);
+        await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(10_000L, Ct);
+        await _room.Harness.Room.WalkAvatarToAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            8,
+            1,
+            Ct
+        );
+
+        for (var tick = 2; tick <= 20 && owner.IsWalking; tick++)
+        {
+            await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(tick * 10_000L, Ct);
+            await RunTimersAsync();
+        }
+
+        Progress(box).Should().Be((0, 1, "0"));
+        ItemExists().Should().BeTrue();
     }
 
     [Fact]
@@ -441,6 +498,14 @@ public sealed class CrackableFurniTests
             .Harness.Module<RoomAvatarModule>()
             .NotifyWalkOnAsync(avatar, _room.Map.ToIdx(item.X, item.Y), Ct);
     }
+
+    private List<ObjectRemoveMessageComposer> Removes() =>
+        _room
+            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
+            .OfType<RoomOutboundSnapshot>()
+            .SelectMany(x => x.Composers)
+            .OfType<ObjectRemoveMessageComposer>()
+            .ToList();
 
     private Task RunTimersAsync() =>
         _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(long.MaxValue / 2, Ct);

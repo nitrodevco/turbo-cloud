@@ -23,6 +23,17 @@ internal sealed partial class PlayerPermissionGrain
         return SendClientStateCoreAsync(rights: true, nodes: true, ct);
     }
 
+    public async Task SendClubLevelAsync(CancellationToken ct)
+    {
+        EnsureResolved();
+
+        await _grainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            await UserRightsAsync(_state.Client!, ct),
+            ct
+        );
+    }
+
     public Task SendPermissionNodesAsync(CancellationToken ct)
     {
         EnsureResolved();
@@ -99,16 +110,7 @@ internal sealed partial class PlayerPermissionGrain
 
         if (rights)
         {
-            var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
-
-            composers.Add(
-                new UserRightsMessage
-                {
-                    ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
-                    SecurityLevel = client.SecurityLevel,
-                    IsAmbassador = client.IsAmbassador,
-                }
-            );
+            composers.Add(await UserRightsAsync(client, ct));
             composers.Add(
                 new PerkAllowancesMessageComposer
                 {
@@ -147,5 +149,24 @@ internal sealed partial class PlayerPermissionGrain
             client.SecurityLevel,
             client.IsAmbassador
         );
+    }
+
+    /// <summary>
+    /// The club level beside the security level and ambassador flag. The club level is read from
+    /// the subscription grain, which never awaits this one.
+    /// </summary>
+    private async Task<UserRightsMessage> UserRightsAsync(
+        PermissionClientSnapshot client,
+        CancellationToken ct
+    )
+    {
+        var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
+
+        return new UserRightsMessage
+        {
+            ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
+            SecurityLevel = client.SecurityLevel,
+            IsAmbassador = client.IsAmbassador,
+        };
     }
 }

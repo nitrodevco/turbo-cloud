@@ -11,6 +11,15 @@ internal class ScrSendKickbackInfoMessageComposerSerializer(int header)
         ScrSendKickbackInfoMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.CurrentHcStreak)
+            .WriteString(message.FirstSubscriptionDate)
+            .WriteDouble(message.KickbackPercentage)
+            .WriteInteger(message.TotalCreditsMissed)
+            .WriteInteger(message.TotalCreditsRewarded)
+            .WriteInteger(message.TotalCreditsSpent)
+            .WriteInteger(message.CreditRewardForStreakBonus)
+            .WriteInteger(message.CreditRewardForMonthlySpent)
+            .WriteInteger(message.TimeUntilPayday);
     }
 }

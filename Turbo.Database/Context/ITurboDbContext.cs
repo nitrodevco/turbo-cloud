@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Entities.Habbicons;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
@@ -58,6 +59,8 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
 
+    public DbSet<PlayerHabbiconEntity>? PlayerHabbicons { get; set; }
+
     public DbSet<QuestCampaignEntity>? QuestCampaigns { get; set; }
 
     public DbSet<QuestEntity>? Quests { get; set; }
@@ -98,6 +101,8 @@ public interface ITurboDbContext : IDisposable
     public DbSet<PlayerChatStyleEntity>? PlayerChatStyles { get; set; }
 
     public DbSet<PlayerChatStyleOwnedEntity>? PlayerOwnedChatStyles { get; set; }
+
+    public DbSet<PlayerCustomFilterWordEntity>? PlayerCustomFilterWords { get; set; }
 
     public DbSet<PerformanceLogEntity>? PerformanceLogs { get; set; }
 

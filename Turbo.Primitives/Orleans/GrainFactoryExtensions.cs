@@ -10,6 +10,7 @@ using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
+using Turbo.Primitives.Habbicons.Grains;
 using Turbo.Primitives.Hotel.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Networking;
@@ -252,6 +253,11 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerRewardTrackGrain>(playerId.Value);
+
+    public static IPlayerHabbiconGrain GetPlayerHabbiconGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerHabbiconGrain>(playerId.Value);
 
     public static IPlayerQuestGrain GetPlayerQuestGrain(
         this IGrainFactory factory,

@@ -119,9 +119,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             await NotifyWalkOnAsync(avatar, MapModule.ToIdx(arrivalItem.X, arrivalItem.Y), ct);
         }
 
-        // Two grains that answer from what they hold and never call a room, asked side by
+        // Three grains that answer from what they hold and never call a room, asked side by
         // side: each load only sets its own field on the avatar and logs its own failure.
-        await Task.WhenAll(LoadBadgesAsync(avatar, ct), LoadHabboClubAsync(avatar, ct));
+        await Task.WhenAll(
+            LoadBadgesAsync(avatar, ct),
+            LoadHabboClubAsync(avatar, ct),
+            LoadCustomFilterWordsAsync(avatar, ct)
+        );
 
         return avatar;
     }
@@ -223,6 +227,35 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
+    /// The player's own word filter, which the room masks the chat it sends them with. Loaded on
+    /// the way in, like the badges.
+    /// </summary>
+    private async Task LoadCustomFilterWordsAsync(IRoomAvatar avatar, CancellationToken ct)
+    {
+        if (avatar is not IRoomPlayer player)
+            return;
+
+        try
+        {
+            player.SetCustomFilterWords(
+                await _roomGrain
+                    ._grainFactory.GetPlayerSettingsGrain(player.PlayerId)
+                    .GetCustomFilterWordsAsync(ct)
+            );
+        }
+        catch (Exception ex)
+        {
+            // Unread, the player sees chat unmasked, as before they set the filter.
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not load the word filter of player {PlayerId} entering room {RoomId}",
+                player.PlayerId,
+                _roomGrain.RoomId
+            );
+        }
+    }
+
+    /// <summary>
     /// The Habbo Club membership a player is standing here with, which the wired
     /// <c>@is_hc</c> variable reads. Loaded on the way in, like the badges: putting it on
     /// <c>PlayerSummarySnapshot</c> would add a grain call to every hot path that asks for a
@@ -293,6 +326,22 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
             return (null, WornGuildStatus.None);
         }
+    }
+
+    /// <summary>
+    /// A player in the room changed their own word filter: chat said from now on is masked for
+    /// them with the new list.
+    /// </summary>
+    public Task SetPlayerCustomFilterWordsAsync(
+        PlayerId playerId,
+        List<string> words,
+        CancellationToken ct
+    )
+    {
+        if (TryGetPlayer(playerId, out var player))
+            player.SetCustomFilterWords(words);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -969,6 +1018,31 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         PublishAction(avatar, AvatarActionType.Sign, signType);
 
         return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// <c>RoomUseHabbicon</c>: every client draws the Habbicon over this avatar
+    /// (<c>HabbiconController.onRoomUseHabbicon</c>). Nothing is kept on the avatar.
+    /// </summary>
+    public async Task<bool> ShowHabbiconAsync(
+        RoomObjectId objectId,
+        int habbiconId,
+        CancellationToken ct
+    )
+    {
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
+            return false;
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new RoomUseHabbiconMessageComposer
+            {
+                RoomIndex = avatar.ObjectId,
+                HabbiconId = habbiconId,
+            },
+            ct
+        );
+
+        return true;
     }
 
     public Task<bool> LookToAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct)

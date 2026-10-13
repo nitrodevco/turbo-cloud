@@ -318,6 +318,12 @@ public class SSOTicketMessageHandler(
             .GetPlayerRewardTrackGrain(playerId)
             .SendTracksAsync(ct)
             .ConfigureAwait(false);
+        // Then the Habbicons the player has and the Habbicon shop, also unasked: Habbo sends
+        // UserHabbicons and HabbiconShopData right after RewardTracks.
+        await _grainFactory
+            .GetPlayerHabbiconGrain(playerId)
+            .SendLoginAsync(ct)
+            .ConfigureAwait(false);
         await _grainFactory
             .GetPlayerWalletGrain(playerId)
             .DeliverPendingRewardsAsync(ct)

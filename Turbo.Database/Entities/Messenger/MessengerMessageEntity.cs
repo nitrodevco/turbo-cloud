@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
@@ -21,6 +22,11 @@ public class MessengerMessageEntity : TurboEntity
 
     [Column("timestamp")]
     public required DateTime Timestamp { get; set; }
+
+    /// <summary>The Habbicon sent instead of a text (<c>SendHabbicon</c>); 0 for a text.</summary>
+    [Column("habbicon_id")]
+    [DefaultValue(0)]
+    public int HabbiconId { get; set; }
 
     [Column("delivered")]
     public bool Delivered { get; set; }

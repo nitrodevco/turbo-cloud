@@ -6,5 +6,13 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Marketplace;
 
 internal class GetMarketplaceOffersMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetMarketplaceOffersMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetMarketplaceOffersMessage
+        {
+            MinPrice = packet.PopInt(),
+            MaxPrice = packet.PopInt(),
+            SearchQuery = packet.PopString(),
+            SortType = packet.PopInt(),
+            CombineUniques = packet.Remaining > 0 && packet.PopBoolean(),
+        };
 }

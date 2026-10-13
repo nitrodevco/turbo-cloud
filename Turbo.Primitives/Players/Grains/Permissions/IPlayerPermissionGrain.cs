@@ -57,6 +57,12 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     public Task SendClientStateAsync(CancellationToken ct);
 
     /// <summary>
+    /// Sends <c>UserRights</c> alone, for a club level that changed while nothing else did: Habbo
+    /// sends just that packet before the new <c>ScrSendUserInfo</c> when a membership starts.
+    /// </summary>
+    public Task SendClubLevelAsync(CancellationToken ct);
+
+    /// <summary>
     /// Sends the player's client-facing nodes (<c>permission.nodes</c>), for a session that has
     /// just accepted the extension; after that they go with every change.
     /// </summary>

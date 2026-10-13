@@ -1,8 +1,10 @@
+using Turbo.Catalog.Vault;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Vault;
 using Turbo.Primitives.Messages.Incoming.Vault;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -10,7 +12,8 @@ namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
 /// The earnings vault asks for its status every time it opens, and only an answer lets the client
-/// disable the claim buttons of empty categories (<c>EarningsView.onIncomeRewardDataReceived</c>).
+/// disable the claim buttons of empty categories (<c>EarningsView.onIncomeRewardDataReceived</c>);
+/// a claim is always answered, or its button stays disabled (<c>EarningsView.performClaim</c>).
 /// </summary>
 public sealed class IncomeRewardStatusTests
 {
@@ -19,7 +22,7 @@ public sealed class IncomeRewardStatusTests
     {
         var fakes = new Fakes();
 
-        await new IncomeRewardStatusMessageHandler().HandleAsync(
+        await new IncomeRewardStatusMessageHandler(new IncomeRewardService([])).HandleAsync(
             new IncomeRewardStatusMessage(),
             new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
             TestContext.Current.CancellationToken
@@ -29,5 +32,31 @@ public sealed class IncomeRewardStatusTests
             fakes.Log.Of("SendComposerAsync").Single().Args[0]
         );
         Assert.Empty(composer.IncomeRewards);
+    }
+
+    [Theory]
+    [InlineData(VaultRewardCategoryType.Achievements, false)]
+    [InlineData(VaultRewardCategoryType.All, true)]
+    public async Task A_claim_is_answered_for_its_category(
+        VaultRewardCategoryType category,
+        bool result
+    )
+    {
+        var fakes = new Fakes();
+
+        await new IncomeRewardClaimMessageHandler(new IncomeRewardService([])).HandleAsync(
+            new IncomeRewardClaimMessage { RewardCategory = category },
+            new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(
+            new IncomeRewardClaimResponseMessageComposer
+            {
+                RewardCategory = category,
+                Result = result,
+            },
+            fakes.Log.Of("SendComposerAsync").Single().Args[0]
+        );
     }
 }

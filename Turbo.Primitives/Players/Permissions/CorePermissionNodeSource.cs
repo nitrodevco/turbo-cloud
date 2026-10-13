@@ -274,6 +274,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :roomeffect to rotate, shake, flip or light up this room for everyone in it."
         ),
         new(
+            PermissionNodes.Command.WORDQUIZ,
+            "Use :wordquiz to ask everyone in this room a thumbs up or down question."
+        ),
+        new(
             PermissionNodes.Hotel.MAINTENANCE_BYPASS,
             "Log in, and stay logged in, while the hotel is in maintenance."
         ),

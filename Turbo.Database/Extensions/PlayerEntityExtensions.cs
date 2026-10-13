@@ -58,6 +58,7 @@ public static class PlayerEntityExtensions
             MaxFurniLimit = maxFurniLimit,
             MinutesSinceLastModified = MinutesSince(entity.UpdatedAt, now),
             ExpiresAt = entity.ExpiresAt,
+            FirstSubscribedAt = entity.FirstSubscribedAt,
         };
     }
 

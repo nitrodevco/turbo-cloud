@@ -156,6 +156,9 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
             ct
         );
 
+    public Task<bool> StartWordQuizAsync(string question, CancellationToken ct) =>
+        roomGrain.WordQuizSystem.StartAsync(question, roomGrain._roomConfig.WordQuizDurationMs, ct);
+
     public Task UnloadAsync(CancellationToken ct) =>
         roomGrain.ModerationModule.EvictEveryoneAndUnloadAsync(ct);
 }

@@ -68,6 +68,10 @@ public sealed class CommandRoomFixture
         Harness.Fakes.Handlers["get_ObjectId"] = ForPlayer(id => (RoomObjectId)id);
         Harness.Fakes.Handlers["get_Name"] = ForPlayer(id => $"player{id}");
         Harness.Fakes.Handlers["get_Permissions"] = ForPlayer(id => _snapshots[id]);
+        // A real avatar starts with an empty word filter; the chat masks each listener's line with it.
+        Harness.Fakes.Handlers["get_CustomFilterWords"] = ForPlayer(_ =>
+            System.Collections.Frozen.FrozenSet<string>.Empty
+        );
     }
 
     /// <summary>

@@ -21,6 +21,7 @@ using Turbo.Primitives.Messages.Outgoing.Game.Snowwar.Arena;
 using Turbo.Primitives.Messages.Outgoing.Game.Snowwar.Ingame;
 using Turbo.Primitives.Messages.Outgoing.Gifts;
 using Turbo.Primitives.Messages.Outgoing.Groupforums;
+using Turbo.Primitives.Messages.Outgoing.Habbicons;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Help;
 using Turbo.Primitives.Messages.Outgoing.Hotlooks;
@@ -85,6 +86,7 @@ using Turbo.Revisions.Revision20260909.Parsers.Game.Lobby;
 using Turbo.Revisions.Revision20260909.Parsers.Game.Score;
 using Turbo.Revisions.Revision20260909.Parsers.Gifts;
 using Turbo.Revisions.Revision20260909.Parsers.Groupforums;
+using Turbo.Revisions.Revision20260909.Parsers.Habbicons;
 using Turbo.Revisions.Revision20260909.Parsers.Handshake;
 using Turbo.Revisions.Revision20260909.Parsers.Help;
 using Turbo.Revisions.Revision20260909.Parsers.Hotlooks;
@@ -150,6 +152,7 @@ using Turbo.Revisions.Revision20260909.Serializers.Game.Snowwar.Arena;
 using Turbo.Revisions.Revision20260909.Serializers.Game.Snowwar.Ingame;
 using Turbo.Revisions.Revision20260909.Serializers.Gifts;
 using Turbo.Revisions.Revision20260909.Serializers.Groupforums;
+using Turbo.Revisions.Revision20260909.Serializers.Habbicons;
 using Turbo.Revisions.Revision20260909.Serializers.Handshake;
 using Turbo.Revisions.Revision20260909.Serializers.Help;
 using Turbo.Revisions.Revision20260909.Serializers.Hotlooks;
@@ -451,6 +454,21 @@ public class Revision20260909 : IRevision
             { MessageEvent.RemoveFriendMessageEvent, new RemoveFriendMessageParser() },
             { MessageEvent.RequestFriendMessageEvent, new RequestFriendMessageParser() },
             { MessageEvent.SendMsgMessageEvent, new SendMsgMessageParser() },
+            { MessageEvent.SendHabbiconMessageEvent, new SendHabbiconMessageParser() },
+            { MessageEvent.BuyHabbiconMessageEvent, new BuyHabbiconMessageParser() },
+            {
+                MessageEvent.BuyHabbiconCollectionMessageEvent,
+                new BuyHabbiconCollectionMessageParser()
+            },
+            { MessageEvent.ClaimHabbiconMessageEvent, new ClaimHabbiconMessageParser() },
+            { MessageEvent.FavoriteHabbiconMessageEvent, new FavoriteHabbiconMessageParser() },
+            { MessageEvent.UnfavoriteHabbiconMessageEvent, new UnfavoriteHabbiconMessageParser() },
+            { MessageEvent.TriggerHabbiconMessageEvent, new TriggerHabbiconMessageParser() },
+            { MessageEvent.GetHabbiconInfoMessageEvent, new GetHabbiconInfoMessageParser() },
+            {
+                MessageEvent.GetHabbiconShopDataMessageEvent,
+                new GetHabbiconShopDataMessageParser()
+            },
             { MessageEvent.SendRoomInviteMessageEvent, new SendRoomInviteMessageParser() },
             {
                 MessageEvent.SetRelationshipStatusMessageEvent,
@@ -848,6 +866,14 @@ public class Revision20260909 : IRevision
                 MessageEvent.RedeemMarketplaceOfferCreditsMessageEvent,
                 new RedeemMarketplaceOfferCreditsMessageParser()
             },
+            {
+                MessageEvent.CancelAllMarketplaceOffersMessageEvent,
+                new CancelAllMarketplaceOffersMessageParser()
+            },
+            {
+                MessageEvent.ClearMarketplaceOwnHistoryMessageEvent,
+                new ClearMarketplaceOwnHistoryMessageParser()
+            },
             #endregion
 
             #region Moderator
@@ -1031,6 +1057,12 @@ public class Revision20260909 : IRevision
             #endregion
 
             #region Preferences
+            { MessageEvent.AddToCustomFilterMessageEvent, new AddToCustomFilterMessageParser() },
+            { MessageEvent.GetCustomFilterMessageEvent, new GetCustomFilterMessageParser() },
+            {
+                MessageEvent.RemoveFromCustomFilterMessageEvent,
+                new RemoveFromCustomFilterMessageParser()
+            },
             { MessageEvent.SetChatPreferencesMessageEvent, new SetChatPreferencesMessageParser() },
             {
                 MessageEvent.SetChatStylePreferenceMessageEvent,
@@ -2793,6 +2825,18 @@ public class Revision20260909 : IRevision
                     MessageComposer.AccountPreferencesMessageComposer
                 )
             },
+            {
+                typeof(GetCustomFilterResultMessageComposer),
+                new GetCustomFilterResultMessageComposerSerializer(
+                    MessageComposer.GetCustomFilterResultMessageComposer
+                )
+            },
+            {
+                typeof(ModifyCustomFilterResultMessageComposer),
+                new ModifyCustomFilterResultMessageComposerSerializer(
+                    MessageComposer.ModifyCustomFilterResultMessageComposer
+                )
+            },
             #endregion
 
             #region Room
@@ -3700,6 +3744,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(IncomeRewardNotificationMessageComposer),
+                new IncomeRewardNotificationMessageComposerSerializer(
+                    MessageComposer.IncomeRewardNotificationMessageComposer
+                )
+            },
+            {
                 typeof(ChestPreferencesUpdateSuccessMessageComposer),
                 new ChestPreferencesUpdateSuccessMessageComposerSerializer(
                     MessageComposer.ChestPreferencesUpdateSuccessMessageComposer
@@ -4368,6 +4418,18 @@ public class Revision20260909 : IRevision
                     MessageComposer.MarketplaceItemStatsMessageComposer
                 )
             },
+            {
+                typeof(MarketplaceCancelAllOffersResultMessageComposer),
+                new MarketplaceCancelAllOffersResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceCancelAllOffersResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceClearOwnHistoryResultMessageComposer),
+                new MarketplaceClearOwnHistoryResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceClearOwnHistoryResultMessageComposer
+                )
+            },
             #endregion
 
             #region Moderation
@@ -4611,6 +4673,36 @@ public class Revision20260909 : IRevision
                 typeof(DailyTasksTaskUpdateMessageComposer),
                 new DailyTasksTaskUpdateMessageComposerSerializer(
                     MessageComposer.DailyTasksTaskUpdateMessageComposer
+                )
+            },
+            {
+                typeof(UserHabbiconsMessageComposer),
+                new UserHabbiconsMessageComposerSerializer(
+                    MessageComposer.UserHabbiconsMessageComposer
+                )
+            },
+            {
+                typeof(HabbiconShopDataMessageComposer),
+                new HabbiconShopDataMessageComposerSerializer(
+                    MessageComposer.HabbiconShopDataMessageComposer
+                )
+            },
+            {
+                typeof(HabbiconInfoMessageComposer),
+                new HabbiconInfoMessageComposerSerializer(
+                    MessageComposer.HabbiconInfoMessageComposer
+                )
+            },
+            {
+                typeof(UserHabbiconStatusChangedMessageComposer),
+                new UserHabbiconStatusChangedMessageComposerSerializer(
+                    MessageComposer.UserHabbiconStatusChangedMessageComposer
+                )
+            },
+            {
+                typeof(RoomUseHabbiconMessageComposer),
+                new RoomUseHabbiconMessageComposerSerializer(
+                    MessageComposer.RoomUseHabbiconMessageComposer
                 )
             },
             {

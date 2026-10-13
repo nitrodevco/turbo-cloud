@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Marketplace;
 [GenerateSerializer, Immutable]
 public sealed record MarketplaceCancelOfferResultEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int OfferId { get; init; }
+
+    [Id(1)]
+    public required bool Success { get; init; }
 }

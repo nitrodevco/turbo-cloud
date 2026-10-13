@@ -118,6 +118,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
+    public readonly RoomWordQuizSystem WordQuizSystem;
     public readonly RoomWaterAreaSystem WaterAreaSystem;
     public readonly RoomWiredChestSystem WiredChestSystem;
     public readonly RoomWiredTransactionSystem WiredTransactionSystem;
@@ -216,6 +217,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         ChatSystem = new(this);
         CommandSystem = new(this);
         TimerSystem = new(this);
+        WordQuizSystem = new(this);
         WaterAreaSystem = new(this);
         WiredChestSystem = new(this);
         WiredTransactionSystem = new(this);
@@ -504,6 +506,25 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             {
                 RoomId = _state.RoomId,
                 Composers = [composer],
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
+        );
+
+    /// <summary>
+    /// <see cref="SendComposerToRoomAsync"/> for everyone in the room but these players, who are
+    /// sent their own version of it (a chat line their word filter masks).
+    /// </summary>
+    public Task SendComposerToRoomExceptAsync(
+        IComposer composer,
+        List<PlayerId> excludedPlayerIds,
+        CancellationToken ct
+    ) =>
+        _roomOutbound.OnNextAsync(
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = [composer],
+                ExcludedPlayerIds = excludedPlayerIds,
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
             }
         );

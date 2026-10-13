@@ -9,6 +9,12 @@ public static class ChatStyles
     public const int DEFAULT_STYLE_ID = 0;
 
     /// <summary>
+    /// Whether the client counts a style id as an NFT bubble, offered only to an owner named in
+    /// UserNftChatStyles (<c>RoomChatInputView.isNftChatStyle</c>: 1000 to 9999).
+    /// </summary>
+    public static bool IsNftStyle(int clientStyleId) => clientStyleId is >= 1000 and <= 9999;
+
+    /// <summary>
     /// Whether a player may speak with <paramref name="style"/>. Every flag the style carries has
     /// to be met. Staff meet the ambassador flag as well as their own, as the client offers
     /// ambassador bubbles to both; a system bubble is never a player's.

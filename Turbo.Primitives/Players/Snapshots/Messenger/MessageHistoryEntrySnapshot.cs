@@ -23,4 +23,8 @@ public record MessageHistoryEntrySnapshot
 
     [Id(5)]
     public required DateTime SentAtUtc { get; init; }
+
+    /// <summary>The Habbicon the message is instead of a text; 0 for a text.</summary>
+    [Id(6)]
+    public int HabbiconId { get; init; }
 }

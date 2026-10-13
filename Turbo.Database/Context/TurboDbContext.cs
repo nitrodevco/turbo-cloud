@@ -8,6 +8,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Entities.Habbicons;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Moderation;
@@ -114,6 +115,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<VoucherEntity> Vouchers { get; init; }
 
     public DbSet<VoucherRedemptionEntity> VoucherRedemptions { get; init; }
+
+    public DbSet<MarketplaceOfferEntity> MarketplaceOffers { get; init; }
+
+    public DbSet<MarketplaceTokenEntity> MarketplaceTokens { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }
@@ -133,6 +138,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerDailyTaskEntity> PlayerDailyTasks { get; init; }
 
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
+
+    public DbSet<PlayerHabbiconEntity> PlayerHabbicons { get; init; }
 
     public DbSet<QuestCampaignEntity> QuestCampaigns { get; init; }
 
@@ -184,6 +191,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
+    public DbSet<PlayerCustomFilterWordEntity> PlayerCustomFilterWords { get; init; }
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 

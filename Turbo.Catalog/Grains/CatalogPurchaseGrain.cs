@@ -97,12 +97,28 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     )
     {
         quantity = Math.Max(1, quantity);
-        // TODO validate quantity
 
         var snapshot = _catalogService.GetCatalogSnapshot(catalogType);
 
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
+
+        // The client shows the quantity spinner only on an offer that can be bundled, and stops it
+        // at the bulk-buy ruleset's maximum (ProductViewCatalogWidget.setSpinnerToBundleRuleset).
+        if (
+            quantity > 1
+            && (!offer.CanBundle || quantity > _catalogConfig.BundleDiscount.MaxPurchaseSize)
+        )
+        {
+            _logger.LogWarning(
+                "Player {PlayerId} tried to buy {Quantity} of offer {OfferId}",
+                this.GetPlayerId(),
+                quantity,
+                offerId
+            );
+
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
 
         // Hidden in the catalog editor: not shown, so not sold either, even to a client that
         // still knows its id. Its page being hidden is not the same: the club window sells the

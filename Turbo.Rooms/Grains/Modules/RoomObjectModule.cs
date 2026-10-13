@@ -80,13 +80,15 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
     /// False when the caller is letting go of many at once and will report the borrows it gave
     /// back itself, so the borrower hears one new total rather than one per furni.
     /// </param>
+    /// <param name="removeDelayMs">How long the client waits before it takes the item away.</param>
     public async Task<bool> RemoveObjectAsync(
         ActionContext ctx,
         IRoomObject roomObject,
         CancellationToken ct,
         int pickerId = -1,
         bool announce = true,
-        bool reportBorrow = true
+        bool reportBorrow = true,
+        int removeDelayMs = 0
     )
     {
         switch (roomObject)
@@ -98,7 +100,10 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
 
                 // A caller removing many items at once tells the room once for all of them.
                 if (announce)
-                    await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
+                    await _roomGrain.SendComposerToRoomAsync(
+                        item.GetRemoveComposer(pickerId, delay: removeDelayMs),
+                        ct
+                    );
 
                 await item.Logic.OnDetachAsync(ct);
                 await item.Logic.OnPickupAsync(ctx, ct);

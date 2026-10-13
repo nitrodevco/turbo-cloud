@@ -52,6 +52,10 @@ public sealed record PlayerSubscriptionSnapshot
     [Id(9)]
     public required DateTime? ExpiresAt { get; init; }
 
+    /// <summary>The first time the subscription was ever granted; null when it never was.</summary>
+    [Id(10)]
+    public DateTime? FirstSubscribedAt { get; init; }
+
     public bool IsActive => SecondsLeft > 0;
 
     /// <summary>Lapsed, but still inside the hotel's grace period.</summary>

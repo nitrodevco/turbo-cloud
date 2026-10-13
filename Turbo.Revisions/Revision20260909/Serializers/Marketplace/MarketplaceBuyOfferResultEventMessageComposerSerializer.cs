@@ -11,6 +11,10 @@ internal class MarketplaceBuyOfferResultEventMessageComposerSerializer(int heade
         MarketplaceBuyOfferResultEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger((int)message.Result)
+            .WriteInteger(message.OfferId)
+            .WriteInteger(message.NewPrice)
+            .WriteInteger(message.RequestedOfferId);
     }
 }

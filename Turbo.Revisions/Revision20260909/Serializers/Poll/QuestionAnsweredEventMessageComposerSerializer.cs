@@ -11,6 +11,12 @@ internal class QuestionAnsweredEventMessageComposerSerializer(int header)
         QuestionAnsweredEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.UserId)
+            .WriteString(message.Value)
+            .WriteInteger(message.AnswerCounts.Count);
+
+        foreach (var (value, count) in message.AnswerCounts)
+            packet.WriteString(value).WriteInteger(count);
     }
 }
