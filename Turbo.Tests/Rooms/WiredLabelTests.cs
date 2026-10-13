@@ -7,6 +7,7 @@ using Turbo.Database.Migrations;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -116,6 +117,37 @@ public sealed class WiredLabelTests
         update.RemovedIds.Should().BeEmpty();
         // The text is kept with the item, so it is there after the room loads again.
         label.ExtraData.GetJsonString().Should().Contain("Hello");
+    }
+
+    [Fact]
+    public async Task A_text_save_is_answered_with_the_furni_data_first_and_unchanged_settings_get_nothing()
+    {
+        Label(10);
+
+        await WriteAsync(OWNER, 10, "parity label");
+
+        // Official client capture 2026-10-13 11:18: ObjectDataUpdate (data ""), then the label's update.
+        var sent = SentToRoom<IComposer>().ToList();
+        sent.FindIndex(x => x is ObjectDataUpdateMessageComposer { ObjectId.Value: 10 })
+            .Should()
+            .BeGreaterThanOrEqualTo(0)
+            .And.BeLessThan(
+                sent.FindIndex(x => x is FurnitureLabelsAndRegionsUpdateMessageComposer)
+            );
+
+        (
+            await SettingsAsync(
+                OWNER,
+                10,
+                FurnitureLabelData.DEFAULT_COLOR,
+                FurnitureLabelVisibilityType.WiredInspectors,
+                false
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        SentToRoom<IComposer>().Should().HaveCount(sent.Count);
     }
 
     [Fact]

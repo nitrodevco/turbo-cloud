@@ -98,10 +98,16 @@ public class FurnitureLabelLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             _ => label,
         };
 
+        // Unchanged settings get no reply on Habbo (official client capture, 2026-10-13 11:18).
         if (next == label)
             return true;
 
         _ctx.RoomObject.ExtraData.UpdateSection(FurnitureLabelData.SECTION, next);
+
+        // A text save is answered with the furni's ObjectDataUpdate (data "") before the label's
+        // update (same capture: SetFurnitureLabelData -> ObjectDataUpdate, FurnitureLabelsAndRegionsUpdate).
+        if (interaction is SetFurnitureLabelTextInteraction)
+            await _ctx.RefreshStuffDataAsync();
 
         await SendUpdateAsync(ct);
 
