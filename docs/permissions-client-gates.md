@@ -122,6 +122,12 @@ Two shapes worth noticing. `== 1` is used to mean "has rights but is not the own
 that reported 1 for an owner would break the navigator's wording. And `== 5` means the server has
 to send exactly `Moderator`, not merely "at least 4", for that one field to render.
 
+The client offers placing furni from level 1, but Habbo's server refuses level 1 (plain "Give
+rights" in a room without a group): the placement is answered with the `furni_placement_error`
+dialog `${room.error.cant_set_not_owner}`, while moving, turning and using furni stay allowed. Ours
+does the same unless `Turbo:Rooms:RightsHoldersCanPlaceFurni` is on; owners, a group homeroom's
+admins (and members, when the group lets them decorate) and staff place either way.
+
 ## What this tells us about the design
 
 1. **`AnyRoomOwner` and `AnyRoomRights` are not two permissions.** They are one — "controls every

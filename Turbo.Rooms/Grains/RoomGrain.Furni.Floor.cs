@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -13,7 +15,16 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> PlaceFloorItemAsync(
+    /// <summary>
+    /// The room refused the player the right to build here: an answer for the player, not a
+    /// fault, so it is neither logged nor told as a spot that does not take the item.
+    /// </summary>
+    private static bool IsBuildRefusal(TurboException ex) =>
+        ex.ErrorCode
+            is TurboErrorCodeEnum.NoPermissionToPlaceFurni
+                or TurboErrorCodeEnum.NoPermissionToManipulateFurni;
+
+    public async Task<FurniturePlacementResultType> PlaceFloorItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
         int x,
@@ -24,10 +35,13 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await ActionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
-                return false;
-
-            return true;
+            return await ActionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct)
+                ? FurniturePlacementResultType.Done
+                : FurniturePlacementResultType.Refused;
+        }
+        catch (TurboException ex) when (IsBuildRefusal(ex))
+        {
+            return FurniturePlacementResultType.NotAllowed;
         }
         catch (Exception ex)
         {
@@ -39,11 +53,11 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return false;
+            return FurniturePlacementResultType.Refused;
         }
     }
 
-    public async Task<bool> MoveFloorItemByIdAsync(
+    public async Task<FurniturePlacementResultType> MoveFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         int x,
@@ -54,10 +68,13 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await ActionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
-                return false;
-
-            return true;
+            return await ActionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct)
+                ? FurniturePlacementResultType.Done
+                : FurniturePlacementResultType.Refused;
+        }
+        catch (TurboException ex) when (IsBuildRefusal(ex))
+        {
+            return FurniturePlacementResultType.NotAllowed;
         }
         catch (Exception ex)
         {
@@ -69,7 +86,7 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return false;
+            return FurniturePlacementResultType.Refused;
         }
     }
 

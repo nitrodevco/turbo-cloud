@@ -10,7 +10,7 @@ namespace Turbo.Primitives.Rooms.Grains;
 
 public partial interface IRoomGrain
 {
-    public Task<bool> PlaceWallItemAsync(
+    public Task<FurniturePlacementResultType> PlaceWallItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
         int x,
@@ -20,7 +20,7 @@ public partial interface IRoomGrain
         Rotation rot,
         CancellationToken ct
     );
-    public Task<bool> MoveWallItemByIdAsync(
+    public Task<FurniturePlacementResultType> MoveWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         int x,

@@ -47,17 +47,12 @@ internal sealed partial class RoomService
 
             var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-            if (
-                !await roomGrain
-                    .PlaceFloorItemAsync(ctx, snapshot, x, y, rot, ct)
-                    .ConfigureAwait(false)
-            )
-            {
-                // The spot does not take the item: it stays in the inventory, and the player is told.
-                await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+            var result = await roomGrain
+                .PlaceFloorItemAsync(ctx, snapshot, x, y, rot, ct)
+                .ConfigureAwait(false);
 
-                return;
-            }
+            // A refused item stays in the inventory, and the player is told why.
+            await SendPlacementErrorAsync(ctx.PlayerId, result, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -85,9 +80,11 @@ internal sealed partial class RoomService
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-        if (
-            await roomGrain.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct).ConfigureAwait(false)
-        )
+        var result = await roomGrain
+            .MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct)
+            .ConfigureAwait(false);
+
+        if (result == FurniturePlacementResultType.Done)
             return;
 
         var item = await roomGrain.GetFloorItemSnapshotByIdAsync(itemId, ct).ConfigureAwait(false);
@@ -104,25 +101,35 @@ internal sealed partial class RoomService
             )
             .ConfigureAwait(false);
 
-        await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        await SendPlacementErrorAsync(ctx.PlayerId, result, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Tells a player the room would not take their furni where they put it - the hotel's
-    /// <c>furni_placement_error</c> bubble, "Sorry, you cannot place this item here.", which the
-    /// client shows for a refused placement or move of a floor or wall item alike.
+    /// <c>furni_placement_error</c> bubble, which the client shows for a refused placement or move
+    /// of a floor or wall item alike: "Sorry, you cannot place this item here." for the spot,
+    /// "You don't have rights to put furniture in here!" for a player who may not build. Habbo
+    /// was seen answering a placement so; a refused move is told the same (inference).
     /// </summary>
-    private Task SendPlacementErrorAsync(PlayerId playerId, CancellationToken ct) =>
-        _grainFactory.SendComposerToPlayerAsync(
-            playerId,
-            new NotificationDialogMessageComposer
-            {
-                NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
-                Parameters = ImmutableDictionary<string, string>.Empty.Add(
-                    "message",
-                    FurniturePlacementNotifications.CANT_SET_ITEM_MESSAGE
-                ),
-            },
-            ct
-        );
+    private Task SendPlacementErrorAsync(
+        PlayerId playerId,
+        FurniturePlacementResultType result,
+        CancellationToken ct
+    ) =>
+        result == FurniturePlacementResultType.Done
+            ? Task.CompletedTask
+            : _grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
+                    Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                        "message",
+                        result == FurniturePlacementResultType.NotAllowed
+                            ? FurniturePlacementNotifications.CANT_SET_NOT_OWNER_MESSAGE
+                            : FurniturePlacementNotifications.CANT_SET_ITEM_MESSAGE
+                    ),
+                },
+                ct
+            );
 }
