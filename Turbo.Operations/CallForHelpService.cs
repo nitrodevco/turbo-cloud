@@ -40,6 +40,8 @@ public sealed class CallForHelpService(
     private const string DEFAULT_UNKNOWN_TOPIC_TEXT =
         "Choose what your report is about, then send it again.";
 
+    private const string PENDING_TIME_FORMAT = "yyyy-MM-dd HH:mm";
+
     private readonly OperationsConfig _config = config.Value;
     private readonly SemaphoreSlim _topicsLock = new(1, 1);
     private ImmutableArray<CfhCategorySnapshot>? _topics;
@@ -97,10 +99,7 @@ public sealed class CallForHelpService(
 
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
-        var open = await dbCtx.CfhReports.CountAsync(
-            x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null,
-            ct
-        );
+        var open = await Pending(dbCtx, reporter).CountAsync(ct);
 
         if (open >= _config.CfhMaxOpenReports)
             return await RefusedAsync(
@@ -235,6 +234,49 @@ public sealed class CallForHelpService(
 
         return true;
     }
+
+    public async Task<ImmutableArray<CfhPendingCallSnapshot>> GetPendingAsync(
+        PlayerId reporter,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var reports = await Pending(dbCtx, reporter)
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ToListAsync(ct);
+
+        // The client shows only the messages (HabboHelp.onPendingCallsForHelp); the id and time are
+        // strings on the wire, written here as the report id and its UTC time (inference: no
+        // official recording of this answer).
+        return
+        [
+            .. reports.Select(x => new CfhPendingCallSnapshot
+            {
+                CallId = x.Id.ToString(CultureInfo.InvariantCulture),
+                TimeStamp = x.CreatedAt.ToString(PENDING_TIME_FORMAT, CultureInfo.InvariantCulture),
+                Message = x.Message,
+            }),
+        ];
+    }
+
+    public async Task DeletePendingAsync(PlayerId reporter, CancellationToken ct)
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var ids = await Pending(dbCtx, reporter).Select(x => x.Id).ToListAsync(ct);
+
+        if (ids.Count == 0)
+            return;
+
+        // Their chat lines go with them (cascade).
+        await dbCtx.CfhReports.Where(x => ids.Contains(x.Id)).ExecuteDeleteAsync(ct);
+        await issues.RemovedAsync([.. ids], ct);
+    }
+
+    private static IQueryable<CfhReportEntity> Pending(TurboDbContext dbCtx, PlayerId reporter) =>
+        dbCtx.CfhReports.Where(x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null);
 
     private async Task<CfhResultSnapshot> RefusedAsync(
         string key,

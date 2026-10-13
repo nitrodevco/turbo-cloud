@@ -11,6 +11,13 @@ internal class CallForHelpPendingCallsMessageComposerSerializer(int header)
         CallForHelpPendingCallsMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Calls.Length);
+
+        foreach (var call in message.Calls)
+        {
+            packet.WriteString(call.CallId);
+            packet.WriteString(call.TimeStamp);
+            packet.WriteString(call.Message);
+        }
     }
 }

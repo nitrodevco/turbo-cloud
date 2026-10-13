@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Moderator;
 
 internal class ModToolSanctionMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ModToolSanctionMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ModToolSanctionMessage
+        {
+            IssueId = packet.PopInt(),
+            AccountId = packet.PopInt(),
+            TopicId = packet.PopInt(),
+        };
 }

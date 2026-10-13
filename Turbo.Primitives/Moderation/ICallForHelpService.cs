@@ -33,4 +33,19 @@ public interface ICallForHelpService
     /// appealed yet, which is when the client offers the button. False otherwise.
     /// </summary>
     Task<bool> AppealAsync(PlayerId reporter, int reportId, CancellationToken ct);
+
+    /// <summary>
+    /// The reporter's calls for help no moderator has closed yet, oldest first: the client asks
+    /// before every new report (<c>HabboHelp.queryForPendingCallsForHelp</c>).
+    /// </summary>
+    Task<ImmutableArray<CfhPendingCallSnapshot>> GetPendingAsync(
+        PlayerId reporter,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Deletes the reporter's calls for help still open, the pending request window's discard
+    /// (<c>CallForHelpManager.deletePendingCallsForHelp</c>); they leave every moderator's queue.
+    /// </summary>
+    Task DeletePendingAsync(PlayerId reporter, CancellationToken ct);
 }

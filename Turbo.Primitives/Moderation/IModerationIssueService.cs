@@ -20,6 +20,9 @@ public interface IModerationIssueService
     /// <summary>A new report: sent to every moderator online.</summary>
     Task PublishAsync(int issueId, CancellationToken ct);
 
+    /// <summary>Reports deleted by their reporter: gone from every moderator's queue (<c>IssueDeleted</c>).</summary>
+    Task RemovedAsync(ImmutableArray<int> issueIds, CancellationToken ct);
+
     /// <summary>
     /// Gives the moderator the open issues; the ones another moderator holds, or that are closed or
     /// gone, come back as failures. A moderator's own picked issue is not a failure.
@@ -43,6 +46,26 @@ public interface IModerationIssueService
         CfhCloseReasonType reason,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The issue handler's "close with default sanction" (<c>IssueManager.closeDefaultAction</c>):
+    /// the moderator's picked issues close as resolved and the reported player gets their next
+    /// default sanction (<see cref="GetDefaultSanctionAsync"/>), recorded on the first issue.
+    /// </summary>
+    Task CloseWithDefaultSanctionAsync(
+        PlayerId moderator,
+        ImmutableArray<int> issueIds,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The default sanction the player would get next, as <c>CfhSanction</c> shows it in the issue
+    /// handler (<c>IssueManager.updateSanctionData</c>); null when the hotel configures none.
+    /// </summary>
+    Task<SanctionTypeSnapshot?> GetDefaultSanctionAsync(PlayerId player, CancellationToken ct);
+
+    /// <summary>The player an issue reports; null for a report about no one or no such issue.</summary>
+    Task<PlayerId?> GetReportedPlayerAsync(int issueId, CancellationToken ct);
 
     /// <summary>The chat a report was sent with; null when there is no such report.</summary>
     Task<(int ReporterId, int ReportedId, ModChatlogRecordSnapshot Record)?> GetChatlogAsync(

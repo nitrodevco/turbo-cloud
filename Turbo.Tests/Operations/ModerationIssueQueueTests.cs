@@ -82,8 +82,10 @@ public sealed class ModerationIssueQueueTests : IDisposable
             (IReadOnlyCollection<PlayerId>)[MODERATOR, OTHER_MODERATOR, REPORTER];
         _fakes.Handlers["HasAsync"] = call =>
             Task.FromResult(
-                (string)call.Args[0]! == PermissionNodes.Moderation.TOOL
-                    && Convert.ToInt32(call.Key) is MODERATOR or OTHER_MODERATOR
+                // Only the moderators hold the tool, and every node the mod actions need.
+                Convert.ToInt32(call.Key)
+                    is MODERATOR
+                        or OTHER_MODERATOR
             );
         _fakes.Handlers["SendComposerAsync"] = call =>
         {
@@ -320,39 +322,185 @@ public sealed class ModerationIssueQueueTests : IDisposable
         reply.End.Should().BeTrue();
     }
 
-    private async Task SubmitAsync()
+    [Fact]
+    public async Task The_reporter_sees_their_pending_call_and_discarding_it_deletes_the_issue()
     {
-        var result = await new CallForHelpService(
+        await SubmitAsync();
+        _sent.Clear();
+
+        var pending = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("GetPendingCallsForHelpMessageEvent"),
+                    PacketHarness.Payload(_ => { }),
+                    playerId: REPORTER
+                )
+        );
+
+        // CallForHelpPendingCallsMessageParser: count, then id, time and message as strings.
+        pending
+            .Header.Should()
+            .Be(PacketHarness.Outgoing("CallForHelpPendingCallsMessageComposer"));
+        pending.PopInt().Should().Be(1);
+        pending.PopString().Should().Be("1");
+        pending.PopString().Should().NotBeEmpty();
+        pending.PopString().Should().Be("he is mean");
+        pending.End.Should().BeTrue();
+
+        var deleted = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("DeletePendingCallsForHelpMessageEvent"),
+                    PacketHarness.Payload(_ => { }),
+                    playerId: REPORTER
+                )
+        );
+
+        deleted
+            .Header.Should()
+            .Be(PacketHarness.Outgoing("CallForHelpPendingCallsDeletedMessageComposer"));
+        deleted.End.Should().BeTrue();
+
+        // Every moderator drops it (IssueDeletedMessageParser: the id as a string).
+        _sent.Select(x => x.Player).Should().Equal(MODERATOR, OTHER_MODERATOR);
+        var removed = PacketHarness.Encode(_sent[0].Composer);
+        removed.Header.Should().Be(PacketHarness.Outgoing("IssueDeletedMessageComposer"));
+        removed.PopString().Should().Be("1");
+
+        (await Service().GetOpenIssuesAsync(CancellationToken.None)).Should().BeEmpty();
+        var empty = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("GetPendingCallsForHelpMessageEvent"),
+                    PacketHarness.Payload(_ => { }),
+                    playerId: REPORTER
+                )
+        );
+        empty.PopInt().Should().Be(0, "nothing pending: the client goes on to the report");
+    }
+
+    [Fact]
+    public async Task Closing_with_the_default_sanction_gives_the_reported_player_the_next_step()
+    {
+        var config = new OperationsConfig { CfhDefaultSanctions = ["ALERT", "BAN:18"] };
+        var service = Service(config);
+
+        (await service.GetDefaultSanctionAsync(TROLL, CancellationToken.None))!
+            .Name.Should()
+            .Be("ALERT");
+
+        await SubmitAsync();
+        await PickAsync(MODERATOR);
+        _sent.Clear();
+        await CloseDefaultAsync(1, config);
+
+        var alert = _sent.Single(x => x.Composer is ModeratorCautionEventMessageComposer);
+        alert.Player.Should().Be(TROLL);
+        _sent
+            .Where(x => x.Composer is IssueCloseNotificationMessageComposer)
+            .Select(x => x.Player)
+            .Should()
+            .Equal(REPORTER);
+        (await service.GetOpenIssuesAsync(CancellationToken.None)).Should().BeEmpty();
+
+        // One step up: the next report closed this way bans for 18 hours.
+        var next = (await service.GetDefaultSanctionAsync(TROLL, CancellationToken.None))!;
+        (next.Name, next.LengthHours).Should().Be(("BAN", 18));
+
+        await SubmitAsync();
+        await PickAsync(MODERATOR, issueId: 2);
+        await CloseDefaultAsync(2, config);
+
+        var ban = await Sanctions().GetActiveBanAsync(TROLL, CancellationToken.None);
+        ban!.ExpiresAtUtc.Should().Be(NOW.AddHours(18));
+        ban.Reason.Should().Be("bullying", "the topic of the report");
+    }
+
+    [Fact]
+    public async Task The_issue_handler_is_told_the_reported_players_next_default_sanction()
+    {
+        await SubmitAsync();
+
+        // IssueManager.requestSanctionData: ModToolSanctionComposer(issue, -1, topic).
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("ModToolSanctionMessageEvent"),
+                    PacketHarness.Payload(w => w.Int(1).Int(-1).Int(-1)),
+                    playerId: MODERATOR
+                )
+        );
+
+        // CfhSanctionMessageParser + CfhSanctionTypeData; showDefaultSanction wants the reported player.
+        reply.Header.Should().Be(PacketHarness.Outgoing("CfhSanctionMessageComposer"));
+        reply.PopInt().Should().Be(1);
+        reply.PopInt().Should().Be(TROLL);
+        reply.PopString().Should().Be("ALERT");
+        reply.PopInt().Should().Be(0, "hours");
+        reply.PopInt().Should().Be(0, "type id");
+        reply.PopBoolean().Should().BeFalse("not avatar only");
+        reply.PopString().Should().BeEmpty("no trade lock");
+        reply.PopString().Should().BeEmpty("no machine ban");
+        reply.End.Should().BeTrue();
+    }
+
+    private async Task CloseDefaultAsync(int issueId, OperationsConfig config)
+    {
+        var harness = new PacketHarness();
+        harness.Resolver.Overrides[typeof(IModerationIssueService)] = Service(config);
+
+        // CloseIssueDefaultActionMessageComposer: the issue, the others (none), the topic (-1).
+        await harness.SendAsync(
+            PacketHarness.Incoming("CloseIssueDefaultActionMessageEvent"),
+            PacketHarness.Payload(w => w.Int(issueId).Int(0).Int(-1)),
+            playerId: MODERATOR
+        );
+    }
+
+    private CallForHelpService CallForHelp() =>
+        new(
             _db,
             Options.Create(new OperationsConfig()),
             _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
             Service()
-        ).SubmitAsync(
-            REPORTER,
-            new CfhSubmissionSnapshot
-            {
-                Source = CfhSourceType.Room,
-                Message = "he is mean",
-                TopicId = TOPIC,
-                ReportedPlayerId = TROLL,
-                RoomId = ROOM,
-                Name = string.Empty,
-                Email = string.Empty,
-                ChatLines = [new CfhChatLineSnapshot { PlayerId = TROLL, Text = "you are bad" }],
-            },
-            CancellationToken.None
         );
+
+    private async Task SubmitAsync()
+    {
+        var result = await CallForHelp()
+            .SubmitAsync(
+                REPORTER,
+                new CfhSubmissionSnapshot
+                {
+                    Source = CfhSourceType.Room,
+                    Message = "he is mean",
+                    TopicId = TOPIC,
+                    ReportedPlayerId = TROLL,
+                    RoomId = ROOM,
+                    Name = string.Empty,
+                    Email = string.Empty,
+                    ChatLines =
+                    [
+                        new CfhChatLineSnapshot { PlayerId = TROLL, Text = "you are bad" },
+                    ],
+                },
+                CancellationToken.None
+            );
 
         result.Result.Should().Be(CfhResultType.Sent);
     }
 
-    private async Task<List<ClientPacket>> PickAsync(int moderator, int retryCount = 0) =>
+    private async Task<List<ClientPacket>> PickAsync(
+        int moderator,
+        int retryCount = 0,
+        int issueId = 1
+    ) =>
         await Harness()
             .SendAsync(
                 PacketHarness.Incoming("PickIssuesMessageEvent"),
                 PacketHarness.Payload(w =>
-                    w.Int(1).Int(1).Bool(true).Int(retryCount).String("pick")
+                    w.Int(1).Int(issueId).Bool(true).Int(retryCount).String("pick")
                 ),
                 playerId: moderator
             );
@@ -406,29 +554,40 @@ public sealed class ModerationIssueQueueTests : IDisposable
     {
         var harness = new PacketHarness();
         harness.Resolver.Overrides[typeof(IModerationIssueService)] = Service();
+        harness.Resolver.Overrides[typeof(ICallForHelpService)] = CallForHelp();
         return harness;
     }
 
-    private ModerationIssueService Service() =>
+    private ModerationIssueService Service(OperationsConfig? config = null) =>
         new(
             _db,
             _fakes.Create<Orleans.IGrainFactory>(),
             _fakes.Create<ISessionGateway>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
-            Options.Create(new OperationsConfig())
+            Options.Create(config ?? new OperationsConfig()),
+            ToolService(config),
+            _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>()
         );
 
-    private ModerationToolService ToolService() =>
+    private ModerationToolService ToolService(OperationsConfig? config = null) =>
         new(
             _db,
             _fakes.Create<Orleans.IGrainFactory>(),
             _fakes.Create<ISessionGateway>(),
-            _fakes.Create<ISanctionService>(),
+            Sanctions(),
             _fakes.Create<Turbo.Primitives.Rooms.IRoomService>(),
             _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
-            Options.Create(new OperationsConfig()),
+            Options.Create(config ?? new OperationsConfig()),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ModerationToolService>.Instance
+        );
+
+    private SanctionService Sanctions() =>
+        new(
+            _db,
+            new ManualTimeProvider(new DateTimeOffset(NOW)),
+            new TestEventBus().System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ISanctionService>.Instance
         );
 
     private static PlayerEntity Player(int id, string name) =>

@@ -20,6 +20,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Operations;
 
@@ -42,9 +43,35 @@ public sealed class ModerationIssueService(
     IGrainFactory grainFactory,
     ISessionGateway sessionGateway,
     TimeProvider timeProvider,
-    IOptions<OperationsConfig> config
+    IOptions<OperationsConfig> config,
+    IModerationToolService moderationTool,
+    IHotelTextProvider texts
 ) : IModerationIssueService
 {
+    public const string ALERT = "ALERT";
+    public const string MUTE = "MUTE";
+    public const string BAN = "BAN";
+    public const string BAN_PERMANENT = "BAN_PERMANENT";
+
+    /// <summary>The mod action window's mute (<see cref="ModSanctionType.Mute"/>): one hour.</summary>
+    public const int MUTE_HOURS = 1;
+
+    /// <summary>
+    /// The mod action window's bans a default sanction can be (<c>ModActionCtrl.as:66-71</c>), by
+    /// length in hours: 3 "Ban 18h", 4 "Ban 7 days", 5 "Ban 30 days".
+    /// </summary>
+    private static readonly IReadOnlyDictionary<int, int> BAN_TYPES = new Dictionary<int, int>
+    {
+        [18] = 3,
+        [7 * 24] = 4,
+        [30 * 24] = 5,
+    };
+
+    /// <summary>"Ban 100 years" (<c>ModActionCtrl.as:66-71</c>), the permanent one.</summary>
+    private const int BAN_TYPE_PERMANENT = 6;
+
+    private const string TOPIC_TEXT = "help.cfh.topic.";
+
     public const int SOURCE_NORMAL = 1;
     public const int SOURCE_IM = 6;
     public const int SOURCE_DISCUSSION = 11;
@@ -90,6 +117,21 @@ public sealed class ModerationIssueService(
             return;
 
         await BroadcastAsync(await SnapshotsAsync(dbCtx, [report], ct), ct);
+    }
+
+    public async Task RemovedAsync(ImmutableArray<int> issueIds, CancellationToken ct)
+    {
+        if (issueIds.IsEmpty)
+            return;
+
+        var moderators = await ModeratorsOnlineAsync(ct);
+
+        foreach (var issueId in issueIds)
+            await grainFactory.SendComposerToPlayersAsync(
+                moderators,
+                new IssueDeletedMessageComposer { IssueId = issueId },
+                ct
+            );
     }
 
     public async Task<ImmutableArray<ModIssuePickFailureSnapshot>> PickAsync(
@@ -173,7 +215,160 @@ public sealed class ModerationIssueService(
 
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
+        await CloseHeldAsync(dbCtx, await HeldAsync(dbCtx, moderator, issueIds, ct), reason, ct);
+    }
+
+    public async Task CloseWithDefaultSanctionAsync(
+        PlayerId moderator,
+        ImmutableArray<int> issueIds,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
         var reports = await HeldAsync(dbCtx, moderator, issueIds, ct);
+
+        if (reports.Count == 0)
+            return;
+
+        // The first id is the bundle's highest priority issue (IssueManager.closeDefaultAction); the
+        // sanction is recorded on it, so one close is one step up the player's ladder.
+        var first = reports.FirstOrDefault(x => x.Id == issueIds[0]) ?? reports[0];
+
+        if (
+            first.ReportedEntityId is { } reported
+            && await NextSanctionAsync(dbCtx, reported, ct) is { } sanction
+        )
+        {
+            // What the player is told and the ban's reason: the topic as the client names it
+            // (help.cfh.topic.<id>), else its name.
+            var reason =
+                await texts.GetTextAsync($"{TOPIC_TEXT}{first.TopicId}", ct)
+                ?? await dbCtx
+                    .CfhTopics.AsNoTracking()
+                    .Where(x => x.Id == first.TopicId)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(ct)
+                ?? string.Empty;
+
+            first.Sanctioned = await ApplyAsync(moderator, reported, sanction, reason, ct);
+        }
+
+        await CloseHeldAsync(dbCtx, reports, CfhCloseReasonType.Resolved, ct);
+    }
+
+    public async Task<SanctionTypeSnapshot?> GetDefaultSanctionAsync(
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        return await NextSanctionAsync(dbCtx, player, ct);
+    }
+
+    public async Task<PlayerId?> GetReportedPlayerAsync(int issueId, CancellationToken ct)
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var reported = await dbCtx
+            .CfhReports.AsNoTracking()
+            .Where(x => x.Id == issueId)
+            .Select(x => x.ReportedEntityId)
+            .FirstOrDefaultAsync(ct);
+
+        return reported is { } id ? new PlayerId(id) : null;
+    }
+
+    /// <summary>
+    /// The configured step after as many as the player's reports closed with a default sanction;
+    /// the last one repeats. Null when the hotel lists none or the step is not one of the mod
+    /// action window's sanctions.
+    /// </summary>
+    private async Task<SanctionTypeSnapshot?> NextSanctionAsync(
+        TurboDbContext dbCtx,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var steps = config.Value.CfhDefaultSanctions;
+
+        if (steps.Length == 0)
+            return null;
+
+        var earned = await dbCtx.CfhReports.CountAsync(
+            x => x.ReportedEntityId == player.Value && x.Sanctioned,
+            ct
+        );
+        var step = steps[Math.Min(earned, steps.Length - 1)].Split(':', 2);
+        int? hours = null;
+
+        if (step.Length == 2)
+        {
+            if (!int.TryParse(step[1], CultureInfo.InvariantCulture, out var given))
+                return null;
+
+            hours = given;
+        }
+
+        var length = step[0] switch
+        {
+            ALERT or BAN_PERMANENT when hours is null => 0,
+            MUTE when hours is null or MUTE_HOURS => MUTE_HOURS,
+            BAN when hours is { } h && BAN_TYPES.ContainsKey(h) => h,
+            _ => -1,
+        };
+
+        return length < 0
+            ? null
+            : new SanctionTypeSnapshot
+            {
+                Name = step[0],
+                LengthHours = length,
+                Unknown = 0,
+            };
+    }
+
+    /// <summary>
+    /// Gives the sanction as the mod action window does (<see cref="IModerationToolService.SanctionAsync"/>:
+    /// the chat command's node, staff protection, the 1 h mute, the ban lengths, recorded cautions);
+    /// <paramref name="message"/> is what the player is told and the ban's reason. False when refused.
+    /// </summary>
+    private Task<bool> ApplyAsync(
+        PlayerId moderator,
+        PlayerId player,
+        SanctionTypeSnapshot sanction,
+        string message,
+        CancellationToken ct
+    ) =>
+        moderationTool.SanctionAsync(
+            moderator,
+            player,
+            sanction.Name switch
+            {
+                ALERT => new ModSanction(ModSanctionType.Caution, message),
+                MUTE => new ModSanction(ModSanctionType.Mute, message),
+                BAN_PERMANENT => new ModSanction(
+                    ModSanctionType.Ban,
+                    message,
+                    BanTypeId: BAN_TYPE_PERMANENT
+                ),
+                _ => new ModSanction(
+                    ModSanctionType.Ban,
+                    message,
+                    BanTypeId: BAN_TYPES[sanction.LengthHours]
+                ),
+            },
+            ct
+        );
+
+    private async Task CloseHeldAsync(
+        TurboDbContext dbCtx,
+        List<CfhReportEntity> reports,
+        CfhCloseReasonType reason,
+        CancellationToken ct
+    )
+    {
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
         foreach (var report in reports)

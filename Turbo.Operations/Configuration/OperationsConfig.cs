@@ -58,6 +58,17 @@ public class OperationsConfig
     /// <summary>How many of their own reports a player's report status lists, newest first.</summary>
     public int CfhReportsListed { get; init; } = 50;
 
+    /// <summary>
+    /// The issue handler's default sanctions, in the order a reported player earns them, each one
+    /// of the mod action window's (given as it gives them): <c>ALERT</c> (a caution), <c>MUTE</c>
+    /// (1 h), <c>BAN:18</c>, <c>BAN:168</c>, <c>BAN:720</c> or <c>BAN_PERMANENT</c> (the names the
+    /// client's sanction texts read, <c>SanctionInfo</c>). A player's next one is the step after
+    /// as many as reports about them were closed with one; past the end the last repeats. Empty:
+    /// "close with default sanction" only closes the issues.
+    /// </summary>
+    public string[] CfhDefaultSanctions { get; init; } =
+    ["ALERT", "MUTE", "BAN:18", "BAN:168", "BAN:720", "BAN_PERMANENT"];
+
     /// <summary>The moderation tool's message templates (its send-message and mod action windows).</summary>
     public string[] ModerationMessageTemplates { get; init; } = [];
 
