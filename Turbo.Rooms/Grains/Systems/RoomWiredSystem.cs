@@ -183,7 +183,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case PlayerEnterEvent enterEvt:
                 QueueEvent(evt);
 
-                return SendClickUserEnvironmentAsync(enterEvt.PlayerId, ct);
+                return SendEntryStateAsync(enterEvt.PlayerId, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
                 QueueEvent(evt);

@@ -61,6 +61,12 @@ public class WiredConfig
     public int ShowMessageMaxLength { get; init; } = 400;
 
     /// <summary>
+    /// The longest text a WIRED label keeps: its bubble's input takes 1000 characters
+    /// (layout <c>furniture_label</c>, <c>max_chars</c> 1000); longer text is cut there.
+    /// </summary>
+    public int FurnitureLabelMaxLength { get; init; } = 1000;
+
+    /// <summary>
     /// The longest delay an action may wait, in half-second pulses: 120 (60 s) is what the
     /// WIN63-202610121624 editor offers, standard or precise (<c>ActionDelaySection</c>).
     /// </summary>
@@ -86,6 +92,12 @@ public class WiredConfig
 
     /// <summary>How often changed fx values go out. Changes in between reach the client as one batch.</summary>
     public int VariableFxFlushMs { get; init; } = 100;
+
+    /// <summary>
+    /// How often changed values reach the leaderboards viewers hold open. Changes in between go
+    /// out as one update per chunk.
+    /// </summary>
+    public int VariableLeaderboardFlushMs { get; init; } = 1000;
 
     /// <summary>
     /// How long a player, avatar or furni is in the room before fx are sent about it. The client

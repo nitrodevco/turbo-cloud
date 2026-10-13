@@ -1413,6 +1413,18 @@ public class Revision20260909 : IRevision
 
             { MessageEvent.ApplySnapshotMessageEvent, new ApplySnapshotMessageParser() },
             { MessageEvent.WiredClickUserMessageEvent, new WiredClickUserMessageParser() },
+            {
+                MessageEvent.SetFurnitureLabelDataMessageEvent,
+                new SetFurnitureLabelDataMessageParser()
+            },
+            {
+                MessageEvent.SetFurnitureLabelSettingsMessageEvent,
+                new SetFurnitureLabelSettingsMessageParser()
+            },
+            {
+                MessageEvent.VariableLeaderboardReplaceSubscriptionMessageEvent,
+                new VariableLeaderboardReplaceSubscriptionMessageParser()
+            },
             { MessageEvent.OpenMessageEvent, new OpenMessageParser() },
             { MessageEvent.UpdateActionMessageEvent, new UpdateActionMessageParser() },
             { MessageEvent.UpdateAddonMessageEvent, new UpdateAddonMessageParser() },
@@ -3395,6 +3407,18 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(VariableLeaderboardSnapshotMessageComposer),
+                new VariableLeaderboardSnapshotMessageComposerSerializer(
+                    MessageComposer.VariableLeaderboardSnapshotMessageComposer
+                )
+            },
+            {
+                typeof(VariableLeaderboardChunkUpdateMessageComposer),
+                new VariableLeaderboardChunkUpdateMessageComposerSerializer(
+                    MessageComposer.VariableLeaderboardChunkUpdateMessageComposer
+                )
+            },
+            {
                 typeof(VariableFxStatusMessageComposer),
                 new VariableFxStatusMessageComposerSerializer(
                     MessageComposer.VariableFxStatusMessageComposer
@@ -3416,6 +3440,18 @@ public class Revision20260909 : IRevision
                 typeof(WiredClickUserResponseMessageComposer),
                 new WiredClickUserResponseMessageComposerSerializer(
                     MessageComposer.WiredClickUserResponseMessageComposer
+                )
+            },
+            {
+                typeof(FurnitureLabelsAndRegionsMessageComposer),
+                new FurnitureLabelsAndRegionsMessageComposerSerializer(
+                    MessageComposer.FurnitureLabelsAndRegionsMessageComposer
+                )
+            },
+            {
+                typeof(FurnitureLabelsAndRegionsUpdateMessageComposer),
+                new FurnitureLabelsAndRegionsUpdateMessageComposerSerializer(
+                    MessageComposer.FurnitureLabelsAndRegionsUpdateMessageComposer
                 )
             },
             {

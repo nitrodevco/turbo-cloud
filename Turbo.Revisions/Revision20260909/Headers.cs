@@ -473,6 +473,8 @@ internal static class MessageEvent
     public const int SetChestPreferencesMessageEvent = 3017;
     public const int SetClothingChangeDataMessageEvent = 2006;
     public const int SetCustomStackingHeightMessageEvent = 2882;
+    public const int SetFurnitureLabelDataMessageEvent = 7502;
+    public const int SetFurnitureLabelSettingsMessageEvent = 7503;
     public const int SetDiscordPreferencesMessageEvent = 452;
     public const int SetIgnoreRoomInvitesMessageEvent = 1322;
     public const int SetItemDataMessageEvent = 3432;
@@ -557,6 +559,7 @@ internal static class MessageEvent
     public const int VerifyCodeMessageEvent = 104;
     public const int VersionCheckMessageEvent = 2637;
     public const int VisitUserMessageEvent = 3284;
+    public const int VariableLeaderboardReplaceSubscriptionMessageEvent = 7550;
     public const int VoteForRoomMessageEvent = 2329;
     public const int WhisperMessageEvent = 4;
     public const int WiredClearErrorLogsMessageEvent = 3760;
@@ -762,6 +765,8 @@ internal static class MessageComposer
     public const int FurniRecolorUpdateMessageComposer = 7201;
     public const int FurniRentOrBuyoutOfferMessageComposer = 1921;
     public const int FurnitureAliasesMessageComposer = 2576;
+    public const int FurnitureLabelsAndRegionsMessageComposer = 7500;
+    public const int FurnitureLabelsAndRegionsUpdateMessageComposer = 7501;
     public const int Game2AccountGameStatusMessageComposer = 1173;
     public const int Game2ArenaEnteredMessageComposer = 3954;
     public const int Game2EnterArenaFailedMessageComposer = 3762;
@@ -1153,6 +1158,8 @@ internal static class MessageComposer
     public const int VariableFxConfigsRemovedMessageComposer = 1200;
     public const int VariableFxStatusMessageComposer = 3889;
     public const int VariableFxStatusRemovedMessageComposer = 3388;
+    public const int VariableLeaderboardChunkUpdateMessageComposer = 7552;
+    public const int VariableLeaderboardSnapshotMessageComposer = 7551;
     public const int VoucherRedeemErrorMessageComposer = 3035;
     public const int VoucherRedeemOkMessageComposer = 1888;
     public const int WardrobeMessageComposer = 3152;

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -23,6 +24,19 @@ public partial interface IRoomGrain
     public Task WiredClickAvatarAsync(
         ActionContext ctx,
         RoomObjectId targetObjectId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A viewer's leaderboard subscription (<c>VariableLeaderboardReplaceSubscription</c>): what to
+    /// send them now, the room's leaderboards for the room open form or the chunks they asked for.
+    /// </summary>
+    public Task<ImmutableArray<IComposer>> ReplaceVariableLeaderboardSubscriptionAsync(
+        ActionContext ctx,
+        int overlayInstanceId,
+        int queryRevision,
+        string selectedVariableId,
+        ImmutableArray<int> chunkIndices,
         CancellationToken ct
     );
 
