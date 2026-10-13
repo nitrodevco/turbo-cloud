@@ -182,6 +182,24 @@ internal class WiredDataSerializer
                 foreach (var name in textPlaceholders.CapturerNames)
                     packet.WriteString(name);
                 break;
+            // VariableLeaderboardContext: overlay, tile, candidate count, then per choice its id,
+            // technical name, persisted, has value and applicable Level Up count.
+            case WiredVariableLeaderboardContextSnapshot leaderboard:
+                packet
+                    .WriteInteger(leaderboard.OverlayInstanceId)
+                    .WriteInteger(leaderboard.TileX)
+                    .WriteInteger(leaderboard.TileY)
+                    .WriteInteger(leaderboard.TotalCandidateCount)
+                    .WriteInteger(leaderboard.Choices.Length);
+
+                foreach (var choice in leaderboard.Choices)
+                    packet
+                        .WriteString(choice.VariableId)
+                        .WriteString(choice.TechnicalName)
+                        .WriteBoolean(choice.Persistent)
+                        .WriteBoolean(choice.HasValue)
+                        .WriteInteger(choice.ApplicableLevelUpCount);
+                break;
             default:
                 break;
         }

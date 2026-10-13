@@ -94,6 +94,12 @@ public class WiredConfig
     public int VariableFxFlushMs { get; init; } = 100;
 
     /// <summary>
+    /// How often changed values reach the leaderboards viewers hold open. Changes in between go
+    /// out as one update per chunk.
+    /// </summary>
+    public int VariableLeaderboardFlushMs { get; init; } = 1000;
+
+    /// <summary>
     /// How long a player, avatar or furni is in the room before fx are sent about it. The client
     /// drops an fx for an object it has not been told of yet, and the object travels another way.
     /// </summary>

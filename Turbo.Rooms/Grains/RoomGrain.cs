@@ -40,6 +40,7 @@ using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Wired.Leaderboard;
 using Turbo.Rooms.Wired.VariableFx;
 
 namespace Turbo.Rooms.Grains;
@@ -113,6 +114,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomWiredSystem WiredSystem;
     public readonly RoomGameSystem GameSystem;
     public readonly RoomVariableFxSystem VariableFxSystem;
+    public readonly RoomVariableLeaderboardSystem VariableLeaderboardSystem;
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
@@ -210,6 +212,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         WiredSystem = new(this);
         GameSystem = new(this);
         VariableFxSystem = new(this);
+        VariableLeaderboardSystem = new(this);
         ChatSystem = new(this);
         CommandSystem = new(this);
         TimerSystem = new(this);
@@ -222,6 +225,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule.Register(WiredSystem);
         EventModule.Register(GameSystem);
         EventModule.Register(VariableFxSystem);
+        EventModule.Register(VariableLeaderboardSystem);
         FurniModule.RegisterPlacementLimit(WiredSystem);
         FurniModule.RegisterPlacementLimit(VariableFxSystem);
         EventModule.Register(ChatSystem);
@@ -297,6 +301,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             if (!dormant)
             {
                 await VariableFxSystem.ProcessAsync(now, ct);
+                await VariableLeaderboardSystem.ProcessAsync(now, ct);
                 await RollerSystem.ProcessRollersAsync(now, ct);
             }
 

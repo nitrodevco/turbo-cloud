@@ -181,6 +181,36 @@ public abstract class FurnitureWiredVariableLogic
             && store.TryGetTimestamps(storedKey, out createdAtMs, out updatedAtMs);
     }
 
+    /// <summary>
+    /// Every player a permanent user variable holds a value for, present in the room or not, by
+    /// player id, with when the value was created and last changed (epoch ms). Nothing for a
+    /// variable that only lives while its holders are in the room.
+    /// </summary>
+    public IEnumerable<(
+        int PlayerId,
+        WiredVariableValue Value,
+        long CreatedAtMs,
+        long UpdatedAtMs
+    )> GetStoredUserValues()
+    {
+        if (_storage is null)
+            yield break;
+
+        foreach (var (storageKey, value) in _storage.Store)
+        {
+            if (
+                !WiredVariableKey.TryFromStorageKey(storageKey, out var storedKey)
+                || storedKey.TargetType != WiredVariableTargetType.User
+                || storedKey.VariableId != _variableId
+            )
+                continue;
+
+            _storage.TryGetTimestamps(storedKey, out var createdAtMs, out var updatedAtMs);
+
+            yield return (storedKey.TargetId, value, createdAtMs, updatedAtMs);
+        }
+    }
+
     public virtual bool RemoveValue(WiredVariableKey key)
     {
         if (!TryGetStore(key, out var store, out var storedKey) || store is null)

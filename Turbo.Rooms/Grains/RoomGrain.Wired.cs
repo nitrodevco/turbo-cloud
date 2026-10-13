@@ -10,6 +10,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
@@ -25,6 +26,31 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
+    public async Task<ImmutableArray<IComposer>> ReplaceVariableLeaderboardSubscriptionAsync(
+        ActionContext ctx,
+        int overlayInstanceId,
+        int queryRevision,
+        string selectedVariableId,
+        ImmutableArray<int> chunkIndices,
+        CancellationToken ct
+    )
+    {
+        if (ctx.PlayerId <= 0 || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
+            return [];
+
+        return await VariableLeaderboardSystem.ReplaceSubscriptionAsync(
+            ctx.PlayerId,
+            new VariableLeaderboardReplaceSubscriptionMessage
+            {
+                OverlayInstanceId = overlayInstanceId,
+                QueryRevision = queryRevision,
+                SelectedVariableId = selectedVariableId,
+                ChunkIndices = chunkIndices,
+            },
+            ct
+        );
+    }
+
     public async Task WiredClickAvatarAsync(
         ActionContext ctx,
         RoomObjectId targetObjectId,

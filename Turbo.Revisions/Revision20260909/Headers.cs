@@ -559,6 +559,7 @@ internal static class MessageEvent
     public const int VerifyCodeMessageEvent = 104;
     public const int VersionCheckMessageEvent = 2637;
     public const int VisitUserMessageEvent = 3284;
+    public const int VariableLeaderboardReplaceSubscriptionMessageEvent = 7550;
     public const int VoteForRoomMessageEvent = 2329;
     public const int WhisperMessageEvent = 4;
     public const int WiredClearErrorLogsMessageEvent = 3760;
@@ -1157,6 +1158,8 @@ internal static class MessageComposer
     public const int VariableFxConfigsRemovedMessageComposer = 1200;
     public const int VariableFxStatusMessageComposer = 3889;
     public const int VariableFxStatusRemovedMessageComposer = 3388;
+    public const int VariableLeaderboardChunkUpdateMessageComposer = 7552;
+    public const int VariableLeaderboardSnapshotMessageComposer = 7551;
     public const int VoucherRedeemErrorMessageComposer = 3035;
     public const int VoucherRedeemOkMessageComposer = 1888;
     public const int WardrobeMessageComposer = 3152;
