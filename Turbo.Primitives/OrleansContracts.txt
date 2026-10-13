@@ -370,6 +370,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Permissions.IPlay
   5F0E0B6D: ReloadAsync(System.Threading.CancellationToken) -> Task
   A394F6AD: RemoveGroupAsync(string, bool, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
   27078F96: SendClientStateAsync(System.Threading.CancellationToken) -> Task
+  85DBDF42: SendClubLevelAsync(System.Threading.CancellationToken) -> Task
   6CF85474: SendPermissionNodesAsync(System.Threading.CancellationToken) -> Task
   C2312A4F: SetMetaAsync(string, string, System.DateTime?, Turbo.Primitives.Players.Enums.PermissionExpiryModeType, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
   7AD5AAEE: SetNodeAsync(string, bool, System.DateTime?, Turbo.Primitives.Players.Enums.PermissionExpiryModeType, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>

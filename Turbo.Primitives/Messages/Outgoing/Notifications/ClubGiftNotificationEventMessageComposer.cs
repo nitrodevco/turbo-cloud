@@ -4,8 +4,10 @@ using Turbo.Primitives.Networking;
 namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 
 /// <summary>
-/// Tells a player on login that club gifts are waiting for them. The client says nothing for a
-/// count below one, so it is only worth sending when there is something to collect.
+/// Tells a player that club gifts are waiting for them: on login, after every
+/// <c>ScrSendUserInfo</c> they ask for, and when a membership starts, as Habbo does. The client
+/// says nothing for a count below one, so it is only worth sending when there is something to
+/// collect.
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record ClubGiftNotificationEventMessageComposer : IComposer
