@@ -57,4 +57,20 @@ public class SubscriptionConfig
 
     /// <summary>The same for Builders Club (<c>club.builders_club.unlimited</c>), in hours.</summary>
     public int PermanentBuildersClubDisplayHours { get; init; } = 24;
+
+    /// <summary>
+    /// The share of a month's catalog spend the club centre says HC Payday gives back
+    /// (<c>hccenter.breakdown.paydayfactor</c>). Habbo's is 0.1 (recorded on hhus, 2026-10-13).
+    /// </summary>
+    public double PaydayKickbackPercentage { get; init; } = 0.1;
+
+    /// <summary>
+    /// Minutes the club centre counts down to HC Payday. Turbo pays no payday yet, so this is the
+    /// countdown Habbo sent a non-member (2880, recorded on hhus, 2026-10-13); a hotel without a
+    /// payday turns the block off with the <c>hccenter.activity.enabled</c> client variable.
+    /// </summary>
+    public int MinutesUntilPayday { get; init; } = 2880;
+
+    /// <summary>How the club centre writes the day a player first joined Habbo Club.</summary>
+    public string FirstSubscriptionDateFormat { get; init; } = "yyyy-MM-dd";
 }
