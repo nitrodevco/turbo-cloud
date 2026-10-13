@@ -9,15 +9,13 @@ namespace Turbo.Rooms.Commands;
 /// <c>:pickall</c>. The Flash client asks "Do you really want to pick all furniture in the room?"
 /// (<c>room.confirm.pick_all</c>) of the owner, a controller of any room or anyone with rights,
 /// and only then sends the line as chat (<c>SessionDataManager.pickAllFurniture</c>). Every furni
-/// goes where the infostand's pick up or eject would send it one at a time: the executor's own to
-/// their inventory, everybody else's to their inventory with <c>room.furni.steal</c>, otherwise
-/// back to its owners for whoever may eject (the room owner, a group admin, staff); a player who
-/// may not eject takes only their own. Borrowed furni is <c>:pickallbc</c>'s. Nothing is said: the
-/// furni leaving the room is the answer.
+/// the executor owns in the room goes back to their inventory, as picking each up would; other
+/// people's furni is <c>:ejectall</c>'s, and borrowed furni <c>:pickallbc</c>'s. Nothing is
+/// said: the furni leaving the room is the answer.
 /// </summary>
 [Command(
     "pickall",
-    Description = "Pick up all the furni in the room; other people's goes back to them",
+    Description = "Pick up all your furni in the room",
     Category = CommandCategories.GENERAL
 )]
 [RequiresPermission(PermissionNodes.Command.PICKALL)]
@@ -29,7 +27,7 @@ public sealed class PickAllCommand : ICommand<NoArguments>
         CancellationToken ct
     )
     {
-        await ctx.Room.PickUpAllAsync(ct);
+        await ctx.Room.PickUpAllOwnedAsync(false, ct);
 
         return CommandResult.Ok;
     }
