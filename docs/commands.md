@@ -199,7 +199,7 @@ chat as it is now. Operator commands are in §4.1.
 | --- | --- | --- | --- |
 | `:commands` | `command.commands` (granted by default) | — | lists what the executor may use |
 | `:kick <who>`, `:mute <who> [minutes]` | `command.kick`, `command.mute` | a room | `RoomModerationModule`, which already refuses a target holding `room.moderate.any`. The client sends these as chat only from security level 4, so the nodes sit with `room.moderate.any`. |
-| `:pickall`, `:pickallbc` | `command.pickall`, `command.pickallbc` (granted by default) | — | `RoomActionModule.PickUpAllOwnedAsync`: every furni the executor owns in the room (`:pickallbc`: every Builders Club furni they borrowed) goes back to them, as picking each up would. Built. |
+| `:pickall`, `:pickallbc` | `command.pickall`, `command.pickallbc` (granted by default) | — | `:pickall` (`RoomActionModule.PickUpAllAsync`): every furni goes where the infostand's pick up or eject would send it one at a time: the executor's own to them, everybody else's to them with `room.furni.steal`, otherwise back to its owners for whoever may eject (owner, group admin, `room.furni.pickup_any`); a player who may not eject takes only their own. `:pickallbc` (`PickUpAllOwnedAsync`): every Builders Club furni they borrowed goes back to the club. Built. |
 | `:ejectall` | `command.ejectall` (granted by default) | the infostand's eject | `RoomActionModule.EjectAllAsync`: everybody else's furni goes back to its owners, the room owner's and the executor's own excepted, for whoever may eject one furni (owner, group admin, `room.furni.pickup_any`). Built. |
 | `:ejectpets` | `command.ejectpets` | owner | pets |
 | `:resetscores`, `:mutepets` | `command.resetscores`, `command.mutepets` | rights | game scores, pet chat |

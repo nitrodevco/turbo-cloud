@@ -119,10 +119,40 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
-    /// <c>:pickall</c> and <c>:pickallbc</c>: every furni the player owns in the room goes back
-    /// to them at once, their own furni to their inventory or, for <c>:pickallbc</c>, their
-    /// borrowed furni to the club. Anybody's own furni is theirs to take back, as one at a time.
-    /// Returns how many left the room.
+    /// <c>:pickall</c>: every furni in the room the player could pick up or eject one at a time
+    /// from the infostand leaves at once, each where that would send it
+    /// (<see cref="RoomSecurityModule.GetFurniPickupTypeAsync"/>): their own furni to their
+    /// inventory; with <c>room.furni.steal</c> everybody else's to their inventory too;
+    /// otherwise, for whoever may eject, everybody else's back to its owners. Borrowed furni is
+    /// <c>:pickallbc</c>'s. Returns how many left the room.
+    /// </summary>
+    public async Task<int> PickUpAllAsync(ActionContext ctx, CancellationToken ct)
+    {
+        var pickupType = await SecurityModule.GetFurniPickupTypeAsync(ctx);
+        var items = _roomGrain
+            ._state.ItemsById.Values.Where(x =>
+                !x.IsTemporary
+                && !x.IsBuildersClub
+                && (x.OwnerId == ctx.PlayerId || pickupType != FurniturePickupType.None)
+            )
+            .ToList();
+
+        if (pickupType == FurniturePickupType.SendToCtx)
+        {
+            foreach (var item in items)
+                item.SetOwnerId(ctx.PlayerId);
+        }
+
+        await ReturnItemsToOwnersAsync(items, ct);
+
+        return items.Count;
+    }
+
+    /// <summary>
+    /// <c>:pickallbc</c> (and <c>:pickall</c> of the player's own furni only): every furni the
+    /// player owns in the room goes back to them at once, their own furni to their inventory
+    /// or their borrowed furni to the club. Anybody's own furni is theirs to take back, as one
+    /// at a time. Returns how many left the room.
     /// </summary>
     public async Task<int> PickUpAllOwnedAsync(
         ActionContext ctx,

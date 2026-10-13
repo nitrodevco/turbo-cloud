@@ -142,6 +142,9 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
     public Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct) =>
         roomGrain.ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
 
+    public Task<int> PickUpAllAsync(CancellationToken ct) =>
+        roomGrain.ActionModule.PickUpAllAsync(action, ct);
+
     public Task<int> PickUpAllOwnedAsync(bool buildersClub, CancellationToken ct) =>
         roomGrain.ActionModule.PickUpAllOwnedAsync(action, buildersClub, ct);
 

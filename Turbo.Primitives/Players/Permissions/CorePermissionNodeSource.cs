@@ -144,7 +144,7 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         ),
         new(
             PermissionNodes.Command.PICKALL,
-            "Use :pickall to pick up all your own furni in the room.",
+            "Use :pickall to pick up all the furni in the room you may pick up or eject.",
             GrantedByDefault: true
         ),
         new(

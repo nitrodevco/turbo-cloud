@@ -80,6 +80,39 @@ public class FurniCommandsTests
     }
 
     [Fact]
+    public async Task Pickall_by_the_room_owner_picks_up_theirs_and_ejects_everybody_elses()
+    {
+        _room.AddPlayer(OWNER, PermissionNodes.Command.PICKALL);
+        AddFloorItem(10, 1, 1, BUILDER);
+        AddFloorItem(11, 2, 1, VISITOR);
+        AddFloorItem(12, 3, 1, OWNER);
+        AddFloorItem(FurniIdBands.BuildersClubMin + 5, 4, 1, BUILDER);
+
+        await _room.SayAsync(OWNER, ":pickall");
+
+        ItemIds().Should().BeEquivalentTo([FurniIdBands.BuildersClubMin + 5]);
+        ReturnedTo(OWNER).Should().BeEquivalentTo([12]);
+        ReturnedTo(BUILDER).Should().BeEquivalentTo([10], "an eject sends the furni to its owner");
+        ReturnedTo(VISITOR).Should().BeEquivalentTo([11]);
+    }
+
+    [Fact]
+    public async Task Pickall_with_furni_steal_picks_up_everybodys_furni_into_the_executors_inventory()
+    {
+        _room.AddPlayer(BUILDER, PermissionNodes.Command.PICKALL, PermissionNodes.Room.FURNI_STEAL);
+        AddFloorItem(10, 1, 1, OWNER);
+        AddFloorItem(11, 2, 1, VISITOR);
+        AddFloorItem(12, 3, 1, BUILDER);
+
+        await _room.SayAsync(BUILDER, ":pickall");
+
+        ItemIds().Should().BeEmpty();
+        ReturnedTo(BUILDER).Should().BeEquivalentTo([10, 11, 12]);
+        ReturnedTo(OWNER).Should().BeEmpty();
+        ReturnedTo(VISITOR).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Pickallbc_gives_back_only_the_executors_borrowed_furni()
     {
         var borrowed = FurniIdBands.BuildersClubMin + 5;

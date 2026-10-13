@@ -51,9 +51,16 @@ public interface ICommandRoom
     Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct);
 
     /// <summary>
-    /// Sends every furni the executor owns in the room back to them (<c>:pickall</c>), or every
-    /// Builders Club furni they borrowed back to the club (<c>:pickallbc</c>), and returns how
-    /// many left.
+    /// <c>:pickall</c>: every furni the executor could pick up or eject one at a time leaves the
+    /// room, each where that would send it: their own to them, with <c>room.furni.steal</c>
+    /// everybody else's to them too, otherwise (for whoever may eject) back to its owners.
+    /// Borrowed furni stays. Returns how many left.
+    /// </summary>
+    Task<int> PickUpAllAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Sends every furni the executor owns in the room back to them, or every Builders Club
+    /// furni they borrowed back to the club (<c>:pickallbc</c>), and returns how many left.
     /// </summary>
     Task<int> PickUpAllOwnedAsync(bool buildersClub, CancellationToken ct);
 
