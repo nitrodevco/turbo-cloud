@@ -17,8 +17,9 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Divide => operand == 0 ? current : current / operand,
             WiredVariableOperationType.Modulo => operand == 0 ? current : current % operand,
             WiredVariableOperationType.Power => Power(current, operand),
-            WiredVariableOperationType.Minimum => Math.Min(current, operand),
-            WiredVariableOperationType.Maximum => Math.Max(current, operand),
+            // "Set minimum" makes the operand a floor, "Set maximum" a ceiling (official client capture).
+            WiredVariableOperationType.SetMinimum => Math.Max(current, operand),
+            WiredVariableOperationType.SetMaximum => Math.Min(current, operand),
             WiredVariableOperationType.Random => operand <= 0
                 ? 0
                 : Random.Shared.NextInt64(0, operand + 1),

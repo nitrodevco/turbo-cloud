@@ -18,7 +18,8 @@ namespace Turbo.Tests.Rooms;
 
 /// <summary>
 /// "Change Variable Value" with the operation ids its editor offers
-/// (<c>wiredfurni.params.variables.operation.&lt;id&gt;</c>): 5 Power, 6 Modulo, 60 Absolute value,
+/// (<c>wiredfurni.params.variables.operation.&lt;id&gt;</c>): 5 Power, 6 Modulo, 40 Set minimum and 41
+/// Set maximum (a floor and a ceiling, as an official client capture applies them), 60 Absolute value,
 /// 110 Bit count (AS3 <c>ChangeVariable.operatorOptions</c>; the last two take no operand), and from
 /// 111 the bit operations whose operand is a position: next / previous low (0) or high (1) bit,
 /// inclusive (111-114) or exclusive (119-122), -1 when there is none, and get / set / clear /
@@ -47,6 +48,11 @@ public sealed class WiredVariableOperationIdsTests
     [Theory]
     [InlineData(5, 2, 169)]
     [InlineData(6, 5, 3)]
+    // "Set minimum" (40) puts a floor under the value, "Set maximum" (41) a ceiling over it.
+    [InlineData(40, 20, 20)]
+    [InlineData(40, 5, 13)]
+    [InlineData(41, 5, 5)]
+    [InlineData(41, 20, 13)]
     [InlineData(60, 0, 13)]
     [InlineData(110, 0, 3)]
     // 13 is 1101: the bits at positions 0, 2 and 3 are set.
