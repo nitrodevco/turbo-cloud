@@ -409,11 +409,18 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             return;
         }
 
-        // Left, kicked or the group removed: the badge they wore is gone from their memberships,
-        // so the room stops drawing it now rather than at their next entry, and the wired group
-        // boxes stop counting it.
-        if (wornBefore is not null && _state.FavouriteGuildId is null)
-            await TellRoomOfFavouriteAsync(null, ct);
+        // Left, kicked or the group removed: the badge they wore is gone from their memberships;
+        // or a first group joined is worn at once. The room draws the change now rather than at
+        // their next entry, and the wired group boxes count it.
+        if (wornBefore != _state.FavouriteGuildId)
+            await TellRoomOfFavouriteAsync(
+                _state.FavouriteGuildId is { } worn
+                    ? await _grainFactory
+                        .GetGuildDirectoryGrain()
+                        .GetSummaryAsync(GuildId.Parse(worn), ct)
+                    : null,
+                ct
+            );
 
         // The messenger lists each group as a group chat. Told, not awaited: the messenger reads
         // the memberships back from this grain, which would wait on this very turn.

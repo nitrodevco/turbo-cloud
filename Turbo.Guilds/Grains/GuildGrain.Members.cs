@@ -432,6 +432,18 @@ internal sealed partial class GuildGrain
         CancellationToken ct
     )
     {
+        // Someone who becomes a member while wearing no group wears this one: Habbo's join of an
+        // open group by an account in no group lists it as the favourite straight away
+        // (official client capture 2026-10-13, GuildMemberships favourite:true after joining
+        // 402778), the same rule a new group's owner gets.
+        var wearsNone =
+            GuildMemberRanks.IsMember(rank)
+            && !GuildMemberRanks.IsMember(
+                _state.RankByPlayerId.TryGetValue(playerId.Value, out var current) ? current : null
+            )
+            && await _grainFactory.GetPlayerGuildGrain(playerId).GetFavouriteGuildIdAsync(ct)
+                is null;
+
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
             var entity = await dbCtx.GuildMembers.FirstOrDefaultAsync(
@@ -447,13 +459,16 @@ internal sealed partial class GuildGrain
                         GuildEntityId = GuildId.Value,
                         PlayerEntityId = playerId.Value,
                         Rank = rank,
-                        IsFavourite = false,
+                        IsFavourite = wearsNone,
                     }
                 );
             }
             else
             {
                 entity.Rank = rank;
+
+                if (wearsNone)
+                    entity.IsFavourite = true;
             }
 
             await dbCtx.SaveChangesAsync(ct);

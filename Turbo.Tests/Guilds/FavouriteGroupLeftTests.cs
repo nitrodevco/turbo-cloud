@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Guilds;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
@@ -27,24 +29,27 @@ public sealed class FavouriteGroupLeftTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private async Task<IPlayerGuildGrain> MemberWearingTheGroupAsync()
+    private async Task<IPlayerGuildGrain> MemberWearingTheGroupAsync(bool member = true)
     {
         await using (var dbCtx = await _db.CreateDbContextAsync(Ct))
         {
-            dbCtx.GuildMembers.Add(
-                new GuildMemberEntity
-                {
-                    GuildEntityId = GROUP,
-                    PlayerEntityId = PLAYER,
-                    Rank = GuildMemberRank.Member,
-                    IsFavourite = true,
-                }
-            );
+            if (member)
+                dbCtx.GuildMembers.Add(
+                    new GuildMemberEntity
+                    {
+                        GuildEntityId = GROUP,
+                        PlayerEntityId = PLAYER,
+                        Rank = GuildMemberRank.Member,
+                        IsFavourite = true,
+                    }
+                );
             await dbCtx.SaveChangesAsync(Ct);
         }
 
         _fakes.Handlers["GetActiveRoomAsync"] = _ =>
-            Task.FromResult(new RoomPointerSnapshot { RoomId = ROOM, ActiveSinceUtc = DateTime.UtcNow });
+            Task.FromResult(
+                new RoomPointerSnapshot { RoomId = ROOM, ActiveSinceUtc = DateTime.UtcNow }
+            );
 
         var grain = GrainHarness.Create(
             typeof(GuildModule).Assembly,
@@ -87,5 +92,50 @@ public sealed class FavouriteGroupLeftTests
         await grain.OnMembershipsChangedAsync(Ct);
 
         RoomTold().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_first_group_joined_is_put_on_in_the_room()
+    {
+        var grain = await MemberWearingTheGroupAsync(member: false);
+
+        _fakes.Handlers["GetSummaryAsync"] = _ =>
+            Task.FromResult<GuildSummarySnapshot?>(
+                new GuildSummarySnapshot
+                {
+                    GuildId = GuildId.Parse(GROUP),
+                    Name = "joined",
+                    BadgeCode = "b01014",
+                    RoomId = ROOM,
+                    OwnerId = 1,
+                    PrimaryColorId = 1,
+                    SecondaryColorId = 1,
+                    PrimaryColor = "ffffff",
+                    SecondaryColor = "ffffff",
+                    Type = GuildType.Regular,
+                    HasForum = false,
+                    RightsLevel = GuildRightsLevel.Admins,
+                }
+            );
+
+        await using (var dbCtx = await _db.CreateDbContextAsync(Ct))
+        {
+            dbCtx.GuildMembers.Add(
+                new GuildMemberEntity
+                {
+                    GuildEntityId = GROUP,
+                    PlayerEntityId = PLAYER,
+                    Rank = GuildMemberRank.Member,
+                    IsFavourite = true,
+                }
+            );
+            await dbCtx.SaveChangesAsync(Ct);
+        }
+
+        await grain.OnMembershipsChangedAsync(Ct);
+
+        var told = RoomTold().Should().ContainSingle().Subject;
+        told.Args[1].Should().Be(GROUP);
+        told.Args[3].Should().Be("joined");
     }
 }
