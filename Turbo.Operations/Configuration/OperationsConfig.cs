@@ -72,4 +72,21 @@ public class OperationsConfig
 
     /// <summary>How many chat lines a user chatlog shows per room.</summary>
     public int ModerationUserChatlogLines { get; init; } = 50;
+
+    /// <summary>
+    /// The name the room tool gives a room it renames; the default is the one its checkbox names
+    /// (roomtool_frame).
+    /// </summary>
+    public string ModerationInappropriateRoomName { get; init; } =
+        "Inappropriate to hotel management";
+
+    /// <summary>
+    /// What a caution, mute, kick or trade lock from the mod action window tells the player when
+    /// the moderator wrote nothing (the window's message only "overrides default text"). Empty:
+    /// such a caution is refused and the others are given without a message.
+    /// </summary>
+    public string ModerationDefaultSanctionMessage { get; init; } = string.Empty;
+
+    /// <summary>User info's trade lock expiry for a lock without an end.</summary>
+    public string ModerationPermanentTradeLockText { get; init; } = "Permanent";
 }

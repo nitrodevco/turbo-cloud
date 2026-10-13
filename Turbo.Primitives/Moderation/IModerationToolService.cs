@@ -44,4 +44,44 @@ public interface IModerationToolService
         bool caution,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The room tool's caution or message to everyone in <paramref name="roomId"/>, the room the
+    /// moderator is in (<c>ModeratorAction</c> names none): action 0 caution, 1 caution and kick,
+    /// 3 message, 4 message and kick. Takes <c>command.roomalert</c>, the kick
+    /// <c>command.roomkickall</c>. False when refused or nobody was reached.
+    /// </summary>
+    Task<bool> MessageRoomAsync(
+        PlayerId moderator,
+        RoomId roomId,
+        int actionType,
+        string message,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The room tool's checkboxes (<c>ModerateRoom</c>): door to doorbell, the room renamed as
+    /// inappropriate (both with <c>command.roomalert</c>, the node that enables the tool's send
+    /// buttons), everyone kicked and the event ended (<c>command.roomkickall</c>).
+    /// </summary>
+    Task<bool> ModerateRoomAsync(
+        PlayerId moderator,
+        RoomId roomId,
+        bool doorbell,
+        bool rename,
+        bool kick,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A sanction from the mod action window on <paramref name="target"/>, held to the node of the
+    /// chat command that does the same; a player who holds that node too is out of reach. False
+    /// when refused or it changed nothing.
+    /// </summary>
+    Task<bool> SanctionAsync(
+        PlayerId moderator,
+        PlayerId target,
+        ModSanction sanction,
+        CancellationToken ct
+    );
 }

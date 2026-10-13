@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
@@ -16,6 +17,7 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -39,6 +41,8 @@ public sealed class ModerationToolTests : IDisposable
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
     private readonly HashSet<string> _held = [];
+    private readonly HashSet<string> _targetHeld = [];
+    private readonly List<int> _inRoom = [MODERATOR, PLAYER];
     private readonly List<(PlayerId Player, IComposer Composer)> _delivered = [];
     private bool _online = true;
 
@@ -65,7 +69,14 @@ public sealed class ModerationToolTests : IDisposable
         _db.Insert(Line(ROOM, PLAYER, "no", NOW.AddMinutes(-1)));
 
         _fakes.Handlers["HasAsync"] = call =>
-            Task.FromResult(_held.Contains((string)call.Args[0]!));
+            Task.FromResult(
+                (Convert.ToInt32(call.Key) == MODERATOR ? _held : _targetHeld).Contains(
+                    (string)call.Args[0]!
+                )
+            );
+        _fakes.Handlers["GetRoomPlayersAsync"] = _ =>
+            Task.FromResult(ImmutableArray.CreateRange(_inRoom.Select(x => (PlayerId)x)));
+        _fakes.Handlers["GetRoomPopulationAsync"] = _ => Task.FromResult(_inRoom.Count);
         _fakes.Handlers["GetActiveRoomAsync"] = _ =>
             Task.FromResult(
                 new RoomPointerSnapshot { RoomId = ROOM, ActiveSinceUtc = NOW.AddHours(-1) }
@@ -74,7 +85,7 @@ public sealed class ModerationToolTests : IDisposable
             (IReadOnlyCollection<PlayerId>)(_online ? [PLAYER] : []);
         _fakes.Handlers["TrySendComposerAsync"] = call =>
         {
-            _delivered.Add((PLAYER, (IComposer)call.Args[0]!));
+            _delivered.Add((Convert.ToInt32(call.Key), (IComposer)call.Args[0]!));
             return Task.FromResult(_online);
         };
     }
@@ -159,7 +170,7 @@ public sealed class ModerationToolTests : IDisposable
 
         reply.Header.Should().Be(PacketHarness.Outgoing("ModeratorRoomInfoMessageComposer"));
         reply.PopInt().Should().Be(ROOM);
-        reply.PopInt().Should().Be(3, "users now");
+        reply.PopInt().Should().Be(2, "the live room's count, not the stored UsersNow (3)");
         reply.PopBoolean().Should().BeTrue("the owner is in the room");
         reply.PopInt().Should().Be(PLAYER);
         reply.PopString().Should().Be("troll");
@@ -282,6 +293,272 @@ public sealed class ModerationToolTests : IDisposable
             .BeOfType<ModeratorCautionEventMessageComposer>();
     }
 
+    [Fact]
+    public async Task The_room_tool_cautions_everyone_in_the_moderators_room()
+    {
+        // RoomToolCtrl.act: ModeratorAction(0 = caution, message, ""), no room id.
+        var payload = PacketHarness.Payload(w => w.Int(0).String("Calm down.").String(""));
+
+        (
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("ModeratorActionMessageEvent"),
+                    payload,
+                    playerId: MODERATOR,
+                    roomId: ROOM
+                )
+        )
+            .Should()
+            .BeEmpty("the tool closes on send");
+        _delivered.Should().BeEmpty("refused without command.roomalert");
+
+        _held.Add(PermissionNodes.Command.ROOMALERT);
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModeratorActionMessageEvent"),
+                payload,
+                playerId: MODERATOR,
+                roomId: ROOM
+            );
+
+        _delivered
+            .Should()
+            .ContainSingle("everyone in the room but the moderator")
+            .Which.Should()
+            .Match<(PlayerId Player, IComposer Composer)>(x =>
+                x.Player == PLAYER
+                && x.Composer is ModeratorCautionEventMessageComposer
+                && ((ModeratorCautionEventMessageComposer)x.Composer).Message == "Calm down."
+            );
+        _fakes.Log.Of("ModerateRoomBySystemAsync").Should().BeEmpty("action 0 kicks nobody");
+    }
+
+    [Fact]
+    public async Task A_room_message_with_kick_needs_the_room_kick_node()
+    {
+        _held.Add(PermissionNodes.Command.ROOMALERT);
+        // Action 4: message and kick.
+        var payload = PacketHarness.Payload(w => w.Int(4).String("Closing.").String(""));
+
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModeratorActionMessageEvent"),
+                payload,
+                playerId: MODERATOR,
+                roomId: ROOM
+            );
+        _delivered.Should().BeEmpty();
+
+        _held.Add(PermissionNodes.Command.ROOMKICKALL);
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModeratorActionMessageEvent"),
+                payload,
+                playerId: MODERATOR,
+                roomId: ROOM
+            );
+
+        _delivered
+            .Should()
+            .ContainSingle()
+            .Which.Composer.Should()
+            .BeOfType<ModeratorMessageComposer>();
+        var kick = _fakes.Log.Of("ModerateRoomBySystemAsync").Should().ContainSingle().Subject;
+        Convert.ToInt32(kick.Key).Should().Be(ROOM);
+        kick.Args[0].Should().Be((PlayerId)MODERATOR, "the moderator stays");
+        kick.Args.Skip(1).Take(3).Should().Equal(false, null, true);
+    }
+
+    [Fact]
+    public async Task The_room_tools_checkboxes_lock_rename_and_kick()
+    {
+        // RoomToolCtrl.act: ModerateRoom(flatId, lock, changeName, kick) as ints.
+        var payload = PacketHarness.Payload(w => w.Int(ROOM).Int(1).Int(1).Int(1));
+
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModerateRoomMessageEvent"),
+                payload,
+                playerId: MODERATOR
+            );
+        _held.Add(PermissionNodes.Command.ROOMALERT);
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModerateRoomMessageEvent"),
+                payload,
+                playerId: MODERATOR
+            );
+        _fakes.Log.Of("ModerateRoomBySystemAsync").Should().BeEmpty("kick needs roomkickall");
+
+        _held.Add(PermissionNodes.Command.ROOMKICKALL);
+        await Harness()
+            .SendAsync(
+                PacketHarness.Incoming("ModerateRoomMessageEvent"),
+                payload,
+                playerId: MODERATOR
+            );
+
+        var call = _fakes.Log.Of("ModerateRoomBySystemAsync").Should().ContainSingle().Subject;
+        Convert.ToInt32(call.Key).Should().Be(ROOM);
+        call.Args.Take(4)
+            .Should()
+            .Equal((PlayerId)MODERATOR, true, "Inappropriate to hotel management", true);
+    }
+
+    [Fact]
+    public async Task A_caution_is_counted_in_user_info()
+    {
+        _held.Add(PermissionNodes.Command.WARN);
+        await ModAlertAsync();
+
+        var reply = await UserInfoAsync();
+
+        reply.PopInt().Should().Be(0, "cfh");
+        reply.PopInt().Should().Be(0, "abusive cfh");
+        reply.PopInt().Should().Be(1, "one caution");
+        reply.PopInt().Should().Be(0, "a caution is not a ban");
+    }
+
+    [Fact]
+    public async Task A_ban_from_the_mod_action_window_lasts_its_type_and_sends_the_player_out()
+    {
+        // ModBan(user, message, topic, sanctionTypeId 4 = "Ban 7 days", avatarOnly false), no issue.
+        var payload = PacketHarness.Payload(w =>
+            w.Int(PLAYER).String("Scamming.").Int(12).Int(4).Bool(false)
+        );
+        _held.Add(PermissionNodes.Command.BAN);
+        _targetHeld.Add(PermissionNodes.Command.BAN);
+
+        var refused = await ResultAsync("ModBanMessageEvent", payload);
+        _targetHeld.Clear();
+        var banned = await ResultAsync("ModBanMessageEvent", payload);
+
+        refused.Should().BeFalse("staff who may ban are out of reach");
+        banned.Should().BeTrue();
+        using var db = _db.CreateDbContext();
+        var ban = db.PlayerSanctions.Single(x =>
+            x.Kind == Primitives.Moderation.Enums.SanctionKind.Ban
+        );
+        ban.PlayerEntityId.Should().Be(PLAYER);
+        ban.Reason.Should().Be("Scamming.");
+        ban.ExpiresAt.Should().Be(NOW.AddDays(7));
+        _fakes.Log.Of("DisconnectPlayerAsync").Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Mute_and_trade_lock_deny_their_nodes_for_their_length()
+    {
+        _held.UnionWith([PermissionNodes.Command.SILENCE, PermissionNodes.Command.TRADELOCK]);
+        _fakes.Handlers["SetNodeAsync"] = _ => Task.FromResult(PermissionChangeResultType.Changed);
+
+        var muted = await ResultAsync(
+            "ModMuteMessageEvent",
+            PacketHarness.Payload(w => w.Int(PLAYER).String("").Int(12))
+        );
+        // "Lock trade 1 week": 168 hours * 60.
+        var locked = await ResultAsync(
+            "ModTradingLockMessageEvent",
+            PacketHarness.Payload(w => w.Int(PLAYER).String("").Int(168 * 60).Int(12))
+        );
+
+        muted.Should().BeTrue();
+        locked.Should().BeTrue();
+        _fakes
+            .Log.Of("SetNodeAsync")
+            .Select(x => (Convert.ToInt32(x.Key), x.Args[0], x.Args[1], x.Args[2]))
+            .Should()
+            .Equal(
+                (PLAYER, PermissionNodes.Chat.SPEAK, false, NOW.AddHours(1)),
+                (PLAYER, PermissionNodes.TRADE, false, NOW.AddDays(7))
+            );
+    }
+
+    [Fact]
+    public async Task A_kick_sends_the_player_out_of_the_room_they_are_in()
+    {
+        _held.Add(PermissionNodes.Room.MODERATE_ANY);
+        _fakes.Handlers["KickPlayerAsync"] = _ => Task.FromResult(true);
+
+        var kicked = await ResultAsync(
+            "ModKickMessageEvent",
+            PacketHarness.Payload(w => w.Int(PLAYER).String("").Int(12))
+        );
+
+        kicked.Should().BeTrue();
+        var call = _fakes.Log.Of("KickPlayerAsync").Should().ContainSingle().Subject;
+        call.Args[0].Should().Be(Primitives.Action.ActionContext.CreateForPlayer(MODERATOR, ROOM));
+        call.Args[1].Should().Be((PlayerId)PLAYER);
+    }
+
+    [Fact]
+    public async Task User_info_counts_trade_locks_and_shows_the_one_in_force()
+    {
+        _db.Insert(TradeLockAudit(1, NOW.AddDays(-30)));
+        _db.Insert(TradeLockAudit(2, NOW.AddDays(3)));
+        _db.Insert(
+            new Turbo.Database.Entities.Permissions.PlayerPermissionNodeEntity
+            {
+                PlayerEntityId = PLAYER,
+                Node = PermissionNodes.TRADE,
+                Value = false,
+                ExpiresAt = NOW.AddDays(3),
+                IsTemporary = true,
+            }
+        );
+
+        var reply = await UserInfoAsync();
+
+        Enumerable.Range(0, 5).Select(_ => reply.PopInt()).Should().Equal(0, 0, 0, 0, 2);
+        reply.PopString().Should().Be("2026-10-16 12:00");
+    }
+
+    private static Turbo.Database.Entities.Permissions.PermissionAuditEntity TradeLockAudit(
+        int id,
+        DateTime expires
+    ) =>
+        new()
+        {
+            Id = id,
+            ActorPlayerId = MODERATOR,
+            TargetType = Primitives.Players.Enums.PermissionAuditTargetType.Player,
+            TargetId = PLAYER,
+            Action = Primitives.Players.Enums.PermissionAuditActionType.NodeSet,
+            Subject = PermissionNodes.TRADE,
+            Value = "false",
+            ExpiresAt = expires,
+        };
+
+    /// <summary>User info for the target, read up to its five counts.</summary>
+    private async Task<ClientPacket> UserInfoAsync()
+    {
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("GetModeratorUserInfoMessageEvent"),
+                    PacketHarness.Payload(w => w.Int(PLAYER)),
+                    playerId: MODERATOR
+                )
+        );
+        reply.PopInt();
+        reply.PopString();
+        reply.PopString();
+        reply.PopInt();
+        reply.PopInt();
+        reply.PopBoolean();
+        return reply;
+    }
+
+    /// <summary>Sends a mod action and reads its ModeratorActionResult for the target.</summary>
+    private async Task<bool> ResultAsync(string message, byte[] payload)
+    {
+        var reply = Assert.Single(
+            await Harness().SendAsync(PacketHarness.Incoming(message), payload, playerId: MODERATOR)
+        );
+        reply.Header.Should().Be(PacketHarness.Outgoing("ModeratorActionResultMessageComposer"));
+        reply.PopInt().Should().Be(PLAYER);
+        return reply.PopBoolean();
+    }
+
     private async Task<ClientPacket> ModMessageAsync(string text)
     {
         var reply = Assert.Single(
@@ -353,6 +630,14 @@ public sealed class ModerationToolTests : IDisposable
             _db,
             _fakes.Create<Orleans.IGrainFactory>(),
             _fakes.Create<ISessionGateway>(),
+            new SanctionService(
+                _db,
+                new ManualTimeProvider(new DateTimeOffset(NOW)),
+                new TestEventBus().System,
+                NullLogger<ISanctionService>.Instance
+            ),
+            _fakes.Create<IRoomService>(),
+            _fakes.Create<IHotelTextProvider>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
             Options.Create(
                 new OperationsConfig
@@ -360,7 +645,8 @@ public sealed class ModerationToolTests : IDisposable
                     ModerationMessageTemplates = ["Please behave."],
                     ModerationRoomMessageTemplates = ["Room closed."],
                 }
-            )
+            ),
+            NullLogger<ModerationToolService>.Instance
         );
 
     private static PlayerEntity Player(int id, string name, DateTime createdAt) =>

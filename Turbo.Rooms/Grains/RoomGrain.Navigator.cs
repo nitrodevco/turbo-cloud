@@ -354,6 +354,12 @@ public sealed partial class RoomGrain
         if (current is null || current.EventId != eventId || !await CanManageEventAsync(ctx))
             return false;
 
+        return await EndEventAsync(eventId, ct);
+    }
+
+    /// <summary>Ends the room's event, whoever asked; the callers check.</summary>
+    private async Task<bool> EndEventAsync(int eventId, CancellationToken ct)
+    {
         var now = DateTime.UtcNow;
 
         try

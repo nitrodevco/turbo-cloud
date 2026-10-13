@@ -8,7 +8,7 @@ using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Moderator;
 
-/// <summary>The mod action window's caution (<c>ModActionCtrl.onCustomSanctionButton</c>, "Alert"), answered with whether it reached the player. The tool offers it only to holders of <c>command.warn</c>, which the server holds it to as well.</summary>
+/// <summary>The mod action window's caution (<c>ModActionCtrl.as:256-263</c>, "Alert"), held to <c>command.warn</c> as the window holds it to alertPermission. Answered with whether it was given (<c>ModerationMessageHandler.as:292-304</c> re-reads the user info on success).</summary>
 [RequiresPermission(PermissionNodes.Moderation.TOOL)]
 public class ModAlertMessageHandler(IModerationToolService moderation)
     : IMessageHandler<ModAlertMessage>
@@ -21,15 +21,20 @@ public class ModAlertMessageHandler(IModerationToolService moderation)
         CancellationToken ct
     )
     {
-        var sent = await _moderation
-            .SendMessageAsync(ctx.PlayerId, message.UserId, message.Message, caution: true, ct)
+        var given = await _moderation
+            .SanctionAsync(
+                ctx.PlayerId,
+                message.UserId,
+                new ModSanction(ModSanctionType.Caution, message.Message),
+                ct
+            )
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new ModeratorActionResultMessageComposer
                 {
                     UserId = message.UserId,
-                    Success = sent,
+                    Success = given,
                 },
                 ct
             )

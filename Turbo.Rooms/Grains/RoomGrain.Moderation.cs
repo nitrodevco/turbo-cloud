@@ -232,6 +232,43 @@ public sealed partial class RoomGrain
     public Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct) =>
         ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
 
+    public async Task<bool> ModerateRoomBySystemAsync(
+        PlayerId moderator,
+        bool doorbell,
+        string? name,
+        bool kick,
+        CancellationToken ct
+    )
+    {
+        var changed = false;
+        var current = _state.RoomSnapshot;
+        var next = current;
+
+        if (doorbell && current.DoorMode != RoomDoorModeType.Locked)
+            next = next with { DoorMode = RoomDoorModeType.Locked };
+
+        if (name is not null && current.Name != name)
+            next = next with { Name = name };
+
+        if (next != current)
+        {
+            if (!await PersistSettingsAsync(next, ct))
+                return false;
+
+            await ApplySettingsAsync(current, next, ct);
+            changed = true;
+        }
+
+        if (!kick)
+            return changed;
+
+        // "Kick users out of the room (automatically stops the event)", roomtool_frame.
+        if (GetActiveEvent() is { } active)
+            changed |= await EndEventAsync(active.EventId, ct);
+
+        return await ModerationModule.ClearRoomBySystemAsync(moderator, ct) > 0 || changed;
+    }
+
     public Task EvictEveryoneAndUnloadAsync(CancellationToken ct) =>
         ModerationModule.EvictEveryoneAndUnloadAsync(ct);
 }

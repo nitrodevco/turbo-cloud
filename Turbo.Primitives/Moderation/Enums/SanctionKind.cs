@@ -9,4 +9,10 @@ public enum SanctionKind
 {
     /// <summary>The player cannot log in.</summary>
     Ban = 1,
+
+    /// <summary>
+    /// A moderator's caution. It does nothing to the player and is over when given (its expiry is
+    /// its issue time); it is kept so the moderation tool can count a player's cautions.
+    /// </summary>
+    Caution = 2,
 }

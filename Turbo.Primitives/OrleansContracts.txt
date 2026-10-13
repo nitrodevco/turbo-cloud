@@ -500,6 +500,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   79E3CFE4: KickPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   37DC1ED9: LockWiredChestsAsync(Turbo.Primitives.Action.ActionContext, bool, bool, System.Threading.CancellationToken) -> Task
   A4A98E7C: LookToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>
+  2B9B04F2: ModerateRoomBySystemAsync(Turbo.Primitives.Players.PlayerId, bool, string?, bool, System.Threading.CancellationToken) -> Task<bool>
   BC943809: MountPetAsync(Turbo.Primitives.Action.ActionContext, int, bool, System.Threading.CancellationToken) -> Task<bool>
   87DCB386: MoveBotAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
   8033B240: MoveFloorItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>

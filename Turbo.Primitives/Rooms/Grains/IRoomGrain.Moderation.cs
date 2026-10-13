@@ -34,6 +34,21 @@ public partial interface IRoomGrain
     public Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct);
 
     /// <summary>
+    /// The moderation tool's room tool (<c>ModerateRoom</c>): puts the door on the doorbell, renames
+    /// the room to <paramref name="name"/> when one is given, and with <paramref name="kick"/> ends
+    /// the room's event and clears it as <see cref="ClearRoomBySystemAsync"/> does, keeping
+    /// <paramref name="moderator"/>. No check here: the caller holds the nodes. False when nothing
+    /// changed.
+    /// </summary>
+    public Task<bool> ModerateRoomBySystemAsync(
+        PlayerId moderator,
+        bool doorbell,
+        string? name,
+        bool kick,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Sends everyone out and unloads the room, as <c>:unloadroom</c> does. No check here: the
     /// caller holds <c>command.unloadroom</c>.
     /// </summary>
