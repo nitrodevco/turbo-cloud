@@ -1,14 +1,20 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Navigator;
+using Turbo.PacketHandlers.NewNavigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.NewNavigator;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Players.Snapshots.Permissions;
+using Turbo.Primitives.Players.Snapshots.Settings;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -136,6 +142,93 @@ public class NavigatorCategoryAccessTests
             .Should()
             .Equal("Hottest Events", "Parties & Music");
     }
+
+    [Fact]
+    public async Task NavigatorInit_StartsWithTheUserAndEventCategories()
+    {
+        // hhus, two recordings (2026-10-13): NewNavigatorInit is answered with UserFlatCats,
+        // UserEventCats, NavigatorMetaData, NavigatorLiftedRooms, NavigatorCollapsedCategories,
+        // NavigatorSavedSearches and NewNavigatorPreferences, in that order.
+        var fakes = new Fakes();
+        fakes.Handlers["GetKnownFlatCategoriesForPlayerAsync"] = _ =>
+            Task.FromResult<ImmutableArray<NavigatorFlatCategorySnapshot>>([Category()]);
+        fakes.Handlers["GetEventCategories"] = _ =>
+            (ImmutableArray<NavigatorEventCategorySnapshot>)
+                [
+                    new()
+                    {
+                        Id = 2,
+                        Name = "Parties & Music",
+                        Visible = true,
+                    },
+                ];
+        fakes.Handlers["GetTopLevelContextAsync"] = _ =>
+            Task.FromResult(ImmutableArray<NavigatorTopLevelContextSnapshot>.Empty);
+        fakes.Handlers["GetSnapshotAsync"] = _ =>
+            Task.FromResult(
+                new PlayerNavigatorSnapshot
+                {
+                    FavouriteRoomIds = [],
+                    SavedSearches = [],
+                    CollapsedSearchCodes = [],
+                    ViewModes = ImmutableDictionary<string, NavigatorViewModeType>.Empty,
+                }
+            );
+        fakes.Handlers["GetSettingsAsync"] = _ => Task.FromResult(Settings());
+        var ctx = new MessageContext(fakes.Create<ISessionContext>(), 1, -1);
+
+        await new NewNavigatorInitMessageHandler(
+            fakes.Create<INavigatorService>(),
+            fakes.Create<IGrainFactory>()
+        ).HandleAsync(new(), ctx, TestContext.Current.CancellationToken);
+
+        fakes
+            .Log.Of("SendComposerAsync")
+            .Select(x => x.Args[0]!.GetType().Name)
+            .Should()
+            .Equal(
+                nameof(UserFlatCatsMessageComposer),
+                nameof(UserEventCatsMessageComposer),
+                nameof(NavigatorMetaDataMessage),
+                nameof(NavigatorLiftedRoomsMessage),
+                nameof(NavigatorCollapsedCategoriesMessage),
+                nameof(NavigatorSavedSearchesMessage),
+                nameof(NewNavigatorPreferencesMessageComposer)
+            );
+    }
+
+    private static PlayerSettingsSnapshot Settings() =>
+        new()
+        {
+            GenericVolume = 100,
+            FurniVolume = 100,
+            TraxVolume = 100,
+            RoomInvitesIgnored = false,
+            RoomCameraFollowDisabled = false,
+            UIFlags = default,
+            ChatStyleId = 0,
+            ChatFontSize = default,
+            ChatMode = default,
+            ChatBubbleWidth = default,
+            ChatScrollSpeed = default,
+            WiredMenuButton = false,
+            WiredInspectButton = false,
+            WiredPlayTestMode = false,
+            WiredVariableSyntaxMode = 0,
+            WiredWhisperDisabled = false,
+            WiredShowAllNotifications = false,
+            WiredUIStyle = string.Empty,
+            OnlineIndicatorPreference = 0,
+            HomeRoomId = -1,
+            NavigatorWindowX = 0,
+            NavigatorWindowY = 0,
+            NavigatorWindowWidth = 0,
+            NavigatorWindowHeight = 0,
+            NavigatorLeftPaneHidden = false,
+            NavigatorResultsMode = default,
+            FriendRequestsDisabled = false,
+            ProfileHidden = false,
+        };
 
     private static NavigatorFlatCategorySnapshot Category(
         int minRank = 1,
