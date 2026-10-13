@@ -128,7 +128,7 @@ public class WiredAddonVariableLeaderboard(
             new WiredVariableLeaderboardContextSnapshot
             {
                 ContextType = WiredContextType.VariableLeaderboard,
-                OverlayInstanceId = IsPublished ? _ctx.ObjectId.Value : 0,
+                OverlayInstanceId = _roomGrain.VariableLeaderboardSystem.GetOverlayInstanceId(this),
                 TileX = x,
                 TileY = y,
                 TotalCandidateCount = stacked.Count,

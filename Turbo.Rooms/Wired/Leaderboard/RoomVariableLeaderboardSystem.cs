@@ -50,6 +50,11 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
     private readonly Dictionary<(PlayerId, int), Subscription> _subscriptions = [];
     private readonly Dictionary<int, (string Name, string Figure)> _absentPlayers = [];
 
+    // Overlay ids by add-on: Habbo numbers a room's leaderboards from 1 (official client capture
+    // 2026-10-13: the first one published in a room is overlay 1, revision 1, not its furni id).
+    private readonly Dictionary<int, int> _overlayIdsByBox = [];
+    private int _lastOverlayId;
+
     private bool _overlaysDirty = true;
     private bool _rowsDirty;
     private int _lastRevision;
@@ -136,6 +141,21 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
         }
 
         return replies.ToImmutable();
+    }
+
+    /// <summary>
+    /// The overlay a published add-on is shown as, for its editor (context section 8); 0 while it
+    /// is unpublished, as Habbo sends it.
+    /// </summary>
+    public int GetOverlayInstanceId(WiredAddonVariableLeaderboard box)
+    {
+        if (!box.IsPublished)
+            return 0;
+
+        if (_overlaysDirty || !_overlays.Any(x => x.Box == box))
+            RebuildOverlays();
+
+        return _overlays.FirstOrDefault(x => x.Box == box)?.Descriptor.OverlayInstanceId ?? 0;
     }
 
     public async Task ProcessAsync(long now, CancellationToken ct)
@@ -241,7 +261,16 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 break;
 
             var known = _overlays.FirstOrDefault(x => x.Box == box);
-            var descriptor = BuildDescriptor(box, box.Config, known?.Descriptor.QueryRevision ?? 0);
+
+            if (!_overlayIdsByBox.TryGetValue(box.ObjectId.Value, out var overlayId))
+                _overlayIdsByBox[box.ObjectId.Value] = overlayId = ++_lastOverlayId;
+
+            var descriptor = BuildDescriptor(
+                box,
+                box.Config,
+                overlayId,
+                known?.Descriptor.QueryRevision ?? 0
+            );
 
             if (known is not null && Key(known.Descriptor) == Key(descriptor))
             {
@@ -285,6 +314,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
     private static VariableLeaderboardDescriptorSnapshot BuildDescriptor(
         WiredAddonVariableLeaderboard box,
         VariableLeaderboardConfig config,
+        int overlayId,
         int revision
     )
     {
@@ -306,7 +336,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
 
         return new VariableLeaderboardDescriptorSnapshot
         {
-            OverlayInstanceId = box.ObjectId.Value,
+            OverlayInstanceId = overlayId,
             QueryRevision = revision,
             Title = config.Title,
             Description = config.Description,

@@ -58,9 +58,9 @@ public sealed class WiredVariableLeaderboardTests
         var reply = (await SubscribeAsync(RoomOpen(), player: 1)).Single();
 
         reply.PopInt().Should().Be(1, "one leaderboard");
-        reply.PopInt().Should().Be(LEADERBOARD, "the overlay is the add-on");
+        reply.PopInt().Should().Be(1, "Habbo numbers a room's leaderboards from 1");
         var revision = reply.PopInt();
-        revision.Should().BePositive();
+        revision.Should().Be(1, "the official capture's first revision");
         reply.PopString().Should().Be("Richest");
         reply.PopString().Should().Be("Who has the most coins");
         reply.PopInt().Should().Be(3);
@@ -90,13 +90,13 @@ public sealed class WiredVariableLeaderboardTests
         var revision = await RevisionAsync();
 
         var chunk = (
-            await SubscribeAsync(Subscription(LEADERBOARD, revision, variableId, 0), player: 1)
+            await SubscribeAsync(Subscription(1, revision, variableId, 0), player: 1)
         ).Single();
 
         chunk
             .Header.Should()
             .Be(PacketHarness.Outgoing("VariableLeaderboardChunkUpdateMessageComposer"));
-        chunk.PopInt().Should().Be(LEADERBOARD);
+        chunk.PopInt().Should().Be(1);
         chunk.PopInt().Should().Be(revision);
         chunk.PopString().Should().Be(variableId);
         chunk.PopInt().Should().Be(0, "chunk 0");
@@ -132,7 +132,7 @@ public sealed class WiredVariableLeaderboardTests
         var variableId = await BuildPublishedAsync();
         var revision = await RevisionAsync();
 
-        (await SubscribeAsync(Subscription(LEADERBOARD, revision + 1, variableId, 0), player: 1))
+        (await SubscribeAsync(Subscription(1, revision + 1, variableId, 0), player: 1))
             .Should()
             .BeEmpty();
     }
@@ -193,6 +193,65 @@ public sealed class WiredVariableLeaderboardTests
             .Contain("00000008" + "00000000" + "00000003" + "00000003" + "00000001" + "00000001");
     }
 
+    [Fact]
+    public async Task The_official_save_is_answered_with_the_official_snapshot_and_chunk()
+    {
+        // Official client capture 2026-10-13 (WIN63-202610131318): the add-on saved on the stack of
+        // the "hp" variable (id 303135) with these params, nobody holding a value yet.
+        var variable = await BuildStackAsync("hp");
+        var variableId = variable.GetVarSnapshot().VariableId.ToString();
+
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                LEADERBOARD,
+                intParams: [0, 2, 0, 1, -1, -1, 0, 0, 0, 0, 10, 4, 0, 0, 3, 0, 0, 0, 0],
+                stringParam: "HP	Test Descript	Username	Value" + new string('	', 13),
+                variableIds: NoVariables()
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        _room.Enter(1, 1, 1);
+
+        var official = (string hex) => hex.Replace("0006333033313335", HexString(variableId));
+        var snapshot = (await SubscribeAsync(RoomOpen(), player: 1)).Single();
+
+        HexOf(snapshot)
+            .Should()
+            .Be(
+                official(
+                    "00000001000000010000000100024850000D546573742044657363726970740000000A0000000400000000000000000000000000000002000000000008557365726E616D650000000300000001000556616C75650000000000000001000633303331333500024870000633303331333500000000"
+                )
+            );
+
+        var chunk = (
+            await SubscribeAsync(
+                Hex(official("000000010000000100063330333133350000000100000000")),
+                player: 1
+            )
+        ).Single();
+
+        HexOf(chunk)
+            .Should()
+            .Be(official("00000001000000010006333033313335000000000000000000000000"));
+
+        var editor = await Wired.GetBoxSnapshotAsync((RoomObjectId)LEADERBOARD, Ct);
+
+        editor!
+            .ContextSnapshots.OfType<WiredVariableLeaderboardContextSnapshot>()
+            .Single()
+            .OverlayInstanceId.Should()
+            .Be(1, "the editor of a published add-on names its overlay");
+    }
+
+    private static string HexString(string text) =>
+        Convert.ToHexString([
+            (byte)(text.Length >> 8),
+            (byte)text.Length,
+            .. System.Text.Encoding.UTF8.GetBytes(text),
+        ]);
+
     private async Task<string> BuildPublishedAsync()
     {
         var variable = await BuildStackAsync();
@@ -230,7 +289,7 @@ public sealed class WiredVariableLeaderboardTests
     }
 
     /// <summary>A persisted user variable with a value, "total_coins", and a leaderboard on its tile.</summary>
-    private async Task<WiredVariableUser> BuildStackAsync()
+    private async Task<WiredVariableUser> BuildStackAsync(string name = "total_coins")
     {
         var variable = _room.AddBox<WiredVariableUser>(VARIABLE, 3, 3, "wf_var_user");
         var leaderboard = _room.AddBox<WiredAddonVariableLeaderboard>(
@@ -244,7 +303,7 @@ public sealed class WiredVariableLeaderboardTests
             await _room.SaveAsync<UpdateVariableMessage>(
                 VARIABLE,
                 intParams: [(int)WiredAvailabilityType.Persistent, 1],
-                stringParam: "total_coins"
+                stringParam: name
             )
         )
             .Should()
