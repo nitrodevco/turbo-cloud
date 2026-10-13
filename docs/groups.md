@@ -548,6 +548,7 @@ chooses (a page index, a page size it hopes for) are clamped against these.
 | `MembershipsMaxWithClub` | 400 | join failure 1 |
 | `OwnedGuildsMax` | 100 | edit failure 3 |
 | `RegularGuildMembersMax` | 5000 | `group.edit.settings.type.regular.help` |
+| `DetailsMemberLimit` | 50000 | sent last in `HabboGroupDetails` (not read by the client, not enforced); `group.join.fail.0` |
 | `MembersPageSize` | 14 | the server tells the client its own page size |
 | `DeletionEnabled` | true | mirrors `group.deletion.enabled` |
 | `DeletionMaxMembers` | 500 | mirrors `group.deletion.maximum.members` |

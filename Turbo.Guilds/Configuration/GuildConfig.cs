@@ -29,6 +29,14 @@ public class GuildConfig
     /// <summary>Members a <c>Regular</c> group takes before it is full.</summary>
     public int RegularGuildMembersMax { get; init; } = 5000;
 
+    /// <summary>
+    /// The member limit the group details packet ends with. Habbo sends 50000 for every group,
+    /// whatever its type (official client capture 2026-10-13: 13 samples, 9 groups), the figure
+    /// its texts give as the most a group can have (<c>group.join.fail.0</c>). The client does
+    /// not read it, and nothing here enforces it: <see cref="RegularGuildMembersMax"/> does.
+    /// </summary>
+    public int DetailsMemberLimit { get; init; } = 50000;
+
     /// <summary>Whether creating a group needs a Habbo Club membership.</summary>
     public bool CreationRequiresClub { get; init; }
 

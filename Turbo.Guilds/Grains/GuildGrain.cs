@@ -115,6 +115,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
                 IsOwner = isOwner,
                 IsAdmin = isAdmin,
                 MembersCanDecorate = guild.RightsLevel == GuildRightsLevel.Members,
+                MemberLimit = _guildConfig.DetailsMemberLimit,
             }
         );
     }
