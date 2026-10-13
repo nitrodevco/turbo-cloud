@@ -2,4 +2,8 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Moderator;
 
-public record GetModeratorRoomInfoMessage : IMessageEvent { }
+/// <summary><c>GetModeratorRoomInfoMessageComposer(flatId)</c>.</summary>
+public record GetModeratorRoomInfoMessage : IMessageEvent
+{
+    public required int RoomId { get; init; }
+}

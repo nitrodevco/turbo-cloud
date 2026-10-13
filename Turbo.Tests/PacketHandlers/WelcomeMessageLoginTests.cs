@@ -68,7 +68,8 @@ public class WelcomeMessageLoginTests
             _fakes.Create<IHotelTextProvider>(),
             _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>(),
             _fakes.Create<ICallForHelpService>(),
-            _fakes.Create<Turbo.Primitives.Players.Onboarding.IPlayerOnboardingService>()
+            _fakes.Create<Turbo.Primitives.Players.Onboarding.IPlayerOnboardingService>(),
+            _fakes.Create<Turbo.Primitives.Moderation.IModerationToolService>()
         );
     }
 

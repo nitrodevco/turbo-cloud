@@ -57,4 +57,19 @@ public class OperationsConfig
 
     /// <summary>How many of their own reports a player's report status lists, newest first.</summary>
     public int CfhReportsListed { get; init; } = 50;
+
+    /// <summary>The moderation tool's message templates (its send-message and mod action windows).</summary>
+    public string[] ModerationMessageTemplates { get; init; } = [];
+
+    /// <summary>The room tool's message templates.</summary>
+    public string[] ModerationRoomMessageTemplates { get; init; } = [];
+
+    /// <summary>How many chat lines the moderation tool's room chatlog shows, newest kept.</summary>
+    public int ModerationRoomChatlogLines { get; init; } = 150;
+
+    /// <summary>How many rooms a user chatlog covers, newest first.</summary>
+    public int ModerationUserChatlogRooms { get; init; } = 10;
+
+    /// <summary>How many chat lines a user chatlog shows per room.</summary>
+    public int ModerationUserChatlogLines { get; init; } = 50;
 }

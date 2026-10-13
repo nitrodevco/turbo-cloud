@@ -38,7 +38,8 @@ public class SSOTicketMessageHandler(
     IHotelTextProvider textProvider,
     IPlayerClothingService clothing,
     ICallForHelpService callForHelp,
-    IPlayerOnboardingService onboarding
+    IPlayerOnboardingService onboarding,
+    IModerationToolService moderation
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -279,6 +280,11 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
+
+        // A moderator's tool opens on ModeratorInit (ModerationMessageHandler.onModeratorInit).
+        if (await moderation.GetInitAsync(playerId, ct).ConfigureAwait(false) is { } init)
+            await ctx.SendComposerAsync(new ModeratorInitMessageComposer { Init = init }, ct)
+                .ConfigureAwait(false);
 
         // The reward tracks come unasked: the progression menu counts their claimable prizes.
         await _grainFactory

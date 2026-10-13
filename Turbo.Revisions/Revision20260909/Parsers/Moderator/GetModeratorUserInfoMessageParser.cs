@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Moderator;
 
 internal class GetModeratorUserInfoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetModeratorUserInfoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetModeratorUserInfoMessage { UserId = packet.PopInt() };
 }

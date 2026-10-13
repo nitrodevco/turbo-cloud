@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Moderator;
 
 internal class ModeratorActionMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ModeratorActionMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ModeratorActionMessage
+        {
+            ActionType = packet.PopInt(),
+            Message = packet.PopString(),
+            Extra = packet.PopString(),
+        };
 }
