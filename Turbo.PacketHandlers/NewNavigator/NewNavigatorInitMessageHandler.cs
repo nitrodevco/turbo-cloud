@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.NewNavigator;
+using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
@@ -38,6 +39,26 @@ public class NewNavigatorInitMessageHandler(
             .GetSettingsAsync(ct)
             .ConfigureAwait(false);
 
+        // Habbo opens its answer with the player's room categories and the event categories
+        // (hhus, 2026-10-13), the same lists GetUserFlatCats and GetUserEventCats return.
+        await ctx.SendComposerAsync(
+                new UserFlatCatsMessageComposer
+                {
+                    Categories = await _navigatorService
+                        .GetKnownFlatCategoriesForPlayerAsync(ctx.PlayerId, ct)
+                        .ConfigureAwait(false),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+        await ctx.SendComposerAsync(
+                new UserEventCatsMessageComposer
+                {
+                    EventCategories = [.. _navigatorService.GetEventCategories()],
+                },
+                ct
+            )
+            .ConfigureAwait(false);
         await ctx.SendComposerAsync(
                 new NavigatorMetaDataMessage { TopLevelContexts = topLevelContexts },
                 ct

@@ -548,21 +548,33 @@ internal sealed partial class RoomService(
                     (doorEncoded & ((1 << _roomConfig.StackingBlockedMaskBit) - 1)) / 256.0
                 );
 
-        // The whole entry sequence as one batch to the player, in the order the client expects
-        // it; it used to go out in eleven sends with a grain call between some of them.
+        // The whole entry sequence as one batch to the player, in Habbo's order (hhus, four entries
+        // on two builds, 2026-10-13): RoomReady, RoomEntryTile, the room's properties, the maps,
+        // the visualization, Users, Objects, Items, RoomEvent, ConfigurationItemStates. The room's
+        // chat settings are not part of it: the client takes them from GetGuestRoomResult.
         var composers = new List<IComposer>
         {
             // Habbo opens every entry with the player's NFT chat styles (an empty list for an account
             // without any) right before RoomReady (hhus, 2026-10-13); the client resets its styles from it.
             new UserNftChatStylesMessageComposer { ChatStyleIds = [] },
             new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
-            new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = view.CanRate },
             new RoomEntryTileMessageComposer
             {
                 X = mapSnapshot.DoorX,
                 Y = mapSnapshot.DoorY,
                 Rotation = mapSnapshot.DoorRotation,
             },
+        };
+
+        composers.AddRange(
+            view.Properties.Select(x => new RoomPropertyMessageComposer
+            {
+                Key = RoomPropertyTypeExtensions.GetString(x.Key),
+                Value = x.Value,
+            })
+        );
+
+        composers.AddRange([
             new HeightMapMessageComposer
             {
                 Width = mapSnapshot.Width,
@@ -588,35 +600,19 @@ internal sealed partial class RoomService(
                 WallThickness = snapshot.WallThickness,
                 FloorThickness = snapshot.FloorThickness,
             },
-            new RoomChatSettingsMessageComposer { ChatProtection = snapshot.ChatProtection },
-        };
-
-        // Sent with no event too, as Habbo does, so the last room's event card goes.
-        composers.Add(
-            new RoomEventMessageComposer { Event = view.ActiveEvent, SentAtUtc = DateTime.UtcNow }
-        );
-
-        if (view.IsMuted)
-            composers.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
-
-        composers.AddRange(
-            view.Properties.Select(x => new RoomPropertyMessageComposer
-            {
-                Key = RoomPropertyTypeExtensions.GetString(x.Key),
-                Value = x.Value,
-            })
-        );
-
-        composers.Add(
+            new UsersMessageComposer { Avatars = view.Avatars },
             new ObjectsMessageComposer
             {
                 OwnerNames = view.OwnerNames,
                 FloorItems = view.FloorItems,
-            }
-        );
-        composers.Add(
-            new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems }
-        );
+            },
+            new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems },
+            // Sent with no event too, as Habbo does, so the last room's event card goes.
+            new RoomEventMessageComposer { Event = view.ActiveEvent, SentAtUtc = DateTime.UtcNow },
+        ]);
+
+        if (view.IsMuted)
+            composers.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
 
         // Sent on every entry, off or on, as Habbo does.
         composers.Add(
@@ -628,7 +624,6 @@ internal sealed partial class RoomService(
                 InvisibleFurni = view.InvisibleFurni,
             }
         );
-        composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
 
         // Habbo sends Users even for an empty room, but no UserUpdate with nothing in it (hhus, 2026-10-13).
         if (view.Avatars.Length > 0)
@@ -691,6 +686,15 @@ internal sealed partial class RoomService(
                     RoomId = roomId,
                     IsOwner = controllerLevel >= RoomControllerType.Owner,
                 },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        // Habbo rates the room at the end of the entry, right before the raid protection.
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = view.CanRate },
                 ct
             )
             .ConfigureAwait(false);
