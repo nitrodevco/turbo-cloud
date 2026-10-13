@@ -253,6 +253,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   38847EB8: HasActiveSessionAsync(System.Threading.CancellationToken) -> Task<bool>
   C41A9582: OnBadgesRankChangedAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   449645B5: OnControllerLevelUpdatedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Enums.RoomControllerType, System.Threading.CancellationToken) -> Task
+  0B26DD3D: OnCustomFilterWordsChangedAsync(System.Collections.Generic.List<string>, System.Threading.CancellationToken) -> Task
   4F88DAB8: OnHabboClubChangedAsync(System.DateTime?, System.Threading.CancellationToken) -> Task
   46F27557: OnPermissionsChangedAsync(Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot, System.Threading.CancellationToken) -> Task
   89311251: OnPlayerUpdatedAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
@@ -581,6 +582,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2678C27A: SetNoobLobbyAsync(bool, System.Threading.CancellationToken) -> Task<bool>
   B3825D43: SetObjectDataAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Collections.Generic.IReadOnlyDictionary<string, string>, System.Threading.CancellationToken) -> Task<bool>
   2F7D4AC3: SetPlayerBadgesAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>, System.Threading.CancellationToken) -> Task
+  30F3232D: SetPlayerCustomFilterWordsAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Generic.List<string>, System.Threading.CancellationToken) -> Task
   70B8FFB5: SetPlayerEffectAsync(Turbo.Primitives.Action.ActionContext, int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
   F0E5A464: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.GuildMembershipStatus, string, System.Threading.CancellationToken) -> Task
   2153CAF5: SetPlayerHabboClubAsync(Turbo.Primitives.Players.PlayerId, System.DateTime?, System.Threading.CancellationToken) -> Task

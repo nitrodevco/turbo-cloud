@@ -148,4 +148,34 @@ public sealed class CustomWordFilterTests : IDisposable
             .Equal(new ModifyCustomFilterResultMessageComposer { Result = 3, Word = "spoiler" });
         (await (await SettingsAsync()).GetCustomFilterWordsAsync(Ct)).Should().BeEmpty();
     }
+
+    /// <summary>
+    /// Habbo masked the next line said in the room the player was already standing in (official
+    /// client capture, 2026-10-13), so every change reaches the presence, which tells that room.
+    /// A refused change tells nobody.
+    /// </summary>
+    [Fact]
+    public async Task every_change_is_told_to_the_room_the_player_stands_in()
+    {
+        var settings = await SettingsAsync();
+
+        await settings.AddCustomFilterWordAsync("pineapple", Ct);
+        await settings.AddCustomFilterWordAsync("PINEAPPLE", Ct);
+        await settings.AddCustomFilterWordAsync("spoiler", Ct);
+        await settings.RemoveCustomFilterWordAsync("Pineapple", Ct);
+
+        _fakes
+            .Log.Of("OnCustomFilterWordsChangedAsync")
+            .Select(x => (List<string>)x.Args[0]!)
+            .Should()
+            .BeEquivalentTo(
+                new List<List<string>>
+                {
+                    new() { "pineapple" },
+                    new() { "pineapple", "spoiler" },
+                    new() { "spoiler" },
+                },
+                o => o.WithStrictOrdering()
+            );
+    }
 }

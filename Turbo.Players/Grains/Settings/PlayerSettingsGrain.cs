@@ -135,6 +135,8 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
         words.Add(word);
 
+        await TellRoomAboutCustomFilterAsync(words, ct);
+
         return true;
     }
 
@@ -163,8 +165,17 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
         words.RemoveAt(index);
 
+        await TellRoomAboutCustomFilterAsync(words, ct);
+
         return true;
     }
+
+    // The room the player stands in masks what it sends them, so a change applies to the next
+    // line said there, not only from the next room on.
+    private Task TellRoomAboutCustomFilterAsync(List<string> words, CancellationToken ct) =>
+        _grainFactory
+            .GetPlayerPresenceGrain(_state.PlayerId)
+            .OnCustomFilterWordsChangedAsync([.. words], ct);
 
     private async Task<List<string>> LoadCustomFilterWordsAsync(CancellationToken ct)
     {

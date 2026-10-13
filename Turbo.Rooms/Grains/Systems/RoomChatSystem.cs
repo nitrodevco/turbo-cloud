@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -297,11 +298,27 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var composer = CreateComposer(evt);
+        var composer = CreateComposer(evt, evt.Text);
 
         if (evt.ChatType != RoomChatType.Whisper)
         {
-            await _roomGrain.SendComposerToRoomAsync(composer, ct);
+            var masked = MaskForListeners(evt, speaker, AvatarModule.Players);
+
+            if (masked.Count == 0)
+                await _roomGrain.SendComposerToRoomAsync(composer, ct);
+            else
+                await _roomGrain.SendComposerToRoomExceptAsync(
+                    composer,
+                    [.. masked.Select(x => x.PlayerId)],
+                    ct
+                );
+
+            foreach (var (playerId, text) in masked)
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                    playerId,
+                    CreateComposer(evt, text),
+                    ct
+                );
 
             return;
         }
@@ -309,16 +326,61 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         var targets = new HashSet<PlayerId> { speaker.PlayerId };
 
         if (recipient is not null)
-            targets.Add(recipient.PlayerId);
+        {
+            var masked = MaskForListeners(evt, speaker, [recipient]);
+
+            if (masked.Count == 0)
+                targets.Add(recipient.PlayerId);
+            else
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                    recipient.PlayerId,
+                    CreateComposer(evt, masked[0].Text),
+                    ct
+                );
+        }
 
         await _roomGrain._grainFactory.SendComposerToPlayersAsync(targets, composer, ct);
     }
 
-    private static ChatMessageComposer CreateComposer(PlayerChatEvent evt) =>
+    /// <summary>
+    /// The listeners whose own word filter changes the line, each with the line as they see it:
+    /// every word on their list, in any case, replaced by the hotel's replacement (official
+    /// client capture, 2026-10-13: a player filtering "pineapple" was sent Chat "I like bobba
+    /// pizza", Shout "bobba shout" for "PINEAPPLE shout" and Whisper "secret bobba", while the
+    /// speaker's own client showed what they typed). Words are matched as the room filter
+    /// matches them (<see cref="FilterWords"/>). The speaker always gets their own line as typed.
+    /// </summary>
+    private List<(PlayerId PlayerId, string Text)> MaskForListeners(
+        PlayerChatEvent evt,
+        IRoomPlayer speaker,
+        IEnumerable<IRoomPlayer> listeners
+    )
+    {
+        var masked = new List<(PlayerId PlayerId, string Text)>();
+
+        foreach (var listener in listeners)
+        {
+            if (listener.PlayerId == speaker.PlayerId || listener.CustomFilterWords.Count == 0)
+                continue;
+
+            var text = FilterWords.Apply(
+                evt.Text,
+                listener.CustomFilterWords,
+                _roomGrain._wordFilter.Replacement
+            );
+
+            if (!string.Equals(text, evt.Text, StringComparison.Ordinal))
+                masked.Add((listener.PlayerId, text));
+        }
+
+        return masked;
+    }
+
+    private static ChatMessageComposer CreateComposer(PlayerChatEvent evt, string text) =>
         CreateComposer(
             evt.ChatType,
             evt.ObjectId,
-            evt.Text,
+            text,
             evt.Gesture,
             evt.StyleId,
             evt.TrackingId,

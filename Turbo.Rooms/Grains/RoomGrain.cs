@@ -511,6 +511,25 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
     /// <summary>
+    /// <see cref="SendComposerToRoomAsync"/> for everyone in the room but these players, who are
+    /// sent their own version of it (a chat line their word filter masks).
+    /// </summary>
+    public Task SendComposerToRoomExceptAsync(
+        IComposer composer,
+        List<PlayerId> excludedPlayerIds,
+        CancellationToken ct
+    ) =>
+        _roomOutbound.OnNextAsync(
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = [composer],
+                ExcludedPlayerIds = excludedPlayerIds,
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
+        );
+
+    /// <summary>
     /// <see cref="SendComposerToRoomAsync"/> for several composers that go out together, such as
     /// everything one tick of rollers or wired produced. They are one stream item, so every
     /// player's presence receives them in one call and flushes them to the session in one send,

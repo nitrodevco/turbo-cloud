@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,6 +66,12 @@ public sealed partial class RoomGrain
         ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
         CancellationToken ct
     ) => AvatarModule.SetPlayerBadgesAsync(playerId, selectedBadges, ct);
+
+    public Task SetPlayerCustomFilterWordsAsync(
+        PlayerId playerId,
+        List<string> words,
+        CancellationToken ct
+    ) => AvatarModule.SetPlayerCustomFilterWordsAsync(playerId, words, ct);
 
     public Task SetPlayerHabboClubAsync(
         PlayerId playerId,

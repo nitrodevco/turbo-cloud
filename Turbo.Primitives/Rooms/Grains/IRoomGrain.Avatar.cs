@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,6 +59,16 @@ public partial interface IRoomGrain
     public Task SetPlayerBadgesAsync(
         PlayerId playerId,
         ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A player in the room changed their own word filter; chat from then on is masked for them
+    /// with the new list. Called by the presence, never awaited by it.
+    /// </summary>
+    public Task SetPlayerCustomFilterWordsAsync(
+        PlayerId playerId,
+        List<string> words,
         CancellationToken ct
     );
 

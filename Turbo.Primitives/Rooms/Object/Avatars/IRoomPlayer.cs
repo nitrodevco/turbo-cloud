@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Players;
@@ -62,4 +63,12 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
 
     public void SetBadges(ImmutableArray<string> badgeCodes);
     public void SetHabboClubExpiresAt(DateTime? expiresAt);
+
+    /// <summary>
+    /// The player's own word filter (Word Filter in their settings): in chat another player says,
+    /// this player alone sees each of these words as the hotel's replacement. Any case; loaded
+    /// when the avatar enters and replaced whole when the player changes the list.
+    /// </summary>
+    public IReadOnlySet<string> CustomFilterWords { get; }
+    public void SetCustomFilterWords(IEnumerable<string> words);
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Guilds.Enums;
@@ -74,6 +76,11 @@ public sealed class RoomPlayerAvatar
     public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;
 
     public void SetHabboClubExpiresAt(DateTime? expiresAt) => HabboClubExpiresAt = expiresAt;
+
+    public IReadOnlySet<string> CustomFilterWords { get; private set; } = FrozenSet<string>.Empty;
+
+    public void SetCustomFilterWords(IEnumerable<string> words) =>
+        CustomFilterWords = words.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     protected override RoomPlayerAvatarSnapshot BuildSnapshot()
     {
