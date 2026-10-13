@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -13,7 +14,7 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> PlaceWallItemAsync(
+    public async Task<FurniturePlacementResultType> PlaceWallItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
         int x,
@@ -26,10 +27,13 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await ActionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct))
-                return false;
-
-            return true;
+            return await ActionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct)
+                ? FurniturePlacementResultType.Done
+                : FurniturePlacementResultType.Refused;
+        }
+        catch (TurboException ex) when (IsBuildRefusal(ex))
+        {
+            return FurniturePlacementResultType.NotAllowed;
         }
         catch (Exception ex)
         {
@@ -41,11 +45,11 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return false;
+            return FurniturePlacementResultType.Refused;
         }
     }
 
-    public async Task<bool> MoveWallItemByIdAsync(
+    public async Task<FurniturePlacementResultType> MoveWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         int newX,
@@ -58,21 +62,22 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (
-                !await ActionModule.MoveWallItemByIdAsync(
-                    ctx,
-                    itemId,
-                    newX,
-                    newY,
-                    newZ,
-                    wallOffset,
-                    newRot,
-                    ct
-                )
+            return await ActionModule.MoveWallItemByIdAsync(
+                ctx,
+                itemId,
+                newX,
+                newY,
+                newZ,
+                wallOffset,
+                newRot,
+                ct
             )
-                return false;
-
-            return true;
+                ? FurniturePlacementResultType.Done
+                : FurniturePlacementResultType.Refused;
+        }
+        catch (TurboException ex) when (IsBuildRefusal(ex))
+        {
+            return FurniturePlacementResultType.NotAllowed;
         }
         catch (Exception ex)
         {
@@ -84,7 +89,7 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return false;
+            return FurniturePlacementResultType.Refused;
         }
     }
 

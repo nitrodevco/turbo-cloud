@@ -12,4 +12,11 @@ public static class FurniturePlacementNotifications
 
     /// <summary>The <c>message</c> parameter: "Sorry, you cannot place this item here."</summary>
     public const string CANT_SET_ITEM_MESSAGE = "${room.error.cant_set_item}";
+
+    /// <summary>
+    /// The <c>message</c> parameter when the player may not build in the room at all: "You don't
+    /// have rights to put furniture in here!", Habbo's answer to a placement by a player with
+    /// plain room rights (official client capture, PlaceObject 2026-10-13).
+    /// </summary>
+    public const string CANT_SET_NOT_OWNER_MESSAGE = "${room.error.cant_set_not_owner}";
 }

@@ -66,9 +66,16 @@ public sealed class RoomSecurityModule(
             _ => true,
         };
 
+    /// <summary>
+    /// Whether the player may bring furni into the room. Plain room rights (level 1, a room
+    /// without a group) place only where the hotel says so
+    /// (<see cref="Configuration.RoomConfig.RightsHoldersCanPlaceFurni"/>); moving, turning and
+    /// using furni still follow <see cref="CanManipulateFurniAsync"/>, as on Habbo.
+    /// </summary>
     public async Task<bool> CanPlaceFurniAsync(ActionContext ctx)
     {
-        // TODO placement rules?
+        if (await GetControllerLevelAsync(ctx) == RoomControllerType.Rights)
+            return _roomGrain._roomConfig.RightsHoldersCanPlaceFurni;
 
         return await CanManipulateFurniAsync(ctx);
     }

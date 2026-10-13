@@ -199,6 +199,19 @@ public class RoomConfig
     public bool BuildersClubInGroupRooms { get; init; } = true;
 
     /// <summary>
+    /// Whether a player the owner gave plain room rights (controller level 1, a room without a
+    /// group) may place furni from their inventory there. Off is Habbo: the placement is refused
+    /// with "You don't have rights to put furniture in here!", while they still move, turn and
+    /// use the room's furni. Habbo refused seven placements so, by four accounts on two machines,
+    /// one in the room of a Habbo Club owner and one by a group member (official client captures,
+    /// 2026-10-13); its hotel text says "In group homerooms room rights are determined by group
+    /// membership of a user": placing in someone else's room is the group's to allow. A group
+    /// homeroom is not affected (the group's admins, and its members when it lets them decorate,
+    /// place there), nor are the owner and staff. On lets plain rights place furni as well.
+    /// </summary>
+    public bool RightsHoldersCanPlaceFurni { get; init; } = false;
+
+    /// <summary>
     /// The longest a saved floor plan may be on either axis. The editor refuses to draw past 64
     /// (<c>FloorPlanCache.MAX_AXIS_LENGTH</c>), so raising this past that gains nothing.
     /// </summary>

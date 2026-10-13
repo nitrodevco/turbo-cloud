@@ -40,17 +40,12 @@ internal sealed partial class RoomService
 
             var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-            if (
-                !await roomGrain
-                    .PlaceWallItemAsync(ctx, snapshot, x, y, z, wallOffset, rot, ct)
-                    .ConfigureAwait(false)
-            )
-            {
-                // The wall does not take the item: it stays in the inventory, and the player is told.
-                await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+            var result = await roomGrain
+                .PlaceWallItemAsync(ctx, snapshot, x, y, z, wallOffset, rot, ct)
+                .ConfigureAwait(false);
 
-                return;
-            }
+            // A refused item stays in the inventory, and the player is told why.
+            await SendPlacementErrorAsync(ctx.PlayerId, result, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -80,11 +75,11 @@ internal sealed partial class RoomService
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-        if (
-            await roomGrain
-                .MoveWallItemByIdAsync(ctx, itemId, x, y, z, wallOffset, rot, ct)
-                .ConfigureAwait(false)
-        )
+        var result = await roomGrain
+            .MoveWallItemByIdAsync(ctx, itemId, x, y, z, wallOffset, rot, ct)
+            .ConfigureAwait(false);
+
+        if (result == FurniturePlacementResultType.Done)
             return;
 
         var item = await roomGrain.GetWallItemSnapshotByIdAsync(itemId, ct).ConfigureAwait(false);
@@ -101,6 +96,6 @@ internal sealed partial class RoomService
             )
             .ConfigureAwait(false);
 
-        await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        await SendPlacementErrorAsync(ctx.PlayerId, result, ct).ConfigureAwait(false);
     }
 }

@@ -502,9 +502,9 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   A4A98E7C: LookToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>
   BC943809: MountPetAsync(Turbo.Primitives.Action.ActionContext, int, bool, System.Threading.CancellationToken) -> Task<bool>
   87DCB386: MoveBotAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
-  8033B240: MoveFloorItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
+  8033B240: MoveFloorItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   C35270EF: MovePetAsync(Turbo.Primitives.Action.ActionContext, int, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
-  6C25347F: MoveWallItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Object.Altitude, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
+  6C25347F: MoveWallItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, int, Turbo.Primitives.Rooms.Object.Altitude, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   380E97D3: MutePlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task<bool>
   9D6F4F6C: OnGuildChangedAsync(System.Threading.CancellationToken) -> Task
   4C608C6E: OnGuildDeletedAsync(System.Threading.CancellationToken) -> Task
@@ -516,9 +516,9 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2C94B437: PlaceBotAsync(Turbo.Primitives.Action.ActionContext, int, int, int, System.Threading.CancellationToken) -> Task<bool>
   B0F6F5AA: PlaceBuildersClubFloorItemAsync(Turbo.Primitives.Action.ActionContext, int, int, string, int, int, Turbo.Primitives.Rooms.Enums.Rotation, bool, System.Threading.CancellationToken) -> Task<bool>
   37639288: PlaceBuildersClubWallItemAsync(Turbo.Primitives.Action.ActionContext, int, int, string, string, bool, System.Threading.CancellationToken) -> Task<bool>
-  6E6657FA: PlaceFloorItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
+  6E6657FA: PlaceFloorItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   347654B7: PlacePetAsync(Turbo.Primitives.Action.ActionContext, int, int, int, System.Threading.CancellationToken) -> Task<bool>
-  8D0D0C2C: PlaceWallItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Object.Altitude, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<bool>
+  8D0D0C2C: PlaceWallItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Object.Altitude, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   73BBEBF5: PrepareRoomDeletionAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   78525494: PublishRoomEventAsync(Turbo.Primitives.Rooms.Events.RoomEvent, System.Threading.CancellationToken) -> Task
   340F1C2A: RateRoomAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
