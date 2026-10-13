@@ -19,6 +19,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Texts;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -149,7 +150,27 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (evt.IsCancelled)
             return true;
 
-        await BroadcastAsync(evt, speaker, recipient, ct);
+        // A line a "hide" User Says Keyword box picks up is not shown to the room: its speaker
+        // alone gets it back, as a whisper over their own avatar (hhus, 2026-10-13: Chat and
+        // Shout both came back as Whisper with the speaker as receiver). The wired still fires.
+        if (chatType != RoomChatType.Whisper && await IsHiddenByWiredAsync(evt, ct))
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                speaker.PlayerId,
+                CreateComposer(
+                    RoomChatType.Whisper,
+                    speaker.ObjectId,
+                    evt.Text,
+                    evt.Gesture,
+                    evt.StyleId,
+                    evt.TrackingId,
+                    receiverRoomIndex: speaker.ObjectId,
+                    bubbleWidth: null,
+                    hideUsername: false
+                ),
+                ct
+            );
+        else
+            await BroadcastAsync(evt, speaker, recipient, ct);
 
         if (chatType != RoomChatType.Whisper)
             TurnHeadsTowards(speaker, chatType);
@@ -253,6 +274,20 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         }
 
         return Task.CompletedTask;
+    }
+
+    private async Task<bool> IsHiddenByWiredAsync(PlayerChatEvent evt, CancellationToken ct)
+    {
+        foreach (var item in _roomGrain._state.ItemsById.Values)
+        {
+            if (
+                item.Logic is WiredTriggerHabboSaysKeyword trigger
+                && await trigger.HidesAsync(evt, ct)
+            )
+                return true;
+        }
+
+        return false;
     }
 
     private async Task BroadcastAsync(
