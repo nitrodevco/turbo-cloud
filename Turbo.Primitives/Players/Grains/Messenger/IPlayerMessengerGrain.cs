@@ -99,6 +99,19 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
     );
 
     /// <summary>
+    /// A Habbicon sent to a friend instead of a text (<c>SendHabbicon</c>), stored and delivered
+    /// like <see cref="SendMessageAsync"/>. Whether the sender may use it is the caller's to check.
+    /// </summary>
+    public Task<InstantMessageErrorCodeType?> SendHabbiconAsync(
+        PlayerId recipientId,
+        int habbiconId,
+        int confirmationId,
+        string senderName,
+        string senderFigure,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// The sender's stored message <paramref name="messageId"/>, for the owner's open session.
     /// Checks the friendship again, since it may have ended since the sender asked, and returns
     /// the refusal when it did; otherwise shows the message and marks the row delivered.
@@ -107,6 +120,18 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
     public Task<InstantMessageErrorCodeType?> ReceiveMessageAsync(
         PlayerId senderId,
         string message,
+        DateTime sentAtUtc,
+        int messageId,
+        string senderName,
+        string senderFigure,
+        CancellationToken ct
+    );
+
+    /// <summary>The same as <see cref="ReceiveMessageAsync"/> for a Habbicon sent instead of a text.</summary>
+    [AlwaysInterleave]
+    public Task<InstantMessageErrorCodeType?> ReceiveHabbiconAsync(
+        PlayerId senderId,
+        int habbiconId,
         DateTime sentAtUtc,
         int messageId,
         string senderName,

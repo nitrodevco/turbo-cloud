@@ -78,6 +78,18 @@ public interface IMessengerService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Sends one of the player's Habbicons to a friend (<c>SendHabbicon</c>); the error to show,
+    /// or null. A Habbicon the player does not have is not sent.
+    /// </summary>
+    public Task<IComposer?> SendHabbiconAsync(
+        PlayerId playerId,
+        int chatId,
+        int habbiconId,
+        int confirmationId,
+        CancellationToken ct
+    );
+
     /// <summary>A page of a conversation's stored history before a cursor, or null for none.</summary>
     public Task<IComposer?> GetMessageHistoryAsync(
         PlayerId playerId,

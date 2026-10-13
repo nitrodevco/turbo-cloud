@@ -29,4 +29,8 @@ public sealed record NewConsoleMessageMessageComposer : IComposer
 
     [Id(7)]
     public required string SenderFigure { get; init; }
+
+    /// <summary>The Habbicon the message is instead of a text; 0 for a text.</summary>
+    [Id(8)]
+    public int HabbiconId { get; init; }
 }

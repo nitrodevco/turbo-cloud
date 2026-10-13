@@ -302,12 +302,14 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayer
   55478B95: OnFriendRemovedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   57808C51: OnGuildMembershipsChangedAsync(System.Threading.CancellationToken) -> Task
   62020B9E: ReceieveFriendRequestAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
+  A694D528: ReceiveHabbiconAsync(Turbo.Primitives.Players.PlayerId, int, System.DateTime, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   CBDE514A: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   3D427D61: ReceiveRoomInviteAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
   745A9E58: RecieveFriendUpdateAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   4A5359B1: RemoveFriendsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, System.Threading.CancellationToken) -> Task
   297849C2: SearchPlayersAsync(string, System.Threading.CancellationToken) -> Task<(System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessengerSearchResultSnapshot>, System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessengerSearchResultSnapshot>)>
   8AC86E0F: SendFriendRequestAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
+  DFD7A3A0: SendHabbiconAsync(Turbo.Primitives.Players.PlayerId, int, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   FF55C22A: SendInitAsync(System.Threading.CancellationToken) -> Task
   D680515E: SendMessageAsync(Turbo.Primitives.Players.PlayerId, string, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   87FAD154: SendRoomInviteAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, string, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>>

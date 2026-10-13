@@ -955,6 +955,69 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 ct
             );
 
+        return await SendToFriendAsync(
+            recipientId,
+            text,
+            0,
+            confirmationId,
+            senderName,
+            senderFigure,
+            ct
+        );
+    }
+
+    public async Task<InstantMessageErrorCodeType?> SendHabbiconAsync(
+        PlayerId recipientId,
+        int habbiconId,
+        int confirmationId,
+        string senderName,
+        string senderFigure,
+        CancellationToken ct
+    )
+    {
+        if (habbiconId <= 0)
+            return null;
+
+        if (!TryTakeMessageSlot())
+        {
+            _logger.LogWarning(
+                "Player {PlayerId} sent console messages faster than the messenger allows",
+                _state.PlayerId
+            );
+
+            return InstantMessageErrorCodeType.OfflineFailed;
+        }
+
+        // A group chat line is relayed by the guild as text only, so a Habbicon to one is not
+        // sent (and not refused with a reason that would not be true).
+        if (recipientId < 0)
+            return null;
+
+        return await SendToFriendAsync(
+            recipientId,
+            string.Empty,
+            habbiconId,
+            confirmationId,
+            senderName,
+            senderFigure,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Stores a text or a Habbicon (<paramref name="habbiconId"/> above 0) to a friend and hands
+    /// it over, then confirms it to the sender.
+    /// </summary>
+    private async Task<InstantMessageErrorCodeType?> SendToFriendAsync(
+        PlayerId recipientId,
+        string text,
+        int habbiconId,
+        int confirmationId,
+        string senderName,
+        string senderFigure,
+        CancellationToken ct
+    )
+    {
         // Messaging yourself would be this grain calling itself through a reference.
         if (recipientId == _state.PlayerId || !_state.Friends.ContainsKey(recipientId))
             return InstantMessageErrorCodeType.NotFriend;
@@ -980,6 +1043,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             SenderPlayerEntityId = _state.PlayerId.Value,
             ReceiverPlayerEntityId = recipientId.Value,
             Message = text,
+            HabbiconId = habbiconId,
             Timestamp = now,
             Delivered = online,
             SenderPlayerEntity = null!,
@@ -1004,15 +1068,26 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         {
             try
             {
-                refusal = await recipientMessenger.ReceiveMessageAsync(
-                    _state.PlayerId,
-                    text,
-                    now,
-                    messageEntity.Id,
-                    senderName,
-                    senderFigure,
-                    ct
-                );
+                refusal =
+                    habbiconId > 0
+                        ? await recipientMessenger.ReceiveHabbiconAsync(
+                            _state.PlayerId,
+                            habbiconId,
+                            now,
+                            messageEntity.Id,
+                            senderName,
+                            senderFigure,
+                            ct
+                        )
+                        : await recipientMessenger.ReceiveMessageAsync(
+                            _state.PlayerId,
+                            text,
+                            now,
+                            messageEntity.Id,
+                            senderName,
+                            senderFigure,
+                            ct
+                        );
             }
             catch (Exception)
             {
@@ -1053,6 +1128,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                     SenderId = _state.PlayerId,
                     SenderName = senderName,
                     SenderFigure = senderFigure,
+                    HabbiconId = habbiconId,
                 },
                 CancellationToken.None
             )
@@ -1348,6 +1424,35 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         string senderName,
         string senderFigure,
         CancellationToken ct
+    ) => ReceiveAsync(senderId, message, 0, sentAtUtc, messageId, senderName, senderFigure);
+
+    public Task<InstantMessageErrorCodeType?> ReceiveHabbiconAsync(
+        PlayerId senderId,
+        int habbiconId,
+        DateTime sentAtUtc,
+        int messageId,
+        string senderName,
+        string senderFigure,
+        CancellationToken ct
+    ) =>
+        ReceiveAsync(
+            senderId,
+            string.Empty,
+            habbiconId,
+            sentAtUtc,
+            messageId,
+            senderName,
+            senderFigure
+        );
+
+    private Task<InstantMessageErrorCodeType?> ReceiveAsync(
+        PlayerId senderId,
+        string message,
+        int habbiconId,
+        DateTime sentAtUtc,
+        int messageId,
+        string senderName,
+        string senderFigure
     )
     {
         var refusal = GetMessageRefusal(senderId);
@@ -1371,6 +1476,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                     SenderId = senderId,
                     SenderName = senderName,
                     SenderFigure = senderFigure,
+                    HabbiconId = habbiconId,
                 },
                 CancellationToken.None
             )
@@ -1453,6 +1559,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 Message = x.Message,
                 MessageId = x.Id.ToString(CultureInfo.InvariantCulture),
                 SentAtUtc = x.Timestamp,
+                HabbiconId = x.HabbiconId,
             })
             .ToListAsync(ct);
 
@@ -1673,6 +1780,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 x.Id,
                 x.SenderPlayerEntityId,
                 x.Message,
+                x.HabbiconId,
                 x.Timestamp,
                 SenderName = x.SenderPlayerEntity.Name,
                 SenderFigure = x.SenderPlayerEntity.Figure,
@@ -1697,6 +1805,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                         SenderId = PlayerId.Parse(x.SenderPlayerEntityId),
                         SenderName = x.SenderName,
                         SenderFigure = x.SenderFigure,
+                        HabbiconId = x.HabbiconId,
                     }
             )
             .ToList();

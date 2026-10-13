@@ -3572,6 +3572,12 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("delivered");
 
+                    b.Property<int>("HabbiconId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("habbicon_id");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(512)
