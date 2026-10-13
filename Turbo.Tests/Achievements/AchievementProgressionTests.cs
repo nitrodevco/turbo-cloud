@@ -12,8 +12,11 @@ using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Achievements.Grains;
+using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -207,6 +210,42 @@ public sealed class AchievementProgressionTests : IDisposable
         await observer.WaitForAsync(1, Ct);
         await Task.Delay(100, Ct);
         Assert.Equal([1], observer.Heard.Select(x => x.Level));
+    }
+
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(0, false)]
+    public async Task AWornLevelIsToldAfterItsNotification(int slot, bool told)
+    {
+        // The client adds the notification's badge unworn (Flash onAchievementReceived), so the
+        // worn badges must follow the notification, not precede it.
+        var badge = new PlayerBadgeSnapshot
+        {
+            BadgeId = 7,
+            BadgeCode = "ACH_Test1",
+            SlotId = slot,
+            OwnerCount = 1,
+            Rarity = BadgeRarityType.Common,
+        };
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GetBadgeSnapshotAsync)] = _ =>
+            Task.FromResult<PlayerBadgeSnapshot?>(badge);
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GetSelectedBadgesAsync)] = _ =>
+            Task.FromResult(slot > 0 ? ImmutableArray.Create(badge) : []);
+        _fakes.Handlers[nameof(IPlayerPresenceGrain.TrySendComposerAsync)] = _ =>
+            Task.FromResult(true);
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("worn-1", AchievementSources.FIGURE, 1);
+
+        await NewGrain().ProcessAsync(Ct);
+
+        var calls = _fakes.Log.Calls.Select(x => x.Method).ToList();
+        var notified = calls.IndexOf(nameof(IPlayerPresenceGrain.TrySendComposerAsync));
+        var worn = calls.IndexOf(nameof(IPlayerPresenceGrain.OnSelectedBadgesChangedAsync));
+        Assert.True(notified >= 0);
+        if (told)
+            Assert.True(worn > notified, $"worn badges told at {worn}, notification at {notified}");
+        else
+            Assert.Equal(-1, worn);
     }
 
     [Fact]

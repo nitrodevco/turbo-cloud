@@ -81,6 +81,19 @@ internal sealed partial class PlayerAchievementGrain
             );
             if (!delivered)
                 return;
+            // The client adds the notification's badge unworn and drops the level it replaces
+            // (Flash inventory/IncomingMessages.onAchievementReceived: updateBadge(code, false),
+            // removeBadge(removedBadgeCode)), so a level that took over a worn slot is worn again
+            // only once the worn badges are told after it.
+            if (badge is { IsWorn: true })
+                await _grains
+                    .GetPlayerPresenceGrain(_state.PlayerId)
+                    .OnSelectedBadgesChangedAsync(
+                        await _grains
+                            .GetPlayerBadgeGrain(_state.PlayerId)
+                            .GetSelectedBadgesAsync(ct),
+                        ct
+                    );
             await _grains.SendComposerToPlayerAsync(
                 _state.PlayerId,
                 new AchievementEventMessageComposer
