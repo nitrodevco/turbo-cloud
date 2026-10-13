@@ -350,12 +350,22 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             ? await _grainFactory.GetGuildDirectoryGrain().GetSummaryAsync(chosenId, ct)
             : null;
 
+        await TellRoomOfFavouriteAsync(guild, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Tells the room the player is standing in which group badge they now wear, or none.
+    /// </summary>
+    private async Task TellRoomOfFavouriteAsync(GuildSummarySnapshot? guild, CancellationToken ct)
+    {
         var activeRoom = await _grainFactory
             .GetPlayerPresenceGrain(PlayerId)
             .GetActiveRoomAsync(ct);
 
         if (activeRoom.RoomId <= 0)
-            return true;
+            return;
 
         // Told, not asked, and deliberately not awaited: the room reads this grain when a player
         // walks in (RoomAvatarModule.LoadFavouriteGuildAsync), so awaiting the room from here
@@ -375,8 +385,6 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 activeRoom.RoomId,
                 PlayerId.Value
             );
-
-        return true;
     }
 
     public Task<int> GetMembershipCountAsync(CancellationToken ct) =>
@@ -384,6 +392,8 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
     public async Task OnMembershipsChangedAsync(CancellationToken ct)
     {
+        var wornBefore = _state.FavouriteGuildId;
+
         try
         {
             await LoadAsync(ct);
@@ -398,6 +408,12 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
             return;
         }
+
+        // Left, kicked or the group removed: the badge they wore is gone from their memberships,
+        // so the room stops drawing it now rather than at their next entry, and the wired group
+        // boxes stop counting it.
+        if (wornBefore is not null && _state.FavouriteGuildId is null)
+            await TellRoomOfFavouriteAsync(null, ct);
 
         // The messenger lists each group as a group chat. Told, not awaited: the messenger reads
         // the memberships back from this grain, which would wait on this very turn.
