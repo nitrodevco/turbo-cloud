@@ -119,6 +119,12 @@ public class PlayerConfig
     public int RespectReplenishesPerDay { get; init; } = 0;
     public int SettingsFlushMs { get; init; } = 5000;
 
+    /// <summary>Words a player's own word filter holds at most (the room filter's default).</summary>
+    public int CustomFilterMaxWords { get; init; } = 50;
+
+    /// <summary>The longest word a player's own word filter takes, in characters (at most 64).</summary>
+    public int CustomFilterWordMaxLength { get; init; } = 30;
+
     public int MaxPendingComposers { get; init; } = 500;
 
     /// <summary>

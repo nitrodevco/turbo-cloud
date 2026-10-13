@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -18,6 +19,21 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
 
     /// <summary>Whether the player owns the purchasable chat style the client knows by this id.</summary>
     public Task<bool> OwnsChatStyleAsync(int clientStyleId, CancellationToken ct);
+
+    /// <summary>The client ids of the NFT chat styles the player owns, lowest first.</summary>
+    public Task<List<int>> GetOwnedNftChatStyleIdsAsync(CancellationToken ct);
+
+    /// <summary>The words in the player's own word filter, in the order they were added.</summary>
+    public Task<List<string>> GetCustomFilterWordsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Adds a word to the player's own word filter; false when it is empty, too long, already
+    /// there (whatever its case) or the filter is full.
+    /// </summary>
+    public Task<bool> AddCustomFilterWordAsync(string word, CancellationToken ct);
+
+    /// <summary>Takes a word out of the player's own word filter; false when it was not there.</summary>
+    public Task<bool> RemoveCustomFilterWordAsync(string word, CancellationToken ct);
 
     public Task SetSoundSettingsAsync(
         int genericVolume,

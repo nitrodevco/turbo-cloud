@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Snapshots.Settings;
@@ -94,6 +96,92 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
     public Task<bool> OwnsChatStyleAsync(int clientStyleId, CancellationToken ct) =>
         Task.FromResult(_state.OwnedChatStyleIds.Contains(clientStyleId));
+
+    public Task<List<int>> GetOwnedNftChatStyleIdsAsync(CancellationToken ct) =>
+        Task.FromResult(_state.OwnedChatStyleIds.Where(ChatStyles.IsNftStyle).Order().ToList());
+
+    public async Task<List<string>> GetCustomFilterWordsAsync(CancellationToken ct) =>
+        [.. await LoadCustomFilterWordsAsync(ct)];
+
+    public async Task<bool> AddCustomFilterWordAsync(string word, CancellationToken ct)
+    {
+        var words = await LoadCustomFilterWordsAsync(ct);
+
+        word = word.Trim();
+
+        if (
+            word.Length == 0
+            || word.Length
+                > Math.Min(
+                    _playerConfig.CustomFilterWordMaxLength,
+                    PlayerCustomFilterWordEntity.WORD_MAX_LENGTH
+                )
+            || words.Count >= _playerConfig.CustomFilterMaxWords
+            || words.Contains(word, StringComparer.OrdinalIgnoreCase)
+        )
+            return false;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        dbCtx.PlayerCustomFilterWords.Add(
+            new PlayerCustomFilterWordEntity
+            {
+                PlayerEntityId = _state.PlayerId.Value,
+                Word = word,
+                PlayerEntity = null!,
+            }
+        );
+        await dbCtx.SaveChangesAsync(ct);
+
+        words.Add(word);
+
+        return true;
+    }
+
+    public async Task<bool> RemoveCustomFilterWordAsync(string word, CancellationToken ct)
+    {
+        var words = await LoadCustomFilterWordsAsync(ct);
+        var index = words.FindIndex(x =>
+            string.Equals(x, word, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (index < 0)
+            return false;
+
+        var stored = words[index];
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        dbCtx.PlayerCustomFilterWords.RemoveRange(
+            await dbCtx
+                .PlayerCustomFilterWords.Where(x =>
+                    x.PlayerEntityId == _state.PlayerId.Value && x.Word == stored
+                )
+                .ToListAsync(ct)
+        );
+        await dbCtx.SaveChangesAsync(ct);
+
+        words.RemoveAt(index);
+
+        return true;
+    }
+
+    private async Task<List<string>> LoadCustomFilterWordsAsync(CancellationToken ct)
+    {
+        if (_state.CustomFilterWords is { } loaded)
+            return loaded;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        _state.CustomFilterWords = await dbCtx
+            .PlayerCustomFilterWords.AsNoTracking()
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
+            .OrderBy(x => x.Id)
+            .Select(x => x.Word)
+            .ToListAsync(ct);
+
+        return _state.CustomFilterWords;
+    }
 
     public Task SetSoundSettingsAsync(
         int genericVolume,

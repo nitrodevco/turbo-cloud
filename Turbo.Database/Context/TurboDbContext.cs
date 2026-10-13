@@ -186,6 +186,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
+    public DbSet<PlayerCustomFilterWordEntity> PlayerCustomFilterWords { get; init; }
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 

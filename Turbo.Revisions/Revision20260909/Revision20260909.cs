@@ -1039,6 +1039,12 @@ public class Revision20260909 : IRevision
             #endregion
 
             #region Preferences
+            { MessageEvent.AddToCustomFilterMessageEvent, new AddToCustomFilterMessageParser() },
+            { MessageEvent.GetCustomFilterMessageEvent, new GetCustomFilterMessageParser() },
+            {
+                MessageEvent.RemoveFromCustomFilterMessageEvent,
+                new RemoveFromCustomFilterMessageParser()
+            },
             { MessageEvent.SetChatPreferencesMessageEvent, new SetChatPreferencesMessageParser() },
             {
                 MessageEvent.SetChatStylePreferenceMessageEvent,
@@ -2799,6 +2805,18 @@ public class Revision20260909 : IRevision
                 typeof(AccountPreferencesEventMessageComposer),
                 new AccountPreferencesEventMessageComposerSerializer(
                     MessageComposer.AccountPreferencesMessageComposer
+                )
+            },
+            {
+                typeof(GetCustomFilterResultMessageComposer),
+                new GetCustomFilterResultMessageComposerSerializer(
+                    MessageComposer.GetCustomFilterResultMessageComposer
+                )
+            },
+            {
+                typeof(ModifyCustomFilterResultMessageComposer),
+                new ModifyCustomFilterResultMessageComposerSerializer(
+                    MessageComposer.ModifyCustomFilterResultMessageComposer
                 )
             },
             #endregion

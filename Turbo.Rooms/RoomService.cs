@@ -552,11 +552,17 @@ internal sealed partial class RoomService(
         // on two builds, 2026-10-13): RoomReady, RoomEntryTile, the room's properties, the maps,
         // the visualization, Users, Objects, Items, RoomEvent, ConfigurationItemStates. The room's
         // chat settings are not part of it: the client takes them from GetGuestRoomResult.
+        var nftChatStyleIds = await _grainFactory
+            .GetPlayerSettingsGrain(ctx.PlayerId)
+            .GetOwnedNftChatStyleIdsAsync(ct)
+            .ConfigureAwait(false);
+
         var composers = new List<IComposer>
         {
             // Habbo opens every entry with the player's NFT chat styles (an empty list for an account
-            // without any) right before RoomReady (hhus, 2026-10-13); the client resets its styles from it.
-            new UserNftChatStylesMessageComposer { ChatStyleIds = [] },
+            // without any) right before RoomReady (hhus, 2026-10-13, 17 of 17 entries); the client
+            // offers an NFT bubble only to an owner it names (RoomChatInputView.hasNftChatStyle).
+            new UserNftChatStylesMessageComposer { ChatStyleIds = nftChatStyleIds },
             new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
             new RoomEntryTileMessageComposer
             {

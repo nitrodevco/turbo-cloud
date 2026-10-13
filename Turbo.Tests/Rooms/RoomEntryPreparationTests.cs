@@ -249,6 +249,25 @@ public class RoomEntryPreparationTests
     }
 
     [Fact]
+    public async Task ApprovedEntry_NamesTheNftChatStylesThePlayerOwns()
+    {
+        // The client offers an NFT bubble (1000 to 9999) only to an owner UserNftChatStyles
+        // names (RoomChatInputView.as:374-379); Turbo always sent an empty list.
+        var harness = await ApprovedHarnessAsync();
+        harness.Fakes.Handlers["GetOwnedNftChatStyleIdsAsync"] = _ =>
+            Task.FromResult(new List<int> { 1001, 1050 });
+
+        var packets = await OpenRoomAsync(harness);
+        var styles = packets.Single(packet =>
+            packet.Header == PacketHarness.Outgoing("UserNftChatStylesMessageComposer")
+        );
+
+        Assert.Equal(2, styles.PopInt());
+        Assert.Equal(1001, styles.PopInt());
+        Assert.Equal(1050, styles.PopInt());
+    }
+
+    [Fact]
     public async Task EnteringAnEmptyRoom_SendsUsersButNoEmptyUserUpdate()
     {
         // hhus, 2026-10-13: an empty room's entry has Users (no one) but no UserUpdate until

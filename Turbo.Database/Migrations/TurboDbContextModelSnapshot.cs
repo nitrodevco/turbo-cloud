@@ -5097,6 +5097,40 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_currencies");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerCustomFilterWordEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("word");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "Word")
+                        .IsUnique();
+
+                    b.ToTable("player_custom_filter_words");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerEffectEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -8109,6 +8143,17 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("CurrencyTypeEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerCustomFilterWordEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("PlayerEntity");
                 });

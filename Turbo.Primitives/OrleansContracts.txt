@@ -366,8 +366,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Respect.IHumanRes
   1016EB7D: ExecuteAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Grains.Respect.HumanRespectOperationResult>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Settings.IPlayerSettingsGrain")] Turbo.Primitives.Players.Grains.Settings.IPlayerSettingsGrain [Version(0)]
+  19CD1414: AddCustomFilterWordAsync(string, System.Threading.CancellationToken) -> Task<bool>
+  9F832A6C: GetCustomFilterWordsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<string>>
+  51FE99BE: GetOwnedNftChatStyleIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<int>>
   55F33B9F: GetSettingsAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Settings.PlayerSettingsSnapshot>
   195205AF: OwnsChatStyleAsync(int, System.Threading.CancellationToken) -> Task<bool>
+  00E83B77: RemoveCustomFilterWordAsync(string, System.Threading.CancellationToken) -> Task<bool>
   3D0F1463: SetChatPreferencesAsync(Turbo.Primitives.Navigator.Enums.ChatModeType, Turbo.Primitives.Navigator.Enums.ChatBubbleWidthType, Turbo.Primitives.Navigator.Enums.ChatScrollSpeedType, System.Threading.CancellationToken) -> Task
   BB410C01: SetChatStyleAsync(int, Turbo.Primitives.Navigator.Enums.ChatSizeType, System.Threading.CancellationToken) -> Task
   1B033A04: SetFriendRequestsDisabledAsync(bool, System.Threading.CancellationToken) -> Task

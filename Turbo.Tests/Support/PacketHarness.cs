@@ -40,6 +40,8 @@ public sealed class PacketHarness
             }
             return Fakes.NotHandled;
         };
+        // Every room entry asks which NFT chat styles the player owns: none, unless a test says so.
+        Fakes.Handlers["GetOwnedNftChatStyleIdsAsync"] = _ => Task.FromResult(new List<int>());
     }
 
     /// <summary>An incoming header id by its constant name in the revision's Headers.cs.</summary>
