@@ -86,6 +86,42 @@ public sealed class WiredSelectorTests
     }
 
     [Fact]
+    public async Task FurniInArea_ARectangleLargerThanAHundredTilesPicksItsLastRowToo()
+    {
+        // Recorded on hhus (WIN63-202610121709): Habbo saved 10x10, 11x11, 10x18, 12x16 and 50x50
+        // areas as sent, and a 10x18 area in a public room changes tiles in all 18 rows. The room's
+        // map is the only bound.
+        var room = new WiredRoom(10, 20);
+        room.AddFloorItem(10, 0, 0);
+        room.AddFloorItem(11, 9, 17);
+        var box = room.AddBox<WiredSelectorItemsInArea>(BOX, 0, 19, "wf_slc_furni_area");
+
+        (await room.SaveAsync<UpdateSelectorMessage>(BOX, intParams: [0, 0, 10, 18]))
+            .Should()
+            .BeTrue();
+
+        (
+            await box.SelectAsync(
+                new WiredProcessingContext(room.Harness.Room)
+                {
+                    Event = new AvatarWalkOnFurniEvent
+                    {
+                        RoomId = 1,
+                        CausedBy = ActionContext.CreateForSystem(1),
+                        ObjectId = 0,
+                        FurniId = 0,
+                    },
+                    Stack = room.Harness.Fakes.Create<IWiredStack>(),
+                    Signal = new WiredSelectionSet(),
+                    Selected = new WiredSelectionSet(),
+                    CancellationToken = Ct,
+                },
+                Ct
+            )
+        ).SelectedFurniIds.Should().BeEquivalentTo([10, 11]);
+    }
+
+    [Fact]
     public async Task FurniInArea_ARectangleOverTheEdgeOfTheRoomIsCutToIt()
     {
         _room.AddFloorItem(10, 7, 7);

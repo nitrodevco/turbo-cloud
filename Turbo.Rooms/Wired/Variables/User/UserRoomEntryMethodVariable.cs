@@ -30,8 +30,13 @@ public sealed class UserRoomEntryMethodVariable(RoomGrain roomGrain)
         | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        Enum.GetValues<RoomEntryMethodType>()
-            .ToDictionary(x => WiredVariableValue.Parse((int)x), x => x.ToString());
+        // Habbo's labels (hhus, WIN63-202610121709).
+        new()
+        {
+            [WiredVariableValue.Parse((int)RoomEntryMethodType.Default)] = "Default",
+            [WiredVariableValue.Parse((int)RoomEntryMethodType.Teleport)] = "Teleport",
+            [WiredVariableValue.Parse((int)RoomEntryMethodType.RoomNetwork)] = "Room Network",
+        };
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
         WiredVariableValue.Parse((int)avatar.RoomEntry.Method);

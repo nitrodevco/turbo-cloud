@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.Variables;
@@ -54,7 +55,10 @@ public class WiredRoomInternalVariableTests
             new RoomUserCountVariable(room.Harness.Room),
             new RoomWiredTimerVariable(room.Harness.Room),
         }
-            .Select(x => x.GetVarSnapshot().VariableId)
+            // The client lists internal variables by Number(variableId), highest first.
+            .Select(x =>
+                double.Parse(x.GetVarSnapshot().VariableId.ToString(), CultureInfo.InvariantCulture)
+            )
             .ToList();
 
         ids.Should().OnlyHaveUniqueItems();

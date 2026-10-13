@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Rooms.Wired.Variables;
@@ -45,13 +46,13 @@ public sealed class WiredOfficialVariableOrderTests
                 "@dimensions.y",
                 "@owner_id",
                 "@wallitem_offset",
-                "@projectile.animation.tiles_traveled",
+                "@projectile.animation.tiles_travelled",
                 "@projectile.animation.user_collisions",
                 "@projectile.animation.furni_collisions",
                 "@projectile.animation.position.x",
                 "@projectile.animation.position.y",
                 "@projectile.animation.position.altitude",
-                "@projectile.animation.is_traveling"
+                "@projectile.animation.is_travelling"
             );
     }
 
@@ -90,7 +91,8 @@ public sealed class WiredOfficialVariableOrderTests
                 "@room_entry.teleport_id",
                 "@user_id",
                 "@pet_id",
-                "@bot_id"
+                "@bot_id",
+                "@pet_owner_id"
             );
     }
 
@@ -175,7 +177,18 @@ public sealed class WiredOfficialVariableOrderTests
                     x.TargetType == target
                     && (x.VariableName.StartsWith('@') || x.VariableName.StartsWith(startsWith))
                 )
-                .OrderByDescending(x => x.VariableId.Value)
+                // The client's order (Util.variableCompare, WIN63-202610121709): the others by
+                // name, then the internal ones by Number(variableId), highest first.
+                .OrderBy(x => x.VariableType == WiredVariableType.Internal)
+                .ThenBy(
+                    x => x.VariableType == WiredVariableType.Internal ? "" : x.VariableName,
+                    StringComparer.Ordinal
+                )
+                .ThenByDescending(x =>
+                    x.VariableType == WiredVariableType.Internal
+                        ? double.Parse(x.VariableId.ToString(), CultureInfo.InvariantCulture)
+                        : 0
+                )
                 .Select(x => x.VariableName),
         ];
 }

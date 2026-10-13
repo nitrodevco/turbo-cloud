@@ -664,7 +664,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     /// <summary>
     /// Seconds until the monsterplant is fully grown, as the pet info and
-    /// <c>~plant.remaining_growth_seconds</c> count it: from two days down to 0.
+    /// <c>~plant.remaining_growing_seconds</c> count it: from two days down to 0.
     /// </summary>
     internal int RemainingGrowingSeconds(IRoomPet pet) =>
         pet.Level >= Config.MonsterplantMaxLevel

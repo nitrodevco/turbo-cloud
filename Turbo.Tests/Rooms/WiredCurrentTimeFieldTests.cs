@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -83,7 +84,10 @@ public sealed class WiredCurrentTimeFieldTests
                     (WiredInternalVariable)Activator.CreateInstance(t, _room.Harness.Room)!
                 ).GetVarSnapshot()
             )
-            .OrderByDescending(x => x.VariableId.Value)
+            // The client lists internal variables by Number(variableId), highest first.
+            .OrderByDescending(x =>
+                double.Parse(x.VariableId.ToString(), CultureInfo.InvariantCulture)
+            )
             .Select(x => x.VariableName);
 
         listed

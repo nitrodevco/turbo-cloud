@@ -9,8 +9,8 @@ namespace Turbo.Rooms.Wired.Variables.Context;
 /// A variable about the stack running right now rather than about anything standing in the
 /// room: it is read from that execution (what its selectors picked, its signal, the event that
 /// started it), and is the default outside
-/// one. The client lists them all the time, because they declare
-/// <see cref="WiredVariableFlags.AlwaysAvailable"/>.
+/// one. Habbo marks every @event.* one as not always available, and the selector and signal
+/// counts as always available (hhus, WIN63-202610121709).
 /// </summary>
 public abstract class ContextVariable(RoomGrain roomGrain) : WiredInternalVariable(roomGrain)
 {

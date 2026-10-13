@@ -62,8 +62,16 @@ public abstract partial class FurnitureWiredLogic(
     public Task EnsureWiredLoadedAsync(CancellationToken ct) =>
         _wiredData is null ? LoadWiredAsync(ct) : Task.CompletedTask;
 
-    public Task FlashActivationStateAsync(CancellationToken ct) =>
-        SetStateAsync(GetState() == 1 ? 0 : 1);
+    /// <summary>The box's activation flash: Habbo flips most boxes between 0 and 1 each time they act.</summary>
+    public virtual Task FlashActivationStateAsync(CancellationToken ct) =>
+        WiredSystem.SetFlashStateAsync(_ctx.RoomObject, GetState() == 1 ? 0 : 1);
+
+    /// <summary>
+    /// Flips the box between two states, landing on <paramref name="first"/> from any other: how
+    /// Habbo flashes boxes whose resting state is not 0 (selectors, variable boxes).
+    /// </summary>
+    protected Task FlashWithinAsync(int first, int second) =>
+        WiredSystem.SetFlashStateAsync(_ctx.RoomObject, GetState() == first ? second : first);
 
     // The picked furni that are still in the room, worked out again only when the box's picks
     // (a new list is stored on every save) or the room's furni have changed since. Every trigger
@@ -694,8 +702,8 @@ public abstract partial class FurnitureWiredLogic(
                 variableIds.Add(
                     slot < proposed.Count
                     && WiredVariableId.TryParse(proposed[slot], out var slotId)
-                    && WiredSystem.GetVariableById(slotId) is not null
-                        ? slotId
+                    && WiredSystem.GetVariableById(slotId) is { } slotVariable
+                        ? slotVariable.GetVarSnapshot().VariableId
                         : NO_VARIABLE
                 );
             }
@@ -722,7 +730,13 @@ public abstract partial class FurnitureWiredLogic(
             if (!WiredVariableId.TryParse(id, out var variableId))
                 continue;
 
-            if (variableIds.Contains(variableId) || WiredSystem.GetVariableById(variableId) is null)
+            // An id saved before built-in variables took Habbo's fixed ids is stored as the new one.
+            if (WiredSystem.GetVariableById(variableId) is not { } variable)
+                continue;
+
+            variableId = variable.GetVarSnapshot().VariableId;
+
+            if (variableIds.Contains(variableId))
                 continue;
 
             variableIds.Add(variableId);
@@ -941,6 +955,15 @@ public abstract partial class FurnitureWiredLogic(
 
         await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
     }
+
+    /// <summary>
+    /// Every wired box is used (its editor opened) by those with rights, whatever its furni
+    /// definition says: Habbo sends wired boxes with usage Rights (recorded on hhus, WIN63-
+    /// 202610121709, ObjectAdd of wf_trg_click_tile, wf_trg_click_user and wf_slc_furni_area). A
+    /// definition imported with usage Nobody otherwise blocks the double-click and the editor
+    /// never opens.
+    /// </summary>
+    public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
     /// <summary>
     /// Habbo flips the box's state on every use, then opens the editor (ObjectDataUpdate before

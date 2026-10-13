@@ -107,7 +107,8 @@ public sealed class WiredRoom
         string logicName = "default_floor",
         int? definitionId = null,
         bool canWalk = true,
-        Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null
+        Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null,
+        FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody
     )
     {
         var item = new RoomFloorItem
@@ -135,7 +136,7 @@ public sealed class WiredRoom
                 CanTrade = true,
                 CanGroup = true,
                 CanSell = true,
-                UsagePolicy = FurnitureUsageType.Everybody,
+                UsagePolicy = usagePolicy,
                 ExtraData = null,
             },
         };

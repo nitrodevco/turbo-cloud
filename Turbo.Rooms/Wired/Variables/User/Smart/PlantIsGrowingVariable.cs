@@ -1,3 +1,4 @@
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -9,6 +10,10 @@ public sealed class PlantIsGrowingVariable(RoomGrain roomGrain) : PlantSmartVari
 {
     protected override string VariableName => "~plant.is_growing";
 
+    protected override WiredVariableFlags Flags => WiredVariableFlags.None;
+
+    protected override bool Holds(IRoomPet pet) => PetModule.RemainingGrowingSeconds(pet) > 0;
+
     protected override WiredVariableValue GetValueForAvatar(IRoomPet pet) =>
-        PetModule.RemainingGrowingSeconds(pet) > 0 ? 1 : 0;
+        WiredVariableValue.Default;
 }

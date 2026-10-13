@@ -14,6 +14,11 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Protocol\Fixtures\achievements.json" />
+    <!-- The built-in variables as hhus describes them (WIN63-202610121709). -->
+    <EmbeddedResource
+      Include="Rooms\Fixtures\*.json"
+      LogicalName="Rooms.Fixtures.%(Filename)%(Extension)"
+    />
     <!-- A real Habbo effect library and what nitro-studio's converter made of it. -->
     <EmbeddedResource
       Include="Assets\Fixtures\*"

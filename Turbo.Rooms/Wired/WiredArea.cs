@@ -9,9 +9,9 @@ namespace Turbo.Rooms.Wired;
 
 /// <summary>
 /// The rectangle an area selector covers, as the client sends it (root x, root y, width,
-/// height). The numbers come from the client, so the rectangle is always cut to the map and
-/// to <see cref="WiredConfig.SelectorMaxAreaSize"/> tiles, counted row by row from the
-/// root, before anything walks it.
+/// height). The numbers come from the client, so the rectangle is always cut to the map and,
+/// when <see cref="WiredConfig.SelectorMaxAreaSize"/> is positive, to that many tiles, counted
+/// row by row from the root, before anything walks it.
 /// </summary>
 internal readonly record struct WiredArea(int X, int Y, int Width, int Height, int MaxTiles)
 {
@@ -39,7 +39,9 @@ internal readonly record struct WiredArea(int X, int Y, int Width, int Height, i
             y,
             width,
             height,
-            Math.Max(0, roomGrain._wiredConfig.SelectorMaxAreaSize)
+            roomGrain._wiredConfig.SelectorMaxAreaSize > 0
+                ? roomGrain._wiredConfig.SelectorMaxAreaSize
+                : int.MaxValue
         );
     }
 

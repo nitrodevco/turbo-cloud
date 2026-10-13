@@ -19,7 +19,9 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
 
     // Read only: what an avatar is cannot be written, so it does not claim it can be.
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
+        WiredVariableFlags.HasValue
+        | WiredVariableFlags.HasTextConnector
+        | WiredVariableFlags.AlwaysAvailable;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         Enum.GetValues<RoomObjectType>()

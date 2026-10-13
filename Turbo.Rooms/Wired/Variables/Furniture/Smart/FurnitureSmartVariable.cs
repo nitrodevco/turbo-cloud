@@ -9,7 +9,7 @@ namespace Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
 /// <summary>
 /// A smart furni variable: held by every furni whose logic is <typeparamref name="TLogic"/>, and
-/// listed only while one of them is in the room. Smart variables are listed above the internal
+/// listed always, invisible while none is in the room. Smart variables are listed above the internal
 /// ones of their band, as the official client's Creator Tools list <c>~clock.*</c> above
 /// <c>@id</c>.
 /// </summary>
@@ -30,7 +30,20 @@ public abstract class FurnitureSmartVariable<TLogic>(RoomGrain roomGrain)
 
     protected abstract WiredVariableValue GetValueForLogic(TLogic logic);
 
+    /// <summary>
+    /// Whether a furni of this kind holds the variable now. A yes/no smart variable has no value:
+    /// Habbo sends it with hasValue off and a furni holds it only while the answer is yes
+    /// (hhus, WIN63-202610121709), so "has variable" is how wired reads it.
+    /// </summary>
+    protected virtual bool Holds(TLogic logic) => true;
+
     protected override bool TryGetItemForKey(
+        in WiredVariableKey key,
+        [NotNullWhen(true)] out IRoomItem? item
+    ) => TryGetKindForKey(key, out item) && Holds((TLogic)item.Logic);
+
+    /// <summary>The furni the key names when it is of this variable's kind, held or not.</summary>
+    protected bool TryGetKindForKey(
         in WiredVariableKey key,
         [NotNullWhen(true)] out IRoomItem? item
     ) => base.TryGetItemForKey(key, out item) && item.Logic is TLogic;

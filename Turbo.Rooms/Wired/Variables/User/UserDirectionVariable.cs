@@ -21,10 +21,13 @@ public sealed class UserDirectionVariable(RoomGrain roomGrain) : UserPlacementVa
 
     protected override WiredVariableFlags Flags => base.Flags | WiredVariableFlags.HasTextConnector;
 
+    // Habbo's labels, 0 (north) to 7 (north-west) (hhus, WIN63-202610121709).
+    private static readonly string[] DirectionLabels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        Enum.GetValues<Rotation>()
-            .Where(x => x != Rotation.None)
-            .ToDictionary(x => WiredVariableValue.Parse((int)x), x => x.ToString());
+        Enumerable
+            .Range(0, DirectionLabels.Length)
+            .ToDictionary(x => WiredVariableValue.Parse(x), x => DirectionLabels[x]);
 
     protected override bool IsRotation => true;
 

@@ -288,7 +288,22 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value,
         WiredVariableValue previous,
         WiredVariableChangeOriginType? origin = null
-    ) =>
+    )
+    {
+        // A value going up flashes the box between 2 and 3, going down between 4 and 5 (recorded on
+        // hhus, WIN63-202610121709: a room variable counted down 5,4,5,4 then up 2,3,2,3).
+        if (changeType == WiredVariableChangeType.Updated && value.Value != previous.Value)
+        {
+            var resting = value.Value > previous.Value ? 2 : 4;
+
+            FlashWithinAsync(resting, resting + 1)
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "flash a wired box in room {RoomId}",
+                    _roomGrain.RoomId
+                );
+        }
+
         _ctx.PublishRoomEventAsync(
                 new WiredVariableChangedEvent
                 {
@@ -310,6 +325,7 @@ public abstract class FurnitureWiredVariableLogic
                 "publish an event in room {RoomId}",
                 _roomGrain.RoomId
             );
+    }
 
     /// <summary>
     /// A "Permanent, shared" user or global variable: other rooms of its owner may use it through

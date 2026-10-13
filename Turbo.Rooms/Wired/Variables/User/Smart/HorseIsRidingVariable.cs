@@ -1,3 +1,4 @@
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -9,5 +10,10 @@ public sealed class HorseIsRidingVariable(RoomGrain roomGrain) : HorseSmartVaria
 {
     protected override string VariableName => "~horse.is_riding";
 
-    protected override WiredVariableValue GetValueForAvatar(IRoomPet pet) => pet.IsRiding ? 1 : 0;
+    protected override WiredVariableFlags Flags => WiredVariableFlags.None;
+
+    protected override bool Holds(IRoomPet pet) => pet.IsRiding;
+
+    protected override WiredVariableValue GetValueForAvatar(IRoomPet pet) =>
+        WiredVariableValue.Default;
 }

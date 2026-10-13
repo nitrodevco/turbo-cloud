@@ -33,8 +33,11 @@ public sealed class WiredSmartVariableTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_smart_variable_is_listed_only_while_its_furni_is_in_the_room()
+    public async Task A_smart_variable_is_listed_invisible_until_its_furni_is_in_the_room()
     {
+        // hhus lists every smart variable, invisible in a room without their furni
+        // (WiredAllVariablesDiffs, WIN63-202610121709: ~teleport.target_id as "~103", invisible,
+        // in a room with no linker; ~clock.* visible beside a clock).
         var variable = new FurnitureTeleportTargetVariable(_room.Harness.Room);
         var id = variable.GetVarSnapshot().VariableId;
         var byId = (IDictionary)
@@ -42,11 +45,14 @@ public sealed class WiredSmartVariableTests
 
         byId[id] = variable;
 
-        (await Listed()).Should().NotContain(id);
+        (await Listed()).Should().Contain(id);
+        id.ToString().Should().Be("~103");
+        variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.IsInvisible).Should().BeTrue();
 
         AddLinker();
 
         (await Listed()).Should().Contain(id);
+        variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.IsInvisible).Should().BeFalse();
         variable.GetVarSnapshot().VariableType.Should().Be(WiredVariableType.Smart);
         variable.GetVarSnapshot().VariableName.Should().Be("~teleport.target_id");
     }
@@ -135,7 +141,7 @@ public sealed class WiredSmartVariableTests
     }
 
     [Fact]
-    public async Task Area_hide_sets_its_size_and_takes_only_0_or_1_for_a_flag()
+    public async Task Area_hide_sets_its_size_and_wired_gives_and_removes_its_flags()
     {
         var hider = (FurnitureAreaHideLogic)
             _room
@@ -154,9 +160,18 @@ public sealed class WiredSmartVariableTests
         (await width.SetValueAsync(ctx, Key(width, 33), 6)).Should().BeTrue();
         hider.ValueAt(3).Should().Be(6);
 
-        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 2)).Should().BeFalse();
-        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeTrue();
+        // Habbo sends ~area_hide.inverted with no value, given and removed (hhus,
+        // WIN63-202610121709): giving it turns the setting on, removing it off.
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeFalse();
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeFalse();
+
+        (await inverted.GiveValueAsync(Key(inverted, 33), 0)).Should().BeTrue();
         hider.ValueAt(7).Should().Be(1);
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeTrue();
+
+        inverted.RemoveValue(Key(inverted, 33)).Should().BeTrue();
+        hider.ValueAt(7).Should().Be(0);
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeFalse();
     }
 
     [Theory]
@@ -186,10 +201,37 @@ public sealed class WiredSmartVariableTests
         map.Data[WiredChestData.EVERYONE_CAN_OPEN] = WiredChestData.TRUE;
         map.Data[WiredChestData.EVERYONE_CAN_DONATE] = WiredChestData.FALSE;
 
-        isOpen.TryGetValue(Key(isOpen, 35), out var open).Should().BeTrue();
-        isDonatable.TryGetValue(Key(isDonatable, 35), out var donatable).Should().BeTrue();
-        ((int)open).Should().Be(1);
-        ((int)donatable).Should().Be(0);
+        // Yes/no variables with no value (hhus, WIN63-202610121709): held while the answer is yes.
+        isOpen.TryGetValue(Key(isOpen, 35), out _).Should().BeTrue();
+        isDonatable.TryGetValue(Key(isDonatable, 35), out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Chest_capacity_locked_and_auto_lock_follow_its_settings()
+    {
+        // Habbo's ~chest.capacity (~133) has a value, ~chest.locked (~131) and
+        // ~chest.is_auto_lock (~132) none (hhus, WIN63-202610121709).
+        var chest = AddChest(36, coins: false);
+        var capacity = new FurnitureChestCapacityVariable(_room.Harness.Room);
+        var locked = new FurnitureChestLockedVariable(_room.Harness.Room);
+        var autoLock = new FurnitureChestIsAutoLockVariable(_room.Harness.Room);
+        var map = (IMapStuffData)chest.StuffData;
+
+        typeof(FurnitureWiredChestLogic)
+            .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
+            .SetValue(chest, WiredChestSummarySnapshot.Empty with { MaxCapacity = 100 });
+        map.Data[WiredChestData.CAPACITY] = "40";
+        map.Data[WiredChestData.LOCKED] = WiredChestData.FALSE;
+        map.Data[WiredChestData.AUTO_LOCK] = WiredChestData.TRUE;
+
+        capacity.TryGetValue(Key(capacity, 36), out var value).Should().BeTrue();
+        ((int)value).Should().Be(40);
+        locked.TryGetValue(Key(locked, 36), out _).Should().BeFalse();
+        autoLock.TryGetValue(Key(autoLock, 36), out _).Should().BeTrue();
+
+        map.Data[WiredChestData.LOCKED] = WiredChestData.TRUE;
+
+        locked.TryGetValue(Key(locked, 36), out _).Should().BeTrue();
     }
 
     private FurnitureWiredChestLogic AddChest(int id, bool coins) =>

@@ -35,6 +35,18 @@ public abstract class FurnitureWiredSelectorLogic(
 
     public bool GetIsFilter() => _isFilter;
 
+    /// <summary>
+    /// A selector flashes each time its stack runs, between its resting state + 1 and + 2; it rests
+    /// at 0, or 3 in filter mode (recorded on hhus, WIN63-202610121709: an area selector 1/2, filter
+    /// "furni by type" and "furni with variable" selectors 4/5).
+    /// </summary>
+    public override Task FlashActivationStateAsync(CancellationToken ct)
+    {
+        var resting = _isFilter ? 3 : 0;
+
+        return FlashWithinAsync(resting + 1, resting + 2);
+    }
+
     public bool GetIsInvert() => _isInvert;
 
     public virtual Task<IWiredSelectionSet> SelectAsync(

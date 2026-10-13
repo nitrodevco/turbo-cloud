@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -112,6 +113,76 @@ public sealed class WiredMatchToSnapshotTests
         (lamp.X, lamp.Y, lamp.Z, lamp.Rotation, lamp.Logic.GetState())
             .Should()
             .Be((3, 3, Altitude.Zero, Rotation.North, 0));
+    }
+
+    [Fact]
+    public async Task A_one_furni_snapshot_gives_its_state_to_every_furni_a_selector_picks()
+    {
+        // Recorded on hhus (WIN63-202610121709, a public wired room): the box snapshots one tile in
+        // state 3, takes its furni from a selector, and every tile the selector picks turns to 3 (here the
+        // test furni have two states, so the snapshot holds 1).
+        // Habbo offers this box triggered, picked, selector and signal furni (allowedFurniSources
+        // [[0, 100, 200, 201]] in WiredFurniAction).
+        const int REFERENCE = 40;
+        const int TILE_A = 41;
+        const int TILE_B = 42;
+
+        _room.Enter(5, 7, 7);
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        _room.AddFloorItem(REFERENCE, 6, 6);
+        _room.AddFloorItem(TILE_A, 2, 2);
+        _room.AddFloorItem(TILE_B, 3, 2);
+        await _room.FloorItem(REFERENCE).Logic.SetStateAsync(1);
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredSelectorItemsInArea>(3, 0, 0, "wf_slc_furni_area");
+        _room.AddBox<WiredActionMatchToSnapshot>(2, 0, 0, "wf_act_match_to_sshot");
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateSelectorMessage>(
+                3,
+                intParams: [2, 2, 2, 1],
+                definitionSpecifics: [false, false]
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [1, 0, 0, 0],
+                stuffIds: [REFERENCE],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectorItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        await ClickAsync();
+
+        _room.FloorItem(TILE_A).Logic.GetState().Should().Be(1);
+        _room.FloorItem(TILE_B).Logic.GetState().Should().Be(1);
     }
 
     private async Task BuildAsync(int[] intParams)

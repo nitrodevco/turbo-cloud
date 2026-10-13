@@ -12,6 +12,12 @@ public class WiredConfig
 
     public int TickMs { get; init; } = 50;
 
+    /// <summary>
+    /// How often the floor states wired changed go out, together in one message (Habbo: every
+    /// 500 ms).
+    /// </summary>
+    public int StateUpdateMs { get; init; } = 500;
+
     /// <summary>How deep signals and stack calls may nest before the chain is cut and logged.</summary>
     public int MaxDepth { get; init; } = 20;
     public int MaxScheduledPerTick { get; init; } = 64;
@@ -36,7 +42,10 @@ public class WiredConfig
     public int MaxPermanentGlobalVariables { get; init; } = 50;
 
     // The bounds a saved box is checked against.
-    public int SelectorMaxAreaSize { get; init; } = 100;
+    // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how
+    // Habbo works (recorded on hhus, WIN63-202610121709: 10x18, 12x16 and 50x50 areas saved as sent,
+    // and a 10x18 area changes tiles in all 18 rows).
+    public int SelectorMaxAreaSize { get; init; } = 0;
     public int SelectedItemsLimit { get; init; } = 20;
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;

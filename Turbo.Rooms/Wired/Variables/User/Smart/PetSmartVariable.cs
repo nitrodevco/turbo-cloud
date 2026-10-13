@@ -9,7 +9,7 @@ namespace Turbo.Rooms.Wired.Variables.User.Smart;
 
 /// <summary>
 /// A smart user variable (<c>~pet.*</c>, <c>~horse.*</c>, <c>~plant.*</c>): held by every pet
-/// <see cref="AppliesTo"/> accepts, and listed only while one of them is in the room. Listed
+/// <see cref="AppliesTo"/> accepts, and listed always, invisible while none is in the room. Listed
 /// after the internal user variables, as the furni smart variables are after theirs.
 /// </summary>
 public abstract class PetSmartVariable(RoomGrain roomGrain)
@@ -30,10 +30,16 @@ public abstract class PetSmartVariable(RoomGrain roomGrain)
 
     public bool IsPresent() => PetModule.Pets.Any(AppliesTo);
 
+    /// <summary>
+    /// Whether the pet holds the variable now. A yes/no smart variable has no value: Habbo sends
+    /// it with hasValue off and a pet holds it only while the answer is yes (hhus, WIN63-202610121709).
+    /// </summary>
+    protected virtual bool Holds(IRoomPet pet) => true;
+
     protected override bool TryGetAvatarForKey(
         in WiredVariableKey key,
         [NotNullWhen(true)] out IRoomPet? avatar
-    ) => base.TryGetAvatarForKey(key, out avatar) && AppliesTo(avatar);
+    ) => base.TryGetAvatarForKey(key, out avatar) && AppliesTo(avatar) && Holds(avatar);
 }
 
 /// <summary>A <c>~pet.*</c> variable: every pet but a monsterplant, which has <c>~plant.*</c> instead.</summary>

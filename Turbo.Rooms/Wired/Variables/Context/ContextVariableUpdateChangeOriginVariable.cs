@@ -18,9 +18,7 @@ public sealed class ContextVariableUpdateChangeOriginVariable(RoomGrain roomGrai
     protected override ushort Order => 24;
 
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue
-        | WiredVariableFlags.AlwaysAvailable
-        | WiredVariableFlags.HasTextConnector;
+        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         new()
