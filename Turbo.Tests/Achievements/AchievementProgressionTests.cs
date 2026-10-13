@@ -14,6 +14,9 @@ using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Achievements.Grains;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
@@ -210,6 +213,38 @@ public sealed class AchievementProgressionTests : IDisposable
         await observer.WaitForAsync(1, Ct);
         await Task.Delay(100, Ct);
         Assert.Equal([1], observer.Heard.Select(x => x.Level));
+    }
+
+    [Fact]
+    public async Task ALevelUpIsToldBeforeTheNewScoreAndTheScoreBeforeTheAchievement()
+    {
+        // Official client capture, every recorded level-up (17 of 17):
+        // HabboAchievementNotification, AchievementsScore, Achievement.
+        _fakes.Handlers[nameof(IPlayerPresenceGrain.TrySendComposerAsync)] = _ =>
+            Task.FromResult(true);
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("order-1", AchievementSources.FIGURE, 1);
+
+        await NewGrain().ProcessAsync(Ct);
+
+        var sent = _fakes
+            .Log.Calls.SelectMany(x => x.Args)
+            .OfType<IComposer>()
+            .Select(x => x.GetType())
+            .Where(x =>
+                x == typeof(HabboAchievementNotificationMessageComposer)
+                || x == typeof(AchievementsScoreEventMessageComposer)
+                || x == typeof(AchievementEventMessageComposer)
+            )
+            .ToList();
+        Assert.Equal(
+            [
+                typeof(HabboAchievementNotificationMessageComposer),
+                typeof(AchievementsScoreEventMessageComposer),
+                typeof(AchievementEventMessageComposer),
+            ],
+            sent
+        );
     }
 
     [Theory]
