@@ -266,6 +266,13 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         mb.Entity<HabboFigureEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        // Habbo's categories include "Trading" and "TRADING": their search codes must stay apart.
+        mb.Entity<PlayerNavigatorCollapsedCategoryEntity>()
+            .Property(x => x.SearchCode)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        mb.Entity<PlayerNavigatorViewModeEntity>()
+            .Property(x => x.SearchCode)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
         mb.Entity<GamedataVariableEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataVariableEntity.KEY_COLLATION);
