@@ -14,6 +14,7 @@ using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired.Variables;
+using Turbo.Rooms.Wired.Variables.User;
 using Turbo.Rooms.Wired.Variables.User.Smart;
 using Turbo.Tests.Support;
 using Xunit;
@@ -46,27 +47,28 @@ public sealed class WiredPetSmartVariableTests
         var level = Register(new PetLevelVariable(_room.Harness.Room));
         var saddle = Register(new HorseHasSaddleVariable(_room.Harness.Room));
         var wellbeing = Register(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room));
+        var ownerId = Register(new UserPetOwnerIdVariable(_room.Harness.Room), smart: false);
 
         (await Listed()).Should().Contain([level, saddle, wellbeing]);
         new[] { level, saddle, wellbeing }
             .Select(x => x.ToString())
             .Should()
             .Equal("~400", "~500", "~615");
-        Invisible().Should().Equal(true, true, true);
+        Invisible().Should().Equal(true, true, true, true);
 
         AddPet(DOG, PetTypes.DOG);
         await Listed();
 
-        Invisible().Should().Equal(false, true, true);
+        Invisible().Should().Equal(false, true, true, false);
 
         AddPet(HORSE, PetTypes.HORSE);
         AddPet(PLANT, PetTypes.MONSTERPLANT);
         await Listed();
 
-        Invisible().Should().Equal(false, false, false);
+        Invisible().Should().Equal(false, false, false, false);
 
         IEnumerable<bool> Invisible() =>
-            new[] { level, saddle, wellbeing }.Select(id =>
+            new[] { level, saddle, wellbeing, ownerId }.Select(id =>
                 _room
                     .Harness.Room.WiredSystem.GetVariableById(id)!
                     .GetVarSnapshot()
@@ -85,6 +87,8 @@ public sealed class WiredPetSmartVariableTests
         Read(new PetHappinessVariable(_room.Harness.Room), DOG).Should().Be(70);
         Read(new PetScratchesVariable(_room.Harness.Room), DOG).Should().Be(9);
         Read(new PetOwnerIdVariable(_room.Harness.Room), DOG).Should().Be(77);
+        // Habbo also has it as the built-in @pet_owner_id (-280, hhus, WIN63-202610121709).
+        Read(new UserPetOwnerIdVariable(_room.Harness.Room), DOG).Should().Be(77);
         Read(new PetMaxLevelVariable(_room.Harness.Room), DOG).Should().Be(20);
         Read(new PetExperienceRequiredVariable(_room.Harness.Room), DOG).Should().Be(600);
         Read(new PetMaxEnergyVariable(_room.Harness.Room), DOG).Should().Be(100);
@@ -315,14 +319,17 @@ public sealed class WiredPetSmartVariableTests
         return pet;
     }
 
-    private WiredVariableId Register(WiredInternalVariable variable)
+    private WiredVariableId Register(WiredInternalVariable variable, bool smart = true)
     {
         var id = variable.GetVarSnapshot().VariableId;
         var byId = (IDictionary)
             RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!;
 
         byId[id] = variable;
-        variable.GetVarSnapshot().VariableType.Should().Be(WiredVariableType.Smart);
+        variable
+            .GetVarSnapshot()
+            .VariableType.Should()
+            .Be(smart ? WiredVariableType.Smart : WiredVariableType.Internal);
 
         return id;
     }

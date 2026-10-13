@@ -91,7 +91,8 @@ public sealed class WiredOfficialVariableOrderTests
                 "@room_entry.teleport_id",
                 "@user_id",
                 "@pet_id",
-                "@bot_id"
+                "@bot_id",
+                "@pet_owner_id"
             );
     }
 

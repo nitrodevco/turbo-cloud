@@ -206,6 +206,34 @@ public sealed class WiredSmartVariableTests
         isDonatable.TryGetValue(Key(isDonatable, 35), out _).Should().BeFalse();
     }
 
+    [Fact]
+    public void Chest_capacity_locked_and_auto_lock_follow_its_settings()
+    {
+        // Habbo's ~chest.capacity (~133) has a value, ~chest.locked (~131) and
+        // ~chest.is_auto_lock (~132) none (hhus, WIN63-202610121709).
+        var chest = AddChest(36, coins: false);
+        var capacity = new FurnitureChestCapacityVariable(_room.Harness.Room);
+        var locked = new FurnitureChestLockedVariable(_room.Harness.Room);
+        var autoLock = new FurnitureChestIsAutoLockVariable(_room.Harness.Room);
+        var map = (IMapStuffData)chest.StuffData;
+
+        typeof(FurnitureWiredChestLogic)
+            .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
+            .SetValue(chest, WiredChestSummarySnapshot.Empty with { MaxCapacity = 100 });
+        map.Data[WiredChestData.CAPACITY] = "40";
+        map.Data[WiredChestData.LOCKED] = WiredChestData.FALSE;
+        map.Data[WiredChestData.AUTO_LOCK] = WiredChestData.TRUE;
+
+        capacity.TryGetValue(Key(capacity, 36), out var value).Should().BeTrue();
+        ((int)value).Should().Be(40);
+        locked.TryGetValue(Key(locked, 36), out _).Should().BeFalse();
+        autoLock.TryGetValue(Key(autoLock, 36), out _).Should().BeTrue();
+
+        map.Data[WiredChestData.LOCKED] = WiredChestData.TRUE;
+
+        locked.TryGetValue(Key(locked, 36), out _).Should().BeTrue();
+    }
+
     private FurnitureWiredChestLogic AddChest(int id, bool coins) =>
         (FurnitureWiredChestLogic)
             _room

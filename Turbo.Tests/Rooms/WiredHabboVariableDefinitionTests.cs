@@ -37,7 +37,6 @@ public sealed class WiredHabboVariableDefinitionTests
     [
         "@level",
         "@habbicon",
-        "@pet_owner_id",
         "@transaction.in_trade",
         "@transaction.start_time",
         "@transaction.contract_id",
@@ -46,9 +45,6 @@ public sealed class WiredHabboVariableDefinitionTests
         "@transaction.current_multiplier",
         "@event.habbicon",
         "@can_move_freely",
-        "~chest.capacity",
-        "~chest.is_auto_lock",
-        "~chest.locked",
         "~walk_helper.is_multi_walk",
     ];
 
