@@ -550,6 +550,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   A6B181EC: SelectPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   B2E682BF: SendChatFromPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.RoomChatType, string, int, System.Threading.CancellationToken, int, string?) -> Task<bool>
   CBB42162: SendComposerToRoomAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task
+  19200C5B: SendCraftingRecipeAsync(Turbo.Primitives.Action.ActionContext, string, System.Threading.CancellationToken) -> Task<bool>
   7B9C06BE: SendGuildFurniContextMenuAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task
   1C5AB325: SetAvatarDanceAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.AvatarDanceType, System.Threading.CancellationToken) -> Task<bool>
   372BB9D3: SetAvatarEffectAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>

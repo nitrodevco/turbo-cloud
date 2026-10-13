@@ -11,6 +11,6 @@ internal class CraftingRecipesAvailableMessageComposerSerializer(int header)
         CraftingRecipesAvailableMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Count).WriteBoolean(message.RecipeComplete);
     }
 }

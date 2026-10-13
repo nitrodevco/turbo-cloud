@@ -11,6 +11,17 @@ internal class CraftableProductsMessageComposerSerializer(int header)
         CraftableProductsMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Products.Length);
+
+        foreach (var product in message.Products)
+            packet
+                .WriteString(product.RecipeCode)
+                .WriteString(product.ProductCode)
+                .WriteString(product.FurnitureClassName);
+
+        packet.WriteInteger(message.UsableFurniClasses.Length);
+
+        foreach (var furniClass in message.UsableFurniClasses)
+            packet.WriteString(furniClass);
     }
 }
