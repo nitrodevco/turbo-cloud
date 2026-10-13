@@ -232,6 +232,73 @@ public class RoomEntryPreparationTests
         );
     }
 
+    [Fact]
+    public async Task ApprovedEntry_OpensWithEmptyNftChatStylesRightBeforeRoomReady()
+    {
+        // hhus, 2026-10-13: OpenConnection, UserNftChatStyles (00000000 for an account without
+        // NFT styles), RoomReady, ... on every entry.
+        var harness = await ApprovedHarnessAsync();
+
+        var packets = await OpenRoomAsync(harness);
+        var headers = packets.Select(packet => (int)packet.Header).ToList();
+        var styles = headers.IndexOf(PacketHarness.Outgoing("UserNftChatStylesMessageComposer"));
+
+        Assert.True(styles >= 0, "UserNftChatStyles was not sent");
+        Assert.Equal(PacketHarness.Outgoing("RoomReadyMessageComposer"), headers[styles + 1]);
+        Assert.Equal(0, packets[styles].PopInt());
+    }
+
+    [Fact]
+    public async Task EnteringAnEmptyRoom_SendsUsersButNoEmptyUserUpdate()
+    {
+        // hhus, 2026-10-13: an empty room's entry has Users (no one) but no UserUpdate until
+        // there is someone to update.
+        var harness = await ApprovedHarnessAsync();
+
+        var headers = (await OpenRoomAsync(harness)).Select(packet => (int)packet.Header).ToList();
+
+        Assert.Contains(PacketHarness.Outgoing("UsersMessageComposer"), headers);
+        Assert.DoesNotContain(PacketHarness.Outgoing("UserUpdateMessageComposer"), headers);
+    }
+
+    [Fact]
+    public async Task TheCameraStartsAtTheDoorTilesHeightWhenSomethingThatBlocksStackingStandsThere()
+    {
+        // Under Habbo's stacking-blocked bit 15 a blocked tile is negative: -32512 is "blocked,
+        // standing at 1.0". Read with the old bit-14 mask and "negative means no tile" it was 0.
+        var harness = await ApprovedHarnessAsync(map =>
+            map.TileEncodedHeights[(map.DoorY * map.Width) + map.DoorX] = unchecked(
+                (short)(0x8000 | 256)
+            )
+        );
+
+        var floor = (await OpenRoomAsync(harness)).Single(packet =>
+            packet.Header == PacketHarness.Outgoing("FloorHeightMapMessageComposer")
+        );
+        floor.PopBoolean();
+        floor.PopInt();
+        floor.PopString();
+        Assert.Equal(0, floor.PopInt());
+        floor.PopInt();
+        floor.PopInt();
+
+        Assert.Equal(1.0f, floor.PopFloat());
+    }
+
+    private static async Task<PacketHarness> ApprovedHarnessAsync(
+        Action<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomMapSnapshot>? editMap = null
+    )
+    {
+        var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
+            (PlayerId)1,
+            CancellationToken.None
+        );
+        editMap?.Invoke(view.Map);
+        var harness = CreateHarness(RoomEntryAccessType.Allowed);
+        harness.Fakes.Handlers["GetEntryViewAsync"] = _ => Task.FromResult(view);
+        return harness;
+    }
+
     private static PacketHarness CreateHarness(RoomEntryAccessType access)
     {
         var harness = new PacketHarness();
