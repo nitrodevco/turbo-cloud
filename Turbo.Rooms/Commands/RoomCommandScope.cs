@@ -148,6 +148,8 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
     public Task<int?> EjectAllAsync(CancellationToken ct) =>
         roomGrain.ActionModule.EjectAllAsync(action, ct);
 
+    public Task<bool> IsGroupRoomAsync(CancellationToken ct) => roomGrain.GetIsGroupRoomAsync(ct);
+
     public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>
         roomGrain.SendComposerToRoomAsync(
             new SpecialRoomEffectMessageComposer { Effect = effect },

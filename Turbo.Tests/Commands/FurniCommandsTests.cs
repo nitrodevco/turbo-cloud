@@ -1,11 +1,14 @@
 using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
@@ -106,6 +109,7 @@ public class FurniCommandsTests
     [Fact]
     public async Task Ejectall_by_the_owner_sends_everybody_elses_furni_home()
     {
+        MakeGroupRoom();
         _room.AddPlayer(OWNER, PermissionNodes.Command.EJECTALL);
         AddFloorItem(10, 1, 1, BUILDER);
         AddFloorItem(11, 2, 1, VISITOR);
@@ -123,6 +127,7 @@ public class FurniCommandsTests
     [Fact]
     public async Task Ejectall_is_refused_to_a_player_with_only_rights()
     {
+        MakeGroupRoom();
         _room.AddPlayer(BUILDER, PermissionNodes.Command.EJECTALL);
         _room.GiveRights(BUILDER);
         AddFloorItem(10, 1, 1, VISITOR);
@@ -134,6 +139,30 @@ public class FurniCommandsTests
             .WhispersTo(BUILDER)
             .Should()
             .Equal("You can't eject other people's furni in this room.");
+    }
+
+    [Fact]
+    public async Task Ejectall_only_works_in_a_group_room()
+    {
+        _room.AddPlayer(OWNER, PermissionNodes.Command.EJECTALL);
+        AddFloorItem(10, 1, 1, BUILDER);
+
+        await _room.SayAsync(OWNER, ":ejectall");
+
+        ItemIds().Should().BeEquivalentTo([10], "Habbo: \"Eject all furniture in a group room\"");
+        ReturnedTo(BUILDER).Should().BeEmpty();
+        _room.WhispersTo(OWNER).Should().Equal(":ejectall only works in a group room.");
+    }
+
+    /// <summary>The room is group 9's homeroom.</summary>
+    private void MakeGroupRoom()
+    {
+        var guild = (GuildSummarySnapshot)
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
+
+        RoomHarness.SetMember(guild, "GuildId", (GuildId)9);
+        _room.Harness.Fakes.Handlers["GetGuildOfRoomAsync"] = _ =>
+            Task.FromResult<GuildSummarySnapshot?>(guild);
     }
 
     private void AddFloorItem(int id, int x, int y, int ownerId)

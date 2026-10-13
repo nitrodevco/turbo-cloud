@@ -64,6 +64,9 @@ public interface ICommandRoom
     /// </summary>
     Task<int?> EjectAllAsync(CancellationToken ct);
 
+    /// <summary>Whether the room is a group's homeroom.</summary>
+    Task<bool> IsGroupRoomAsync(CancellationToken ct);
+
     /// <summary>Plays a room-wide effect for everyone in the room now; nothing is kept.</summary>
     Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct);
 
