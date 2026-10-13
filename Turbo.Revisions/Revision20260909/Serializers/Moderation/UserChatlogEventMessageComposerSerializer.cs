@@ -8,6 +8,10 @@ internal class UserChatlogEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UserChatlogEventMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.UserId).WriteString(message.UserName);
+        packet.WriteInteger(message.Records.Length);
+
+        foreach (var record in message.Records)
+            ModChatlogWriter.Write(packet, record);
     }
 }

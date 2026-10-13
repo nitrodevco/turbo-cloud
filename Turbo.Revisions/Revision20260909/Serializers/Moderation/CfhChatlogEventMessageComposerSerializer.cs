@@ -8,6 +8,11 @@ internal class CfhChatlogEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CfhChatlogEventMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.CallId)
+            .WriteInteger(message.CallerUserId)
+            .WriteInteger(message.ReportedUserId)
+            .WriteInteger(message.ChatRecordId);
+        ModChatlogWriter.Write(packet, message.Record);
     }
 }

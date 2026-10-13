@@ -8,6 +8,6 @@ internal class IssueInfoMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, IssueInfoMessageComposer message)
     {
-        //
+        ModIssueWriter.Write(packet, message.Issue);
     }
 }

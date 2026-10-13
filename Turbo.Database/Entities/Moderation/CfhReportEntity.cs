@@ -79,6 +79,14 @@ public class CfhReportEntity : TurboEntity
     [Column("closed_at")]
     public DateTime? ClosedAt { get; set; }
 
+    /// <summary>The moderator handling it; null while nobody has picked it.</summary>
+    [Column("picker_id")]
+    public int? PickerEntityId { get; set; }
+
+    /// <summary>Why it was closed; null while it is open.</summary>
+    [Column("close_reason")]
+    public CfhCloseReasonType? CloseReason { get; set; }
+
     [Column("sanctioned")]
     [DefaultValue(false)]
     public bool Sanctioned { get; set; }

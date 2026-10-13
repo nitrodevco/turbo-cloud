@@ -57,4 +57,53 @@ public class OperationsConfig
 
     /// <summary>How many of their own reports a player's report status lists, newest first.</summary>
     public int CfhReportsListed { get; init; } = 50;
+
+    /// <summary>
+    /// The issue handler's default sanctions, in the order a reported player earns them, each one
+    /// of the mod action window's (given as it gives them): <c>ALERT</c> (a caution), <c>MUTE</c>
+    /// (1 h), <c>BAN:18</c>, <c>BAN:168</c>, <c>BAN:720</c> or <c>BAN_PERMANENT</c> (the names the
+    /// client's sanction texts read, <c>SanctionInfo</c>). A player's next one is the step after
+    /// as many as reports about them were closed with one; past the end the last repeats. Empty:
+    /// "close with default sanction" only closes the issues.
+    /// </summary>
+    public string[] CfhDefaultSanctions { get; init; } =
+    ["ALERT", "MUTE", "BAN:18", "BAN:168", "BAN:720", "BAN_PERMANENT"];
+
+    /// <summary>The moderation tool's message templates (its send-message and mod action windows).</summary>
+    public string[] ModerationMessageTemplates { get; init; } = [];
+
+    /// <summary>The room tool's message templates.</summary>
+    public string[] ModerationRoomMessageTemplates { get; init; } = [];
+
+    /// <summary>How many chat lines the moderation tool's room chatlog shows, newest kept.</summary>
+    public int ModerationRoomChatlogLines { get; init; } = 150;
+
+    /// <summary>How many rooms a user chatlog covers, newest first.</summary>
+    public int ModerationUserChatlogRooms { get; init; } = 10;
+
+    /// <summary>How many chat lines a user chatlog shows per room.</summary>
+    public int ModerationUserChatlogLines { get; init; } = 50;
+
+    /// <summary>
+    /// The name the room tool gives a room it renames; the default is the one its checkbox names
+    /// (roomtool_frame).
+    /// </summary>
+    public string ModerationInappropriateRoomName { get; init; } =
+        "Inappropriate to hotel management";
+
+    /// <summary>
+    /// What a caution, mute, kick or trade lock from the mod action window tells the player when
+    /// the moderator wrote nothing (the window's message only "overrides default text"). Empty:
+    /// such a caution is refused and the others are given without a message.
+    /// </summary>
+    public string ModerationDefaultSanctionMessage { get; init; } = string.Empty;
+
+    /// <summary>User info's trade lock expiry for a lock without an end.</summary>
+    public string ModerationPermanentTradeLockText { get; init; } = "Permanent";
+
+    /// <summary>How many room entries the moderation tool's room visits window lists, newest first.</summary>
+    public int ModerationRoomVisits { get; init; } = 50;
+
+    /// <summary>How many calls for help still open (or picked) a moderator's issue queue gets at login, oldest first.</summary>
+    public int ModerationIssuesListed { get; init; } = 200;
 }

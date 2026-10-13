@@ -11,6 +11,6 @@ internal class ModeratorActionResultMessageComposerSerializer(int header)
         ModeratorActionResultMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.UserId).WriteBoolean(message.Success);
     }
 }

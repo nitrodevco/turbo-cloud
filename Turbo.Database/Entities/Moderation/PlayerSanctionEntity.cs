@@ -7,7 +7,7 @@ using Turbo.Primitives.Moderation.Enums;
 namespace Turbo.Database.Entities.Moderation;
 
 /// <summary>
-/// A hotel-wide sanction on a player. Only bans live here: a silence and a trade lock are
+/// A hotel-wide sanction on a player. Bans and cautions live here: a silence and a trade lock are
 /// temporary denials in the permission tables, which already expire and audit themselves. The
 /// ids are plain columns, not foreign keys, so the record of a sanction outlives the player row
 /// and the staff member who issued it. A lifted ban is kept and stamped, never deleted.

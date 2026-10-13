@@ -21,14 +21,15 @@ namespace Turbo.Operations;
 /// <summary>
 /// Calls for help. The topics are <c>cfh_topics</c>, read on first use and held: every login
 /// sends them, and a hotel changes them about never (a change shows after a restart). Reports
-/// are <c>cfh_reports</c> with their chat lines; staff close them (no screen for that yet), and
-/// a reporter may appeal a report closed without action.
+/// are <c>cfh_reports</c> with their chat lines; a new one goes to the moderators' issue queue
+/// (<see cref="IModerationIssueService"/>), and a reporter may appeal a report closed without action.
 /// </summary>
 public sealed class CallForHelpService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<OperationsConfig> config,
     IHotelTextProvider texts,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    IModerationIssueService issues
 ) : ICallForHelpService
 {
     public const string TOO_MANY_TEXT = "moderation.cfh.too_many";
@@ -38,6 +39,8 @@ public sealed class CallForHelpService(
         "You already have %0% reports waiting for a moderator. Please wait until they are handled.";
     private const string DEFAULT_UNKNOWN_TOPIC_TEXT =
         "Choose what your report is about, then send it again.";
+
+    private const string PENDING_TIME_FORMAT = "yyyy-MM-dd HH:mm";
 
     private readonly OperationsConfig _config = config.Value;
     private readonly SemaphoreSlim _topicsLock = new(1, 1);
@@ -96,10 +99,7 @@ public sealed class CallForHelpService(
 
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
-        var open = await dbCtx.CfhReports.CountAsync(
-            x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null,
-            ct
-        );
+        var open = await Pending(dbCtx, reporter).CountAsync(ct);
 
         if (open >= _config.CfhMaxOpenReports)
             return await RefusedAsync(
@@ -128,50 +128,44 @@ public sealed class CallForHelpService(
             _ => submission.ReportedPlayerId > 0 ? submission.ReportedPlayerId : null,
         };
 
-        dbCtx.CfhReports.Add(
-            new CfhReportEntity
-            {
-                ReporterEntityId = reporter.Value,
-                Source = submission.Source,
-                ExtraDataId = OrNull(
-                    submission.ExtraDataId,
-                    CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH
-                ),
-                ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
-                ReportedEntityId = reportedId,
-                GuildEntityId = submission.GroupId > 0 ? submission.GroupId : null,
-                ForumThreadEntityId = submission.ThreadId > 0 ? submission.ThreadId : null,
-                ForumMessageId = submission.MessageId > 0 ? submission.MessageId : null,
-                RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,
-                TopicId = submission.TopicId,
-                Message = ClientText.Truncate(
-                    submission.Message,
-                    CfhReportEntity.MESSAGE_MAX_LENGTH
-                ),
-                ReporterName = OrNull(submission.Name, CfhReportEntity.NAME_MAX_LENGTH),
-                ReporterEmail = OrNull(submission.Email, CfhReportEntity.EMAIL_MAX_LENGTH),
-                ChatLines =
-                [
-                    .. submission
-                        .ChatLines.Take(_config.CfhMaxChatLines)
-                        .Select(
-                            (line, i) =>
-                                new CfhReportChatLineEntity
-                                {
-                                    ReportEntityId = 0,
-                                    Position = i,
-                                    PlayerEntityId = line.PlayerId,
-                                    Text = ClientText.Truncate(
-                                        line.Text,
-                                        CfhReportChatLineEntity.TEXT_MAX_LENGTH
-                                    ),
-                                }
-                        ),
-                ],
-            }
-        );
+        var report = new CfhReportEntity
+        {
+            ReporterEntityId = reporter.Value,
+            Source = submission.Source,
+            ExtraDataId = OrNull(submission.ExtraDataId, CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH),
+            ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
+            ReportedEntityId = reportedId,
+            GuildEntityId = submission.GroupId > 0 ? submission.GroupId : null,
+            ForumThreadEntityId = submission.ThreadId > 0 ? submission.ThreadId : null,
+            ForumMessageId = submission.MessageId > 0 ? submission.MessageId : null,
+            RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,
+            TopicId = submission.TopicId,
+            Message = ClientText.Truncate(submission.Message, CfhReportEntity.MESSAGE_MAX_LENGTH),
+            ReporterName = OrNull(submission.Name, CfhReportEntity.NAME_MAX_LENGTH),
+            ReporterEmail = OrNull(submission.Email, CfhReportEntity.EMAIL_MAX_LENGTH),
+            ChatLines =
+            [
+                .. submission
+                    .ChatLines.Take(_config.CfhMaxChatLines)
+                    .Select(
+                        (line, i) =>
+                            new CfhReportChatLineEntity
+                            {
+                                ReportEntityId = 0,
+                                Position = i,
+                                PlayerEntityId = line.PlayerId,
+                                Text = ClientText.Truncate(
+                                    line.Text,
+                                    CfhReportChatLineEntity.TEXT_MAX_LENGTH
+                                ),
+                            }
+                    ),
+            ],
+        };
 
+        dbCtx.CfhReports.Add(report);
         await dbCtx.SaveChangesAsync(ct);
+        await issues.PublishAsync(report.Id, ct);
 
         // An empty text is the client's own "sent" text.
         return new CfhResultSnapshot { Result = CfhResultType.Sent, Message = string.Empty };
@@ -240,6 +234,49 @@ public sealed class CallForHelpService(
 
         return true;
     }
+
+    public async Task<ImmutableArray<CfhPendingCallSnapshot>> GetPendingAsync(
+        PlayerId reporter,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var reports = await Pending(dbCtx, reporter)
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ToListAsync(ct);
+
+        // The client shows only the messages (HabboHelp.onPendingCallsForHelp); the id and time are
+        // strings on the wire, written here as the report id and its UTC time (inference: no
+        // official recording of this answer).
+        return
+        [
+            .. reports.Select(x => new CfhPendingCallSnapshot
+            {
+                CallId = x.Id.ToString(CultureInfo.InvariantCulture),
+                TimeStamp = x.CreatedAt.ToString(PENDING_TIME_FORMAT, CultureInfo.InvariantCulture),
+                Message = x.Message,
+            }),
+        ];
+    }
+
+    public async Task DeletePendingAsync(PlayerId reporter, CancellationToken ct)
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var ids = await Pending(dbCtx, reporter).Select(x => x.Id).ToListAsync(ct);
+
+        if (ids.Count == 0)
+            return;
+
+        // Their chat lines go with them (cascade).
+        await dbCtx.CfhReports.Where(x => ids.Contains(x.Id)).ExecuteDeleteAsync(ct);
+        await issues.RemovedAsync([.. ids], ct);
+    }
+
+    private static IQueryable<CfhReportEntity> Pending(TurboDbContext dbCtx, PlayerId reporter) =>
+        dbCtx.CfhReports.Where(x => x.ReporterEntityId == reporter.Value && x.ClosedAt == null);
 
     private async Task<CfhResultSnapshot> RefusedAsync(
         string key,

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
@@ -78,6 +79,74 @@ public class RoomOperatorCommandsTests
         _room.WhispersTo(2).Should().Equal("2 visitors were sent out of the room.");
         _room.Harness.Fakes.Log.On<IPlayerNoticeService>().Should().BeEmpty();
         _room.SaidToRoom().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheRoomTool_PutsTheDoorOnTheBell_RenamesTheRoom_AndClearsIt()
+    {
+        // The moderation tool's ModerateRoom (RoomToolCtrl.as:365): lock, change name, kick.
+        _room.AddPlayer(OWNER);
+        _room.AddPlayer(2);
+        _room.AddPlayer(3);
+        var db = (InMemoryDb)RoomHarness.GetField(_room.Harness.Room, "_dbCtxFactory")!;
+        await using (var ctx = db.CreateDbContext())
+        {
+            ctx.Rooms.Add(
+                new Turbo.Database.Entities.Room.RoomEntity
+                {
+                    Id = 1,
+                    Name = "Party",
+                    PlayerEntityId = OWNER,
+                    RoomModelEntityId = 1,
+                    DoorMode = RoomDoorModeType.Open,
+                    UsersNow = 0,
+                    PlayersMax = 25,
+                    WallHeight = -1,
+                    HideWalls = false,
+                    ThicknessWall = RoomThicknessType.Normal,
+                    ThicknessFloor = RoomThicknessType.Normal,
+                    AllowBlocking = false,
+                    AllowPets = true,
+                    AllowPetsEat = true,
+                    TradeType = RoomTradeModeType.Disabled,
+                    MuteType = ModSettingType.Owner,
+                    KickType = ModSettingType.Owner,
+                    BanType = ModSettingType.Owner,
+                    ChatFloodType = ChatFloodSensitivityType.Minimal,
+                    PlayerEntity = null!,
+                    RoomModelEntity = null!,
+                }
+            );
+            await ctx.SaveChangesAsync();
+        }
+
+        // The harness builds its snapshot without a row behind it; a loaded room has a password
+        // and tags, even empty ones.
+        var loaded = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
+        RoomHarness.SetMember(loaded, "Password", string.Empty);
+        RoomHarness.SetMember(
+            loaded,
+            "Tags",
+            System.Collections.Immutable.ImmutableArray<string>.Empty
+        );
+        var logger = new CapturingLogger<Turbo.Primitives.Rooms.Grains.IRoomGrain>();
+        RoomHarness.SetField(_room.Harness.Room, "_logger", logger);
+        var changed = await _room.Harness.Room.ModerateRoomBySystemAsync(
+            2,
+            true,
+            "Inappropriate to hotel management",
+            true,
+            CancellationToken.None
+        );
+
+        logger.AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning).Should().BeEmpty();
+        changed.Should().BeTrue();
+        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
+        RoomHarness.GetMember(snapshot, "DoorMode").Should().Be(RoomDoorModeType.Locked);
+        RoomHarness.GetMember(snapshot, "Name").Should().Be("Inappropriate to hotel management");
+        await using (var ctx = db.CreateDbContext())
+            ctx.Rooms.Single().DoorMode.Should().Be(RoomDoorModeType.Locked);
+        new[] { OWNER, 2, 3 }.Select(_room.IsInRoom).Should().Equal(true, true, false);
     }
 
     [Fact]

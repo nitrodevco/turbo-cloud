@@ -2,23 +2,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Moderator;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Moderator;
 
-/// <summary>
-/// A moderation tool packet. The tool is not built yet, so nothing is done with it; the gate is
-/// in place so that when it is, only players who hold the tool reach it.
-/// </summary>
+/// <summary>A moderator puts issues back in the queue (<c>IssueManager.sendRelease</c>).</summary>
 [RequiresPermission(PermissionNodes.Moderation.TOOL)]
-public class ReleaseIssuesMessageHandler : IMessageHandler<ReleaseIssuesMessage>
+public class ReleaseIssuesMessageHandler(IModerationIssueService issues)
+    : IMessageHandler<ReleaseIssuesMessage>
 {
+    private readonly IModerationIssueService _issues = issues;
+
     public async ValueTask HandleAsync(
         ReleaseIssuesMessage message,
         MessageContext ctx,
         CancellationToken ct
-    )
-    {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
-    }
+    ) => await _issues.ReleaseAsync(ctx.PlayerId, message.IssueIds, ct).ConfigureAwait(false);
 }

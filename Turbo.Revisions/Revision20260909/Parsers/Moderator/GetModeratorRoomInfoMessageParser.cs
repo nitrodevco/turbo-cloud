@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Moderator;
 
 internal class GetModeratorRoomInfoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetModeratorRoomInfoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetModeratorRoomInfoMessage { RoomId = packet.PopInt() };
 }

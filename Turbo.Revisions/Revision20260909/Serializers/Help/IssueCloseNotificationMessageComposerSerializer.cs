@@ -11,6 +11,6 @@ internal class IssueCloseNotificationMessageComposerSerializer(int header)
         IssueCloseNotificationMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.CloseReason).WriteString(message.MessageText);
     }
 }
