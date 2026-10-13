@@ -76,9 +76,7 @@ public sealed class WizardDefaultBadgeTests
     {
         var parts = await Directory([1, 10], [25, 29]).GetDefaultBadgePartsAsync(Ct);
 
-        Layers(parts)
-            .Should()
-            .Equal((10, 3, 4), (25, 17, 5), (25, 17, 3), (29, 11, 4), (0, 0, 0));
+        Layers(parts).Should().Equal((10, 3, 4), (25, 17, 5), (25, 17, 3), (29, 11, 4), (0, 0, 0));
         parts[0].Type.Should().Be(GuildBadgePartType.Base);
     }
 
@@ -87,9 +85,7 @@ public sealed class WizardDefaultBadgeTests
     {
         var parts = await Directory([10], [25]).GetDefaultBadgePartsAsync(Ct);
 
-        Layers(parts)
-            .Should()
-            .Equal((10, 3, 4), (25, 17, 5), (25, 17, 3), (0, 0, 0), (0, 0, 0));
+        Layers(parts).Should().Equal((10, 3, 4), (25, 17, 5), (25, 17, 3), (0, 0, 0), (0, 0, 0));
     }
 
     [Fact]

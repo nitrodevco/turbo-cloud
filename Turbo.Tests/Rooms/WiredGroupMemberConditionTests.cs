@@ -41,9 +41,7 @@ public sealed class WiredGroupMemberConditionTests
 
     public WiredGroupMemberConditionTests()
     {
-        _room
-            .Enter(5, 1, 1)
-            .SetFavouriteGuild(USERS_GROUP, WornGuildStatus.Member, "Testers");
+        _room.Enter(5, 1, 1).SetFavouriteGuild(USERS_GROUP, WornGuildStatus.Member, "Testers");
         _room.AddFloorItem(CLICK_ME, 7, 4);
     }
 
