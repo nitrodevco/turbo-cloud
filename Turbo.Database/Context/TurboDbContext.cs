@@ -8,6 +8,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Entities.Habbicons;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Moderation;
@@ -137,6 +138,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerDailyTaskEntity> PlayerDailyTasks { get; init; }
 
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
+
+    public DbSet<PlayerHabbiconEntity> PlayerHabbicons { get; init; }
 
     public DbSet<QuestCampaignEntity> QuestCampaigns { get; init; }
 

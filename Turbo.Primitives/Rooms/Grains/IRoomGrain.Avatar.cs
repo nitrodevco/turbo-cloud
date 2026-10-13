@@ -134,6 +134,12 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
     public Task<bool> SetAvatarSignAsync(ActionContext ctx, int signType, CancellationToken ct);
+
+    /// <summary>
+    /// Shows a Habbicon over the player's avatar to the room. Whether the player may use it is
+    /// the caller's to check (<c>IPlayerHabbiconGrain.TriggerAsync</c>).
+    /// </summary>
+    public Task<bool> ShowHabbiconAsync(ActionContext ctx, int habbiconId, CancellationToken ct);
     public Task<bool> SetAvatarPostureAsync(
         ActionContext ctx,
         AvatarPostureType postureType,

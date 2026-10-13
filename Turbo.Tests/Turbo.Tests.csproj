@@ -19,6 +19,11 @@
       Include="Rooms\Fixtures\*.json"
       LogicalName="Rooms.Fixtures.%(Filename)%(Extension)"
     />
+    <!-- Habbo's HabbiconShopData payload for a new account (hhus, 2026-10-12), as hex. -->
+    <EmbeddedResource
+      Include="Catalog\Fixtures\*.hex"
+      LogicalName="Catalog.Fixtures.%(Filename)%(Extension)"
+    />
     <!-- A real Habbo effect library and what nitro-studio's converter made of it. -->
     <EmbeddedResource
       Include="Assets\Fixtures\*"

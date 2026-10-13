@@ -35,6 +35,19 @@ public sealed class CatalogModule : IHostPluginModule
             builder.Configuration.GetSection(CatalogConfig.SECTION_NAME)
         );
 
+        services
+            .AddOptions<HabbiconConfig>()
+            .Bind(builder.Configuration.GetSection(HabbiconConfig.SECTION_NAME))
+            .PostConfigure(x =>
+            {
+                if (x.Collections.Count == 0 && x.HabboCollections)
+                    x.Collections = HabboHabbicons.Collections();
+            })
+            .Validate(
+                x => x.Problem() is null,
+                "Turbo:Habbicons is invalid: unique collection and Habbicon ids, no negative prices."
+            )
+            .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogEditService, CatalogEditService>();

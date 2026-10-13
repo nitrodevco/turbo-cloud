@@ -966,6 +966,31 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// <c>RoomUseHabbicon</c>: every client draws the Habbicon over this avatar
+    /// (<c>HabbiconController.onRoomUseHabbicon</c>). Nothing is kept on the avatar.
+    /// </summary>
+    public async Task<bool> ShowHabbiconAsync(
+        RoomObjectId objectId,
+        int habbiconId,
+        CancellationToken ct
+    )
+    {
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
+            return false;
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new RoomUseHabbiconMessageComposer
+            {
+                RoomIndex = avatar.ObjectId,
+                HabbiconId = habbiconId,
+            },
+            ct
+        );
+
+        return true;
+    }
+
     public Task<bool> LookToAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct)
     {
         if (!MapModule.InBounds(targetX, targetY) || !TryGetPlayer(ctx.PlayerId, out var avatar))

@@ -15,3 +15,5 @@ class [GrainType("buildersclub")] Turbo.Catalog.Grains.BuildersClubGrain
 class [GrainType("catalogltdraffle")] Turbo.Catalog.Grains.CatalogLtdRaffleGrain
 
 class [GrainType("catalogpurchase")] Turbo.Catalog.Grains.CatalogPurchaseGrain
+
+class [GrainType("playerhabbicon")] Turbo.Catalog.Grains.PlayerHabbiconGrain

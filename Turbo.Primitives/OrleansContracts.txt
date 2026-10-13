@@ -142,6 +142,18 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IPlayerGuildForumG
   7472D283: SendForumsListAsync(int, int, int, System.Threading.CancellationToken) -> Task
   267657C9: SendUnreadForumsCountAsync(System.Threading.CancellationToken) -> Task
 
+interface [GrainInterfaceType("Turbo.Primitives.Habbicons.Grains.IPlayerHabbiconGrain")] Turbo.Primitives.Habbicons.Grains.IPlayerHabbiconGrain [Version(0)]
+  BB9140D1: BuyAsync(int, System.Threading.CancellationToken) -> Task
+  2F3E079D: BuyCollectionAsync(int, System.Threading.CancellationToken) -> Task
+  52921C0C: CanUseAsync(int, System.Threading.CancellationToken) -> Task<bool>
+  552B0D4B: ClaimAsync(int, System.Threading.CancellationToken) -> Task
+  574714F6: NoteUsedAsync(int, System.Threading.CancellationToken) -> Task
+  75173E98: SendInfoAsync(int, System.Threading.CancellationToken) -> Task
+  A18E6892: SendLoginAsync(System.Threading.CancellationToken) -> Task
+  FCED6D37: SendShopDataAsync(System.Threading.CancellationToken) -> Task
+  1FC52783: SetFavouriteAsync(int, bool, System.Threading.CancellationToken) -> Task
+  9F4296BF: TriggerAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
+
 interface [GrainInterfaceType("Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain")] Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain [Version(0)]
   1846B7B7: GetMessageAsync(System.Threading.CancellationToken) -> Task<string>
   B00B19F6: SetMessageAsync(string, System.Threading.CancellationToken) -> Task<string>
@@ -576,6 +588,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   CAA22F56: SetTagsAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   8146B8DB: SetTradingStatusAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
   4A1ECFD8: SetWiredRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, string, System.Threading.CancellationToken) -> Task<bool>
+  DC7A14B3: ShowHabbiconAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   88DA986E: StaffPickupBotAsync(int, System.Threading.CancellationToken) -> Task<bool>
   31D10C99: StaffUpdateBotAsync(int, Turbo.Primitives.Bots.Snapshots.BotStaffEditSnapshot, System.Threading.CancellationToken) -> Task<bool>
   7D730882: SubscribeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableStateSnapshot?>

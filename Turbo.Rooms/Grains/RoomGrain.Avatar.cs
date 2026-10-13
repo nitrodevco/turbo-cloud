@@ -266,6 +266,16 @@ public sealed partial class RoomGrain
                 && await AvatarModule.SetAvatarSignAsync(avatar.ObjectId, signType, ct)
         );
 
+    public Task<bool> ShowHabbiconAsync(ActionContext ctx, int habbiconId, CancellationToken ct) =>
+        RunLoggedAsync(
+            ctx,
+            "show habbicon",
+            habbiconId,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.ShowHabbiconAsync(avatar.ObjectId, habbiconId, ct)
+        );
+
     public Task<bool> SetAvatarPostureAsync(
         ActionContext ctx,
         AvatarPostureType postureType,

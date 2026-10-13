@@ -3139,6 +3139,46 @@ namespace Turbo.Database.Migrations
                     b.ToTable("guild_members");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Habbicons.PlayerHabbiconEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("HabbiconId")
+                        .HasColumnType("int")
+                        .HasColumnName("habbicon_id");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "HabbiconId")
+                        .IsUnique();
+
+                    b.ToTable("player_habbicons");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Hotel.CommunityGoalContributionEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -7801,6 +7841,17 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("GuildEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Habbicons.PlayerHabbiconEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("PlayerEntity");
                 });
