@@ -43,7 +43,9 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     [DefaultValue(0)]
     public int WallOffset { get; set; } = 0;
 
-    [Column("extra_data")]
+    // Wired boxes keep their whole config here (a Show Message text alone may be 400 characters): 512
+    // was too small, and one row too long failed every furni write of its room (2026-10-13).
+    [Column("extra_data", TypeName = "longtext")]
     public string? ExtraData { get; set; }
 
     /// <summary>

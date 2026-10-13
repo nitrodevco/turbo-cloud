@@ -1466,7 +1466,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("ExtraData")
                         .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasColumnType("longtext")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
@@ -1738,7 +1738,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("ExtraData")
                         .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasColumnType("longtext")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
