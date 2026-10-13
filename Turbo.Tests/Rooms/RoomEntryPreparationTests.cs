@@ -285,6 +285,62 @@ public class RoomEntryPreparationTests
         Assert.Equal(1.0f, floor.PopFloat());
     }
 
+    [Fact]
+    public async Task ApprovedEntry_SendsTheRoomInHabbosOrder()
+    {
+        // hhus, four entries on two builds (2026-10-13): RoomReady, RoomEntryTile, RoomProperty x3,
+        // HeightMap, FloorHeightMap, RoomVisualizationSettings, Users, Objects, Items, ..., RoomEvent,
+        // ConfigurationItemStates, ..., RoomEntryInfo ..., RoomRating, RaidProtectionCapability.
+        // The rating comes at the end, and RoomChatSettings is not part of an entry (the client
+        // takes the room's chat settings from GetGuestRoomResult; Habbo sends it on a change).
+        var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
+            (PlayerId)1,
+            CancellationToken.None
+        );
+        view = view with
+        {
+            Properties =
+            [
+                new(RoomPropertyType.Floor, "110"),
+                new(RoomPropertyType.Wall, "201"),
+                new(RoomPropertyType.Landscape, "1.1"),
+            ],
+        };
+        var harness = CreateHarness(RoomEntryAccessType.Allowed);
+        harness.Fakes.Handlers["GetEntryViewAsync"] = _ => Task.FromResult(view);
+
+        var headers = (await OpenRoomAsync(harness)).Select(packet => (int)packet.Header).ToList();
+        string[] order =
+        [
+            "RoomReadyMessageComposer",
+            "RoomEntryTileMessageComposer",
+            "RoomPropertyMessageComposer",
+            "HeightMapMessageComposer",
+            "FloorHeightMapMessageComposer",
+            "RoomVisualizationSettingsMessageComposer",
+            "UsersMessageComposer",
+            "ObjectsMessageComposer",
+            "ItemsMessageComposer",
+            "RoomEventMessageComposer",
+            "ConfigurationItemStatesMessageComposer",
+            "RoomEntryInfoMessageComposer",
+            "RoomRatingMessageComposer",
+            "RaidProtectionCapabilityMessageComposer",
+        ];
+        var firsts = order.Select(name => headers.IndexOf(PacketHarness.Outgoing(name))).ToList();
+
+        Assert.All(
+            firsts,
+            index => Assert.True(index >= 0, "missing: " + order[firsts.IndexOf(index)])
+        );
+        Assert.Equal(firsts.Order().ToList(), firsts);
+        Assert.Equal(
+            3,
+            headers.Count(h => h == PacketHarness.Outgoing("RoomPropertyMessageComposer"))
+        );
+        Assert.DoesNotContain(PacketHarness.Outgoing("RoomChatSettingsMessageComposer"), headers);
+    }
+
     private static async Task<PacketHarness> ApprovedHarnessAsync(
         Action<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomMapSnapshot>? editMap = null
     )
