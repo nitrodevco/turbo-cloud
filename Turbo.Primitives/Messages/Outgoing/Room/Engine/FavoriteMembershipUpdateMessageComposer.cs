@@ -20,7 +20,7 @@ public sealed record FavoriteMembershipUpdateMessageComposer : IComposer
     public required int GuildId { get; init; }
 
     [Id(2)]
-    public required GuildMembershipStatus Status { get; init; }
+    public required WornGuildStatus Status { get; init; }
 
     [Id(3)]
     public required string GuildName { get; init; }

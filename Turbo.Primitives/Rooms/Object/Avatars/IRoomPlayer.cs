@@ -42,12 +42,12 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     /// </summary>
     public int GuildId { get; }
 
-    /// <summary>The wearer's standing in that group, as the client numbers membership.</summary>
-    public GuildMembershipStatus GuildStatus { get; }
+    /// <summary>The wearer's rank in that group, as the room messages number it.</summary>
+    public WornGuildStatus GuildStatus { get; }
 
     public string GuildName { get; }
 
-    public void SetFavouriteGuild(int guildId, GuildMembershipStatus guildStatus, string guildName);
+    public void SetFavouriteGuild(int guildId, WornGuildStatus guildStatus, string guildName);
 
     /// <summary>
     /// What the player holds, resolved: loaded before the avatar is made, so the moderator flag it

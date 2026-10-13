@@ -35,7 +35,7 @@ public sealed class RoomPlayerAvatar
     public void SetRoomEntry(RoomEntrySnapshot entry) => RoomEntry = entry;
 
     public int GuildId { get; private set; } = -1;
-    public GuildMembershipStatus GuildStatus { get; private set; } = GuildMembershipStatus.None;
+    public WornGuildStatus GuildStatus { get; private set; } = WornGuildStatus.None;
     public string GuildName { get; private set; } = string.Empty;
     public string SwimFigure { get; init; } = string.Empty;
     public ResolvedPermissionsSnapshot Permissions { get; private set; } =
@@ -55,7 +55,7 @@ public sealed class RoomPlayerAvatar
         return true;
     }
 
-    public void SetFavouriteGuild(int guildId, GuildMembershipStatus guildStatus, string guildName)
+    public void SetFavouriteGuild(int guildId, WornGuildStatus guildStatus, string guildName)
     {
         GuildId = guildId;
         GuildStatus = guildStatus;

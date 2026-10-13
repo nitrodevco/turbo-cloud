@@ -75,7 +75,7 @@ public partial interface IRoomGrain
     public Task SetPlayerFavouriteGuildAsync(
         PlayerId playerId,
         int guildId,
-        GuildMembershipStatus guildStatus,
+        WornGuildStatus guildStatus,
         string guildName,
         CancellationToken ct
     );

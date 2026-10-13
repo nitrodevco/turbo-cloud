@@ -32,6 +32,9 @@ public static class CommandReplyKeys
     public const string TOO_LONG = "command.error.too_long";
     public const string BUSY = "command.error.busy";
     public const string BAD_QUOTE = "command.error.quote";
+
+    /// <summary>A parameter that must be written in double quotes was not.</summary>
+    public const string NOT_QUOTED = "command.error.not_quoted";
     public const string CONSTRAINT = "command.error.constraint";
     public const string NOTICE_FAILED = "command.error.notice_failed";
     public const string NOTICE_OFFLINE = "command.error.notice_offline";
@@ -60,6 +63,7 @@ public static class CommandReplyKeys
             [TOO_LONG] = "That command is too long.",
             [BUSY] = "Too many commands are waiting. Try again when they finish.",
             [BAD_QUOTE] = "Invalid quoted argument at character %0%. Usage: %1%",
+            [NOT_QUOTED] = "Put the %0% in double quotes. Usage: %1%",
             [CONSTRAINT] = "%0% does not meet the limits for %1% (%2%).",
             [NO_PERMISSION] = "You can't use that command.",
             [NEEDS_ROOM_LEVEL] = "You need more control of this room to use that command.",

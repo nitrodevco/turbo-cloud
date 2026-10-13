@@ -143,6 +143,21 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             GrantedByDefault: true
         ),
         new(
+            PermissionNodes.Command.PICKALL,
+            "Use :pickall to pick up all your own furni in the room.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.PICKALLBC,
+            "Use :pickallbc to give back all your Builders Club furni in the room.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.EJECTALL,
+            "Use :ejectall. The room's own rules still decide who may eject other people's furni.",
+            GrantedByDefault: true
+        ),
+        new(
             PermissionNodes.Command.CONFIRM,
             "Use :confirm to go ahead with a command that asked to be confirmed.",
             GrantedByDefault: true

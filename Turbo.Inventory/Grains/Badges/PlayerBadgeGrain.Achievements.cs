@@ -5,8 +5,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Inventory.Grains.Badges;
 
@@ -39,12 +42,14 @@ internal sealed partial class PlayerBadgeGrain
             .Where(x => AchievementBadgeCodes.LevelOf(x.BadgeCode) > level)
             .MaxBy(x => AchievementBadgeCodes.LevelOf(x.BadgeCode));
         PlayerBadgeEntity kept;
+        var added = false;
         if (higher is not null)
             kept = higher;
         else
         {
             if (newBadge is null)
             {
+                added = true;
                 newBadge = new PlayerBadgeEntity
                 {
                     PlayerEntityId = _state.PlayerId.Value,
@@ -63,7 +68,49 @@ internal sealed partial class PlayerBadgeGrain
         TransferSlot(kept, removed);
         db.PlayerBadges.RemoveRange(removed);
         await db.SaveChangesAsync(ct);
-        await RefreshAfterAchievementChangeAsync([code, .. removed.Select(x => x.BadgeCode)], ct);
+
+        if (higher is not null)
+        {
+            // The client is told of the granted level by the achievement notification and adds
+            // it; the list, sent again, keeps the level the player really owns.
+            await RefreshAfterAchievementChangeAsync(
+                [code, .. removed.Select(x => x.BadgeCode)],
+                ct
+            );
+            return;
+        }
+
+        await HydrateAsync(ct);
+        await BadgeDirectory.RefreshCodesAsync([code, .. removed.Select(x => x.BadgeCode)], ct);
+
+        // Habbo marks the new level's badge unseen before the achievement notification that adds
+        // it to the client's list (every recorded level-up: UnseenItems {4: [badge id]}, then
+        // HabboAchievementNotification), and sends no badge list: the notification carries the
+        // new badge and the level it replaces. Awaited for that order; a failure to mark is
+        // logged, the level is granted either way.
+        if (added)
+        {
+            try
+            {
+                await _grainFactory
+                    .GetPlayerUnseenItemsGrain(_state.PlayerId)
+                    .AddAsync(UnseenItemCategory.Badge, [kept.Id], CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to mark achievement badge {BadgeCode} new for player {PlayerId}",
+                    code,
+                    _state.PlayerId
+                );
+            }
+        }
+
+        // A worn level hands its slot on (TransferSlot); the client and the room are told after the
+        // notification (PlayerAchievementGrain.PublishAsync), which takes the badge off in the
+        // client's list.
+        await RefreshBadgesRankAsync(ct);
     }
 
     /// <summary>

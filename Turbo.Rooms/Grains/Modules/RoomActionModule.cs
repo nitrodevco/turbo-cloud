@@ -119,6 +119,51 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
+    /// <c>:pickall</c> and <c>:pickallbc</c>: every furni the player owns in the room goes back
+    /// to them at once, their own furni to their inventory or, for <c>:pickallbc</c>, their
+    /// borrowed furni to the club. Anybody's own furni is theirs to take back, as one at a time.
+    /// Returns how many left the room.
+    /// </summary>
+    public async Task<int> PickUpAllOwnedAsync(
+        ActionContext ctx,
+        bool buildersClub,
+        CancellationToken ct
+    )
+    {
+        var items = _roomGrain
+            ._state.ItemsById.Values.Where(x =>
+                x.OwnerId == ctx.PlayerId && !x.IsTemporary && x.IsBuildersClub == buildersClub
+            )
+            .ToList();
+
+        await ReturnItemsToOwnersAsync(items, ct);
+
+        return items.Count;
+    }
+
+    /// <summary>
+    /// <c>:ejectall</c>: everybody else's furni goes back to its owners, for whoever may eject
+    /// one furni at a time. The room owner's furni and the player's own stay. Null when the
+    /// player may not eject here; otherwise how many left the room.
+    /// </summary>
+    public async Task<int?> EjectAllAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (await SecurityModule.GetFurniPickupTypeAsync(ctx) == FurniturePickupType.None)
+            return null;
+
+        var roomOwnerId = _roomGrain._state.RoomSnapshot.OwnerId;
+        var items = _roomGrain
+            ._state.ItemsById.Values.Where(x =>
+                x.OwnerId != ctx.PlayerId && x.OwnerId != roomOwnerId && !x.IsTemporary
+            )
+            .ToList();
+
+        await ReturnItemsToOwnersAsync(items, ct);
+
+        return items.Count;
+    }
+
+    /// <summary>
     /// Sends many items home at once: the room lets go of all of them first, then each owner's
     /// inventory takes its share in one call, owners side by side. The room is told once per
     /// owner for floor items (the client removes them together); wall items have no such

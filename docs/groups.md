@@ -542,16 +542,18 @@ chooses (a page index, a page size it hopes for) are clamped against these.
 | Option | Default | Why |
 | --- | --- | --- |
 | `CreationCostInCredits` | 10 | sent in `GuildCreationInfo` |
+| `DefaultBadgeLayers` | `10,3,4,25,17,5,25,17,3,29,11,4,0,0,0` | the wizard's starting badge in `GuildCreationInfo`, three numbers per layer (Habbo's, recorded) |
 | `NameMaxLength` | 30 | `MAX_NAME_LENGTH` in the editor |
 | `DescriptionMaxLength` | 255 | `MAX_DESCRIPTION_LENGTH` |
 | `MembershipsMax` | 50 | join failure 1 |
 | `MembershipsMaxWithClub` | 400 | join failure 1 |
 | `OwnedGuildsMax` | 100 | edit failure 3 |
 | `RegularGuildMembersMax` | 5000 | `group.edit.settings.type.regular.help` |
+| `DetailsMemberLimit` | 50000 | sent last in `HabboGroupDetails` (not read by the client, not enforced); `group.join.fail.0` |
 | `MembersPageSize` | 14 | the server tells the client its own page size |
 | `DeletionEnabled` | true | mirrors `group.deletion.enabled` |
 | `DeletionMaxMembers` | 500 | mirrors `group.deletion.maximum.members` |
-| `BlockingEnabled` | true | mirrors `group.blocking.enabled` |
+| `BlockingEnabled` | false | mirrors `group.blocking.enabled` (absent on Habbo, so off) |
 | `ForumsEnabled` | true | `forum_disabled` |
 | `ForumPageSize` | 20 | the size the client asks for |
 | `ForumThreadHeaderMaxLength`, `ForumMessageMaxLength` | | |

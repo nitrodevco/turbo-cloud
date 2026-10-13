@@ -40,6 +40,8 @@ internal class HabboGroupDetailsMessageComposerSerializer(int header)
             .WriteBoolean(message.OpenDetails)
             .WriteBoolean(view.MembersCanDecorate)
             .WriteInteger(view.PendingMemberCount)
-            .WriteBoolean(guild.HasForum);
+            .WriteBoolean(guild.HasForum)
+            // Habbo ends with an int the client does not read (HabboGroupDetailsData.as:63-82).
+            .WriteInteger(view.MemberLimit);
     }
 }

@@ -54,6 +54,23 @@ public sealed class TagCommand : ICommand<TagArguments>
     ) => ValueTask.FromResult(CommandResult.Ok);
 }
 
+public sealed record NoteArguments(
+    [CommandParameter(Quoted = true)] string Note,
+    string? Badge = null,
+    bool Trusted = false
+);
+
+[Command("note")]
+[RequiresPermission("command.note")]
+public sealed class NoteCommand : ICommand<NoteArguments>
+{
+    public ValueTask<CommandResult> ExecuteAsync(
+        ICommandContext ctx,
+        NoteArguments arguments,
+        CancellationToken ct
+    ) => ValueTask.FromResult(CommandResult.Ok);
+}
+
 [Command("hello")]
 [RequiresPermission("command.hello")]
 public sealed class HelloCommand : ICommand<NoArguments>

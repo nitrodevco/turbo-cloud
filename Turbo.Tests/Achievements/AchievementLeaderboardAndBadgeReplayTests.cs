@@ -10,7 +10,10 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
+using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -166,6 +169,41 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         var owned = await db.PlayerBadges.OrderBy(x => x.BadgeCode).ToListAsync(Ct);
         owned.Select(x => x.BadgeCode).Should().Equal("ACH_TrueHabbo3", "ACH_Unrelated2");
         owned[0].SlotId.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ALevelUpMarksTheNewBadgeUnseenAndSendsNoBadgeList()
+    {
+        // Habbo, every recorded level-up: UnseenItems {4: [new badge id]}, then the achievement
+        // notification; no Badges list and no HabboUserBadges.
+        _db.Insert(NewBadge(31, 1, "ACH_LevelUp1"));
+        var badges = await NewBadgeGrainAsync();
+
+        await badges.GrantAchievementAsync(50, 2, "ACH_LevelUp2", Ct);
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var granted = await db.PlayerBadges.SingleAsync(Ct);
+        granted.BadgeCode.Should().Be("ACH_LevelUp2");
+        var marks = _fakes.Log.Of(nameof(IPlayerUnseenItemsGrain.AddAsync)).ToList();
+        marks.Should().ContainSingle();
+        marks[0].Args[0].Should().Be(UnseenItemCategory.Badge);
+        ((IEnumerable<int>)marks[0].Args[1]!).Should().Equal(granted.Id);
+        _fakes
+            .Log.Of(nameof(IPlayerPresenceGrain.SendComposerAsync))
+            .Should()
+            .BeEmpty("the notification carries the new badge; the list is not sent again");
+        _fakes.Log.Of(nameof(IPlayerPresenceGrain.OnSelectedBadgesChangedAsync)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReplayingALevelAlreadyOwnedMarksNothing()
+    {
+        _db.Insert(NewBadge(41, 1, "ACH_Owned2"));
+        var badges = await NewBadgeGrainAsync();
+
+        await badges.GrantAchievementAsync(60, 2, "ACH_Owned2", Ct);
+
+        _fakes.Log.Of(nameof(IPlayerUnseenItemsGrain.AddAsync)).Should().BeEmpty();
     }
 
     [Fact]
