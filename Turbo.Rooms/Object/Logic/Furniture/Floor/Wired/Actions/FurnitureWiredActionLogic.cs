@@ -93,11 +93,7 @@ public abstract class FurnitureWiredActionLogic(
         if (ctx.Depth < _roomGrain._wiredConfig.MaxDepth)
             return false;
 
-        WiredSystem.RecordError(
-            "WiredCallDepthExceeded",
-            Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
-            _roomGrain.NowMs()
-        );
+        WiredSystem.RecordError(WiredErrorKind.RecursionTimeout, _roomGrain.NowMs());
 
         return true;
     }

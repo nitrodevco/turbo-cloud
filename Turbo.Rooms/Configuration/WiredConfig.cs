@@ -33,7 +33,8 @@ public class WiredConfig
     /// <summary>Executions in one window that mark a room as heavy in the wired monitor.</summary>
     public int ExecutionCostCap { get; init; } = 500;
     public int ExecutionCostWindowMs { get; init; } = 1000;
-    public int MaxErrorLogEntries { get; init; } = 50;
+    /// <summary>Lines of "write to logs" a room keeps; the oldest makes room for a new one.</summary>
+    public int MaxRoomLogEntries { get; init; } = 50;
 
     public int MaxFloorItems { get; init; } = 200;
     public int MaxWallItems { get; init; } = 50;

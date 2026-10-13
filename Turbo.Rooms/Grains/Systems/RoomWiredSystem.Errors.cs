@@ -1,69 +1,45 @@
-using System.Collections.Generic;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
 public sealed partial class RoomWiredSystem
 {
-    private readonly Dictionary<string, WiredErrorLogEntry> _errorLogsByKey = [];
-    private int _nextErrorId = 1;
+    private readonly int[] _errorCounts = new int[WiredErrors.All.Length];
+    private readonly long[] _errorLastMs = new long[WiredErrors.All.Length];
 
-    /// <summary>
-    /// Records a wired fault for the monitor tab. Faults are aggregated by name and category;
-    /// once the configured cap is reached the least recently seen entry makes room.
-    /// </summary>
-    internal void RecordError(string errorName, string category, long now)
+    /// <summary>Counts one occurrence of a monitor error.</summary>
+    internal void RecordError(WiredErrorKind kind, long now)
     {
-        var key = $"{errorName}|{category}";
-
-        if (_errorLogsByKey.TryGetValue(key, out var entry))
-        {
-            entry.ThrowCount++;
-            entry.LastOccurrenceMs = now;
-
-            return;
-        }
-
-        var cap = _roomGrain._wiredConfig.MaxErrorLogEntries;
-
-        if (cap <= 0)
-            return;
-
-        if (_errorLogsByKey.Count >= cap)
-        {
-            var oldest = _errorLogsByKey.MinBy(x => x.Value.LastOccurrenceMs);
-
-            _errorLogsByKey.Remove(oldest.Key);
-        }
-
-        _errorLogsByKey[key] = new WiredErrorLogEntry
-        {
-            Id = _nextErrorId++,
-            ErrorName = errorName,
-            Category = category,
-            ThrowCount = 1,
-            LastOccurrenceMs = now,
-        };
+        _errorCounts[(int)kind]++;
+        _errorLastMs[(int)kind] = now;
     }
 
-    internal static string GetErrorCategory(IWiredBox box) => $"{box.WiredType} {box.WiredCode}";
-
+    /// <summary>
+    /// All ten monitor errors in their fixed order; one that never happened has a count of 0 and
+    /// -1 for the time since it last did.
+    /// </summary>
     public ImmutableArray<WiredErrorLogSnapshot> GetErrorLogs(long now) =>
-        _errorLogsByKey
-            .Values.OrderByDescending(x => x.LastOccurrenceMs)
-            .Select(x => new WiredErrorLogSnapshot
-            {
-                ErrorId = x.Id,
-                ErrorName = x.ErrorName,
-                Category = x.Category,
-                ThrowCount = x.ThrowCount,
-                MsSinceLastOccurrence = now - x.LastOccurrenceMs,
-            })
+        WiredErrors
+            .All.Select(
+                (error, i) =>
+                    new WiredErrorLogSnapshot
+                    {
+                        ErrorId = error.Id,
+                        ErrorName = error.Name,
+                        Category = error.Category,
+                        ThrowCount = _errorCounts[i],
+                        MsSinceLastOccurrence = _errorCounts[i] > 0 ? now - _errorLastMs[i] : -1,
+                    }
+            )
             .ToImmutableArray();
 
-    public void ClearErrorLogs() => _errorLogsByKey.Clear();
+    public void ClearErrorLogs()
+    {
+        Array.Clear(_errorCounts);
+        Array.Clear(_errorLastMs);
+    }
 }

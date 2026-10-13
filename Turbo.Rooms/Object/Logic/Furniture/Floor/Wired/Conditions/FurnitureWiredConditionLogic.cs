@@ -58,12 +58,6 @@ public abstract class FurnitureWiredConditionLogic(
         }
         catch (Exception ex)
         {
-            WiredSystem.RecordError(
-                ex.GetType().Name,
-                Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
-                _roomGrain.NowMs()
-            );
-
             _roomGrain._logger.LogWarning(
                 ex,
                 "Wired condition {WiredCode} failed in room {RoomId}",

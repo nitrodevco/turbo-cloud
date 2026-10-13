@@ -3,8 +3,8 @@ using Orleans;
 namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
 /// <summary>
-/// One row of the wired monitor's error list: errors are aggregated by name and category, so a
-/// repeating fault shows once with a throw count and the time since it last happened.
+/// One row of the wired monitor's error list: one of Habbo's fixed errors, with how often it
+/// happened and the time since it last did (-1 when it never did).
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record WiredErrorLogSnapshot
