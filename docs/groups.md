@@ -552,7 +552,7 @@ chooses (a page index, a page size it hopes for) are clamped against these.
 | `MembersPageSize` | 14 | the server tells the client its own page size |
 | `DeletionEnabled` | true | mirrors `group.deletion.enabled` |
 | `DeletionMaxMembers` | 500 | mirrors `group.deletion.maximum.members` |
-| `BlockingEnabled` | true | mirrors `group.blocking.enabled` |
+| `BlockingEnabled` | false | mirrors `group.blocking.enabled` (absent on Habbo, so off) |
 | `ForumsEnabled` | true | `forum_disabled` |
 | `ForumPageSize` | 20 | the size the client asks for |
 | `ForumThreadHeaderMaxLength`, `ForumMessageMaxLength` | | |

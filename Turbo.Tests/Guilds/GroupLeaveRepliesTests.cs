@@ -30,7 +30,10 @@ namespace Turbo.Tests.Guilds;
 /// GroupDetailsChanged(group) in one tick, with no GuildMembershipUpdated (official client capture
 /// 2026-10-13, 14:23). Turbo sent a GuildMembershipUpdated drawing the leaver as a pending request
 /// and never said their profile changed. The managers' members page refreshes on the same
-/// GuildMembershipRejected; that part is not recorded.
+/// GuildMembershipRejected; that part is not recorded. A member kicked, made an admin or unmade
+/// one by somebody else hears nothing from the group, only their homeroom rights (official client
+/// capture 2026-10-13 20:56 and 21:10); Turbo sent them the leaver's replies and
+/// GuildMembershipUpdated. Blocking is off unless configured, as on Habbo.
 /// </summary>
 public sealed class GroupLeaveRepliesTests : IDisposable
 {
@@ -202,7 +205,7 @@ public sealed class GroupLeaveRepliesTests : IDisposable
     [Fact]
     public async Task A_blocked_member_is_still_shown_as_blocked()
     {
-        var group = await GroupAsync();
+        var group = await GroupAsync(new GuildConfig { BlockingEnabled = true });
 
         await group.KickAsync(OWNER, ALICE, true, Ct);
 
@@ -211,6 +214,62 @@ public sealed class GroupLeaveRepliesTests : IDisposable
             .Should()
             .ContainSingle(x => x.Member.Rank == GuildMemberRank.Blocked);
     }
+
+    [Fact]
+    public async Task A_member_kicked_by_an_admin_hears_nothing_from_the_group()
+    {
+        var group = await GroupAsync();
+
+        var result = await group.KickAsync(BOB, ALICE, false, Ct);
+
+        result.Should().Be(GuildMemberMgmtResultSnapshot.Success());
+        Sent(ALICE).Should().BeEmpty();
+        Sent(OWNER)
+            .OfType<GuildMembershipRejectedMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.PlayerId == PlayerId.Parse(ALICE));
+        HomeroomRefreshed().Should().Contain(PlayerId.Parse(ALICE));
+    }
+
+    [Theory]
+    [InlineData(ALICE, true)]
+    [InlineData(BOB, false)]
+    public async Task A_member_made_or_unmade_an_admin_hears_nothing_from_the_group(
+        int target,
+        bool isAdmin
+    )
+    {
+        var group = await GroupAsync();
+
+        var result = await group.SetAdminAsync(OWNER, target, isAdmin, Ct);
+
+        result.Should().Be(GuildMemberMgmtResultSnapshot.Success());
+        Sent(target).Should().BeEmpty();
+        Sent(OWNER)
+            .OfType<GuildMembershipUpdatedMessageComposer>()
+            .Should()
+            .ContainSingle(x =>
+                x.Member.Rank == (isAdmin ? GuildMemberRank.Admin : GuildMemberRank.Member)
+            );
+        HomeroomRefreshed().Should().Contain(PlayerId.Parse(target));
+    }
+
+    [Fact]
+    public async Task Blocking_is_off_unless_configured_so_a_block_only_removes()
+    {
+        var group = await GroupAsync();
+
+        await group.KickAsync(OWNER, ALICE, true, Ct);
+
+        Sent(OWNER).OfType<GuildMembershipUpdatedMessageComposer>().Should().BeEmpty();
+        Sent(OWNER)
+            .OfType<GuildMembershipRejectedMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.PlayerId == PlayerId.Parse(ALICE));
+    }
+
+    private List<PlayerId> HomeroomRefreshed() =>
+        [.. _fakes.Log.Of("RefreshGuildMemberAsync").Select(x => (PlayerId)x.Args[0]!)];
 
     private List<IComposer> Sent(int player) =>
         [

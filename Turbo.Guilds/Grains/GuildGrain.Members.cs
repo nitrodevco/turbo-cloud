@@ -256,7 +256,11 @@ internal sealed partial class GuildGrain
             ct
         );
 
-        await PublishMembershipUpdatedAsync(targetId, ct);
+        // The member made or unmade an admin hears nothing from the group: Habbo sends them only
+        // the homeroom's rights (YouAreController or YouAreNotController, WiredPermissions,
+        // RaidProtectionCapability; official client capture 2026-10-13 21:10), which the
+        // homeroom refresh above already does. The other managers' members page is not recorded.
+        await PublishMembershipUpdatedAsync(targetId, ct, tellMember: false);
 
         return GuildMemberMgmtResultSnapshot.Success();
     }
@@ -291,30 +295,38 @@ internal sealed partial class GuildGrain
         if (GetRank(targetId) is null)
             return GuildMemberMgmtResultSnapshot.Failed(GuildMemberMgmtFailedType.NoLongerMember);
 
+        // Someone removed by another hears nothing from the group: Habbo sends them only the
+        // homeroom's rights (WiredPermissions, RaidProtectionCapability) and, if they wore its
+        // badge, FavoriteMembershipUpdate with none (official client capture 2026-10-13 20:56 and
+        // 21:10, both kicks). Those come from the memberships reload and the homeroom refresh.
         if (block && !leaving && _guildConfig.BlockingEnabled)
         {
             await AddOrUpdateMemberAsync(targetId, GuildMemberRank.Blocked, ct);
-            await PublishMembershipUpdatedAsync(targetId, ct);
+            await PublishMembershipUpdatedAsync(targetId, ct, tellMember: false);
         }
         else
         {
             await RemoveMemberAsync(targetId, ct);
-            await PublishMemberRemovedAsync(targetId, ct);
+            await PublishMemberRemovedAsync(targetId, leaving, ct);
         }
 
         return GuildMemberMgmtResultSnapshot.Success();
     }
 
     /// <summary>
-    /// What the removed player is told, in Habbo's order: the membership is gone, their profile
+    /// What a player who left is told, in Habbo's order: the membership is gone, their profile
     /// (its group list) changed, and the group's details changed (official client capture
     /// 2026-10-13, leaving open group 402778: GuildMembershipRejected, ExtendedProfileChanged,
-    /// GroupDetailsChanged in one tick, no GuildMembershipUpdated). The managers get the same
+    /// GroupDetailsChanged in one tick, no GuildMembershipUpdated). A member removed by an admin
+    /// gets none of the three (see <see cref="KickAsync"/>). The managers get the same
     /// GuildMembershipRejected, which refreshes an open members page
-    /// (GuildMembersWindowCtrl.as:147-153); that, and the same replies for a member removed by an
-    /// admin, is not recorded.
+    /// (GuildMembersWindowCtrl.as:147-153); that part is not recorded.
     /// </summary>
-    private async Task PublishMemberRemovedAsync(PlayerId playerId, CancellationToken ct)
+    private async Task PublishMemberRemovedAsync(
+        PlayerId playerId,
+        bool leaving,
+        CancellationToken ct
+    )
     {
         if (_state.Guild is not { } guild)
             return;
@@ -330,6 +342,9 @@ internal sealed partial class GuildGrain
             rejected,
             ct
         );
+
+        if (!leaving)
+            return;
 
         await _grainFactory.SendComposerToPlayerAsync(playerId, rejected, ct);
         await _grainFactory.SendComposerToPlayerAsync(
@@ -555,9 +570,15 @@ internal sealed partial class GuildGrain
                 .Select(entry => PlayerId.Parse(entry.Key)),
         ];
 
-    /// <summary>Tells the group's managers, and the member themselves, that a rank moved.</summary>
-    private Task PublishMembershipUpdatedAsync(PlayerId playerId, CancellationToken ct) =>
-        PublishMembershipsUpdatedAsync([playerId], ct);
+    /// <summary>
+    /// Tells the group's managers, and the member themselves unless <paramref name="tellMember"/>
+    /// is false, that a rank moved.
+    /// </summary>
+    private Task PublishMembershipUpdatedAsync(
+        PlayerId playerId,
+        CancellationToken ct,
+        bool tellMember = true
+    ) => PublishMembershipsUpdatedAsync([playerId], ct, tellMember);
 
     /// <summary>
     /// <see cref="PublishMembershipUpdatedAsync"/> for several members at once, with their
@@ -565,7 +586,8 @@ internal sealed partial class GuildGrain
     /// </summary>
     private async Task PublishMembershipsUpdatedAsync(
         IReadOnlyCollection<PlayerId> playerIds,
-        CancellationToken ct
+        CancellationToken ct,
+        bool tellMember = true
     )
     {
         if (_state.Guild is not { } guild)
@@ -577,7 +599,13 @@ internal sealed partial class GuildGrain
         await Task.WhenAll(
             members.Select(member =>
                 _grainFactory.SendComposerToPlayersAsync(
-                    managerIds.Append(member.PlayerId).Distinct().ToList(),
+                    (
+                        tellMember
+                            ? managerIds.Append(member.PlayerId)
+                            : managerIds.Where(id => id != member.PlayerId)
+                    )
+                        .Distinct()
+                        .ToList(),
                     new GuildMembershipUpdatedMessageComposer
                     {
                         GuildId = guild.GuildId,

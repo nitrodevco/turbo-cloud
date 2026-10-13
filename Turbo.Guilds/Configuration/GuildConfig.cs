@@ -55,8 +55,12 @@ public class GuildConfig
     /// </summary>
     public int DeletionMaxMembers { get; init; } = 500;
 
-    /// <summary>Mirrors the client's <c>group.blocking.enabled</c>.</summary>
-    public bool BlockingEnabled { get; init; } = true;
+    /// <summary>
+    /// Mirrors the client's <c>group.blocking.enabled</c>. Off by default, as on Habbo: the
+    /// official external_variables (2026-10-12) leave the key out, so the client hides the block
+    /// action (GuildMembersWindowCtrl.as:347) and a kick only removes.
+    /// </summary>
+    public bool BlockingEnabled { get; init; }
 
     /// <summary>Guild base rooms the navigator's hottest-groups search returns.</summary>
     public int GuildBaseSearchResultLimit { get; init; } = 50;
