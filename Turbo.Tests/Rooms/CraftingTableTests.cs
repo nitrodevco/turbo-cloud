@@ -71,9 +71,7 @@ public sealed class CraftingTableTests
                 : null;
         fakes.Handlers["GetAllItemSnapshotsAsync"] = call =>
             Task.FromResult(
-                _inventories[Key(call)]
-                    .Select(x => Snapshot(x.Key, x.Value))
-                    .ToImmutableArray()
+                _inventories[Key(call)].Select(x => Snapshot(x.Key, x.Value)).ToImmutableArray()
             );
         fakes.Handlers["GetItemSnapshotsAsync"] = call =>
         {
@@ -175,7 +173,9 @@ public sealed class CraftingTableTests
 
         Results(OWNER).Should().Equal(null, "craft_chair");
         Results(GUEST).Should().Equal([null]);
-        _inventories[OWNER].Values.Should().BeEquivalentTo([("plank", true), ("craft_chair", false)]);
+        _inventories[OWNER]
+            .Values.Should()
+            .BeEquivalentTo([("plank", true), ("craft_chair", false)]);
         _inventories[GUEST].Values.Select(x => x.Class).Should().Equal("plank", "plank", "nail");
     }
 
@@ -211,7 +211,10 @@ public sealed class CraftingTableTests
             .Last()
             .Product!.ProductCode.Should()
             .Be("throne_product");
-        _inventories[OWNER].Values.Select(x => x.Class).Should().BeEquivalentTo("nail", "craft_throne");
+        _inventories[OWNER]
+            .Values.Select(x => x.Class)
+            .Should()
+            .BeEquivalentTo("nail", "craft_throne");
     }
 
     [Fact]

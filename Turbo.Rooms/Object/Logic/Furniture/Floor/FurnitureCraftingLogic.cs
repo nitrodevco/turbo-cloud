@@ -52,7 +52,9 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
     public CraftingRecipeData? FindListedRecipe(string code) =>
         _data.Recipes.FirstOrDefault(x => !x.Secret && x.Code == code);
 
-    public static ImmutableArray<CraftingIngredientSnapshot> Ingredients(CraftingRecipeData recipe) =>
+    public static ImmutableArray<CraftingIngredientSnapshot> Ingredients(
+        CraftingRecipeData recipe
+    ) =>
         [
             .. recipe.Ingredients.Select(x => new CraftingIngredientSnapshot
             {
@@ -189,7 +191,9 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
         CancellationToken ct
     )
     {
-        if (_roomGrain._definitionProvider.TryGetDefinitionByName(recipe.Product) is not { } product)
+        if (
+            _roomGrain._definitionProvider.TryGetDefinitionByName(recipe.Product) is not { } product
+        )
             return await FailAsync(ctx, interaction, $"no furni {recipe.Product}", ct);
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);

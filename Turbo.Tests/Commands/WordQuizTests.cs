@@ -38,7 +38,11 @@ public class WordQuizTests
         await _room.SayAsync(STAFF, ":wordquiz Vanilla is my jam...");
         await _room.SayAsync(GUEST, ":wordquiz Me too?");
 
-        var question = SentToRoom().OfType<QuestionEventMessageComposer>().Should().ContainSingle().Subject;
+        var question = SentToRoom()
+            .OfType<QuestionEventMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Subject;
 
         question
             .Should()
@@ -141,7 +145,11 @@ public class WordQuizTests
             );
     }
 
-    private Task<bool> AnswerAsync(int player, QuestionEventMessageComposer question, string value) =>
+    private Task<bool> AnswerAsync(
+        int player,
+        QuestionEventMessageComposer question,
+        string value
+    ) =>
         _room.Harness.Room.AnswerWordQuizAsync(
             ActionContext.CreateForPlayer(player, _room.Harness.Room.RoomId),
             question.PollId,

@@ -11,7 +11,11 @@ namespace Turbo.PacketHandlers.Crafting;
 /// <summary>Crafts a listed recipe on a table (Flash CraftingWidgetHandler.doCraftingWithRecipe).</summary>
 public class CraftMessageHandler(IGrainFactory grainFactory) : IMessageHandler<CraftMessage>
 {
-    public async ValueTask HandleAsync(CraftMessage message, MessageContext ctx, CancellationToken ct)
+    public async ValueTask HandleAsync(
+        CraftMessage message,
+        MessageContext ctx,
+        CancellationToken ct
+    )
     {
         await ctx.InteractWithRoomItemAsync(
                 grainFactory,

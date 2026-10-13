@@ -554,7 +554,9 @@ public sealed class MarketplaceTests : IDisposable
         await _marketplace.MakeOfferAsync(SELLER, 100, [-first], Ct);
         await _marketplace.MakeOfferAsync(SELLER, 50, [-second], Ct);
 
-        foreach (var offer in (await _marketplace.SearchOffersAsync(-1, -1, "", 1, true, Ct)).Offers)
+        foreach (
+            var offer in (await _marketplace.SearchOffersAsync(-1, -1, "", 1, true, Ct)).Offers
+        )
             await _marketplace.BuyOfferAsync(BUYER, offer.OfferId, Ct);
 
         // The online seller hears of each sale as Flash's "notification.earning.new" for category 3.
@@ -587,9 +589,7 @@ public sealed class MarketplaceTests : IDisposable
             .BeFalse();
         _credits[SELLER].Should().Be(0);
 
-        (await vault.ClaimAsync(SELLER, VaultRewardCategoryType.Marketplace, Ct))
-            .Should()
-            .BeTrue();
+        (await vault.ClaimAsync(SELLER, VaultRewardCategoryType.Marketplace, Ct)).Should().BeTrue();
         _credits[SELLER].Should().Be(145);
         (await vault.GetRewardsAsync(SELLER, Ct)).Should().BeEmpty();
         (await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct)).CreditsWaiting.Should().Be(0);
