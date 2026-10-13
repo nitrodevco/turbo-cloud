@@ -132,14 +132,20 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         Task.FromResult(_state.EditorData);
 
     /// <summary>
-    /// The first base part in the first badge colour, centred. Deterministic on purpose: the
-    /// creator is about to open the editor on it, and a badge that differs every time the
-    /// wizard is reopened is a badge they cannot get back.
+    /// The badge the creation wizard opens on: <see cref="GuildConfig.DefaultBadgeLayers"/>, or
+    /// the first base part in the first badge colour, centred, when that names no base this
+    /// hotel has. Deterministic on purpose: the creator is about to open the editor on it, and a
+    /// badge that differs every time the wizard is reopened is a badge they cannot get back.
     /// </summary>
     public Task<ImmutableArray<GuildBadgePartSnapshot>> GetDefaultBadgePartsAsync(
         CancellationToken ct
     )
     {
+        var configured = ConfiguredBadgeParts();
+
+        if (configured.Length > 0)
+            return Task.FromResult(configured);
+
         var basePart = _state.EditorData.BaseParts.FirstOrDefault();
         var color = _state.EditorData.BadgeColors.FirstOrDefault();
 
@@ -157,6 +163,55 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
                     },
                 ]
         );
+    }
+
+    /// <summary>
+    /// The configured default layers that this hotel's parts and colours can draw, or none when
+    /// the list is malformed or its base is not one of them.
+    /// </summary>
+    private ImmutableArray<GuildBadgePartSnapshot> ConfiguredBadgeParts()
+    {
+        var numbers = new List<int>();
+
+        foreach (var token in _guildConfig.DefaultBadgeLayers.Split(','))
+        {
+            if (!int.TryParse(token.Trim(), out var number))
+                return [];
+
+            numbers.Add(number);
+        }
+
+        if (numbers.Count == 0 || numbers.Count % 3 != 0)
+            return [];
+
+        var editor = _state.EditorData;
+        var parts = ImmutableArray.CreateBuilder<GuildBadgePartSnapshot>();
+
+        for (var i = 0; i < numbers.Count; i += 3)
+        {
+            var type = i == 0 ? GuildBadgePartType.Base : GuildBadgePartType.Symbol;
+            var known = type == GuildBadgePartType.Base ? editor.BaseParts : editor.SymbolParts;
+            var drawable =
+                numbers[i] > 0
+                && known.Any(part => part.PartId == numbers[i])
+                && editor.BadgeColors.Any(color => color.ColorId == numbers[i + 1])
+                && numbers[i + 2] is >= 0 and <= GuildBadgeCodes.POSITION_MAX;
+
+            if (type == GuildBadgePartType.Base && !drawable)
+                return [];
+
+            parts.Add(
+                new GuildBadgePartSnapshot
+                {
+                    Type = type,
+                    PartId = drawable ? numbers[i] : 0,
+                    ColorId = drawable ? numbers[i + 1] : 0,
+                    Position = drawable ? numbers[i + 2] : 0,
+                }
+            );
+        }
+
+        return parts.ToImmutable();
     }
 
     public Task<ImmutableArray<GuildSummarySnapshot>> SearchByNameAsync(

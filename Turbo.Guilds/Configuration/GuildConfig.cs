@@ -13,6 +13,16 @@ public class GuildConfig
     /// <summary>What creating a group costs, sent to the client before it commits.</summary>
     public int CreationCostInCredits { get; init; } = 10;
 
+    /// <summary>
+    /// The badge the creation wizard opens on, three numbers per layer (part, colour, cell) in
+    /// layer order, base first: the order GuildCreationInfo carries them. Habbo's, identical in
+    /// every recorded GuildCreationInfo (official client capture 2026-10-13, 4 of 4): base 10 in
+    /// colour 3 centred, symbols 25/17 in cell 5, 25/17 in cell 3, 29/11 in cell 4, and an empty
+    /// layer. A layer whose part or colour this hotel does not have is left empty; without a
+    /// usable base the first base part in the first colour, centred, is used.
+    /// </summary>
+    public string DefaultBadgeLayers { get; init; } = "10,3,4,25,17,5,25,17,3,29,11,4,0,0,0";
+
     /// <summary>The editor stops typing here; the server clamps rather than refusing.</summary>
     public int NameMaxLength { get; init; } = 30;
     public int DescriptionMaxLength { get; init; } = 255;
