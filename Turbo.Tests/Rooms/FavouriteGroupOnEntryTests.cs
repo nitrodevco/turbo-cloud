@@ -50,6 +50,8 @@ public sealed class FavouriteGroupOnEntryTests
             Task.FromResult(ResolvedPermissionsSnapshot.EMPTY);
         fakes.Handlers["GetFavouriteGuildIdAsync"] = _ =>
             Task.FromResult<GuildId?>(GuildId.Parse(GROUP));
+        fakes.Handlers["GetFavouriteGuildStatusAsync"] = _ =>
+            Task.FromResult(WornGuildStatus.Admin);
         fakes.Handlers["GetSummaryAsync"] = _ =>
             Task.FromResult<GuildSummarySnapshot?>(
                 new GuildSummarySnapshot
@@ -105,6 +107,7 @@ public sealed class FavouriteGroupOnEntryTests
 
         avatar.GroupId.Should().Be(GROUP);
         avatar.GroupName.Should().Be("grp e2e");
+        avatar.GroupStatus.Should().Be(WornGuildStatus.Admin);
         sent.FindIndex(x => x is HabboGroupBadgesMessageComposer)
             .Should()
             .BeInRange(0, sent.IndexOf(users) - 1);

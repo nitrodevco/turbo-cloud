@@ -200,6 +200,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Guilds.IPlayerGui
   86F74F9D: CreateGuildAsync(Turbo.Primitives.Guilds.Snapshots.GuildCreationRequestSnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildCreationResultSnapshot>
   7EE08768: GetCreationInfoAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildCreationInfoSnapshot>
   7247638E: GetFavouriteGuildIdAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.GuildId?>
+  267F5DFA: GetFavouriteGuildStatusAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Enums.WornGuildStatus>
   382B9E6A: GetMembershipCountAsync(System.Threading.CancellationToken) -> Task<int>
   9F4C4E17: GetMembershipsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildInfoSnapshot>>
   F2A326B5: GetRoomOptionsAsync(Turbo.Primitives.Guilds.GuildId, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildRoomOptionSnapshot>>
@@ -562,7 +563,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   B3825D43: SetObjectDataAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Collections.Generic.IReadOnlyDictionary<string, string>, System.Threading.CancellationToken) -> Task<bool>
   2F7D4AC3: SetPlayerBadgesAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>, System.Threading.CancellationToken) -> Task
   70B8FFB5: SetPlayerEffectAsync(Turbo.Primitives.Action.ActionContext, int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
-  F0E5A464: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.GuildMembershipStatus, string, System.Threading.CancellationToken) -> Task
+  8F933AA2: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.WornGuildStatus, string, System.Threading.CancellationToken) -> Task
   2153CAF5: SetPlayerHabboClubAsync(Turbo.Primitives.Players.PlayerId, System.DateTime?, System.Threading.CancellationToken) -> Task
   D4AD0169: SetPlayerPermissionsAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot, System.Threading.CancellationToken) -> Task
   CCB393B3: SetRoomMutedBySystemAsync(bool, System.Threading.CancellationToken) -> Task<bool>

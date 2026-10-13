@@ -14,7 +14,7 @@ public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
     public required int GroupId { get; init; }
 
     [Id(16)]
-    public required GuildMembershipStatus GroupStatus { get; init; }
+    public required WornGuildStatus GroupStatus { get; init; }
 
     [Id(17)]
     public required string GroupName { get; init; }

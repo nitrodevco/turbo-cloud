@@ -612,7 +612,7 @@ public class BotDecoderRoundTripTests
             IsIdle = false,
             Gender = AvatarGenderType.Female,
             GroupId = 0,
-            GroupStatus = GuildMembershipStatus.None,
+            GroupStatus = WornGuildStatus.None,
             GroupName = string.Empty,
             SwimFigure = string.Empty,
             ActivityPoints = 0,

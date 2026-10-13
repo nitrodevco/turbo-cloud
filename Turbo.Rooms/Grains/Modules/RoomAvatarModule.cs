@@ -78,12 +78,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         avatar.SetPermissions(await permissionsTask);
 
-        var guild = await guildTask;
+        var (guild, guildStatus) = await guildTask;
 
         if (avatar is IRoomPlayer player)
             player.SetFavouriteGuild(
                 guild?.GuildId ?? -1,
-                guild is null ? GuildMembershipStatus.None : GuildMembershipStatus.Member,
+                guild is null ? WornGuildStatus.None : guildStatus,
                 guild?.Name ?? string.Empty
             );
 
@@ -260,23 +260,25 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     /// them, and putting it on <c>PlayerSummarySnapshot</c> would add a grain call to every hot
     /// path that asks for a summary.
     /// </summary>
-    private async Task<GuildSummarySnapshot?> LoadFavouriteGuildAsync(
+    private async Task<(GuildSummarySnapshot?, WornGuildStatus)> LoadFavouriteGuildAsync(
         PlayerId playerId,
         CancellationToken ct
     )
     {
         try
         {
-            var guildId = await _roomGrain
-                ._grainFactory.GetPlayerGuildGrain(playerId)
-                .GetFavouriteGuildIdAsync(ct);
+            var playerGuilds = _roomGrain._grainFactory.GetPlayerGuildGrain(playerId);
+            var guildId = await playerGuilds.GetFavouriteGuildIdAsync(ct);
 
             if (guildId is not { } favourite)
-                return null;
+                return (null, WornGuildStatus.None);
 
-            return await _roomGrain
+            var status = await playerGuilds.GetFavouriteGuildStatusAsync(ct);
+            var guild = await _roomGrain
                 ._grainFactory.GetGuildDirectoryGrain()
                 .GetSummaryAsync(favourite, ct);
+
+            return (guild, status);
         }
         catch (Exception ex)
         {
@@ -289,7 +291,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 _roomGrain.RoomId
             );
 
-            return null;
+            return (null, WornGuildStatus.None);
         }
     }
 

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 
 namespace Turbo.Primitives.Players.Grains.Guilds;
@@ -33,6 +34,12 @@ public interface IPlayerGuildGrain : IGrainWithIntegerKey
     /// picked none has no favourite; nothing is chosen for them.
     /// </summary>
     public Task<GuildId?> GetFavouriteGuildIdAsync(CancellationToken ct);
+
+    /// <summary>
+    /// What this player is to the group whose badge they wear (owner, admin or member), as a
+    /// room shows it; <see cref="WornGuildStatus.None"/> when they wear none.
+    /// </summary>
+    public Task<WornGuildStatus> GetFavouriteGuildStatusAsync(CancellationToken ct);
 
     /// <summary>
     /// Picks the group whose badge this player wears, or clears it with null. A group they are

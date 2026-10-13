@@ -43,7 +43,7 @@ public sealed class WiredGroupMemberConditionTests
     {
         _room
             .Enter(5, 1, 1)
-            .SetFavouriteGuild(USERS_GROUP, GuildMembershipStatus.Member, "Testers");
+            .SetFavouriteGuild(USERS_GROUP, WornGuildStatus.Member, "Testers");
         _room.AddFloorItem(CLICK_ME, 7, 4);
     }
 

@@ -80,7 +80,7 @@ public sealed class FavouriteGroupLeftTests
 
         var told = RoomTold().Should().ContainSingle().Subject;
         told.Args[1].Should().Be(-1);
-        told.Args[2].Should().Be(GuildMembershipStatus.None);
+        told.Args[2].Should().Be(WornGuildStatus.None);
         (await grain.GetFavouriteGuildIdAsync(Ct)).Should().BeNull();
     }
 
