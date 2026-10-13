@@ -1375,6 +1375,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("definition_id");
 
+                    b.Property<bool>("HistoryCleared")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("history_cleared");
+
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");

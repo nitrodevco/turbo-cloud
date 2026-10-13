@@ -55,6 +55,10 @@ public class MarketplaceOfferEntity : TurboEntity
     [Column("credits_redeemed")]
     public bool CreditsRedeemed { get; set; }
 
+    /// <summary>Whether the seller cleared this sold offer from their history (its credits are kept).</summary>
+    [Column("history_cleared")]
+    public bool HistoryCleared { get; set; }
+
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
 

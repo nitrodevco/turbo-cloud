@@ -35,6 +35,7 @@ namespace Turbo.Database.Migrations
                         sold_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                         revenue = table.Column<int>(type: "int", nullable: false),
                         credits_redeemed = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        history_cleared = table.Column<bool>(type: "tinyint(1)", nullable: false),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(

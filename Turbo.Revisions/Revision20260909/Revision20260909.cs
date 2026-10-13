@@ -848,6 +848,14 @@ public class Revision20260909 : IRevision
                 MessageEvent.RedeemMarketplaceOfferCreditsMessageEvent,
                 new RedeemMarketplaceOfferCreditsMessageParser()
             },
+            {
+                MessageEvent.CancelAllMarketplaceOffersMessageEvent,
+                new CancelAllMarketplaceOffersMessageParser()
+            },
+            {
+                MessageEvent.ClearMarketplaceOwnHistoryMessageEvent,
+                new ClearMarketplaceOwnHistoryMessageParser()
+            },
             #endregion
 
             #region Moderator
@@ -4366,6 +4374,18 @@ public class Revision20260909 : IRevision
                 typeof(MarketplaceItemStatsEventMessageComposer),
                 new MarketplaceItemStatsEventMessageComposerSerializer(
                     MessageComposer.MarketplaceItemStatsMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceCancelAllOffersResultMessageComposer),
+                new MarketplaceCancelAllOffersResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceCancelAllOffersResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceClearOwnHistoryResultMessageComposer),
+                new MarketplaceClearOwnHistoryResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceClearOwnHistoryResultMessageComposer
                 )
             },
             #endregion

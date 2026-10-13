@@ -58,6 +58,18 @@ public interface IMarketplaceService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Takes back every unsold own offer, open or expired (Flash <c>recallAllOffers</c>): the
+    /// items return to the inventory. Returns the offer ids taken back.
+    /// </summary>
+    public Task<ImmutableArray<int>> CancelAllOffersAsync(PlayerId player, CancellationToken ct);
+
+    /// <summary>
+    /// Clears the own offers of a clearable category (Flash <c>_-K1l.isClearable</c>: 2 sold,
+    /// 3 expired); false for any other.
+    /// </summary>
+    public Task<bool> ClearOwnHistoryAsync(PlayerId player, int category, CancellationToken ct);
+
     /// <summary>Pays out the revenue of the seller's sold offers; returns the credits paid.</summary>
     public Task<int> RedeemCreditsAsync(PlayerId player, CancellationToken ct);
 }

@@ -388,7 +388,8 @@ public sealed class MarketplaceTests : IDisposable
         stats.AveragePrice.Should().Be(25);
         stats.OfferCount.Should().Be(2);
         stats.LowestCurrentPrice.Should().Be(22);
-        stats.SuggestedPrice.Should().Be(25);
+        // Official: the lowest open price is suggested over the average (LTD 17676: 99 against 568).
+        stats.SuggestedPrice.Should().Be(22);
         stats.FurniCategoryId.Should().Be(1);
         stats.FurniTypeId.Should().Be(CHAIR);
     }
@@ -473,6 +474,70 @@ public sealed class MarketplaceTests : IDisposable
                     + "00000000"
                     + "0000000000000001"
             );
+    }
+
+    [Fact]
+    public async Task Taking_back_all_offers_returns_every_unsold_item_and_names_them()
+    {
+        await _marketplace.MakeOfferAsync(SELLER, 10, [-Give(SELLER, CHAIR)], Ct);
+        await _marketplace.MakeOfferAsync(SELLER, 20, [-Give(SELLER, LAMP)], Ct);
+        await _marketplace.MakeOfferAsync(SELLER, 30, [-Give(SELLER, LAMP)], Ct);
+        var sold = (await _marketplace.SearchOffersAsync(-1, -1, "", 2, true, Ct)).Offers[0];
+        await _marketplace.BuyOfferAsync(BUYER, sold.OfferId, Ct);
+        _time.Advance(TimeSpan.FromHours(100));
+        await _marketplace.MakeOfferAsync(SELLER, 40, [-Give(SELLER, CHAIR)], Ct);
+        _time.Advance(TimeSpan.FromHours(100));
+
+        var taken = await _marketplace.CancelAllOffersAsync(SELLER, Ct);
+
+        taken.Should().HaveCount(3).And.NotContain(sold.OfferId);
+        _inventories[SELLER]
+            .Values.Select(x => x.Definition)
+            .Should()
+            .BeEquivalentTo([LAMP, LAMP, CHAIR]);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers.Should().BeEmpty();
+        (await _marketplace.GetOwnOffersAsync(SELLER, 3, Ct)).Offers.Should().BeEmpty();
+        (await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct)).Offers.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Clearing_history_hides_sold_offers_keeps_their_credits_and_returns_expired_items()
+    {
+        await _marketplace.MakeOfferAsync(SELLER, 100, [-Give(SELLER, CHAIR)], Ct);
+        var offerId = (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+        await _marketplace.BuyOfferAsync(BUYER, offerId, Ct);
+        await _marketplace.MakeOfferAsync(SELLER, 50, [-Give(SELLER, LAMP)], Ct);
+        _time.Advance(TimeSpan.FromHours(169));
+
+        (await _marketplace.ClearOwnHistoryAsync(SELLER, 1, Ct)).Should().BeFalse();
+        (await _marketplace.ClearOwnHistoryAsync(SELLER, 2, Ct)).Should().BeTrue();
+        (await _marketplace.ClearOwnHistoryAsync(SELLER, 3, Ct)).Should().BeTrue();
+
+        var soldList = await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct);
+
+        soldList.Offers.Should().BeEmpty();
+        soldList.CreditsWaiting.Should().Be(97);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 3, Ct)).Offers.Should().BeEmpty();
+        _inventories[SELLER].Values.Select(x => x.Definition).Should().Equal(LAMP);
+        (await _marketplace.GetItemStatsAsync(1, CHAIR, null, Ct)).Days.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Cancel_all_and_clear_history_results_are_written_as_Flash_reads_them()
+    {
+        var all = PacketHarness.Encode(
+            new MarketplaceCancelAllOffersResultMessageComposer
+            {
+                OfferIds = [5, 6],
+                Success = true,
+            }
+        );
+        var clear = PacketHarness.Encode(
+            new MarketplaceClearOwnHistoryResultMessageComposer { Success = true }
+        );
+
+        Convert.ToHexString(all.PopBytes(all.Remaining)).Should().Be("00000002000000050000000601");
+        Convert.ToHexString(clear.PopBytes(clear.Remaining)).Should().Be("01");
     }
 
     private static MarketplaceOfferSnapshot Row(

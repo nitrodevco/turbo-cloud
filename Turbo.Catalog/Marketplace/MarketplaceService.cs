@@ -142,7 +142,7 @@ public sealed class MarketplaceService(
         var rows = category switch
         {
             (int)MarketplaceOfferStatus.Sold => own.Where(x =>
-                x.State == MarketplaceOfferEntity.STATE_SOLD
+                x.State == MarketplaceOfferEntity.STATE_SOLD && !x.HistoryCleared
             ),
             (int)MarketplaceOfferStatus.Expired => own.Where(x =>
                 x.State == MarketplaceOfferEntity.STATE_OPEN && x.ExpiresAt <= now
@@ -220,16 +220,26 @@ public sealed class MarketplaceService(
 
         var today = Today(now);
         var since = today.AddDays(-HISTORY_DAYS);
-        var sales = await dbCtx
-            .MarketplaceOffers.AsNoTracking()
+        // A poster's history is its own (official capture 18:34: GetMarketplaceItemStats(2, 4001,
+        // "2005")), a limited edition's that of the limited ones.
+        var sales = (
+            await dbCtx
+                .MarketplaceOffers.AsNoTracking()
+                .Where(x =>
+                    x.FurnitureDefinitionEntityId == definition.Id
+                    && x.State == MarketplaceOfferEntity.STATE_SOLD
+                    && x.SoldAt >= since
+                )
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
             .Where(x =>
-                x.FurnitureDefinitionEntityId == definition.Id
-                && x.State == MarketplaceOfferEntity.STATE_SOLD
-                && x.SoldAt >= since
+                Describe(x, now) is { } sold
+                && (category != 3 || sold.FurniType == MarketplaceFurniType.Unique)
+                && (string.IsNullOrEmpty(extraData) || sold.ExtraData == extraData)
             )
             .Select(x => new { x.Price, SoldAt = x.SoldAt!.Value })
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+            .ToList();
 
         // Days before today with sales, oldest first; today is still trading and not shown
         // (both official captures end at day -1).
@@ -256,9 +266,10 @@ public sealed class MarketplaceService(
             OfferCount = open.Count,
             Days = days,
             LowestCurrentPrice = lowest,
-            // Inference: both captures suggest the average when there are sales and the
-            // lowest open price when there are none.
-            SuggestedPrice = average > 0 ? average : lowest,
+            // The lowest open price, or the average when nothing is offered: all four official
+            // captures (2026-10-13: 15/15, 99999 with no sales, 99 against an average of 568,
+            // and 7 for a poster with no offers).
+            SuggestedPrice = lowest > 0 ? lowest : average,
         };
     }
 
@@ -545,6 +556,81 @@ public sealed class MarketplaceService(
             row.Price,
             offerId
         );
+    }
+
+    public async Task<ImmutableArray<int>> CancelAllOffersAsync(
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var offerIds = await dbCtx
+            .MarketplaceOffers.AsNoTracking()
+            .Where(x =>
+                x.PlayerEntityId == player.Value && x.State == MarketplaceOfferEntity.STATE_OPEN
+            )
+            .Select(x => x.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var taken = ImmutableArray.CreateBuilder<int>(offerIds.Count);
+
+        foreach (var offerId in offerIds)
+            if (await CancelOfferAsync(player, offerId, ct).ConfigureAwait(false))
+                taken.Add(offerId);
+
+        return taken.ToImmutable();
+    }
+
+    public async Task<bool> ClearOwnHistoryAsync(
+        PlayerId player,
+        int category,
+        CancellationToken ct
+    )
+    {
+        var now = Now();
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        switch (category)
+        {
+            case (int)MarketplaceOfferStatus.Sold:
+                // The rows stay for the price history and the credits still to be paid.
+                await dbCtx
+                    .MarketplaceOffers.Where(x =>
+                        x.PlayerEntityId == player.Value
+                        && x.State == MarketplaceOfferEntity.STATE_SOLD
+                    )
+                    .ExecuteUpdateAsync(
+                        u => u.SetProperty(x => x.HistoryCleared, true),
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
+
+                return true;
+            case (int)MarketplaceOfferStatus.Expired:
+                // Inference: an expired offer still holds its item, so clearing one takes the
+                // item back rather than losing it.
+                var expired = await dbCtx
+                    .MarketplaceOffers.AsNoTracking()
+                    .Where(x =>
+                        x.PlayerEntityId == player.Value
+                        && x.State == MarketplaceOfferEntity.STATE_OPEN
+                        && x.ExpiresAt <= now
+                    )
+                    .Select(x => x.Id)
+                    .ToListAsync(ct)
+                    .ConfigureAwait(false);
+
+                foreach (var offerId in expired)
+                    await CancelOfferAsync(player, offerId, ct).ConfigureAwait(false);
+
+                return true;
+            default:
+                return false;
+        }
     }
 
     public async Task<int> RedeemCreditsAsync(PlayerId player, CancellationToken ct)
