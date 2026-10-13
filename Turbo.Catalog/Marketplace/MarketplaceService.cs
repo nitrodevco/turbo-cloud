@@ -17,10 +17,12 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Factories;
+using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Vault.Enums;
 
 namespace Turbo.Catalog.Marketplace;
 
@@ -550,6 +552,20 @@ public sealed class MarketplaceService(
 
         await GiveItemAsync(player, row).ConfigureAwait(false);
 
+        // The seller's revenue now waits in the earnings vault; an online seller gets Flash's
+        // "notification.earning.new" (VaultController.as:139). Inference: the official client
+        // capture shows this notification for achievement earnings (category 2), none recorded for a sale.
+        await grainFactory
+            .TrySendComposerToPlayerAsync(
+                row.PlayerEntityId,
+                new IncomeRewardNotificationMessageComposer
+                {
+                    RewardCategory = VaultRewardCategoryType.Marketplace,
+                },
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
         return new MarketplaceBuyResult(
             MarketplaceBuyResultCode.Bought,
             offerId,
@@ -631,6 +647,30 @@ public sealed class MarketplaceService(
             default:
                 return false;
         }
+    }
+
+    public async Task<ImmutableArray<int>> GetUnredeemedRevenueAsync(
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var revenue = await dbCtx
+            .MarketplaceOffers.AsNoTracking()
+            .Where(x =>
+                x.PlayerEntityId == player.Value
+                && x.State == MarketplaceOfferEntity.STATE_SOLD
+                && !x.CreditsRedeemed
+            )
+            .OrderBy(x => x.SoldAt)
+            .ThenBy(x => x.Id)
+            .Select(x => x.Revenue)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return [.. revenue];
     }
 
     public async Task<int> RedeemCreditsAsync(PlayerId player, CancellationToken ct)

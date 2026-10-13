@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Marketplace;
+using Turbo.Catalog.Vault;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog.Marketplace;
@@ -15,11 +16,15 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Incoming.Vault;
 using Turbo.Primitives.Messages.Outgoing.Marketplace;
+using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;
@@ -538,6 +543,121 @@ public sealed class MarketplaceTests : IDisposable
 
         Convert.ToHexString(all.PopBytes(all.Remaining)).Should().Be("00000002000000050000000601");
         Convert.ToHexString(clear.PopBytes(clear.Remaining)).Should().Be("01");
+    }
+
+    [Fact]
+    public async Task A_sale_waits_in_the_earnings_vault_and_its_claim_pays_the_seller()
+    {
+        var vault = new IncomeRewardService([new MarketplaceIncomeRewardSource(_marketplace)]);
+        var first = Give(SELLER, CHAIR);
+        var second = Give(SELLER, LAMP);
+        await _marketplace.MakeOfferAsync(SELLER, 100, [-first], Ct);
+        await _marketplace.MakeOfferAsync(SELLER, 50, [-second], Ct);
+
+        foreach (var offer in (await _marketplace.SearchOffersAsync(-1, -1, "", 1, true, Ct)).Offers)
+            await _marketplace.BuyOfferAsync(BUYER, offer.OfferId, Ct);
+
+        // The online seller hears of each sale as Flash's "notification.earning.new" for category 3.
+        _catalog
+            .Fakes.Log.Of("TrySendComposerAsync")
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(
+                Enumerable.Repeat(
+                    new IncomeRewardNotificationMessageComposer
+                    {
+                        RewardCategory = VaultRewardCategoryType.Marketplace,
+                    },
+                    2
+                )
+            );
+
+        // 100 -> 97 and 50 -> 48 after the fee (calculateFinalPrice), one credits row per sale.
+        (await vault.GetRewardsAsync(SELLER, Ct))
+            .Select(x => (x.RewardCategory, x.RewardType, x.Amount, x.ProductCode))
+            .Should()
+            .BeEquivalentTo([
+                (VaultRewardCategoryType.Marketplace, VaultRewardType.Credits, 97, ""),
+                (VaultRewardCategoryType.Marketplace, VaultRewardType.Credits, 48, ""),
+            ]);
+        (await vault.GetRewardsAsync(BUYER, Ct)).Should().BeEmpty();
+
+        (await vault.ClaimAsync(SELLER, VaultRewardCategoryType.Achievements, Ct))
+            .Should()
+            .BeFalse();
+        _credits[SELLER].Should().Be(0);
+
+        (await vault.ClaimAsync(SELLER, VaultRewardCategoryType.Marketplace, Ct))
+            .Should()
+            .BeTrue();
+        _credits[SELLER].Should().Be(145);
+        (await vault.GetRewardsAsync(SELLER, Ct)).Should().BeEmpty();
+        (await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct)).CreditsWaiting.Should().Be(0);
+
+        (await vault.ClaimAsync(SELLER, VaultRewardCategoryType.All, Ct)).Should().BeTrue();
+        _credits[SELLER].Should().Be(145);
+    }
+
+    [Fact]
+    public void Earnings_packets_are_written_and_read_as_Flash_does()
+    {
+        // IncomeRewardClaimMessageComposer: one signed byte, -1 for Claim All.
+        PacketHarness
+            .Parse(
+                PacketHarness.Incoming("IncomeRewardClaimMessageEvent"),
+                PacketHarness.Payload(w => w.Byte(0xFF))
+            )
+            .Should()
+            .Be(new IncomeRewardClaimMessage { RewardCategory = VaultRewardCategoryType.All });
+        PacketHarness
+            .Parse(
+                PacketHarness.Incoming("IncomeRewardClaimMessageEvent"),
+                PacketHarness.Payload(w => w.Byte(3))
+            )
+            .Should()
+            .Be(
+                new IncomeRewardClaimMessage
+                {
+                    RewardCategory = VaultRewardCategoryType.Marketplace,
+                }
+            );
+
+        var status = PacketHarness.Encode(
+            new IncomeRewardStatusMessageComposer
+            {
+                IncomeRewards =
+                [
+                    new IncomeRewardSnapshot
+                    {
+                        RewardCategory = VaultRewardCategoryType.Marketplace,
+                        RewardType = VaultRewardType.Credits,
+                        Amount = 97,
+                        ProductCode = "",
+                    },
+                ],
+            }
+        );
+        var claimAll = PacketHarness.Encode(
+            new IncomeRewardClaimResponseMessageComposer
+            {
+                RewardCategory = VaultRewardCategoryType.All,
+                Result = true,
+            }
+        );
+        var notification = PacketHarness.Encode(
+            new IncomeRewardNotificationMessageComposer
+            {
+                RewardCategory = VaultRewardCategoryType.Marketplace,
+            }
+        );
+
+        // EarningsView adds rewardType 1 into CreditValue (EarningsView.as:118).
+        Convert
+            .ToHexString(status.PopBytes(status.Remaining))
+            .Should()
+            .Be("00000001" + "03" + "01" + "00000061" + "0000");
+        Convert.ToHexString(claimAll.PopBytes(claimAll.Remaining)).Should().Be("FF01");
+        Convert.ToHexString(notification.PopBytes(notification.Remaining)).Should().Be("03");
     }
 
     private static MarketplaceOfferSnapshot Row(

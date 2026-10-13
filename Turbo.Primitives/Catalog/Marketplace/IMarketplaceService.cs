@@ -70,6 +70,12 @@ public interface IMarketplaceService
     /// </summary>
     public Task<bool> ClearOwnHistoryAsync(PlayerId player, int category, CancellationToken ct);
 
+    /// <summary>The revenue of each sold offer not yet paid out, oldest sale first.</summary>
+    public Task<ImmutableArray<int>> GetUnredeemedRevenueAsync(
+        PlayerId player,
+        CancellationToken ct
+    );
+
     /// <summary>Pays out the revenue of the seller's sold offers; returns the credits paid.</summary>
     public Task<int> RedeemCreditsAsync(PlayerId player, CancellationToken ct);
 }

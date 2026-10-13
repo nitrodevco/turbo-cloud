@@ -3708,6 +3708,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(IncomeRewardNotificationMessageComposer),
+                new IncomeRewardNotificationMessageComposerSerializer(
+                    MessageComposer.IncomeRewardNotificationMessageComposer
+                )
+            },
+            {
                 typeof(ChestPreferencesUpdateSuccessMessageComposer),
                 new ChestPreferencesUpdateSuccessMessageComposerSerializer(
                     MessageComposer.ChestPreferencesUpdateSuccessMessageComposer

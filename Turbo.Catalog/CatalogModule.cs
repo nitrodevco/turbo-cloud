@@ -9,6 +9,7 @@ using Turbo.Catalog.Editing;
 using Turbo.Catalog.Marketplace;
 using Turbo.Catalog.Providers;
 using Turbo.Catalog.Reception;
+using Turbo.Catalog.Vault;
 using Turbo.Catalog.Vouchers;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
@@ -20,6 +21,7 @@ using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Hotel;
+using Turbo.Primitives.Vault;
 
 namespace Turbo.Catalog;
 
@@ -40,6 +42,8 @@ public sealed class CatalogModule : IHostPluginModule
         services.AddSingleton<IExpiringPageService, ExpiringPageService>();
         services.AddSingleton<IVoucherService, VoucherService>();
         services.AddSingleton<IMarketplaceService, MarketplaceService>();
+        services.AddSingleton<IIncomeRewardSource, MarketplaceIncomeRewardSource>();
+        services.AddSingleton<IIncomeRewardService, IncomeRewardService>();
         services.AddSingleton<IPromoArticleService, PromoArticleService>();
         services.AddSingleton<ICommunityGoalService, CommunityGoalService>();
         services.AddSingleton<IGiftWrappingProvider, GiftWrappingProvider>();
