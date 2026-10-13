@@ -102,7 +102,8 @@ public sealed class HabboClubStartNoticeTests : IDisposable
     [Fact]
     public async Task The_club_info_asked_for_is_followed_by_the_gift_notice_when_gifts_wait()
     {
-        await Handler().HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
+        await Handler()
+            .HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
 
         _fakes.Log.Of("SendClubInfoAsync").Should().ContainSingle();
         _fakes
@@ -119,7 +120,8 @@ public sealed class HabboClubStartNoticeTests : IDisposable
     {
         _fakes.Handlers["GetClubGiftInfoAsync"] = _ => Task.FromResult(ClubGiftInfoSnapshot.Empty);
 
-        await Handler().HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
+        await Handler()
+            .HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
 
         _fakes
             .Log.Of("SendComposerAsync")

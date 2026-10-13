@@ -128,7 +128,8 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                 continue;
             }
 
-            var tile = avatar.NextTileId >= 0 ? avatar.NextTileId : MapModule.ToIdx(avatar.X, avatar.Y);
+            var tile =
+                avatar.NextTileId >= 0 ? avatar.NextTileId : MapModule.ToIdx(avatar.X, avatar.Y);
 
             if (tile == tileIdx)
             {
