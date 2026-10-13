@@ -21,6 +21,10 @@ public sealed partial class RoomWiredSystem
     private readonly HashSet<int> _dirtyVariableBoxIds = [];
     private readonly Dictionary<int, WiredVariableId> _variableIdBoxId = [];
     private readonly Dictionary<WiredVariableId, IWiredVariable> _variableById = [];
+
+    // The hashed ids built-in variables had before they took Habbo's fixed ones, for boxes saved
+    // with them.
+    private readonly Dictionary<WiredVariableId, WiredVariableId> _legacyVariableIds = [];
     private readonly Dictionary<int, List<WiredVariableId>> _subVariableIdsByBoxId = [];
     private readonly FurnitureActiveStore _furnitureActiveStore = new();
     private readonly PlayerActiveStore _playerActiveStore = new();
@@ -33,6 +37,12 @@ public sealed partial class RoomWiredSystem
     public IWiredVariable? GetVariableById(WiredVariableId id)
     {
         if (_variableById.TryGetValue(id, out var variable))
+            return variable;
+
+        if (
+            _legacyVariableIds.TryGetValue(id, out var currentId)
+            && _variableById.TryGetValue(currentId, out variable)
+        )
             return variable;
 
         return null;
@@ -106,12 +116,15 @@ public sealed partial class RoomWiredSystem
 
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct)
     {
-        // A smart variable comes and goes with the furni of its kind: the list is built again
-        // whenever which of them are present changes.
+        // Every smart variable is listed, invisible while nothing of its kind is in the room: the
+        // list is described again whenever which of them are present changes.
         var present = PresentSmartVariables();
 
         if (_variablesSnapshot is null || !present.SetEquals(_presentSmartVariables))
         {
+            foreach (var smart in _variableById.Values.OfType<IWiredSmartVariable>())
+                smart.RefreshPresence();
+
             _presentSmartVariables = present;
             _variablesSnapshot = BuildVariablesSnapshot();
         }
@@ -451,6 +464,14 @@ public sealed partial class RoomWiredSystem
 
         _variableById[snapshot.VariableId] = variable;
 
+        if (variable is WiredInternalVariable internalVariable)
+        {
+            var legacyId = internalVariable.LegacyVariableId;
+
+            if (legacyId != snapshot.VariableId)
+                _legacyVariableIds[legacyId] = snapshot.VariableId;
+        }
+
         return true;
     }
 
@@ -476,11 +497,8 @@ public sealed partial class RoomWiredSystem
         var hashes = new List<WiredVariableHash>();
         var snapshots = new List<WiredVariableSnapshot>(_variableById.Count);
 
-        foreach (var (id, variable) in _variableById)
+        foreach (var variable in _variableById.Values)
         {
-            if (variable is IWiredSmartVariable && !_presentSmartVariables.Contains(id))
-                continue;
-
             var snapshot = variable.GetVarSnapshot();
 
             hashes.Add(snapshot.VariableHash);

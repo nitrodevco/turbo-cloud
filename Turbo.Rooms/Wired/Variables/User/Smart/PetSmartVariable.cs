@@ -9,7 +9,7 @@ namespace Turbo.Rooms.Wired.Variables.User.Smart;
 
 /// <summary>
 /// A smart user variable (<c>~pet.*</c>, <c>~horse.*</c>, <c>~plant.*</c>): held by every pet
-/// <see cref="AppliesTo"/> accepts, and listed only while one of them is in the room. Listed
+/// <see cref="AppliesTo"/> accepts, and listed always, invisible while none is in the room. Listed
 /// after the internal user variables, as the furni smart variables are after theirs.
 /// </summary>
 public abstract class PetSmartVariable(RoomGrain roomGrain)

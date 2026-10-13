@@ -26,12 +26,13 @@ public sealed class UserGenderVariable(RoomGrain roomGrain)
     /// <summary>What an avatar that has no gender of its own reads as.</summary>
     private const int UNKNOWN_GENDER = -1;
 
+    // Habbo's labels (hhus, WIN63-202610121709).
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         new()
         {
             [WiredVariableValue.Parse(UNKNOWN_GENDER)] = "Unknown",
-            [WiredVariableValue.Parse((int)AvatarGenderType.Male)] = "Male",
-            [WiredVariableValue.Parse((int)AvatarGenderType.Female)] = "Female",
+            [WiredVariableValue.Parse((int)AvatarGenderType.Male)] = "M",
+            [WiredVariableValue.Parse((int)AvatarGenderType.Female)] = "F",
         };
 
     protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>

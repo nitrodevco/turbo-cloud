@@ -25,8 +25,13 @@ public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
         | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        Enum.GetValues<FurnitureOwnershipType>()
-            .ToDictionary(x => WiredVariableValue.Parse((int)x), x => x.ToString());
+        // Habbo's labels (hhus, WIN63-202610121709).
+        new()
+        {
+            [WiredVariableValue.Parse((int)FurnitureOwnershipType.Normal)] = "Normal",
+            [WiredVariableValue.Parse((int)FurnitureOwnershipType.BuildersClub)] = "BC",
+            [WiredVariableValue.Parse((int)FurnitureOwnershipType.Temporary)] = "Temp",
+        };
 
     protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
         WiredVariableValue.Parse((int)item.Ownership);

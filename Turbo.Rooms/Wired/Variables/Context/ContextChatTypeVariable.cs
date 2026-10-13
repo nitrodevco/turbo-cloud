@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -18,7 +19,16 @@ public sealed class ContextChatTypeVariable(RoomGrain roomGrain) : ContextVariab
     // leave room for the @event.* ones still to come.
     protected override ushort Order => 50;
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
+        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
+
+    // Habbo's labels (hhus, WIN63-202610121709).
+    protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
+        new()
+        {
+            [WiredVariableValue.Parse(0)] = "Talk",
+            [WiredVariableValue.Parse(1)] = "Shout",
+            [WiredVariableValue.Parse(2)] = "Whisper",
+        };
 
     protected override WiredVariableValue GetValueForExecution(WiredRunningExecution execution) =>
         execution.Event is PlayerChatEvent chat ? (int)chat.ChatType : 0;

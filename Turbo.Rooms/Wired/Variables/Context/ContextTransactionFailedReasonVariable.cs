@@ -18,9 +18,7 @@ public sealed class ContextTransactionFailedReasonVariable(RoomGrain roomGrain)
     protected override ushort Order => 18;
 
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue
-        | WiredVariableFlags.AlwaysAvailable
-        | WiredVariableFlags.HasTextConnector;
+        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         new()

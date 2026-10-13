@@ -24,7 +24,9 @@ public sealed class UserTeamColorVariable(RoomGrain roomGrain)
         WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
+        // Habbo labels the four teams only (hhus, WIN63-202610121709).
         Enum.GetValues<GameTeamType>()
+            .Where(v => v != GameTeamType.None)
             .ToDictionary(v => WiredVariableValue.Parse((int)v), v => v.ToString());
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>

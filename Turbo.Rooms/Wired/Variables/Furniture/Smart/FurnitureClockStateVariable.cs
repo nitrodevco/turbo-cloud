@@ -19,7 +19,8 @@ public sealed class FurnitureClockStateVariable(RoomGrain roomGrain)
 
     protected override ushort Order => 7;
 
-    protected override WiredVariableFlags Flags => WiredVariableFlags.HasValue;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         Enum.GetValues<WiredClockState>()

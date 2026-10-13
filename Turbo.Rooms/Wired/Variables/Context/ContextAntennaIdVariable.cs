@@ -18,8 +18,7 @@ public sealed class ContextAntennaIdVariable(RoomGrain roomGrain) : ContextVaria
     // The official client's Creator Tools list the context variables in this order; the gaps
     // leave room for the @event.* ones still to come.
     protected override ushort Order => 60;
-    protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
+    protected override WiredVariableFlags Flags => WiredVariableFlags.HasValue;
 
     protected override WiredVariableValue GetValueForExecution(WiredRunningExecution execution) =>
         execution.Event is WiredSignalEvent signal

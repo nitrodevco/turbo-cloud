@@ -15,7 +15,8 @@ public sealed class RoomGroupIdVariable(RoomGrain roomGrain) : RoomVariable(room
     // After @room_id, before @current_time (20), as the official list has it.
     protected override ushort Order => 25;
 
-    protected override WiredVariableFlags Flags => WiredVariableFlags.HasValue;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
     public override bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
     {

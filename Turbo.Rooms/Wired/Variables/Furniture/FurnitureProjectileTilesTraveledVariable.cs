@@ -8,7 +8,9 @@ namespace Turbo.Rooms.Wired.Variables.Furniture;
 public sealed class FurnitureProjectileTilesTraveledVariable(RoomGrain roomGrain)
     : FurnitureProjectileVariable(roomGrain)
 {
-    protected override string VariableName => "@projectile.animation.tiles_traveled";
+    protected override string VariableName => "@projectile.animation.tiles_travelled";
+
+    protected override string LegacyVariableName => "@projectile.animation.tiles_traveled";
 
     protected override ushort Order => 19;
 

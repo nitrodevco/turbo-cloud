@@ -5,14 +5,17 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User.Smart;
 
 /// <summary>
-/// <c>~plant.remaining_growth_seconds</c> (Wired Faculty tutorial "Monster Plant growth time FX",
+/// <c>~plant.remaining_growing_seconds</c> (Wired Faculty tutorial "Monster Plant growth time FX",
 /// 23/09/2026): Seconds until the monsterplant is fully grown, 0 once it is. The tutorial's status
 /// bar counts it down from 172800, the two days a plant grows. Read only.
 /// </summary>
 public sealed class PlantRemainingGrowthSecondsVariable(RoomGrain roomGrain)
     : PlantSmartVariable(roomGrain)
 {
-    protected override string VariableName => "~plant.remaining_growth_seconds";
+    // Habbo's name (hhus, WIN63-202610121709); the id was once hashed from the old one.
+    protected override string VariableName => "~plant.remaining_growing_seconds";
+
+    protected override string LegacyVariableName => "~plant.remaining_growth_seconds";
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPet pet) =>
         PetModule.RemainingGrowingSeconds(pet);

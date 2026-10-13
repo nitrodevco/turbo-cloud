@@ -26,7 +26,7 @@ public abstract class FurnitureProjectileVariable(RoomGrain roomGrain)
 
     /// <summary>
     /// What this variable is worth on that flight, or false when the flight holds nothing for
-    /// it. That is how <c>@projectile.animation.is_traveling</c>, a flag with no value of its
+    /// it. That is how <c>@projectile.animation.is_travelling</c>, a flag with no value of its
     /// own, says the furni is not flying right now.
     /// </summary>
     private protected abstract bool TryGetValueForFlight(

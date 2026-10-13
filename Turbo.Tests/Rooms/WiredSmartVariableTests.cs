@@ -33,8 +33,11 @@ public sealed class WiredSmartVariableTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_smart_variable_is_listed_only_while_its_furni_is_in_the_room()
+    public async Task A_smart_variable_is_listed_invisible_until_its_furni_is_in_the_room()
     {
+        // hhus lists every smart variable, invisible in a room without their furni
+        // (WiredAllVariablesDiffs, WIN63-202610121709: ~teleport.target_id as "~103", invisible,
+        // in a room with no linker; ~clock.* visible beside a clock).
         var variable = new FurnitureTeleportTargetVariable(_room.Harness.Room);
         var id = variable.GetVarSnapshot().VariableId;
         var byId = (IDictionary)
@@ -42,11 +45,14 @@ public sealed class WiredSmartVariableTests
 
         byId[id] = variable;
 
-        (await Listed()).Should().NotContain(id);
+        (await Listed()).Should().Contain(id);
+        id.ToString().Should().Be("~103");
+        variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.IsInvisible).Should().BeTrue();
 
         AddLinker();
 
         (await Listed()).Should().Contain(id);
+        variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.IsInvisible).Should().BeFalse();
         variable.GetVarSnapshot().VariableType.Should().Be(WiredVariableType.Smart);
         variable.GetVarSnapshot().VariableName.Should().Be("~teleport.target_id");
     }

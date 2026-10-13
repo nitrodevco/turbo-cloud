@@ -702,8 +702,8 @@ public abstract partial class FurnitureWiredLogic(
                 variableIds.Add(
                     slot < proposed.Count
                     && WiredVariableId.TryParse(proposed[slot], out var slotId)
-                    && WiredSystem.GetVariableById(slotId) is not null
-                        ? slotId
+                    && WiredSystem.GetVariableById(slotId) is { } slotVariable
+                        ? slotVariable.GetVarSnapshot().VariableId
                         : NO_VARIABLE
                 );
             }
@@ -730,7 +730,13 @@ public abstract partial class FurnitureWiredLogic(
             if (!WiredVariableId.TryParse(id, out var variableId))
                 continue;
 
-            if (variableIds.Contains(variableId) || WiredSystem.GetVariableById(variableId) is null)
+            // An id saved before built-in variables took Habbo's fixed ids is stored as the new one.
+            if (WiredSystem.GetVariableById(variableId) is not { } variable)
+                continue;
+
+            variableId = variable.GetVarSnapshot().VariableId;
+
+            if (variableIds.Contains(variableId))
                 continue;
 
             variableIds.Add(variableId);

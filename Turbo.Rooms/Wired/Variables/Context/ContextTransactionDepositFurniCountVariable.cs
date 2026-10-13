@@ -16,8 +16,7 @@ public sealed class ContextTransactionDepositFurniCountVariable(RoomGrain roomGr
     // The official client's Creator Tools list the context variables in this order.
     protected override ushort Order => 22;
 
-    protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
+    protected override WiredVariableFlags Flags => WiredVariableFlags.HasValue;
 
     protected override WiredVariableValue GetValueForExecution(WiredRunningExecution execution) =>
         execution.Event is WiredTransactionCompletedEvent e ? e.DepositFurniCount : 0;

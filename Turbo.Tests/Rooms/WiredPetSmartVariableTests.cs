@@ -39,22 +39,39 @@ public sealed class WiredPetSmartVariableTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Pet_variables_are_listed_only_while_a_pet_of_their_kind_is_in_the_room()
+    public async Task Pet_variables_are_listed_invisible_until_a_pet_of_their_kind_is_in_the_room()
     {
+        // hhus lists ~pet.*, ~horse.* and ~plant.* in a room with no pet in it, invisible
+        // (WiredAllVariablesDiffs, WIN63-202610121709).
         var level = Register(new PetLevelVariable(_room.Harness.Room));
         var saddle = Register(new HorseHasSaddleVariable(_room.Harness.Room));
         var wellbeing = Register(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room));
 
-        (await Listed()).Should().NotContain([level, saddle, wellbeing]);
+        (await Listed()).Should().Contain([level, saddle, wellbeing]);
+        new[] { level, saddle, wellbeing }
+            .Select(x => x.ToString())
+            .Should()
+            .Equal("~400", "~500", "~615");
+        Invisible().Should().Equal(true, true, true);
 
         AddPet(DOG, PetTypes.DOG);
+        await Listed();
 
-        (await Listed()).Should().Contain(level).And.NotContain([saddle, wellbeing]);
+        Invisible().Should().Equal(false, true, true);
 
         AddPet(HORSE, PetTypes.HORSE);
         AddPet(PLANT, PetTypes.MONSTERPLANT);
+        await Listed();
 
-        (await Listed()).Should().Contain([level, saddle, wellbeing]);
+        Invisible().Should().Equal(false, false, false);
+
+        IEnumerable<bool> Invisible() =>
+            new[] { level, saddle, wellbeing }.Select(id =>
+                _room
+                    .Harness.Room.WiredSystem.GetVariableById(id)!
+                    .GetVarSnapshot()
+                    .Flags.Has(WiredVariableFlags.IsInvisible)
+            );
     }
 
     [Fact]

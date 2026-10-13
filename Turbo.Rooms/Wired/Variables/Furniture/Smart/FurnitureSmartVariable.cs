@@ -9,7 +9,7 @@ namespace Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
 /// <summary>
 /// A smart furni variable: held by every furni whose logic is <typeparamref name="TLogic"/>, and
-/// listed only while one of them is in the room. Smart variables are listed above the internal
+/// listed always, invisible while none is in the room. Smart variables are listed above the internal
 /// ones of their band, as the official client's Creator Tools list <c>~clock.*</c> above
 /// <c>@id</c>.
 /// </summary>

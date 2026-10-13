@@ -15,6 +15,21 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
 {
     protected abstract string VariableName { get; }
 
+    /// <summary>The name the variable had when its id was hashed from it, if it changed since.</summary>
+    protected virtual string? LegacyVariableName => null;
+
+    /// <summary>
+    /// The hashed id the variable had before it took Habbo's fixed one; boxes saved with it still
+    /// find the variable through it.
+    /// </summary>
+    public WiredVariableId LegacyVariableId =>
+        WiredVariableIdBuilder.CreateInternalOrdered(
+            TargetType,
+            LegacyVariableName ?? VariableName,
+            SubBandType,
+            Order
+        );
+
     protected virtual WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
     protected virtual ushort Order => 10;
@@ -42,6 +57,8 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
     }
 
     private WiredVariableSnapshot? _snapshot;
+
+    public void RefreshPresence() => _snapshot = null;
 
     public virtual bool CanBind(in WiredVariableKey key)
     {
@@ -75,7 +92,10 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
 
     private WiredVariableSnapshot BuildSnapshot()
     {
-        var flags = Flags;
+        var flags =
+            this is IWiredSmartVariable smart && !smart.IsPresent()
+                ? Flags | WiredVariableFlags.IsInvisible
+                : Flags;
         var variableHash = WiredVariableHashBuilder.HashValues(
             VariableName,
             AvailabilityType,
@@ -84,12 +104,9 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain)
             GetTextConnectors()
         );
 
-        var variableId = WiredVariableIdBuilder.CreateInternalOrdered(
-            TargetType,
-            VariableName,
-            SubBandType,
-            Order
-        );
+        var variableId = HabboVariableIds.TryGet(TargetType, VariableName, out var habboId)
+            ? habboId
+            : LegacyVariableId;
 
         return new()
         {
