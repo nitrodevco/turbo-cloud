@@ -23,20 +23,23 @@ namespace Turbo.Operations.Commands;
 public sealed record GiftArguments(
     [Selectors(PermissionNodes.Command.GIVE_MASS)] PlayerTarget Who,
     [Suggest(SuggestionSources.FURNI)] string Furni,
-    [CommandParameter(Description = "The note on the tag, in double quotes")] string Message,
-    [CommandParameter(Description = "A badge given as it is opened")] string? Badge = null,
-    [CommandParameter(Description = "Drop the client's warning about the sender")]
-        bool Trusted = false
+    [CommandParameter(Description = "In double quotes: the note on the tag", Quoted = true)]
+        string Note,
+    [CommandParameter(Description = "A badge code, or - for none")] string? Badge = null,
+    [CommandParameter(Description = "true hides the unknown sender warning")] bool Trusted = false
 );
 
 /// <summary>
-/// <c>:gift name furni_name "message" [BADGE] [trusted]</c>. Sends a player a present from the
+/// <c>:gift name furni_name "note" [BADGE] [trusted]</c>. Sends a player a present from the
 /// hotel, as Habbo's staff send theirs ("Thanks for playing Habbo. Enjoy the dragon lamp and the
 /// badge!"): the tag names no sender, so the client shows its "Special Gift" card with no face,
 /// and the badge, if any, is given as the present is opened. The client still warns that a gift
 /// can come from anyone unless <c>trusted</c> is given; Habbo's own staff gift leaves it on. The
 /// present is one of the gift wrapped boxes the catalog offers, so it opens with their burst.
-/// <c>@room</c> and <c>@online</c> need <c>command.give.mass</c> and are always logged.
+/// <c>@room</c> and <c>@online</c> need <c>command.give.mass</c> and are always logged. The note
+/// must be quoted and a yes/no word is not a badge, so a line that mixes up the order
+/// (<c>:gift bob throne false true</c>, <c>:gift bob throne "Hi" false true</c>) is refused with
+/// the usage rather than sent with the note or the badge "false".
 /// </summary>
 [Command(
     "gift",
@@ -51,6 +54,21 @@ public sealed class GiftCommand(
     IOptions<OperationsConfig> config
 ) : IOperatorCommand<GiftArguments>
 {
+    private const string USAGE = ":gift <who> <furni> \"<note>\" [badge] [trusted]";
+
+    /// <summary>The words the binder reads as a yes or no, none of them a badge.</summary>
+    private static readonly HashSet<string> YesNoWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off",
+        "1",
+        "0",
+    };
+
     private const string SENT = "sent";
     private const string SENT_MANY = "sent_many";
     private const string FAILED = "failed";
@@ -58,6 +76,7 @@ public sealed class GiftCommand(
     private const string NOT_GIFTABLE = "not_giftable";
     private const string NO_WRAPPING = "no_wrapping";
     private const string BAD_MESSAGE = "bad_message";
+    private const string BAD_BADGE = "bad_badge";
 
     public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
         new Dictionary<string, string>
@@ -70,6 +89,7 @@ public sealed class GiftCommand(
             [NO_WRAPPING] =
                 "There is no present box to wrap it in; check the gift wrapping config.",
             [BAD_MESSAGE] = "The note must be between 1 and %0% characters.",
+            [BAD_BADGE] = "%0% is not a badge code. Leave it out, or write - for none. Usage: %1%",
         };
 
     public async ValueTask<CommandResult> ExecuteAsync(
@@ -79,7 +99,11 @@ public sealed class GiftCommand(
     )
     {
         var maxLength = config.Value.MaxGiftMessageLength;
-        var message = arguments.Message.Trim();
+        var message = arguments.Note.Trim();
+        var badge = string.IsNullOrWhiteSpace(arguments.Badge) ? null : arguments.Badge.Trim();
+
+        if (badge is not null && YesNoWords.Contains(badge))
+            return CommandResult.Fail(BAD_BADGE, badge, USAGE);
 
         if (message.Length < 1 || message.Length > maxLength)
             return CommandResult.Fail(
@@ -110,7 +134,7 @@ public sealed class GiftCommand(
             FurniDefinitionId = content.Id,
             PresentDefinitionId = present.Id,
             Message = message,
-            BadgeCode = string.IsNullOrWhiteSpace(arguments.Badge) ? null : arguments.Badge.Trim(),
+            BadgeCode = badge,
             TrustedSender = arguments.Trusted,
         };
 

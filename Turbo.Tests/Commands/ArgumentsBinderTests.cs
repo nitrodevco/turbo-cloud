@@ -128,6 +128,46 @@ public class ArgumentsBinderTests
         args.Trusted.Should().Be(trusted);
     }
 
+    [Theory]
+    [InlineData("false true")] // the note "false" was not meant
+    [InlineData("Hi")]
+    [InlineData("Hi ACH_1 true")]
+    public void Bind_AQuotedParameterWrittenWithoutQuotes_IsRefusedWithTheUsage(string line)
+    {
+        var result = NoteBinder().Bind(line, _room);
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorKey.Should().Be(CommandReplyKeys.NOT_QUOTED);
+        result.Parameters.Should().Equal("note", ":note <note> [badge] [trusted]");
+        result.ErrorStart.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("\"false\" true", "false", null, true)]
+    [InlineData("\"Thanks for playing\" ACH_1", "Thanks for playing", "ACH_1", false)]
+    [InlineData("\"Hi\" - true", "Hi", null, true)]
+    public void Bind_AQuotedParameterInQuotes_Binds(
+        string line,
+        string note,
+        string? badge,
+        bool trusted
+    )
+    {
+        var result = NoteBinder().Bind(line, _room);
+
+        result.Succeeded.Should().BeTrue(result.ErrorKey);
+        result.Arguments.Should().Be(new NoteArguments(note, badge, trusted));
+    }
+
+    private static ICommandBinder NoteBinder()
+    {
+        var provider = new CommandRegistryProvider(new CapturingLogger<ICommandRegistryProvider>());
+        provider.Register([new NoteCommand()]);
+        provider.Current.TryFind("note", out var note);
+
+        return note.Binder;
+    }
+
     [Fact]
     public void Bind_AWordAFlagCannotTake_StillGoesToTheOptionalBeforeIt()
     {

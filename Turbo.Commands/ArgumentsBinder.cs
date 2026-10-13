@@ -312,6 +312,17 @@ internal sealed class ArgumentsBinder : ICommandBinder
                         ErrorEnd = read.End,
                     };
                 token = read.Text;
+
+                if (parameter.Limits.Quoted && argumentText[start] != '"')
+                    return CommandBindResult.Failure(
+                        CommandReplyKeys.NOT_QUOTED,
+                        parameter.Name.ToLowerInvariant(),
+                        Usage
+                    ) with
+                    {
+                        ErrorStart = start,
+                        ErrorEnd = position,
+                    };
             }
 
             // An optional the typist skipped: `""` or `-` stands for its default, and a word a
@@ -609,6 +620,10 @@ internal sealed class ArgumentsBinder : ICommandBinder
         )
             throw new InvalidOperationException(
                 $"Command '{commandName}': numeric limits require an integer parameter."
+            );
+        if (limits.Quoted && kind != Kind.Word)
+            throw new InvalidOperationException(
+                $"Command '{commandName}': only a string parameter can require quotes ('{info.Name}')."
             );
         if (
             (
