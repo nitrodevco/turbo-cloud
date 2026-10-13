@@ -83,6 +83,10 @@ public sealed class ClubExtendOfferTests
     [Fact]
     public async Task a_member_is_offered_the_renewal()
     {
-        (await AskAsync(2 * 86400)).Should().ContainSingle().Which.Should().BeOfType<HabboClubExtendOfferMessageComposer>();
+        (await AskAsync(2 * 86400))
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<HabboClubExtendOfferMessageComposer>();
     }
 }
