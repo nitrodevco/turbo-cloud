@@ -292,13 +292,56 @@ internal sealed partial class GuildGrain
             return GuildMemberMgmtResultSnapshot.Failed(GuildMemberMgmtFailedType.NoLongerMember);
 
         if (block && !leaving && _guildConfig.BlockingEnabled)
+        {
             await AddOrUpdateMemberAsync(targetId, GuildMemberRank.Blocked, ct);
+            await PublishMembershipUpdatedAsync(targetId, ct);
+        }
         else
+        {
             await RemoveMemberAsync(targetId, ct);
-
-        await PublishMembershipUpdatedAsync(targetId, ct);
+            await PublishMemberRemovedAsync(targetId, ct);
+        }
 
         return GuildMemberMgmtResultSnapshot.Success();
+    }
+
+    /// <summary>
+    /// What the removed player is told, in Habbo's order: the membership is gone, their profile
+    /// (its group list) changed, and the group's details changed (official client capture
+    /// 2026-10-13, leaving open group 402778: GuildMembershipRejected, ExtendedProfileChanged,
+    /// GroupDetailsChanged in one tick, no GuildMembershipUpdated). The managers get the same
+    /// GuildMembershipRejected, which refreshes an open members page
+    /// (GuildMembersWindowCtrl.as:147-153); that, and the same replies for a member removed by an
+    /// admin, is not recorded.
+    /// </summary>
+    private async Task PublishMemberRemovedAsync(PlayerId playerId, CancellationToken ct)
+    {
+        if (_state.Guild is not { } guild)
+            return;
+
+        var rejected = new GuildMembershipRejectedMessageComposer
+        {
+            GuildId = guild.GuildId,
+            PlayerId = playerId,
+        };
+
+        await _grainFactory.SendComposerToPlayersAsync(
+            ManagerIds().Where(id => id != playerId),
+            rejected,
+            ct
+        );
+
+        await _grainFactory.SendComposerToPlayerAsync(playerId, rejected, ct);
+        await _grainFactory.SendComposerToPlayerAsync(
+            playerId,
+            new ExtendedProfileChangedMessageComposer { UserId = playerId.Value },
+            ct
+        );
+        await _grainFactory.SendComposerToPlayerAsync(
+            playerId,
+            new GroupDetailsChangedMessageComposer { GuildId = guild.GuildId },
+            ct
+        );
     }
 
     public async Task<GuildMemberMgmtResultSnapshot> UnblockAsync(
