@@ -133,14 +133,13 @@ public class WiredTriggerHabboSaysKeyword(
         return exact ? $"^{pattern}$" : pattern;
     }
 
-    public override async Task<bool> CanTriggerAsync(
-        IWiredProcessingContext ctx,
-        CancellationToken ct
-    )
-    {
-        if (ctx.Event is not PlayerChatEvent chatEvt)
-            return false;
+    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
+        ctx.Event is PlayerChatEvent chatEvt
+            ? SpeakerMayTriggerAsync(chatEvt, ct)
+            : Task.FromResult(false);
 
+    private async Task<bool> SpeakerMayTriggerAsync(PlayerChatEvent chatEvt, CancellationToken ct)
+    {
         if (!GetIntParamOrDefault(OWNER_ONLY_PARAM_INDEX, false))
             return true;
 
@@ -149,6 +148,16 @@ public class WiredTriggerHabboSaysKeyword(
         return snapshot.OwnerId == chatEvt.PlayerId;
     }
 
-    /// <summary>Whether the keyword should not be shown to the room (honoured by the chat path).</summary>
+    /// <summary>Whether the keyword should not be shown to the room.</summary>
     public bool ShouldHideMessage() => GetIntParamOrDefault(HIDE_PARAM_INDEX, false);
+
+    /// <summary>
+    /// Whether this box takes <paramref name="chatEvt"/> out of the room's chat: it hides, and it
+    /// fires for this line and this speaker. The chat path then shows the line to its speaker
+    /// alone.
+    /// </summary>
+    public async Task<bool> HidesAsync(PlayerChatEvent chatEvt, CancellationToken ct) =>
+        ShouldHideMessage()
+        && await MatchesEventAsync(chatEvt, ct)
+        && await SpeakerMayTriggerAsync(chatEvt, ct);
 }

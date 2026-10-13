@@ -1466,7 +1466,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("ExtraData")
                         .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasColumnType("longtext")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
@@ -1738,7 +1738,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("ExtraData")
                         .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasColumnType("longtext")
                         .HasColumnName("extra_data");
 
                     b.Property<int>("FurnitureDefinitionEntityId")
@@ -5247,7 +5247,8 @@ namespace Turbo.Database.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)")
-                        .HasColumnName("search_code");
+                        .HasColumnName("search_code")
+                        .UseCollation("utf8mb4_bin");
 
                     b.HasKey("Id");
 
@@ -5325,7 +5326,8 @@ namespace Turbo.Database.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)")
-                        .HasColumnName("search_code");
+                        .HasColumnName("search_code")
+                        .UseCollation("utf8mb4_bin");
 
                     b.Property<int>("ViewMode")
                         .HasColumnType("int")

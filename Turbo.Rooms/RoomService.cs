@@ -10,6 +10,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.Nft;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
@@ -532,21 +533,28 @@ internal sealed partial class RoomService(
         var snapshot = view.Room;
         var mapSnapshot = view.Map;
 
-        // The client's initial camera target is the door tile.
+        // The client's initial camera target is the door tile. Its height is read back the way the
+        // client reads the stacking height map: -1 is no tile, the bits below the stacking-blocked
+        // bit are the height x 256 (a blocked tile is negative under Habbo's bit 15).
         var doorTileIndex = mapSnapshot.DoorY * mapSnapshot.Width + mapSnapshot.DoorX;
-        var doorAltitude =
+        var doorEncoded =
             doorTileIndex >= 0 && doorTileIndex < mapSnapshot.TileEncodedHeights.Length
-                ? Altitude.FromValue(
-                    mapSnapshot.TileEncodedHeights[doorTileIndex] < 0
-                        ? 0
-                        : (mapSnapshot.TileEncodedHeights[doorTileIndex] & 0x3FFF) / 256.0
-                )
-                : Altitude.Zero;
+                ? mapSnapshot.TileEncodedHeights[doorTileIndex]
+                : (short)-1;
+        var doorAltitude =
+            doorEncoded == -1
+                ? Altitude.Zero
+                : Altitude.FromValue(
+                    (doorEncoded & ((1 << _roomConfig.StackingBlockedMaskBit) - 1)) / 256.0
+                );
 
         // The whole entry sequence as one batch to the player, in the order the client expects
         // it; it used to go out in eleven sends with a grain call between some of them.
         var composers = new List<IComposer>
         {
+            // Habbo opens every entry with the player's NFT chat styles (an empty list for an account
+            // without any) right before RoomReady (hhus, 2026-10-13); the client resets its styles from it.
+            new UserNftChatStylesMessageComposer { ChatStyleIds = [] },
             new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
             new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = view.CanRate },
             new RoomEntryTileMessageComposer
@@ -621,7 +629,10 @@ internal sealed partial class RoomService(
             }
         );
         composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
-        composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
+
+        // Habbo sends Users even for an empty room, but no UserUpdate with nothing in it (hhus, 2026-10-13).
+        if (view.Avatars.Length > 0)
+            composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
 
         // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
         // replayed to the arriving player as their own updates. Any avatar can carry them; one

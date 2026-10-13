@@ -16,15 +16,15 @@ namespace Turbo.Tests.Rooms;
 
 /// <summary>
 /// The tile heights the room sends (<c>HeightMap</c>, <c>HeightMapUpdate</c>) as the client's
-/// <c>HeightMapMessageParser</c> reads them: -1 is no tile at all, bit 14 marks a tile nothing may be
-/// stacked on, and the low bits are its height × 256. A tile under furniture that blocks stacking
-/// keeps its height - the client checks a moved furni's new tiles against it - and is not -1, which
-/// would tell the client the tile is not part of the room.
+/// <c>HeightMapMessageParser</c> reads them: -1 is no tile at all, bit 15 (Habbo's
+/// <c>room.stacking_blocked_mask_bit</c>) marks a tile nothing may be stacked on, and the bits below
+/// it are a height × 256. Habbo's own starter room (hhus, 2026-10-13): a chair on the floor is
+/// -32768, a shelf-top item standing at 1.0 is -32512 - a blocked tile shows where its top furni
+/// stands, not that furni's top.
 /// </summary>
 public sealed class StackHeightEncodingTests
 {
-    private const int STACKING_BLOCKED = 1 << 14;
-    private const int HEIGHT_MASK = STACKING_BLOCKED - 1;
+    private const int STACKING_BLOCKED = 1 << 15;
 
     private static readonly BindingFlags All =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -32,17 +32,23 @@ public sealed class StackHeightEncodingTests
     private readonly WiredRoom _room = new(8, 8);
 
     [Fact]
-    public void A_tile_under_furniture_that_blocks_stacking_keeps_its_height()
+    public void A_chair_on_the_floor_blocks_stacking_at_floor_height_as_on_habbo()
     {
         AddFurni(1, 3, 3, canStack: false);
 
-        var encoded = Encoded(3, 3);
-
-        encoded.Should().BeGreaterThanOrEqualTo((short)0, "the tile is part of the room");
-        (encoded & STACKING_BLOCKED).Should().Be(STACKING_BLOCKED, "nothing may be stacked on it");
-        ((encoded & HEIGHT_MASK) / 256.0)
+        Encoded(3, 3)
             .Should()
-            .Be(1.0, "the furni's top is its stacking height");
+            .Be(unchecked((short)STACKING_BLOCKED), "hhus sends -32768 for a chair at z 0");
+    }
+
+    [Fact]
+    public void A_blocking_furni_standing_on_another_shows_the_height_it_stands_at()
+    {
+        AddFurni(1, 3, 3, canStack: false, z: 1.0);
+
+        Encoded(3, 3)
+            .Should()
+            .Be(unchecked((short)(STACKING_BLOCKED | 256)), "hhus sends -32512 for z 1");
     }
 
     [Fact]
@@ -70,8 +76,15 @@ public sealed class StackHeightEncodingTests
     private short Encoded(int x, int y) =>
         ((short[])RoomHarness.GetMember(_room.Harness.State, "TileEncodedHeights")!)[(y * 8) + x];
 
-    /// <summary>A plain 1x1 floor furni, 1 high, standing on the floor.</summary>
-    private RoomFloorItem AddFurni(int objectId, int x, int y, bool canStack, double height = 1.0)
+    /// <summary>A plain 1x1 floor furni, 1 high, standing at <paramref name="z"/> (the floor by default).</summary>
+    private RoomFloorItem AddFurni(
+        int objectId,
+        int x,
+        int y,
+        bool canStack,
+        double height = 1.0,
+        double z = 0.0
+    )
     {
         var item = new RoomFloorItem
         {
@@ -105,7 +118,7 @@ public sealed class StackHeightEncodingTests
 
         item.SetExtraData(null);
         item.SetPosition(x, y);
-        item.SetPositionZ(Altitude.Zero);
+        item.SetPositionZ(Altitude.FromValue(z));
         item.SetRotation(Rotation.North);
         item.SetLogic(
             new FurnitureFloorLogic(
