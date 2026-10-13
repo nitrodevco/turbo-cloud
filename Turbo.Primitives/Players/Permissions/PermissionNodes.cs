@@ -134,6 +134,12 @@ public static class PermissionNodes
         public const string KICK = "command.kick";
         public const string MUTE = "command.mute";
 
+        // The furni commands the Flash client sends as chat after its own confirm
+        // (SessionDataManager.pickAllFurniture, pickAllBuilderFurniture, ejectAllFurniture).
+        public const string PICKALL = "command.pickall";
+        public const string PICKALLBC = "command.pickallbc";
+        public const string EJECTALL = "command.ejectall";
+
         /// <summary>Go ahead with a line the server asked to have confirmed.</summary>
         public const string CONFIRM = "command.confirm";
 

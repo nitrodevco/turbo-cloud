@@ -142,6 +142,12 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
     public Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct) =>
         roomGrain.ModerationModule.SetRoomMutedBySystemAsync(muted, ct);
 
+    public Task<int> PickUpAllOwnedAsync(bool buildersClub, CancellationToken ct) =>
+        roomGrain.ActionModule.PickUpAllOwnedAsync(action, buildersClub, ct);
+
+    public Task<int?> EjectAllAsync(CancellationToken ct) =>
+        roomGrain.ActionModule.EjectAllAsync(action, ct);
+
     public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>
         roomGrain.SendComposerToRoomAsync(
             new SpecialRoomEffectMessageComposer { Effect = effect },
