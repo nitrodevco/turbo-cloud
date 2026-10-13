@@ -58,12 +58,6 @@ public abstract class FurnitureWiredConditionLogic(
         }
         catch (Exception ex)
         {
-            WiredSystem.RecordError(
-                ex.GetType().Name,
-                Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
-                _roomGrain.NowMs()
-            );
-
             _roomGrain._logger.LogWarning(
                 ex,
                 "Wired condition {WiredCode} failed in room {RoomId}",
@@ -81,7 +75,8 @@ public abstract class FurnitureWiredConditionLogic(
 
     /// <summary>
     /// Folds per-target outcomes with the box quantifier: zero requires every target to
-    /// match, anything else is satisfied by one. An empty set never matches.
+    /// match, anything else is satisfied by one. Over an empty set "all of them match" holds and
+    /// "any of them matches" does not (official client capture, Has Variable and Variable Value).
     /// </summary>
     protected bool Quantify(IEnumerable<bool> results, bool requireAll)
     {
@@ -95,7 +90,7 @@ public abstract class FurnitureWiredConditionLogic(
             any |= result;
         }
 
-        return any;
+        return requireAll || any;
     }
 
     /// <summary>The client "require all" radio, stored as int param 0 on most conditions.</summary>

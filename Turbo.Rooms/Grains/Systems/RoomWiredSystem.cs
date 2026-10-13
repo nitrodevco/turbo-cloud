@@ -221,6 +221,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (_eventQueue.Count >= _roomGrain._wiredConfig.MaxQueuedEvents)
         {
             _droppedEvents++;
+            RecordError(WiredErrorKind.ExecutorOverload, _roomGrain.NowMs());
 
             return;
         }
@@ -552,7 +553,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     {
         if (evt.Depth > _roomGrain._wiredConfig.MaxDepth)
         {
-            RecordError("WiredCallDepthExceeded", "Action 18", now);
+            RecordError(WiredErrorKind.RecursionTimeout, now);
 
             return;
         }
@@ -758,8 +759,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             }
             catch (Exception ex)
             {
-                RecordError(ex.GetType().Name, GetErrorCategory(action), now);
-
                 _roomGrain._logger.LogWarning(
                     ex,
                     "Wired action {WiredType} {WiredCode} failed in room {RoomId}",
@@ -820,13 +819,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            var box = pending.Actions.FirstOrDefault(a =>
-                a.WiredCode == (int)WiredActionType.CHANGE_VARIABLE
-            );
-
-            if (box is not null)
-                RecordError(ex.GetType().Name, GetErrorCategory(box), _roomGrain.NowMs());
-
             _roomGrain._logger.LogWarning(
                 ex,
                 "Combined wired variable change failed in room {RoomId}",
@@ -999,8 +991,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             catch (Exception ex)
             {
                 var box = (IWiredBox)item.Logic!;
-
-                RecordError(ex.GetType().Name, GetErrorCategory(box), _roomGrain.NowMs());
 
                 _roomGrain._logger.LogWarning(
                     ex,

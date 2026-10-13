@@ -35,11 +35,7 @@ public class WiredActionWriteToLogs(
 
         message = _roomGrain._wordFilter.Filter(await ctx.FormatTextAsync(message, ct));
 
-        WiredSystem.RecordLog(
-            GetIntParamOrDefault(0, WiredLogLevelType.Info),
-            message,
-            _roomGrain.NowMs()
-        );
+        WiredSystem.RecordLog(GetIntParamOrDefault(0, WiredLogLevelType.Info), message);
 
         return true;
     }

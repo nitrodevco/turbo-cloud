@@ -165,7 +165,7 @@ public sealed class WiredPlaceholderSignalChainTests
             .Should()
             .BeTrue();
         now.Value.Should().Be(2);
-        Wired.GetErrorLogs(_now).Select(x => x.ErrorName).Should().Contain("old 1");
+        Wired.GetRoomLogs().Select(x => x.Message).Should().Contain("old 1");
     }
 
     private async Task PlaceholderAsync(int boxId, string name, WiredVariableId variable) =>
@@ -290,6 +290,6 @@ public sealed class WiredPlaceholderSignalChainTests
         );
         await TickAsync(3);
 
-        Wired.GetErrorLogs(_now).Select(x => x.ErrorName).Should().Contain("rank 3");
+        Wired.GetRoomLogs().Select(x => x.Message).Should().Contain("rank 3");
     }
 }

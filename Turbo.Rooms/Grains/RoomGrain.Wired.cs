@@ -276,7 +276,7 @@ public sealed partial class RoomGrain
         if (!await CanReadWiredAsync(ctx, ct))
             return null;
 
-        var (floorItemCount, wallItemCount) = WiredSystem.CountWiredItems();
+        var (floorItemCount, wallItemCount) = WiredSystem.CountRoomItems();
         var variables = (await WiredSystem.GetWiredVariablesSnapshotAsync(ct)).Variables;
         var executionCost = WiredSystem.GetExecutionCost(NowMs());
 
@@ -316,6 +316,22 @@ public sealed partial class RoomGrain
             return null;
 
         return WiredSystem.GetErrorLogs(NowMs());
+    }
+
+    public async Task<WiredRoomLogPageSnapshot?> GetWiredRoomLogsAsync(
+        ActionContext ctx,
+        int page,
+        int pageSize,
+        int levelFilter,
+        int sourceFilter,
+        string query,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return WiredSystem.GetRoomLogPage(page, pageSize, levelFilter, sourceFilter, query);
     }
 
     public async Task<bool> ClearWiredErrorLogsAsync(ActionContext ctx, CancellationToken ct)

@@ -125,6 +125,20 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// A page of the room's wired log ("View full logs"), or null when the caller may not read
+    /// the room's wired.
+    /// </summary>
+    public Task<WiredRoomLogPageSnapshot?> GetWiredRoomLogsAsync(
+        ActionContext ctx,
+        int page,
+        int pageSize,
+        int levelFilter,
+        int sourceFilter,
+        string query,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Empties the error list. Requires wired modify permission.
     /// </summary>
     public Task<bool> ClearWiredErrorLogsAsync(ActionContext ctx, CancellationToken ct);

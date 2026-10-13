@@ -118,7 +118,6 @@ in the hotel; the others cannot be placed and are not gaps until a furni carries
 
 Still missing around the wired menu and the trading block:
 
-- the room logs (`WiredGetRoomLogs` / `WiredRoomLogsMessage`);
 - user permanent variables (`WiredGetUserPermanentVariables`, `WiredSetUserPermanentVariable`
   and their results), the variable owners page and `WiredUpdateRoom`;
 - self-donation (`SelfDonateItem` / `SelfDonationResult`);

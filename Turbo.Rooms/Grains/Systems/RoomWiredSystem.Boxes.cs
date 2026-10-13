@@ -26,7 +26,7 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
         if (item.Logic is not IWiredBox)
             return;
 
-        var (floor, wall) = CountWiredItems();
+        var (floor, wall) = CountRoomItems();
 
         if (item is IRoomWallItem)
         {
