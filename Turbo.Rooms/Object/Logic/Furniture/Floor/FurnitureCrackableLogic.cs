@@ -17,6 +17,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -34,13 +35,14 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// Who may hit it is the definition's usage policy, which is Sulake's: everyone for the furni its
 /// data marks <c>&lt;everyone-can-use/&gt;</c> (eggs, crystals, piñatas, the public ones, some
 /// plants - "help other farmers by watering their crops"), room rights for the rest. A use from
-/// beside it is a hit, and from further away it walks the avatar over; a piñata is hit by walking
-/// under it instead. A required effect (the watering can, the magic wand, the piñata stick) has to
-/// be worn. The hits move it through its states, the last of which -
-/// its opening, which the asset plays once and then draws nothing - only the cracking hit
-/// reaches. It stands in that state for <c>CrackableOpenMs</c>, then it is gone and what it held
-/// is handed over: a membership, or a furni drawn from its rewards, on its tile or into the
-/// inventory.
+/// beside it is a hit, and a use from further away walks the avatar over and hits once it gets
+/// there, as Habbo does with one Use; a piñata is hit by walking under it instead. A required
+/// effect (the watering can, the magic wand, the piñata stick) has to be worn. The hits move it
+/// through its states, the last of which - its opening, which the asset plays once and then draws
+/// nothing - only the cracking hit reaches. The cracking hit removes it at once, with a delay of
+/// <c>CrackableRemoveDelayMs</c> the client waits out while the opening plays, and hands over
+/// what it held straight after: a membership, or a furni drawn from its rewards, on its tile or
+/// into the inventory.
 /// </para>
 /// <para>
 /// The hits live in the item's stuff data, so they stay with it through a pickup, a trade and a
@@ -57,8 +59,9 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
     private readonly CrackableData _data;
 
-    /// <summary>The cracking hit landed and the opening is playing; no more hits count.</summary>
-    private bool _opening;
+    /// <summary>Avatars sent walking over by a use, with the tile beside it they were sent to.</summary>
+    private readonly Dictionary<RoomObjectId, (int TileIdx, ActionContext Hitter)> _approaching =
+    [];
 
     public FurnitureCrackableLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
         : base(stuffDataFactory, ctx)
@@ -92,12 +95,57 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
         if (!FloorFootprint.Of(_ctx.RoomObject).IsOnOrNextTo(avatar.X, avatar.Y))
         {
-            await WalkBesideAsync(avatar, ct);
+            if (await WalkBesideAsync(avatar, ct) is not { } tileIdx)
+                return;
+
+            _approaching[avatar.ObjectId] = (tileIdx, ctx);
+            ScheduleTick();
 
             return;
         }
 
+        _approaching.Remove(avatar.ObjectId);
+
         await HitAsync(ctx, avatar, ct);
+    }
+
+    private void ScheduleTick() =>
+        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, TickAsync);
+
+    /// <summary>
+    /// Hits for whoever a use sent over once they step onto the tile they were sent to - Habbo's
+    /// hit lands as the avatar takes that last step, before it stands still - and forgets whoever
+    /// stopped short or was sent elsewhere; runs while anyone is on their way.
+    /// </summary>
+    private async Task TickAsync(CancellationToken ct)
+    {
+        foreach (var (objectId, (tileIdx, hitter)) in _approaching.ToArray())
+        {
+            if (!AvatarModule.TryGetAvatar(objectId, out var avatar))
+            {
+                _approaching.Remove(objectId);
+
+                continue;
+            }
+
+            var tile = avatar.NextTileId >= 0 ? avatar.NextTileId : MapModule.ToIdx(avatar.X, avatar.Y);
+
+            if (tile == tileIdx)
+            {
+                _approaching.Remove(objectId);
+
+                await HitAsync(hitter, avatar, ct);
+
+                // The cracking hit removed it; nothing is left to tick.
+                if (IsCracked)
+                    return;
+            }
+            else if (!avatar.IsWalking || avatar.GoalTileId != tileIdx)
+                _approaching.Remove(objectId);
+        }
+
+        if (_approaching.Count > 0)
+            ScheduleTick();
     }
 
     public override async Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct)
@@ -119,16 +167,14 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     /// <summary>One hit by an avatar standing where it may hit from.</summary>
     private async Task HitAsync(ActionContext ctx, IRoomAvatar avatar, CancellationToken ct)
     {
-        if (_opening)
-            return;
-
         if (!_data.AcceptsEffect(avatar.EffectId))
             return;
 
-        // An item picked up while it was opening keeps its cracking hit; the next use opens it.
+        // An item left holding its cracking hit (picked up while it opened, before the opening
+        // went without a wait) opens on the next use.
         if (IsCracked)
         {
-            Open(ctx);
+            await OpenAsync(ctx, ct);
 
             return;
         }
@@ -158,13 +204,13 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         await RecordAchievementsAsync(ctx, cracked: hits >= Target, ct);
 
         if (hits >= Target)
-            Open(ctx);
+            await OpenAsync(ctx, ct);
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
         TimerSystem.Cancel(_ctx.ObjectId);
-        _opening = false;
+        _approaching.Clear();
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -185,32 +231,30 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         return Math.Clamp(hits * lastState / Target, 0, Math.Max(0, lastState - 1));
     }
 
-    private void Open(ActionContext cracker)
-    {
-        _opening = true;
-
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            _roomGrain._roomConfig.CrackableOpenMs,
-            token => OpenedAsync(cracker, token)
-        );
-    }
-
     /// <summary>
-    /// The opening has played. The furni goes first and what it held is handed over only once it
-    /// is gone, so a crackable can never give twice.
+    /// Cracked: the furni goes first and what it held is handed over only once it is gone, so a
+    /// crackable can never give twice. Both happen at once, as on Habbo, where the removal
+    /// follows the cracking hit's state by 25 ms and the membership straight after it; the
+    /// removal's delay is what keeps the opening on screen.
     /// </summary>
-    private async Task OpenedAsync(ActionContext cracker, CancellationToken ct)
+    private async Task OpenAsync(ActionContext cracker, CancellationToken ct)
     {
-        _opening = false;
-
         var ownerId = _ctx.RoomObject.OwnerId;
         var owner = ActionContext.CreateForPlayer(ownerId, _ctx.RoomId);
         var recipient = _data.RewardTo == CrackableRecipient.Cracker ? cracker.PlayerId : ownerId;
         var (x, y, rotation) = (_ctx.RoomObject.X, _ctx.RoomObject.Y, _ctx.RoomObject.Rotation);
 
-        // Removed as its owner, who may always remove their own furni, whoever cracked it.
-        if (!await ActionModule.DeleteItemByIdAsync(owner, _ctx.ObjectId, ct))
+        // Removed as its owner, who may always remove their own furni, whoever cracked it; and
+        // picked up by nobody (Habbo's pickerId -1), so nothing flies to an avatar.
+        if (
+            !await ActionModule.DeleteItemByIdAsync(
+                owner,
+                _ctx.ObjectId,
+                ct,
+                removeDelayMs: _roomGrain._roomConfig.CrackableRemoveDelayMs,
+                byOwner: false
+            )
+        )
             return;
 
         foreach (var reward in DrawRewards())
@@ -423,9 +467,10 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
     /// <summary>
     /// Walks the avatar to the tile beside the furni nearest to them, as it is hit from next to
-    /// it; a tile no path reaches is passed over for the next nearest.
+    /// it; a tile no path reaches is passed over for the next nearest. The tile it was sent to, or
+    /// null when none is reached.
     /// </summary>
-    private async Task WalkBesideAsync(IRoomAvatar avatar, CancellationToken ct)
+    private async Task<int?> WalkBesideAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         var footprint = FloorFootprint.Of(_ctx.RoomObject);
         var map = MapModule;
@@ -451,7 +496,9 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         foreach (var (x, y) in tiles)
         {
             if (await AvatarModule.WalkAvatarToAsync(avatar, x, y, ct))
-                return;
+                return map.ToIdx(x, y);
         }
+
+        return null;
     }
 }

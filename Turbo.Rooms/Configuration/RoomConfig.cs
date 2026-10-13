@@ -77,11 +77,12 @@ public class RoomConfig
     public int DiceRollMs { get; init; } = 3000;
 
     /// <summary>
-    /// How long a cracked crackable stands in its last state before it is gone and its contents
-    /// handed over. That state is its opening, which the asset plays once (the HC and BC boxes:
-    /// eleven frames at a frame repeat of two, about 0.9 s) and then draws nothing.
+    /// The delay a cracked crackable's removal carries, which the client waits before it takes
+    /// the furni away (RoomMessageHandler.onObjectRemove), so the opening - its last state, which
+    /// the asset plays once and then draws nothing - is seen. The server removes it and hands its
+    /// contents over at once. Habbo sends 1575 ms on the Habbo Club box.
     /// </summary>
-    public int CrackableOpenMs { get; init; } = 1500;
+    public int CrackableRemoveDelayMs { get; init; } = 1575;
 
     /// <summary>
     /// How long a present stands in its opening state before it is gone and the owner is told what

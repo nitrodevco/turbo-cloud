@@ -417,10 +417,16 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         return await item.Logic.SetMapDataAsync(entries);
     }
 
+    /// <param name="removeDelayMs">How long the client waits before it takes the furni away.</param>
+    /// <param name="byOwner">
+    /// False when nobody picks it up, so the client draws no pickup towards its owner.
+    /// </param>
     public async Task<bool> DeleteItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct
+        CancellationToken ct,
+        int removeDelayMs = 0,
+        bool byOwner = true
     )
     {
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
@@ -429,7 +435,13 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!await CanEditItemAsync(ctx, item))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        await ObjectModule.RemoveObjectAsync(ctx, item, ct, item.OwnerId);
+        await ObjectModule.RemoveObjectAsync(
+            ctx,
+            item,
+            ct,
+            byOwner ? item.OwnerId : -1,
+            removeDelayMs: removeDelayMs
+        );
 
         await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
