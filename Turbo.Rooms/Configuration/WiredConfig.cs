@@ -34,8 +34,11 @@ public class WiredConfig
     public int ExecutionCostCap { get; init; } = 500;
     public int ExecutionCostWindowMs { get; init; } = 1000;
 
-    /// <summary>Lines of "write to logs" a room keeps; the oldest makes room for a new one.</summary>
-    public int MaxRoomLogEntries { get; init; } = 50;
+    /// <summary>
+    /// Lines of "write to logs" a room keeps; the oldest makes room for a new one ("Only the most
+    /// recent 200 logs are stored per type", <c>wiredmenu.logs_overview.info</c>).
+    /// </summary>
+    public int MaxRoomLogEntries { get; init; } = 200;
 
     /// <summary>
     /// The room's floor and wall furni (all of them, not only wired boxes) the monitor measures,

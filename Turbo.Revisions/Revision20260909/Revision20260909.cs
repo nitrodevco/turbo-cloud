@@ -1511,6 +1511,7 @@ public class Revision20260909 : IRevision
                 new WiredGetAllVariablesHashMessageParser()
             },
             { MessageEvent.WiredGetErrorLogsMessageEvent, new WiredGetErrorLogsMessageParser() },
+            { MessageEvent.WiredGetRoomLogsMessageEvent, new WiredGetRoomLogsMessageParser() },
             {
                 MessageEvent.WiredGetRoomSettingsMessageEvent,
                 new WiredGetRoomSettingsMessageParser()
@@ -3544,6 +3545,12 @@ public class Revision20260909 : IRevision
                 typeof(WiredErrorLogsEventMessageComposer),
                 new WiredErrorLogsEventMessageComposerSerializer(
                     MessageComposer.WiredErrorLogsMessageComposer
+                )
+            },
+            {
+                typeof(WiredRoomLogsMessageComposer),
+                new WiredRoomLogsMessageComposerSerializer(
+                    MessageComposer.WiredRoomLogsMessageComposer
                 )
             },
             {
