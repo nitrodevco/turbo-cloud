@@ -10,8 +10,12 @@ internal class ModeratorInitMessageComposerSerializer(int header)
     {
         var init = message.Init;
 
-        // The open issues (IssueInfo bodies); the issue queue is not built yet.
-        packet.WriteInteger(0);
+        // The open issues, each an IssueInfo body (ModeratorInitData.as:37-72).
+        packet.WriteInteger(init.Issues.Length);
+
+        foreach (var issue in init.Issues)
+            ModIssueWriter.Write(packet, issue);
+
         packet.WriteInteger(init.MessageTemplates.Length);
 
         foreach (var template in init.MessageTemplates)

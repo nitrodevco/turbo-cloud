@@ -362,7 +362,8 @@ public sealed class CallForHelpReportTests : IDisposable
             _db,
             Options.Create(new OperationsConfig()),
             new Fakes().Create<IHotelTextProvider>(),
-            new ManualTimeProvider(new DateTimeOffset(NOW))
+            new ManualTimeProvider(new DateTimeOffset(NOW)),
+            new Fakes().Create<IModerationIssueService>()
         );
 
     private async Task<List<CfhReportEntity>> Reports()

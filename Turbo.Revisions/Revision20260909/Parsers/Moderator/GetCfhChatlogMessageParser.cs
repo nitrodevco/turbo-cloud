@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Moderator;
 
 internal class GetCfhChatlogMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetCfhChatlogMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetCfhChatlogMessage { IssueId = packet.PopInt() };
 }

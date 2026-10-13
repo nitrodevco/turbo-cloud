@@ -2,23 +2,33 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Moderator;
+using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Moderator;
 
 /// <summary>
-/// A moderation tool packet. The tool is not built yet, so nothing is done with it; the gate is
-/// in place so that when it is, only players who hold the tool reach it.
+/// The issue handler's close with the default sanction (<c>IssueManager.closeDefaultAction</c>):
+/// the bundle is closed as resolved. The topic's default sanction is not applied here yet.
 /// </summary>
 [RequiresPermission(PermissionNodes.Moderation.TOOL)]
-public class CloseIssueDefaultActionMessageHandler : IMessageHandler<CloseIssueDefaultActionMessage>
+public class CloseIssueDefaultActionMessageHandler(IModerationIssueService issues)
+    : IMessageHandler<CloseIssueDefaultActionMessage>
 {
+    private readonly IModerationIssueService _issues = issues;
+
     public async ValueTask HandleAsync(
         CloseIssueDefaultActionMessage message,
         MessageContext ctx,
         CancellationToken ct
-    )
-    {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
-    }
+    ) =>
+        await _issues
+            .CloseAsync(
+                ctx.PlayerId,
+                [message.IssueId, .. message.OtherIssueIds],
+                CfhCloseReasonType.Resolved,
+                ct
+            )
+            .ConfigureAwait(false);
 }

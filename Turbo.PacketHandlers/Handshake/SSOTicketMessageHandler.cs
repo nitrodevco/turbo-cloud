@@ -39,7 +39,8 @@ public class SSOTicketMessageHandler(
     IPlayerClothingService clothing,
     ICallForHelpService callForHelp,
     IPlayerOnboardingService onboarding,
-    IModerationToolService moderation
+    IModerationToolService moderation,
+    IModerationIssueService issues
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -282,9 +283,35 @@ public class SSOTicketMessageHandler(
             .ConfigureAwait(false);
 
         // A moderator's tool opens on ModeratorInit (ModerationMessageHandler.onModeratorInit).
+        // Its issue queue starts with the calls for help still open, and the issue handler opens
+        // where the moderator last left it (IssueManager.setToolPreferences).
         if (await moderation.GetInitAsync(playerId, ct).ConfigureAwait(false) is { } init)
-            await ctx.SendComposerAsync(new ModeratorInitMessageComposer { Init = init }, ct)
+        {
+            await ctx.SendComposerAsync(
+                    new ModeratorInitMessageComposer
+                    {
+                        Init = init with
+                        {
+                            Issues = await issues.GetOpenIssuesAsync(ct).ConfigureAwait(false),
+                        },
+                    },
+                    ct
+                )
                 .ConfigureAwait(false);
+
+            if (
+                await issues.GetPreferencesAsync(playerId, ct).ConfigureAwait(false) is
+                { } preferences
+            )
+                await ctx.SendComposerAsync(
+                        new ModeratorToolPreferencesEventMessageComposer
+                        {
+                            Preferences = preferences,
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false);
+        }
 
         // The reward tracks come unasked: the progression menu counts their claimable prizes.
         await _grainFactory

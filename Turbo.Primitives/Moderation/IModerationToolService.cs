@@ -32,6 +32,12 @@ public interface IModerationToolService
         CancellationToken ct
     );
 
+    /// <summary>The rooms a player entered lately, newest first; null when there is no such player.</summary>
+    Task<(string UserName, ImmutableArray<ModRoomVisitSnapshot> Rooms)?> GetRoomVisitsAsync(
+        PlayerId target,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Sends a moderator's message to a player - a caution when <paramref name="caution"/>, which
     /// takes <c>command.warn</c> - and answers whether it reached them: false when the message is

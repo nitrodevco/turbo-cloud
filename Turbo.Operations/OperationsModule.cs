@@ -27,6 +27,7 @@ public sealed class OperationsModule : IHostPluginModule
         services.AddSingleton<ISanctionService, SanctionService>();
         services.AddSingleton<ICallForHelpService, CallForHelpService>();
         services.AddSingleton<IModerationToolService, ModerationToolService>();
+        services.AddSingleton<IModerationIssueService, ModerationIssueService>();
         services.AddSingleton<IWordFilter, WordFilter>();
 
         // One instance answers as the availability and runs as the countdown's background loop.

@@ -89,4 +89,10 @@ public class OperationsConfig
 
     /// <summary>User info's trade lock expiry for a lock without an end.</summary>
     public string ModerationPermanentTradeLockText { get; init; } = "Permanent";
+
+    /// <summary>How many room entries the moderation tool's room visits window lists, newest first.</summary>
+    public int ModerationRoomVisits { get; init; } = 50;
+
+    /// <summary>How many calls for help still open (or picked) a moderator's issue queue gets at login, oldest first.</summary>
+    public int ModerationIssuesListed { get; init; } = 200;
 }

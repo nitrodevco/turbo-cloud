@@ -76,6 +76,8 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<CfhReportChatLineEntity>? CfhReportChatLines { get; set; }
 
+    public DbSet<ModeratorToolPreferencesEntity>? ModeratorToolPreferences { get; set; }
+
     public DbSet<RoomRaidProtectionEntity>? RoomRaidProtections { get; set; }
 
     public DbSet<RoomRightEntity>? RoomRights { get; set; }

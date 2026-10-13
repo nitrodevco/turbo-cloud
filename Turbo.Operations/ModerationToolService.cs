@@ -150,6 +150,14 @@ public sealed class ModerationToolService(
         var cfhCount = await dbCtx
             .CfhReports.AsNoTracking()
             .CountAsync(x => x.ReporterEntityId == target.Value, ct);
+        var abusiveCfhCount = await dbCtx
+            .CfhReports.AsNoTracking()
+            .CountAsync(
+                x =>
+                    x.ReporterEntityId == target.Value
+                    && x.CloseReason == CfhCloseReasonType.Abusive,
+                ct
+            );
         var online = sessionGateway.GetOnlinePlayerIds().Contains(target);
 
         return new ModeratorUserInfoSnapshot
@@ -161,7 +169,7 @@ public sealed class ModerationToolService(
             MinutesSinceLastLogin = MinutesSince(player.LastLoginAt ?? player.CreatedAt, now),
             Online = online,
             CfhCount = cfhCount,
-            AbusiveCfhCount = 0,
+            AbusiveCfhCount = abusiveCfhCount,
             CautionCount = cautionCount,
             BanCount = banCount,
             TradingLockCount = tradeLockCount,
@@ -312,6 +320,51 @@ public sealed class ModerationToolService(
             );
 
         return (name, records.MoveToImmutable());
+    }
+
+    public async Task<(
+        string UserName,
+        ImmutableArray<ModRoomVisitSnapshot> Rooms
+    )?> GetRoomVisitsAsync(PlayerId target, CancellationToken ct)
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        var name = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Id == target.Value)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync(ct);
+
+        if (name is null)
+            return null;
+
+        // The room entry log the navigator's history keeps; the window shows each entry's time.
+        var visits = await dbCtx
+            .RoomEntryLogs.AsNoTracking()
+            .Where(x => x.PlayerEntityId == target.Value)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(config.Value.ModerationRoomVisits)
+            .Select(x => new
+            {
+                x.RoomEntityId,
+                RoomName = x.RoomEntity != null ? x.RoomEntity.Name : string.Empty,
+                x.CreatedAt,
+            })
+            .ToListAsync(ct);
+
+        return (
+            name,
+            [
+                .. visits.Select(x => new ModRoomVisitSnapshot
+                {
+                    RoomId = x.RoomEntityId,
+                    RoomName = x.RoomName,
+                    EnterHour = x.CreatedAt.Hour,
+                    EnterMinute = x.CreatedAt.Minute,
+                }),
+            ]
+        );
     }
 
     public async Task<bool> SendMessageAsync(

@@ -152,6 +152,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<CfhReportChatLineEntity> CfhReportChatLines { get; init; }
 
+    public DbSet<ModeratorToolPreferencesEntity> ModeratorToolPreferences { get; init; }
+
     public DbSet<RoomRaidProtectionEntity> RoomRaidProtections { get; init; }
 
     public DbSet<RoomRightEntity> RoomRights { get; init; }

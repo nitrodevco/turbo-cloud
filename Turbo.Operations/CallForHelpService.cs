@@ -21,14 +21,15 @@ namespace Turbo.Operations;
 /// <summary>
 /// Calls for help. The topics are <c>cfh_topics</c>, read on first use and held: every login
 /// sends them, and a hotel changes them about never (a change shows after a restart). Reports
-/// are <c>cfh_reports</c> with their chat lines; staff close them (no screen for that yet), and
-/// a reporter may appeal a report closed without action.
+/// are <c>cfh_reports</c> with their chat lines; a new one goes to the moderators' issue queue
+/// (<see cref="IModerationIssueService"/>), and a reporter may appeal a report closed without action.
 /// </summary>
 public sealed class CallForHelpService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<OperationsConfig> config,
     IHotelTextProvider texts,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    IModerationIssueService issues
 ) : ICallForHelpService
 {
     public const string TOO_MANY_TEXT = "moderation.cfh.too_many";
@@ -128,50 +129,44 @@ public sealed class CallForHelpService(
             _ => submission.ReportedPlayerId > 0 ? submission.ReportedPlayerId : null,
         };
 
-        dbCtx.CfhReports.Add(
-            new CfhReportEntity
-            {
-                ReporterEntityId = reporter.Value,
-                Source = submission.Source,
-                ExtraDataId = OrNull(
-                    submission.ExtraDataId,
-                    CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH
-                ),
-                ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
-                ReportedEntityId = reportedId,
-                GuildEntityId = submission.GroupId > 0 ? submission.GroupId : null,
-                ForumThreadEntityId = submission.ThreadId > 0 ? submission.ThreadId : null,
-                ForumMessageId = submission.MessageId > 0 ? submission.MessageId : null,
-                RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,
-                TopicId = submission.TopicId,
-                Message = ClientText.Truncate(
-                    submission.Message,
-                    CfhReportEntity.MESSAGE_MAX_LENGTH
-                ),
-                ReporterName = OrNull(submission.Name, CfhReportEntity.NAME_MAX_LENGTH),
-                ReporterEmail = OrNull(submission.Email, CfhReportEntity.EMAIL_MAX_LENGTH),
-                ChatLines =
-                [
-                    .. submission
-                        .ChatLines.Take(_config.CfhMaxChatLines)
-                        .Select(
-                            (line, i) =>
-                                new CfhReportChatLineEntity
-                                {
-                                    ReportEntityId = 0,
-                                    Position = i,
-                                    PlayerEntityId = line.PlayerId,
-                                    Text = ClientText.Truncate(
-                                        line.Text,
-                                        CfhReportChatLineEntity.TEXT_MAX_LENGTH
-                                    ),
-                                }
-                        ),
-                ],
-            }
-        );
+        var report = new CfhReportEntity
+        {
+            ReporterEntityId = reporter.Value,
+            Source = submission.Source,
+            ExtraDataId = OrNull(submission.ExtraDataId, CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH),
+            ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
+            ReportedEntityId = reportedId,
+            GuildEntityId = submission.GroupId > 0 ? submission.GroupId : null,
+            ForumThreadEntityId = submission.ThreadId > 0 ? submission.ThreadId : null,
+            ForumMessageId = submission.MessageId > 0 ? submission.MessageId : null,
+            RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,
+            TopicId = submission.TopicId,
+            Message = ClientText.Truncate(submission.Message, CfhReportEntity.MESSAGE_MAX_LENGTH),
+            ReporterName = OrNull(submission.Name, CfhReportEntity.NAME_MAX_LENGTH),
+            ReporterEmail = OrNull(submission.Email, CfhReportEntity.EMAIL_MAX_LENGTH),
+            ChatLines =
+            [
+                .. submission
+                    .ChatLines.Take(_config.CfhMaxChatLines)
+                    .Select(
+                        (line, i) =>
+                            new CfhReportChatLineEntity
+                            {
+                                ReportEntityId = 0,
+                                Position = i,
+                                PlayerEntityId = line.PlayerId,
+                                Text = ClientText.Truncate(
+                                    line.Text,
+                                    CfhReportChatLineEntity.TEXT_MAX_LENGTH
+                                ),
+                            }
+                    ),
+            ],
+        };
 
+        dbCtx.CfhReports.Add(report);
         await dbCtx.SaveChangesAsync(ct);
+        await issues.PublishAsync(report.Id, ct);
 
         // An empty text is the client's own "sent" text.
         return new CfhResultSnapshot { Result = CfhResultType.Sent, Message = string.Empty };

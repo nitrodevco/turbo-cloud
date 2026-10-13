@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Moderation;
 using Turbo.Operations;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Callforhelp;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -37,7 +38,8 @@ public sealed class CfhTopicsTests : IDisposable
             _db,
             Options.Create(new OperationsConfig()),
             new Fakes().Create<IHotelTextProvider>(),
-            TimeProvider.System
+            TimeProvider.System,
+            new Fakes().Create<IModerationIssueService>()
         ).GetTopicsAsync(Ct);
 
         categories.Select(x => x.Name).Should().Equal("sexual_content", "trolling_bad_behavior");

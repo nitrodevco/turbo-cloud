@@ -2,4 +2,8 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Moderator;
 
-public record GetCfhChatlogMessage : IMessageEvent { }
+/// <summary><c>GetCfhChatlogMessageComposer(issueId)</c>.</summary>
+public record GetCfhChatlogMessage : IMessageEvent
+{
+    public required int IssueId { get; init; }
+}

@@ -11,6 +11,10 @@ internal class ModeratorToolPreferencesEventMessageComposerSerializer(int header
         ModeratorToolPreferencesEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Preferences.WindowX)
+            .WriteInteger(message.Preferences.WindowY)
+            .WriteInteger(message.Preferences.WindowWidth)
+            .WriteInteger(message.Preferences.WindowHeight);
     }
 }

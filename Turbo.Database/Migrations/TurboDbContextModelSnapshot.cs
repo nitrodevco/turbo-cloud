@@ -3559,6 +3559,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("auto_moderated");
 
+                    b.Property<byte?>("CloseReason")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("close_reason");
+
                     b.Property<DateTime?>("ClosedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("closed_at");
@@ -3596,6 +3600,10 @@ namespace Turbo.Database.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)")
                         .HasColumnName("message");
+
+                    b.Property<int?>("PickerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("picker_id");
 
                     b.Property<int?>("ReportedEntityId")
                         .HasColumnType("int")
@@ -3711,6 +3719,50 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("filter_words");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Moderation.ModeratorToolPreferencesEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("WindowHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("window_height");
+
+                    b.Property<int>("WindowWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("window_width");
+
+                    b.Property<int>("WindowX")
+                        .HasColumnType("int")
+                        .HasColumnName("window_x");
+
+                    b.Property<int>("WindowY")
+                        .HasColumnType("int")
+                        .HasColumnName("window_y");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("moderator_tool_preferences");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.PlayerSanctionEntity", b =>

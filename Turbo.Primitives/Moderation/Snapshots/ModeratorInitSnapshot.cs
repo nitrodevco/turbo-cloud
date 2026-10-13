@@ -36,4 +36,8 @@ public sealed record ModeratorInitSnapshot
 
     [Id(8)]
     public required bool RoomKickPermission { get; init; }
+
+    /// <summary>The calls for help open or picked, the issue queue's start.</summary>
+    [Id(9)]
+    public ImmutableArray<ModIssueSnapshot> Issues { get; init; } = [];
 }

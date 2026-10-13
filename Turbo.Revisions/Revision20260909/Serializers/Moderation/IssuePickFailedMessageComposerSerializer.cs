@@ -8,6 +8,14 @@ internal class IssuePickFailedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, IssuePickFailedMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Issues.Length);
+
+        foreach (var issue in message.Issues)
+            packet
+                .WriteInteger(issue.IssueId)
+                .WriteInteger(issue.PickerUserId)
+                .WriteString(issue.PickerUserName);
+
+        packet.WriteBoolean(message.RetryEnabled).WriteInteger(message.RetryCount);
     }
 }
