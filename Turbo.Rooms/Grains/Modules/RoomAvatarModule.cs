@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Users;
@@ -64,12 +65,36 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
 
         // Read before the avatar is made, unlike the badges and the club below: the moderator
-        // flag goes out with the avatar the moment it attaches.
-        var permissions = await LoadPermissionsAsync(snapshot.PlayerId, ct);
+        // flag and the worn group go out with the avatar the moment it attaches. Habbo's own
+        // Users message on entry already names the group (official client capture, 2026-10-13:
+        // groupId 402778, groupName "[HIA] Agent ID V"); sent later, nobody would see it until
+        // the player changed it.
+        var permissionsTask = LoadPermissionsAsync(snapshot.PlayerId, ct);
+        var guildTask = LoadFavouriteGuildAsync(snapshot.PlayerId, ct);
+
+        await Task.WhenAll(permissionsTask, guildTask);
 
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
 
-        avatar.SetPermissions(permissions);
+        avatar.SetPermissions(await permissionsTask);
+
+        var (guild, guildStatus) = await guildTask;
+
+        if (avatar is IRoomPlayer player)
+            player.SetFavouriteGuild(
+                guild?.GuildId ?? -1,
+                guild is null ? WornGuildStatus.None : guildStatus,
+                guild?.Name ?? string.Empty
+            );
+
+        // The client draws a worn group only from a badge code it was sent, and the people
+        // already standing here asked for theirs before this player arrived: the code goes out
+        // ahead of the avatar wearing it.
+        if (guild is not null)
+            await _roomGrain.SendComposerToRoomAsync(
+                new HabboGroupBadgesMessageComposer { Guilds = [guild] },
+                ct
+            );
 
         avatar.SetRoomEntry(entry);
 
@@ -94,13 +119,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             await NotifyWalkOnAsync(avatar, MapModule.ToIdx(arrivalItem.X, arrivalItem.Y), ct);
         }
 
-        // Three grains that answer from what they hold and never call a room, asked side by
+        // Two grains that answer from what they hold and never call a room, asked side by
         // side: each load only sets its own field on the avatar and logs its own failure.
-        await Task.WhenAll(
-            LoadBadgesAsync(avatar, ct),
-            LoadHabboClubAsync(avatar, ct),
-            LoadFavouriteGuildAsync(avatar, ct)
-        );
+        await Task.WhenAll(LoadBadgesAsync(avatar, ct), LoadHabboClubAsync(avatar, ct));
 
         return avatar;
     }
@@ -234,48 +255,30 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
-    /// The group badge a player walks in wearing. Loaded on the way in like the badges and the
-    /// club: it feeds the two wired group boxes and the badge the client draws beside them, and
-    /// putting it on <c>PlayerSummarySnapshot</c> would add a grain call to every hot path that
-    /// asks for a summary.
+    /// The group a player walks in wearing, or null for none. Loaded on the way in like the
+    /// permissions: it feeds the two wired group boxes and the badge the client draws beside
+    /// them, and putting it on <c>PlayerSummarySnapshot</c> would add a grain call to every hot
+    /// path that asks for a summary.
     /// </summary>
-    public async Task LoadFavouriteGuildAsync(IRoomAvatar avatar, CancellationToken ct)
+    private async Task<(GuildSummarySnapshot?, WornGuildStatus)> LoadFavouriteGuildAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
-        if (avatar is not IRoomPlayer player)
-            return;
-
         try
         {
-            var guildId = await _roomGrain
-                ._grainFactory.GetPlayerGuildGrain(player.PlayerId)
-                .GetFavouriteGuildIdAsync(ct);
+            var playerGuilds = _roomGrain._grainFactory.GetPlayerGuildGrain(playerId);
+            var guildId = await playerGuilds.GetFavouriteGuildIdAsync(ct);
 
             if (guildId is not { } favourite)
-            {
-                player.SetFavouriteGuild(-1, GuildMembershipStatus.None, string.Empty);
+                return (null, WornGuildStatus.None);
 
-                return;
-            }
-
+            var status = await playerGuilds.GetFavouriteGuildStatusAsync(ct);
             var guild = await _roomGrain
                 ._grainFactory.GetGuildDirectoryGrain()
                 .GetSummaryAsync(favourite, ct);
 
-            if (guild is null)
-            {
-                player.SetFavouriteGuild(-1, GuildMembershipStatus.None, string.Empty);
-
-                return;
-            }
-
-            player.SetFavouriteGuild(guild.GuildId, GuildMembershipStatus.Member, guild.Name);
-
-            // The client draws a worn group only from a badge code it was sent, and the people
-            // already standing here asked for theirs before this player arrived.
-            await _roomGrain.SendComposerToRoomAsync(
-                new HabboGroupBadgesMessageComposer { Guilds = [guild] },
-                ct
-            );
+            return (guild, status);
         }
         catch (Exception ex)
         {
@@ -284,9 +287,11 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             _roomGrain._logger.LogWarning(
                 ex,
                 "Could not load the favourite group of player {PlayerId} entering room {RoomId}",
-                player.PlayerId,
+                playerId,
                 _roomGrain.RoomId
             );
+
+            return (null, WornGuildStatus.None);
         }
     }
 

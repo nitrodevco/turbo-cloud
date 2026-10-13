@@ -15,6 +15,9 @@ internal class ConfigurationItemStatesMessageComposerSerializer(int header)
             .WriteBoolean(message.IsHanditemControlBlocked)
             .WriteBoolean(message.ChooserDisabled)
             .WriteBoolean(message.FreeFurniMovementsEnabled)
-            .WriteBoolean(message.InvisibleFurni);
+            .WriteBoolean(message.InvisibleFurni)
+            // Habbo sends a fifth byte the client does not read yet
+            // (_-B4.as:50-65, WIN63-202610131318), zero in every official sample.
+            .WriteBoolean(false);
     }
 }

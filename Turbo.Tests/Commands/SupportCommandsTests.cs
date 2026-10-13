@@ -620,6 +620,33 @@ public class SupportCommandsTests : OperatorCommandsTestBase
     }
 
     [Fact]
+    public async Task Gift_RefusesALineThatMixesUpTheNoteBadgeAndTrustedOrder()
+    {
+        var staff = Staff(PermissionNodes.Command.GIFT);
+
+        // A tester's line: the note "false" and no badge was not what they meant.
+        await Hotel.RunAsync("gift", staff, "alice throne false true");
+        // The badge "false" was given as a badge.
+        await Hotel.RunAsync("gift", staff, "alice throne \"Hi\" false true");
+        await Hotel.RunAsync("gift", staff, "alice throne \"Hi\" - true");
+        await Hotel.RunAsync("gift", staff, "alice throne \"Hi\" false");
+
+        _presents.Should().HaveCount(2);
+        _presents[0].Request.BadgeCode.Should().BeNull();
+        _presents[0].Request.TrustedSender.Should().BeTrue();
+        _presents[1].Request.BadgeCode.Should().BeNull();
+        _presents[1].Request.TrustedSender.Should().BeFalse();
+        staff
+            .Replies.Should()
+            .Equal(
+                "Put the note in double quotes. Usage: :gift <who> <furni> <note> [badge] [trusted]",
+                "false is not a badge code. Leave it out, or write - for none. Usage: :gift <who> <furni> \"<note>\" [badge] [trusted]",
+                "Alice was sent a present holding throne.",
+                "Alice was sent a present holding throne."
+            );
+    }
+
+    [Fact]
     public async Task GiveItem_AtAGroup_NeedsTheMassNode()
     {
         var staff = Staff(PermissionNodes.Command.GIVEITEM);

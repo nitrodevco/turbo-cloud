@@ -27,8 +27,8 @@ public sealed class WiredUsersInGroupTests
     [Fact]
     public async Task Current_group_picks_only_the_rooms_group()
     {
-        _room.Enter(5, 1, 1).SetFavouriteGuild(77, GuildMembershipStatus.Member, "Ours");
-        _room.Enter(6, 2, 2).SetFavouriteGuild(88, GuildMembershipStatus.Member, "Theirs");
+        _room.Enter(5, 1, 1).SetFavouriteGuild(77, WornGuildStatus.Member, "Ours");
+        _room.Enter(6, 2, 2).SetFavouriteGuild(88, WornGuildStatus.Member, "Theirs");
 
         var guild = (GuildSummarySnapshot)
             RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));

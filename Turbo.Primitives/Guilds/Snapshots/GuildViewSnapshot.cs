@@ -57,4 +57,8 @@ public sealed record GuildViewSnapshot
     /// </summary>
     [Id(8)]
     public required bool MembersCanDecorate { get; init; }
+
+    /// <summary>The hotel's member limit, sent last and not read by the client.</summary>
+    [Id(9)]
+    public int MemberLimit { get; init; }
 }

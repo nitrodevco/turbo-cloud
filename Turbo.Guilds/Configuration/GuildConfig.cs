@@ -13,6 +13,16 @@ public class GuildConfig
     /// <summary>What creating a group costs, sent to the client before it commits.</summary>
     public int CreationCostInCredits { get; init; } = 10;
 
+    /// <summary>
+    /// The badge the creation wizard opens on, three numbers per layer (part, colour, cell) in
+    /// layer order, base first: the order GuildCreationInfo carries them. Habbo's, identical in
+    /// every recorded GuildCreationInfo (official client capture 2026-10-13, 4 of 4): base 10 in
+    /// colour 3 centred, symbols 25/17 in cell 5, 25/17 in cell 3, 29/11 in cell 4, and an empty
+    /// layer. A layer whose part or colour this hotel does not have is left empty; without a
+    /// usable base the first base part in the first colour, centred, is used.
+    /// </summary>
+    public string DefaultBadgeLayers { get; init; } = "10,3,4,25,17,5,25,17,3,29,11,4,0,0,0";
+
     /// <summary>The editor stops typing here; the server clamps rather than refusing.</summary>
     public int NameMaxLength { get; init; } = 30;
     public int DescriptionMaxLength { get; init; } = 255;
@@ -28,6 +38,14 @@ public class GuildConfig
 
     /// <summary>Members a <c>Regular</c> group takes before it is full.</summary>
     public int RegularGuildMembersMax { get; init; } = 5000;
+
+    /// <summary>
+    /// The member limit the group details packet ends with. Habbo sends 50000 for every group,
+    /// whatever its type (official client capture 2026-10-13: 13 samples, 9 groups), the figure
+    /// its texts give as the most a group can have (<c>group.join.fail.0</c>). The client does
+    /// not read it, and nothing here enforces it: <see cref="RegularGuildMembersMax"/> does.
+    /// </summary>
+    public int DetailsMemberLimit { get; init; } = 50000;
 
     /// <summary>Whether creating a group needs a Habbo Club membership.</summary>
     public bool CreationRequiresClub { get; init; }
@@ -47,8 +65,12 @@ public class GuildConfig
     /// </summary>
     public int DeletionMaxMembers { get; init; } = 500;
 
-    /// <summary>Mirrors the client's <c>group.blocking.enabled</c>.</summary>
-    public bool BlockingEnabled { get; init; } = true;
+    /// <summary>
+    /// Mirrors the client's <c>group.blocking.enabled</c>. Off by default, as on Habbo: the
+    /// official external_variables (2026-10-12) leave the key out, so the client hides the block
+    /// action (GuildMembersWindowCtrl.as:347) and a kick only removes.
+    /// </summary>
+    public bool BlockingEnabled { get; init; }
 
     /// <summary>Guild base rooms the navigator's hottest-groups search returns.</summary>
     public int GuildBaseSearchResultLimit { get; init; } = 50;

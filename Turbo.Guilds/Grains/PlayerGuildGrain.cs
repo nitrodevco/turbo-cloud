@@ -86,12 +86,12 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
     public async Task<ImmutableArray<GuildInfoSnapshot>> GetMembershipsAsync(CancellationToken ct)
     {
-        if (_state.GuildIds.Count == 0)
+        if (_state.RankByGuildId.Count == 0)
             return [];
 
         var summaries = await _grainFactory
             .GetGuildDirectoryGrain()
-            .GetSummariesAsync([.. _state.GuildIds.Select(GuildId.Parse)], ct);
+            .GetSummariesAsync([.. _state.RankByGuildId.Keys.Select(GuildId.Parse)], ct);
 
         return
         [
@@ -112,6 +112,18 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     public Task<GuildId?> GetFavouriteGuildIdAsync(CancellationToken ct) =>
         Task.FromResult(
             _state.FavouriteGuildId is { } guildId ? GuildId.Parse(guildId) : (GuildId?)null
+        );
+
+    public Task<WornGuildStatus> GetFavouriteGuildStatusAsync(CancellationToken ct) =>
+        Task.FromResult(WornStatus());
+
+    /// <summary>What the badge they wear says they are to its group, for the room.</summary>
+    private WornGuildStatus WornStatus() =>
+        WornGuildStatuses.FromRank(
+            _state.FavouriteGuildId is { } guildId
+            && _state.RankByGuildId.TryGetValue(guildId, out var rank)
+                ? rank
+                : null
         );
 
     public async Task<GuildCreationInfoSnapshot> GetCreationInfoAsync(CancellationToken ct)
@@ -293,7 +305,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.CreationFailed);
         }
 
-        _state.GuildIds.Add(entity.Id);
+        _state.RankByGuildId[entity.Id] = GuildMemberRank.Owner;
         _state.FavouriteGuildId ??= entity.Id;
 
         await directory.OnGuildChangedAsync(
@@ -315,11 +327,11 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         );
     }
 
-    public async Task SetFavouriteGuildAsync(GuildId? guildId, CancellationToken ct)
+    public async Task<bool> SetFavouriteGuildAsync(GuildId? guildId, CancellationToken ct)
     {
         // Only a group they are actually in. Clearing is always allowed.
-        if (guildId is { } wanted && !_state.GuildIds.Contains(wanted.Value))
-            return;
+        if (guildId is { } wanted && !_state.RankByGuildId.ContainsKey(wanted.Value))
+            return false;
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
@@ -350,6 +362,16 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             ? await _grainFactory.GetGuildDirectoryGrain().GetSummaryAsync(chosenId, ct)
             : null;
 
+        await TellRoomOfFavouriteAsync(guild, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Tells the room the player is standing in which group badge they now wear, or none.
+    /// </summary>
+    private async Task TellRoomOfFavouriteAsync(GuildSummarySnapshot? guild, CancellationToken ct)
+    {
         var activeRoom = await _grainFactory
             .GetPlayerPresenceGrain(PlayerId)
             .GetActiveRoomAsync(ct);
@@ -365,7 +387,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             .SetPlayerFavouriteGuildAsync(
                 PlayerId,
                 guild?.GuildId ?? -1,
-                guild is null ? GuildMembershipStatus.None : GuildMembershipStatus.Member,
+                guild is null ? WornGuildStatus.None : WornStatus(),
                 guild?.Name ?? string.Empty,
                 CancellationToken.None
             )
@@ -378,10 +400,12 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     }
 
     public Task<int> GetMembershipCountAsync(CancellationToken ct) =>
-        Task.FromResult(_state.GuildIds.Count);
+        Task.FromResult(_state.RankByGuildId.Count);
 
     public async Task OnMembershipsChangedAsync(CancellationToken ct)
     {
+        var wornBefore = _state.FavouriteGuildId;
+
         try
         {
             await LoadAsync(ct);
@@ -396,6 +420,19 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
             return;
         }
+
+        // Left, kicked or the group removed: the badge they wore is gone from their memberships;
+        // or a first group joined is worn at once. The room draws the change now rather than at
+        // their next entry, and the wired group boxes count it.
+        if (wornBefore != _state.FavouriteGuildId)
+            await TellRoomOfFavouriteAsync(
+                _state.FavouriteGuildId is { } worn
+                    ? await _grainFactory
+                        .GetGuildDirectoryGrain()
+                        .GetSummaryAsync(GuildId.Parse(worn), ct)
+                    : null,
+                ct
+            );
 
         // The messenger lists each group as a group chat. Told, not awaited: the messenger reads
         // the memberships back from this grain, which would wait on this very turn.
@@ -419,15 +456,20 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 x.PlayerEntityId == PlayerId.Value
                 && GuildMemberRanks.MemberRanks().Contains(x.Rank)
             )
-            .Select(x => new { x.GuildEntityId, x.IsFavourite })
+            .Select(x => new
+            {
+                x.GuildEntityId,
+                x.Rank,
+                x.IsFavourite,
+            })
             .ToListAsync(ct);
 
-        _state.GuildIds.Clear();
+        _state.RankByGuildId.Clear();
         _state.FavouriteGuildId = null;
 
         foreach (var membership in memberships)
         {
-            _state.GuildIds.Add(membership.GuildEntityId);
+            _state.RankByGuildId[membership.GuildEntityId] = membership.Rank;
 
             if (membership.IsFavourite)
                 _state.FavouriteGuildId = membership.GuildEntityId;

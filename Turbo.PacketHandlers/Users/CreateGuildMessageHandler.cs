@@ -5,6 +5,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Incoming.Users;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 
@@ -47,11 +48,31 @@ public class CreateGuildMessageHandler(
             return;
         }
 
+        // The wizard has no failure of its own for the price: Flash's group code answers only
+        // GuildEditFailed (HabboGroupsManager.as:451) and has no text for it, while
+        // NotEnoughBalance is heard by the catalog whether or not it is open and shows the
+        // not-enough-credits alert (HabboCatalog.as:2331-2337). Not recorded for a group.
+        if (result.Failure == GuildCreationFailureType.InsufficientCredits)
+        {
+            await ctx.SendComposerAsync(
+                    new NotEnoughBalanceMessageComposer
+                    {
+                        NotEnoughCredits = true,
+                        NotEnoughActivityPoints = false,
+                        ActivityPointType = 0,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         if (ToEditFailure(result.Failure) is not { } reason)
         {
-            // InsufficientCredits and CreationFailed reach here, and the hotel publishes no text
-            // for either: neither is something the player did, and saying one of the four
-            // reasons that do have text would put the wrong sentence on screen.
+            // CreationFailed reaches here, and the hotel publishes no text for it: it is not
+            // something the player did, and saying one of the four reasons that do have text
+            // would put the wrong sentence on screen.
             _logger.LogInformation(
                 "Group creation refused for player {PlayerId}: {Reason}",
                 ctx.PlayerId.Value,

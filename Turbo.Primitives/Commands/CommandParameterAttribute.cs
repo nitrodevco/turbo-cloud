@@ -12,4 +12,11 @@ public sealed class CommandParameterAttribute : Attribute
     public int MinLength { get; init; } = -1;
     public int MaxLength { get; init; } = -1;
     public bool Sensitive { get; init; }
+
+    /// <summary>
+    /// The word must be written in double quotes. For a free text that sits before optional
+    /// words, so that where it ends is never a guess: <c>:gift bob throne false true</c> is
+    /// refused rather than sent with the note "false".
+    /// </summary>
+    public bool Quoted { get; init; }
 }
