@@ -118,6 +118,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
+    public readonly RoomWordQuizSystem WordQuizSystem;
     public readonly RoomWaterAreaSystem WaterAreaSystem;
     public readonly RoomWiredChestSystem WiredChestSystem;
     public readonly RoomWiredTransactionSystem WiredTransactionSystem;
@@ -216,6 +217,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         ChatSystem = new(this);
         CommandSystem = new(this);
         TimerSystem = new(this);
+        WordQuizSystem = new(this);
         WaterAreaSystem = new(this);
         WiredChestSystem = new(this);
         WiredTransactionSystem = new(this);

@@ -54,6 +54,12 @@ public interface ICommandRoom
     Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct);
 
     /// <summary>
+    /// Puts a word quiz question to everyone in the room for the room config's duration; false
+    /// while another question is still open.
+    /// </summary>
+    Task<bool> StartWordQuizAsync(string question, CancellationToken ct);
+
+    /// <summary>
     /// Sends everyone out, the owner too, and unloads the room, so the next visitor finds it read
     /// from the database again.
     /// </summary>

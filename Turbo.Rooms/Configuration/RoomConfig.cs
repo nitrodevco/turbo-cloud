@@ -131,6 +131,12 @@ public class RoomConfig
     /// <summary>How long a hand item (drink, snack) stays in an avatar's hand.</summary>
     public int HandItemExpireMs { get; init; } = 240000;
 
+    /// <summary>
+    /// How long the room has to answer a word quiz question: 15000 ms in the official client capture
+    /// of 2026-10-12 (each QuestionFinished 15 s after its Question).
+    /// </summary>
+    public int WordQuizDurationMs { get; init; } = 15000;
+
     public int MannequinNameMaxLength { get; init; } = 32;
 
     /// <summary>

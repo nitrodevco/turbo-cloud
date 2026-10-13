@@ -427,6 +427,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo.Primitives.Rooms.Grains.IRoomGrain [Version(0)]
   1D7EC93C: AddItemAsync(Turbo.Primitives.Rooms.Object.Furniture.IRoomItem, System.Threading.CancellationToken) -> Task<bool>
   9445BFAA: AnswerDoorbellAsync(Turbo.Primitives.Action.ActionContext, string, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
+  49926E24: AnswerWordQuizAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   D6AA9ED0: ApplyDecorationAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   75ADD45F: ApplyWiredSnapshotAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   D5632FC2: ApplyWiredUpdateAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.UpdateWiredMessage, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.WiredSaveResult>
