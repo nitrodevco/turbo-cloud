@@ -116,13 +116,13 @@ public sealed class WiredPetSmartVariableTests
         var controller = new HorseControllerUserIdVariable(_room.Harness.Room);
         var riding = new HorseIsRidingVariable(_room.Harness.Room);
 
-        Read(new HorseHasSaddleVariable(_room.Harness.Room), HORSE).Should().Be(1);
-        Read(riding, HORSE).Should().Be(0);
+        Held(new HorseHasSaddleVariable(_room.Harness.Room), HORSE).Should().BeTrue();
+        Held(riding, HORSE).Should().BeFalse();
         Read(controller, HORSE).Should().Be(0);
 
         horse.SetRider(rider.ObjectId);
 
-        Read(riding, HORSE).Should().Be(1);
+        Held(riding, HORSE).Should().BeTrue();
         Read(controller, HORSE).Should().Be(rider.PlayerId.Value);
     }
 
@@ -136,18 +136,18 @@ public sealed class WiredPetSmartVariableTests
         Read(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room), PLANT)
             .Should()
             .BeInRange(259200 - 3605, 259200 - 3595);
-        Read(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().Be(0);
-        Read(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().Be(0);
+        Held(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().BeFalse();
+        Held(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().BeFalse();
         Read(new PlantRemainingGrowthSecondsVariable(_room.Harness.Room), PLANT).Should().Be(0);
 
         plant.SetWateredAt(DateTime.UtcNow.AddDays(-4));
         plant.SetFlags(canBreed: false, canHarvest: false, canRevive: true);
 
-        Read(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().Be(1);
+        Held(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().BeTrue();
         Read(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room), PLANT).Should().Be(0);
-        Read(new PlantCanReviveVariable(_room.Harness.Room), PLANT).Should().Be(1);
-        Read(new PlantCanBreedVariable(_room.Harness.Room), PLANT).Should().Be(0);
-        Read(new PlantCanHarvestVariable(_room.Harness.Room), PLANT).Should().Be(0);
+        Held(new PlantCanReviveVariable(_room.Harness.Room), PLANT).Should().BeTrue();
+        Held(new PlantCanBreedVariable(_room.Harness.Room), PLANT).Should().BeFalse();
+        Held(new PlantCanHarvestVariable(_room.Harness.Room), PLANT).Should().BeFalse();
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class WiredPetSmartVariableTests
     {
         AddPet(PLANT, PetTypes.MONSTERPLANT, level: 1, created: DateTime.UtcNow.AddMinutes(-10));
 
-        Read(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().Be(1);
+        Held(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().BeTrue();
         // A baby plant's wellbeing is 36 hours, a grown one's 72.
         Read(new PlantMaxWellbeingSecondsVariable(_room.Harness.Room), PLANT).Should().Be(129600);
         Read(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room), PLANT)
@@ -333,6 +333,11 @@ public sealed class WiredPetSmartVariableTests
                 await _room.Harness.Room.WiredSystem.GetWiredVariablesSnapshotAsync(Ct)
             ).Variables.Select(x => x.VariableId),
         ];
+
+    // A yes/no smart variable has no value: Habbo sends it with hasValue off, held while the answer
+    // is yes (hhus, WIN63-202610121709).
+    private static bool Held(WiredInternalVariable variable, int objectId) =>
+        variable.TryGetValue(Key(variable, objectId), out _);
 
     private static long Read(WiredInternalVariable variable, int objectId)
     {

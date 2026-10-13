@@ -5,7 +5,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
-/// <summary><c>~chest.is_donatable</c> (Wired Faculty, 18/03/2026): 1 when the chest's owner lets everyone donate to it. Read only.</summary>
+/// <summary><c>~chest.is_donatable</c> (Wired Faculty, 18/03/2026): held while the chest's owner lets everyone donate to it. Read only.</summary>
 public sealed class FurnitureChestIsDonatableVariable(RoomGrain roomGrain)
     : FurnitureSmartVariable<FurnitureWiredChestLogic>(roomGrain)
 {
@@ -13,8 +13,10 @@ public sealed class FurnitureChestIsDonatableVariable(RoomGrain roomGrain)
 
     protected override ushort Order => 0;
 
-    protected override WiredVariableFlags Flags => WiredVariableFlags.HasValue;
+    protected override WiredVariableFlags Flags => WiredVariableFlags.None;
+
+    protected override bool Holds(FurnitureWiredChestLogic logic) => logic.EveryoneCanDonate;
 
     protected override WiredVariableValue GetValueForLogic(FurnitureWiredChestLogic logic) =>
-        logic.EveryoneCanDonate ? 1 : 0;
+        WiredVariableValue.Default;
 }

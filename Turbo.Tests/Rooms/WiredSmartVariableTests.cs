@@ -141,7 +141,7 @@ public sealed class WiredSmartVariableTests
     }
 
     [Fact]
-    public async Task Area_hide_sets_its_size_and_takes_only_0_or_1_for_a_flag()
+    public async Task Area_hide_sets_its_size_and_wired_gives_and_removes_its_flags()
     {
         var hider = (FurnitureAreaHideLogic)
             _room
@@ -160,9 +160,18 @@ public sealed class WiredSmartVariableTests
         (await width.SetValueAsync(ctx, Key(width, 33), 6)).Should().BeTrue();
         hider.ValueAt(3).Should().Be(6);
 
-        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 2)).Should().BeFalse();
-        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeTrue();
+        // Habbo sends ~area_hide.inverted with no value, given and removed (hhus,
+        // WIN63-202610121709): giving it turns the setting on, removing it off.
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeFalse();
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeFalse();
+
+        (await inverted.GiveValueAsync(Key(inverted, 33), 0)).Should().BeTrue();
         hider.ValueAt(7).Should().Be(1);
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeTrue();
+
+        inverted.RemoveValue(Key(inverted, 33)).Should().BeTrue();
+        hider.ValueAt(7).Should().Be(0);
+        inverted.TryGetValue(Key(inverted, 33), out _).Should().BeFalse();
     }
 
     [Theory]
@@ -192,10 +201,9 @@ public sealed class WiredSmartVariableTests
         map.Data[WiredChestData.EVERYONE_CAN_OPEN] = WiredChestData.TRUE;
         map.Data[WiredChestData.EVERYONE_CAN_DONATE] = WiredChestData.FALSE;
 
-        isOpen.TryGetValue(Key(isOpen, 35), out var open).Should().BeTrue();
-        isDonatable.TryGetValue(Key(isDonatable, 35), out var donatable).Should().BeTrue();
-        ((int)open).Should().Be(1);
-        ((int)donatable).Should().Be(0);
+        // Yes/no variables with no value (hhus, WIN63-202610121709): held while the answer is yes.
+        isOpen.TryGetValue(Key(isOpen, 35), out _).Should().BeTrue();
+        isDonatable.TryGetValue(Key(isDonatable, 35), out _).Should().BeFalse();
     }
 
     private FurnitureWiredChestLogic AddChest(int id, bool coins) =>

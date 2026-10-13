@@ -19,7 +19,7 @@ namespace Turbo.Tests.Rooms;
 /// The built-in variables as hhus describes them in WiredAllVariablesDiffs (recorded
 /// WIN63-202610121709 in room 79874981; Fixtures/hhus-variables-WIN63-202610121709.json): Habbo's
 /// fixed ids ("-120" for a furni's @position.x, "~131" for ~chest.locked), names, which are always
-/// available, and the labels of their values.
+/// available, which hold a value, can be written or given and removed, and the labels of their values.
 /// </summary>
 public sealed class WiredHabboVariableDefinitionTests
 {
@@ -81,6 +81,9 @@ public sealed class WiredHabboVariableDefinitionTests
                 .Flags.Has(WiredVariableFlags.AlwaysAvailable)
                 .Should()
                 .Be(habbo.AlwaysAvailable, "{0} alwaysAvailable", habbo.Name);
+            foreach (var (flag, expected) in habbo.Flags)
+                snapshot.Flags.Has(flag).Should().Be(expected, "{0} {1}", habbo.Name, flag);
+
             snapshot
                 .Flags.Has(WiredVariableFlags.HasTextConnector)
                 .Should()
@@ -164,6 +167,17 @@ public sealed class WiredHabboVariableDefinitionTests
                     x.GetProperty("name").GetString()!,
                     x.GetProperty("target").GetInt32(),
                     x.GetProperty("alwaysAvailable").GetBoolean(),
+                    [
+                        (WiredVariableFlags.HasValue, x.GetProperty("hasValue").GetBoolean()),
+                        (
+                            WiredVariableFlags.CanWriteValue,
+                            x.GetProperty("canWriteValue").GetBoolean()
+                        ),
+                        (
+                            WiredVariableFlags.CanCreateAndDelete,
+                            x.GetProperty("canCreateAndDelete").GetBoolean()
+                        ),
+                    ],
                     x.GetProperty("textConnector").ValueKind == JsonValueKind.Array
                         ?
                         [
@@ -186,6 +200,7 @@ public sealed class WiredHabboVariableDefinitionTests
         string Name,
         int Target,
         bool AlwaysAvailable,
+        List<(WiredVariableFlags, bool)> Flags,
         List<(string, string)>? Labels
     );
 }
