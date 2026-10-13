@@ -315,11 +315,11 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         );
     }
 
-    public async Task SetFavouriteGuildAsync(GuildId? guildId, CancellationToken ct)
+    public async Task<bool> SetFavouriteGuildAsync(GuildId? guildId, CancellationToken ct)
     {
         // Only a group they are actually in. Clearing is always allowed.
         if (guildId is { } wanted && !_state.GuildIds.Contains(wanted.Value))
-            return;
+            return false;
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
@@ -355,7 +355,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             .GetActiveRoomAsync(ct);
 
         if (activeRoom.RoomId <= 0)
-            return;
+            return true;
 
         // Told, not asked, and deliberately not awaited: the room reads this grain when a player
         // walks in (RoomAvatarModule.LoadFavouriteGuildAsync), so awaiting the room from here
@@ -375,6 +375,8 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 activeRoom.RoomId,
                 PlayerId.Value
             );
+
+        return true;
     }
 
     public Task<int> GetMembershipCountAsync(CancellationToken ct) =>

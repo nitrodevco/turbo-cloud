@@ -204,7 +204,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Guilds.IPlayerGui
   9F4C4E17: GetMembershipsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildInfoSnapshot>>
   F2A326B5: GetRoomOptionsAsync(Turbo.Primitives.Guilds.GuildId, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildRoomOptionSnapshot>>
   C76972F1: OnMembershipsChangedAsync(System.Threading.CancellationToken) -> Task
-  F6FFC5DB: SetFavouriteGuildAsync(Turbo.Primitives.Guilds.GuildId?, System.Threading.CancellationToken) -> Task
+  F6FFC5DB: SetFavouriteGuildAsync(Turbo.Primitives.Guilds.GuildId?, System.Threading.CancellationToken) -> Task<bool>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerDirectoryGrain")] Turbo.Primitives.Players.Grains.IPlayerDirectoryGrain [Version(0)]
   4DF23856: GetPlayerIdAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
