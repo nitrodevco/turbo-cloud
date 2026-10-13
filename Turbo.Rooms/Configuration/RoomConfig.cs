@@ -55,6 +55,14 @@ public class RoomConfig
     /// </summary>
     public int MaxDirtyBatchesPerFlush { get; init; } = 10;
     public int MaxTileHeightsPerFlush { get; init; } = 200;
+
+    /// <summary>
+    /// The bit of a <c>HeightMap</c> / <c>HeightMapUpdate</c> tile value that marks a tile nothing
+    /// may be stacked on; the bits below it are the height × 256. Habbo uses 15 (its client
+    /// variable <c>room.stacking_blocked_mask_bit=15</c>), which lets stacks go up to 127.99; the
+    /// client must decode with the same bit.
+    /// </summary>
+    public int StackingBlockedMaskBit { get; init; } = 15;
     public int MaxPathNodes { get; init; } = 4096;
 
     /// <summary>

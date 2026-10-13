@@ -345,7 +345,14 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         _roomGrain._state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? NO_ITEM;
 
         var prevEncoded = _roomGrain._state.TileEncodedHeights[id];
-        var nextEncoded = EncodeHeight(nextHeight, nextFlags);
+        // A tile nothing may be stacked on shows the height its top furni stands at, not that
+        // furni's top: a chair on the floor is 0, a bed on a 0.01 floor tile 0.01 (hhus, 2026-10-13).
+        var nextEncoded = EncodeHeight(
+            nextFlags.Has(RoomTileFlags.StackBlocked) && nextHighestItem is not null
+                ? nextHighestItem.Z
+                : nextHeight,
+            nextFlags
+        );
 
         if (prevEncoded != nextEncoded)
         {
@@ -405,16 +412,16 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
 
     /// <summary>
     /// A tile as the client's stacking height map reads it (<c>HeightMapMessageParser</c>): -1 for no
-    /// tile at all, else the height × 256 in the low 14 bits with bit 14 set where nothing may be
-    /// stacked. A stacking blocked tile keeps its height: the client checks a moved furni's new tiles
-    /// against it and stands avatars on it.
+    /// tile at all, else the height × 256 in the bits below
+    /// <see cref="Configuration.RoomConfig.StackingBlockedMaskBit"/>, with that bit set where nothing
+    /// may be stacked (Habbo: bit 15, so a blocked floor tile is -32768).
     /// </summary>
-    private static short EncodeHeight(Altitude height, RoomTileFlags flags)
+    private short EncodeHeight(Altitude height, RoomTileFlags flags)
     {
         if (height < Altitude.Zero || flags.Has(RoomTileFlags.Disabled))
             return -1;
 
-        int stackingMask = 1 << 14;
+        int stackingMask = 1 << _roomGrain._roomConfig.StackingBlockedMaskBit;
         int heightMask = stackingMask - 1;
         // Truncated, as Habbo does: a 2.05 high stack is 524, not 525 (hhus, 2026-10-12).
         int raw = (int)(height.Value * 256.0);
@@ -430,9 +437,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         if (flags.Has(RoomTileFlags.StackBlocked))
             value |= stackingMask;
 
-        value &= 0x7FFF;
+        // -1 means "no tile" to the client; a blocked tile at the very top of the range must not say that.
+        var encoded = unchecked((short)(value & 0xFFFF));
 
-        return unchecked((short)value);
+        return encoded == -1 ? (short)-2 : encoded;
     }
 
     internal Task EnsureMapBuiltAsync(CancellationToken ct)
