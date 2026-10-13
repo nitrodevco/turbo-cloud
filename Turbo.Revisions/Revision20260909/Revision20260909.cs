@@ -1413,6 +1413,14 @@ public class Revision20260909 : IRevision
 
             { MessageEvent.ApplySnapshotMessageEvent, new ApplySnapshotMessageParser() },
             { MessageEvent.WiredClickUserMessageEvent, new WiredClickUserMessageParser() },
+            {
+                MessageEvent.SetFurnitureLabelDataMessageEvent,
+                new SetFurnitureLabelDataMessageParser()
+            },
+            {
+                MessageEvent.SetFurnitureLabelSettingsMessageEvent,
+                new SetFurnitureLabelSettingsMessageParser()
+            },
             { MessageEvent.OpenMessageEvent, new OpenMessageParser() },
             { MessageEvent.UpdateActionMessageEvent, new UpdateActionMessageParser() },
             { MessageEvent.UpdateAddonMessageEvent, new UpdateAddonMessageParser() },
@@ -3416,6 +3424,18 @@ public class Revision20260909 : IRevision
                 typeof(WiredClickUserResponseMessageComposer),
                 new WiredClickUserResponseMessageComposerSerializer(
                     MessageComposer.WiredClickUserResponseMessageComposer
+                )
+            },
+            {
+                typeof(FurnitureLabelsAndRegionsMessageComposer),
+                new FurnitureLabelsAndRegionsMessageComposerSerializer(
+                    MessageComposer.FurnitureLabelsAndRegionsMessageComposer
+                )
+            },
+            {
+                typeof(FurnitureLabelsAndRegionsUpdateMessageComposer),
+                new FurnitureLabelsAndRegionsUpdateMessageComposerSerializer(
+                    MessageComposer.FurnitureLabelsAndRegionsUpdateMessageComposer
                 )
             },
             {

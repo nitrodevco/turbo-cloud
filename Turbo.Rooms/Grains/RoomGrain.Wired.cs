@@ -383,7 +383,7 @@ public sealed partial class RoomGrain
         return canRead;
     }
 
-    private async Task<bool> CanModifyWiredAsync(ActionContext ctx, CancellationToken ct)
+    internal async Task<bool> CanModifyWiredAsync(ActionContext ctx, CancellationToken ct)
     {
         var (canModify, _) = await GetWiredPermissionsAsync(ctx, ct);
 
