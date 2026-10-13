@@ -276,7 +276,7 @@ public sealed partial class RoomGrain
         if (!await CanReadWiredAsync(ctx, ct))
             return null;
 
-        var (floorItemCount, wallItemCount) = WiredSystem.CountWiredItems();
+        var (floorItemCount, wallItemCount) = WiredSystem.CountRoomItems();
         var variables = (await WiredSystem.GetWiredVariablesSnapshotAsync(ct)).Variables;
         var executionCost = WiredSystem.GetExecutionCost(NowMs());
 

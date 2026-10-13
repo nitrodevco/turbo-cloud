@@ -36,11 +36,22 @@ public class WiredConfig
     /// <summary>Lines of "write to logs" a room keeps; the oldest makes room for a new one.</summary>
     public int MaxRoomLogEntries { get; init; } = 50;
 
-    public int MaxFloorItems { get; init; } = 200;
-    public int MaxWallItems { get; init; } = 50;
-    public int MaxPermanentFurniVariables { get; init; } = 50;
-    public int MaxPermanentUserVariables { get; init; } = 50;
-    public int MaxPermanentGlobalVariables { get; init; } = 50;
+    /// <summary>
+    /// The room's floor and wall furni (all of them, not only wired boxes) the monitor measures,
+    /// and past which no more wired boxes are placed: 4000 each in Habbo (official client capture
+    /// of WiredRoomStats, WIN63-202610121624).
+    /// </summary>
+    public int MaxFloorItems { get; init; } = 4000;
+    public int MaxWallItems { get; init; } = 4000;
+
+    /// <summary>
+    /// Permanent variable definitions a room may hold per kind. Habbo sizes these per room:
+    /// official client captures show 23 furni / 93 user / 70 global, and 12 / 50 / 37 in a room
+    /// with a lower execution cap.
+    /// </summary>
+    public int MaxPermanentFurniVariables { get; init; } = 23;
+    public int MaxPermanentUserVariables { get; init; } = 93;
+    public int MaxPermanentGlobalVariables { get; init; } = 70;
 
     // The bounds a saved box is checked against.
     // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how

@@ -6,7 +6,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
-using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -60,18 +59,17 @@ public sealed partial class RoomWiredSystem
     ) => variables.Count(x => x.AvailabilityType.IsPermanent() && x.TargetType == targetType);
 
     /// <summary>
-    /// Wired boxes currently in the room, split by floor and wall placement.
+    /// Every furni in the room, wired or not and wired-placed ones included, split by floor and
+    /// wall: what Habbo's monitor counts against its floor and wall caps (official client
+    /// capture: 33 floor and 4 wall furni in a room, 168 floor furni with temporary ones).
     /// </summary>
-    public (int floor, int wall) CountWiredItems()
+    public (int floor, int wall) CountRoomItems()
     {
         var floor = 0;
         var wall = 0;
 
         foreach (var item in FurniModule.Items)
         {
-            if (item.Logic is not IWiredBox)
-                continue;
-
             if (item is IRoomWallItem)
                 wall++;
             else if (item is IRoomFloorItem)
