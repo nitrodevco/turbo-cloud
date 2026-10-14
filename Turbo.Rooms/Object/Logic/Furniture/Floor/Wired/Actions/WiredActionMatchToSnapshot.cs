@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -40,15 +41,7 @@ public class WiredActionMatchToSnapshot(
             new WiredBoolParamRule(false), // altitude
         ];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     protected override bool KeepsFurniSnapshot => true;
 

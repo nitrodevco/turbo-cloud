@@ -54,8 +54,8 @@ public class WiredSelectorItemsWithVariable(
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [
-                WiredFurniSourceType.TriggeredItem,
                 WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.TriggeredItem,
                 WiredFurniSourceType.SignalItems,
             ],
         ];

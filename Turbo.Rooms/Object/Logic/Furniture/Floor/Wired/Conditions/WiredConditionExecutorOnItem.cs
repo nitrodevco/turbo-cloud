@@ -20,14 +20,7 @@ public class WiredConditionExecutorOnItem(
 {
     public override int WiredCode => (int)WiredConditionType.TRIGGERER_IS_ON_FURNI;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
