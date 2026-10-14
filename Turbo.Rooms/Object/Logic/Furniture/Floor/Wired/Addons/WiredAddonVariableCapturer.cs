@@ -46,15 +46,40 @@ public class WiredAddonVariableCapturer(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
-    /// <summary>The name are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    /// <summary>
+    /// The name is refused as Habbo refuses one (<see cref="WiredNameRules.PlaceholderError"/>),
+    /// and so is a variable another capturer of the stack already writes, whatever either is
+    /// named: Habbo answers <c>wiredfurni.error.link.destination_conflict</c> ("Each capturer must
+    /// be unique in this wired stack") for a second capturer on the same context variable, named
+    /// "a" or "b", and saves two capturers named "a" on different variables (official client
+    /// capture 2026-10-14, NOTES-iv-save-errors).
+    /// </summary>
     public override Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
         CancellationToken ct
-    ) =>
-        WiredNameRules.PlaceholderError(update.StringParam, showsAll: false) is { } error
-            ? throw new WiredSaveRefusedException(error)
-            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+    )
+    {
+        if (WiredNameRules.PlaceholderError(update.StringParam, showsAll: false) is { } error)
+            throw new WiredSaveRefusedException(error);
+
+        if (
+            update.VariableIds is [var variableId, ..]
+            && variableId.Length > 0
+            && variableId != "0"
+            && FurniModule
+                .GetFloorItemsOnTile(_ctx.GetTileIdx())
+                .Any(item =>
+                    item.Logic is WiredAddonVariableCapturer other
+                    && !ReferenceEquals(other, this)
+                    && other._wiredData?.VariableIds is [var otherId, ..]
+                    && otherId == variableId
+                )
+        )
+            throw new WiredSaveRefusedException(WiredSaveErrors.CAPTURE_DESTINATION_CONFLICT);
+
+        return base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

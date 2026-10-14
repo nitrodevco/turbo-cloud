@@ -39,6 +39,12 @@ public static class WiredSaveErrors
     /// <summary>"Can have no more than %max_usernames% usernames!"</summary>
     public const string USERNAMES_COUNT = "wiredfurni.error.usernames_count";
 
+    /// <summary>"You can not capture the same variable twice in one phrase"</summary>
+    public const string CAPTURER_DUPLICATE = "wiredfurni.error.capturer.duplicate";
+
+    /// <summary>"Each capturer must be unique in this wired stack"</summary>
+    public const string CAPTURE_DESTINATION_CONFLICT = "wiredfurni.error.link.destination_conflict";
+
     /// <summary>"Can only select counter furni."</summary>
     public const string REQUIRE_COUNTER_FURNI = "wiredfurni.error.require_counter_furni";
 

@@ -5,7 +5,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
@@ -52,6 +54,32 @@ public class WiredTriggerHabboSaysKeyword(
             new WiredRangeParamRule(0, 2, 0),
             new WiredBoolParamRule(false),
         ];
+
+    /// <summary>
+    /// A keyword holding the same "#(name)" marker twice is refused with
+    /// <c>wiredfurni.error.capturer.duplicate</c>, in any match mode and whether or not a capturer
+    /// has the name: Habbo refused "#(a) #(a)" and "#(a) x #(a)" (exact) and "#(a) #(a)"
+    /// (contains) when the trigger was saved (official client capture 2026-10-14,
+    /// NOTES-iv-save-errors). Names are compared case-insensitively (inference: the client
+    /// lowercases placeholder names, PlaceholderNameSection).
+    /// </summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        var markers = CaptureMarker
+            .Matches(update.StringParam ?? string.Empty)
+            .Select(x => x.Groups[1].Value);
+
+        if (markers.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1))
+            throw new WiredSaveRefusedException(WiredSaveErrors.CAPTURER_DUPLICATE);
+
+        return base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
+
+    private static readonly Regex CaptureMarker = new(@"#\(([^)]*)\)", RegexOptions.Compiled);
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
