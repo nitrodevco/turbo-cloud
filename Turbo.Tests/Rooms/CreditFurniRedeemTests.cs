@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -85,7 +86,31 @@ public class CreditFurniRedeemTests
         room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
     }
 
-    private static RoomHarness CreateRoomWith(string name)
+    // Hotel report 2026-10-14: a stack of money bags copied by Place Temporary Furni, which
+    // carry the wired box owner's id, turned into credits; Builders Club furni carry the
+    // borrower's.
+    [Theory]
+    [InlineData(FurniIdBands.TemporaryMin)]
+    [InlineData(FurniIdBands.BuildersClubMin)]
+    public async Task A_borrowed_or_temporary_furni_is_not_redeemed_by_its_owner(int id)
+    {
+        var room = CreateRoomWith("CF_20_moneybag", id);
+        AddPlayer(room, OWNER);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ => Task.FromResult(true);
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            id,
+            new RedeemCreditsInteraction(),
+            default
+        );
+
+        done.Should().BeFalse();
+        room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync)).Should().BeEmpty();
+        room.ItemsById.Contains((RoomObjectId)id).Should().BeTrue();
+    }
+
+    private static RoomHarness CreateRoomWith(string name, int id = ITEM)
     {
         var room = new RoomHarness();
 
@@ -98,7 +123,7 @@ public class CreditFurniRedeemTests
 
         room.AddToRoom(
             room.CreateFloorItem(
-                ITEM,
+                id,
                 2,
                 2,
                 Altitude.Zero,

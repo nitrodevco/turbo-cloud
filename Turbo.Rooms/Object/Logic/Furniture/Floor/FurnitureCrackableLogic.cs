@@ -168,7 +168,8 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     /// <summary>One hit by an avatar standing where it may hit from.</summary>
     private async Task HitAsync(ActionContext ctx, IRoomAvatar avatar, CancellationToken ct)
     {
-        if (!_data.AcceptsEffect(avatar.EffectId))
+        // A borrowed or temporary crackable holds no prize: nothing in it was ever paid for.
+        if (IsBorrowedOrTemporary || !_data.AcceptsEffect(avatar.EffectId))
             return;
 
         // An item left holding its cracking hit (picked up while it opened, before the opening

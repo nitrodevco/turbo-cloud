@@ -71,8 +71,8 @@ public class FurniturePurchasableClothingLogic(
         if (interaction is not BindClothingInteraction)
             return false;
 
-        if (!IsItemOwner(ctx))
-            return Reject(ctx, interaction, "not the owner");
+        if (!IsOwnedOutrightBy(ctx))
+            return Reject(ctx, interaction, "not the owner, or borrowed or temporary");
 
         var setIds = SetIdsOf(_ctx.Definition);
 

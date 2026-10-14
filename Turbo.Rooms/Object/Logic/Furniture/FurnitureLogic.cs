@@ -148,11 +148,24 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         SecurityModule.CanManipulateFurniAsync(ctx);
 
     /// <summary>
-    /// Whether the acting player owns this item itself. The rule for turning the item into
-    /// something else that is theirs to keep (credits, a present's contents, a pet): the room's
-    /// owner may not do that with a guest's furni.
+    /// Whether the acting player owns this item itself. The room's owner may not turn a guest's
+    /// furni into something of theirs; for that, see <see cref="IsOwnedOutrightBy"/>.
     /// </summary>
     protected bool IsItemOwner(ActionContext ctx) => _ctx.RoomObject.OwnerId == ctx.PlayerId;
+
+    /// <summary>
+    /// Whether the acting player owns this item and it is theirs for good: neither lent by the
+    /// Builders Club nor temporary (placed by wired, owned by the wired box's owner). The rule
+    /// for turning the item into something else that is theirs to keep (credits, a present's
+    /// contents, clothing, an effect, a prize): a borrowed or temporary furni is worth nothing, so
+    /// it never becomes anything that is.
+    /// </summary>
+    protected bool IsOwnedOutrightBy(ActionContext ctx) =>
+        IsItemOwner(ctx) && !IsBorrowedOrTemporary;
+
+    /// <summary>Whether the Builders Club lends this item or wired placed it for the time being.</summary>
+    protected bool IsBorrowedOrTemporary =>
+        _ctx.RoomObject.IsTemporary || _ctx.RoomObject.IsBuildersClub;
 
     /// <summary>
     /// Whether the acting player owns this item or the room. The rule for changing how an item

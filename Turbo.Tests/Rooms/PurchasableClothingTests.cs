@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Figures;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Clothing;
@@ -96,6 +97,28 @@ public class PurchasableClothingTests
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerClothingService.BindFurnitureAsync)).Should().BeEmpty();
         room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+    }
+
+    // A copy placed by Place Temporary Furni carries the wired box owner's id, a borrowed one
+    // the borrower's; neither is theirs to keep, so neither becomes clothing that is.
+    [Theory]
+    [InlineData(FurniIdBands.TemporaryMin)]
+    [InlineData(FurniIdBands.BuildersClubMin)]
+    public async Task A_borrowed_or_temporary_furni_is_not_bound_by_its_owner(int id)
+    {
+        var room = CreateRoomWith("6621,6622", id);
+        AddPlayer(room, OWNER);
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            id,
+            new BindClothingInteraction(),
+            Ct
+        );
+
+        done.Should().BeFalse();
+        room.Fakes.Log.Of(nameof(IPlayerClothingService.BindFurnitureAsync)).Should().BeEmpty();
+        room.ItemsById.Contains((RoomObjectId)id).Should().BeTrue();
     }
 
     [Fact]
@@ -211,7 +234,7 @@ public class PurchasableClothingTests
             Activator.CreateInstance(type, db, fakes.Create<IGrainFactory>())!;
     }
 
-    private static RoomHarness CreateRoomWith(string? customParams)
+    private static RoomHarness CreateRoomWith(string? customParams, int id = ITEM)
     {
         var room = new RoomHarness();
 
@@ -226,7 +249,7 @@ public class PurchasableClothingTests
 
         room.AddToRoom(
             room.CreateFloorItem(
-                ITEM,
+                id,
                 2,
                 2,
                 Altitude.Zero,
