@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -47,6 +49,23 @@ public abstract class FurnitureWiredBotActionLogic(
         return index < 0
             ? (raw.Trim(), string.Empty)
             : (raw[..index].Trim(), raw[(index + 1)..].Trim());
+    }
+
+    /// <summary>
+    /// The bots a box acts on when its bot slot can also be a user source: the bot named in the
+    /// box for "Use the bot specified by name", otherwise the bots among that slot's users (the
+    /// triggering or reached user, a selector's or a signal's).
+    /// </summary>
+    protected List<IRoomBot> ResolveBots(IWiredContext ctx, int slot, string name)
+    {
+        var sources = GetPlayerSources();
+
+        if (slot >= sources.Count || sources[slot].Contains(WiredPlayerSourceType.BotByName))
+            return TryGetBot(name, out var named) ? [named] : [];
+
+        var users = WiredSlotSelection.ForUserSlot(this, ctx, slot).SelectedAvatarIds;
+
+        return [.. BotModule.Bots.Where(bot => users.Contains(bot.ObjectId))];
     }
 
     protected bool TryGetBot(string name, [NotNullWhen(true)] out IRoomBot? bot) =>

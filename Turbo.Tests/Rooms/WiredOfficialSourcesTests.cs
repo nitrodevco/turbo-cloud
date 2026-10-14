@@ -5,6 +5,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -130,6 +131,59 @@ public sealed class WiredOfficialSourcesTests
                 [Users, Users],
                 [0, 200]
             },
+            // Recorded 2026-10-14 on WIN63-202610131318.
+            {
+                typeof(WiredActionBotTalk),
+                "wf_act_bot_talk",
+                [],
+                [],
+                [
+                    [0, 10, 100, 200, 201],
+                ],
+                [100]
+            },
+            {
+                typeof(WiredTriggerBotReachesHabbo),
+                "wf_trg_bot_reached_avtr",
+                [],
+                [],
+                [
+                    [100, 200],
+                ],
+                [100]
+            },
+            {
+                typeof(WiredAddonFurniSelectorFilter),
+                "wf_xtra_filter_furni",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [
+                    [0, 201],
+                ],
+                [0]
+            },
+            {
+                typeof(WiredAddonFilterUsersByVariable),
+                "wf_xtra_filter_users_by_var",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [
+                    [0, 201],
+                ],
+                [0]
+            },
+            {
+                typeof(WiredConditionItemPerType),
+                "wf_cnd_stuff_is",
+                [Both, Both],
+                [0, 100],
+                [],
+                []
+            },
             {
                 typeof(WiredActionRemoveFurni),
                 "wf_act_remove_furni",
@@ -183,5 +237,29 @@ public sealed class WiredOfficialSourcesTests
             .Select(slot => (int)WiredPlayerSourceTypeExtensions.GetProtocolId(slot.Single()))
             .Should()
             .Equal(defaultUsers);
+    }
+
+    /// <summary>
+    /// "Use the triggering user" on Bot Talk with no bot name and no message saves (official client
+    /// capture: UpdateAction ints [0,-1,0], string "\t", user sources [0] -> WiredSaveSuccess).
+    /// </summary>
+    [Fact]
+    public async Task Bot_talk_saves_with_the_triggering_user()
+    {
+        var talk = _room.AddBox<WiredActionBotTalk>(1, 0, 0, "wf_act_bot_talk");
+
+        (
+            await _room.SaveAsync<Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.UpdateActionMessage>(
+                1,
+                intParams: [0, -1, 0],
+                stringParam: "\t",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        talk.GetPlayerSources().Single().Should().Equal(WiredPlayerSourceType.TriggeredUser);
     }
 }
