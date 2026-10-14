@@ -90,8 +90,49 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         Altitude? z = null,
         Rotation? rotation = null
     ) =>
-        FurniModule.CanPlaceFloorItem(floorItem, x, y, rotation ?? floorItem.Rotation)
+        !IsBlockedByFurni(floorItem, x, y, rotation ?? floorItem.Rotation)
+        && FurniModule.CanPlaceFloorItem(
+            floorItem,
+            x,
+            y,
+            rotation ?? floorItem.Rotation,
+            Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughFurni)
+                ? top => Policy.MoveThroughFurniIds?.Contains(top.ObjectId.Value) ?? true
+                : null
+        )
         && await ProcessFloorItemMovementAsync(floorItem, MapModule.ToIdx(x, y), z, rotation);
+
+    /// <summary>
+    /// Whether "blocked by furni" stops a furni moving onto the tiles: any furni the movement
+    /// physics addon's second source names standing there blocks it, stackable or not. Furni the
+    /// source leaves out stack as they always do (official client capture, 2026-10-14).
+    /// </summary>
+    private bool IsBlockedByFurni(IRoomFloorItem floorItem, int x, int y, Rotation rotation)
+    {
+        if (
+            !Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.BlockedByFurni)
+            || !MapModule.GetTileIdForSize(
+                x,
+                y,
+                rotation,
+                floorItem.Definition.Width,
+                floorItem.Definition.Length,
+                out var tileIds
+            )
+        )
+            return false;
+
+        var blocking = Policy.BlockedByFurniIds;
+
+        return tileIds.Any(idx =>
+            FurniModule
+                .GetFloorItemsOnTile(idx)
+                .Any(other =>
+                    !ReferenceEquals(other, floorItem)
+                    && (blocking?.Contains(other.ObjectId.Value) ?? true)
+                )
+        );
+    }
 
     public async Task<bool> ProcessFloorItemMovementAsync(
         IRoomFloorItem floorItem,
