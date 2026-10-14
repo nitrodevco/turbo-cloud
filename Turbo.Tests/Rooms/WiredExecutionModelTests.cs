@@ -204,6 +204,30 @@ public sealed class WiredExecutionModelTests
     }
 
     [Fact]
+    public async Task A_half_second_repeater_fires_on_the_avatar_tick()
+    {
+        // Wired starts a third of the way between two avatar ticks (they fall every 500 ms).
+        _now = 10_130;
+        await BuildStackAsync(0, 0, periodic: true, actions: [Log("repeat")]);
+        await StartAsync();
+
+        // 11 130: the repeater is first seen. A period from then is 11 630, between ticks; it waits
+        // for the avatar tick at 12 000 and then keeps every 500 ms on the grid.
+        for (var at = 11_150L; at <= 13_000; at += 50)
+        {
+            _now = at;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+
+            if (at == 11_950)
+                Logged("repeat").Should().Be(0, "11 630 is not an avatar tick");
+            if (at == 12_000)
+                Logged("repeat").Should().Be(1);
+        }
+
+        Logged("repeat").Should().Be(3, "12 000, 12 500 and 13 000");
+    }
+
+    [Fact]
     public async Task An_execution_past_the_usage_cap_is_cancelled_and_counted_and_usage_decays()
     {
         Configure(
