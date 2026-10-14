@@ -51,8 +51,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private readonly Queue<RoomEvent> _eventQueue = new();
 
     // Floor furni whose state wired changed since the last state update. Habbo sends them as one
-    // ObjectsDataUpdate every 500 ms (recorded on hhus, WIN63-202610121709: one message every
-    // 500 ms carrying about 65 furni, the tiles the effects changed and the boxes that flashed).
+    // ObjectsDataUpdate per wired tick: the tiles the effects changed and the boxes that flashed
+    // (WiredConfig.StateUpdateMs).
     private readonly HashSet<RoomObjectId> _pendingFloorStates = [];
     private bool _collectingTickStates;
     private long _nextStateUpdateMs;

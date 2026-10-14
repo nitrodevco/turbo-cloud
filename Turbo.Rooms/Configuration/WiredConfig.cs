@@ -13,10 +13,12 @@ public class WiredConfig
     public int TickMs { get; init; } = 50;
 
     /// <summary>
-    /// How often the floor states wired changed go out, together in one message (Habbo: every
-    /// 500 ms).
+    /// How often the floor states wired changed go out, together in one message. Habbo sends them
+    /// once per wired tick (official client capture, WIN63-202610131318: a 20 Hz timer gave an
+    /// ObjectsDataUpdate every ~50 ms, and a click's one ~100 ms after it). A room running a
+    /// 0.5 s timer shows one every 500 ms either way.
     /// </summary>
-    public int StateUpdateMs { get; init; } = 500;
+    public int StateUpdateMs { get; init; } = 50;
 
     /// <summary>
     /// How often signals and stack calls may run the same stack in one window of

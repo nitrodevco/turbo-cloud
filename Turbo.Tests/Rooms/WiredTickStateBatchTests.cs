@@ -17,9 +17,10 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// Habbo sends the floor states wired changes as one ObjectsDataUpdate every 500 ms (recorded on
-/// hhus, WIN63-202610121709, a public wired room: one message every 500 ms carrying about 65 furni,
-/// the tiles the effects changed and the boxes that flashed), not a message per effect and per flash.
+/// Habbo sends the floor states wired changes as one ObjectsDataUpdate per wired tick, not a
+/// message per effect and per flash (official client captures: a public wired room sent one every
+/// 500 ms carrying about 65 furni, WIN63-202610121709; a 20 Hz timer gave one every ~50 ms and a
+/// click's came ~100 ms after it, WIN63-202610131318).
 /// </summary>
 public sealed class WiredTickStateBatchTests
 {
@@ -44,8 +45,8 @@ public sealed class WiredTickStateBatchTests
 
         await ClickAsync();
 
-        // Ten 50 ms wired ticks: the trigger fires on one, its effects run on the next, and the
-        // states go out once, when the 500 ms window ends.
+        // Ten 50 ms wired ticks: the trigger and its effects run on the first, and their states go
+        // out once, at the end of that tick.
         List<IComposer> sent = [];
         for (var i = 0; i < 10; i++)
             sent.AddRange(await TickAsync());
@@ -64,8 +65,48 @@ public sealed class WiredTickStateBatchTests
     }
 
     [Fact]
+    public async Task The_click_states_go_out_in_the_tick_that_ran_the_click()
+    {
+        await BuildAsync();
+
+        await ClickAsync();
+
+        (await TickAsync()).OfType<ObjectsDataUpdateMessageComposer>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_20_Hz_timer_sends_its_flashes_every_tick()
+    {
+        _room.AddBox<WiredTriggerShortPeriodically>(4, 2, 2, "wf_trg_period_short");
+        (await _room.SaveAsync<UpdateTriggerMessage>(4, intParams: [1])).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(2, 2)],
+            },
+            Ct
+        );
+        await TickAsync();
+
+        List<int> perTick = [];
+        for (var i = 0; i < 10; i++)
+            perTick.Add((await TickAsync()).OfType<ObjectsDataUpdateMessageComposer>().Count());
+
+        // Habbo: an ObjectsDataUpdate every ~50 ms while a 20 Hz timer flashes its box.
+        perTick.Should().AllBeEquivalentTo(1);
+    }
+
+    [Fact]
     public async Task A_state_a_player_sets_before_the_update_goes_out_is_the_one_sent()
     {
+        // A room that sends its states every 500 ms (configurable) sends each as it is then.
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_wiredConfig",
+            new Turbo.Rooms.Configuration.WiredConfig { StateUpdateMs = 500 }
+        );
         await BuildAsync();
         await ClickAsync();
         List<IComposer> sent = [];
