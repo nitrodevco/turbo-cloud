@@ -75,7 +75,13 @@ internal sealed partial class RoomService
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+        // A temporary furni is left to wired: players neither move, use nor click it.
+        if (
+            ctx.PlayerId <= 0
+            || ctx.RoomId <= 0
+            || itemId <= 0
+            || FurniIdBands.IsTemporary(itemId.Value)
+        )
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

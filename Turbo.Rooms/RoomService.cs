@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Nft;
@@ -759,7 +760,13 @@ internal sealed partial class RoomService(
         int param = -1
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+        // A temporary furni is left to wired: players neither move, use nor click it.
+        if (
+            ctx.PlayerId <= 0
+            || ctx.RoomId <= 0
+            || itemId <= 0
+            || FurniIdBands.IsTemporary(itemId.Value)
+        )
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
@@ -774,7 +781,13 @@ internal sealed partial class RoomService(
         int param = -1
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+        // A temporary furni is left to wired: players neither move, use nor click it.
+        if (
+            ctx.PlayerId <= 0
+            || ctx.RoomId <= 0
+            || itemId <= 0
+            || FurniIdBands.IsTemporary(itemId.Value)
+        )
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

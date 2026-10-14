@@ -329,7 +329,10 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private void ForgetStoredValuesOfUnownedFurni(RoomObjectId objectId)
     {
-        if (!FurniIdBands.IsBuildersClub(objectId.Value) && objectId.Value >= 0)
+        if (
+            !FurniIdBands.IsBuildersClub(objectId.Value)
+            && !FurniIdBands.IsTemporary(objectId.Value)
+        )
             return;
 
         foreach (var variable in _variableById.Values)

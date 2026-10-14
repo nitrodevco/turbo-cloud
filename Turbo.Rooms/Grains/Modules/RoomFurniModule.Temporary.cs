@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
@@ -16,9 +17,10 @@ namespace Turbo.Rooms.Grains.Modules;
 /// Temporary furni: floor items the room makes up from a definition and that last until they
 /// are removed or the room unloads. They are in the room like any furni (on the map, in the
 /// furni list a player is sent, open to wired) and nowhere else: no row, no owner's inventory,
-/// no persistence. What keeps them apart is their id, which is negative
-/// (<see cref="IRoomItem.IsTemporary"/>); every packet handler refuses ids that are not
-/// positive, so a player can neither pick one up nor move it.
+/// no persistence. What keeps them apart is their id, in the client's temporary band
+/// (<see cref="FurniIdBands"/>, <see cref="IRoomItem.IsTemporary"/>): the client draws their info
+/// stand as temporary furni, and the room refuses a player who picks one up, moves, uses or
+/// clicks it.
 /// </summary>
 public sealed partial class RoomFurniModule
 {
@@ -51,19 +53,40 @@ public sealed partial class RoomFurniModule
             return null;
         }
 
-        var item = _roomGrain._itemsLoader.CreateFloorItem(
-            _roomGrain._state.NextTemporaryItemId,
-            ownerId,
-            definition
-        );
+        if (NextTemporaryItemId() is not { } objectId)
+            return null;
+
+        var item = _roomGrain._itemsLoader.CreateFloorItem(objectId, ownerId, definition);
 
         if (!await PlaceFloorItemAsync(ctx, item, x, y, rot, ct, z))
             return null;
 
-        // Only an id that was used is spent.
-        _roomGrain._state.NextTemporaryItemId--;
-
         return item;
+    }
+
+    /// <summary>
+    /// The lowest free id of the temporary band. A removed temporary furni's id is handed out
+    /// again, as a borrowed one's is, and its stored wired values leave with it
+    /// (<c>RoomWiredSystem.ForgetStoredValuesOfUnownedFurni</c>). Null when the band is full,
+    /// which <c>RoomConfig.TemporaryFurniMax</c> should reach first.
+    /// </summary>
+    private RoomObjectId? NextTemporaryItemId()
+    {
+        var used = Items.Where(x => x.IsTemporary).Select(x => x.ObjectId.Value).ToHashSet();
+
+        for (
+            var offset = 0;
+            offset <= used.Count && offset < FurniIdBands.TemporaryCapacity;
+            offset++
+        )
+        {
+            var objectId = FurniIdBands.TemporaryMin + offset;
+
+            if (!used.Contains(objectId))
+                return (RoomObjectId)objectId;
+        }
+
+        return null;
     }
 
     /// <summary>Takes a temporary furni out of the room. False for a furni that is not one.</summary>
