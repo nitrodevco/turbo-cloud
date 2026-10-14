@@ -20,4 +20,16 @@ public static class WiredSaveErrors
     /// furniture that do not have advanced functionality."
     /// </summary>
     public const string FURNI_CAN_NOT_BE_CLONED = "wiredfurni.error.furni_can_not_be_cloned";
+
+    /// <summary>"Variable name length must be between 1 and 40 characters."</summary>
+    public const string VARIABLE_NAME_LENGTH = "wiredfurni.error.variables.name_length";
+
+    /// <summary>"Variable name must only have letters, numbers, or "_" characters."</summary>
+    public const string VARIABLE_NAME_SYNTAX = "wiredfurni.error.variables.name_syntax";
+
+    /// <summary>"Variable name is already in use in this room, please choose another one!"</summary>
+    public const string VARIABLE_NAME_UNIQUE = "wiredfurni.error.variables.name_uniq";
+
+    /// <summary>"This room reached the limit of permanent variables for this variable type."</summary>
+    public const string VARIABLE_PERMANENT_LIMIT = "wiredfurni.error.variables.permanent_limit";
 }
