@@ -71,17 +71,7 @@ public sealed partial class RoomWiredSystem
 
                     _nextPeriodicAtMs[objectId] = now + delayMs;
 
-                    await FireTriggerWithEventAsync(
-                        trigger,
-                        new PeriodicRoomEvent
-                        {
-                            RoomId = _roomGrain.RoomId,
-                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                        },
-                        stack,
-                        now,
-                        ct
-                    );
+                    await FireTimedTriggerAsync(trigger, stack, now, ct);
 
                     break;
                 }
@@ -100,21 +90,35 @@ public sealed partial class RoomWiredSystem
 
                     _atTimeFiredVersion[objectId] = _timersEpochVersion;
 
-                    await FireTriggerWithEventAsync(
-                        trigger,
-                        new PeriodicRoomEvent
-                        {
-                            RoomId = _roomGrain.RoomId,
-                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                        },
-                        stack,
-                        now,
-                        ct
-                    );
+                    await FireTimedTriggerAsync(trigger, stack, now, ct);
 
                     break;
                 }
             }
         }
     }
+
+    /// <summary>A periodic or "at given time" trigger firing starts an execution of its own.</summary>
+    private Task FireTimedTriggerAsync(
+        IWiredTrigger trigger,
+        IWiredStack stack,
+        long now,
+        CancellationToken ct
+    ) =>
+        RunExecutionAsync(
+            () =>
+                FireTriggerWithEventAsync(
+                    trigger,
+                    new PeriodicRoomEvent
+                    {
+                        RoomId = _roomGrain.RoomId,
+                        CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                    },
+                    stack,
+                    now,
+                    ct
+                ),
+            now,
+            ct
+        );
 }

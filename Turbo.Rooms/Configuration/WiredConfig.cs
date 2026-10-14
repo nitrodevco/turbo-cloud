@@ -18,8 +18,30 @@ public class WiredConfig
     /// </summary>
     public int StateUpdateMs { get; init; } = 500;
 
-    /// <summary>How deep signals and stack calls may nest before the chain is cut and logged.</summary>
-    public int MaxDepth { get; init; } = 20;
+    /// <summary>
+    /// How often one execution may run the same stack: its signals and stack calls run inside it,
+    /// and the visit past this is dropped without an error. 100 in Habbo, per receiving stack
+    /// (official client capture: rings of 2, 12 and 24 stacks stopped at 200, 1200 and 2400
+    /// visits, and two receivers sent 100 each both completed). 0 or less is no limit.
+    /// </summary>
+    public int MaxStackVisitsPerExecution { get; init; } = 100;
+
+    /// <summary>
+    /// How long, in wall-clock milliseconds, one execution's signals and stack calls may keep
+    /// running before it is stopped and RECURSION_TIMEOUT is counted. Habbo does not disclose its
+    /// duration ("an execution taking too long is stopped", in-client error help). 0 or less is no
+    /// limit.
+    /// </summary>
+    public int RecursionTimeoutMs { get; init; } = 1000;
+
+    /// <summary>
+    /// Delayed executions a room may hold at once; one more is dropped and DELAYED_EVENTS_CAP is
+    /// counted. Habbo bounds them without saying where (in-client error help; 800 at once worked
+    /// in an official client capture). 0 or less is no limit.
+    /// </summary>
+    public int MaxDelayedEvents { get; init; } = 5000;
+
+    /// <summary>Delayed executions run per tick; the rest wait for the next one.</summary>
     public int MaxScheduledPerTick { get; init; } = 64;
     public int MaxEventsPerTick { get; init; } = 64;
 
@@ -30,9 +52,49 @@ public class WiredConfig
     /// </summary>
     public int MaxQueuedEvents { get; init; } = 1024;
 
-    /// <summary>Executions in one window that mark a room as heavy in the wired monitor.</summary>
-    public int ExecutionCostCap { get; init; } = 500;
-    public int ExecutionCostWindowMs { get; init; } = 1000;
+    /// <summary>
+    /// The room's wired usage budget, the monitor's "usage" limit. Usage is what recent executions
+    /// cost, decaying over time; an execution that takes it past this is cancelled and
+    /// EXECUTION_CAP is counted ("an execution is cancelled when it would exceed the usage cap",
+    /// in-client error help). Habbo sizes it per room by a formula it does not disclose: 4687.5
+    /// for an owner of level 13 (official client capture of WiredRoomStats). 0 or less is no cap.
+    /// </summary>
+    public double ExecutionCostCap { get; init; } = 4687.5;
+
+    // What an execution adds to the usage: each stack it runs, each action, and each furni or
+    // user an action works on. Habbo's units are not disclosed; these defaults follow official
+    // client captures, where usage grew with the targets an action has (a 10 Hz timer changing a
+    // variable on 1 furni read about 13, on 100 furni about 445).
+    public double ExecutionCostPerStack { get; init; } = 0.05;
+    public double ExecutionCostPerAction { get; init; } = 0.1;
+    public double ExecutionCostPerTarget { get; init; } = 0.3;
+
+    /// <summary>
+    /// Usage falls by <see cref="ExecutionCostDecayFactor"/> every this many milliseconds: 11/16
+    /// about every 500 ms in Habbo (official client captures of an idle room after its timer was
+    /// removed matched successive powers of 11/16).
+    /// </summary>
+    public int ExecutionCostDecayMs { get; init; } = 500;
+    public double ExecutionCostDecayFactor { get; init; } = 0.6875;
+
+    /// <summary>
+    /// A room whose wired took more than <see cref="HeavyBusyMsPerWindow"/> milliseconds of
+    /// server time in one window of <see cref="HeavyWindowMs"/> is marked heavy: a warning in the
+    /// monitor (MARKED_AS_HEAVY), not a stop, and apart from the usage cap (an official client
+    /// capture logged EXECUTION_CAP while the room stayed not heavy). Habbo does not disclose its
+    /// threshold. 0 or less never marks a room heavy.
+    /// </summary>
+    public double HeavyBusyMsPerWindow { get; init; } = 200;
+    public int HeavyWindowMs { get; init; } = 1000;
+
+    /// <summary>
+    /// One execution running longer than this, in wall-clock milliseconds, halts all wired in the
+    /// room for <see cref="KilledDurationMs"/> and counts KILLED. Habbo halts a room's wired for
+    /// 10 minutes on criteria it keeps secret (in-client error help), so this is off (0) unless an
+    /// operator sets it.
+    /// </summary>
+    public int KillExecutionMs { get; init; } = 0;
+    public int KilledDurationMs { get; init; } = 600_000;
 
     /// <summary>
     /// Lines of "write to logs" a room keeps; the oldest makes room for a new one ("Only the most

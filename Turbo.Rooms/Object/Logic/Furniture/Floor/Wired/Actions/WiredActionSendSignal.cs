@@ -45,9 +45,6 @@ public class WiredActionSendSignal(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (IsCallDepthExceeded(ctx))
-            return false;
-
         var antennas = WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds;
 
         if (antennas.Count == 0)

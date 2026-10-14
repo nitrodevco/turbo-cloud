@@ -738,12 +738,18 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Wired time is counted in half-second pulses. Convert through `WiredPulses`; do not write the
   500 again.
 - Anything that happens over time is an event the system consumes: signals
-  (`WiredSignalEvent`, antennas are picked furni), stack calls (`WiredStackCalledEvent`,
-  bounded by `WiredConfig.MaxDepth`), clocks (`WiredClockTickEvent` from
+  (`WiredSignalEvent`, antennas are picked furni), stack calls (`WiredStackCalledEvent`), clocks (`WiredClockTickEvent` from
   `FurnitureCounterClockLogic`), games and scores (`RoomGameSystem` events), variable writes
   (`WiredVariableChangedEvent`), avatar actions (`AvatarPerformsActionEvent`) and item use
   (`RoomItemUsedEvent`). Periodic and "at given time" triggers are paced by
   `RoomWiredSystem.Timers` from the tick, not by an event.
+- An event, a timer firing or a delayed continuation is one `WiredExecution`. Signals and stack
+  calls sent inside it run inside it at once (receivers' selectors and conditions read the room
+  as sent), each stack at most `WiredConfig.MaxStackVisitsPerExecution` times; a delay starts a
+  new execution. Every stack run and action is charged to the room's decaying usage
+  (`ExecutionCost*`); past the cap the execution is cancelled and EXECUTION_CAP counted. Heavy,
+  DELAYED_EVENTS_CAP, RECURSION_TIMEOUT and KILLED are their own settings; do not add depth or
+  per-tick hop limits.
 - Movement of furni and users goes through `IWiredExecutionContext` (`ProcessFloorItemMovementAsync`,
   `ProcessUserMovementAsync`, `ProcessUserDirectionAsync`); the system flushes one
   `WiredMovements` packet per action. Text an action shows goes through `FormatTextAsync` so the
@@ -1364,7 +1370,7 @@ When adding packet mappings in `Turbo.Revisions/Revision20260909`:
 Most drift here came from adding the second copy of something that already existed. Before
 finishing a change, check it against this list; each line is a mistake that was made and fixed.
 - **Search before adding.** A config key, constant, helper, event or grain method: grep for an
-  existing one first. `WiredMaxDepth` (now `WiredConfig.MaxDepth`) existed unused while a second depth setting was added beside
+  existing one first. `WiredMaxDepth` (later `WiredConfig.MaxDepth`, since removed) existed unused while a second depth setting was added beside
   it. An unused setting is a signal to wire it up or delete it, not to add a sibling.
 - **One way to do a thing.** If a change makes two members do the same job (two selection
   methods, two eviction paths, two ways to build an inventory item), collapse them in the same
