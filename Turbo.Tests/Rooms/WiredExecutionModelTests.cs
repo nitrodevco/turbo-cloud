@@ -51,7 +51,15 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_signal_ping_pong_runs_100_visits_per_stack_inside_the_one_click()
     {
-        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, RecursionTimeoutMs = 0 });
+        // Wall-clock limits off: a slow test machine must not cut or flag the chain.
+        Configure(
+            new WiredConfig
+            {
+                MaxRoomLogEntries = 10_000,
+                RecursionTimeoutMs = 0,
+                HeavyBusyMsPerWindow = 0,
+            }
+        );
         await BuildPingPongAsync();
         await StartAsync();
 
@@ -101,6 +109,29 @@ public sealed class WiredExecutionModelTests
 
         Logged("timer").Should().Be(1);
         Logged("received").Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(10, 2)]
+    [InlineData(2, 10)]
+    [InlineData(1, 20)]
+    public async Task A_short_timer_keeps_its_rate_with_its_actions_run_in_the_firing_tick(
+        int units,
+        int perSecond
+    )
+    {
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        await BuildStackAsync(0, 0, shortPeriodUnits: units, actions: [Log("tick")]);
+        await StartAsync();
+
+        // Habbo: short-period units 10, 2 and 1 gave about 2, 10 and 20 updates a second.
+        for (var i = 0; i < 40; i++)
+        {
+            _now += 50;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+        }
+
+        Logged("tick").Should().Be(2 * perSecond);
     }
 
     [Fact]
@@ -276,13 +307,21 @@ public sealed class WiredExecutionModelTests
         int y,
         bool clickTrigger = false,
         bool periodic = false,
+        int shortPeriodUnits = 0,
         int receiveAntenna = 0,
         ActionSpec[]? actions = null
     )
     {
         var triggerId = _nextBoxId++;
 
-        if (periodic)
+        if (shortPeriodUnits > 0)
+        {
+            _room.AddBox<WiredTriggerShortPeriodically>(triggerId, x, y, "wf_trg_period_short");
+            (await _room.SaveAsync<UpdateTriggerMessage>(triggerId, intParams: [shortPeriodUnits]))
+                .Should()
+                .BeTrue();
+        }
+        else if (periodic)
         {
             // Every half second.
             _room.AddBox<WiredTriggerPeriodically>(triggerId, x, y, "wf_trg_periodically");
