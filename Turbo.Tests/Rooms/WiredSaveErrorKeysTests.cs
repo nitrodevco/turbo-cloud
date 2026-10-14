@@ -44,12 +44,12 @@ public sealed class WiredSaveErrorKeysTests
 
         (await SaveNamesAsync(new string('n', 30))).IsSaved.Should().BeTrue();
         var tooLong = await SaveNamesAsync(new string('n', 31));
-        tooLong.ErrorKey.Should().Be(WiredSaveErrors.USERNAME_LENGTH);
+        tooLong.ErrorKey.Should().Be("wiredfurni.error.username_length");
         tooLong.Parameters.Should().Equal(("max_username_length", "30"));
 
         (await SaveNamesAsync(Names(20))).IsSaved.Should().BeTrue();
         var tooMany = await SaveNamesAsync(Names(21));
-        tooMany.ErrorKey.Should().Be(WiredSaveErrors.USERNAMES_COUNT);
+        tooMany.ErrorKey.Should().Be("wiredfurni.error.usernames_count");
         tooMany.Parameters.Should().Equal(("max_usernames", "20"));
     }
 
