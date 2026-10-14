@@ -275,12 +275,10 @@ public abstract class FurnitureWiredVariableLogic
         if (!await store.GiveValueAsync(storedKey, value, replace))
             return false;
 
-        PublishChange(
-            key,
-            existed ? WiredVariableChangeType.Updated : WiredVariableChangeType.Created,
-            value,
-            existed ? previous : value
-        );
+        // A give is a creation even when it overrides a value the holder already had: the
+        // "created" trigger fires for the replacement too, where a Change Variable on it does
+        // not (official client capture: give with override twice, change once).
+        PublishChange(key, WiredVariableChangeType.Created, value, existed ? previous : value);
         ShareChange(
             storedKey,
             WiredVariableChangeType.Created,
