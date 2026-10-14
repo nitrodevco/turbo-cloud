@@ -6,7 +6,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -43,6 +45,16 @@ public class WiredAddonVariableCapturer(
     public string CaptureToken => WiredPlaceholderText.Token(SIGIL, GetStringParam());
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+
+    /// <summary>The name are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        WiredNameRules.PlaceholderError(update.StringParam, showsAll: false) is { } error
+            ? throw new WiredSaveRefusedException(error)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

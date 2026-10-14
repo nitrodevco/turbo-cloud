@@ -32,4 +32,17 @@ public static class WiredSaveErrors
 
     /// <summary>"This room reached the limit of permanent variables for this variable type."</summary>
     public const string VARIABLE_PERMANENT_LIMIT = "wiredfurni.error.variables.permanent_limit";
+
+    /// <summary>"Placeholder length must be between 1 and 40 characters."</summary>
+    public const string PLACEHOLDER_NAME_LENGTH = "wiredfurni.error.placeholder.name_length";
+
+    /// <summary>"Placeholder must only have letters, numbers, or "_" characters."</summary>
+    public const string PLACEHOLDER_NAME_SYNTAX = "wiredfurni.error.placeholder.name_syntax";
+
+    /// <summary>"The placeholder trigger_text is reserved for the received message or chat."</summary>
+    public const string PLACEHOLDER_RESERVED = "wiredfurni.error.placeholder.reserved";
+
+    /// <summary>"Delimiter can not be empty"</summary>
+    public const string PLACEHOLDER_DELIMITER_EMPTY =
+        "wiredfurni.error.placeholder.delimiter_empty";
 }
