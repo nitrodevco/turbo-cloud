@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -161,13 +162,20 @@ public class FurnitureCounterClockLogic(
         Schedule();
     }
 
-    /// <summary>Shows whole seconds on the item and tells wired the clock moved.</summary>
+    /// <summary>
+    /// Shows whole seconds on the item and tells wired the clock moved. The time is written
+    /// without the state-change event: a counter set to 30 by Adjust Counter did not fire
+    /// "Furni state changes" (official client capture; the tick is assumed to behave the same).
+    /// </summary>
     private async Task PublishAsync(CancellationToken ct)
     {
         var seconds = _halfSeconds / 2;
 
         if (seconds != GetState())
-            await SetStateAsync(seconds);
+        {
+            StuffData.SetState(seconds.ToString(CultureInfo.InvariantCulture));
+            PersistStuffData(true);
+        }
 
         await _ctx.PublishRoomEventAsync(
             new WiredClockTickEvent
