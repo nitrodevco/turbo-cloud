@@ -127,4 +127,11 @@ public class WiredConfig
     /// threshold in between is not known.
     /// </summary>
     public int ChatTriggerPatternMaxLength { get; init; } = 200;
+
+    /// <summary>
+    /// Created variables one user or furni may hold at once; a give beyond it is refused and
+    /// logged as TOO_MANY_VARIABLES. Habbo's threshold is not disclosed (its help calls it a high
+    /// limit), so this default is ours. 0 turns the cap off.
+    /// </summary>
+    public int MaxVariablesPerHolder { get; init; } = 500;
 }

@@ -24,6 +24,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Storage;
 using Turbo.Rooms.Wired.Variables;
 
@@ -128,7 +129,52 @@ public abstract class FurnitureWiredVariableLogic
         )
             return Task.FromResult(false);
 
+        if (!store.ContainsKey(storedKey) && IsHolderFull(key))
+        {
+            WiredSystem.RecordError(WiredErrorKind.TooManyVariables, _roomGrain.NowMs());
+
+            return Task.FromResult(false);
+        }
+
         return GiveAndNotifyAsync(store, key, storedKey, value, replace);
+    }
+
+    /// <summary>
+    /// Whether the user or furni already holds as many created variables as one may
+    /// (TOO_MANY_VARIABLES: "The limit for variables per furni/user was reached!").
+    /// </summary>
+    private bool IsHolderFull(in WiredVariableKey key)
+    {
+        var max = _roomGrain._wiredConfig.MaxVariablesPerHolder;
+
+        if (
+            max <= 0
+            || key.TargetType is not (WiredVariableTargetType.User or WiredVariableTargetType.Furni)
+        )
+            return false;
+
+        var held = 0;
+
+        foreach (var variable in WiredSystem.GetAllVariables())
+        {
+            if (variable is not FurnitureWiredVariableLogic created)
+                continue;
+
+            var snapshot = created.GetVarSnapshot();
+
+            if (
+                snapshot.TargetType == key.TargetType
+                && snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                && created.TryGetValue(
+                    new WiredVariableKey(snapshot.VariableId, key.TargetType, key.TargetId),
+                    out _
+                )
+                && ++held >= max
+            )
+                return true;
+        }
+
+        return false;
     }
 
     public virtual Task<bool> SetValueAsync(
