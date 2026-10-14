@@ -2087,6 +2087,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(UserPurchasableChatStylesMessageComposer),
+                new UserPurchasableChatStylesMessageComposerSerializer(
+                    MessageComposer.UserPurchasableChatStylesMessageComposer
+                )
+            },
+            {
                 typeof(UserNftChatStylesMessageComposer),
                 new UserNftChatStylesMessageComposerSerializer(
                     MessageComposer.UserNftChatStylesMessageComposer

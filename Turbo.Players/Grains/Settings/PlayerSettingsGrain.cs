@@ -100,6 +100,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     public Task<List<int>> GetOwnedNftChatStyleIdsAsync(CancellationToken ct) =>
         Task.FromResult(_state.OwnedChatStyleIds.Where(ChatStyles.IsNftStyle).Order().ToList());
 
+    public Task<List<int>> GetOwnedPurchasableChatStyleIdsAsync(CancellationToken ct) =>
+        Task.FromResult(
+            _state.OwnedChatStyleIds.Where(ChatStyles.IsPurchasableStyle).Order().ToList()
+        );
+
     public async Task<List<string>> GetCustomFilterWordsAsync(CancellationToken ct) =>
         [.. await LoadCustomFilterWordsAsync(ct)];
 

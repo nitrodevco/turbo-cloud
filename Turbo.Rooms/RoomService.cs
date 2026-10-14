@@ -558,12 +558,32 @@ internal sealed partial class RoomService(
             .GetOwnedNftChatStyleIdsAsync(ct)
             .ConfigureAwait(false);
 
+        var purchasableChatStyleIds = await _grainFactory
+            .GetPlayerSettingsGrain(ctx.PlayerId)
+            .GetOwnedPurchasableChatStyleIdsAsync(ct)
+            .ConfigureAwait(false);
+
         var composers = new List<IComposer>
         {
             // Habbo opens every entry with the player's NFT chat styles (an empty list for an account
             // without any) right before RoomReady (hhus, 2026-10-13, 17 of 17 entries); the client
             // offers an NFT bubble only to an owner it names (RoomChatInputView.hasNftChatStyle).
             new UserNftChatStylesMessageComposer { ChatStyleIds = nftChatStyleIds },
+        };
+
+        // The purchasable styles the player owns, which the style selector offers only to an
+        // owner it was told of. Habbo never sent it to the recorded accounts, which own none (325
+        // official client captures), so it goes only to an owner: an entry of everyone else stays
+        // as recorded. Where Habbo sends it is unrecorded; with the NFT styles is inferred.
+        if (purchasableChatStyleIds is { Count: > 0 })
+            composers.Add(
+                new UserPurchasableChatStylesMessageComposer
+                {
+                    ChatStyleIds = purchasableChatStyleIds,
+                }
+            );
+
+        composers.AddRange([
             new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
             new RoomEntryTileMessageComposer
             {
@@ -571,7 +591,7 @@ internal sealed partial class RoomService(
                 Y = mapSnapshot.DoorY,
                 Rotation = mapSnapshot.DoorRotation,
             },
-        };
+        ]);
 
         composers.AddRange(
             view.Properties.Select(x => new RoomPropertyMessageComposer

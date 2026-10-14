@@ -249,6 +249,43 @@ public class RoomEntryPreparationTests
     }
 
     [Fact]
+    public async Task ApprovedEntry_NamesThePurchasableChatStylesThePlayerOwns()
+    {
+        // The selector offers a purchasable bubble (10000 to 99999, custom.chat.styles.enabled)
+        // only to an owner UserPurchasableChatStyles names (RoomChatInputView.isPurchasableStyle,
+        // SessionDataManager.onPurchasableChatStyles); Turbo never sent it.
+        var harness = await ApprovedHarnessAsync();
+        harness.Fakes.Handlers["GetOwnedPurchasableChatStyleIdsAsync"] = _ =>
+            Task.FromResult(new List<int> { 10001, 10020 });
+
+        var packets = await OpenRoomAsync(harness);
+        var styles = packets.Single(packet =>
+            packet.Header == PacketHarness.Outgoing("UserPurchasableChatStylesMessageComposer")
+        );
+
+        Assert.Equal(2, styles.PopInt());
+        Assert.Equal(10001, styles.PopInt());
+        Assert.Equal(10020, styles.PopInt());
+    }
+
+    [Fact]
+    public async Task ApprovedEntry_SendsNoPurchasableChatStylesToAPlayerWithout()
+    {
+        // 325 official client captures of accounts without any: never sent.
+        var harness = await ApprovedHarnessAsync();
+        harness.Fakes.Handlers["GetOwnedPurchasableChatStyleIdsAsync"] = _ =>
+            Task.FromResult(new List<int>());
+
+        var packets = await OpenRoomAsync(harness);
+
+        Assert.DoesNotContain(
+            packets,
+            packet =>
+                packet.Header == PacketHarness.Outgoing("UserPurchasableChatStylesMessageComposer")
+        );
+    }
+
+    [Fact]
     public async Task ApprovedEntry_NamesTheNftChatStylesThePlayerOwns()
     {
         // The client offers an NFT bubble (1000 to 9999) only to an owner UserNftChatStyles

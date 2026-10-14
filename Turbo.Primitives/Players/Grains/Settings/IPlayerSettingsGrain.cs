@@ -23,6 +23,9 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     /// <summary>The client ids of the NFT chat styles the player owns, lowest first.</summary>
     public Task<List<int>> GetOwnedNftChatStyleIdsAsync(CancellationToken ct);
 
+    /// <summary>The client ids of the purchasable chat styles the player owns, lowest first.</summary>
+    public Task<List<int>> GetOwnedPurchasableChatStyleIdsAsync(CancellationToken ct);
+
     /// <summary>The words in the player's own word filter, in the order they were added.</summary>
     public Task<List<string>> GetCustomFilterWordsAsync(CancellationToken ct);
 
