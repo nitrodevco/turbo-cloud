@@ -120,4 +120,11 @@ public class WiredConfig
     /// drops an fx for an object it has not been told of yet, and the object travels another way.
     /// </summary>
     public int VariableFxEntryDelayMs { get; init; } = 1000;
+
+    /// <summary>
+    /// Longest "says something" keyword that still fires. The editor takes 1000 characters, but
+    /// Habbo fires a pattern of 191 and not one of 202 (official client capture); the exact
+    /// threshold in between is not known.
+    /// </summary>
+    public int ChatTriggerPatternMaxLength { get; init; } = 200;
 }

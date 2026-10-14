@@ -94,15 +94,22 @@ public class WiredAddonVariableCapturer(
         if (!match.Success)
             return;
 
-        var typed = match.Groups[1].Value;
+        // Habbo lowercases the line before it captures, and looks the text up in the connector
+        // exactly first, then ignoring case (official client capture).
+        var typed = match.Groups[1].Value.ToLowerInvariant();
         var snapshot = variable.GetVarSnapshot();
         long value;
 
         if (GetIntParamOrDefault(0, false))
         {
             var connector = snapshot.TextConnectors.FirstOrDefault(x =>
-                string.Equals(x.Value, typed, StringComparison.OrdinalIgnoreCase)
+                string.Equals(x.Value, typed, StringComparison.Ordinal)
             );
+
+            if (connector.Value is null)
+                connector = snapshot.TextConnectors.FirstOrDefault(x =>
+                    string.Equals(x.Value, typed, StringComparison.OrdinalIgnoreCase)
+                );
 
             if (connector.Value is null)
                 return;
