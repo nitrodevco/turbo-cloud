@@ -42,8 +42,13 @@ public class WiredAddonChestItemTypeScanner(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(0, 1, 0)];
 
+    // The furni types default to the triggering furni and the chests to the picked furni
+    // (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.Furni];
+        [
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary,
+        ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

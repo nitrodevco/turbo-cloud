@@ -50,8 +50,13 @@ public class WiredActionMoveAsGroup(
             new WiredRangeParamRule(OFFSET_MIN, OFFSET_MAX, 0),
         ];
 
+    // The group defaults to the picked furni and the targets to the triggering furni (official
+    // client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.Furni];
+        [
+            WiredSources.FurniOrSecondary,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+        ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

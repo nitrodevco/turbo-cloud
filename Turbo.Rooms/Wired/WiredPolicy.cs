@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
@@ -19,6 +20,7 @@ public sealed class WiredPolicy : IWiredPolicy
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }
     public WiredCarryUserType? CarryUsers { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; } = WiredMovePhysicsFlags.None;
+    public IReadOnlySet<RoomObjectId>? MoveThroughUserIds { get; set; }
     public int? JumpStrength { get; set; }
     public WiredProjectileSettings? Projectile { get; set; }
     public IWiredContractSource? CustomContract { get; set; }

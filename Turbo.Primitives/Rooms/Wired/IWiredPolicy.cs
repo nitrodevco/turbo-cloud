@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
@@ -35,6 +36,12 @@ public interface IWiredPolicy
     /// <summary>Null when users are not carried along with moving furni.</summary>
     public WiredCarryUserType? CarryUsers { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; }
+
+    /// <summary>
+    /// The users "move through users" lets a moved user pass: the movement physics addon's user
+    /// source. Null means every user.
+    /// </summary>
+    public IReadOnlySet<RoomObjectId>? MoveThroughUserIds { get; set; }
 
     /// <summary>
     /// How high the stack's movements arc (the client's jump power for a user, curve strength

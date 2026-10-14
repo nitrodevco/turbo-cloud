@@ -56,16 +56,21 @@ public class WiredAddonCustomContract(
 
     public override List<IWiredParamRule> GetIntParamRules() => [.. SideRules(), .. SideRules()];
 
+    // The two furni types default to the triggering furni and the amount variables to the
+    // selectors (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            WiredSources.PickedFurni,
-            WiredSources.PickedFurni,
-            WiredSources.Furni,
-            WiredSources.Furni,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
         ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.Users, WiredSources.Users];
+        [
+            WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers),
+            WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers),
+        ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

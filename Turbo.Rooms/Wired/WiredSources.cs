@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Rooms.Wired;
@@ -44,4 +46,25 @@ internal static class WiredSources
     /// <summary>Only furni the box or a selector names, for boxes a triggering furni makes no sense for.</summary>
     public static WiredFurniSourceType[] PickedFurni =>
         [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems];
+
+    /// <summary>
+    /// Every slot of a box that takes two pick lists: both pick lists and the pool sources. The
+    /// official editor offers all five on each slot of such a box (official client capture:
+    /// send signal, initiate transaction, chest contains furni type, the chest scanner, ...).
+    /// </summary>
+    public static WiredFurniSourceType[] FurniOrSecondary =>
+        [
+            WiredFurniSourceType.SelectedItems,
+            WiredFurniSourceType.SecondaryItems,
+            WiredFurniSourceType.SelectorItems,
+            WiredFurniSourceType.SignalItems,
+            WiredFurniSourceType.TriggeredItem,
+        ];
+
+    /// <summary>
+    /// The same set with <paramref name="first"/> moved to the front, which makes it the slot's
+    /// default.
+    /// </summary>
+    public static T[] DefaultingTo<T>(this T[] sources, T first)
+        where T : struct, Enum => [first, .. sources.Where(x => !x.Equals(first))];
 }
