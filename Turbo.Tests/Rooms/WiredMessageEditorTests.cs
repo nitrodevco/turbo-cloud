@@ -50,7 +50,7 @@ public sealed class WiredMessageEditorTests
             await _room.SaveAsync<UpdateActionMessage>(
                 SHOW_MESSAGE,
                 intParams: [1, 34, -1],
-                stringParam: text + "b",
+                stringParam: text,
                 definitionSpecifics: [0]
             )
         )

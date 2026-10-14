@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -106,6 +107,23 @@ public abstract class FurnitureWiredVariableFxLogic(
 
     /// <summary>False for the categories whose editor has no min and max (levels, plain numbers).</summary>
     protected virtual bool UsesValueRange => true;
+
+    /// <summary>
+    /// A range whose maximum is not above its minimum is refused with
+    /// <c>wiredfurni.error.variable_fx.value_range</c>, as the editor refuses it before sending
+    /// (<c>_-Q2l.validate</c>, AS3 WIN63-202610131318: min and max read from params 11 and 13 for
+    /// every category but the two without a range).
+    /// </summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        UsesValueRange
+        && update.IntParams.Count > PARAM_DEFAULT_MAX + 1
+        && update.IntParams[PARAM_DEFAULT_MAX + 1] <= update.IntParams[PARAM_DEFAULT_MIN + 1]
+            ? throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_FX_VALUE_RANGE)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     /// <summary>The rules of the int params a category adds after the shared ones.</summary>
     protected virtual IEnumerable<IWiredParamRule> GetCategoryParamRules() => [];

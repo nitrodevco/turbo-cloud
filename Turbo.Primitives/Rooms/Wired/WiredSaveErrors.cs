@@ -33,6 +33,15 @@ public static class WiredSaveErrors
     /// <summary>"This room reached the limit of permanent variables for this variable type."</summary>
     public const string VARIABLE_PERMANENT_LIMIT = "wiredfurni.error.variables.permanent_limit";
 
+    /// <summary>"Wired texts can be at most %limit% characters."</summary>
+    public const string TOO_MUCH_TEXT = "wiredfurni.error.too_much_text";
+
+    /// <summary>"Maximum must be greater than minimum."</summary>
+    public const string VARIABLE_FX_VALUE_RANGE = "wiredfurni.error.variable_fx.value_range";
+
+    /// <summary>"Can only select counter furni."</summary>
+    public const string REQUIRE_COUNTER_FURNI = "wiredfurni.error.require_counter_furni";
+
     /// <summary>"Placeholder length must be between 1 and 40 characters."</summary>
     public const string PLACEHOLDER_NAME_LENGTH = "wiredfurni.error.placeholder.name_length";
 
