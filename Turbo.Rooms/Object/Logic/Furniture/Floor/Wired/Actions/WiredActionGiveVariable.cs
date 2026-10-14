@@ -63,16 +63,23 @@ public class WiredActionGiveVariable(
 
     public override int GetMaxVariableIds() => 2;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+    // Two merged selections, the holders given to and the reference holders, each its own furni
+    // and user slot (mergedSelections [[0,0],[1,1]]; official client capture of the box's sources).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var selection = ctx.GetSelection(this);
+        var selection = GetMergedSelection(ctx, 0);
         var targetType = GetIntParamOrDefault(PARAM_TARGET, WiredVariableTargetType.User);
         var replace = GetIntParamOrDefault(PARAM_OVERRIDE, false);
         var fromVariable = GetIntParamOrDefault(PARAM_FROM_VARIABLE, false);
@@ -86,7 +93,12 @@ public class WiredActionGiveVariable(
         if (
             fromVariable
             && !sameHolder
-            && !TryReadVariableOperand(1, PARAM_REFERENCE_TARGET, selection, out initial)
+            && !TryReadVariableOperand(
+                1,
+                PARAM_REFERENCE_TARGET,
+                GetMergedSelection(ctx, 1),
+                out initial
+            )
         )
             return false;
 

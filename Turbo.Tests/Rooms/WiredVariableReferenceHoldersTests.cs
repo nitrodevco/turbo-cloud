@@ -17,7 +17,7 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// Change Variable and Variable Value have two merged selections, each a furni slot and a user
+/// Give Variable, Change Variable and Variable Value have two merged selections, each a furni slot and a user
 /// slot (AS3 <c>ChangeVariable.mergedSelections</c> <c>[[0,0],[1,1]]</c>, official client capture
 /// of their sources: two furni and two user slots, defaults triggering/selector). The first
 /// names the holders acted on, the second the holders the reference variable is read on: the
@@ -77,6 +77,45 @@ public sealed class WiredVariableReferenceHoldersTests
         (await change.ExecuteAsync(ctx, Ct)).Should().BeTrue();
         Value(_mark, TRIGGERER).Should().Be(7);
         Value(_mark, SELECTED).Should().Be(1, "the reference holders are not acted on");
+    }
+
+    [Fact]
+    public async Task Give_variable_reads_the_reference_on_its_second_selection()
+    {
+        await PlaceMarkAsync();
+        var give = _room.AddBox<WiredActionGiveVariable>(BOX, 0, 0, "wf_act_give_var");
+
+        // Target user, initial value 0, override, from a variable, on users, not the same holder.
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams:
+                [
+                    (int)WiredVariableTargetType.User,
+                    0,
+                    0,
+                    1,
+                    1,
+                    (int)WiredVariableTargetType.User,
+                    0,
+                ],
+                furniSources: Furni(),
+                playerSources: Users(),
+                definitionSpecifics: [0],
+                variableIds: [Id(_mark), Id(_ref)]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Selected.SelectedAvatarIds.Add(TRIGGERER);
+        ctx.SelectorPool.SelectedAvatarIds.Add(SELECTED);
+
+        (await give.ExecuteAsync(ctx, Ct)).Should().BeTrue();
+        Value(_mark, TRIGGERER).Should().Be(7);
+        Value(_mark, SELECTED).Should().Be(1, "the reference holders are not given to");
     }
 
     [Theory]

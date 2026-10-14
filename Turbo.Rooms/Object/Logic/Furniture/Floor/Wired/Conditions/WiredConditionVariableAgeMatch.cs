@@ -53,17 +53,16 @@ public class WiredConditionVariableAgeMatch(
             WiredRules.VariableTarget(WiredVariableTargetType.Global),
         ];
 
+    // Two merged selections, the holders tested and the reference holders, each its own furni
+    // and user slot (mergedSelections [[0,0],[1,1]]; official client capture of the box's sources).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            [
-                WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-            ],
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -85,7 +84,7 @@ public class WiredConditionVariableAgeMatch(
             && !TryReadVariableOperand(
                 1,
                 PARAM_REFERENCE_TARGET,
-                ctx.GetSelection(this),
+                GetMergedSelection(ctx, 1),
                 out duration
             )
         )
@@ -96,7 +95,7 @@ public class WiredConditionVariableAgeMatch(
             GetIntParamOrDefault(5, WiredTimeUnitType.Seconds)
         );
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var targets = GetTargetIds(targetType, ctx.GetSelection(this)).ToList();
+        var targets = GetTargetIds(targetType, GetMergedSelection(ctx, 0)).ToList();
 
         return Quantify(
             targets.Select(id =>

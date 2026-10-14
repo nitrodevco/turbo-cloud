@@ -97,6 +97,23 @@ public sealed class WiredOfficialSourcesTests
                 ],
                 [0]
             },
+            // Recorded for codes 39 and 43 on 2026-10-12, like 41 and 42.
+            {
+                typeof(WiredActionGiveVariable),
+                "wf_act_give_var",
+                [Both, Both],
+                [0, 200],
+                [Users, Users],
+                [0, 200]
+            },
+            {
+                typeof(WiredConditionVariableAgeMatch),
+                "wf_cnd_var_age_match",
+                [Both, Both],
+                [0, 200],
+                [Users, Users],
+                [0, 200]
+            },
             {
                 typeof(WiredActionChangeVariable),
                 "wf_act_change_var_val",
