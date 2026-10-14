@@ -19,8 +19,8 @@ namespace Turbo.Rooms.Grains.Modules;
 /// furni list a player is sent, open to wired) and nowhere else: no row, no owner's inventory,
 /// no persistence. What keeps them apart is their id, in the client's temporary band
 /// (<see cref="FurniIdBands"/>, <see cref="IRoomItem.IsTemporary"/>): the client draws their info
-/// stand as temporary furni, and the room refuses a player who picks one up, moves, uses or
-/// clicks it.
+/// stand as temporary furni. Whoever may handle furni in the room moves, uses and picks one up
+/// as any other (official client capture, WIN63-202610131318); picked up, it is simply gone.
 /// </summary>
 public sealed partial class RoomFurniModule
 {
