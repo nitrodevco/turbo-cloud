@@ -816,6 +816,56 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             await NotifyWalkOnAsync(avatar, tileIdx, ct);
     }
 
+    /// <summary>
+    /// Pushes a walking avatar off the step it is taking, onto <paramref name="tileIdx"/>, without
+    /// ending its walk (official client capture, 2026-10-14, Move/Rotate User on a walking
+    /// user): the push replaces the step in progress and the walk goes on to its goal from where
+    /// the push left it, so a push back onto the tile it came from walks it into the same push
+    /// again. A push on the walk's last step ends the walk there. Whether the avatar may stand
+    /// there is the caller's question, as for <see cref="RelocateAvatarAsync"/>.
+    /// </summary>
+    public async Task PushWalkingAvatarAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct)
+    {
+        var map = MapModule;
+        var steppingTo = avatar.NextTileId >= 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
+        var (fromX, fromY) = (avatar.X, avatar.Y);
+        var lastStep = avatar.TilePath.Count == 0;
+
+        // The step was taken on the map when it began: the avatar holds the tile it steps onto.
+        await NotifyWalkOffAsync(avatar, steppingTo, ct);
+
+        map.RemoveAvatarAtIdx(avatar, steppingTo, false);
+
+        var (targetX, targetY) = map.GetTileXY(tileIdx);
+
+        avatar.NextTileId = -1;
+        avatar.SetPosition(targetX, targetY);
+        map.AddAvatarAtIdx(avatar, tileIdx, false);
+        map.UpdateHeightForAvatar(avatar);
+
+        await PublishMovedAsync(avatar, fromX, fromY, ct);
+
+        avatar.RemoveStatus(AvatarStatusType.Move);
+        avatar.NeedsInvoke = true;
+        avatar.MarkDirty();
+
+        await NotifyWalkOnAsync(avatar, tileIdx, ct);
+
+        if (
+            lastStep
+            || avatar.GoalTileId == tileIdx
+            || avatar.GoalTileId < 0
+            || !PathingSystem.TryFindPath(avatar, tileIdx, avatar.GoalTileId, avatar.TilePath)
+        )
+        {
+            avatar.TilePath.Clear();
+
+            return;
+        }
+
+        avatar.PendingStopAtMs = 0;
+    }
+
     /// <summary>Tells the furni an avatar stands on that the avatar is leaving it.</summary>
     public Task NotifyWalkOffAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
         MapModule.TryGetHighestFloorItem(tileIdx, out var item)

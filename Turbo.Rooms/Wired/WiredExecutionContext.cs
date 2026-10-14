@@ -421,6 +421,60 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// A push of a walking user does not end the walk (official client capture, 2026-10-14,
+    /// Move/Rotate User on a walking user): it replaces the step in progress, and the room says
+    /// so as a walk (move type 0) from where the step began, facing the way the user walks. A
+    /// standing user slides as any wired move slides it.
+    /// </summary>
+    public async Task<bool> ProcessUserPushAsync(IRoomAvatar avatar, int tileIdx)
+    {
+        if (avatar is null || !MapModule.InBounds(tileIdx))
+            return false;
+
+        if (!avatar.IsWalking)
+            return await ProcessUserMovementAsync(avatar, tileIdx, SlideAvatarMoveType.Slide);
+
+        var steppingTo =
+            avatar.NextTileId >= 0 ? avatar.NextTileId : MapModule.ToIdx(avatar.X, avatar.Y);
+
+        if (
+            tileIdx != steppingTo
+            && !MapModule.CanAvatarWalk(
+                avatar,
+                tileIdx,
+                true,
+                ignoreAvatars: CanMoveThroughUsersAt(tileIdx)
+            )
+        )
+            return false;
+
+        var (sourceX, sourceY, sourceZ) = (avatar.X, avatar.Y, avatar.Z);
+        var walking = avatar.Rotation;
+
+        await AvatarModule.PushWalkingAvatarAsync(avatar, tileIdx, CancellationToken);
+
+        UserMoves.Add(
+            new()
+            {
+                ObjectId = avatar.ObjectId,
+                SourceX = sourceX,
+                SourceY = sourceY,
+                SourceZ = sourceZ,
+                TargetX = avatar.X,
+                TargetY = avatar.Y,
+                TargetZ = avatar.Z,
+                MoveType = SlideAvatarMoveType.Move,
+                AnimationTime = GetAnimationTime(),
+                BodyDirection = walking,
+                HeadDirection = avatar.HeadRotation,
+                JumpPower = Policy.JumpStrength ?? avatar.JumpPower,
+            }
+        );
+
+        return true;
+    }
+
     public Task ProcessUserDirectionAsync(IRoomAvatar avatar, Rotation body, Rotation head)
     {
         if (avatar is null)

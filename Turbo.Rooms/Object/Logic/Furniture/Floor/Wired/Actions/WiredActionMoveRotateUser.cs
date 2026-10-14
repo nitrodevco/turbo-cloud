@@ -46,14 +46,13 @@ public class WiredActionMoveRotateUser(
         {
             if (moveDirection != NONE)
             {
-                var idx = map.ToIdx(player.X, player.Y);
+                // A walking user is pushed from the tile it is stepping onto (official client
+                // capture, 2026-10-14: stepping from (10,3) to (9,4), pushed east, ends on (10,4)).
+                var idx =
+                    player.NextTileId >= 0 ? player.NextTileId : map.ToIdx(player.X, player.Y);
 
                 if (map.TryGetTileInFront(idx, (Rotation)moveDirection, out var nextIdx))
-                    affected |= await ctx.ProcessUserMovementAsync(
-                        player,
-                        nextIdx,
-                        SlideAvatarMoveType.Slide
-                    );
+                    affected |= await ctx.ProcessUserPushAsync(player, nextIdx);
             }
 
             if (rotation == NONE)
