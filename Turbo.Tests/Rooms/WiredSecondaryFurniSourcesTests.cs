@@ -211,6 +211,29 @@ public sealed class WiredSecondaryFurniSourcesTests
     }
 
     [Fact]
+    public async Task MoveThroughUsers_StillStopsAtAFurniNobodyCanStandOn()
+    {
+        _room.Enter(5, 1, 1);
+        _room.AddFloorItem(20, 2, 1, canWalk: false);
+        var execution = new WiredExecutionContext(_room.Harness.Room)
+        {
+            Policy = new WiredPolicy { MovePhysics = WiredMovePhysicsFlags.MoveThroughUsers },
+            CancellationToken = Ct,
+        };
+
+        (
+            await execution.ProcessUserMovementAsync(
+                _room.Avatars[5],
+                _room.Map.ToIdx(2, 1),
+                SlideAvatarMoveType.Slide
+            )
+        )
+            .Should()
+            .BeFalse("the flag lets a user past users, not onto a table");
+        _room.Positions().Should().Equal("5@1,1");
+    }
+
+    [Fact]
     public async Task MoveThroughUsers_PassesEveryUser_WithTheDefaultSource()
     {
         _room.Enter(5, 1, 1);
