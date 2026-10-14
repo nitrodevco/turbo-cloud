@@ -10,4 +10,5 @@ public enum WiredVariableBoxType
     Quest = 5,
     QuestChain = 6,
     Echo = 7,
+    DailyTask = 8,
 }

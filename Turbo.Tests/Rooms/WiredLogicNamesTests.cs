@@ -165,6 +165,7 @@ public sealed class WiredLogicNamesTests
         "wf_trg_walks_off_furni",
         "wf_trg_walks_on_furni",
         "wf_var_context",
+        "wf_var_dailytask",
         "wf_var_echo",
         "wf_var_furni",
         "wf_var_quest",

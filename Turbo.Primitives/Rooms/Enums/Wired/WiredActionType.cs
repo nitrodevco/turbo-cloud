@@ -52,6 +52,8 @@ public enum WiredActionType
     WRITE_TO_LOGS = 49,
     NEG_WRITE_TO_LOGS = 50,
     PROGRESS_ACHIEVEMENT = 51,
+    GIVE_EFFECT = 52,
+    OVERRIDE_HEIGHT = 53,
     CLICK_SETTINGS = 54,
     PLACE_FURNI = 55,
     REMOVE_FURNI = 56,
