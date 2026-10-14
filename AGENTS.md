@@ -745,8 +745,8 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `RoomWiredSystem.Timers` from the tick, not by an event.
 - An event, a timer firing or a delayed continuation is one `WiredExecution`. Signals and stack
   calls sent inside it run inside it at once (receivers' selectors and conditions read the room
-  as sent), each stack at most `WiredConfig.MaxStackVisitsPerExecution` times; a delay starts a
-  new execution. Every stack run and action is charged to the room's decaying usage
+  as sent), each stack at most `WiredConfig.MaxStackVisitsPerWindow` signal or call runs per
+  500 ms window; a delay starts a new execution. Every stack run and action is charged to the room's decaying usage
   (`ExecutionCost*`); past the cap the execution is cancelled and EXECUTION_CAP counted. Heavy,
   DELAYED_EVENTS_CAP, RECURSION_TIMEOUT and KILLED are their own settings; do not add depth or
   per-tick hop limits.

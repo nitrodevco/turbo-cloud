@@ -81,6 +81,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // The execution running now; its signals and stack calls run inside it.
     private WiredExecution? _execution;
 
+    // Signal and call runs per stack in the current visit window.
+    private readonly Dictionary<int, int> _visitsByStackId = [];
+    private long _visitWindowStartMs = long.MinValue;
+
     // The wall clock the execution time limits read.
     private Func<long> _wallClockMs = roomGrain.NowMs;
 
@@ -417,19 +421,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (_execution is { } execution)
-        {
-            if (
-                !execution.TryVisit(
-                    ctx.Stack.StackId,
-                    _roomGrain._wiredConfig.MaxStackVisitsPerExecution
-                )
-            )
-                return;
+        if (
+            ctx.Event is WiredSignalEvent or WiredStackCalledEvent
+            && !TryVisitReceiver(ctx.Stack.StackId, now)
+        )
+            return;
 
-            if (!ChargeExecution(execution, _roomGrain._wiredConfig.ExecutionCostPerStack))
-                return;
-        }
+        if (
+            _execution is { } execution
+            && !ChargeExecution(execution, _roomGrain._wiredConfig.ExecutionCostPerStack)
+        )
+            return;
 
         var outer = _contextValues;
         var outerRunning = _running;
@@ -677,6 +679,38 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             await RunStackAsync(ctx, now, evt.IsNegative, ct);
         }
+    }
+
+    /// <summary>
+    /// Counts a signal or stack call running a stack; false once the stack had
+    /// <c>WiredConfig.MaxStackVisitsPerWindow</c> of them in the current window. Windows are fixed
+    /// <c>StackVisitWindowMs</c> slices of room time, so a chain that used up a stack's visits runs
+    /// again in the next one and a delay of half a second always finds fresh visits.
+    /// </summary>
+    private bool TryVisitReceiver(int stackId, long now)
+    {
+        var limit = _roomGrain._wiredConfig.MaxStackVisitsPerWindow;
+
+        if (limit <= 0)
+            return true;
+
+        var windowMs = Math.Max(1, _roomGrain._wiredConfig.StackVisitWindowMs);
+        var windowStart = now - now % windowMs;
+
+        if (windowStart != _visitWindowStartMs)
+        {
+            _visitsByStackId.Clear();
+            _visitWindowStartMs = windowStart;
+        }
+
+        _visitsByStackId.TryGetValue(stackId, out var visits);
+
+        if (visits >= limit)
+            return false;
+
+        _visitsByStackId[stackId] = visits + 1;
+
+        return true;
     }
 
     /// <summary>Whether the tile holds a stack with at least one wired box in it.</summary>

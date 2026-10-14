@@ -19,12 +19,16 @@ public class WiredConfig
     public int StateUpdateMs { get; init; } = 500;
 
     /// <summary>
-    /// How often one execution may run the same stack: its signals and stack calls run inside it,
-    /// and the visit past this is dropped without an error. 100 in Habbo, per receiving stack
-    /// (official client capture: rings of 2, 12 and 24 stacks stopped at 200, 1200 and 2400
-    /// visits, and two receivers sent 100 each both completed). 0 or less is no limit.
+    /// How often signals and stack calls may run the same stack in one window of
+    /// <see cref="StackVisitWindowMs"/>; the visit past this is dropped without an error. 100 per
+    /// receiving stack every 500 ms in Habbo (official client captures: rings of 2, 12 and 24
+    /// stacks stopped at 200, 1200 and 2400 visits; two receivers sent 100 each both completed;
+    /// two sends of 100 to one receiver completed 100, or 200 with the second delayed by 500 ms;
+    /// a timer feeding a two-stack ping-pong at 2 to 20 Hz ran the whole chain once per ~500 ms
+    /// and only flashed the antenna in between, WIN63-202610131318). 0 or less is no limit.
     /// </summary>
-    public int MaxStackVisitsPerExecution { get; init; } = 100;
+    public int MaxStackVisitsPerWindow { get; init; } = 100;
+    public int StackVisitWindowMs { get; init; } = 500;
 
     /// <summary>
     /// How long, in wall-clock milliseconds, one execution's signals and stack calls may keep
@@ -56,9 +60,11 @@ public class WiredConfig
     /// The room's wired usage budget, the monitor's "usage" limit. Usage is what recent executions
     /// cost, decaying over time; an execution that takes it past this is cancelled and
     /// EXECUTION_CAP is counted ("an execution is cancelled when it would exceed the usage cap",
-    /// in-client error help). Habbo sizes it per room by a formula it does not disclose: 4687.5
-    /// for an owner of level 13, 2500 in another room (official client captures of WiredRoomStats).
-    /// 0 or less is no cap.
+    /// in-client error help). Habbo sizes it per room by a formula it does not disclose, and the
+    /// permanent variable caps below scale with it (official client captures of WiredRoomStats):
+    /// 4687.5 with 23 / 93 / 70 variables for an owner of level 13, 2500 with 12 / 50 / 37 in
+    /// another room (WIN63-202610131318), a factor of about 1.875 throughout. The defaults are the
+    /// first room's, so cap and variable limits come from one room. 0 or less is no cap.
     /// </summary>
     public double ExecutionCostCap { get; init; } = 4687.5;
 
@@ -116,9 +122,9 @@ public class WiredConfig
     public int MaxWallItems { get; init; } = 4000;
 
     /// <summary>
-    /// Permanent variable definitions a room may hold per kind. Habbo sizes these per room:
-    /// official client captures show 23 furni / 93 user / 70 global, and 12 / 50 / 37 in a room
-    /// with a lower execution cap.
+    /// Permanent variable definitions a room may hold per kind. Habbo sizes these per room with
+    /// its usage cap (<see cref="ExecutionCostCap"/>): official client captures show 23 furni / 93
+    /// user / 70 global with a cap of 4687.5, and 12 / 50 / 37 with 2500.
     /// </summary>
     public int MaxPermanentFurniVariables { get; init; } = 23;
     public int MaxPermanentUserVariables { get; init; } = 93;

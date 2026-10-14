@@ -6,14 +6,12 @@ namespace Turbo.Rooms.Wired;
 /// <summary>
 /// One wired execution: what an event, a timer or a delayed continuation starts. Every signal
 /// and stack call it makes runs inside it, in the same tick, rather than as a new event on the
-/// next one; a delay ends it, and what runs after the delay is a new execution with fresh
-/// budgets (official client capture: a ring of 24 stacks made 2400 visits in one event, and
-/// ActionDelay 1 starts a new execution).
+/// next one; a delay ends it, and what runs after the delay is a new execution (official client
+/// capture: a ring of 24 stacks made 2400 visits in one event, and receivers ran after the
+/// sender stack's remaining effects).
 /// </summary>
 internal sealed class WiredExecution(long now, long startedAtWallMs)
 {
-    private readonly Dictionary<int, int> _visitsByStackId = [];
-
     /// <summary>The tick time the execution runs at.</summary>
     public long Now { get; } = now;
 
@@ -34,23 +32,6 @@ internal sealed class WiredExecution(long now, long startedAtWallMs)
             return false;
 
         IsStopped = true;
-
-        return true;
-    }
-
-    /// <summary>
-    /// Counts a visit to a stack; false once the stack had <paramref name="limit"/> visits in this
-    /// execution (0 or less is no limit). The visit past the limit is dropped without an error
-    /// (official client capture: two-stack ping-pong rings stopped at 200 visits, 100 each).
-    /// </summary>
-    public bool TryVisit(int stackId, int limit)
-    {
-        _visitsByStackId.TryGetValue(stackId, out var visits);
-
-        if (limit > 0 && visits >= limit)
-            return false;
-
-        _visitsByStackId[stackId] = visits + 1;
 
         return true;
     }

@@ -86,6 +86,49 @@ public sealed class WiredExecutionModelTests
     }
 
     [Fact]
+    public async Task A_timer_feeding_the_ping_pong_runs_the_chain_once_per_half_second_window()
+    {
+        Configure(
+            new WiredConfig
+            {
+                MaxRoomLogEntries = 100_000,
+                RecursionTimeoutMs = 0,
+                HeavyBusyMsPerWindow = 0,
+            }
+        );
+        await BuildStackAsync(0, 0, shortPeriodUnits: 1, actions: [Signal(ANTENNA_A)]);
+        await BuildStackAsync(
+            0,
+            2,
+            receiveAntenna: ANTENNA_A,
+            actions: [Log("ping"), Signal(ANTENNA_B)]
+        );
+        await BuildStackAsync(
+            0,
+            4,
+            receiveAntenna: ANTENNA_B,
+            actions: [Log("pong"), Signal(ANTENNA_A)]
+        );
+        await StartAsync();
+
+        // 2 s of 50 ms ticks: the timer sends every tick, but the receivers used their 100 visits
+        // for the window, so the chain runs once in each of the five windows the ticks touch
+        // (Habbo, 20 Hz timer into the ping-pong: one 200-step chain per ~500 ms, the antenna
+        // alone flashing in between).
+        for (var i = 0; i < 40; i++)
+        {
+            _now += 50;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+        }
+
+        Logged("ping").Should().Be(500);
+        Logged("pong").Should().Be(500);
+
+        // Habbo's usage settled at 432-449 under the same load.
+        Wired.GetExecutionCost(_now).Should().BeInRange(380, 460);
+    }
+
+    [Fact]
     public async Task A_delayed_signal_loop_is_a_new_execution_each_time_and_keeps_going()
     {
         Configure(new WiredConfig { MaxRoomLogEntries = 10_000, RecursionTimeoutMs = 0 });
