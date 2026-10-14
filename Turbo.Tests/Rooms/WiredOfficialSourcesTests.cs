@@ -18,6 +18,7 @@ namespace Turbo.Tests.Rooms;
 public sealed class WiredOfficialSourcesTests
 {
     private static readonly int[] Furni = [0, 100, 200, 201];
+    private static readonly int[] Both = [0, 100, 101, 200, 201];
     private static readonly int[] Users = [0, 200, 201];
 
     private readonly WiredRoom _room = new(8, 8);
@@ -95,6 +96,22 @@ public sealed class WiredOfficialSourcesTests
                     [0, 201],
                 ],
                 [0]
+            },
+            {
+                typeof(WiredActionChangeVariable),
+                "wf_act_change_var_val",
+                [Both, Both],
+                [0, 200],
+                [Users, Users],
+                [0, 200]
+            },
+            {
+                typeof(WiredConditionVariableValueMatch),
+                "wf_cnd_var_val_match",
+                [Both, Both],
+                [0, 200],
+                [Users, Users],
+                [0, 200]
             },
             {
                 typeof(WiredActionRemoveFurni),

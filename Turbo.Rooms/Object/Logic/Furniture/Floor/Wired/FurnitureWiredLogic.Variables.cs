@@ -4,6 +4,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
@@ -47,6 +48,17 @@ public abstract partial class FurnitureWiredLogic
     /// second int is the value itself.
     /// </summary>
     protected long GetLongParam(int hiIndex) => GetIntParamOrDefault(hiIndex + 1, 0);
+
+    /// <summary>
+    /// One merged selection of a variable box: its furni slot and its user slot of the same
+    /// index together (AS3 <c>ChangeVariable.mergedSelections</c> <c>[[0,0],[1,1]]</c>: 0 the
+    /// holders acted on, <c>variables_destination</c>; 1 the reference holders,
+    /// <c>variables_reference</c>).
+    /// </summary>
+    protected IWiredSelectionSet GetMergedSelection(IWiredContext ctx, int slot) =>
+        WiredSlotSelection
+            .ForSlot(this, ctx, slot)
+            .UnionWith(WiredSlotSelection.ForUserSlot(this, ctx, slot));
 
     /// <summary>The ids a target type binds to within a selection.</summary>
     /// <summary>The ids a variable of this target type is keyed by within a selection.</summary>
