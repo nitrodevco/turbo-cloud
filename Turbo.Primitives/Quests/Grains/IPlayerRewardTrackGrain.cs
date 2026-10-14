@@ -16,6 +16,26 @@ public interface IPlayerRewardTrackGrain : IGrainWithIntegerKey
     /// </summary>
     Task RecordActionAsync(string actionType, string distinctValue, CancellationToken ct);
 
+    /// <summary>
+    /// Moves one task's count to <paramref name="score"/>, or on by it when
+    /// <paramref name="add"/>, as the wired Progress Reward Track does: forward only, up to the
+    /// task's last level, each level passed giving its points. False when nothing moved.
+    /// </summary>
+    Task<bool> ProgressTaskAsync(
+        string trackId,
+        string taskId,
+        int score,
+        bool add,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Takes the player back to the start of a track (counts, points and claimed prizes; a
+    /// bought premium stays) and sends the tracks again to reload. False for an unknown track
+    /// or one the player has no progress on.
+    /// </summary>
+    Task<bool> ResetTrackAsync(string trackId, CancellationToken ct);
+
     Task ClaimPrizeAsync(string trackId, string prizeId, CancellationToken ct);
 
     Task PurchasePremiumAsync(string trackId, CancellationToken ct);

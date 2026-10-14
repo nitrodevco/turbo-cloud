@@ -60,8 +60,12 @@ What the official client shows (2026-10-09 captures `introduction.png`, `rt-drag
 - Buying premium debits `CostCredits` and `CostDiamonds`, gives `InstantPoints` and the points
   of the premium levels the player already passed (inference: they would otherwise be lost).
 - A prize is claimable when it is not premium-locked and the points reach it. Activity points,
-  badges and furni (`FurnitureDefinitionId`, `Amount` items) can be given; anything else is
-  refused with code 7.
+  badges, furni (`FurnitureDefinitionId` or the sprite in `RewardTypeId`, `Amount` items),
+  Habbicons (`RewardTypeId` the Habbicon id, one of the hotel's Habbicon collections), pets
+  (`ExtraParams` the figure "type palette colour", a palette of the hotel's pet breeds) and
+  `GENERIC` bots (`ExtraParams` the look) can be given; anything else is refused with code 7.
+  A pet or bot is called `Name`, else `PetPrizeName` / `BotPrizeName` (Habbo's prizes carry no
+  name; "Pet" and "Bot" by default). Habbo's Introduction track ships with all 49 prizes.
 
 ## What counts
 
@@ -86,3 +90,16 @@ navigator service `create_room` once a room was created; and the Habbicon grain 
 What each type counts is inference from the image's name and the task's hotel texts
 (`reward_track.introduction.task.<id>.desc`); the official client only names them. All thirty
 are counted.
+
+## Wired
+
+- Progress Reward Track (action 58, `wf_act_progress_reward_track`): string "track id<TAB>task
+  id", ints add-to-existing (1) or set (0), number or variable, the number, the variable's
+  target. The selected users' task count moves to the score, or on by it, forward only and up
+  to the task's last level, each level passed giving its points as the player's own actions do.
+- Reset Reward Track (action 59, `wf_act_reset_reward_track`): string the track id. The
+  selected users' counts, points and claimed prizes go (a bought premium stays, inference) and
+  the tracks are sent again with `reload` set, which rebuilds the client's window and shows
+  "Reward Track updated" if it is open (AS3 `RewardTrackController.onRewardTracks`).
+
+Habbo's furnidata has no furni for either box yet, so their class names are Turbo's.
