@@ -407,6 +407,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 RespectsLeft = _state.RespectsLeft,
                 PetRespectsLeft = _state.PetRespectsLeft,
                 RespectReplenishesLeft = _state.RespectReplenishesLeft,
+                AccountLevel = PlayerAccountLevel.DEFAULT,
             }
         );
 
@@ -548,7 +549,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                     : -1,
                 OpenProfileWindow = true,
                 IsHidden = false,
-                AccountLevel = 1,
+                AccountLevel = PlayerAccountLevel.DEFAULT,
                 IntegerField24 = 0,
                 StarGemCount = 0,
                 BooleanField26 = false,

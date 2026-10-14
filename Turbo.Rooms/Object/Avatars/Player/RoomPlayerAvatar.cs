@@ -30,6 +30,7 @@ public sealed class RoomPlayerAvatar
     /// <summary>The player's place on the total badges board, as their summary last said.</summary>
     public int BadgesRank { get; private set; } = BadgeRanks.NONE;
     public int AchievementScore { get; private set; }
+    public int AccountLevel { get; private set; } = PlayerAccountLevel.DEFAULT;
     public RoomEntrySnapshot RoomEntry { get; private set; } = RoomEntrySnapshot.Default;
 
     public void SetRoomEntry(RoomEntrySnapshot entry) => RoomEntry = entry;
@@ -51,6 +52,7 @@ public sealed class RoomPlayerAvatar
         Gender = snapshot.Gender;
         BadgesRank = snapshot.BadgesRank;
         AchievementScore = snapshot.AchievementScore;
+        AccountLevel = snapshot.AccountLevel;
 
         return true;
     }

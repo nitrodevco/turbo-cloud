@@ -19,6 +19,9 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     public AvatarGenderType Gender { get; }
     public int AchievementScore { get; }
 
+    /// <summary>The level the player's profile shows, as their summary last said (<c>@level</c>).</summary>
+    public int AccountLevel { get; }
+
     /// <summary>How this player came to be in the room; it does not change while they are here.</summary>
     public RoomEntrySnapshot RoomEntry { get; }
     public void SetRoomEntry(RoomEntrySnapshot entry);

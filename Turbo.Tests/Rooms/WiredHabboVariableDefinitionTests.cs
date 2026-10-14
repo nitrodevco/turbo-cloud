@@ -35,7 +35,6 @@ public sealed class WiredHabboVariableDefinitionTests
     // Variables Habbo has that are not built yet.
     private static readonly HashSet<string> NotBuiltYet =
     [
-        "@level",
         "@habbicon",
         "@transaction.in_trade",
         "@transaction.start_time",
