@@ -79,6 +79,45 @@ public sealed class WiredVariableReferenceHoldersTests
         Value(_mark, SELECTED).Should().Be(1, "the reference holders are not acted on");
     }
 
+    /// <summary>
+    /// The same variable as target and reference: the official editor saves ids [mark, mark]
+    /// (official client capture, WiredSaveSuccess), so the triggering user takes the "mark" of the
+    /// selected user.
+    /// </summary>
+    [Fact]
+    public async Task Change_variable_may_read_its_own_variable_on_the_reference_holders()
+    {
+        await PlaceMarkAsync();
+        await Give(_mark, SELECTED, 9);
+        var change = _room.AddBox<WiredActionChangeVariable>(BOX, 0, 0, "wf_act_change_var_val");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: ReferenceParams((int)WiredVariableOperationType.Set),
+                furniSources: Furni(),
+                playerSources: Users(),
+                definitionSpecifics: [0],
+                variableIds: [Id(_mark), Id(_mark)]
+            )
+        )
+            .Should()
+            .BeTrue();
+        change
+            .GetSnapshot()
+            .VariableIds.Select(x => x.ToString())
+            .Should()
+            .Equal(Id(_mark), Id(_mark));
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Selected.SelectedAvatarIds.Add(TRIGGERER);
+        ctx.SelectorPool.SelectedAvatarIds.Add(SELECTED);
+
+        (await change.ExecuteAsync(ctx, Ct)).Should().BeTrue();
+        Value(_mark, TRIGGERER).Should().Be(9);
+    }
+
     [Fact]
     public async Task Give_variable_reads_the_reference_on_its_second_selection()
     {
