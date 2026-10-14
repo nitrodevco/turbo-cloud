@@ -1,9 +1,11 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -112,16 +114,41 @@ public sealed class TemporaryFurniIdBandTests
             .NotContain(x => x.Method == "AddFurnitureFromRoomItemSnapshotAsync");
     }
 
+    /// <summary>
+    /// Official client capture (WIN63-202610131318, Place Temporary Furni): a new copy comes as
+    /// the room objects message with that one floor item and its owner's name, not ObjectAdd.
+    /// </summary>
+    [Fact]
+    public async Task A_new_temporary_furni_is_sent_as_the_room_objects_message_with_its_owner()
+    {
+        _room.Harness.Fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult("Hutch.");
+        var definition = _room.AddFloorItem(LAMP, 0, 0).Definition;
+
+        var copy = await PlaceAsync(definition, 2, 2, owner: 7);
+
+        var composers = _room
+            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
+            .OfType<RoomOutboundSnapshot>()
+            .SelectMany(x => x.Composers)
+            .ToList();
+
+        composers.OfType<ObjectAddMessageComposer>().Should().BeEmpty();
+        var objects = composers.OfType<ObjectsMessageComposer>().Should().ContainSingle().Subject;
+        objects.FloorItems.Select(x => x.ObjectId).Should().Equal(copy.ObjectId);
+        objects.OwnerNames.Should().Equal(new Dictionary<PlayerId, string> { [7] = "Hutch." });
+    }
+
     private async Task<Turbo.Primitives.Rooms.Object.Furniture.Floor.IRoomFloorItem> PlaceAsync(
         FurnitureDefinitionSnapshot definition,
         int x,
-        int y
+        int y,
+        int owner = 0
     ) =>
         (
             await Furni.PlaceTemporaryFloorItemAsync(
                 ActionContext.CreateForSystem(1),
                 definition,
-                (PlayerId)0,
+                (PlayerId)owner,
                 x,
                 y,
                 null,
