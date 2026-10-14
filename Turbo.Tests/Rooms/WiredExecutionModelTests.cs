@@ -143,6 +143,24 @@ public sealed class WiredExecutionModelTests
     }
 
     [Fact]
+    public async Task A_20_Hz_timer_keeps_its_rate_when_ticks_come_late()
+    {
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        await BuildStackAsync(0, 0, shortPeriodUnits: 1, actions: [Log("tick")]);
+        await StartAsync();
+
+        // The room's loop calls in every 40 ms, so a 50 ms tick often runs up to 30 ms late.
+        for (var i = 0; i < 100; i++)
+        {
+            _now += 40;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+        }
+
+        // 4 s at 20 a second; counting each period from the late tick gave 50.
+        Logged("tick").Should().BeInRange(78, 80);
+    }
+
+    [Fact]
     public async Task An_execution_past_the_usage_cap_is_cancelled_and_counted_and_usage_decays()
     {
         Configure(

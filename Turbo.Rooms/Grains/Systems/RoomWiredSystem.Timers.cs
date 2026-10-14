@@ -69,7 +69,13 @@ public sealed partial class RoomWiredSystem
                     if (now < nextAt)
                         continue;
 
-                    _nextPeriodicAtMs[objectId] = now + delayMs;
+                    // The next firing counts from when this one was due, not from the tick that
+                    // ran it: ticks come a few ms late, and counting from them slowed a 20 Hz
+                    // timer to about 13 firings a second (Habbo keeps 20: official client capture,
+                    // 222 firings in about 11 s). A room more than a period behind starts over.
+                    var next = nextAt + delayMs;
+
+                    _nextPeriodicAtMs[objectId] = next > now ? next : now + delayMs;
 
                     await FireTimedTriggerAsync(trigger, stack, now, ct);
 
