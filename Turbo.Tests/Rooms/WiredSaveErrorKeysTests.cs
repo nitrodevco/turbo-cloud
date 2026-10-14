@@ -4,18 +4,20 @@ using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// Saves Habbo refuses with a <c>wiredfurni.error.*</c> text of their own, sent with the
-/// parameters the client fills into it (<c>IncomingMessages.onValidationError</c>, AS3
-/// WIN63-202610131318): a text over the box's limit (<c>too_much_text</c>, %limit%), a counter
-/// box picking something that is not a counter (<c>require_counter_furni</c>) and a variable fx
-/// range whose maximum is not above its minimum (<c>variable_fx.value_range</c>). Ours cut the
-/// text, kept the pick and repaired the range, and told the editor nothing.
+/// Saves as Habbo answers them, with the parameters the client fills into the text
+/// (<c>IncomingMessages.onValidationError</c>, AS3 WIN63-202610131318). Official client capture
+/// 2026-10-14 (NOTES-iv-save-errors): Users By Name refuses a 31-character name with
+/// <c>username_length</c> {max_username_length: "30"} and 21 names with <c>usernames_count</c>
+/// {max_usernames: "20"}; a 600-character Show Message saves and reopens cut to 400; a variable fx
+/// range with max below min saves as max = min + 1. A counter box picking something that is not a
+/// counter is refused with <c>require_counter_furni</c> (inference: which boxes the text is for).
 /// </summary>
 public sealed class WiredSaveErrorKeysTests
 {
@@ -26,17 +28,36 @@ public sealed class WiredSaveErrorKeysTests
     private readonly WiredRoom _room = new(8, 8);
 
     [Fact]
-    public async Task A_text_over_the_boxs_limit_is_refused_with_the_limit()
+    public async Task A_text_over_the_boxs_limit_is_saved_cut_without_an_error()
     {
-        _room.AddBox<WiredActionShowMessage>(BOX, 0, 0, "wf_act_show_message");
-        var limit = new Turbo.Rooms.Configuration.WiredConfig().ShowMessageMaxLength;
+        var box = _room.AddBox<WiredActionShowMessage>(BOX, 0, 0, "wf_act_show_message");
 
-        var refused = await SaveMessageAsync(new string('a', limit + 1));
+        (await SaveMessageAsync(new string('a', 600))).IsSaved.Should().BeTrue();
 
-        refused.ErrorKey.Should().Be(WiredSaveErrors.TOO_MUCH_TEXT);
-        refused.Parameters.Should().Equal(("limit", limit.ToString()));
-        (await SaveMessageAsync(new string('a', limit))).IsSaved.Should().BeTrue();
+        box.GetSnapshot().StringParam.Should().Be(new string('a', 400));
     }
+
+    [Fact]
+    public async Task Users_by_name_refuses_a_long_name_and_too_many_names_with_Habbos_limits()
+    {
+        _room.AddBox<WiredSelectorEntitiesByName>(BOX, 0, 0, "wf_slc_users_byname");
+
+        (await SaveNamesAsync(new string('n', 30))).IsSaved.Should().BeTrue();
+        var tooLong = await SaveNamesAsync(new string('n', 31));
+        tooLong.ErrorKey.Should().Be(WiredSaveErrors.USERNAME_LENGTH);
+        tooLong.Parameters.Should().Equal(("max_username_length", "30"));
+
+        (await SaveNamesAsync(Names(20))).IsSaved.Should().BeTrue();
+        var tooMany = await SaveNamesAsync(Names(21));
+        tooMany.ErrorKey.Should().Be(WiredSaveErrors.USERNAMES_COUNT);
+        tooMany.Parameters.Should().Equal(("max_usernames", "20"));
+    }
+
+    private static string Names(int count) =>
+        string.Join('\t', Enumerable.Range(1, count).Select(i => $"u{i}"));
+
+    private Task<WiredSaveResult> SaveNamesAsync(string names) =>
+        _room.SaveWithResultAsync<UpdateSelectorMessage>(BOX, stringParam: names);
 
     private Task<WiredSaveResult> SaveMessageAsync(string text) =>
         _room.SaveWithResultAsync<UpdateActionMessage>(
@@ -80,25 +101,26 @@ public sealed class WiredSaveErrorKeysTests
     }
 
     [Theory]
-    [InlineData(10, 10, false)]
-    [InlineData(10, 5, false)]
-    [InlineData(10, 11, true)]
-    public async Task A_variable_fx_range_needs_its_maximum_above_its_minimum(
+    [InlineData(50, 10, 51)]
+    [InlineData(150, 10, 151)]
+    [InlineData(10, 10, 11)]
+    [InlineData(10, 11, 11)]
+    public async Task A_variable_fx_range_is_saved_with_its_maximum_above_its_minimum(
         int min,
         int max,
-        bool saved
+        int storedMax
     )
     {
-        var box = _room.AddBox<WiredAddonVariableFxProgressBar>(BOX, 0, 0, "wf_xtra_varfx_prog");
+        var box = _room.AddBox<WiredAddonVariableFxHealthPoints>(BOX, 0, 0, "wf_xtra_varfx_hp");
         var intParams = box.GetDefaultIntParams().ToArray();
         intParams[11] = min;
         intParams[13] = max;
 
-        var result = await _room.SaveWithResultAsync<UpdateAddonMessage>(BOX, intParams: intParams);
+        (await _room.SaveWithResultAsync<UpdateAddonMessage>(BOX, intParams: intParams))
+            .IsSaved.Should()
+            .BeTrue();
 
-        result.IsSaved.Should().Be(saved);
-
-        if (!saved)
-            result.ErrorKey.Should().Be(WiredSaveErrors.VARIABLE_FX_VALUE_RANGE);
+        box.GetSnapshot().IntParams[11].Should().Be(min);
+        box.GetSnapshot().IntParams[13].Should().Be(storedMax);
     }
 }

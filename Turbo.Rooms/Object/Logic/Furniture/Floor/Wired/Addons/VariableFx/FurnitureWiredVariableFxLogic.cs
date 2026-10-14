@@ -109,21 +109,31 @@ public abstract class FurnitureWiredVariableFxLogic(
     protected virtual bool UsesValueRange => true;
 
     /// <summary>
-    /// A range whose maximum is not above its minimum is refused with
-    /// <c>wiredfurni.error.variable_fx.value_range</c>, as the editor refuses it before sending
-    /// (<c>_-Q2l.validate</c>, AS3 WIN63-202610131318: min and max read from params 11 and 13 for
-    /// every category but the two without a range).
+    /// A range whose maximum is not above its minimum is saved with the maximum one above the
+    /// minimum, without an error: Habbo stored min 50 / max 10 as 50 / 51 and min 150 / max 10 as
+    /// 150 / 151 (official client capture 2026-10-14, NOTES-iv-save-errors). Each end is a long
+    /// sent as two ints, the sign word then the value (params 10-11 and 12-13).
     /// </summary>
     public override Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
         CancellationToken ct
-    ) =>
-        UsesValueRange
-        && update.IntParams.Count > PARAM_DEFAULT_MAX + 1
-        && update.IntParams[PARAM_DEFAULT_MAX + 1] <= update.IntParams[PARAM_DEFAULT_MIN + 1]
-            ? throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_FX_VALUE_RANGE)
-            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+    )
+    {
+        if (
+            UsesValueRange
+            && update.IntParams.Count > PARAM_DEFAULT_MAX + 1
+            && update.IntParams[PARAM_DEFAULT_MAX + 1] <= update.IntParams[PARAM_DEFAULT_MIN + 1]
+        )
+        {
+            List<int> intParams = [.. update.IntParams];
+            intParams[PARAM_DEFAULT_MAX] = intParams[PARAM_DEFAULT_MIN];
+            intParams[PARAM_DEFAULT_MAX + 1] = intParams[PARAM_DEFAULT_MIN + 1] + 1;
+            update = update with { IntParams = intParams };
+        }
+
+        return base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
 
     /// <summary>The rules of the int params a category adds after the shared ones.</summary>
     protected virtual IEnumerable<IWiredParamRule> GetCategoryParamRules() => [];
@@ -355,8 +365,10 @@ public abstract class FurnitureWiredVariableFxLogic(
     }
 
     /// <summary>
-    /// The config's range, repaired the way the client's editor repairs it: a maximum that is
-    /// not above the minimum would divide by zero in every bar.
+    /// The config's range, repaired the way Habbo stores it (max = min + 1, see
+    /// <see cref="ApplyWiredUpdateAsync"/>; the editor's own state repairs to 100 below 100,
+    /// VariableFxEditorState.as:152, but the server keeps min + 1): a maximum that is not above
+    /// the minimum would divide by zero in every bar.
     /// </summary>
     protected virtual (long min, long max) GetDefaultRange()
     {
@@ -366,8 +378,9 @@ public abstract class FurnitureWiredVariableFxLogic(
         var min = GetLongParam(PARAM_DEFAULT_MIN);
         var max = GetLongParam(PARAM_DEFAULT_MAX);
 
+        // Saves already repair this (ApplyWiredUpdateAsync); a box saved before reads the same.
         if (max <= min)
-            max = min < DEFAULT_MAX_VALUE ? DEFAULT_MAX_VALUE : min + 1;
+            max = min + 1;
 
         return (min, max);
     }

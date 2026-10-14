@@ -321,8 +321,6 @@ public abstract partial class FurnitureWiredLogic(
     {
         try
         {
-            RefuseTooMuchText(update.StringParam);
-
             var intParams = new List<int>();
             var stringParam = SanitizeStringParam(update.StringParam);
             var stuffIds = new List<int>();
@@ -508,28 +506,6 @@ public abstract partial class FurnitureWiredLogic(
         }
 
         return builder.ToString();
-    }
-
-    /// <summary>
-    /// A text longer than the box keeps is refused with <c>wiredfurni.error.too_much_text</c> and
-    /// the box's limit, rather than saved cut ("Wired texts can be at most %limit% characters";
-    /// the client fills %limit% the same way for a link row, LinkDataframeSendRowPreset.as:164,
-    /// AS3 WIN63-202610131318). Inference: that Habbo's server refuses every box's text this way;
-    /// the characters <see cref="SanitizeStringParam"/> drops are not counted.
-    /// </summary>
-    private void RefuseTooMuchText(string? proposed)
-    {
-        if (string.IsNullOrEmpty(proposed))
-            return;
-
-        var max = Math.Max(0, GetStringParamMaxLength());
-        var kept = proposed.Count(c => !char.IsControl(c) || c is '\t' or '\n' or '\r');
-
-        if (kept > max)
-            throw new WiredSaveRefusedException(
-                WiredSaveErrors.TOO_MUCH_TEXT,
-                ("limit", max.ToString(CultureInfo.InvariantCulture))
-            );
     }
 
     /// <summary>The text the box was saved with, trimmed; empty when there is none.</summary>
