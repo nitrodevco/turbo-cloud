@@ -65,7 +65,11 @@ public sealed class RewardTrackTaskHooksTests : IDisposable
             _db,
             PLAYER
         );
-        RoomHarness.SetField(grain, "_playerConfig", new PlayerConfig { RespectReplenishesPerDay = 1 });
+        RoomHarness.SetField(
+            grain,
+            "_playerConfig",
+            new PlayerConfig { RespectReplenishesPerDay = 1 }
+        );
 
         (await ((IPlayerGrain)grain).ReplenishRespectAsync(Ct)).Should().BeTrue();
         (await ((IPlayerGrain)grain).ReplenishRespectAsync(Ct)).Should().BeFalse();
