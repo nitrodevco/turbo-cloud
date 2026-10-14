@@ -57,25 +57,30 @@ public class WiredConfig
     /// cost, decaying over time; an execution that takes it past this is cancelled and
     /// EXECUTION_CAP is counted ("an execution is cancelled when it would exceed the usage cap",
     /// in-client error help). Habbo sizes it per room by a formula it does not disclose: 4687.5
-    /// for an owner of level 13 (official client capture of WiredRoomStats). 0 or less is no cap.
+    /// for an owner of level 13, 2500 in another room (official client captures of WiredRoomStats).
+    /// 0 or less is no cap.
     /// </summary>
     public double ExecutionCostCap { get; init; } = 4687.5;
 
     // What an execution adds to the usage: each stack it runs, each action, and each furni or
-    // user an action works on. Habbo's units are not disclosed; these defaults follow official
-    // client captures, where usage grew with the targets an action has (a 10 Hz timer changing a
-    // variable on 1 furni read about 13, on 100 furni about 445).
+    // user an action works on (a signal's antennas and a call's stacks are not targets). Habbo's
+    // units are not disclosed; these defaults fit official client captures (WIN63-202610131318):
+    // one click on a two-stack signal ping-pong (201 stack runs, 401 actions, no targets) read
+    // 170.9, and a timer with one global variable change read 1.1 at 2 Hz and peaks of about 6.25
+    // and 11.3 at 10 and 20 Hz. Each target adds about 0.3 (an older capture: a 10 Hz timer
+    // changing a variable on 1 furni read about 13, on 100 furni about 445).
     public double ExecutionCostPerStack { get; init; } = 0.05;
-    public double ExecutionCostPerAction { get; init; } = 0.1;
+    public double ExecutionCostPerAction { get; init; } = 0.4;
     public double ExecutionCostPerTarget { get; init; } = 0.3;
 
     /// <summary>
-    /// Usage falls by <see cref="ExecutionCostDecayFactor"/> every this many milliseconds: 11/16
-    /// about every 500 ms in Habbo (official client captures of an idle room after its timer was
-    /// removed matched successive powers of 11/16).
+    /// Usage falls by <see cref="ExecutionCostDecayFactor"/> every this many milliseconds: x0.6
+    /// every 500 ms in Habbo (official client captures, WIN63-202610131318: 170.9, 102.5, 61.5,
+    /// 36.9 after a click, the same after each timer was removed; older WIN63-202609091217
+    /// traces fitted 11/16).
     /// </summary>
     public int ExecutionCostDecayMs { get; init; } = 500;
-    public double ExecutionCostDecayFactor { get; init; } = 0.6875;
+    public double ExecutionCostDecayFactor { get; init; } = 0.6;
 
     /// <summary>
     /// A room whose wired took more than <see cref="HeavyBusyMsPerWindow"/> milliseconds of

@@ -70,6 +70,14 @@ public sealed class WiredExecutionModelTests
         Logged("ping").Should().Be(100);
         Logged("pong").Should().Be(100);
 
+        // Habbo read 170.9 after one click on the same build (WIN63-202610131318), then x0.6 a
+        // half second: 201 stack runs and 401 actions at the default costs.
+        Wired.GetExecutionCost(_now).Should().BeApproximately(201 * 0.05 + 401 * 0.4, 1e-6);
+        Wired
+            .GetExecutionCost(_now + 500)
+            .Should()
+            .BeApproximately((201 * 0.05 + 401 * 0.4) * 0.6, 1e-6);
+
         await TickAsync(5);
 
         Logged("ping").Should().Be(100, "the visit past the cap is dropped, not carried on");
@@ -167,7 +175,7 @@ public sealed class WiredExecutionModelTests
         var usage = Wired.GetExecutionCost(_now);
 
         usage.Should().Be(6);
-        Wired.GetExecutionCost(_now + 1_000).Should().BeApproximately(6 * 0.6875 * 0.6875, 1e-9);
+        Wired.GetExecutionCost(_now + 1_000).Should().BeApproximately(6 * 0.6 * 0.6, 1e-9);
 
         // Over the cap, yet not heavy: Habbo logged EXECUTION_CAP with Heavy false.
         var stats = await _room.Harness.Room.GetWiredRoomStatsAsync(

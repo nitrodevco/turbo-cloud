@@ -993,7 +993,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var config = _roomGrain._wiredConfig;
         var cost = config.ExecutionCostPerAction;
 
-        if (config.ExecutionCostPerTarget > 0)
+        // A signal's antennas and a call's stacks are where it goes, not what it works on.
+        if (
+            config.ExecutionCostPerTarget > 0
+            && action is not (WiredActionSendSignal or WiredActionCallStacks)
+        )
         {
             var targets = ctx.GetSelection(action);
 
