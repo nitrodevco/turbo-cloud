@@ -95,6 +95,11 @@ public sealed class WiredConditionEmptySelectionTests
             await _room.SaveAsync<UpdateConditionMessage>(
                 BOX,
                 intParams: [FURNI],
+                // The triggering furni: Has Variable defaults to its picks.
+                furniSources:
+                [
+                    [WiredFurniSourceType.TriggeredItem],
+                ],
                 definitionSpecifics: [0],
                 variableIds: [LevelId]
             )
