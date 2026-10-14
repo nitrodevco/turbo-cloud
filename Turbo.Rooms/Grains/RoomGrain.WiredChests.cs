@@ -51,6 +51,17 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) => WiredTransactionSystem.FailAsync(playerId, sourceId, reason, notify: false, ct);
 
+    public Task ReportWiredTransactionProgressAsync(
+        PlayerId playerId,
+        WiredTransactionProgressSnapshot? progress,
+        CancellationToken ct
+    )
+    {
+        WiredTransactionSystem.SetProgress(playerId, progress);
+
+        return Task.CompletedTask;
+    }
+
     public Task LockWiredChestsAsync(
         ActionContext ctx,
         bool locked,

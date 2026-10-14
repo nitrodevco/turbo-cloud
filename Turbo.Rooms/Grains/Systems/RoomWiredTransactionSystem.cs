@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,6 +35,26 @@ namespace Turbo.Rooms.Grains.Systems;
 /// </summary>
 public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
+    private readonly Dictionary<PlayerId, WiredTransactionProgressSnapshot> _progress = [];
+
+    /// <summary>
+    /// Keeps where a player's open contract transaction is, as their trade grain reports it;
+    /// null forgets it once it ended.
+    /// </summary>
+    public void SetProgress(PlayerId playerId, WiredTransactionProgressSnapshot? progress)
+    {
+        if (progress is null)
+            _progress.Remove(playerId);
+        else
+            _progress[playerId] = progress;
+    }
+
+    /// <summary>The player's open contract transaction, if they have one here.</summary>
+    public bool TryGetProgress(
+        PlayerId playerId,
+        [NotNullWhen(true)] out WiredTransactionProgressSnapshot? progress
+    ) => _progress.TryGetValue(playerId, out progress);
+
     /// <summary>Pays a contract's reward to a player and tells them, or says why it could not.</summary>
     public async Task<WiredTransactionFailureType?> RewardAsync(
         IRoomPlayer player,

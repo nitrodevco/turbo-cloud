@@ -92,7 +92,14 @@ public sealed class WiredOfficialVariableOrderTests
                 "@user_id",
                 "@pet_id",
                 "@bot_id",
-                "@pet_owner_id"
+                "@pet_owner_id",
+                // Not on the 2026-10-08 list; placed by the client's own order (below).
+                "@transaction.in_trade",
+                "@transaction.start_time",
+                "@transaction.contract_id",
+                "@transaction.state",
+                "@transaction.can_accept",
+                "@transaction.current_multiplier"
             );
     }
 
@@ -169,10 +176,15 @@ public sealed class WiredOfficialVariableOrderTests
                 .Assembly.GetTypes()
                 .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(WiredInternalVariable)))
                 .Select(t =>
-                    (
-                        (WiredInternalVariable)Activator.CreateInstance(t, _room.Harness.Room)!
-                    ).GetVarSnapshot()
+                    (WiredInternalVariable)Activator.CreateInstance(t, _room.Harness.Room)!
                 )
+                // Habbo hides @habbicon, @event.habbicon and @can_move_freely from the editor
+                // for good; a smart variable is only hidden while its kind is not in the room.
+                .Where(x =>
+                    x is IWiredSmartVariable
+                    || !x.GetVarSnapshot().Flags.Has(WiredVariableFlags.IsInvisible)
+                )
+                .Select(x => x.GetVarSnapshot())
                 .Where(x =>
                     x.TargetType == target
                     && (x.VariableName.StartsWith('@') || x.VariableName.StartsWith(startsWith))
