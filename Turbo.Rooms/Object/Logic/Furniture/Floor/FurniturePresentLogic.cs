@@ -62,8 +62,8 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         if (interaction is not OpenPresentInteraction)
             return false;
 
-        if (!IsItemOwner(ctx))
-            return Reject(ctx, interaction, "not the owner");
+        if (!IsOwnedOutrightBy(ctx))
+            return Reject(ctx, interaction, "not the owner, or borrowed or temporary");
 
         if (_opening)
             return Reject(ctx, interaction, "already opening");

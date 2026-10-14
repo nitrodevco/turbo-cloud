@@ -33,7 +33,7 @@ public class FurnitureEffectBoxLogic(IStuffDataFactory stuffDataFactory, IRoomFl
             _opening
             || _effectId <= 0
             || ctx.Origin != ActionOrigin.Player
-            || ctx.PlayerId != _ctx.RoomObject.OwnerId
+            || !IsOwnedOutrightBy(ctx)
         )
             return;
 

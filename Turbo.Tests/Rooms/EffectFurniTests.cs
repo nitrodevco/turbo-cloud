@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -86,6 +87,22 @@ public sealed class EffectFurniTests
 
         Grants().Should().BeEmpty();
         ItemExists(FURNI).Should().BeTrue();
+    }
+
+    // A borrowed box carries the borrower's id, a copy placed by Place Temporary Furni the wired
+    // box owner's; neither is theirs to keep, so neither opens into an effect that is.
+    [Theory]
+    [InlineData(FurniIdBands.TemporaryMin)]
+    [InlineData(FurniIdBands.BuildersClubMin)]
+    public async Task A_borrowed_or_temporary_effect_box_does_not_open_for_its_owner(int id)
+    {
+        _room.Enter(OWNER_AVATAR, 5, 5);
+        AddFurni(id, 3, 3, "effect_box", "116", (s, c) => new FurnitureEffectBoxLogic(s, c));
+
+        await UseAsync(OWNER, id);
+
+        Grants().Should().BeEmpty();
+        ItemExists(id).Should().BeTrue();
     }
 
     [Fact]

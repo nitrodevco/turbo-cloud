@@ -327,20 +327,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             // on the tile are no obstacle: every user a selection picked can be teleported onto
             // one furni. A slide or a move still stops at a user unless the movement physics let
             // it through, and a closed tile or a furni that cannot be stood on refuses either.
-            var throughUsers = CanMoveThroughUsersAt(tileIdx);
-
+            // "Move through users" lets it past users only: the furni and the tile still decide.
             if (
-                !throughUsers
-                && !map.CanAvatarWalk(
+                !map.CanAvatarWalk(
                     avatar,
                     tileIdx,
                     true,
                     ignoreAvatars: moveType == SlideAvatarMoveType.None
+                        || CanMoveThroughUsersAt(tileIdx)
                 )
             )
-                return false;
-
-            if (throughUsers && map.IsTileDisabled(tileIdx))
                 return false;
 
             var (sourceX, sourceY, sourceZ) = (avatar.X, avatar.Y, avatar.Z);

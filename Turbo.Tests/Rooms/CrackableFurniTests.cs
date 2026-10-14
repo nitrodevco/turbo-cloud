@@ -3,6 +3,7 @@ using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
@@ -92,6 +93,24 @@ public sealed class CrackableFurniTests
             .ContainSingle()
             .Which.Should()
             .Be((OWNER, SubscriptionType.BuildersClub, 14));
+    }
+
+    // A borrowed box carries the borrower's id, a copy placed by Place Temporary Furni the wired
+    // box owner's; neither holds a prize anybody paid for.
+    [Theory]
+    [InlineData(FurniIdBands.TemporaryMin)]
+    [InlineData(FurniIdBands.BuildersClubMin)]
+    public async Task A_borrowed_or_temporary_box_takes_no_hit_and_gives_nothing(int id)
+    {
+        _room.Enter(OWNER_AVATAR, 3, 4);
+        var box = AddCrackable(id, 3, 3, OWNER, BC_BOX, totalStates: 3);
+
+        await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(OWNER, 1), id, Ct);
+        await RunTimersAsync();
+
+        Progress(box).Hits.Should().Be(0);
+        Extensions().Should().BeEmpty();
+        Removes().Should().BeEmpty();
     }
 
     [Fact]
