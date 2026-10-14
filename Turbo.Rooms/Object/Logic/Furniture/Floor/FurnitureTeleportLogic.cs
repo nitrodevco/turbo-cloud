@@ -7,6 +7,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -242,6 +243,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
                 && partner.TryReserve(avatar)
             )
             {
+                CountRewardTrackAction(avatar, RewardTrackActionTypes.TELEPORT);
                 Schedule(StepMs, token => HandOverAsync(partner, token));
 
                 return;
@@ -249,6 +251,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         }
         else if (partnerRoomId is { } otherRoomId && avatar is IRoomPlayer player)
         {
+            CountRewardTrackAction(avatar, RewardTrackActionTypes.TELEPORT);
             Schedule(StepMs, token => ForwardAsync(player, otherRoomId, partnerId, token));
 
             return;

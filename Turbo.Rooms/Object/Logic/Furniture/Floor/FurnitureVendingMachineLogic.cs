@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -41,10 +42,14 @@ public class FurnitureVendingMachineLogic : FurnitureServingLogic
 
     protected override bool Animates => _data.Animates;
 
-    protected override Task HandOverAsync(IRoomAvatar avatar, CancellationToken ct) =>
-        AvatarModule.SetHandItemAsync(
+    protected override async Task HandOverAsync(IRoomAvatar avatar, CancellationToken ct)
+    {
+        await AvatarModule.SetHandItemAsync(
             avatar,
             _data.HandItems[Random.Shared.Next(_data.HandItems.Length)],
             ct
         );
+
+        CountRewardTrackAction(avatar, RewardTrackActionTypes.FIND_HAND_ITEM);
+    }
 }

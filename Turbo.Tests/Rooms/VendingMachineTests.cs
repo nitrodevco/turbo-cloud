@@ -5,6 +5,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -65,6 +66,12 @@ public sealed class VendingMachineTests
         DRINKS.Should().Contain(avatar.HandItemId);
         avatar.Rotation.Should().Be(Rotation.West);
         fridge.Logic.GetState().Should().Be(1, "it shows its dispensing state");
+        // A drink found counts once for a reward track's find_hand_item task.
+        _room
+            .Harness.Fakes.Log.Of("RecordActionAsync")
+            .Select(x => (Convert.ToInt32(x.Key), x.Args[0]))
+            .Should()
+            .Equal((PLAYER, RewardTrackActionTypes.FIND_HAND_ITEM));
 
         await RunFurniTimersAsync();
 

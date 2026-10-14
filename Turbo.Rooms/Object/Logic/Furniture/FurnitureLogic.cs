@@ -10,9 +10,12 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -146,6 +149,20 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// <summary>Whether the acting player may edit furniture here (room rights).</summary>
     protected Task<bool> HasRightsAsync(ActionContext ctx) =>
         SecurityModule.CanManipulateFurniAsync(ctx);
+
+    /// <summary>
+    /// Counts a reward track action (<see cref="RewardTrackActionTypes"/>) of the player behind
+    /// <paramref name="avatar"/>; a bot or a pet counts nothing.
+    /// </summary>
+    protected void CountRewardTrackAction(IRoomAvatar avatar, string actionType)
+    {
+        if (avatar is IRoomPlayer player)
+            CountRewardTrackAction(player.PlayerId, actionType);
+    }
+
+    /// <inheritdoc cref="CountRewardTrackAction(IRoomAvatar, string)"/>
+    protected void CountRewardTrackAction(PlayerId playerId, string actionType) =>
+        _roomGrain._grainFactory.CountRewardTrackAction(playerId, actionType, _roomGrain._logger);
 
     /// <summary>
     /// Whether the acting player owns this item itself. The rule for turning the item into
@@ -285,6 +302,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
                 ObjectId = _ctx.ObjectId,
+                IsBuildersClub = _ctx.RoomObject.IsBuildersClub,
             },
             ct
         );

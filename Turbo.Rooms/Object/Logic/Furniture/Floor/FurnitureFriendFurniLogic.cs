@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Friendfurni;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -161,6 +162,9 @@ public class FurnitureFriendFurniLogic(
             right.Figure,
             date,
         ]);
+
+        CountRewardTrackAction(request.InitiatorId, RewardTrackActionTypes.FRIEND_FURNI_LOCKED);
+        CountRewardTrackAction(request.PartnerId, RewardTrackActionTypes.FRIEND_FURNI_LOCKED);
     }
 
     private async Task CancelAsync(CancellationToken ct)
