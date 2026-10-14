@@ -51,7 +51,7 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_signal_ping_pong_runs_100_visits_per_stack_inside_the_one_click()
     {
-        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, RecursionTimeoutMs = 0 });
         await BuildPingPongAsync();
         await StartAsync();
 
@@ -72,7 +72,7 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_delayed_signal_loop_is_a_new_execution_each_time_and_keeps_going()
     {
-        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, RecursionTimeoutMs = 0 });
 
         await BuildStackAsync(0, 0, clickTrigger: true, actions: [Signal(ANTENNA_A)]);
         await BuildStackAsync(
@@ -151,13 +151,14 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_room_whose_wired_takes_too_much_server_time_is_marked_heavy_and_keeps_running()
     {
-        Configure(new WiredConfig { HeavyBusyMsPerWindow = 1e-9, HeavyWindowMs = 1_000 });
+        Configure(new WiredConfig { HeavyBusyMsPerWindow = 1e-9, HeavyWindowMs = 3_000 });
 
         await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("busy")]);
         await StartAsync();
 
+        // Two executions in one three-second window, which is judged when it ends.
         await ClickAsync();
-        await TickAsync(2);
+        await TickAsync(1);
         await ClickAsync();
         await TickAsync(2);
 
@@ -169,6 +170,19 @@ public sealed class WiredExecutionModelTests
         errors[3].ErrorName.Should().Be("MARKED_AS_HEAVY");
         errors[3].ThrowCount.Should().Be(1, "it is counted when the room becomes heavy");
         errors[0].ThrowCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Loading_the_rooms_boxes_is_not_wired_time_and_does_not_mark_it_heavy()
+    {
+        Configure(new WiredConfig { HeavyBusyMsPerWindow = 1e-9, HeavyWindowMs = 1_000 });
+
+        await BuildPingPongAsync();
+        await StartAsync();
+        await TickAsync(3);
+
+        Wired.IsHeavy.Should().BeFalse();
+        Wired.GetErrorLogs(_now)[3].ThrowCount.Should().Be(0);
     }
 
     [Fact]

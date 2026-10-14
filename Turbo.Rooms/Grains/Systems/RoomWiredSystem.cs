@@ -110,8 +110,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         _collectingTickStates = true;
 
-        var startedTicks = Stopwatch.GetTimestamp();
-
         try
         {
             await ProcessWiredTickAsync(now, dormant, ct);
@@ -120,7 +118,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             _collectingTickStates = false;
 
-            MeasureBusyTime(Stopwatch.GetTimestamp() - startedTicks, now);
+            RollHeavyWindow(now);
 
             if (now >= _nextStateUpdateMs)
             {
@@ -192,6 +190,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         var execution = new WiredExecution(now, _wallClockMs());
+        var startedTicks = Stopwatch.GetTimestamp();
 
         _execution = execution;
 
@@ -208,6 +207,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         finally
         {
             _execution = null;
+
+            // Only executions count as the room's wired time: loading boxes and building stacks,
+            // which a room does once when it wakes, is not.
+            _busyTicksInWindow += Stopwatch.GetTimestamp() - startedTicks;
 
             KillIfOverrun(execution);
         }

@@ -19,7 +19,7 @@ public sealed partial class RoomWiredSystem
     private double _usage;
     private long _usageStepAtMs;
 
-    // Server time the room's wired took in the current heavy window.
+    // Server time the room's wired executions took in the current heavy window.
     private long _busyTicksInWindow;
     private long _heavyWindowStartMs;
 
@@ -93,13 +93,11 @@ public sealed partial class RoomWiredSystem
     }
 
     /// <summary>
-    /// Adds a tick's server time to the heavy window and, once the window is over, marks the room
-    /// heavy or not by it. Becoming heavy counts MARKED_AS_HEAVY.
+    /// Once a heavy window is over, marks the room heavy or not by the time its executions took
+    /// in it. Becoming heavy counts MARKED_AS_HEAVY.
     /// </summary>
-    private void MeasureBusyTime(long busyTicks, long now)
+    private void RollHeavyWindow(long now)
     {
-        _busyTicksInWindow += busyTicks;
-
         var windowMs = Math.Max(1, _roomGrain._wiredConfig.HeavyWindowMs);
 
         if (_heavyWindowStartMs == 0)
