@@ -157,7 +157,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// Whether the acting player owns this item and it is theirs for good: neither lent by the
     /// Builders Club nor temporary (placed by wired, owned by the wired box's owner). The rule
     /// for turning the item into something else that is theirs to keep (credits, a present's
-    /// contents, clothing, an effect, a prize): a borrowed or temporary furni is worth nothing, so
+    /// contents, a pet, clothing, an effect, a prize): a borrowed or temporary furni is worth nothing, so
     /// it never becomes anything that is.
     /// </summary>
     protected bool IsOwnedOutrightBy(ActionContext ctx) =>
