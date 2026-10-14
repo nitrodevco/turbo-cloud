@@ -93,4 +93,20 @@ public sealed record PlayerSettingsSnapshot
     /// <summary>Whether the player's profile is hidden from others.</summary>
     [Id(27)]
     public required bool ProfileHidden { get; init; }
+
+    /// <summary>The Discord settings' version; 0 when the player never saved them.</summary>
+    [Id(28)]
+    public int DiscordPreferencesVersion { get; init; }
+
+    [Id(29)]
+    public bool DiscordShowHabbo { get; init; }
+
+    [Id(30)]
+    public bool DiscordShareActivity { get; init; }
+
+    [Id(31)]
+    public bool DiscordHideInHiddenRooms { get; init; }
+
+    [Id(32)]
+    public bool DiscordAllowJoining { get; init; }
 }

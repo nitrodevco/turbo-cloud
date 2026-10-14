@@ -69,6 +69,16 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     /// </summary>
     public Task SetOnlineIndicatorPreferenceAsync(int preference, CancellationToken ct);
     public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct);
+
+    /// <summary>Keeps the Discord settings window's choices. A version of 0 or less is refused.</summary>
+    public Task SetDiscordPreferencesAsync(
+        int version,
+        bool showHabbo,
+        bool shareActivity,
+        bool hideInHiddenRooms,
+        bool allowJoining,
+        CancellationToken ct
+    );
     public Task SetWiredPreferencesAsync(
         bool menuButton,
         bool inspectButton,

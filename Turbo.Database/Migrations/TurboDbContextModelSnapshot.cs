@@ -5662,6 +5662,36 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
+                    b.Property<bool>("DiscordAllowJoining")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_allow_joining");
+
+                    b.Property<bool>("DiscordHideInHiddenRooms")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_hide_in_hidden_rooms");
+
+                    b.Property<int>("DiscordPreferencesVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("discord_preferences_version");
+
+                    b.Property<bool>("DiscordShareActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_share_activity");
+
+                    b.Property<bool>("DiscordShowHabbo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_show_habbo");
+
                     b.Property<bool>("FriendRequestsDisabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
