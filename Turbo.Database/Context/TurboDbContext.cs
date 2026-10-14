@@ -140,6 +140,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
 
     public DbSet<PlayerHabbiconEntity> PlayerHabbicons { get; init; }
+    public DbSet<PlayerTargetedOfferEntity> PlayerTargetedOffers { get; init; }
 
     public DbSet<QuestCampaignEntity> QuestCampaigns { get; init; }
 

@@ -1,17 +1,21 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Catalog;
-using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
 
 /// <summary>
-/// Turbo has no targeted offers, so it answers as Habbo does when there is none for the player:
-/// an empty TargetedOfferNotFound, which the client takes as "no offer" and stops waiting.
+/// The client's one question at login (<c>OfferController.productDataReady</c>): the player's
+/// running targeted offer, or TargetedOfferNotFound, as Habbo answers when there is none.
 /// </summary>
-public class GetNextTargetedOfferMessageHandler : IMessageHandler<GetNextTargetedOfferMessage>
+public class GetNextTargetedOfferMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<GetNextTargetedOfferMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         GetNextTargetedOfferMessage message,
         MessageContext ctx,
@@ -21,7 +25,9 @@ public class GetNextTargetedOfferMessageHandler : IMessageHandler<GetNextTargete
         if (ctx.PlayerId <= 0)
             return;
 
-        await ctx.SendComposerAsync(new TargetedOfferNotFoundEventMessageComposer(), ct)
+        await _grainFactory
+            .GetPlayerTargetedOfferGrain(ctx.PlayerId)
+            .SendNextOfferAsync(ct)
             .ConfigureAwait(false);
     }
 }

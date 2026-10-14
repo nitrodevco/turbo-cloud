@@ -1,10 +1,7 @@
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.PacketHandlers.Catalog;
 using Turbo.PacketHandlers.Users;
-using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -14,9 +11,9 @@ using Xunit;
 namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
-/// Two requests the client sends at login that Habbo answers (recorded on hhus,
-/// 2026-10-12) and Turbo left unanswered: BlockListInit gets the blocked users (BlockList, empty
-/// for a new account), GetNextTargetedOffer gets an empty TargetedOfferNotFound.
+/// A request the client sends at login that Habbo answers (recorded on hhus, 2026-10-12) and
+/// Turbo left unanswered: BlockListInit gets the blocked users (BlockList, empty for a new
+/// account). GetNextTargetedOffer, the other one, is PlayerTargetedOfferTests'.
 /// </summary>
 public sealed class UnansweredLoginRequestsTests
 {
@@ -40,20 +37,6 @@ public sealed class UnansweredLoginRequestsTests
             _fakes.Log.Of("SendComposerAsync").Single().Args[0]
         );
         Assert.Equal([5, 7], composer.BlockedUserIds);
-    }
-
-    [Fact]
-    public async Task no_targeted_offer_is_answered_as_not_found()
-    {
-        await new GetNextTargetedOfferMessageHandler().HandleAsync(
-            new GetNextTargetedOfferMessage(),
-            Context(),
-            Ct
-        );
-
-        Assert.IsType<TargetedOfferNotFoundEventMessageComposer>(
-            _fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
     }
 
     private MessageContext Context() => new(_fakes.Create<ISessionContext>(), 1, -1);

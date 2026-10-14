@@ -36,6 +36,14 @@ public sealed class CatalogModule : IHostPluginModule
         );
 
         services
+            .AddOptions<TargetedOfferConfig>()
+            .Bind(builder.Configuration.GetSection(TargetedOfferConfig.SECTION_NAME))
+            .Validate(
+                x => x.Problem() is null,
+                "Turbo:TargetedOffers is invalid: unique positive ids, a catalogue offer each, no negative prices, a limit of at least 1."
+            )
+            .ValidateOnStart();
+        services
             .AddOptions<HabbiconConfig>()
             .Bind(builder.Configuration.GetSection(HabbiconConfig.SECTION_NAME))
             .PostConfigure(x =>
