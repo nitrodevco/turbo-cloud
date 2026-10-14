@@ -15,7 +15,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// <summary>
 /// Credit furni (gold bars, sacks). It has no states to cycle: double-clicking opens the client's
 /// redeem dialog, and redeeming credits the owner's wallet with the value in the definition name
-/// and destroys the item.
+/// and destroys the item. A furni lent by the Builders Club or placed by wired is not the
+/// player's to cash in, though the client shows them the dialog: it opens it for any furni whose
+/// owner id is theirs (WIN63-202610131318 <c>FurnitureCreditWidgetHandler.as:60</c>), and a
+/// temporary furni carries the room owner's (official client capture 2026-10-14).
 /// </summary>
 [RoomObjectLogic("exchange")]
 public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -34,6 +37,9 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
+
+        if (!IsOwnedOutrightBy(ctx))
+            return Reject(ctx, interaction, "a borrowed or temporary furni is worth nothing");
 
         if (!CreditFurniValue.TryParse(_ctx.Definition.Name, out var credits))
             return Reject(ctx, interaction, "definition name carries no credit value");
