@@ -150,7 +150,7 @@ public sealed class WiredChestItemTypeScannerTests
                 furniSources:
                 [
                     [WiredFurniSourceType.SelectedItems],
-                    [WiredFurniSourceType.SelectedItems],
+                    [WiredFurniSourceType.SecondaryItems],
                 ],
                 variableIds: [contextId]
             )

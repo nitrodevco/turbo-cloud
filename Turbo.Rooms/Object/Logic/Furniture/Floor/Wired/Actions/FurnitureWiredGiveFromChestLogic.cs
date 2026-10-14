@@ -79,11 +79,16 @@ public abstract class FurnitureWiredGiveFromChestLogic(
             KindParamRule,
         ];
 
+    // The chests default to the picked furni and the variable reference to the selectors
+    // (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.Furni];
+        [
+            WiredSources.FurniOrSecondary,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.Users, WiredSources.Users];
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

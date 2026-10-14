@@ -21,8 +21,13 @@ public class WiredActionFurniToFurni(
 {
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_FURNI;
 
+    // The movers default to the triggering furni and the target to the picked furni (official
+    // client capture); the secondary picks are offered on both.
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.SecondaryFurni];
+        [
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary,
+        ];
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
         MoveOntoTargetFurniAsync(ctx, 0, 0);

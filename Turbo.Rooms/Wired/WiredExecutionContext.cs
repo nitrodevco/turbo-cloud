@@ -284,6 +284,17 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// Whether "move through users" lets a moved user onto the tile: only past the users the
+    /// movement physics addon's user source names (every user unless narrowed).
+    /// </summary>
+    private bool CanMoveThroughUsersAt(int tileIdx) =>
+        Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
+        && (
+            Policy.MoveThroughUserIds is not { } passable
+            || AvatarModule.GetAvatarsOnTile(tileIdx).All(x => passable.Contains(x.ObjectId))
+        );
+
     public Task<bool> ProcessUserMovementAsync(
         IRoomAvatar avatar,
         int tileIdx,
@@ -316,8 +327,10 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             // on the tile are no obstacle: every user a selection picked can be teleported onto
             // one furni. A slide or a move still stops at a user unless the movement physics let
             // it through, and a closed tile or a furni that cannot be stood on refuses either.
+            var throughUsers = CanMoveThroughUsersAt(tileIdx);
+
             if (
-                !Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
+                !throughUsers
                 && !map.CanAvatarWalk(
                     avatar,
                     tileIdx,
@@ -327,10 +340,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             )
                 return false;
 
-            if (
-                Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
-                && map.IsTileDisabled(tileIdx)
-            )
+            if (throughUsers && map.IsTileDisabled(tileIdx))
                 return false;
 
             var (sourceX, sourceY, sourceZ) = (avatar.X, avatar.Y, avatar.Z);

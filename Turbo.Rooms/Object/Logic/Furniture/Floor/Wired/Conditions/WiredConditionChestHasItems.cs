@@ -58,10 +58,13 @@ public class WiredConditionChestHasItems(
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
         ];
 
+    // The chests default to the picked furni and the variable reference to the selectors
+    // (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [.. Enumerable.Repeat(WiredSources.Furni, ChestSlot + 2)];
+        [WiredSources.Furni, WiredSources.Furni.DefaultingTo(WiredFurniSourceType.SelectorItems)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

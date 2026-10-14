@@ -32,10 +32,16 @@ public class WiredActionSendSignal(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredBoolParamRule(false), new WiredBoolParamRule(false)];
 
+    // The antennas, then the furni to forward; the forwarded furni and users default to the
+    // selectors' (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.SecondaryFurni];
+        [
+            WiredSources.FurniOrSecondary,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

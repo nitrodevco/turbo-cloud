@@ -81,12 +81,18 @@ public class WiredActionInitiateTransaction(
         ];
 
     // The contracts may be the triggering furni: the Wired Faculty's "Automatic shop with
-    // contracts" (18/03/2026) offers the contract the user clicked.
+    // contracts" (18/03/2026) offers the contract the user clicked. The chests default to the
+    // picked furni, the contracts to the secondary picks and the variable reference to the
+    // selectors (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.Furni, WiredSources.Furni];
+        [
+            WiredSources.FurniOrSecondary,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SecondaryItems),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.Users, WiredSources.Users];
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

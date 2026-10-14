@@ -5,8 +5,8 @@ namespace Turbo.Rooms.Wired;
 
 /// <summary>
 /// Resolves one input slot of a box on its own. Boxes with two furni slots (move furni to,
-/// furni to furni, send signal) keep the slots apart: slot 0 comes from the first source
-/// list and the first pick list, slot 1 from the second.
+/// furni to furni, send signal) keep the slots apart: each slot reads its own source list,
+/// "picked furni" being the first pick list and "secondary picks" the second.
 /// </summary>
 public static class WiredSlotSelection
 {
@@ -25,11 +25,11 @@ public static class WiredSlotSelection
                 case WiredFurniSourceType.TriggeredItem:
                     set.SelectedFurniIds.UnionWith(ctx.Selected.SelectedFurniIds);
                     break;
+                // The editor keeps one pick list for "picked furni" on every slot; only the
+                // secondary picks go to the second list (WiredInputSources / activeStuffsKey).
                 case WiredFurniSourceType.SelectedItems:
                 case WiredFurniSourceType.SnapshotItems:
-                    set.SelectedFurniIds.UnionWith(
-                        slot == 0 ? box.GetStuffIds() : box.GetStuffIds2()
-                    );
+                    set.SelectedFurniIds.UnionWith(box.GetStuffIds());
                     break;
                 case WiredFurniSourceType.SecondaryItems:
                     set.SelectedFurniIds.UnionWith(box.GetStuffIds2());
@@ -77,6 +77,9 @@ public static class WiredSlotSelection
                     break;
                 case WiredPlayerSourceType.SignalUsers:
                     set.SelectedAvatarIds.UnionWith(ctx.Signal.SelectedAvatarIds);
+                    break;
+                case WiredPlayerSourceType.AllRoomUsers:
+                    set.SelectedAvatarIds.UnionWith(ctx.GetSelection(box).SelectedAvatarIds);
                     break;
             }
         }

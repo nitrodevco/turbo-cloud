@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
@@ -27,6 +28,17 @@ public class WiredConditionChestHasItemTypes(
     public override int WiredCode => (int)WiredConditionType.CHEST_HAS_ITEM_TYPES;
 
     protected override int ChestSlot => 1;
+
+    // The furni types default to the picked furni, the chests to the secondary picks and the
+    // variable reference to the triggering furni (official client capture).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            WiredSources.FurniOrSecondary,
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SecondaryItems),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override int Count(IWiredProcessingContext ctx, FurnitureWiredChestLogic chest)
     {
