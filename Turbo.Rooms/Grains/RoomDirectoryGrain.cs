@@ -252,6 +252,30 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         return Task.FromResult<RoomId?>(populated[random]);
     }
 
+    // Official client capture 2026-10-14 (WIN63-202610131318): Find Friends from the player's own
+    // room forwarded them into another user's populated room. Leaving out their own rooms and the
+    // one they stand in is inference from that: sending them where they are finds nobody new.
+    public Task<RoomId?> GetFriendFindingRoomAsync(PlayerId playerId, CancellationToken ct)
+    {
+        var candidates = _state
+            .RoomPopulations.Where(kv =>
+                kv.Value > 0
+                && !(
+                    _state.RoomPlayers.TryGetValue(kv.Key, out var players)
+                    && players.Contains(playerId)
+                )
+                && !(
+                    _state.ActiveRooms.TryGetValue(kv.Key, out var room) && room.OwnerId == playerId
+                )
+            )
+            .Select(kv => kv.Key)
+            .ToArray();
+
+        return Task.FromResult<RoomId?>(
+            candidates.Length == 0 ? null : candidates[Random.Shared.Next(candidates.Length)]
+        );
+    }
+
     private Task UpdatePopulationAsync(RoomId roomId)
     {
         _state.RoomPopulations[roomId] = _state.RoomPlayers.TryGetValue(roomId, out var players)

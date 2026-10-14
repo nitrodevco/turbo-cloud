@@ -298,7 +298,7 @@ public sealed class MessengerService(
     {
         var roomId = await _grainFactory
             .GetRoomDirectoryGrain()
-            .GetRandomPopulatedRoomAsync(ct)
+            .GetFriendFindingRoomAsync(playerId, ct)
             .ConfigureAwait(false);
         var found = roomId is { } room && room > 0;
 
