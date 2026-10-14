@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
@@ -8,9 +9,13 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
@@ -27,7 +32,12 @@ namespace Turbo.Tests.Rooms;
 public sealed class WiredPlaceFurniTests
 {
     private const int CLICK_ME = 23;
-    private const int LAMP = 20;
+
+    // Habbo copies only Builders Club furni (wiredfurni.error.furni_can_not_be_cloned).
+    private const int LAMP = FurniIdBands.BuildersClubMin + 20;
+    private const int OWN_LAMP = 30;
+    private const int OWN_MONEY_BAG = 31;
+    private const int BORROWED_MONEY_BAG = FurniIdBands.BuildersClubMin + 31;
 
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
@@ -125,6 +135,60 @@ public sealed class WiredPlaceFurniTests
         copies.Should().ContainSingle();
         (copies[0].X, copies[0].Y, copies[0].Definition.Id).Should().Be((x, y, lamp.Definition.Id));
     }
+
+    // Official client capture (WIN63-202610131318): the player's own non-tradable chair refused
+    // with furni_can_not_be_cloned and the old configuration kept; borrowed furni copied.
+    [Theory]
+    [InlineData(OWN_LAMP, "default_floor", true)]
+    [InlineData(OWN_LAMP, "default_floor", false)]
+    [InlineData(OWN_MONEY_BAG, "exchange", true)]
+    [InlineData(OWN_MONEY_BAG, "exchange", false)]
+    [InlineData(BORROWED_MONEY_BAG, "exchange", true)]
+    public async Task A_save_picking_furni_that_may_not_be_copied_is_refused_and_the_old_one_kept(
+        int picked,
+        string logic,
+        bool buildersClubOnly
+    )
+    {
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_wiredConfig",
+            new WiredConfig { PlaceFurniBuildersClubOnly = buildersClubOnly }
+        );
+        _room.AddFloorItem(LAMP, 3, 3);
+        _room.AddFloorItem(
+            picked,
+            4,
+            4,
+            logic,
+            createLogic: logic == "exchange"
+                ? (stuffDataFactory, ctx) => new FurnitureExchangeLogic(stuffDataFactory, ctx)
+                : null
+        );
+        _room.AddBox<WiredActionPlaceFurni>(2, 0, 0, "wf_act_place_furni");
+
+        (await SaveLampAsync([LAMP])).IsSaved.Should().BeTrue();
+
+        var result = await SaveLampAsync([picked]);
+
+        // Only an own plain furni on a hotel that copies more than borrowed furni is allowed.
+        var allowed = logic == "default_floor" && !buildersClubOnly;
+
+        result.IsSaved.Should().Be(allowed);
+        result.ErrorKey.Should().Be(allowed ? null : WiredSaveErrors.FURNI_CAN_NOT_BE_CLONED);
+        ((FurnitureWiredLogic)_room.FloorItem(2).Logic)
+            .GetStuffIds()
+            .Should()
+            .Equal(allowed ? picked : LAMP);
+    }
+
+    private Task<WiredSaveResult> SaveLampAsync(int[] stuffIds) =>
+        _room.SaveWithResultAsync<UpdateActionMessage>(
+            2,
+            intParams: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            stuffIds: stuffIds,
+            definitionSpecifics: [0]
+        );
 
     private async Task TickAsync(int ticks)
     {

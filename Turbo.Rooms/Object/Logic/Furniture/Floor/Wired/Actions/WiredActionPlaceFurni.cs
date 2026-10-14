@@ -4,15 +4,19 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
@@ -99,6 +103,53 @@ public class WiredActionPlaceFurni(
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
+
+    /// <summary>
+    /// Refuses a save that picks furni to copy that may not be copied, as Habbo does: with
+    /// <c>wiredfurni.error.furni_can_not_be_cloned</c> and the old configuration kept (official
+    /// client capture, WIN63-202610131318: a non-tradable chair from the inventory refused, a
+    /// lamp and a building block borrowed from the Builders Club copied). Only the furni to copy
+    /// is checked, not the custom target.
+    /// </summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        foreach (var proposedId in update.StuffIds)
+        {
+            if (
+                FurniModule.TryGetItem(
+                    WiredFurniIds.FromClient(FurniModule, proposedId),
+                    out var item
+                ) && !CanBeCopied(item)
+            )
+                throw new WiredSaveRefusedException(WiredSaveErrors.FURNI_CAN_NOT_BE_CLONED);
+        }
+
+        return base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
+
+    /// <summary>
+    /// Builders Club furni (<see cref="IRoomItem.IsBuildersClub"/>) "that do not have advanced
+    /// functionality" (the error's text). Both copies Habbo made were of borrowed furni and the
+    /// refused one was the player's own; that the borrowing, not the type, decides is inferred
+    /// from those three and the text. What counts as advanced is not recorded either: here it is
+    /// every furni that turns into something of value, which no hotel may let wired copy.
+    /// </summary>
+    private bool CanBeCopied(IRoomItem item) =>
+        (item.IsBuildersClub || !_roomGrain._wiredConfig.PlaceFurniBuildersClubOnly)
+        && item.Logic
+            is not (
+                FurnitureExchangeLogic
+                or FurniturePresentLogic
+                or FurnitureCrackableLogic
+                or FurnitureEffectBoxLogic
+                or FurniturePurchasableClothingLogic
+                or FurniturePetPackageLogic
+                or FurniturePetProductLogic
+            );
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

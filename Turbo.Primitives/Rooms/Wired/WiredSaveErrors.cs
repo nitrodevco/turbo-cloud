@@ -14,4 +14,10 @@ public static class WiredSaveErrors
     /// Achievement Enabler wired add-on"
     /// </summary>
     public const string ACHIEVEMENT_NOT_ALLOWED = "wiredfurni.error.achievement_not_allowed";
+
+    /// <summary>
+    /// "Placements are not allowed for the selected furni type. You can only select Builders Club
+    /// furniture that do not have advanced functionality."
+    /// </summary>
+    public const string FURNI_CAN_NOT_BE_CLONED = "wiredfurni.error.furni_can_not_be_cloned";
 }
