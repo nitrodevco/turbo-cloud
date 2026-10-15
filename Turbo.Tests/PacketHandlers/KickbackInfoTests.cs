@@ -82,7 +82,21 @@ public sealed class KickbackInfoTests
     {
         var reply = await AskAsync(Club(10 * 86400, 50, new DateTime(2026, 8, 24)));
 
-        reply.FirstSubscriptionDate.Should().Be("2026-08-24");
-        reply.CurrentHcStreak.Should().Be(40, "50 days granted, 10 still to run");
+        // Habbo writes it day first: 31-01-2013 (official client capture, 2026-10-13).
+        reply.FirstSubscriptionDate.Should().Be("24-08-2026");
+        reply.CurrentHcStreak.Should().Be(40, "50 days granted, 10 still to run, no run kept");
+    }
+
+    [Fact]
+    public async Task the_streak_is_the_run_going_on_now_not_every_run()
+    {
+        var reply = await AskAsync(
+            Club(31 * 86400, 597, new DateTime(2013, 1, 31)) with
+            {
+                DaysIntoRun = 0,
+            }
+        );
+
+        reply.CurrentHcStreak.Should().Be(0, "Habbo reads 0 a minute after 566 past days");
     }
 }

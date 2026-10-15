@@ -146,6 +146,9 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         // two have to agree.
         var from = entity.ExpiresAt is { } end && end > now ? end : now;
 
+        if (from == now)
+            entity.RunStartedAt = now;
+
         entity.ExpiresAt = from.AddDays(days);
         entity.TotalDaysSubscribed += days;
         if (purchased)
@@ -391,6 +394,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                 PlayerEntityId = row.PlayerEntityId,
                 SubscriptionType = subscriptionType,
                 FirstSubscribedAt = row.FirstSubscribedAt ?? now,
+                RunStartedAt = row.RunStartedAt ?? row.FirstSubscribedAt ?? now,
                 ExpiresAt = row.ExpiresAt is { } bought && bought > until ? bought : until,
                 TotalDaysSubscribed = row.TotalDaysSubscribed,
                 PurchasedDaysSubscribed = row.PurchasedDaysSubscribed,

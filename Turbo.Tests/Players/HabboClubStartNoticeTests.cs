@@ -156,6 +156,48 @@ public sealed class HabboClubStartNoticeTests : IDisposable
         info.PeriodsSubscribedAhead.Should().Be(0);
     }
 
+    [Fact]
+    public async Task A_membership_that_starts_again_starts_a_new_streak()
+    {
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddYears(-10),
+                RunStartedAt = DateTime.UtcNow.AddYears(-3),
+                ExpiresAt = DateTime.UtcNow.AddYears(-1),
+                TotalDaysSubscribed = 566,
+            }
+        );
+        var grain = Grain();
+
+        await grain.ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
+
+        (await grain.GetAsync(SubscriptionType.HabboClub, Ct)).CurrentStreakDays.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_membership_extended_while_it_runs_keeps_its_streak()
+    {
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddDays(-40),
+                RunStartedAt = DateTime.UtcNow.AddDays(-40).AddHours(-1),
+                ExpiresAt = DateTime.UtcNow.AddDays(22),
+                TotalDaysSubscribed = 62,
+            }
+        );
+        var grain = Grain();
+
+        await grain.ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
+
+        (await grain.GetAsync(SubscriptionType.HabboClub, Ct)).CurrentStreakDays.Should().Be(40);
+    }
+
     private IPlayerSubscriptionGrain Grain() =>
         (IPlayerSubscriptionGrain)
             GrainHarness.Create(
