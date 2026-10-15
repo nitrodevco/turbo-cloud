@@ -273,6 +273,29 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     /// Hands the room's highscore boards the teams that played: each team's score and the names
     /// of its players, and how long the game ran.
     /// </summary>
+    /// <summary>
+    /// <c>:resetscores</c>: "Do you really want to reset the leaderboards in this room?"
+    /// (<c>room.confirm.resetscores</c>), which the Flash client asks of the room's owner, a
+    /// controller of every room or anyone with rights (<c>SessionDataManager.resetScores</c>).
+    /// Every highscore board in the room is emptied. Null for anyone without rights; otherwise
+    /// how many boards there were.
+    /// </summary>
+    public async Task<int?> ResetHighscoresAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (await SecurityModule.GetControllerLevelAsync(ctx) < RoomControllerType.Rights)
+            return null;
+
+        var boards = FurniModule
+            .Items.Select(item => item.Logic)
+            .OfType<FurnitureHighscoreLogic>()
+            .ToList();
+
+        foreach (var board in boards)
+            await board.ResetAsync(DateTimeOffset.UtcNow, ct);
+
+        return boards.Count;
+    }
+
     private async Task RecordHighscoresAsync(CancellationToken ct)
     {
         var boards = FurniModule

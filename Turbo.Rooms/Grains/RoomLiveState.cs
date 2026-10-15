@@ -120,6 +120,11 @@ internal sealed class RoomLiveState
     /// <summary>When each player was last told a wired placement failed (Place Temporary Furni).</summary>
     public Dictionary<PlayerId, long> WiredPlacementFailureNotifiedMs { get; } = [];
 
+    /// <summary>
+    /// Who said <c>:mutepets</c> here: pets' lines are not sent to them while the room is loaded.
+    /// </summary>
+    public HashSet<PlayerId> PetsMutedBy { get; } = [];
+
     /// <summary>When the room next hands what changed to its persistence grain.</summary>
     public long NextPersistenceBoundaryMs { get; set; } = 0;
 }
