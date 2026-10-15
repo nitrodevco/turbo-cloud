@@ -1,11 +1,18 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Poll;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Poll;
 
-public class PollRejectMessageHandler : IMessageHandler<PollRejectMessage>
+/// <summary>
+/// The player turns the offered poll down (Flash <c>PollOfferDialog</c> Cancel or close,
+/// RoomSession.as:436); it is not offered to them again.
+/// </summary>
+public class PollRejectMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<PollRejectMessage>
 {
     public async ValueTask HandleAsync(
         PollRejectMessage message,
@@ -13,6 +20,12 @@ public class PollRejectMessageHandler : IMessageHandler<PollRejectMessage>
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
+
+        await grainFactory
+            .GetPlayerRoomPollGrain(ctx.PlayerId)
+            .RejectAsync(message.PollId, ct)
+            .ConfigureAwait(false);
     }
 }

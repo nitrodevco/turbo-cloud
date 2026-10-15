@@ -16,6 +16,7 @@ using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.Polls;
 using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
@@ -140,6 +141,17 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
 
     public DbSet<PlayerHabbiconEntity> PlayerHabbicons { get; init; }
+
+    public DbSet<RoomPollEntity> RoomPolls { get; init; }
+
+    public DbSet<RoomPollQuestionEntity> RoomPollQuestions { get; init; }
+
+    public DbSet<RoomPollChoiceEntity> RoomPollChoices { get; init; }
+
+    public DbSet<PlayerRoomPollEntity> PlayerRoomPolls { get; init; }
+
+    public DbSet<RoomPollAnswerEntity> RoomPollAnswers { get; init; }
+
     public DbSet<PlayerTargetedOfferEntity> PlayerTargetedOffers { get; init; }
 
     public DbSet<QuestCampaignEntity> QuestCampaigns { get; init; }
