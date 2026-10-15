@@ -23,7 +23,7 @@ public class RequestFurniInventoryMessageHandler(IGrainFactory grainFactory)
 
         await _grainFactory
             .GetInventoryGrain(ctx.PlayerId)
-            .SendFurnitureInventoryAsync(ct)
+            .SendFurnitureInventoryAsync(ctx.SessionKey, ct)
             .ConfigureAwait(false);
     }
 }

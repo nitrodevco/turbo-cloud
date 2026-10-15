@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Orleans.Concurrency;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -131,8 +132,12 @@ public partial interface IInventoryGrain
         CancellationToken ct
     );
 
-    /// <summary>Sends the player their furni tab, in fragments.</summary>
-    public Task SendFurnitureInventoryAsync(CancellationToken ct);
+    /// <summary>
+    /// Sends <paramref name="sessionKey"/> the player's furni tab, in fragments. From then on that
+    /// session's list is kept in step item by item (<c>FurniListAddOrUpdate</c>); a session that
+    /// never asked is told nothing, since its client asks for the whole list when it opens.
+    /// </summary>
+    public Task SendFurnitureInventoryAsync(SessionKey sessionKey, CancellationToken ct);
 
     public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct

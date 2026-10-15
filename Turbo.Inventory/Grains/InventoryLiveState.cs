@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -26,6 +27,13 @@ internal sealed class InventoryLiveState
     /// the section ready.
     /// </summary>
     public int FurnitureReceiveCount { get; set; }
+
+    /// <summary>
+    /// The session whose client holds the furni list, sent when it asked. Only that session is
+    /// told item by item what joins or changes; any other has no list to change and asks for the
+    /// whole one when it opens the inventory.
+    /// </summary>
+    public SessionKey FurnitureListSessionKey { get; set; } = SessionKey.Invalid;
 
     public InventoryUnitSection<PetSnapshot> Pets { get; } = new();
     public InventoryUnitSection<BotSnapshot> Bots { get; } = new();

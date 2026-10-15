@@ -190,7 +190,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   2BB8774C: ReturnBotAsync(Turbo.Primitives.Bots.Snapshots.BotSnapshot, System.Threading.CancellationToken) -> Task<bool>
   34E6AB25: ReturnPetAsync(Turbo.Primitives.Pets.Snapshots.PetSnapshot, System.Threading.CancellationToken) -> Task<bool>
   AEE5660A: SendBotInventoryAsync(System.Threading.CancellationToken) -> Task
-  FDC56515: SendFurnitureInventoryAsync(System.Threading.CancellationToken) -> Task
+  D78A0626: SendFurnitureInventoryAsync(Turbo.Primitives.Networking.SessionKey, System.Threading.CancellationToken) -> Task
   012A55F6: SendPetInventoryAsync(System.Threading.CancellationToken) -> Task
   09C016D6: SendPetNameApprovalAsync(string, System.Threading.CancellationToken) -> Task
   6BA6DC16: TransferFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
@@ -274,6 +274,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   40D8DA12: SetClientCapabilitiesAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Networking.Capabilities.ClientCapabilitySnapshot>, System.Threading.CancellationToken) -> Task
   BD98A891: SetPendingRoomAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Enums.RoomEntryState, System.Threading.CancellationToken) -> Task
   8C30BF4D: TrySendComposerAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task<bool>
+  36440E90: TrySendComposerToSessionAsync(Turbo.Primitives.Networking.SessionKey, Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task<bool>
   E09E1AF9: UnregisterSessionObserverAsync(Turbo.Primitives.Networking.SessionKey, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerWalletGrain")] Turbo.Primitives.Players.Grains.IPlayerWalletGrain [Version(0)]

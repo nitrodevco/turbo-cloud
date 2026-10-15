@@ -193,6 +193,15 @@ internal sealed partial class PlayerPresenceGrain
         return Task.FromResult(true);
     }
 
+    public Task<bool> TrySendComposerToSessionAsync(
+        SessionKey sessionKey,
+        IComposer composer,
+        CancellationToken ct
+    ) =>
+        _state.SessionKey == sessionKey && sessionKey != SessionKey.Invalid
+            ? TrySendComposerAsync(composer, ct)
+            : Task.FromResult(false);
+
     public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct)
     {
         if (composers.Count > 0)

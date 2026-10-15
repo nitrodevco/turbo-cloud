@@ -47,6 +47,16 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     [AlwaysInterleave]
     public Task<bool> TrySendComposerAsync(IComposer composer, CancellationToken ct);
 
+    /// <summary>As <see cref="TrySendComposerAsync"/>, but only while <paramref name="sessionKey"/>
+    /// is the attached session: for state one connection's client holds, which the next
+    /// connection starts without. False means that session has gone.</summary>
+    [AlwaysInterleave]
+    public Task<bool> TrySendComposerToSessionAsync(
+        SessionKey sessionKey,
+        IComposer composer,
+        CancellationToken ct
+    );
+
     [AlwaysInterleave]
     public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct);
 

@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -76,19 +75,6 @@ internal sealed partial class InventoryGrain
         return Task.CompletedTask;
     }
 
-    public async Task SendFurnitureInventoryAsync(CancellationToken ct) =>
-        await Presence.SendComposerAsync(
-            ComposerFragments.Build(
-                await GetAllItemSnapshotsAsync(ct),
-                _inventoryConfig.FurnitureInventoryFragmentSize,
-                (total, current, fragment) =>
-                    new FurniListEventMessageComposer
-                    {
-                        TotalFragments = total,
-                        CurrentFragment = current,
-                        Items = fragment,
-                    }
-            ),
-            ct
-        );
+    public Task SendFurnitureInventoryAsync(SessionKey sessionKey, CancellationToken ct) =>
+        FurniModule.SendListAsync(sessionKey, ct);
 }

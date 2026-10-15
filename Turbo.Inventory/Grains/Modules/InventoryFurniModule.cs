@@ -21,6 +21,7 @@ using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -220,8 +221,8 @@ internal sealed class InventoryFurniModule(
     /// <summary>
     /// Creates one row per definition and lists the items. One insert and one presence call,
     /// however many items a purchase grants. A section that is not loaded is not loaded for
-    /// this: the rows are written, the client is told its list changed, and the next read
-    /// loads them with everything else.
+    /// this: the rows are written, a client holding the list is sent the items, and the next
+    /// read loads them with everything else.
     /// </summary>
     public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantAsync(
         IReadOnlyList<(FurnitureDefinitionSnapshot Definition, string? ExtraDataJson)> grants,
@@ -382,8 +383,8 @@ internal sealed class InventoryFurniModule(
 
     /// <summary>
     /// Builds the items for rows just written and tells the owner. A section that is not
-    /// loaded is not loaded for this: the client is told its list changed, and the next read
-    /// loads the rows with everything else.
+    /// loaded is not loaded for this: a client holding the list is sent the items, and the next
+    /// read loads the rows with everything else.
     /// </summary>
     private async Task<ImmutableArray<FurnitureItemSnapshot>> ListGrantedAsync(
         List<FurnitureEntity> entities,
@@ -416,7 +417,7 @@ internal sealed class InventoryFurniModule(
         if (_state.IsFurnitureReady)
             await AddAsync(items, ct);
         else
-            await SendAddedAsync(snapshots, ct);
+            await SendAddedOrUpdatedAsync(snapshots, ct);
 
         MarkUnseen(snapshots);
 
@@ -424,20 +425,64 @@ internal sealed class InventoryFurniModule(
     }
 
     /// <summary>
-    /// Items joined the section. The client refetches its list rather than splicing items in,
-    /// so one "list changed" per change covers any number of items.
+    /// The whole list, in fragments, to the session that asked; from then on that session is
+    /// kept in step item by item. A receive that lands while the rows are read may be missing
+    /// from what was read: that list is sent as it is, then called stale, and the client asks
+    /// again rather than being kept in step with a list that lacks an item.
     /// </summary>
-    private Task SendAddedAsync(
+    public async Task SendListAsync(SessionKey sessionKey, CancellationToken ct)
+    {
+        var items = await GetAllAsync(ct);
+        var composers = ComposerFragments.Build(
+            items,
+            Config.FurnitureInventoryFragmentSize,
+            (total, current, fragment) =>
+                new FurniListEventMessageComposer
+                {
+                    TotalFragments = total,
+                    CurrentFragment = current,
+                    Items = fragment,
+                }
+        );
+
+        // EnsureReadyAsync leaves the section unready only when a receive raced the read.
+        if (_state.IsFurnitureReady)
+        {
+            _state.FurnitureListSessionKey = sessionKey;
+        }
+        else
+        {
+            _state.FurnitureListSessionKey = SessionKey.Invalid;
+            composers.Add(new FurniListInvalidateEventMessageComposer());
+        }
+
+        await Presence.SendComposerAsync(composers, ct);
+    }
+
+    /// <summary>
+    /// Items joined the section or changed in it. Only a client holding the list is told, with
+    /// the items themselves; one that has not asked for it yet gets the rows with the rest when
+    /// it does. The session that asked having gone, no later one is told until it asks itself.
+    /// </summary>
+    private async Task SendAddedOrUpdatedAsync(
         ImmutableArray<FurnitureItemSnapshot> items,
         CancellationToken ct
-    ) =>
-        items.IsDefaultOrEmpty
-            ? Task.CompletedTask
-            : GrainFactory.SendComposerToPlayerAsync(
-                PlayerId,
-                new FurniListInvalidateEventMessageComposer(),
-                ct
-            );
+    )
+    {
+        var sessionKey = _state.FurnitureListSessionKey;
+
+        if (items.IsDefaultOrEmpty || sessionKey == SessionKey.Invalid)
+            return;
+
+        var sent = await Presence.TrySendComposerToSessionAsync(
+            sessionKey,
+            new FurniListAddOrUpdateEventMessageComposer { Items = items },
+            ct
+        );
+
+        if (!sent && _state.FurnitureListSessionKey == sessionKey)
+            _state.FurnitureListSessionKey = SessionKey.Invalid;
+    }
 
     /// <summary>Items left the section: one removal each, as one batch to the one player.</summary>
     private Task SendRemovedAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct) =>
@@ -636,8 +681,8 @@ internal sealed class InventoryFurniModule(
     /// <summary>
     /// Items whose rows were just re-owned to this player by another inventory. Runs
     /// interleaved and awaits nothing (see <c>IInventoryGrain.ReceiveFurnitureAsync</c>): a
-    /// loaded section lists the items, an unloaded one leaves them to its load, and the client
-    /// is told either way.
+    /// loaded section lists the items, an unloaded one leaves them to its load, and a client
+    /// holding the list is sent them either way.
     /// </summary>
     public void Receive(ImmutableArray<FurnitureItemSnapshot> snapshots)
     {
@@ -676,7 +721,7 @@ internal sealed class InventoryFurniModule(
         if (added.IsDefaultOrEmpty)
             return;
 
-        SendAddedAsync(added, CancellationToken.None)
+        SendAddedOrUpdatedAsync(added, CancellationToken.None)
             .LogAndForget(
                 _logger,
                 "tell player {PlayerId} about {ItemCount} received items",
@@ -718,7 +763,7 @@ internal sealed class InventoryFurniModule(
         }
 
         if (added.Count > 0)
-            await SendAddedAsync(added.ToImmutable(), ct);
+            await SendAddedOrUpdatedAsync(added.ToImmutable(), ct);
 
         return added.Count;
     }
