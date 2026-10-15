@@ -18,4 +18,5 @@ public enum WiredSourceType
     SelectorItems = 200,
     SignalItems = 201,
     AllRoomItems = 900,
+    MovedItems = 901,
 }

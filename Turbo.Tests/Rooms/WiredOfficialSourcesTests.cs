@@ -133,6 +133,18 @@ public sealed class WiredOfficialSourcesTests
                 [0, 200]
             },
             {
+                typeof(WiredAddonProjectile),
+                "wf_xtra_rotate_to_dir",
+                [
+                    [0, 100, 200, 201, 901],
+                    Furni,
+                    Furni,
+                ],
+                [901, 0, 0],
+                [Users, Users, Users],
+                [0, 0, 0]
+            },
+            {
                 typeof(WiredActionPlaceFurni),
                 "wf_act_place_furni",
                 [

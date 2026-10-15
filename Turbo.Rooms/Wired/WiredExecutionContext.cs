@@ -153,10 +153,11 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             if (Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
                 z ??= floorItem.Z;
 
-            // A projectile addon speaks only for the furni it picked as projectiles.
+            // A projectile addon speaks only for the furni it picked as projectiles, or for every
+            // furni the stack moves.
             var projectile =
                 Policy.Projectile is { } settings
-                && settings.ProjectileIds.Contains(floorItem.ObjectId)
+                && (settings.AllMoved || settings.ProjectileIds.Contains(floorItem.ObjectId))
                     ? settings
                     : null;
             var (flightToX, flightToY) = MapModule.GetTileXY(tileIdx);
