@@ -28,16 +28,14 @@ public sealed partial class RoomGrain
         if (recipe is null)
             return false;
 
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                ctx.PlayerId,
-                new CraftingRecipeMessageComposer
-                {
-                    Ingredients = FurnitureCraftingLogic.Ingredients(recipe),
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        await _grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new CraftingRecipeMessageComposer
+            {
+                Ingredients = FurnitureCraftingLogic.Ingredients(recipe),
+            },
+            ct
+        );
 
         return true;
     }
