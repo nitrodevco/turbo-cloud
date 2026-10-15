@@ -30,6 +30,9 @@ public readonly record struct ActionContext(
     public static ActionContext CreateForPlayer(PlayerId playerId, RoomId roomId) =>
         new(ActionOrigin.Player, SessionKey.Invalid, playerId, roomId);
 
+    public static ActionContext CreateForBot(RoomId roomId) =>
+        new(ActionOrigin.Bot, SessionKey.Invalid, PlayerId.Invalid, roomId);
+
     public static ActionContext CreateForObjectContext(IRoomObjectContext ctx) =>
         ctx switch
         {
@@ -37,6 +40,8 @@ public readonly record struct ActionContext(
                 playerCtx.RoomObject.PlayerId,
                 ctx.RoomId
             ),
+            // A bot or pet acts on its own: no player is behind it, and it holds no rights.
+            IRoomBotContext or IRoomPetContext => CreateForBot(ctx.RoomId),
             _ => throw new InvalidActionContextException(ctx.GetType()),
         };
 

@@ -1,12 +1,15 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Avatars.Pet;
+using Turbo.Rooms.Object.Logic.Avatar;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Wired;
@@ -338,6 +341,53 @@ public sealed class WiredSelectorTests
         (await trigger.MatchesEventAsync(walked[0], Ct)).Should().BeTrue("furni 20 is picked");
         (await trigger.MatchesEventAsync(walked[1], Ct)).Should().BeFalse("furni 21 is not");
         walked[0].ObjectId.Value.Should().Be(5, "the event names the user who walked on");
+    }
+
+    [Fact]
+    public async Task WalksOnFurni_FiresForAPetWalkingOntoAPickedFurni_WithNoPlayerBehindIt()
+    {
+        var heard = new List<RoomEvent>();
+
+        _room.Harness.EventListeners.Register([new Recorder(heard)]);
+        _room.AddFloorItem(20, 5, 5);
+        var trigger = _room.AddBox<WiredTriggerWalkOnFurni>(BOX, 0, 0, "wf_trg_walks_on_furni");
+        var pet = new RoomPetAvatar
+        {
+            ObjectId = 7,
+            PetId = 40,
+            OwnerId = 9,
+            OwnerName = "owner",
+            RoomId = 1,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+
+        pet.SetPosition(1, 1);
+        pet.SetLogic(new PetLogic(new RoomPetContext(_room.Harness.Room, pet)));
+        _room.Map.AddAvatar(pet, false);
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                BOX,
+                stuffIds: [20],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+        // Before, the pet's step threw here and its walk stopped short of the furni.
+        await _room
+            .Harness.Module<Turbo.Rooms.Grains.Modules.RoomAvatarModule>()
+            .RelocateAvatarAsync(pet, _room.Map.ToIdx(5, 5), Ct);
+
+        var walked = heard.OfType<AvatarWalkOnFurniEvent>().Should().ContainSingle().Which;
+
+        (pet.X, pet.Y).Should().Be((5, 5));
+        walked.ObjectId.Value.Should().Be(7, "the event names the pet that walked on");
+        walked.CausedBy.Origin.Should().Be(ActionOrigin.Bot);
+        walked.CausedBy.PlayerId.Should().Be(PlayerId.Invalid, "no player walked the pet");
+        (await trigger.MatchesEventAsync(walked, Ct)).Should().BeTrue("furni 20 is picked");
     }
 
     private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener
