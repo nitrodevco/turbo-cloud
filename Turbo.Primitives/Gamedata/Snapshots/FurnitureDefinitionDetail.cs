@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Gamedata.Enums;
 
 namespace Turbo.Primitives.Gamedata.Snapshots;
 
@@ -39,4 +41,12 @@ public sealed record FurnitureDefinitionDetail
     /// <summary>Its <c>total_states</c>, which the file does not carry: furnidata has no states.</summary>
     [Id(7)]
     public required int States { get; init; }
+
+    /// <summary>The bundle it is drawn from: its classname without the <c>*N</c> colour.</summary>
+    [Id(8)]
+    public required string AssetName { get; init; }
+
+    /// <summary>Its tags, as the list gives them.</summary>
+    [Id(9)]
+    public required ImmutableArray<FurnitureTag> Tags { get; init; }
 }

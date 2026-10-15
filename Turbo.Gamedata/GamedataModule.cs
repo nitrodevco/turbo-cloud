@@ -59,6 +59,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<GamedataWriteLock>();
         services.AddSingleton<FurnitureOfferCatalog>();
         services.AddSingleton<HabboReleaseItems>();
+        services.AddSingleton<FurnitureStatusIndex>();
         services.AddSingleton<HabboFurnitureFiles>();
         services.AddSingleton<IHabboReleaseService, HabboReleaseService>();
         services.AddSingleton<IGamedataFileService, GamedataFileService>();

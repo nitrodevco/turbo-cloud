@@ -49,6 +49,9 @@ internal sealed class AssetSyncService(
     private const string NOT_A_FILE =
         "Habbo answered with a page, not the file; its filter may have refused the request.";
 
+    private readonly SemaphoreSlim _listing = new(1, 1);
+    private HabboLists? _lists;
+
     public AssetJobSnapshot Start(PlayerId player) =>
         jobs.Start(
             AssetJobKind.Sync,
@@ -98,7 +101,7 @@ internal sealed class AssetSyncService(
     /// </summary>
     private async Task<IReadOnlyCollection<int>> PosterIdsAsync(
         string domain,
-        IAssetJobProgress progress,
+        Action<string> log,
         CancellationToken ct
     )
     {
@@ -108,14 +111,14 @@ internal sealed class AssetSyncService(
                 await habbo.GetExternalTextsAsync(domain, ct).ConfigureAwait(false)
             );
 
-            progress.Log($"Habbo's texts name {ids.Length} posters.");
+            log($"Habbo's texts name {ids.Length} posters.");
 
             return ids;
         }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Habbo's external texts could not be read for its posters");
-            progress.Log($"Posters left out: Habbo's texts could not be read ({ex.Message}).");
+            log($"Posters left out: Habbo's texts could not be read ({ex.Message}).");
 
             return [];
         }
@@ -125,6 +128,114 @@ internal sealed class AssetSyncService(
     {
         progress.Step("Listing", 0);
 
+        var lists = await ListHabboAsync(progress.Log, ct).ConfigureAwait(false);
+
+        progress.Log(
+            $"Habbo lists {lists.Furniture.Count} furniture, {lists.Figures?.Count ?? 0} clothing, {lists.Effects?.Count ?? 0} effect and {lists.Pets.Count} pet libraries."
+        );
+
+        var known = await LoadKnownAsync(ct).ConfigureAwait(false);
+        var tally = new Tally();
+        var context = new SyncContext(lists.Domain, lists.Revision, progress, tally);
+
+        await SyncAsync("Furniture", lists.Furniture, known, context, ct).ConfigureAwait(false);
+        await SyncAsync("Clothing", lists.Figures ?? [], known, context, ct).ConfigureAwait(false);
+        await SyncAsync("Effects", lists.Effects ?? [], known, context, ct).ConfigureAwait(false);
+        await SyncAsync("Pets", lists.Pets, known, context, ct).ConfigureAwait(false);
+
+        return tally.ToString();
+    }
+
+    public async Task<AssetSyncPreview> PreviewAsync(bool relist, CancellationToken ct)
+    {
+        var lists = await CachedListsAsync(relist, ct).ConfigureAwait(false);
+        var known = await LoadKnownAsync(ct).ConfigureAwait(false);
+        var limit = Math.Max(0, config.Value.SyncPreviewItemLimit);
+
+        AssetSyncKindPreview Preview(AssetBundleKind kind, List<HabboLibrary>? libraries)
+        {
+            var plan = AssetSyncPlan.Classify(libraries ?? [], known, store.IsValidName);
+            var pending = plan
+                .Todo.OrderBy(x => x.Reason)
+                .ThenBy(x => x.Library.Name, StringComparer.Ordinal)
+                .ToList();
+
+            return new AssetSyncKindPreview
+            {
+                Kind = kind,
+                Listed = libraries is not null,
+                HabboLibraries = libraries?.Count ?? 0,
+                UpToDate = plan.UpToDate,
+                Uploads = plan.Uploads,
+                New = pending.Count(x => x.Reason == AssetSyncReason.New),
+                Updated = pending.Count(x => x.Reason == AssetSyncReason.Updated),
+                Items =
+                [
+                    .. pending
+                        .Take(limit)
+                        .Select(x => new AssetSyncPendingItem
+                        {
+                            Name = x.Library.Name,
+                            Reason = x.Reason,
+                            HabboRevision = x.Library.Revision,
+                            HotelRevision = x.Row?.Revision,
+                            Error = x.Row?.Error,
+                        }),
+                ],
+                Truncated = pending.Count > limit,
+            };
+        }
+
+        return new AssetSyncPreview
+        {
+            Domain = lists.Domain,
+            Revision = lists.Revision,
+            ListedAt = lists.ListedAt,
+            Kinds =
+            [
+                Preview(AssetBundleKind.Furniture, lists.Furniture),
+                Preview(AssetBundleKind.Figure, lists.Figures),
+                Preview(AssetBundleKind.Effect, lists.Effects),
+                Preview(AssetBundleKind.Pet, lists.Pets),
+            ],
+        };
+    }
+
+    /// <summary>Habbo's lists as last read; read again when asked, or once older than the preview keeps them.</summary>
+    private async Task<HabboLists> CachedListsAsync(bool relist, CancellationToken ct)
+    {
+        if (!relist && Fresh(_lists) is { } cached)
+            return cached;
+
+        await _listing.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            // Another request may have read them while this one waited.
+            if (!relist && Fresh(_lists) is { } done)
+                return done;
+
+            return await ListHabboAsync(_ => { }, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _listing.Release();
+        }
+    }
+
+    private HabboLists? Fresh(HabboLists? lists) =>
+        lists is not null
+        && time.GetUtcNow().UtcDateTime - lists.ListedAt
+            < TimeSpan.FromMinutes(Math.Max(0, config.Value.SyncPreviewMinutes))
+            ? lists
+            : null;
+
+    /// <summary>
+    /// Every library Habbo serves now, by kind, kept for the preview. A map Habbo has not, or that
+    /// does not read, is null: that kind is left out rather than failing the rest.
+    /// </summary>
+    private async Task<HabboLists> ListHabboAsync(Action<string> log, CancellationToken ct)
+    {
         var domain = gamedataConfig.Value.HabboDomain;
         var variables = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
         var revision =
@@ -133,18 +244,18 @@ internal sealed class AssetSyncService(
                 $"habbo.{domain}'s external variables name no client revision."
             );
 
-        progress.Log($"habbo.{domain} serves client revision {revision}.");
+        log($"habbo.{domain} serves client revision {revision}.");
 
         var furniture = HabboAssetLists.Furniture(
             await habbo.GetFurnitureDataAsync(domain, ct).ConfigureAwait(false),
-            await PosterIdsAsync(domain, progress, ct).ConfigureAwait(false)
+            await PosterIdsAsync(domain, log, ct).ConfigureAwait(false)
         );
         var figures = await ListFromMapAsync(
                 domain,
                 revision,
                 HabboAssetLists.FIGURE_MAP,
                 HabboAssetLists.Figures,
-                progress,
+                log,
                 ct
             )
             .ConfigureAwait(false);
@@ -153,7 +264,7 @@ internal sealed class AssetSyncService(
                 revision,
                 HabboAssetLists.EFFECT_MAP,
                 HabboAssetLists.Effects,
-                progress,
+                log,
                 ct
             )
             .ConfigureAwait(false);
@@ -161,33 +272,31 @@ internal sealed class AssetSyncService(
             variables.GetValueOrDefault(HabboAssetLists.PET_CONFIGURATION_VARIABLE),
             revision
         );
-
-        progress.Log(
-            $"Habbo lists {furniture.Count} furniture, {figures.Count} clothing, {effects.Count} effect and {pets.Count} pet libraries."
+        var lists = new HabboLists(
+            domain,
+            revision,
+            time.GetUtcNow().UtcDateTime,
+            furniture,
+            figures,
+            effects,
+            pets
         );
 
-        var known = await LoadKnownAsync(ct).ConfigureAwait(false);
-        var tally = new Tally();
-        var context = new SyncContext(domain, revision, progress, tally);
+        _lists = lists;
 
-        await SyncAsync("Furniture", furniture, known, context, ct).ConfigureAwait(false);
-        await SyncAsync("Clothing", figures, known, context, ct).ConfigureAwait(false);
-        await SyncAsync("Effects", effects, known, context, ct).ConfigureAwait(false);
-        await SyncAsync("Pets", pets, known, context, ct).ConfigureAwait(false);
-
-        return tally.ToString();
+        return lists;
     }
 
     /// <summary>
     /// The libraries a map of Habbo's (the figure map, the effect map) lists. A map Habbo has not,
     /// or that does not read, leaves that kind out of this sync rather than failing the rest.
     /// </summary>
-    private async Task<List<HabboLibrary>> ListFromMapAsync(
+    private async Task<List<HabboLibrary>?> ListFromMapAsync(
         string domain,
         string revision,
         string map,
         Func<byte[], List<HabboLibrary>> parse,
-        IAssetJobProgress progress,
+        Action<string> log,
         CancellationToken ct
     )
     {
@@ -203,64 +312,33 @@ internal sealed class AssetSyncService(
                 map,
                 url
             );
-            progress.Log($"Habbo has no {map} at {url}; its libraries are skipped.");
+            log($"Habbo has no {map} at {url}; its libraries are skipped.");
         }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Habbo's {Map} at {Url} could not be read", map, url);
-            progress.Log($"{map} could not be read ({ex.Message}); its libraries are skipped.");
+            log($"{map} could not be read ({ex.Message}); its libraries are skipped.");
         }
 
-        return [];
+        return null;
     }
 
     /// <summary>One kind's libraries: those that need it downloaded, converted and kept.</summary>
     private async Task SyncAsync(
         string phase,
         List<HabboLibrary> libraries,
-        IReadOnlyDictionary<(AssetBundleKind, string), Known> known,
+        IReadOnlyDictionary<(AssetBundleKind, string), AssetSyncPlan.Known> known,
         SyncContext context,
         CancellationToken ct
     )
     {
-        var todo = new List<HabboLibrary>();
-        var idsChanged = new List<HabboLibrary>();
-        var invalid = 0;
+        var plan = AssetSyncPlan.Classify(libraries, known, store.IsValidName);
+        var todo = plan.Todo.Select(x => x.Library).ToList();
+        var idsChanged = plan.IdsChanged;
+        var invalid = plan.Invalid;
 
-        foreach (var library in libraries)
-        {
-            if (!store.IsValidName(library.Name))
-            {
-                invalid++;
-
-                continue;
-            }
-
-            if (known.TryGetValue((library.Kind, library.Name), out var row))
-            {
-                if (row.Source == AssetBundleSource.Upload)
-                {
-                    context.Tally.Uploads++;
-
-                    continue;
-                }
-
-                if (
-                    row.Revision == library.Revision
-                    && (row.HasFile || (row.Error is not null && !row.Retry))
-                )
-                {
-                    context.Tally.UpToDate++;
-
-                    if (row.Ids != library.Ids)
-                        idsChanged.Add(library);
-
-                    continue;
-                }
-            }
-
-            todo.Add(library);
-        }
+        context.Tally.Uploads += plan.Uploads;
+        context.Tally.UpToDate += plan.UpToDate;
 
         if (invalid > 0)
         {
@@ -540,7 +618,7 @@ internal sealed class AssetSyncService(
         }
     }
 
-    private async Task<Dictionary<(AssetBundleKind, string), Known>> LoadKnownAsync(
+    private async Task<Dictionary<(AssetBundleKind, string), AssetSyncPlan.Known>> LoadKnownAsync(
         CancellationToken ct
     )
     {
@@ -553,7 +631,14 @@ internal sealed class AssetSyncService(
             {
                 x.Kind,
                 x.Name,
-                Known = new Known(x.Revision, x.Source, x.Hash != null, x.Error, x.Retry, x.Ids),
+                Known = new AssetSyncPlan.Known(
+                    x.Revision,
+                    x.Source,
+                    x.Hash != null,
+                    x.Error,
+                    x.Retry,
+                    x.Ids
+                ),
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -590,14 +675,15 @@ internal sealed class AssetSyncService(
     private static string? Truncate(string? text, int max) =>
         text is null || text.Length <= max ? text : text[..max];
 
-    /// <summary>What the hotel knows of a library before the sync.</summary>
-    private sealed record Known(
-        string? Revision,
-        AssetBundleSource Source,
-        bool HasFile,
-        string? Error,
-        bool Retry,
-        string? Ids
+    /// <summary>Habbo's libraries by kind, as read at <see cref="ListedAt"/>; null where a map could not be read.</summary>
+    private sealed record HabboLists(
+        string Domain,
+        string Revision,
+        DateTime ListedAt,
+        List<HabboLibrary> Furniture,
+        List<HabboLibrary>? Figures,
+        List<HabboLibrary>? Effects,
+        List<HabboLibrary> Pets
     );
 
     /// <summary>What became of a library: its file's hash and size, or why it has none.</summary>

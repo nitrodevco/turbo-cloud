@@ -6,7 +6,15 @@ configuration (its external variables). Habbo's releases are checked for updates
 without losing the hotel's own changes. Every change is recorded and can be rolled back.
 
 It lives in `Turbo.Gamedata`, with its admin API in `Turbo.Admin/Api/GamedataEndpoints.cs` and its
-page under **Gamedata** in the panel.
+page under **Gamedata & assets** in the panel, beside the asset bundles (`docs/asset-bundles.md`).
+
+The page's **Furniture** tab lists every floor and wall definition with its tags
+(`FurnitureStatusIndex`): `hotel-own` (Habbo's newest release has no such item), `habbo-update`
+(that release changes fields the hotel left alone), `edited` (it holds values of the hotel's own),
+`no-bundle`, `bundle-failed`, `bundle-outdated` (Habbo names a newer revision of its asset), and
+`not-sold` (no visible offer on a reachable page sells it, alone or in a pack, in either catalog).
+The list is filtered by words, kind and tag, with each tag counted; the tags are worked out once and
+kept until a definition, a bundle, an asset file, Habbo's release or a published catalog changes.
 
 ## How it works
 
@@ -381,6 +389,7 @@ loading the old build after a change.
 | `KeepBuilds` | `10` | Builds of each file kept besides the current one. |
 | `PreviewItemLimit` | `500` | Items an import review lists. Its counts cover every item. |
 | `TextPageSize` | `50` | Texts per page of a search. |
+| `FurniturePageSize` | `60` | Furniture definitions per page of the panel's list. |
 | `HistoryPageSize` | `25` | Change sets per page of the history. |
 | `TextCacheSeconds` | `300` | How long a text the server read is kept before it is read again. |
 | `TextCacheSize` | `5000` | Texts kept at most; past it, what was kept is forgotten. |

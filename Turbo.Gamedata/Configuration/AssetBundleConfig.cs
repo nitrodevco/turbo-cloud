@@ -58,6 +58,15 @@ public sealed class AssetBundleConfig
     public int CheckSampleLimit { get; init; } = 25;
 
     /// <summary>
+    /// How long Habbo's lists of libraries are kept for the panel's view of what a sync would
+    /// download, in minutes; the view reads them again when asked, and a sync always does.
+    /// </summary>
+    public int SyncPreviewMinutes { get; init; } = 15;
+
+    /// <summary>Libraries each kind of that view lists; its counts cover them all.</summary>
+    public int SyncPreviewItemLimit { get; init; } = 500;
+
+    /// <summary>
     /// The key publish targets' passwords are sealed with: 32 bytes as base64. Empty, a key is made
     /// once and kept in the bundle folder (<c>.publish-key</c>), so a database dump alone does not
     /// give the passwords away. Changing it makes the saved passwords unreadable, to be entered again.

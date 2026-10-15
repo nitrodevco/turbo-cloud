@@ -31,11 +31,16 @@ internal sealed class FurnitureOfferCatalog(
         )
             return known;
 
+        var sold = FurnitureOfferStamps.SoldIn(normal);
+
+        sold.UnionWith(FurnitureOfferStamps.SoldIn(buildersClub));
+
         var stamps = new Stamps(
             normal,
             buildersClub,
             FurnitureOfferStamps.Of(normal),
-            FurnitureOfferStamps.Of(buildersClub)
+            FurnitureOfferStamps.Of(buildersClub),
+            sold
         );
 
         _stamps = stamps;
@@ -43,11 +48,15 @@ internal sealed class FurnitureOfferCatalog(
         return stamps;
     }
 
-    /// <summary>The stamps, and the snapshots they were worked out from.</summary>
+    /// <summary>
+    /// The stamps, the snapshots they were worked out from, and the definitions either catalog sells
+    /// at all (<see cref="FurnitureOfferStamps.SoldIn"/>).
+    /// </summary>
     public sealed record Stamps(
         CatalogSnapshot Normal,
         CatalogSnapshot BuildersClub,
         IReadOnlyDictionary<int, int> Offers,
-        IReadOnlyDictionary<int, int> BuildersClubOffers
+        IReadOnlyDictionary<int, int> BuildersClubOffers,
+        IReadOnlySet<int> Sold
     );
 }

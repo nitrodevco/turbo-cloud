@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -37,6 +38,7 @@ internal sealed class GamedataFurnitureService(
     FurnitureOfferCatalog offers,
     HabboReleaseItems habboItems,
     HabboFurnitureFiles furnitureFiles,
+    FurnitureStatusIndex statuses,
     GamedataWriteLock writes,
     TimeProvider time,
     ILogger<GamedataFurnitureService> logger
@@ -236,6 +238,48 @@ internal sealed class GamedataFurnitureService(
         await AfterWriteAsync(ct).ConfigureAwait(false);
 
         return changeSet?.ToSnapshot(changeSet.Changes!.Count);
+    }
+
+    public async Task<FurnitureListPage> ListAsync(
+        string? query,
+        ProductType? type,
+        FurnitureTag? tag,
+        int page,
+        CancellationToken ct
+    )
+    {
+        var pageSize = Math.Max(1, _config.FurniturePageSize);
+        var all = await statuses.GetAsync(ct).ConfigureAwait(false);
+        var text = query?.Trim() ?? string.Empty;
+        var number = int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+            ? id
+            : (int?)null;
+        var searched = all.Where(x =>
+                (type is null || x.ProductType == type)
+                && (
+                    text.Length == 0
+                    || x.Id == number
+                    || x.SpriteId == number
+                    || x.ClassName.Contains(text, StringComparison.OrdinalIgnoreCase)
+                    || x.Name?.Contains(text, StringComparison.OrdinalIgnoreCase) == true
+                )
+            )
+            .ToList();
+        var found = tag is { } only
+            ? searched.Where(x => x.Tags.Contains(only)).ToList()
+            : searched;
+
+        return new FurnitureListPage
+        {
+            Items = [.. found.Skip(Math.Max(0, page) * pageSize).Take(pageSize)],
+            Total = found.Count,
+            PageSize = pageSize,
+            TagCounts = searched
+                .SelectMany(x => x.Tags)
+                .GroupBy(x => x)
+                .ToImmutableDictionary(g => g.Key, g => g.Count()),
+            Searched = searched.Count,
+        };
     }
 
     public async Task<FurnitureDefinitionDetail?> GetDefinitionAsync(int id, CancellationToken ct)
@@ -573,6 +617,10 @@ internal sealed class GamedataFurnitureService(
                 }
             );
 
+        var listed = (await statuses.GetAsync(ct).ConfigureAwait(false)).FirstOrDefault(x =>
+            x.Id == definition.Id
+        );
+
         return new FurnitureDefinitionDetail
         {
             Id = definition.Id,
@@ -585,6 +633,8 @@ internal sealed class GamedataFurnitureService(
             HabboFile = file?.Error ?? file?.Info,
             HabboFileRead = file is { Error: null },
             States = definition.TotalStates,
+            AssetName = HabboFurnitureFiles.AssetName(definition.Name),
+            Tags = listed?.Tags ?? [],
         };
     }
 

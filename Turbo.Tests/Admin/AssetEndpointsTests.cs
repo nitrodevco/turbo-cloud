@@ -2,11 +2,13 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Assets;
 using Turbo.Gamedata.Assets;
 using Turbo.Primitives.Admin.Snapshots;
@@ -303,6 +305,214 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
             PlayerId = 1,
             StartedAt = DateTime.UtcNow,
         };
+
+    [Fact]
+    public async Task A_file_uploaded_without_a_kind_is_taken_as_what_its_content_says()
+    {
+        await _server.StartAsync(Ct);
+
+        async Task<JsonElement> UploadedAsync(string fileName, byte[] data)
+        {
+            var response = await SendAsync(
+                HttpMethod.Post,
+                "/api/assets/upload",
+                Any(fileName, data)
+            );
+
+            response
+                .StatusCode.Should()
+                .Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(Ct));
+
+            return await JsonAsync(response);
+        }
+
+        async Task<string?> KindAsync(string fileName, byte[] data)
+        {
+            var uploaded = await UploadedAsync(fileName, data);
+
+            uploaded.GetProperty("type").GetString().Should().Be("bundle");
+
+            return uploaded.GetProperty("bundle").GetProperty("kind").GetString();
+        }
+
+        async Task<string?> GamedataAsync(string fileName, string text)
+        {
+            var uploaded = await UploadedAsync(fileName, Encoding.UTF8.GetBytes(text));
+
+            uploaded.GetProperty("type").GetString().Should().Be("gamedata");
+            uploaded.GetProperty("bundle").ValueKind.Should().Be(JsonValueKind.Null);
+
+            return uploaded.GetProperty("gamedata").GetString();
+        }
+
+        // Each kind by what only it carries.
+        (await KindAsync("lamp.swf", NitroConverterTests.Swf()))
+            .Should()
+            .Be("furniture");
+        (
+            await KindAsync(
+                "bear.nitro",
+                Nitro(
+                    "bear",
+                    """{ "type": "bear", "logicType": "pet", "visualizationType": "pet_animated" }"""
+                )
+            )
+        )
+            .Should()
+            .Be("pet");
+        (
+            await KindAsync(
+                "shirt_U_tee.nitro",
+                Nitro(
+                    "shirt_U_tee",
+                    """{ "type": "shirt_U_tee", "assets": [ { "name": "h_std_ch_3030_0_0" } ] }"""
+                )
+            )
+        )
+            .Should()
+            .Be("figure");
+        (await KindAsync("Duck.swf", Fixture("Duck.swf"))).Should().Be("effect");
+
+        // An effect is converted as one: its shadows dropped, as the studio's converter does.
+        var duck = await SendAsync(HttpMethod.Get, "/api/assets/bundles/effect/Duck/file");
+        NitroBundle
+            .Read(await duck.Content.ReadAsByteArrayAsync(Ct))
+            .Files["Duck.json"]
+            .Should()
+            .Equal(Fixture("Duck.nitro-studio.json"));
+
+        // Nothing in it says, but a bundle of its name is furniture already.
+        (await KindAsync("broken.nitro", Nitro("broken", """{ "type": "broken" }""")))
+            .Should()
+            .Be("furniture");
+
+        // Gamedata files are named, not taken, in each form the client has kept them.
+        (
+            await GamedataAsync(
+                "FurnitureData.json",
+                """{ "roomitemtypes": { "furnitype": [] }, "wallitemtypes": { "furnitype": [] } }"""
+            )
+        )
+            .Should()
+            .Be("furnidata");
+        (await GamedataAsync("furnidata.xml", "<furnidata><roomitemtypes/></furnidata>"))
+            .Should()
+            .Be("furnidata");
+        (await GamedataAsync("ProductData.json", """{ "productdata": { "product": [] } }"""))
+            .Should()
+            .Be("productdata");
+        (await GamedataAsync("FigureData.json", """{ "palettes": [], "setTypes": [] }"""))
+            .Should()
+            .Be("figuredata");
+        (
+            await GamedataAsync(
+                "figuremap.xml",
+                """<map><lib id="hh_human_body" revision="1"/></map>"""
+            )
+        )
+            .Should()
+            .Be("figuremap");
+        (await GamedataAsync("effectmap.xml", """<map><effect id="1" lib="Dance1"/></map>"""))
+            .Should()
+            .Be("effectmap");
+        (
+            await GamedataAsync(
+                "ExternalTexts.json",
+                """{ "furni_chair_name": "Chair", "navigator.title": "Rooms" }"""
+            )
+        )
+            .Should()
+            .Be("texts");
+        (await GamedataAsync("texts.txt", "furni_chair_name=Chair\nnavigator.title=Rooms\n"))
+            .Should()
+            .Be("texts");
+        (
+            await GamedataAsync(
+                "renderer-config.json",
+                """{ "socket.url": "wss://hotel", "system.pong.manually": true }"""
+            )
+        )
+            .Should()
+            .Be("variables");
+        (
+            await GamedataAsync(
+                "variables.txt",
+                "flash.client.url=//images/\nclient.starting=Hello\n"
+            )
+        )
+            .Should()
+            .Be("variables");
+
+        // What says nothing of what it is is refused as unknown, apart from a file it can't take.
+        var mystery = await SendAsync(
+            HttpMethod.Post,
+            "/api/assets/upload",
+            Any("mystery.nitro", Nitro("mystery", """{ "type": "mystery" }"""))
+        );
+        mystery.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await JsonAsync(mystery)).GetProperty("message").GetString().Should().Contain("mystery");
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/assets/upload",
+                Any("notes.txt", "just some words"u8.ToArray())
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.UnprocessableEntity);
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/assets/upload",
+                Any("bad name.swf", NitroConverterTests.Swf())
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.BadRequest);
+        (await SendAsync(HttpMethod.Get, "/api/assets/bundles/furniture/mystery"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+
+        _holds = node => node != PermissionNodes.Gamedata.MANAGE;
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/assets/upload",
+                Any("lamp.swf", NitroConverterTests.Swf())
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>A <c>.nitro</c> of just its asset data.</summary>
+    private static byte[] Nitro(string name, string json) =>
+        NitroBundle
+            .Create(
+                new Dictionary<string, byte[]> { [$"{name}.json"] = Encoding.UTF8.GetBytes(json) }
+            )
+            .Write();
+
+    private static byte[] Fixture(string name)
+    {
+        using var stream = typeof(AssetEndpointsTests).Assembly.GetManifestResourceStream(
+            $"Assets.Fixtures.{name}"
+        )!;
+        using var copy = new MemoryStream();
+
+        stream.CopyTo(copy);
+
+        return copy.ToArray();
+    }
+
+    private static MultipartFormDataContent Any(string fileName, byte[] data)
+    {
+        var file = new ByteArrayContent(data);
+
+        file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        return new MultipartFormDataContent { { file, "file", fileName } };
+    }
 
     private static MultipartFormDataContent Upload(string fileName, string kind)
     {

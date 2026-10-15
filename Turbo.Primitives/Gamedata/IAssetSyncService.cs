@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -21,4 +23,13 @@ public interface IAssetSyncService
     /// is on and no asset job runs. Null when it did not start; the check stands either way.
     /// </summary>
     AssetJobSnapshot? StartAfterCheck(PlayerId player);
+
+    /// <summary>
+    /// What a sync would download now, without downloading it: Habbo's lists, read again when
+    /// <paramref name="relist"/> or when the last read is older than
+    /// <c>Turbo:Assets:SyncPreviewMinutes</c>, against the hotel's bundles as they are. Throws
+    /// <see cref="System.Net.Http.HttpRequestException"/> when Habbo's variables or furniture data
+    /// can't be read.
+    /// </summary>
+    Task<AssetSyncPreview> PreviewAsync(bool relist, CancellationToken ct);
 }

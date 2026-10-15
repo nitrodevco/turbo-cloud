@@ -50,6 +50,9 @@ public sealed class GamedataConfig
     /// <summary>Texts per page of a search.</summary>
     public int TextPageSize { get; init; } = 50;
 
+    /// <summary>Furniture definitions per page of the panel's list.</summary>
+    public int FurniturePageSize { get; init; } = 60;
+
     /// <summary>Change sets per page of the history.</summary>
     public int HistoryPageSize { get; init; } = 25;
 

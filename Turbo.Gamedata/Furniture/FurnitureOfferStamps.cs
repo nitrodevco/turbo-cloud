@@ -64,6 +64,35 @@ internal static class FurnitureOfferStamps
         return stamps;
     }
 
+    /// <summary>
+    /// The definitions any offer players can reach sells: a visible offer on a page shown down
+    /// from the root, alone or among other items - what a definition needs not to be unsold.
+    /// </summary>
+    public static HashSet<int> SoldIn(CatalogSnapshot catalog)
+    {
+        var sold = new HashSet<int>();
+
+        foreach (var page in catalog.PagesById.Values)
+        {
+            if (page.OfferIds.IsDefaultOrEmpty || !IsReachable(catalog, page))
+                continue;
+
+            foreach (var offerId in page.OfferIds)
+            {
+                if (!catalog.OffersById.TryGetValue(offerId, out var offer) || !offer.Visible)
+                    continue;
+
+                foreach (var product in offer.Products)
+                {
+                    if (product.ProductType is ProductType.Floor or ProductType.Wall)
+                        sold.Add(product.FurniDefinitionId);
+                }
+            }
+        }
+
+        return sold;
+    }
+
     private static bool IsBetter(
         (int OfferId, int Quantity) candidate,
         (int OfferId, int Quantity) current

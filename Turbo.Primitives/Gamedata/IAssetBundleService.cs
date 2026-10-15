@@ -59,6 +59,23 @@ public interface IAssetBundleService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Takes a file whatever it is, found by its content: a library (an SWF, a <c>.hab</c> or a
+    /// <c>.nitro</c>) is kept as an uploaded bundle of the kind its asset data says - furniture,
+    /// a pet, an effect or clothing, or, when the data says none, the kind a bundle of its name
+    /// already is; a gamedata file is recognised and named, not taken. <paramref name="name"/>
+    /// defaults to the file's name without its extension. Throws
+    /// <see cref="AssetKindUnknownException"/> when the content says what it is no way, and
+    /// <see cref="System.ArgumentException"/>, with why, for a name, file or size it can't take.
+    /// </summary>
+    Task<AssetUploadResult> UploadFileAsync(
+        string? name,
+        string fileName,
+        byte[] data,
+        PlayerId player,
+        CancellationToken ct
+    );
+
     /// <summary>Every check of the bundles against the hotel, in a fixed order.</summary>
     Task<ImmutableArray<AssetCheckSnapshot>> GetChecksAsync(CancellationToken ct);
 }
