@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -18,6 +19,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// moved through (furni slot 0), which furni block (furni slot 1) and which users can be moved
 /// through (user slot 0), each defaulting to the whole room (official client capture; titles
 /// wiredfurni.params.sources.furni.title.physics.0/1 and sources.users.title.physics.0).
+/// "Move through furni" lets a moved furni land on top of the furni of slot 0 even when nothing
+/// may be stacked on them; "blocked by furni" stops it at the furni of slot 1 even when they can
+/// be stacked on; furni outside the slot behave as without the add-on, and a blocked move is
+/// not sent (official client capture, 2026-10-14).
 /// </summary>
 [RoomObjectLogic("wf_xtra_mov_physics")]
 public class WiredAddonMovementPhysics(
@@ -27,6 +32,8 @@ public class WiredAddonMovementPhysics(
 ) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int SLOT_THROUGH_USERS = 0;
+    private const int SLOT_THROUGH_FURNI = 0;
+    private const int SLOT_BLOCKING_FURNI = 1;
 
     public override int WiredCode => (int)WiredAddonType.MOVE_PHYSICS;
 
@@ -54,7 +61,10 @@ public class WiredAddonMovementPhysics(
             flags |= WiredMovePhysicsFlags.KeepAltitude;
 
         if (GetIntParamOrDefault(1, false))
+        {
             flags |= WiredMovePhysicsFlags.MoveThroughFurni;
+            ctx.Policy.MoveThroughFurniIds = FurniOfSlot(ctx, SLOT_THROUGH_FURNI);
+        }
 
         if (GetIntParamOrDefault(2, false))
         {
@@ -65,10 +75,28 @@ public class WiredAddonMovementPhysics(
         }
 
         if (GetIntParamOrDefault(3, false))
+        {
             flags |= WiredMovePhysicsFlags.BlockedByFurni;
+            ctx.Policy.BlockedByFurniIds = FurniOfSlot(ctx, SLOT_BLOCKING_FURNI);
+        }
 
         ctx.Policy.MovePhysics = flags;
 
         return Task.FromResult(true);
+    }
+
+    /// <summary>The furni a furni slot names; null for "all furni in the room" (source 900, the default).</summary>
+    private HashSet<int>? FurniOfSlot(IWiredProcessingContext ctx, int slot)
+    {
+        var sources = GetFurniSources();
+
+        if (
+            slot >= sources.Count
+            || sources[slot].Length == 0
+            || sources[slot].Contains(WiredFurniSourceType.AllRoomItems)
+        )
+            return null;
+
+        return WiredSlotSelection.ForSlot(this, ctx, slot).SelectedFurniIds;
     }
 }

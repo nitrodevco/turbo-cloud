@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -129,8 +130,16 @@ public sealed partial class RoomFurniModule
     /// Whether a floor item, new or already in the room, may stand at a tile and rotation. The
     /// one occupancy check: moving, placing and every wired mover ask here. Bounds-safe: a
     /// footprint that leaves the map is simply a no, so callers do not check bounds first.
+    /// <paramref name="canStackOnAnyway"/> names furni the item may land on top of even though
+    /// nothing may be stacked on them (wired movement physics, "move through furni").
     /// </summary>
-    public bool CanPlaceFloorItem(IRoomFloorItem item, int x, int y, Rotation rot)
+    public bool CanPlaceFloorItem(
+        IRoomFloorItem item,
+        int x,
+        int y,
+        Rotation rot,
+        Func<IRoomFloorItem, bool>? canStackOnAnyway = null
+    )
     {
         if (
             !MapModule.InBounds(x, y)
@@ -163,7 +172,11 @@ public sealed partial class RoomFurniModule
             if (
                 tileFlags.Has(RoomTileFlags.Disabled)
                 || tileHeight + stackHeight > _roomGrain._roomConfig.MaxStackHeight
-                || (tileFlags.Has(RoomTileFlags.StackBlocked) && !isSelf)
+                || (
+                    tileFlags.Has(RoomTileFlags.StackBlocked)
+                    && !isSelf
+                    && !(top is not null && canStackOnAnyway?.Invoke(top) == true)
+                )
             )
                 return false;
 
