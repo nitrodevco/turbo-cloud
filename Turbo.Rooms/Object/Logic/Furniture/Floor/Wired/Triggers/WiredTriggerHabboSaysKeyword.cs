@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +45,9 @@ public class WiredTriggerHabboSaysKeyword(
     private const int MATCH_CONTAINS = 0;
     private const int MATCH_EXACT = 1;
     private const int MATCH_ANY_TEXT = 2;
+
+    // A Variable Capturer's marker in the keyword, "#(name)".
+    private static readonly Regex MarkerPattern = new(@"#\([^()]*\)", RegexOptions.CultureInvariant);
 
     public override int WiredCode => (int)WiredTriggerType.AVATAR_SAYS_SOMETHING;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerChatEvent)];
@@ -103,26 +107,8 @@ public class WiredTriggerHabboSaysKeyword(
 
         var text = chatEvt.Text.Trim();
 
-        if (CapturePattern(keyword, mode == MATCH_EXACT) is { } pattern)
-        {
-            try
-            {
-                return Task.FromResult(
-                    Regex.IsMatch(
-                        text,
-                        pattern,
-                        RegexOptions.IgnoreCase,
-                        TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
-                    )
-                );
-            }
-            catch (RegexMatchTimeoutException ex)
-            {
-                LogWiredDataFault(ex);
-
-                return Task.FromResult(false);
-            }
-        }
+        if (MarkerPattern.IsMatch(keyword))
+            return Task.FromResult(TryCapture(text, out _));
 
         return Task.FromResult(
             mode == MATCH_EXACT
@@ -132,38 +118,98 @@ public class WiredTriggerHabboSaysKeyword(
     }
 
     /// <summary>
-    /// The keyword as a pattern when it holds the "#(name)" token of a Variable Capturer on this
-    /// stack: the token stands for the word the player types there ("price #(p)" matches "price
-    /// 250", Wired Faculty tutorial "Advanced Automatic Shop", 20/03/2026), spaces for any run of
-    /// them. Null for a plain keyword, which is matched as written.
+    /// What the player typed for each "#(name)" marker of the keyword, with the Variable Capturer
+    /// on this stack that takes it. A marker stands for the word typed there ("price #(p)"
+    /// matches "price 250", Wired Faculty tutorial "Advanced Automatic Shop", 20/03/2026), spaces
+    /// for any run of them; in exact mode a marker next to another marker takes one character
+    /// ("QR:#(a)#(b)"), and trailing ones may be left empty.
+    ///
+    /// False when the line does not fire the box: it does not fit the pattern, a marker has no
+    /// capturer of its own, or a capturer in text mode has no connector line for what was typed
+    /// (official client capture: each of these stops the trigger).
     /// </summary>
-    private string? CapturePattern(string keyword, bool exact)
+    internal bool TryCapture(
+        string text,
+        out List<(WiredAddonVariableCapturer Capturer, string Typed)> captures
+    )
     {
-        var names = FurniModule
+        captures = [];
+
+        var keyword = GetStringParam();
+        var markers = MarkerPattern.Matches(keyword);
+        var exact = GetIntParamOrDefault(MATCH_MODE_PARAM_INDEX, MATCH_CONTAINS) == MATCH_EXACT;
+        var capturers = FurniModule
             .GetFloorItemsOnTile(_ctx.GetTileIdx())
             .Select(item => item.Logic)
             .OfType<WiredAddonVariableCapturer>()
-            .Select(capturer => capturer.CaptureToken)
-            .Where(token =>
-                token.Length > 1 && keyword.Contains(token, StringComparison.OrdinalIgnoreCase)
-            )
             .ToList();
+        var takers = new List<WiredAddonVariableCapturer>(markers.Count);
+        var pattern = new StringBuilder(exact ? "^" : string.Empty);
+        var end = 0;
 
-        if (names.Count == 0)
-            return null;
-
-        var pattern = Regex.Escape(keyword).Replace("\\ ", "\\s+");
-
-        foreach (var token in names)
-            pattern = Regex.Replace(
-                pattern,
-                Regex.Escape(Regex.Escape(token)),
-                @"\S+",
-                RegexOptions.IgnoreCase
+        for (var index = 0; index < markers.Count; index++)
+        {
+            var marker = markers[index];
+            var capturer = capturers.FirstOrDefault(x =>
+                string.Equals(x.CaptureToken, marker.Value, StringComparison.OrdinalIgnoreCase)
             );
 
-        return exact ? $"^{pattern}$" : pattern;
+            if (capturer is null)
+                return false;
+
+            var nextToMarker =
+                (index > 0 && markers[index - 1].Index + markers[index - 1].Length == marker.Index)
+                || (
+                    index + 1 < markers.Count
+                    && marker.Index + marker.Length == markers[index + 1].Index
+                );
+
+            takers.Add(capturer);
+            pattern
+                .Append(Literal(keyword[end..marker.Index]))
+                .Append(exact && nextToMarker ? "(.?)" : @"(\S+)");
+            end = marker.Index + marker.Length;
+        }
+
+        pattern.Append(Literal(keyword[end..])).Append(exact ? "$" : string.Empty);
+
+        Match match;
+
+        try
+        {
+            // Both the keyword and the chat line come from players, so the match is time boxed.
+            match = Regex.Match(
+                text,
+                pattern.ToString(),
+                RegexOptions.IgnoreCase | RegexOptions.Singleline,
+                TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
+            );
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            LogWiredDataFault(ex);
+
+            return false;
+        }
+
+        if (!match.Success)
+            return false;
+
+        for (var index = 0; index < takers.Count; index++)
+        {
+            // Habbo lowercases the line before it captures (official client capture).
+            var typed = match.Groups[index + 1].Value.ToLowerInvariant();
+
+            if (!takers[index].Accepts(typed))
+                return false;
+
+            captures.Add((takers[index], typed));
+        }
+
+        return true;
     }
+
+    private static string Literal(string text) => Regex.Escape(text).Replace("\\ ", "\\s+");
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         ctx.Event is PlayerChatEvent chatEvt

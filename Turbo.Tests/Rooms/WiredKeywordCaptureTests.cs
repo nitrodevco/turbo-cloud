@@ -31,6 +31,7 @@ public sealed class WiredKeywordCaptureTests
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
     private WiredVariableRoom _price = null!;
+    private WiredTriggerHabboSaysKeyword _trigger = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -90,6 +91,52 @@ public sealed class WiredKeywordCaptureTests
         PriceValue().Should().Be(price);
     }
 
+    /// <summary>
+    /// In exact mode a marker next to another marker takes one character, trailing ones may be
+    /// left empty, and a longer line never fires (official client capture, "QR:#(a)#(b)...").
+    /// </summary>
+    [Theory]
+    [InlineData("qr:75", 7)]
+    [InlineData("QR:7", 7)]
+    [InlineData("qr:756", 0)]
+    public async Task Adjacent_markers_in_exact_mode_take_one_character_each(string said, int price)
+    {
+        await BuildAsync(1, "qr:#(p)#(q)");
+        await SayAsync(said);
+
+        PriceValue().Should().Be(price);
+    }
+
+    /// <summary>Every marker needs its own capturer; one without stops the trigger (official client capture).</summary>
+    [Fact]
+    public async Task A_marker_without_a_capturer_stops_the_trigger()
+    {
+        await BuildAsync(0, "price #(p) #(z)");
+        await SayAsync("price 5 #(z)");
+
+        PriceValue().Should().Be(0);
+        (await _trigger.MatchesEventAsync(Chat("price 5 #(z)"), Ct)).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// In text mode, text the connector has no line for stops the trigger (official client
+    /// capture); a number that does not parse is only not captured.
+    /// </summary>
+    [Theory]
+    [InlineData("price silver", "7=Silver", true)]
+    [InlineData("price bronze", "7=Silver", false)]
+    [InlineData("price two", null, true)]
+    public async Task Text_the_connector_lacks_stops_the_trigger(
+        string said,
+        string? connector,
+        bool fires
+    )
+    {
+        await BuildAsync(0, connector: connector);
+
+        (await _trigger.MatchesEventAsync(Chat(said), Ct)).Should().Be(fires);
+    }
+
     /// <summary>The connector's text area takes 1000 characters (VariableTextConnectorAddon).</summary>
     [Fact]
     public async Task The_text_connector_keeps_its_first_thousand_characters()
@@ -115,23 +162,23 @@ public sealed class WiredKeywordCaptureTests
 
     private async Task SayAsync(string said)
     {
-        await Wired.OnRoomEventAsync(
-            new PlayerChatEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForPlayer((PlayerId)(100 + PLAYER_INDEX), (RoomId)1),
-                PlayerId = (PlayerId)(100 + PLAYER_INDEX),
-                ObjectId = PLAYER_INDEX,
-                ChatType = RoomChatType.Chat,
-                StyleId = 0,
-                TrackingId = 0,
-                Gesture = default,
-                Text = said,
-            },
-            Ct
-        );
+        await Wired.OnRoomEventAsync(Chat(said), Ct);
         await TickAsync(4);
     }
+
+    private static PlayerChatEvent Chat(string said) =>
+        new()
+        {
+            RoomId = 1,
+            CausedBy = ActionContext.CreateForPlayer((PlayerId)(100 + PLAYER_INDEX), (RoomId)1),
+            PlayerId = (PlayerId)(100 + PLAYER_INDEX),
+            ObjectId = PLAYER_INDEX,
+            ChatType = RoomChatType.Chat,
+            StyleId = 0,
+            TrackingId = 0,
+            Gesture = default,
+            Text = said,
+        };
 
     private long PriceValue()
     {
@@ -186,9 +233,33 @@ public sealed class WiredKeywordCaptureTests
         var priceId = _price.GetVarSnapshot().VariableId.ToString();
         var pId = p.GetVarSnapshot().VariableId.ToString();
 
-        _room.AddBox<WiredTriggerHabboSaysKeyword>(1, 0, 0, "wf_trg_says_something");
+        _trigger = _room.AddBox<WiredTriggerHabboSaysKeyword>(1, 0, 0, "wf_trg_says_something");
         _room.AddBox<WiredAddonVariableCapturer>(2, 0, 0, "wf_xtra_text_input_variable");
         _room.AddBox<WiredActionChangeVariable>(3, 0, 0, "wf_act_change_var_val");
+
+        // A second marker's capturer, writing to a context variable of its own.
+        if (keyword.Contains("#(q)"))
+        {
+            var q = _room.AddBox<WiredVariableContext>(13, 2, 2, "wf_var_context");
+
+            (await _room.SaveAsync<UpdateVariableMessage>(13, intParams: [1], stringParam: "q"))
+                .Should()
+                .BeTrue();
+            await q.LoadWiredAsync(Ct);
+            await StartAsync(2, 2);
+
+            _room.AddBox<WiredAddonVariableCapturer>(4, 0, 0, "wf_xtra_text_input_variable");
+            (
+                await _room.SaveAsync<UpdateAddonMessage>(
+                    4,
+                    intParams: [0],
+                    stringParam: "q",
+                    variableIds: [q.GetVarSnapshot().VariableId.ToString()]
+                )
+            )
+                .Should()
+                .BeTrue();
+        }
 
         (
             await _room.SaveAsync<UpdateTriggerMessage>(

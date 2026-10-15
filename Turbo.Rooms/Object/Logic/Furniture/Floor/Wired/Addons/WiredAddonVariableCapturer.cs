@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -81,6 +80,48 @@ public class WiredAddonVariableCapturer(
         return base.ApplyWiredUpdateAsync(ctx, update, ct);
     }
 
+    /// <summary>
+    /// Whether what was typed at this box's marker lets the trigger fire: in text mode it must
+    /// be a line of the variable's text connector (official client capture: a character missing
+    /// from the connector stops the trigger). A number that does not parse is not captured and
+    /// does not stop it.
+    /// </summary>
+    internal bool Accepts(string typed) =>
+        !GetIntParamOrDefault(0, false) || TryGetValue(typed, out _);
+
+    /// <summary>
+    /// The value <paramref name="typed"/> stands for: in text mode the connector line whose text
+    /// it is, exactly first, then ignoring case (official client capture); otherwise the number.
+    /// </summary>
+    private bool TryGetValue(string typed, out long value)
+    {
+        value = 0;
+
+        if (!GetIntParamOrDefault(0, false))
+            return long.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+
+        var connectors = GetVariable(0)?.GetVarSnapshot().TextConnectors;
+
+        if (connectors is null)
+            return false;
+
+        var connector = connectors.FirstOrDefault(x =>
+            string.Equals(x.Value, typed, StringComparison.Ordinal)
+        );
+
+        if (connector.Value is null)
+            connector = connectors.FirstOrDefault(x =>
+                string.Equals(x.Value, typed, StringComparison.OrdinalIgnoreCase)
+            );
+
+        if (connector.Value is null)
+            return false;
+
+        value = connector.Key;
+
+        return true;
+    }
+
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
 
@@ -93,72 +134,17 @@ public class WiredAddonVariableCapturer(
             return;
 
         var variable = GetVariable(0);
-        var name = GetStringParam();
 
-        if (variable is null || name.Length == 0)
-            return;
-
-        var keyword = trigger.GetSnapshot().StringParam?.Trim() ?? string.Empty;
-        var token = WiredPlaceholderText.Token(SIGIL, name);
-        var tokenIndex = keyword.IndexOf(token, StringComparison.OrdinalIgnoreCase);
-
-        if (tokenIndex < 0)
-            return;
-
-        var pattern =
-            Regex.Escape(keyword[..tokenIndex]).Replace("\\ ", "\\s+")
-            + "(\\S+)"
-            + Regex.Escape(keyword[(tokenIndex + token.Length)..]).Replace("\\ ", "\\s+");
-        Match match;
-
-        try
-        {
-            // Both the keyword and the chat line come from players, so the match is time boxed.
-            match = Regex.Match(
-                chat.Text.Trim(),
-                pattern,
-                RegexOptions.IgnoreCase,
-                TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
-            );
-        }
-        catch (RegexMatchTimeoutException ex)
-        {
-            LogWiredDataFault(ex);
-
-            return;
-        }
-
-        if (!match.Success)
-            return;
-
-        // Habbo lowercases the line before it captures, and looks the text up in the connector
-        // exactly first, then ignoring case (official client capture).
-        var typed = match.Groups[1].Value.ToLowerInvariant();
-        var snapshot = variable.GetVarSnapshot();
-        long value;
-
-        if (GetIntParamOrDefault(0, false))
-        {
-            var connector = snapshot.TextConnectors.FirstOrDefault(x =>
-                string.Equals(x.Value, typed, StringComparison.Ordinal)
-            );
-
-            if (connector.Value is null)
-                connector = snapshot.TextConnectors.FirstOrDefault(x =>
-                    string.Equals(x.Value, typed, StringComparison.OrdinalIgnoreCase)
-                );
-
-            if (connector.Value is null)
-                return;
-
-            value = connector.Key;
-        }
-        else if (
-            !long.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+        if (
+            variable is null
+            || GetStringParam().Length == 0
+            || !trigger.TryCapture(chat.Text.Trim(), out var captures)
+            || captures.FirstOrDefault(x => x.Capturer == this).Typed is not { } typed
+            || !TryGetValue(typed, out var value)
         )
-        {
             return;
-        }
+
+        var snapshot = variable.GetVarSnapshot();
 
         foreach (var targetId in GetTargetIds(snapshot.TargetType, ctx.Selected))
         {
