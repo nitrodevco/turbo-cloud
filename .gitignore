@@ -49,4 +49,4 @@ plugins-shadow/*
 loadbots.accounts.json
 loadbots-report-*.json
 
-assets
+assets/bundled
