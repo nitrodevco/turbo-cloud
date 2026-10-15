@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,15 +8,19 @@ using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
@@ -58,6 +63,11 @@ public class WiredActionPlaceFurni(
     private const int PARAM_VALUE_TARGET = 9;
 
     private const int SLOT_TARGET_FURNI = 1;
+
+    // The dialog Habbo sends when a copy cannot be placed, as recorded.
+    private const string PLACEMENT_FAILURE_TYPE = "wired.error";
+    private const string PLACEMENT_FAILURE_IMAGE = "${image.library.url}album1584/WIRD2.png";
+    private const string PLACEMENT_FAILURE_MESSAGE = "${room.error.wired.placement_failure}";
 
     private const int VARIABLE_SPAWN = 0;
     private const int VARIABLE_VALUE = 1;
@@ -187,6 +197,7 @@ public class WiredActionPlaceFurni(
         var actionCtx = ctx.AsActionContext();
         var map = MapModule;
         var placed = false;
+        var failed = false;
 
         foreach (var (sourceId, source) in GetFurniSnapshot())
         {
@@ -205,8 +216,13 @@ public class WiredActionPlaceFurni(
             var x = source.X + dx;
             var y = source.Y + dy;
 
+            // Off the map is a copy that cannot be placed like any other.
             if (!map.InBounds(x, y))
+            {
+                failed = true;
+
                 continue;
+            }
 
             double z =
                 altitude switch
@@ -228,7 +244,11 @@ public class WiredActionPlaceFurni(
             );
 
             if (item is null)
+            {
+                failed = true;
+
                 continue;
+            }
 
             placed = true;
 
@@ -247,7 +267,61 @@ public class WiredActionPlaceFurni(
                 );
         }
 
+        if (failed)
+            await NotifyPlacementFailureAsync(ctx, ct);
+
         return placed;
+    }
+
+    /// <summary>
+    /// Tells the triggering user that a copy could not be placed, as Habbo does: a "wired.error"
+    /// notification dialog (official client capture, WIN63-202610131318, owner's room): once per
+    /// run however many copies failed, and to the same user at most once per
+    /// <see cref="WiredConfig.PlacementFailureNotificationCooldownMs"/> (runs 2.6, 3.6 and 4.4 s
+    /// after the last dialog got none, 6.6 s and later got one). Inference: the triggering user
+    /// is the one told (the room owner triggered every recorded run), and a run started by no
+    /// user tells nobody.
+    /// </summary>
+    private async Task NotifyPlacementFailureAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    {
+        var now = _roomGrain.NowMs();
+        var cooldown = _roomGrain._wiredConfig.PlacementFailureNotificationCooldownMs;
+        var notified = _roomGrain._state.WiredPlacementFailureNotifiedMs;
+
+        // Only who is still waiting is kept, so the list does not grow with every visitor.
+        foreach (
+            var playerId in notified
+                .Where(x => now - x.Value >= cooldown)
+                .Select(x => x.Key)
+                .ToList()
+        )
+            notified.Remove(playerId);
+
+        foreach (var avatarId in ctx.Selected.SelectedAvatarIds)
+        {
+            if (
+                !AvatarModule.TryGetAvatar(avatarId, out var avatar)
+                || avatar is not IRoomPlayer player
+            )
+                continue;
+
+            if (notified.TryGetValue(player.PlayerId, out var last) && now - last < cooldown)
+                continue;
+
+            notified[player.PlayerId] = now;
+
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                player.PlayerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = PLACEMENT_FAILURE_TYPE,
+                    Parameters = ImmutableDictionary<string, string>
+                        .Empty.Add("image", PLACEMENT_FAILURE_IMAGE)
+                        .Add("message", PLACEMENT_FAILURE_MESSAGE),
+                },
+                ct
+            );
+        }
     }
 
     /// <summary>

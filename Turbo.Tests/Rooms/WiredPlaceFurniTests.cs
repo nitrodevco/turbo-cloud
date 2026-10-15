@@ -4,6 +4,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -36,6 +37,7 @@ public sealed class WiredPlaceFurniTests
     // Habbo copies only Builders Club furni (wiredfurni.error.furni_can_not_be_cloned).
     private const int LAMP = FurniIdBands.BuildersClubMin + 20;
     private const int OWN_LAMP = 30;
+    private const int BORROWED_CHAIR = FurniIdBands.BuildersClubMin + 21;
     private const int OWN_MONEY_BAG = 31;
     private const int BORROWED_MONEY_BAG = FurniIdBands.BuildersClubMin + 31;
 
@@ -135,6 +137,155 @@ public sealed class WiredPlaceFurniTests
         copies.Should().ContainSingle();
         (copies[0].X, copies[0].Y, copies[0].Definition.Id).Should().Be((x, y, lamp.Definition.Id));
     }
+
+    // Official client capture (WIN63-202610131318, owner's room): a run whose copies cannot be
+    // placed sends one "wired.error" dialog however many failed, and none again within ~5 s.
+    [Fact]
+    public async Task A_run_whose_copies_cannot_be_placed_tells_the_clicking_user_once_per_run_and_not_again_within_5_s()
+    {
+        await SetUpFailingPlacementAsync();
+
+        await ClickAsync(105);
+        Dialogs().Should().Equal(105);
+        Dialogs(x => x)
+            .Single()
+            .Should()
+            .Match<NotificationDialogMessageComposer>(x =>
+                x.NotificationType == "wired.error"
+                && x.Parameters["message"] == "${room.error.wired.placement_failure}"
+                && x.Parameters["image"] == "${image.library.url}album1584/WIRD2.png"
+            );
+
+        await ClickAsync(105);
+        Dialogs().Should().Equal([105], "the same user is not told again within 5 s");
+
+        // The room's clock is the real one: the dialog is made to have been 6 s ago.
+        var notified =
+            (Dictionary<PlayerId, long>)
+                RoomHarness.GetMember(_room.Harness.State, "WiredPlacementFailureNotifiedMs")!;
+        notified[(PlayerId)105] -= 6_000;
+
+        await ClickAsync(105);
+        Dialogs().Should().Equal(105, 105);
+    }
+
+    // Inference (only the owner's own runs were recorded): the cooldown is each user's own, so
+    // another user whose click fails within it is still told, and only that user.
+    [Fact]
+    public async Task Another_user_whose_run_fails_within_the_cooldown_is_told_too()
+    {
+        await SetUpFailingPlacementAsync();
+        _room.Enter(6, 6, 6);
+
+        await ClickAsync(105);
+        await ClickAsync(106);
+
+        Dialogs().Should().Equal(105, 106);
+    }
+
+    // Official client capture (WIN63-202610131318): the run that placed its copy got no dialog.
+    [Fact]
+    public async Task A_run_that_places_its_copies_tells_nobody()
+    {
+        await SetUpFailingPlacementAsync(offsetX: 1);
+
+        await ClickAsync(105);
+
+        Furni.Items.Count(x => x.IsTemporary).Should().Be(2);
+        Dialogs().Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A click on <c>CLICK_ME</c> runs Place Temporary Furni over the lamp and a chair of its type,
+    /// moved <paramref name="offsetX"/> tiles right: the default ten is off the 8x8 map for both.
+    /// </summary>
+    private async Task SetUpFailingPlacementAsync(int offsetX = 10)
+    {
+        _room.Enter(5, 7, 7);
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        var lamp = _room.AddFloorItem(LAMP, 3, 3);
+        _room.AddFloorItem(BORROWED_CHAIR, 2, 2, definitionId: lamp.Definition.Id);
+
+        _room.Harness.Fakes.Handlers["TryGetDefinition"] = call =>
+            call.Args[0] is int id && id == lamp.Definition.Id ? lamp.Definition : null;
+        _room.Harness.Fakes.Handlers["CreateFloorItem"] = call =>
+        {
+            var item = new RoomFloorItem
+            {
+                ObjectId = (RoomObjectId)call.Args[0]!,
+                OwnerId = (PlayerId)call.Args[1]!,
+                OwnerName = string.Empty,
+                Definition = (FurnitureDefinitionSnapshot)call.Args[2]!,
+            };
+
+            item.SetExtraData(null);
+
+            return item;
+        };
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionPlaceFurni>(2, 0, 0, "wf_act_place_furni");
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [0, 0, 0, offsetX, 0, 0, 0, 0, 0, 0],
+                stuffIds: [LAMP, BORROWED_CHAIR],
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+    }
+
+    private async Task ClickAsync(int playerId)
+    {
+        await _room
+            .FloorItem(CLICK_ME)
+            .Logic.OnClickAsync(
+                ActionContext.CreateForPlayer((PlayerId)playerId, (RoomId)1),
+                0,
+                Ct
+            );
+        await TickAsync(4);
+    }
+
+    /// <summary>Who was sent a notification dialog, in order.</summary>
+    private List<int> Dialogs() =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Of("SendComposerAsync")
+                .Where(x => x.Args[0] is NotificationDialogMessageComposer)
+                .Select(x => Convert.ToInt32(x.Key)),
+        ];
+
+    private List<T> Dialogs<T>(Func<NotificationDialogMessageComposer, T> select) =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Of("SendComposerAsync")
+                .Select(x => x.Args[0])
+                .OfType<NotificationDialogMessageComposer>()
+                .Select(select),
+        ];
 
     // Official client capture (WIN63-202610131318): the player's own non-tradable chair refused
     // with furni_can_not_be_cloned and the old configuration kept; borrowed furni copied.
