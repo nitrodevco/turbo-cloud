@@ -245,6 +245,190 @@ public sealed class WiredVariableLeaderboardTests
             .Be(1, "the editor of a published add-on names its overlay");
     }
 
+    // Official client capture 2026-10-14 (WIN63-202610131318, leaderboard on the "hp" stack): the
+    // drag + Ready save, then Enable filtering + Compare with the literal 0, then a re-save with 5
+    // and once more unchanged.
+    private static readonly int[] OFFICIAL_DRAG =
+    [
+        0,
+        2,
+        0,
+        1,
+        -1,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        11,
+        8,
+        -4,
+        10,
+        3,
+        0,
+        0,
+        0,
+        0,
+    ];
+    private static readonly int[] OFFICIAL_FILTER =
+    [
+        0,
+        2,
+        0,
+        1,
+        -1,
+        -1,
+        1,
+        1,
+        0,
+        0,
+        11,
+        8,
+        -4,
+        10,
+        3,
+        0,
+        0,
+        0,
+        0,
+    ];
+
+    [Fact]
+    public async Task The_official_saves_push_a_snapshot_only_when_the_leaderboard_changed()
+    {
+        var variable = await BuildStackAsync("hp");
+        var variableId = variable.GetVarSnapshot().VariableId.ToString();
+        string[] filterIds = [variableId, .. Enumerable.Repeat("0", 11)];
+        var now = 20_000L;
+
+        _room.Enter(1, 1, 1);
+        await SubscribeAsync(RoomOpen(), player: 1);
+
+        async Task<int> SaveAsync(int[] ints, string[] ids, string text)
+        {
+            (
+                await _room.SaveAsync<UpdateAddonMessage>(
+                    LEADERBOARD,
+                    intParams: ints,
+                    stringParam: text,
+                    variableIds: ids
+                )
+            )
+                .Should()
+                .BeTrue();
+
+            var before = SnapshotsSentTo(101);
+            await _room.Harness.Room.VariableLeaderboardSystem.OnRoomEventAsync(
+                new RoomWiredStackChangedEvent
+                {
+                    RoomId = 1,
+                    CausedBy = ActionContext.CreateForSystem(1),
+                    StackIds = [_room.Map.ToIdx(3, 3)],
+                },
+                Ct
+            );
+            now += 2_000;
+            await _room.Harness.Room.VariableLeaderboardSystem.ProcessAsync(now, Ct);
+
+            return SnapshotsSentTo(101) - before;
+        }
+
+        (
+            await SaveAsync(
+                OFFICIAL_DRAG,
+                NoVariables(),
+                "Lab\t\tUsername\tValue" + new string('\t', 13)
+            )
+        )
+            .Should()
+            .Be(1, "a published leaderboard is pushed to its viewers");
+        (
+            await SaveAsync(
+                OFFICIAL_FILTER,
+                filterIds,
+                "Lab\t\tUsername\tValue\t\t\t0" + new string('\t', 10)
+            )
+        )
+            .Should()
+            .Be(1, "turning the filter on changed it");
+        (
+            await SaveAsync(
+                OFFICIAL_FILTER,
+                filterIds,
+                "Lab\t\tUsername\tValue\t\t\t5" + new string('\t', 10)
+            )
+        )
+            .Should()
+            .Be(1, "the literal changed");
+        (
+            await SaveAsync(
+                OFFICIAL_FILTER,
+                filterIds,
+                "Lab\t\tUsername\tValue\t\t\t5" + new string('\t', 10)
+            )
+        )
+            .Should()
+            .Be(0, "an unchanged re-save pushes nothing");
+    }
+
+    [Fact]
+    public async Task A_save_with_backslash_t_text_instead_of_tabs_is_an_invalid_configuration()
+    {
+        // Official client capture 2026-10-14: answered WiredValidationError invalid_configuration.
+        await BuildStackAsync("hp");
+
+        var result = await _room.SaveWithResultAsync<UpdateAddonMessage>(
+            LEADERBOARD,
+            intParams: OFFICIAL_DRAG,
+            stringParam: @"Lab\t\tUsername\tValue",
+            variableIds: NoVariables()
+        );
+
+        result.IsSaved.Should().BeFalse();
+        result.ErrorKey.Should().Be(WiredAddonVariableLeaderboard.ERROR_INVALID);
+    }
+
+    [Theory]
+    [InlineData(WiredAvailabilityType.UserActive, false)]
+    [InlineData(WiredAvailabilityType.Persistent, true)]
+    [InlineData(WiredAvailabilityType.Shared, true)]
+    public async Task Only_a_permanent_user_variable_counts_as_persisted_for_the_editor(
+        WiredAvailabilityType availability,
+        bool persistent
+    )
+    {
+        // Official 2026-10-14: the red "no persisted user variable" warning went once "hp" was made
+        // Permanent (UpdateVariable [10, 1]).
+        var variable = await BuildStackAsync("hp");
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                VARIABLE,
+                intParams: [(int)availability, 1],
+                stringParam: "hp"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await variable.LoadWiredAsync(Ct);
+
+        var snapshot = await Wired.GetBoxSnapshotAsync((RoomObjectId)LEADERBOARD, Ct);
+
+        snapshot!
+            .ContextSnapshots.OfType<WiredVariableLeaderboardContextSnapshot>()
+            .Single()
+            .Choices.Single()
+            .Persistent.Should()
+            .Be(persistent);
+    }
+
+    private int SnapshotsSentTo(long playerId) =>
+        _room
+            .Harness.Fakes.Log.Calls.Where(x =>
+                x.Method == "SendComposerAsync" && x.Key is long key && key == playerId
+            )
+            .SelectMany(x => x.Args.OfType<VariableLeaderboardSnapshotMessageComposer>())
+            .Count();
+
     private static string HexString(string text) =>
         Convert.ToHexString([
             (byte)(text.Length >> 8),
