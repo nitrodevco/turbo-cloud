@@ -25,6 +25,12 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     /// <summary>Makes the quest the one the player is doing, dropping any other, and sends it.</summary>
     Task AcceptAsync(int questId, CancellationToken ct);
 
+    /// <summary>
+    /// Starts the campaign with that code: its current quest becomes the one the player is doing
+    /// (as <see cref="AcceptAsync"/>). Nothing for an unknown campaign or one already done.
+    /// </summary>
+    Task StartCampaignAsync(string campaignCode, CancellationToken ct);
+
     /// <summary>Drops the quest (or, with 0, whichever the player is doing): QuestCancelled.</summary>
     Task RejectAsync(int questId, CancellationToken ct);
 

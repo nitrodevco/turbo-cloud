@@ -138,6 +138,40 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task Starting_a_campaign_accepts_its_current_quest()
+    {
+        await Grain().StartCampaignAsync("connect_dots26", Ct);
+        await Grain().StartCampaignAsync("no_such_campaign", Ct);
+
+        Single<QuestMessageComposer>()
+            .Quest.Should()
+            .Match<Turbo.Primitives.Quests.Snapshots.QuestSnapshot>(x =>
+                x.Id == PET_FOOD && x.Accepted
+            );
+    }
+
+    [Fact]
+    public async Task Starting_a_campaign_already_done_does_nothing()
+    {
+        using (var db = _db.CreateDbContext())
+        {
+            db.PlayerQuests.Add(
+                new PlayerQuestEntity
+                {
+                    PlayerEntityId = PLAYER,
+                    QuestEntityId = PET_FOOD,
+                    CompletedAt = NOW,
+                }
+            );
+            db.SaveChanges();
+        }
+
+        await Grain().StartCampaignAsync("connect_dots26", Ct);
+
+        Sent<QuestMessageComposer>().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Accepting_a_quest_drops_the_one_being_done()
     {
         await Grain().AcceptAsync(FIRST_BADGE, Ct);
