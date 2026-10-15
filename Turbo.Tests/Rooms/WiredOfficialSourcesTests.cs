@@ -21,6 +21,7 @@ public sealed class WiredOfficialSourcesTests
     private static readonly int[] Furni = [0, 100, 200, 201];
     private static readonly int[] Both = [0, 100, 101, 200, 201];
     private static readonly int[] Users = [0, 200, 201];
+    private static readonly int[] Bots = [0, 100, 200, 201];
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -142,6 +143,35 @@ public sealed class WiredOfficialSourcesTests
                 ],
                 [100]
             },
+            // The other bot boxes: user slot 0 is the bots (sources.users.title.bots), the boxes
+            // that act on users too have the users in slot 1.
+            { typeof(WiredActionBotTeleport), "wf_act_bot_teleport", [Furni], [100], [Bots], [100] },
+            { typeof(WiredActionBotMove), "wf_act_bot_move", [Furni], [100], [Bots], [100] },
+            { typeof(WiredActionBotChangeFigure), "wf_act_bot_clothes", [], [], [Bots], [100] },
+            {
+                typeof(WiredActionBotGiveHandItem),
+                "wf_act_bot_give_handitem",
+                [],
+                [],
+                [Bots, Users],
+                [100, 0]
+            },
+            {
+                typeof(WiredActionBotFollowAvatar),
+                "wf_act_bot_follow_avatar",
+                [],
+                [],
+                [Bots, Users],
+                [100, 0]
+            },
+            {
+                typeof(WiredActionBotTalkToAvatar),
+                "wf_act_bot_talk_to_avatar",
+                [],
+                [],
+                [Bots, Users],
+                [100, 0]
+            },
             {
                 typeof(WiredTriggerBotReachesHabbo),
                 "wf_trg_bot_reached_avtr",
@@ -261,5 +291,45 @@ public sealed class WiredOfficialSourcesTests
             )
         ).Should().BeTrue();
         talk.GetPlayerSources().Single().Should().Equal(WiredPlayerSourceType.TriggeredUser);
+    }
+
+    /// <summary>
+    /// A follow, hand item or talk to box saved while the users came first and the bot second
+    /// loads with the bot in slot 0 and the users in slot 1, so it keeps doing what it did.
+    /// </summary>
+    [Fact]
+    public async Task A_bot_box_saved_with_the_users_first_keeps_its_bot_and_users()
+    {
+        var follow = _room.AddBox<WiredActionBotFollowAvatar>(1, 0, 0, "wf_act_bot_follow_avatar");
+
+        _room
+            .FloorItem(1)
+            .ExtraData.UpdateSection(
+                Turbo.Primitives.Furniture.Enums.ExtraDataSectionType.WIRED,
+                System.Text.Json.JsonSerializer.SerializeToNode(
+                    new Turbo.Rooms.Wired.WiredData
+                    {
+                        StringParam = "Frank",
+                        PlayerSources =
+                        [
+                            [WiredPlayerSourceType.SelectorUsers],
+                            [WiredPlayerSourceType.BotByName],
+                        ],
+                    }
+                )!
+            );
+        await follow.LoadWiredAsync(TestContext.Current.CancellationToken);
+
+        follow
+            .GetPlayerSources()
+            .Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    new[] { WiredPlayerSourceType.BotByName },
+                    [WiredPlayerSourceType.SelectorUsers],
+                },
+                o => o.WithStrictOrdering()
+            );
     }
 }

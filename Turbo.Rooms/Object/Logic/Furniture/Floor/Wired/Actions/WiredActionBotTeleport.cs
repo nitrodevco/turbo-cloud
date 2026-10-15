@@ -28,7 +28,7 @@ public class WiredActionBotTeleport(
     {
         var (botName, _) = SplitParam();
 
-        if (!TryGetBot(botName, out var bot))
+        if (ResolveBots(ctx, SLOT_BOTS, botName) is not { Count: > 0 } bots)
             return false;
 
         var items = GetFloorItems(ctx.GetSelection(this));
@@ -36,6 +36,15 @@ public class WiredActionBotTeleport(
         if (items.Count == 0)
             return false;
 
-        return await BotModule.TeleportToItemAsync(bot, items[Random.Shared.Next(items.Count)], ct);
+        var done = false;
+
+        foreach (var bot in bots)
+            done |= await BotModule.TeleportToItemAsync(
+                bot,
+                items[Random.Shared.Next(items.Count)],
+                ct
+            );
+
+        return done;
     }
 }

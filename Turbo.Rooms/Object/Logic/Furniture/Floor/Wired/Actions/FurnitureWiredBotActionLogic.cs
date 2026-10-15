@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -24,15 +26,52 @@ public abstract class FurnitureWiredBotActionLogic(
 {
     protected const char FIELD_SEPARATOR = '\t';
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.BotByName];
+    protected const int SLOT_BOTS = 0;
+    protected const int SLOT_USERS = 1;
+
+    /// <summary>
+    /// The bots slot: the bot named in the box by default, or the bots among the triggering,
+    /// selector or signal users (official client capture of the bot boxes' sources, user slot 0
+    /// titled sources.users.title.bots in AS3 1318).
+    /// </summary>
+    protected static WiredPlayerSourceType[] BotSources =>
+        [
+            WiredPlayerSourceType.BotByName,
+            WiredPlayerSourceType.TriggeredUser,
+            WiredPlayerSourceType.SelectorUsers,
+            WiredPlayerSourceType.SignalUsers,
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [BotSources];
 
     /// <summary>
     /// The two slots of a bot box that also acts on users (follow, hand item, talk to): the
-    /// users first, then the bot by name.
+    /// bots first, then the users.
     /// </summary>
     protected static List<WiredPlayerSourceType[]> UserAndBotSources() =>
-        [WiredSources.Users, WiredSources.BotByName];
+        [BotSources, WiredSources.Users];
+
+    /// <summary>The users of the second slot, for the boxes that act on users too.</summary>
+    protected IWiredSelectionSet TargetUsers(IWiredContext ctx) =>
+        WiredSlotSelection.ForUserSlot(this, ctx, SLOT_USERS);
+
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
+    {
+        await base.FillInternalDataAsync(ct);
+
+        // Boxes saved while the users came first and the bot second keep what they did.
+        if (
+            GetAllowedPlayerSources().Count == 2
+            && _wiredData.PlayerSources is [var users, var bots]
+            && bots.Contains(WiredPlayerSourceType.BotByName)
+            && !users.Contains(WiredPlayerSourceType.BotByName)
+        )
+        {
+            _wiredData.PlayerSources = [bots, users];
+            _wiredData.MarkDirty();
+            InvalidateSnapshot();
+        }
+    }
 
     /// <summary>
     /// Whether the box works with no bot named. Only the hand item editor lets the bot be left
@@ -58,14 +97,20 @@ public abstract class FurnitureWiredBotActionLogic(
     /// </summary>
     protected List<IRoomBot> ResolveBots(IWiredContext ctx, int slot, string name)
     {
-        var sources = GetPlayerSources();
-
-        if (slot >= sources.Count || sources[slot].Contains(WiredPlayerSourceType.BotByName))
+        if (IsBotByName(slot))
             return TryGetBot(name, out var named) ? [named] : [];
 
         var users = WiredSlotSelection.ForUserSlot(this, ctx, slot).SelectedAvatarIds;
 
         return [.. BotModule.Bots.Where(bot => users.Contains(bot.ObjectId))];
+    }
+
+    /// <summary>Whether the bots of <paramref name="slot"/> are the one named in the box.</summary>
+    protected bool IsBotByName(int slot)
+    {
+        var sources = GetPlayerSources();
+
+        return slot >= sources.Count || sources[slot].Contains(WiredPlayerSourceType.BotByName);
     }
 
     protected bool TryGetBot(string name, [NotNullWhen(true)] out IRoomBot? bot) =>

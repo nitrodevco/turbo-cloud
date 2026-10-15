@@ -29,19 +29,22 @@ public class WiredActionBotFollowAvatar(
     {
         var (botName, _) = SplitParam();
 
-        if (!TryGetBot(botName, out var bot))
+        if (ResolveBots(ctx, SLOT_BOTS, botName) is not { Count: > 0 } bots)
             return false;
 
         var start = GetIntParamOrDefault(0, true);
+        var players = start ? GetPlayers(TargetUsers(ctx)) : [];
 
-        if (!start)
-            return await BotModule.FollowAsync(bot, -1, false);
-
-        var players = GetPlayers(ctx.GetSelection(this));
-
-        if (players.Count == 0)
+        if (start && players.Count == 0)
             return false;
 
-        return await BotModule.FollowAsync(bot, players[0].ObjectId, true);
+        var done = false;
+
+        foreach (var bot in bots)
+            done |= start
+                ? await BotModule.FollowAsync(bot, players[0].ObjectId, true)
+                : await BotModule.FollowAsync(bot, -1, false);
+
+        return done;
     }
 }
