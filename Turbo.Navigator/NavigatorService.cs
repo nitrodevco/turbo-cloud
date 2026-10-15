@@ -1107,7 +1107,12 @@ public sealed class NavigatorService(
                     .GetRoomsWithRightsAsync(playerId, _config.SearchResultLimit, ct)
                     .ConfigureAwait(false);
 
-                return [.. MergeLive(cached, query, include: null).Take(limit)];
+                return
+                [
+                    .. MergeLive(cached, query, include: null)
+                        .Where(x => IsListedForRightsHolder(x, playerId))
+                        .Take(limit),
+                ];
             }
             case NavigatorSearchCodes.MY_GROUPS:
             {
@@ -1479,13 +1484,20 @@ public sealed class NavigatorService(
         query.LiveRooms.TryGetValue(room.RoomId, out var live) ? live.Population : 0;
 
     private static bool IsPublic(RoomInfoSnapshot room) =>
-        room.DoorMode != RoomDoorModeType.Invisible && !room.HiddenByBc;
+        room.ListedDoorMode != RoomDoorModeType.Invisible;
 
     private static bool IsOpen(RoomInfoSnapshot room) =>
         room.DoorMode == RoomDoorModeType.Open && !room.HiddenByBc;
 
     private static bool IsVisibleTo(RoomInfoSnapshot room, PlayerId playerId) =>
         IsPublic(room) || room.OwnerId == playerId;
+
+    /// <summary>
+    /// A room Builders Club hides is its owner's alone, rights or not; a room its owner made
+    /// invisible still shows to those with rights, as the setting's own text says.
+    /// </summary>
+    private static bool IsListedForRightsHolder(RoomInfoSnapshot room, PlayerId playerId) =>
+        !room.HiddenByBc || room.OwnerId == playerId;
 
     /// <summary>
     /// The room as a search returns it. The info is copied whole rather than field by field:

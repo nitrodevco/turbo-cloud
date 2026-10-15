@@ -15,7 +15,7 @@ internal class RoomSettingsSerializer
             .WriteString(message.Name)
             .WriteInteger(message.OwnerId)
             .WriteString(message.OwnerName)
-            .WriteInteger((int)message.DoorMode)
+            .WriteInteger((int)message.ListedDoorMode)
             .WriteInteger(message.Population)
             .WriteInteger(message.PlayersMax)
             .WriteString(message.Description)

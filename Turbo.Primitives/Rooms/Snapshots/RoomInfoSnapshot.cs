@@ -54,6 +54,12 @@ public record RoomInfoSnapshot : RoomSummarySnapshot
     public bool HiddenByBc { get; init; }
 
     /// <summary>
+    /// The door the client draws on the room card: invisible while Builders Club hides the room,
+    /// whatever its owner chose, which <see cref="DoorMode"/> keeps for when it is shown again.
+    /// </summary>
+    public RoomDoorModeType ListedDoorMode => HiddenByBc ? RoomDoorModeType.Invisible : DoorMode;
+
+    /// <summary>
     /// The group whose homeroom this is, or null. It is a listing field because the client draws
     /// the badge on the room card as well as inside the room, and neither should have to load
     /// the group to do it.
