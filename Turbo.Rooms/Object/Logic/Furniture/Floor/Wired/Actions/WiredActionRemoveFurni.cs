@@ -25,7 +25,15 @@ public class WiredActionRemoveFurni(
 {
     public override int WiredCode => (int)WiredActionType.REMOVE_FURNI;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+    // No pick list, the selector first (official client capture of the box's sources).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SignalItems,
+            ],
+        ];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

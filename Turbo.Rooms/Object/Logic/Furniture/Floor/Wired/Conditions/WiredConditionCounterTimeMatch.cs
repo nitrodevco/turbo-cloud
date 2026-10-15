@@ -40,8 +40,7 @@ public class WiredConditionCounterTimeMatch(
             new WiredRangeParamRule(0, 2, 1),
         ];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

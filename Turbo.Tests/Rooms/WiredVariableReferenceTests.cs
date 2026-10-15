@@ -210,6 +210,12 @@ public sealed class WiredVariableReferenceTests
             await _room.SaveAsync<UpdateConditionMessage>(
                 BOX,
                 intParams: [FURNI, 0, 0, 0, 0, (int)WiredTimeUnitType.Seconds, 1, FURNI],
+                // The reference is read on the triggering furni too (its own slot, 1).
+                furniSources:
+                [
+                    [WiredFurniSourceType.TriggeredItem],
+                    [WiredFurniSourceType.TriggeredItem],
+                ],
                 definitionSpecifics: [0],
                 variableIds: [LevelId, BonusId]
             )

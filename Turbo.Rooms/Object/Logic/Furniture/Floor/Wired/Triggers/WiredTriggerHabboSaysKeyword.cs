@@ -94,7 +94,11 @@ public class WiredTriggerHabboSaysKeyword(
 
         var keyword = GetStringParam();
 
-        if (keyword.Length == 0)
+        // The editor takes far more than Habbo fires on: a longer pattern never matches.
+        if (
+            keyword.Length == 0
+            || keyword.Length > _roomGrain._wiredConfig.ChatTriggerPatternMaxLength
+        )
             return Task.FromResult(false);
 
         var text = chatEvt.Text.Trim();

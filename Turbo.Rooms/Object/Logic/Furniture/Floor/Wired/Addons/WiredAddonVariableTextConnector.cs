@@ -24,7 +24,12 @@ public class WiredAddonVariableTextConnector(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
+    // The editor's text area takes 1000 characters (VariableTextConnectorAddon.buildInputs).
+    private const int TEXT_MAX_LENGTH = 1000;
+
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TEXT_CONVERTER;
+
+    protected override int GetStringParamMaxLength() => TEXT_MAX_LENGTH;
 
     /// <summary>The text of the box's "_=" line, or null when it has none.</summary>
     public string? GetFallback()

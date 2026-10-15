@@ -57,15 +57,7 @@ public class WiredAddonVariablePlaceholder(
     // Its holders come from one source, the furni or the user kind as the variable's target is
     // (AS3: mergedSelections [[0, 0]]); the triggering ones first, as it read before it had a
     // source of its own.
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.SelectedItems,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

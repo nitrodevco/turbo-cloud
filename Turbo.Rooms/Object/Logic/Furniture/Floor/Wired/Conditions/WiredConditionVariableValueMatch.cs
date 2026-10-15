@@ -44,17 +44,16 @@ public class WiredConditionVariableValueMatch(
 
     protected override int GetRequiredIntParamCount() => PARAM_SAME_HOLDER;
 
+    // Two merged selections, the holders acted on and the reference holders, each its own furni
+    // and user slot (official client capture of the box's sources).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            [
-                WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-            ],
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -66,12 +65,12 @@ public class WiredConditionVariableValueMatch(
         if (variable is null)
             return false;
 
-        var selection = ctx.GetSelection(this);
+        var selection = GetMergedSelection(ctx, 0);
         var sameHolder =
             GetIntParamOrDefault(2, false) && GetIntParamOrDefault(PARAM_SAME_HOLDER, false);
         long operand = 0;
 
-        if (!sameHolder && !TryResolveOperand(2, 3, 5, 1, selection, out operand))
+        if (!sameHolder && !TryResolveOperand(2, 3, 5, 1, GetMergedSelection(ctx, 1), out operand))
             return false;
 
         var targetType = GetTargetType(variable, 0);

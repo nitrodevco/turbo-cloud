@@ -168,7 +168,52 @@ public abstract class FurnitureWiredVariableLogic
         )
             return Task.FromResult(false);
 
+        if (!store.ContainsKey(storedKey) && IsHolderFull(key))
+        {
+            WiredSystem.RecordError(WiredErrorKind.TooManyVariables, _roomGrain.NowMs());
+
+            return Task.FromResult(false);
+        }
+
         return GiveAndNotifyAsync(store, key, storedKey, value, replace);
+    }
+
+    /// <summary>
+    /// Whether the user or furni already holds as many created variables as one may
+    /// (TOO_MANY_VARIABLES: "The limit for variables per furni/user was reached!").
+    /// </summary>
+    private bool IsHolderFull(in WiredVariableKey key)
+    {
+        var max = _roomGrain._wiredConfig.MaxVariablesPerHolder;
+
+        if (
+            max <= 0
+            || key.TargetType is not (WiredVariableTargetType.User or WiredVariableTargetType.Furni)
+        )
+            return false;
+
+        var held = 0;
+
+        foreach (var variable in WiredSystem.GetAllVariables())
+        {
+            if (variable is not FurnitureWiredVariableLogic created)
+                continue;
+
+            var snapshot = created.GetVarSnapshot();
+
+            if (
+                snapshot.TargetType == key.TargetType
+                && snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                && created.TryGetValue(
+                    new WiredVariableKey(snapshot.VariableId, key.TargetType, key.TargetId),
+                    out _
+                )
+                && ++held >= max
+            )
+                return true;
+        }
+
+        return false;
     }
 
     public virtual Task<bool> SetValueAsync(
@@ -315,12 +360,10 @@ public abstract class FurnitureWiredVariableLogic
         if (!await store.GiveValueAsync(storedKey, value, replace))
             return false;
 
-        PublishChange(
-            key,
-            existed ? WiredVariableChangeType.Updated : WiredVariableChangeType.Created,
-            value,
-            existed ? previous : value
-        );
+        // A give is a creation even when it overrides a value the holder already had: the
+        // "created" trigger fires for the replacement too, where a Change Variable on it does
+        // not (official client capture: give with override twice, change once).
+        PublishChange(key, WiredVariableChangeType.Created, value, existed ? previous : value);
         ShareChange(
             storedKey,
             WiredVariableChangeType.Created,

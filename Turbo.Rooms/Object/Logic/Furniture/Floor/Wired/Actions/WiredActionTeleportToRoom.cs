@@ -31,8 +31,7 @@ public class WiredActionTeleportToRoom(
 {
     public override int WiredCode => (int)WiredActionType.TELEPORT_TO_ROOM;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

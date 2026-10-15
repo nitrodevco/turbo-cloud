@@ -1,5 +1,10 @@
 using FluentAssertions;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.RoomItem;
+using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Tests.Support;
 using Xunit;
@@ -45,5 +50,44 @@ public sealed class WiredControlClockTests
 
         clock.IsRunning.Should().BeTrue();
         clock.GetState().Should().Be(10);
+    }
+
+    /// <summary>
+    /// A counter's time is not a furni state change: Adjust Counter set a counter to 30 and
+    /// "Furni state changes" picking it did not fire (official client capture). The clock
+    /// trigger and the item's display still follow.
+    /// </summary>
+    [Fact]
+    public async Task Moving_the_time_does_not_announce_a_state_change()
+    {
+        var clock = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    CLOCK,
+                    3,
+                    3,
+                    "wf_upcounter",
+                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                )
+                .Logic;
+        var heard = new List<RoomEvent>();
+        _room.Harness.Module<RoomEventModule>().Register(new Recorder(heard));
+
+        await clock.AdjustAsync(WiredOperatorType.Set, 60, Ct);
+        await clock.ControlAsync(WiredClockControlType.Reset, Ct);
+
+        heard.OfType<RoomItemStateChangedEvent>().Should().BeEmpty();
+        heard.OfType<WiredClockTickEvent>().Select(tick => tick.HalfSeconds).Should().Equal(60, 0);
+        clock.GetState().Should().Be(0);
+    }
+
+    private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener
+    {
+        public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
+        {
+            heard.Add(evt);
+
+            return Task.CompletedTask;
+        }
     }
 }

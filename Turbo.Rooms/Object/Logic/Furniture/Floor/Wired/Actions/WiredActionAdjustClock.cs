@@ -41,8 +41,7 @@ public class WiredActionAdjustClock(
             new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Set),
         ];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
