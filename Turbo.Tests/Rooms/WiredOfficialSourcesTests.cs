@@ -132,6 +132,18 @@ public sealed class WiredOfficialSourcesTests
                 [Users, Users],
                 [0, 200]
             },
+            {
+                typeof(WiredActionPlaceFurni),
+                "wf_act_place_furni",
+                [
+                    [0, 100, 101, 110, 200, 201],
+                    Both,
+                    Both,
+                ],
+                [110, 0, 200],
+                [Users, Users],
+                [0, 200]
+            },
             // Recorded 2026-10-14 on WIN63-202610131318.
             {
                 typeof(WiredActionBotTalk),
