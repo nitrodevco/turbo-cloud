@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Quest;
 
 internal class GetDailyQuestMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetDailyQuestMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetDailyQuestMessage { Easy = packet.PopBoolean(), Index = packet.PopInt() };
 }

@@ -8,6 +8,9 @@ internal class SeasonalQuestsMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, SeasonalQuestsMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Quests.Length);
+
+        foreach (var quest in message.Quests)
+            QuestSerializer.Write(packet, quest);
     }
 }
