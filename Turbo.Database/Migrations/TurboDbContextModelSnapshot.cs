@@ -1439,6 +1439,46 @@ namespace Turbo.Database.Migrations
                     b.ToTable("marketplace_tokens");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.PlayerTargetedOfferEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("OfferId")
+                        .HasColumnType("int")
+                        .HasColumnName("offer_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Purchased")
+                        .HasColumnType("int")
+                        .HasColumnName("purchased");
+
+                    b.Property<int>("TrackingState")
+                        .HasColumnType("int")
+                        .HasColumnName("tracking_state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "OfferId")
+                        .IsUnique();
+
+                    b.ToTable("player_targeted_offers");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -7757,6 +7797,17 @@ namespace Turbo.Database.Migrations
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.MarketplaceTokenEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.PlayerTargetedOfferEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany()

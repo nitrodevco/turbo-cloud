@@ -254,6 +254,11 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerRewardTrackGrain>(playerId.Value);
 
+    public static IPlayerTargetedOfferGrain GetPlayerTargetedOfferGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerTargetedOfferGrain>(playerId.Value);
+
     public static IPlayerHabbiconGrain GetPlayerHabbiconGrain(
         this IGrainFactory factory,
         PlayerId playerId

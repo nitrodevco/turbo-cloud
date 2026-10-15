@@ -83,6 +83,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.ICatalogPurchaseG
   297AFF96: PurchaseOfferFromCatalogAsync(Turbo.Primitives.Catalog.Enums.CatalogType, int, string, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
   81BEB073: PurchaseRoomAdAsync(int, Turbo.Primitives.Rooms.RoomId, int, string, string, bool, System.TimeSpan, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
 
+interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.IPlayerTargetedOfferGrain")] Turbo.Primitives.Catalog.Grains.IPlayerTargetedOfferGrain [Version(0)]
+  5906E68A: PurchaseAsync(int, int, System.Threading.CancellationToken) -> Task<bool>
+  B76C693E: SendNextOfferAsync(System.Threading.CancellationToken) -> Task
+  04BC6F5A: SetTrackingStateAsync(int, int, System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildDirectoryGrain")] Turbo.Primitives.Guilds.Grains.IGuildDirectoryGrain [Version(0)]
   EEAD8CC2: GetDefaultBadgePartsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildBadgePartSnapshot>>
   EC544848: GetEditorDataAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildEditorDataSnapshot>
@@ -387,6 +392,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Settings.IPlayerS
   19CD1414: AddCustomFilterWordAsync(string, System.Threading.CancellationToken) -> Task<bool>
   9F832A6C: GetCustomFilterWordsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<string>>
   51FE99BE: GetOwnedNftChatStyleIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<int>>
+  4B508667: GetOwnedPurchasableChatStyleIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<int>>
   55F33B9F: GetSettingsAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Settings.PlayerSettingsSnapshot>
   195205AF: OwnsChatStyleAsync(int, System.Threading.CancellationToken) -> Task<bool>
   00E83B77: RemoveCustomFilterWordAsync(string, System.Threading.CancellationToken) -> Task<bool>
