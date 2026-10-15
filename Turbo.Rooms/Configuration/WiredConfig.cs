@@ -147,6 +147,14 @@ public class WiredConfig
     /// (credits, presents, pets) is refused either way.
     /// </summary>
     public bool PlaceFurniBuildersClubOnly { get; init; } = true;
+
+    /// <summary>
+    /// How long a player told that Place Temporary Furni could not place a copy is not told again;
+    /// Habbo's is about 5 s (recorded: none 4.4 s after the last, one 6.6 s after). 0 tells them
+    /// on every run that fails.
+    /// </summary>
+    public int PlacementFailureNotificationCooldownMs { get; init; } = 5000;
+
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;

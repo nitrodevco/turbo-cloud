@@ -117,6 +117,9 @@ internal sealed class RoomLiveState
     public long NextRollerBoundaryMs { get; set; } = 0;
     public long NextWiredBoundaryMs { get; set; } = 0;
 
+    /// <summary>When each player was last told a wired placement failed (Place Temporary Furni).</summary>
+    public Dictionary<PlayerId, long> WiredPlacementFailureNotifiedMs { get; } = [];
+
     /// <summary>When the room next hands what changed to its persistence grain.</summary>
     public long NextPersistenceBoundaryMs { get; set; } = 0;
 }
