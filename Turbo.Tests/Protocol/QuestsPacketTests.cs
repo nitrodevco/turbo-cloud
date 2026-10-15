@@ -137,6 +137,21 @@ public class QuestsPacketTests
     }
 
     [Fact]
+    public async Task starting_a_campaign_names_it()
+    {
+        var harness = new PacketHarness();
+
+        await harness.SendAsync(
+            PacketHarness.Incoming("StartCampaignMessageEvent"),
+            PacketHarness.Payload(w => w.String("room_builder")),
+            playerId: 3
+        );
+
+        var call = Assert.Single(harness.Fakes.Log.Of("StartCampaignAsync"));
+        Assert.Equal("room_builder", call.Args[0]);
+    }
+
+    [Fact]
     public async Task accepting_activating_and_rejecting_name_the_quest()
     {
         var harness = new PacketHarness();

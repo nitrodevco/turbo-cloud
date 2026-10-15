@@ -120,6 +120,32 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         ];
     }
 
+    /// <summary>
+    /// The quest tracker sends the default campaign a new identity starts with after
+    /// <c>questing.startQuestDelayInSeconds</c> (<c>QuestTracker.startDefaultCampaign</c> /
+    /// <c>onStartQuestTimer</c>, AS3 WIN63-202610131318), and the VIP quests promo its campaign
+    /// on its button; the tracker then shows the Quest that comes back. Inference (no recording):
+    /// starting a campaign accepts its current quest.
+    /// </summary>
+    public async Task StartCampaignAsync(string campaignCode, CancellationToken ct)
+    {
+        int questId;
+
+        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            var data = await LoadAsync(dbCtx, ct);
+            var campaign = data.Campaigns.FirstOrDefault(x => x.Code == campaignCode);
+            var quest = campaign is null ? null : data.Current(campaign);
+
+            if (quest is null || data.Snapshot(quest, Now).Id == 0)
+                return;
+
+            questId = quest.Id;
+        }
+
+        await AcceptAsync(questId, ct);
+    }
+
     public async Task AcceptAsync(int questId, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);

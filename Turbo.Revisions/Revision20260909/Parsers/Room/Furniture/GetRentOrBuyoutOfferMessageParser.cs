@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class GetRentOrBuyoutOfferMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetRentOrBuyoutOfferMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetRentOrBuyoutOfferMessage
+        {
+            IsWallItem = packet.PopBoolean(),
+            FurniTypeName = packet.PopString(),
+            Buyout = packet.PopBoolean(),
+        };
 }

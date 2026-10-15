@@ -6,5 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class ExtendRentOrBuyoutStripItemMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ExtendRentOrBuyoutStripItemMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ExtendRentOrBuyoutStripItemMessage
+        {
+            StripItemId = packet.PopInt(),
+            Buyout = packet.PopBoolean(),
+        };
 }
