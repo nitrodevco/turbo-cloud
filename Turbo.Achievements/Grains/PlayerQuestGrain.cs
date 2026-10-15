@@ -76,6 +76,35 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
             ct
         );
 
+    /// <summary>
+    /// What the hotel view's daily quest widget shows (<c>DailyQuestWidget.refreshContent</c>,
+    /// AS3 WIN63-202610131318): an accepted quest with its cancel link, else one not accepted with
+    /// "accept", the easy/hard switch when there are both and "next quest" when its kind has more
+    /// than one. Inference (no official QuestDaily recorded): the quests offered are the
+    /// campaigns' current quests not done, split by their easy flag; the index wraps round; with
+    /// none of the asked kind the other kind is offered.
+    /// </summary>
+    public async Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct)
+    {
+        var open = (await CurrentQuestsAsync(ct)).Where(x => x.Id != 0).ToList();
+        var easyCount = open.Count(x => x.Easy);
+        var pool = open.Where(x => x.Easy == easy).ToList() is { Count: > 0 } asked ? asked : open;
+        var quest =
+            open.FirstOrDefault(x => x.Accepted)
+            ?? (pool.Count > 0 ? pool[(int)((uint)index % (uint)pool.Count)] : null);
+
+        await _grainFactory.SendComposerToPlayerAsync(
+            _playerId,
+            new QuestDailyMessageComposer
+            {
+                Quest = quest,
+                EasyQuestCount = easyCount,
+                HardQuestCount = open.Count - easyCount,
+            },
+            ct
+        );
+    }
+
     private async Task<List<QuestSnapshot>> CurrentQuestsAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);

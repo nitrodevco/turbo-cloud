@@ -16,6 +16,12 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     /// <summary>Sends the seasonal ones of those quests (SeasonalQuests), in the same order.</summary>
     Task SendSeasonalQuestsAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Sends the hotel view's daily quest (QuestDaily): the quest being done, else the
+    /// <paramref name="index"/>-th open quest of the easy or hard ones, with how many of each there are.
+    /// </summary>
+    Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct);
+
     /// <summary>Makes the quest the one the player is doing, dropping any other, and sends it.</summary>
     Task AcceptAsync(int questId, CancellationToken ct);
 

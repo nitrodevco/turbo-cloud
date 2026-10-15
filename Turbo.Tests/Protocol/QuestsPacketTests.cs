@@ -99,6 +99,44 @@ public class QuestsPacketTests
         };
 
     [Fact]
+    public async Task the_daily_quest_asks_for_the_easy_or_hard_quest_at_an_index()
+    {
+        var harness = new PacketHarness();
+
+        await harness.SendAsync(
+            PacketHarness.Incoming("GetDailyQuestMessageEvent"),
+            PacketHarness.Payload(w => w.Bool(false).Int(2)),
+            playerId: 3
+        );
+
+        var call = Assert.Single(harness.Fakes.Log.Of("SendDailyQuestAsync"));
+        Assert.Equal(false, call.Args[0]);
+        Assert.Equal(2, call.Args[1]);
+    }
+
+    [Fact]
+    public void the_daily_quest_is_a_flag_then_the_quest_and_the_two_counts()
+    {
+        var none = PacketHarness.Encode(new QuestDailyMessageComposer { Quest = null });
+        Assert.False(none.PopBoolean());
+        Assert.True(none.End);
+
+        var daily = PacketHarness.Encode(
+            new QuestDailyMessageComposer
+            {
+                Quest = Quest(isSeasonal: false),
+                EasyQuestCount = 3,
+                HardQuestCount = 4,
+            }
+        );
+        Assert.True(daily.PopBoolean());
+        AssertQuest(daily, id: 7, isSeasonal: false);
+        Assert.Equal(3, daily.PopInt());
+        Assert.Equal(4, daily.PopInt());
+        Assert.True(daily.End);
+    }
+
+    [Fact]
     public async Task accepting_activating_and_rejecting_name_the_quest()
     {
         var harness = new PacketHarness();
