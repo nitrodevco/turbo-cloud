@@ -66,7 +66,7 @@ public abstract class FurnitureWiredVariableLogic
         CancellationToken ct
     )
     {
-        var name = update.StringParam ?? string.Empty;
+        var name = VariableNameOf(update.StringParam);
 
         if (!WiredNameRules.HasValidLength(name))
             throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_LENGTH);
@@ -90,6 +90,12 @@ public abstract class FurnitureWiredVariableLogic
     }
 
     /// <summary>
+    /// The variable's name in a box's string param. For most boxes the whole param; a box that
+    /// saves more after the name (the daily task's "name	code") returns only the name.
+    /// </summary>
+    protected virtual string VariableNameOf(string? stringParam) => stringParam ?? string.Empty;
+
+    /// <summary>
     /// Whether another variable box in this room has the name, whatever its target. Compared
     /// exactly (inference: the capture had the same name twice, not two spellings of it).
     /// </summary>
@@ -97,7 +103,11 @@ public abstract class FurnitureWiredVariableLogic
         FurniModule.Items.Any(item =>
             item.Logic is FurnitureWiredVariableLogic other
             && !ReferenceEquals(other, this)
-            && string.Equals(other._wiredData?.StringParam, name, System.StringComparison.Ordinal)
+            && string.Equals(
+                other.VariableNameOf(other._wiredData?.StringParam),
+                name,
+                System.StringComparison.Ordinal
+            )
         );
 
     protected virtual WiredVariableFlags Flags => WiredVariableFlags.None;

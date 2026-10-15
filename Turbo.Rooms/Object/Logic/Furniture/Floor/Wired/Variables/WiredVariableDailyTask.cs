@@ -63,6 +63,15 @@ public class WiredVariableDailyTask(
             VariableName = NameOf(_wiredData.StringParam),
         };
 
+    /// <summary>The name, the part before the tab: the code is not part of it.</summary>
+    protected override string VariableNameOf(string? stringParam)
+    {
+        var value = stringParam ?? string.Empty;
+        var index = value.IndexOf(SEPARATOR);
+
+        return index < 0 ? value : value[..index];
+    }
+
     private static string NameOf(string? stringParam)
     {
         var value = stringParam ?? string.Empty;
