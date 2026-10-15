@@ -54,6 +54,16 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// Where the player's open contract transaction is now, for the <c>@transaction.*</c> user
+    /// variables; null once it ended.
+    /// </summary>
+    public Task ReportWiredTransactionProgressAsync(
+        PlayerId playerId,
+        WiredTransactionProgressSnapshot? progress,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Locks or unlocks the player's own chests here; with <paramref name="all"/>, the room's
     /// owner locks every chest in the room.
     /// </summary>

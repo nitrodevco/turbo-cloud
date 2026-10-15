@@ -180,6 +180,54 @@ public class WiredContractTests
     }
 
     [Fact]
+    public async Task The_room_hears_where_a_contract_trade_is_until_it_ends()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        var offered = new Queue<int>([1, 2]);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([
+                Item(offered.Dequeue(), CHAIR_SPRITE),
+            ]);
+        fakes.Handlers["CompleteWiredContractTradeAsync"] = _ =>
+            Task.FromResult<WiredTransactionFailureType?>(null);
+
+        await trade.StartContractAsync(
+            Request([Rule(Furni(Chair, 2))], TradeRequirementRulesType.Single, 1),
+            default
+        );
+        await trade.AddItemsAsync([1], default);
+        await trade.AddItemsAsync([2], default);
+        await trade.ConfirmAsync(false, default);
+        await trade.ConfirmAsync(true, default);
+
+        var reported = fakes
+            .Log.Of("ReportWiredTransactionProgressAsync")
+            .Select(x => (WiredTransactionProgressSnapshot?)x.Args[1])
+            .ToList();
+
+        reported
+            .Select(x =>
+                x is null ? "ended" : $"{x.ContractId.Value} {x.State} {x.CanAccept} {x.Multiplier}"
+            )
+            .Should()
+            .Equal(
+                $"{CONTRACT} AddingItems False 0",
+                $"{CONTRACT} AddingItems False 0",
+                $"{CONTRACT} AddingItems True 1",
+                $"{CONTRACT} Confirmed True 1",
+                "ended"
+            );
+        reported[0]!.StartedAtMs.Should().BeGreaterThan(0);
+        reported
+            .Take(4)
+            .Select(x => x!.StartedAtMs)
+            .Distinct()
+            .Should()
+            .ContainSingle("the trade keeps the time it opened");
+    }
+
+    [Fact]
     public async Task A_second_contract_is_refused_while_the_player_is_trading()
     {
         var fakes = new Fakes();
