@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
@@ -103,13 +104,19 @@ public class WiredActionPlaceFurni(
             WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
-    // The furni to place, the custom target, and where the value variable is read.
+    // The furni to place (the snapshot by default, or furni as they stand now), the custom
+    // target, and where the value variable is read (official client capture 2026-10-14:
+    // [0,100,101,110,200,201] / [0,100,101,200,201] x2, defaults 110, 0, 200).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.Furni, WiredSources.Furni];
+        [
+            [WiredFurniSourceType.SnapshotItems, .. WiredSources.FurniOrSecondary],
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
-    // The custom target, and where the value variable is read.
+    // The custom target, and where the value variable is read (recorded defaults 0, 200).
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.Users, WiredSources.Users];
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -161,9 +168,27 @@ public class WiredActionPlaceFurni(
                 or FurniturePetProductLogic
             );
 
+    /// <summary>
+    /// What is copied: the box's snapshot of the picked furni for "Use the snapshot", otherwise
+    /// the furni of slot 0 as they stand now (picked, secondary picks, triggering, selector or
+    /// signal furni).
+    /// </summary>
+    private List<(int Id, WiredFurniSnapshotEntry Entry)> FurniToPlace(IWiredContext ctx)
+    {
+        if (GetFurniSources()[0].Contains(WiredFurniSourceType.SnapshotItems))
+            return [.. GetFurniSnapshot().Select(x => (x.Key, x.Value))];
+
+        return
+        [
+            .. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0))
+                .Select(item => (item.ObjectId.Value, EntryOf(item))),
+        ];
+    }
+
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var sources = GetFurniSnapshot().Values.ToList();
+        var toPlace = FurniToPlace(ctx);
+        var sources = toPlace.Select(x => x.Entry).ToList();
 
         if (sources.Count == 0)
             return false;
@@ -199,7 +224,7 @@ public class WiredActionPlaceFurni(
         var placed = false;
         var failed = false;
 
-        foreach (var (sourceId, source) in GetFurniSnapshot())
+        foreach (var (sourceId, source) in toPlace)
         {
             // A box saved before the snapshot kept the furni's type copies the picked furni as it
             // is now, while it is still in the room.

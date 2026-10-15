@@ -132,6 +132,32 @@ public sealed class WiredOfficialSourcesTests
                 [Users, Users],
                 [0, 200]
             },
+            { typeof(WiredConditionItemMatches), "wf_cnd_match_snapshot", [Furni], [100], [], [] },
+            { typeof(WiredSelectorSelectedItems), "wf_slc_furni_picks", [], [], [], [] },
+            {
+                typeof(WiredAddonProjectile),
+                "wf_xtra_rotate_to_dir",
+                [
+                    [0, 100, 200, 201, 901],
+                    Furni,
+                    Furni,
+                ],
+                [901, 0, 0],
+                [Users, Users, Users],
+                [0, 0, 0]
+            },
+            {
+                typeof(WiredActionPlaceFurni),
+                "wf_act_place_furni",
+                [
+                    [0, 100, 101, 110, 200, 201],
+                    Both,
+                    Both,
+                ],
+                [110, 0, 200],
+                [Users, Users],
+                [0, 200]
+            },
             // Recorded 2026-10-14 on WIN63-202610131318.
             {
                 typeof(WiredActionBotTalk),

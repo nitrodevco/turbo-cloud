@@ -107,6 +107,26 @@ public sealed class WiredKeywordCaptureTests
         PriceValue().Should().Be(price);
     }
 
+    /// <summary>
+    /// A trailing exact-mode marker left empty takes the connector's line with no text ("9="),
+    /// and stops the trigger without one (official client capture).
+    /// </summary>
+    [Theory]
+    [InlineData("qr:7a", "9=\n5=a", 5)]
+    [InlineData("qr:7", "9=\n5=a", 9)]
+    [InlineData("qr:7", "5=a", 0)]
+    public async Task An_empty_trailing_marker_takes_the_connectors_empty_line(
+        string said,
+        string connector,
+        int price
+    )
+    {
+        await BuildAsync(1, "qr:#(q)#(p)", connector);
+        await SayAsync(said);
+
+        PriceValue().Should().Be(price);
+    }
+
     /// <summary>Every marker needs its own capturer; one without stops the trigger (official client capture).</summary>
     [Fact]
     public async Task A_marker_without_a_capturer_stops_the_trigger()

@@ -105,6 +105,21 @@ public class WiredAddonVariableCapturer(
                 out value
             );
 
+        // A trailing exact-mode marker left empty takes the connector's "0=" line, if it has one
+        // (official client capture).
+        if (typed.Length == 0)
+        {
+            if (
+                GetVariable(0) is not Variables.FurnitureWiredVariableLogic variable
+                || variable.GetEmptyTextValue() is not { } empty
+            )
+                return false;
+
+            value = empty.Value;
+
+            return true;
+        }
+
         var connectors = GetVariable(0)?.GetVarSnapshot().TextConnectors;
 
         if (connectors is null)

@@ -11,8 +11,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// Compares how many furni and users its inputs resolve to. Params: merged flag (kept for the
-/// client), the amount, and the three-way comparison.
+/// Compares how many furni or users its input resolves to. Params: what is counted (the
+/// editor's merged source picker: 1 the users slot, 0 the furni slot; AS3 1318
+/// conditions/_-42v.as:54-72), the amount, and the three-way comparison.
 /// </summary>
 [RoomObjectLogic("wf_cnd_slc_quantity")]
 public class WiredConditionSelectQuantity(
@@ -52,8 +53,9 @@ public class WiredConditionSelectQuantity(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var selection = ctx.GetSelection(this);
-        var count = selection.SelectedFurniIds.Count + selection.SelectedAvatarIds.Count;
+        var count = GetIntParamOrDefault(0, false)
+            ? WiredSlotSelection.ForUserSlot(this, ctx, 0).SelectedAvatarIds.Count
+            : WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds.Count;
 
         return WiredComparison.CompareThreeWay(
             GetIntParamOrDefault(2, 1),

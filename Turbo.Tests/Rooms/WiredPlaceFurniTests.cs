@@ -51,15 +51,19 @@ public sealed class WiredPlaceFurniTests
     private RoomFurniModule Furni => _room.Harness.Module<RoomFurniModule>();
 
     [Theory]
-    [InlineData(0, 0, 3, 3, false)]
-    [InlineData(2, -1, 5, 2, false)]
-    [InlineData(0, 0, 3, 3, true)]
+    [InlineData(0, 0, 3, 3, false, false)]
+    [InlineData(2, -1, 5, 2, false, false)]
+    [InlineData(0, 0, 3, 3, true, false)]
+    // "Use picked furnis" instead of the default "Use the snapshot" (official client capture,
+    // slot 0 [0,100,101,110,200,201] default 110): the lamp as it stands, no snapshot needed.
+    [InlineData(0, 0, 3, 3, false, true)]
     public async Task A_click_places_a_temporary_copy_of_the_lamp(
         int offsetX,
         int offsetY,
         int x,
         int y,
-        bool snapshotWithoutType
+        bool snapshotWithoutType,
+        bool pickedAsTheyStand
     )
     {
         _room.Enter(5, 7, 7);
@@ -101,11 +105,18 @@ public sealed class WiredPlaceFurniTests
                 2,
                 intParams: [0, 0, 0, offsetX, offsetY, 0, 0, 0, 0, 0],
                 stuffIds: [LAMP],
+                furniSources: pickedAsTheyStand
+                    ?
+                    [
+                        [WiredFurniSourceType.SelectedItems],
+                    ]
+                    : null,
                 definitionSpecifics: [0]
             )
-        )
-            .Should()
-            .BeTrue();
+        ).Should().BeTrue();
+
+        if (pickedAsTheyStand)
+            _room.FloorItem(2).ExtraData.DeleteSection(WiredFurniSnapshotEntry.SECTION);
 
         // A box saved before its snapshot kept each furni's type (before 20/09/2026).
         if (snapshotWithoutType)

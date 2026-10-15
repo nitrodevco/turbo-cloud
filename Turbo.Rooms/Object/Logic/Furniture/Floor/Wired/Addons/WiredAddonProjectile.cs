@@ -97,9 +97,16 @@ public class WiredAddonProjectile(
             new WiredRangeParamRule(CURVE_STRENGTH_MIN, CURVE_STRENGTH_MAX, 0),
         ];
 
-    // The projectiles, then where the time and the distance variables are read.
+    // The projectiles, then where the time and the distance variables are read. The projectiles
+    // default to every furni the stack moves; the time and distance slots to the
+    // triggering furni (official form contract: [0,100,200,201,901] default 901, then
+    // [0,100,200,201] x2 default 0).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.Furni, WiredSources.Furni];
+        [
+            [WiredFurniSourceType.MovedItems, .. WiredSources.Furni],
+            WiredSources.Furni.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.Furni.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+        ];
 
     // Where the time variable is read, the shooter, where the distance variable is read.
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
@@ -111,8 +118,10 @@ public class WiredAddonProjectile(
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         var projectiles = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_PROJECTILES));
+        var allMoved = GetFurniSources()[SLOT_PROJECTILES]
+            .Contains(WiredFurniSourceType.MovedItems);
 
-        if (projectiles.Count == 0)
+        if (projectiles.Count == 0 && !allMoved)
             return Task.FromResult(true);
 
         var distance = GetIntParamOrDefault(
@@ -139,6 +148,7 @@ public class WiredAddonProjectile(
         ctx.Policy.Projectile = new WiredProjectileSettings
         {
             ProjectileIds = projectiles.Select(x => x.ObjectId.Value).ToHashSet(),
+            AllMoved = allMoved,
             RotateBy = GetIntParamOrDefault(PARAM_ROTATE, false)
                 ? GetIntParamOrDefault(
                     PARAM_DIRECTIONAL_SYSTEM,

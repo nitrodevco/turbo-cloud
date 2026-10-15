@@ -627,6 +627,15 @@ public abstract class FurnitureWiredVariableLogic
             .GetFloorItemsOnTile(_ctx.GetTileIdx())
             .Any(item => item.Logic is Addons.WiredAddonVariableTextConnector);
 
+    /// <summary>The value a text connector on the same tile gives empty text ("0="), if any.</summary>
+    public WiredVariableValue? GetEmptyTextValue() =>
+        FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item =>
+                (item.Logic as Addons.WiredAddonVariableTextConnector)?.GetEmptyTextValue()
+            )
+            .FirstOrDefault(value => value is not null);
+
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
