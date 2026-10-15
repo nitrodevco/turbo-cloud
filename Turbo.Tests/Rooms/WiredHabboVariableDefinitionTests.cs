@@ -32,8 +32,8 @@ public sealed class WiredHabboVariableDefinitionTests
         "@handitem",
     ];
 
-    // Variables Habbo has that are not built: this hotel has no avatar level.
-    private static readonly HashSet<string> NotBuiltYet = ["@level"];
+    // Variables Habbo has that are not built yet.
+    private static readonly HashSet<string> NotBuiltYet = [];
 
     private readonly WiredRoom _room = new(8, 8);
 

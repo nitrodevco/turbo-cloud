@@ -10,8 +10,7 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// The editor lists internal variables by id, and the id is built from where a variable sits.
 /// These are the lists the official client's Creator Tools showed on 2026-10-08 (full names from
-/// the picker's tooltips), top to bottom (smart variables first; <c>@level</c>, the avatar level, is the one this hotel
-/// does not have).
+/// the picker's tooltips), top to bottom (smart variables first).
 /// </summary>
 public sealed class WiredOfficialVariableOrderTests
 {
@@ -65,6 +64,8 @@ public sealed class WiredOfficialVariableOrderTests
                 "@index",
                 "@type",
                 "@gender",
+                // Not on the 2026-10-08 list (that hotel lacked it); placed by the client's order.
+                "@level",
                 "@achievement_score",
                 "@is_hc",
                 "@has_rights",

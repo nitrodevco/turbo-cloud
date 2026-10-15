@@ -49,4 +49,11 @@ public sealed record PlayerSummarySnapshot
 
     [Id(13)]
     public required int RespectReplenishesLeft { get; init; }
+
+    /// <summary>
+    /// The level the profile shows (<c>ExtendedProfile.accountLevel</c>), which wired reads as
+    /// <c>@level</c>.
+    /// </summary>
+    [Id(14)]
+    public int AccountLevel { get; init; } = PlayerAccountLevel.DEFAULT;
 }
