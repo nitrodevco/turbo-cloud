@@ -148,6 +148,24 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
     public Task<int?> EjectAllAsync(CancellationToken ct) =>
         roomGrain.ActionModule.EjectAllAsync(action, ct);
 
+    public Task<int?> EjectPetsAsync(CancellationToken ct) =>
+        roomGrain.PetModule.EjectPetsAsync(action, ct);
+
+    public Task<int?> ResetScoresAsync(CancellationToken ct) =>
+        roomGrain.GameSystem.ResetHighscoresAsync(action, ct);
+
+    public bool TogglePetsMuted()
+    {
+        var mutedBy = roomGrain._state.PetsMutedBy;
+
+        if (mutedBy.Remove(action.PlayerId))
+            return false;
+
+        mutedBy.Add(action.PlayerId);
+
+        return true;
+    }
+
     public Task<bool> IsGroupRoomAsync(CancellationToken ct) => roomGrain.GetIsGroupRoomAsync(ct);
 
     public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>

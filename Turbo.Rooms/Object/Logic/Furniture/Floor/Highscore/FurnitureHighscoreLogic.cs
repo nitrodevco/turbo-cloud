@@ -64,6 +64,19 @@ public class FurnitureHighscoreLogic : FurnitureFloorLogic
         await OnStateChangedAsync(ct);
     }
 
+    /// <summary>Empties the board and shows the room it empty.</summary>
+    public async Task ResetAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        if (StuffData is not IHighscoreStuffData board || board.Entries.Count == 0)
+            return;
+
+        board.SetEntries([], HighscoreBoards.PeriodStart(_clearType, now));
+
+        PersistStuffData(true);
+
+        await OnStateChangedAsync(ct);
+    }
+
     private void ClearIfStale(IHighscoreStuffData board, DateTimeOffset now)
     {
         var period = HighscoreBoards.PeriodStart(_clearType, now);

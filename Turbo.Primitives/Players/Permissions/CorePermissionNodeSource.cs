@@ -158,6 +158,21 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             GrantedByDefault: true
         ),
         new(
+            PermissionNodes.Command.EJECTPETS,
+            "Use :ejectpets. Only the room's owner may send other people's pets home.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.RESETSCORES,
+            "Use :resetscores. Only someone with rights in the room may empty its leaderboards.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.MUTEPETS,
+            "Use :mutepets to stop or start hearing pets talk.",
+            GrantedByDefault: true
+        ),
+        new(
             PermissionNodes.Command.CONFIRM,
             "Use :confirm to go ahead with a command that asked to be confirmed.",
             GrantedByDefault: true

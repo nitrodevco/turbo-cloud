@@ -45,8 +45,8 @@ client provides implementation guidance; nitro-next handles input in `RoomChatIn
 | A whisper | never a command | never a command |
 
 AIR replaces a second word `x` with the name of the selected avatar, so `:kick x` arrives as
-`:kick Alice`. Turbo answers `:kick`, `:mute`, `:pickall`, `:pickallbc` and `:ejectall` from the
-second row; the rest are said out loud.
+`:kick Alice`. Turbo answers `:kick`, `:mute`, `:pickall`, `:pickallbc`, `:ejectall`, `:ejectpets`,
+`:resetscores` and `:mutepets` from the second row; the rest are said out loud.
 
 ### Plugin requirements
 
@@ -201,8 +201,9 @@ chat as it is now. Operator commands are in §4.1.
 | `:kick <who>`, `:mute <who> [minutes]` | `command.kick`, `command.mute` | a room | `RoomModerationModule`, which already refuses a target holding `room.moderate.any`. The client sends these as chat only from security level 4, so the nodes sit with `room.moderate.any`. |
 | `:pickall`, `:pickallbc` | `command.pickall`, `command.pickallbc` (granted by default) | — | `RoomActionModule.PickUpAllOwnedAsync`: every furni the executor owns in the room (`:pickallbc`: every Builders Club furni they borrowed) goes back to them, as picking each up would. Built. |
 | `:ejectall` | `command.ejectall` (granted by default) | the infostand's eject | `RoomActionModule.EjectAllAsync`, in a group room only (Habbo's habbopages/chat/commands: "Eject all furniture in a group room"): everybody else's furni goes back to its owners, the room owner's and the executor's own excepted, for whoever may eject one furni (owner, group admin, `room.furni.pickup_any`). Built. |
-| `:ejectpets` | `command.ejectpets` | owner | pets |
-| `:resetscores`, `:mutepets` | `command.resetscores`, `command.mutepets` | rights | game scores, pet chat |
+| `:ejectpets` | `command.ejectpets` (granted by default) | the room owner (or `room.control.any`), as the client gates it | `RoomPetModule.EjectPetsAsync`: every pet that is not the executor's goes back to its owner, as picking each up would. Built. |
+| `:resetscores` | `command.resetscores` (granted by default) | rights, as the client gates it | `RoomGameSystem.ResetHighscoresAsync`: every highscore board in the room is emptied. Built. |
+| `:mutepets` | `command.mutepets` (granted by default) | — | Habbo's habbopages/chat/commands: "Ignore pet chats". The executor stops hearing pets talk in the room until they say it again (`RoomLiveState.PetsMutedBy`). Built. |
 
 `:moonwalk`, `:habnam`, `:yyxxabxa` and `:mpgame` are client easter eggs and a game. Nothing
 needs them, so none is planned.

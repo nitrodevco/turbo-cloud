@@ -237,6 +237,28 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         return true;
     }
 
+    /// <summary>
+    /// <c>:ejectpets</c>: every pet that is not the player's own goes back to its owner, as the
+    /// player would pick each up. The Flash client sends the line only for the room's owner or a
+    /// controller of every room (<c>SessionDataManager.ejectPets</c>), which is who may pick up
+    /// another's pet. Null when the player is neither; otherwise how many left the room.
+    /// </summary>
+    public async Task<int?> EjectPetsAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
+            return null;
+
+        var ejected = 0;
+
+        foreach (var pet in Pets.Where(x => x.OwnerId != ctx.PlayerId).ToList())
+        {
+            if (await PickupPetAsync(ctx, pet.PetId, ct))
+                ejected++;
+        }
+
+        return ejected;
+    }
+
     private async Task<bool> AttachPetAsync(
         PetSnapshot snapshot,
         int tileIdx,

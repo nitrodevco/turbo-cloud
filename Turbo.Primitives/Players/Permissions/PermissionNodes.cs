@@ -140,6 +140,12 @@ public static class PermissionNodes
         public const string PICKALLBC = "command.pickallbc";
         public const string EJECTALL = "command.ejectall";
 
+        // The other lines the Flash client sends as chat on purpose (ChatInputWidgetHandler,
+        // SessionDataManager.resetScores and ejectPets).
+        public const string EJECTPETS = "command.ejectpets";
+        public const string RESETSCORES = "command.resetscores";
+        public const string MUTEPETS = "command.mutepets";
+
         /// <summary>Go ahead with a line the server asked to have confirmed.</summary>
         public const string CONFIRM = "command.confirm";
 
