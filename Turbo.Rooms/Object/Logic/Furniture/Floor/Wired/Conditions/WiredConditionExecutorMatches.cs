@@ -32,18 +32,40 @@ public class WiredConditionExecutorMatches(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(0, 7, 1)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    // The users to match, then the users to compare with: the user named in the box by default
+    // (sources.users.title.match.0 / .1, AS3 1318 TriggererMatches.as:72-75; official form
+    // contract users [0,200,201] default 0 and [0,101,200,201] default 101).
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            WiredSources.Users,
+            [
+                WiredPlayerSourceType.UserByName,
+                WiredPlayerSourceType.TriggeredUser,
+                WiredPlayerSourceType.SelectorUsers,
+                WiredPlayerSourceType.SignalUsers,
+            ],
+        ];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var mask = GetIntParamOrDefault(0, USER_TYPE_PLAYER);
         var wantedName = GetStringParam();
 
+        // By name, an empty name is any user; otherwise a user matches when it is one of the
+        // users to compare with (inference: the form contract gives the slot, not the rule).
+        var byName = GetPlayerSources()[1].Contains(WiredPlayerSourceType.UserByName);
+        var compareWith = byName
+            ? null
+            : WiredSlotSelection.ForUserSlot(this, ctx, 1).SelectedAvatarIds;
+
         return Quantify(
-            GetAvatars(ctx.GetSelection(this))
+            GetAvatars(WiredSlotSelection.ForUserSlot(this, ctx, 0))
                 .Select(avatar =>
                     (mask & KindOf(avatar)) != 0
-                    && (wantedName.Length == 0 || NamesMatch(avatar.Name, wantedName))
+                    && (
+                        compareWith?.Contains(avatar.ObjectId)
+                        ?? (wantedName.Length == 0 || NamesMatch(avatar.Name, wantedName))
+                    )
                 ),
             true
         );

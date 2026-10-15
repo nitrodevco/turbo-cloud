@@ -171,6 +171,14 @@ public sealed class WiredOfficialSourcesTests
                 [Users],
                 [200]
             },
+            {
+                typeof(WiredConditionExecutorMatches),
+                "wf_cnd_triggerer_match",
+                [],
+                [],
+                [Users, [0, 101, 200, 201]],
+                [0, 101]
+            },
             { typeof(WiredConditionTeamHasRank), "wf_cnd_team_has_rank", [], [], [Users], [0] },
             { typeof(WiredConditionTeamHasScore), "wf_cnd_team_has_score", [], [], [Users], [0] },
             // The other bot boxes: user slot 0 is the bots (sources.users.title.bots), the boxes
