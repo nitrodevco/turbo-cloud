@@ -739,6 +739,13 @@ internal sealed partial class RoomService(
                 ct
             )
             .ConfigureAwait(false);
+
+        // Last: the client takes a poll offer only for the room session it has (PollHandler
+        // .onPollOfferEvent). Where in the entry Habbo sends it is unrecorded.
+        await _grainFactory
+            .GetPlayerRoomPollGrain(ctx.PlayerId)
+            .OfferAsync(roomId, ct)
+            .ConfigureAwait(false);
     }
 
     public async Task ClickTileAsync(

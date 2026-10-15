@@ -12,6 +12,8 @@
 
 class [GrainType("jukebox")] Turbo.Rooms.Grains.Jukebox.JukeboxGrain
 
+class [GrainType("playerroompoll")] Turbo.Rooms.Grains.Polls.PlayerRoomPollGrain
+
 class [GrainType("roomdirectory")] Turbo.Rooms.Grains.RoomDirectoryGrain
 
 class [GrainType("room")] Turbo.Rooms.Grains.RoomGrain

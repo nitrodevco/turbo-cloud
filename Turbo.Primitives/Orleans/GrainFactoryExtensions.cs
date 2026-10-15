@@ -31,6 +31,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Polls;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -263,6 +264,11 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerHabbiconGrain>(playerId.Value);
+
+    public static IPlayerRoomPollGrain GetPlayerRoomPollGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerRoomPollGrain>(playerId.Value);
 
     public static IPlayerQuestGrain GetPlayerQuestGrain(
         this IGrainFactory factory,

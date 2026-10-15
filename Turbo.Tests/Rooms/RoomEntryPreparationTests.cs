@@ -233,6 +233,21 @@ public class RoomEntryPreparationTests
     }
 
     [Fact]
+    public async Task ApprovedEntry_AsksForTheRoomsPollOfferAfterTheEntry()
+    {
+        // The client takes a poll offer only for the room session it has (AS3
+        // PollHandler.onPollOfferEvent), so the player's polls are asked once the room is theirs.
+        var harness = await ApprovedHarnessAsync();
+
+        await OpenRoomAsync(harness);
+
+        var calls = harness.Fakes.Log.Calls.Select(x => x.Method).ToList();
+
+        Assert.Contains("OfferAsync", calls);
+        Assert.True(calls.LastIndexOf("SetActiveRoomAsync") < calls.IndexOf("OfferAsync"));
+    }
+
+    [Fact]
     public async Task ApprovedEntry_OpensWithEmptyNftChatStylesRightBeforeRoomReady()
     {
         // hhus, 2026-10-13: OpenConnection, UserNftChatStyles (00000000 for an account without

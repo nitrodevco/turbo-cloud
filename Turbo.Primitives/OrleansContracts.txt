@@ -647,6 +647,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomTradeGrain")] 
   C05D9E6F: OpenAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   07E4CBB1: RemoveItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
 
+interface [GrainInterfaceType("Turbo.Primitives.Rooms.Polls.IPlayerRoomPollGrain")] Turbo.Primitives.Rooms.Polls.IPlayerRoomPollGrain [Version(0)]
+  C2D0E49A: AnswerAsync(int, int, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
+  BA44A8DB: OfferAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
+  B8931EBB: RejectAsync(int, System.Threading.CancellationToken) -> Task
+  1D9AED6D: StartAsync(Turbo.Primitives.Rooms.RoomId, int, System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Sound.Grains.IJukeboxGrain")] Turbo.Primitives.Sound.Grains.IJukeboxGrain [Version(0)]
   AAFA99F7: AddDiskAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Object.RoomObjectId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Sound.Snapshots.JukeboxChangeResultSnapshot>
   067D2624: GetDisksAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Sound.Snapshots.SongDiskSnapshot>>
