@@ -47,7 +47,7 @@ public class WiredActionBotTalkToAvatar(
     {
         var (botName, text) = SplitParam();
 
-        if (text.Length == 0 || !TryGetBot(botName, out var bot))
+        if (text.Length == 0 || ResolveBots(ctx, SLOT_BOTS, botName) is not { Count: > 0 } bots)
             return false;
 
         text = await ctx.FormatTextAsync(text, ct);
@@ -56,20 +56,23 @@ public class WiredActionBotTalkToAvatar(
         var width = GetIntParamOrDefault(1, -1);
         int? bubbleWidth = width < 0 ? null : width;
         var hideName = GetIntParamOrDefault(2, false);
-        var players = GetPlayers(ctx.GetSelection(this));
+        var players = GetPlayers(TargetUsers(ctx));
 
         if (players.Count == 0)
             return false;
 
-        if (!whisper)
+        foreach (var bot in bots)
         {
-            await BotModule.TalkAsync(bot, text, false, bubbleWidth, hideName, ct);
+            if (!whisper)
+            {
+                await BotModule.TalkAsync(bot, text, false, bubbleWidth, hideName, ct);
 
-            return true;
+                continue;
+            }
+
+            foreach (var player in players)
+                await BotModule.WhisperAsync(bot, player, text, bubbleWidth, hideName, ct);
         }
-
-        foreach (var player in players)
-            await BotModule.WhisperAsync(bot, player, text, bubbleWidth, hideName, ct);
 
         return true;
     }

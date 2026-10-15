@@ -7,6 +7,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -40,7 +41,14 @@ public class WiredConditionTeamHasRank(
         return false;
     }
 
-    /// <summary>The configured team, or the teams of the triggering users when set to "triggerer".</summary>
+    // Whose team "Triggerer's team" is: the triggering user by default, or a selector's or a
+    // signal's users (official form contracts of Team Is Winning and Team Has Score).
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
+    /// <summary>
+    /// The configured team, or the teams of the user slot's users when set to "Triggerer's team"
+    /// (wiredfurni.params.team.triggerer).
+    /// </summary>
     protected IEnumerable<GameTeamType> ResolveTeams(
         GameTeamType configured,
         IWiredProcessingContext ctx
@@ -49,7 +57,7 @@ public class WiredConditionTeamHasRank(
         if (configured != GameTeamType.None)
             return [configured];
 
-        return GetPlayers(ctx.Selected)
+        return GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, 0))
             .Select(x => GameSystem.GetTeam(x.PlayerId))
             .Where(x => x != GameTeamType.None)
             .Distinct()

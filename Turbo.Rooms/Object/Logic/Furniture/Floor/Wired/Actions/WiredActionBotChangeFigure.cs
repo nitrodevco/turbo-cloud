@@ -24,10 +24,14 @@ public class WiredActionBotChangeFigure(
     {
         var (botName, figure) = SplitParam();
 
-        if (!FigureString.IsWellFormed(figure) || !TryGetBot(botName, out var bot))
+        if (
+            !FigureString.IsWellFormed(figure)
+            || ResolveBots(ctx, SLOT_BOTS, botName) is not { Count: > 0 } bots
+        )
             return false;
 
-        await BotModule.SetFigureAsync(bot, figure, bot.Gender, ct);
+        foreach (var bot in bots)
+            await BotModule.SetFigureAsync(bot, figure, bot.Gender, ct);
 
         return true;
     }

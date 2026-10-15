@@ -41,7 +41,24 @@ public sealed class WiredRemoteSelectionTests
             );
     }
 
-    private async Task<int[]> SelectAsync(int type, int filter)
+    /// <summary>
+    /// The selector boxes to run can also be the triggering or the signal furni (official form
+    /// contract of Remote Selector, [0,100,201], default 100).
+    /// </summary>
+    [Fact]
+    public async Task The_signal_furni_are_the_stacks_to_use()
+    {
+        var selected = await SelectAsync(0, 0, WiredFurniSourceType.SignalItems, signal: 2);
+
+        selected.Should().Equal(31, 32);
+    }
+
+    private async Task<int[]> SelectAsync(
+        int type,
+        int filter,
+        WiredFurniSourceType source = WiredFurniSourceType.SelectedItems,
+        int? signal = null
+    )
     {
         foreach (var id in new[] { 30, 31, 32 })
             _room.AddFloorItem(id, id - 29, 5);
@@ -59,7 +76,7 @@ public sealed class WiredRemoteSelectionTests
                 stuffIds: [1, 2],
                 furniSources:
                 [
-                    [WiredFurniSourceType.SelectedItems],
+                    [source],
                 ],
                 definitionSpecifics: [false, false]
             )
@@ -74,6 +91,9 @@ public sealed class WiredRemoteSelectionTests
                 StackIds = [],
             },
             Stack = _room.Harness.Fakes.Create<IWiredStack>(),
+            Signal = signal is { } signalId
+                ? new WiredSelectionSet { SelectedFurniIds = { signalId } }
+                : new WiredSelectionSet(),
         };
 
         var set = await remote.SelectAsync(ctx, TestContext.Current.CancellationToken);

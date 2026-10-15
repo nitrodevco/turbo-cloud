@@ -30,14 +30,14 @@ public class WiredConditionSelectQuantity(
             new WiredRangeParamRule(0, 2, 1),
         ];
 
+    // The selector's, the signal's or the triggering furni and users: no picks and no whole room
+    // (official form contract of Input Source Quantity, both slots [0,200,201], default 200).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [
                 WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SelectedItems,
                 WiredFurniSourceType.SignalItems,
                 WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.AllRoomItems,
             ],
         ];
 
@@ -47,7 +47,6 @@ public class WiredConditionSelectQuantity(
                 WiredPlayerSourceType.SelectorUsers,
                 WiredPlayerSourceType.TriggeredUser,
                 WiredPlayerSourceType.SignalUsers,
-                WiredPlayerSourceType.AllRoomUsers,
             ],
         ];
 
