@@ -115,7 +115,8 @@ public sealed record FurnitureDefinitionResponse(
     bool HabboFileRead,
     int States,
     string AssetName,
-    string[] Tags
+    string[] Tags,
+    string ServerFields
 )
 {
     public static FurnitureDefinitionResponse From(FurnitureDefinitionDetail detail) =>
@@ -129,6 +130,7 @@ public sealed record FurnitureDefinitionResponse(
             detail.HabboFileRead,
             detail.States,
             detail.AssetName,
-            [.. detail.Tags.Select(FurnitureTagNames.Of)]
+            [.. detail.Tags.Select(FurnitureTagNames.Of)],
+            detail.ServerFields
         );
 }

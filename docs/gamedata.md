@@ -16,6 +16,16 @@ The page's **Furniture** tab lists every floor and wall definition with its tags
 The list is filtered by words, kind and tag, with each tag counted; the tags are worked out once and
 kept until a definition, a bundle, an asset file, Habbo's release or a published catalog changes.
 
+A definition opened from the list edits every column it has: the furnidata fields, and the
+server's own (`logic`, `usagepolicy`, `cangroup`, `cansell`, `extradata`, and its identity,
+`classname` and `id`, its sprite id). The server's own are `FurnitureField.ServerOnly`: no Habbo
+item says anything of them, so an import never compares or writes them, while edits to them are
+change sets that roll back like any other. A classname another definition of the kind has, and a
+sprite id another has with the same special type, are refused; extra data must be a JSON object.
+The logic offered is every one the server has registered (`GET /api/gamedata/furniture/logics`),
+plugins' included; a name none registered is kept, and the furniture behaves as plain furniture.
+Whether it is floor or wall furniture is not edited: that changes which fields it has.
+
 ## How it works
 
 - **Habbo's releases.** Every `ReleaseCheckMinutes`, and when staff press **Check now**, Turbo reads

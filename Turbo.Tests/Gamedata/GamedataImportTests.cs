@@ -20,6 +20,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -195,6 +196,145 @@ public sealed class GamedataImportTests : IDisposable
         (await _furniture.PreviewImportAsync(next, Ct))!
             .Release.Id.Should()
             .Be(next);
+    }
+
+    [Fact]
+    public async Task the_servers_own_columns_are_edited_kept_through_imports_and_rolled_back()
+    {
+        await _furniture.ImportAsync(Release(1, Chair(xdim: 1)), STAFF, Ct);
+
+        var chairId = (await DefinitionsAsync()).Single().Id;
+        var edit = await _furniture.UpdateDefinitionAsync(
+            chairId,
+            new JsonObject
+            {
+                ["logic"] = "furniture_multistate",
+                ["usagepolicy"] = 2,
+                ["cangroup"] = false,
+                ["cansell"] = false,
+                ["extradata"] = """{ "crackable": { "hits": 5 } }""",
+            },
+            STAFF,
+            Ct
+        );
+
+        var chair = (await DefinitionsAsync()).Single();
+
+        chair.Logic.Should().Be("furniture_multistate");
+        chair.UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        chair.CanGroup.Should().BeFalse();
+        chair.CanSell.Should().BeFalse();
+        chair.ExtraData.Should().Contain("crackable");
+
+        // The editor is sent them beside the furnidata, which never carries them.
+        var server = JsonNode.Parse(edit!.ServerFields)!.AsObject();
+
+        server["logic"]!.GetValue<string>().Should().Be("furniture_multistate");
+        server["classname"]!.GetValue<string>().Should().Be("chair_norja");
+        server["id"]!.GetValue<int>().Should().Be(30);
+        JsonNode.Parse(edit.Item)!.AsObject().Should().NotContainKey("logic");
+
+        // Habbo's next release changes the chair; the server's own columns stay the hotel's.
+        await _furniture.ImportAsync(Release(2, Chair(xdim: 2)), STAFF, Ct);
+
+        chair = (await DefinitionsAsync()).Single();
+        chair.Width.Should().Be(2);
+        chair.Logic.Should().Be("furniture_multistate");
+        chair.Name.Should().Be("chair_norja");
+        chair.SpriteId.Should().Be(30);
+
+        // Rolling the edit back puts them back as they were.
+        await _history.RollbackAsync(EditSetOf(chairId), STAFF, Ct);
+
+        chair = (await DefinitionsAsync()).Single();
+        chair.Logic.Should().Be("default_floor");
+        chair.UsagePolicy.Should().Be(FurnitureUsageType.Controller);
+        chair.CanGroup.Should().BeTrue();
+        chair.ExtraData.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task a_server_column_it_cant_hold_or_an_identity_taken_is_refused_and_changes_nothing()
+    {
+        await _furniture.ImportAsync(Release(1, Chair(xdim: 1)), STAFF, Ct);
+
+        var chairId = (await DefinitionsAsync()).Single().Id;
+
+        _db.Insert(
+            new FurnitureDefinitionEntity
+            {
+                Id = 500,
+                SpriteId = 77,
+                Name = "my_table",
+                ProductType = ProductType.Floor,
+                FurniCategory = FurnitureCategory.Default,
+                Logic = "default_floor",
+                Width = 1,
+                Length = 1,
+                StackHeight = 1,
+                CanStack = true,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = true,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+            }
+        );
+
+        async Task RefusedAsync(JsonObject fields, string why)
+        {
+            var update = () => _furniture.UpdateDefinitionAsync(chairId, fields, STAFF, Ct);
+
+            (await update.Should().ThrowAsync<ArgumentException>())
+                .Which.Message.Should()
+                .Contain(why);
+        }
+
+        await RefusedAsync(new JsonObject { ["logic"] = "", ["name"] = "Changed" }, "logic");
+        await RefusedAsync(new JsonObject { ["logic"] = new string('x', 51) }, "at most 50");
+        await RefusedAsync(new JsonObject { ["usagepolicy"] = 7 }, "usagepolicy");
+        await RefusedAsync(new JsonObject { ["extradata"] = "[1, 2]" }, "JSON object");
+        await RefusedAsync(new JsonObject { ["extradata"] = "{ not json" }, "not JSON");
+        await RefusedAsync(new JsonObject { ["classname"] = "my_table" }, "my_table");
+        await RefusedAsync(new JsonObject { ["id"] = 77 }, "my_table");
+        await RefusedAsync(new JsonObject { ["id"] = 0 }, "above 0");
+
+        var chair = (await DefinitionsAsync()).Single(x => x.Id == chairId);
+
+        chair.PublicName.Should().Be("Chair");
+        chair.Logic.Should().Be("default_floor");
+
+        // A sprite id the other has under another special type is the chair's to take.
+        await _furniture.UpdateDefinitionAsync(
+            chairId,
+            new JsonObject
+            {
+                ["id"] = 77,
+                ["specialtype"] = 6,
+                ["classname"] = "chair_ours",
+            },
+            STAFF,
+            Ct
+        );
+
+        chair = (await DefinitionsAsync()).Single(x => x.Id == chairId);
+        (chair.SpriteId, chair.Name).Should().Be((77, "chair_ours"));
+    }
+
+    private int EditSetOf(int definitionId)
+    {
+        using var dbCtx = _db.CreateDbContext();
+
+        return dbCtx
+            .GamedataChangeSets.AsNoTracking()
+            .Where(x =>
+                x.Kind == GamedataChangeKind.Edit && x.Changes!.Any(c => c.RecordId == definitionId)
+            )
+            .OrderByDescending(x => x.Id)
+            .Select(x => x.Id)
+            .First();
     }
 
     [Fact]

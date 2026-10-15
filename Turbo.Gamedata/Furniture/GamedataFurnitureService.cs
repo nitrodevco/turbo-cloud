@@ -44,6 +44,9 @@ internal sealed class GamedataFurnitureService(
     ILogger<GamedataFurnitureService> logger
 ) : IGamedataFurnitureService
 {
+    // specialtype, which with the sprite id tells the client's furniture apart.
+    private const string SPECIAL_TYPE_KEY = "specialtype";
+
     private readonly GamedataConfig _config = config.Value;
     private readonly SemaphoreSlim _previewing = new(1, 1);
     private KeptPreview? _preview;
@@ -384,9 +387,14 @@ internal sealed class GamedataFurnitureService(
             )
                 throw new ArgumentException($"{key} can be at most {max} characters.", key);
 
+            if (field.Check(normalized) is { } problem)
+                throw new ArgumentException(problem, key);
+
             if (!FurnitureField.Same(normalized, field.Read(definition)))
                 incoming[key] = normalized;
         }
+
+        await CheckIdentityAsync(dbCtx, definition, incoming, ct).ConfigureAwait(false);
 
         if (incoming.Count > 0)
         {
@@ -434,6 +442,61 @@ internal sealed class GamedataFurnitureService(
 
         return await DetailAsync(dbCtx, definition, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Refuses a classname another definition of the kind has (an import would not know which is
+    /// Habbo's), and a sprite id and special type another of the kind has (the client tells
+    /// furniture apart by them; the table keeps them unique).
+    /// </summary>
+    private static async Task CheckIdentityAsync(
+        TurboDbContext dbCtx,
+        FurnitureDefinitionEntity definition,
+        IReadOnlyDictionary<string, JsonNode?> incoming,
+        CancellationToken ct
+    )
+    {
+        var others = dbCtx
+            .FurnitureDefinitions.AsNoTracking()
+            .Where(x => x.Id != definition.Id && x.ProductType == definition.ProductType);
+
+        if (incoming.TryGetValue(FurnitureRecords.CLASS_NAME_KEY, out var name))
+        {
+            var className = name!.GetValue<string>();
+
+            if (await others.AnyAsync(x => x.Name == className, ct).ConfigureAwait(false))
+                throw new ArgumentException(
+                    $"Another {Kind(definition)} definition is called {className}.",
+                    FurnitureRecords.CLASS_NAME_KEY
+                );
+        }
+
+        if (
+            incoming.ContainsKey(FurnitureRecords.SPRITE_ID_KEY)
+            || incoming.ContainsKey(SPECIAL_TYPE_KEY)
+        )
+        {
+            var spriteId = incoming.TryGetValue(FurnitureRecords.SPRITE_ID_KEY, out var id)
+                ? id!.GetValue<int>()
+                : definition.SpriteId;
+            var category = incoming.TryGetValue(SPECIAL_TYPE_KEY, out var special)
+                ? (FurnitureCategory)special!.GetValue<int>()
+                : definition.FurniCategory;
+            var taken = await others
+                .Where(x => x.SpriteId == spriteId && x.FurniCategory == category)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+
+            if (taken is not null)
+                throw new ArgumentException(
+                    $"{taken} has sprite id {spriteId} with that special type already.",
+                    FurnitureRecords.SPRITE_ID_KEY
+                );
+        }
+    }
+
+    private static string Kind(FurnitureDefinitionEntity definition) =>
+        definition.ProductType == ProductType.Wall ? "wall" : "floor";
 
     public async Task<HabboValuesPreview> PreviewHabboValuesAsync(
         IReadOnlyCollection<string> fields,
@@ -550,7 +613,7 @@ internal sealed class GamedataFurnitureService(
 
         foreach (var key in keys.Select(x => x.Trim()).Distinct())
             fields.Add(
-                FurnitureFields.ByKey.TryGetValue(key, out var field)
+                FurnitureFields.ByKey.TryGetValue(key, out var field) && !field.ServerOnly
                     ? field
                     : throw new ArgumentException(
                         $"{key} is not a field a furniture definition holds.",
@@ -671,6 +734,9 @@ internal sealed class GamedataFurnitureService(
             HabboFileRead = file is { Error: null },
             States = definition.TotalStates,
             AssetName = HabboFurnitureFiles.AssetName(definition.Name),
+            ServerFields = FurnitureRecords
+                .Fields(definition, FurnitureFields.All.Where(x => x.ServerOnly).Select(x => x.Key))
+                .ToJsonString(),
             Tags = listed?.Tags ?? [],
         };
     }

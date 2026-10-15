@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Logging;
@@ -33,6 +34,8 @@ public sealed class RoomObjectLogicProvider(
     private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
     private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];
     private readonly RoomConfig _roomConfig = roomConfig.Value;
+
+    public IReadOnlyList<string> LogicTypes => [.. _logics.Keys.Order(StringComparer.Ordinal)];
 
     public IDisposable RegisterLogic(
         string logicType,

@@ -49,4 +49,12 @@ public sealed record FurnitureDefinitionDetail
     /// <summary>Its tags, as the list gives them.</summary>
     [Id(9)]
     public required ImmutableArray<FurnitureTag> Tags { get; init; }
+
+    /// <summary>
+    /// The server's own columns, which furnidata does not carry, as a JSON object by their keys:
+    /// <c>classname</c>, <c>id</c>, <c>logic</c>, <c>usagepolicy</c>, <c>cangroup</c>,
+    /// <c>cansell</c>, <c>extradata</c>.
+    /// </summary>
+    [Id(10)]
+    public required string ServerFields { get; init; }
 }

@@ -17,6 +17,7 @@ using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Rooms.Providers;
 
 namespace Turbo.Admin.Api;
 
@@ -41,6 +42,7 @@ internal sealed class GamedataEndpoints(
     IGamedataFigureService figures,
     IPlayerClothingService clothing,
     AdminCatalogQueries catalog,
+    IRoomObjectLogicProvider logics,
     ILogger<GamedataEndpoints> logger
 )
 {
@@ -68,6 +70,7 @@ internal sealed class GamedataEndpoints(
             (string? q, string? type, string? tag, int? page, CancellationToken ct) =>
                 FurnitureListAsync(q, type, tag, page, ct)
         );
+        group.MapGet("/furniture/logics", () => Results.Ok(logics.LogicTypes));
         group.MapGet("/furniture/{id:int}", DefinitionAsync);
         group.MapPut("/furniture/{id:int}", UpdateDefinitionAsync);
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);

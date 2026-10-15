@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -12,4 +13,7 @@ public interface IRoomObjectLogicProvider
         Func<IServiceProvider, IRoomObjectContext, IRoomObjectLogic> factory
     );
     public IRoomObjectLogic CreateLogicInstance(string logicType, IRoomObjectContext ctx);
+
+    /// <summary>Every logic type registered now, plugins' included, by name.</summary>
+    public IReadOnlyList<string> LogicTypes { get; }
 }

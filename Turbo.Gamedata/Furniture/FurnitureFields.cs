@@ -1,15 +1,22 @@
+using System;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Gamedata.Furniture;
 
 /// <summary>
-/// The furnidata fields a definition holds: what an import takes from Habbo and staff may edit.
-/// The built file has its own order, Habbo's (<see cref="FurnitureDataWriter"/>). The item's identity (<c>id</c>, <c>classname</c>) is not among them, and nor
-/// are its offers (<c>offerid</c>, <c>buyout</c>, <c>bc</c>, <c>bcofferid</c>, ...), which are
-/// stamped from the catalog whenever the file is built (<see cref="FurnitureOfferStamps"/>).
+/// The fields a definition holds: the furnidata ones, which an import takes from Habbo and staff
+/// may edit, and the server's own columns, which only staff set.
+/// The built file has its own order, Habbo's (<see cref="FurnitureDataWriter"/>). The item's
+/// identity (<c>id</c>, <c>classname</c>) is among the server's own: staff may change it, an
+/// import matches by it and never writes it. Its offers (<c>offerid</c>, <c>buyout</c>,
+/// <c>bc</c>, <c>bcofferid</c>, ...) are not fields at all: they are stamped from the catalog
+/// whenever the file is built (<see cref="FurnitureOfferStamps"/>).
 /// </summary>
 internal static class FurnitureFields
 {
@@ -77,7 +84,81 @@ internal static class FurnitureFields
             (e, v) => e.TotalStates = v,
             fromFile: true
         ),
+        // The server's own columns: neither furnidata nor Habbo's files have them, so an import
+        // never touches them (FurnitureField.ServerOnly). The classname and sprite id are the
+        // keys a made definition's record names them by (FurnitureRecords).
+        FurnitureField.Text(
+            FurnitureRecords.CLASS_NAME_KEY,
+            null,
+            e => e.Name,
+            (e, v) => e.Name = v ?? string.Empty,
+            serverOnly: true,
+            check: v => Required(v, "classname")
+        ),
+        FurnitureField.Int(
+            FurnitureRecords.SPRITE_ID_KEY,
+            e => e.SpriteId,
+            (e, v) => e.SpriteId = v,
+            serverOnly: true,
+            check: v => v?.GetValue<int>() > 0 ? null : "id must be above 0."
+        ),
+        FurnitureField.Text(
+            FurnitureRecords.LOGIC_KEY,
+            50,
+            e => e.Logic,
+            (e, v) => e.Logic = v ?? string.Empty,
+            serverOnly: true,
+            check: v => Required(v, "logic")
+        ),
+        FurnitureField.Int(
+            "usagepolicy",
+            e => (int)e.UsagePolicy,
+            (e, v) => e.UsagePolicy = (FurnitureUsageType)v,
+            serverOnly: true,
+            check: v =>
+                Enum.IsDefined((FurnitureUsageType)v!.GetValue<int>())
+                    ? null
+                    : "usagepolicy is 0 (nobody), 1 (rights holders) or 2 (everybody)."
+        ),
+        FurnitureField.Bool(
+            "cangroup",
+            e => e.CanGroup,
+            (e, v) => e.CanGroup = v,
+            serverOnly: true
+        ),
+        FurnitureField.Bool("cansell", e => e.CanSell, (e, v) => e.CanSell = v, serverOnly: true),
+        FurnitureField.Text(
+            "extradata",
+            null,
+            e => e.ExtraData,
+            (e, v) => e.ExtraData = string.IsNullOrWhiteSpace(v) ? null : v,
+            serverOnly: true,
+            check: JsonObjectOrEmpty
+        ),
     ];
+
+    private static string? Required(JsonNode? value, string key) =>
+        value?.GetValue<string>() is { } text && text.Trim().Length > 0 && text == text.Trim()
+            ? null
+            : $"{key} can't be empty or start or end with spaces.";
+
+    /// <summary>Extra data is named JSON sections: an object, or nothing.</summary>
+    private static string? JsonObjectOrEmpty(JsonNode? value)
+    {
+        var text = value?.GetValue<string>();
+
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        try
+        {
+            return JsonNode.Parse(text) is JsonObject ? null : "extradata must be a JSON object.";
+        }
+        catch (JsonException ex)
+        {
+            return $"extradata is not JSON: {ex.Message}";
+        }
+    }
 
     public static readonly FrozenDictionary<string, FurnitureField> ByKey = All.ToFrozenDictionary(
         x => x.Key

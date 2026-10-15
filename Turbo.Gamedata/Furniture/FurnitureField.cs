@@ -16,6 +16,7 @@ internal sealed class FurnitureField
     private readonly Func<FurnitureDefinitionEntity, JsonNode?> _read;
     private readonly Action<FurnitureDefinitionEntity, JsonNode?> _write;
     private readonly Func<JsonNode?, JsonNode?> _normalize;
+    private readonly Func<JsonNode?, string?>? _check;
 
     private FurnitureField(
         string key,
@@ -25,7 +26,9 @@ internal sealed class FurnitureField
         bool fromFile,
         Func<FurnitureDefinitionEntity, JsonNode?> read,
         Action<FurnitureDefinitionEntity, JsonNode?> write,
-        Func<JsonNode?, JsonNode?> normalize
+        Func<JsonNode?, JsonNode?> normalize,
+        bool serverOnly = false,
+        Func<JsonNode?, string?>? check = null
     )
     {
         Key = key;
@@ -33,9 +36,11 @@ internal sealed class FurnitureField
         ClientOnly = clientOnly;
         MaxLength = maxLength;
         FromFile = fromFile;
+        ServerOnly = serverOnly;
         _read = read;
         _write = write;
         _normalize = normalize;
+        _check = check;
     }
 
     /// <summary>The furnidata key.</summary>
@@ -60,8 +65,18 @@ internal sealed class FurnitureField
     /// </summary>
     public bool FromFile { get; }
 
+    /// <summary>
+    /// Neither furnidata nor Habbo's asset files have it: a column of the server's own (the logic,
+    /// who may use it, the classname and sprite id it is known by). Only staff set it; an import
+    /// never compares or writes it, even where Habbo's item has a key of that name.
+    /// </summary>
+    public bool ServerOnly { get; }
+
     /// <summary>Whether this Habbo item says anything of the field.</summary>
-    public bool IsIn(JsonObject habbo) => !FromFile || habbo.ContainsKey(Key);
+    public bool IsIn(JsonObject habbo) => !ServerOnly && (!FromFile || habbo.ContainsKey(Key));
+
+    /// <summary>Why a value (as <see cref="Normalize"/> gives it) can't be the field's; null when it can.</summary>
+    public string? Check(JsonNode? value) => _check?.Invoke(value);
 
     public JsonNode? Read(FurnitureDefinitionEntity definition) => _read(definition);
 
@@ -83,7 +98,9 @@ internal sealed class FurnitureField
         Action<FurnitureDefinitionEntity, int> set,
         bool floorOnly = false,
         bool clientOnly = false,
-        bool fromFile = false
+        bool fromFile = false,
+        bool serverOnly = false,
+        Func<JsonNode?, string?>? check = null
     ) =>
         new(
             key,
@@ -93,7 +110,9 @@ internal sealed class FurnitureField
             fromFile,
             e => JsonValue.Create(get(e)),
             (e, v) => set(e, FurnitureValues.ToInt(v, key)),
-            v => JsonValue.Create(FurnitureValues.ToInt(v, key))
+            v => JsonValue.Create(FurnitureValues.ToInt(v, key)),
+            serverOnly,
+            check
         );
 
     public static FurnitureField Bool(
@@ -101,7 +120,8 @@ internal sealed class FurnitureField
         Func<FurnitureDefinitionEntity, bool> get,
         Action<FurnitureDefinitionEntity, bool> set,
         bool floorOnly = false,
-        bool clientOnly = false
+        bool clientOnly = false,
+        bool serverOnly = false
     ) =>
         new(
             key,
@@ -111,7 +131,8 @@ internal sealed class FurnitureField
             false,
             e => JsonValue.Create(get(e)),
             (e, v) => set(e, FurnitureValues.ToBool(v, key)),
-            v => JsonValue.Create(FurnitureValues.ToBool(v, key))
+            v => JsonValue.Create(FurnitureValues.ToBool(v, key)),
+            serverOnly
         );
 
     /// <summary>A number the column keeps to <paramref name="decimals"/> places.</summary>
@@ -138,7 +159,9 @@ internal sealed class FurnitureField
         int? maxLength,
         Func<FurnitureDefinitionEntity, string?> get,
         Action<FurnitureDefinitionEntity, string?> set,
-        bool floorOnly = false
+        bool floorOnly = false,
+        bool serverOnly = false,
+        Func<JsonNode?, string?>? check = null
     ) =>
         new(
             key,
@@ -148,7 +171,9 @@ internal sealed class FurnitureField
             false,
             e => get(e) is { } text ? JsonValue.Create(text) : null,
             (e, v) => set(e, FurnitureValues.ToText(v, key)),
-            v => FurnitureValues.ToText(v, key) is { } text ? JsonValue.Create(text) : null
+            v => FurnitureValues.ToText(v, key) is { } text ? JsonValue.Create(text) : null,
+            serverOnly,
+            check
         );
 
     public static FurnitureField Colors(
