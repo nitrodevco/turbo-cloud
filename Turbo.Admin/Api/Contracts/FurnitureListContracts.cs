@@ -65,7 +65,10 @@ public sealed record FurnitureListItemResponse(
     string? FurniLine,
     string? Category,
     string AssetName,
-    string[] Tags
+    string[] Tags,
+    string? BundleRevision,
+    long? BundleSize,
+    string? BundleSource
 )
 {
     public static FurnitureListItemResponse From(FurnitureListItem item) =>
@@ -78,7 +81,10 @@ public sealed record FurnitureListItemResponse(
             item.FurniLine,
             item.Category,
             item.AssetName,
-            [.. item.Tags.Select(FurnitureTagNames.Of)]
+            [.. item.Tags.Select(FurnitureTagNames.Of)],
+            item.BundleRevision,
+            item.BundleSize,
+            item.BundleSource is { } source ? AssetContractNames.Of(source) : null
         );
 }
 

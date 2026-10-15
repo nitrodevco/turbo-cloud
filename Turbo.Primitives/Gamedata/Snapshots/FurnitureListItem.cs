@@ -38,4 +38,16 @@ public sealed record FurnitureListItem
 
     [Id(8)]
     public required ImmutableArray<FurnitureTag> Tags { get; init; }
+
+    /// <summary>Its bundle's revision; null without a bundle file, or for an upload.</summary>
+    [Id(9)]
+    public string? BundleRevision { get; init; }
+
+    /// <summary>Its bundle's size in bytes; null without a bundle file.</summary>
+    [Id(10)]
+    public long? BundleSize { get; init; }
+
+    /// <summary>Where its bundle came from; null without a bundle file.</summary>
+    [Id(11)]
+    public AssetBundleSource? BundleSource { get; init; }
 }

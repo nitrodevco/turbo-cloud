@@ -99,7 +99,14 @@ internal sealed class FurnitureStatusIndex(
             await dbCtx
                 .AssetBundles.AsNoTracking()
                 .Where(x => x.Kind == AssetBundleKind.Furniture)
-                .Select(x => new Bundle(x.Name, x.Hash != null, x.Error, x.Source, x.Revision))
+                .Select(x => new Bundle(
+                    x.Name,
+                    x.Hash != null,
+                    x.Error,
+                    x.Source,
+                    x.Revision,
+                    x.Size
+                ))
                 .ToListAsync(ct)
                 .ConfigureAwait(false)
         ).ToDictionary(x => x.Name, StringComparer.Ordinal);
@@ -131,6 +138,9 @@ internal sealed class FurnitureStatusIndex(
                             ? JsonNode.Parse(data) as JsonObject
                             : null;
                     var asset = HabboFurnitureFiles.AssetName(definition.Name);
+                    var bundle = bundles.GetValueOrDefault(asset) is { HasFile: true } kept
+                        ? kept
+                        : null;
 
                     return new FurnitureListItem
                     {
@@ -142,6 +152,9 @@ internal sealed class FurnitureStatusIndex(
                         FurniLine = definition.FurniLine,
                         Category = definition.ClientCategory,
                         AssetName = asset,
+                        BundleRevision = bundle?.Revision,
+                        BundleSize = bundle?.Size,
+                        BundleSource = bundle?.Source,
                         Tags = TagsOf(
                             definition,
                             habbo,
@@ -279,7 +292,8 @@ internal sealed class FurnitureStatusIndex(
         bool HasFile,
         string? Error,
         AssetBundleSource Source,
-        string? Revision
+        string? Revision,
+        long Size
     );
 
     private sealed record Key(

@@ -150,6 +150,24 @@ public sealed class FurnitureListTests : IDisposable
         tags["chair_norja"].Should().Equal(FurnitureTag.Edited);
         tags["lamp"].Should().Equal(FurnitureTag.HabboUpdate, FurnitureTag.BundleOutdated);
 
+        // Each definition says what its bundle is, so the list shows bundles beside furniture.
+        var listed = (await _furniture.ListAsync(null, null, null, 0, Ct)).Items.ToDictionary(x =>
+            x.ClassName
+        );
+
+        listed["chair_norja"]
+            .Should()
+            .Match<Turbo.Primitives.Gamedata.Snapshots.FurnitureListItem>(x =>
+                x.BundleRevision == "61856"
+                && x.BundleSize == 10
+                && x.BundleSource == AssetBundleSource.Habbo
+            );
+        listed["my_sofa"]
+            .Should()
+            .Match<Turbo.Primitives.Gamedata.Snapshots.FurnitureListItem>(x =>
+                x.BundleRevision == null && x.BundleSize == null && x.BundleSource == null
+            );
+
         var detail = await _furniture.GetDefinitionAsync(ids["chair_norja"], Ct);
 
         detail!.Tags.Should().Equal(FurnitureTag.Edited);
