@@ -162,6 +162,42 @@ public sealed class GamedataImportTests : IDisposable
     }
 
     [Fact]
+    public async Task a_preview_is_worked_out_once_until_what_it_is_made_from_changes()
+    {
+        await _furniture.ImportAsync(Release(1, Chair(xdim: 1)), STAFF, Ct);
+
+        var next = Release(2, Chair(xdim: 2));
+        var first = await _furniture.PreviewImportAsync(null, Ct);
+
+        // Asked again (the panel's tabs, a window focused again) it is the same, not read anew.
+        (await _furniture.PreviewImportAsync(null, Ct))
+            .Should()
+            .BeSameAs(first);
+        first!.Release.Id.Should().Be(next);
+        first.Updated.Should().Be(1);
+
+        // A definition changed: the preview is worked out again and says so.
+        var chairId = (await DefinitionsAsync()).Single().Id;
+
+        await _furniture.UpdateDefinitionAsync(chairId, new JsonObject { ["xdim"] = 2 }, STAFF, Ct);
+
+        var edited = await _furniture.PreviewImportAsync(null, Ct);
+
+        edited.Should().NotBeSameAs(first);
+        edited!.Updated.Should().Be(0);
+
+        // A newer release found: worked out again for it.
+        var third = Release(3, Chair(xdim: 3));
+
+        (await _furniture.PreviewImportAsync(null, Ct))!.Release.Id.Should().Be(third);
+
+        // An older release asked for by id is its own preview.
+        (await _furniture.PreviewImportAsync(next, Ct))!
+            .Release.Id.Should()
+            .Be(next);
+    }
+
+    [Fact]
     public async Task a_habbo_id_the_hotel_uses_for_its_own_furniture_gives_the_new_item_a_free_one()
     {
         _db.Insert(Definition(30, "my_own_chair"));

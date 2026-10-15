@@ -45,6 +45,8 @@ internal sealed class GamedataFurnitureService(
 ) : IGamedataFurnitureService
 {
     private readonly GamedataConfig _config = config.Value;
+    private readonly SemaphoreSlim _previewing = new(1, 1);
+    private KeptPreview? _preview;
 
     public async Task<FurnitureImportPreview?> PreviewImportAsync(
         int? releaseId,
@@ -54,6 +56,41 @@ internal sealed class GamedataFurnitureService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
+        // Working a preview out reads every definition and the whole release, a few hundred MB
+        // for a full hotel: it is kept, and worked out again only once what it is made from has
+        // changed. One at a time, so the panel's tabs asking together work it out once.
+        var version = await FurnitureDataVersion
+            .ReadAsync(dbCtx, _config.HabboDomain, ct)
+            .ConfigureAwait(false);
+
+        if (_preview is { } kept && kept.Version == version && kept.Asked == releaseId)
+            return kept.Preview;
+
+        await _previewing.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            if (_preview is { } done && done.Version == version && done.Asked == releaseId)
+                return done.Preview;
+
+            var preview = await WorkOutPreviewAsync(dbCtx, releaseId, ct).ConfigureAwait(false);
+
+            _preview = preview is null ? null : new KeptPreview(version, releaseId, preview);
+
+            return preview;
+        }
+        finally
+        {
+            _previewing.Release();
+        }
+    }
+
+    private async Task<FurnitureImportPreview?> WorkOutPreviewAsync(
+        TurboDbContext dbCtx,
+        int? releaseId,
+        CancellationToken ct
+    )
+    {
         var release = await FindReleaseAsync(dbCtx, releaseId, ct).ConfigureAwait(false);
 
         if (release is null)
@@ -831,4 +868,11 @@ internal sealed class GamedataFurnitureService(
             return id;
         }
     }
+
+    /// <summary>A preview, the release it was asked for (null: the newest), and what it was worked out from.</summary>
+    private sealed record KeptPreview(
+        FurnitureDataVersion Version,
+        int? Asked,
+        FurnitureImportPreview Preview
+    );
 }
