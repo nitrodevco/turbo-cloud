@@ -5926,6 +5926,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("purchased_days_subscribed");
 
+                    b.Property<DateTime?>("RunStartedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("run_started_at");
+
                     b.Property<int>("SubscriptionType")
                         .HasColumnType("int")
                         .HasDefaultValue(0)

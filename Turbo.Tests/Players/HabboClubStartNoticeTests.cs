@@ -99,6 +99,121 @@ public sealed class HabboClubStartNoticeTests : IDisposable
             .NotContain(x => x is BuildersClubSubscriptionStatusMessageComposer);
     }
 
+    /// <summary>
+    /// The same capture: a fresh 31 days reads <c>daysToPeriodEnd</c> 31,
+    /// <c>periodsSubscribedAhead</c> 0, <c>minutesUntilExpiration</c> 44639. The client adds the
+    /// two back up as periods * 31 + days (ClubBuyCatalogWidget.as:96, PurseClubArea.as:92), so
+    /// every length splits the same way: the period being served is never one ahead.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 1, 0)]
+    [InlineData(3, 3, 0)]
+    [InlineData(7, 7, 0)]
+    [InlineData(30, 30, 0)]
+    [InlineData(31, 31, 0)]
+    [InlineData(32, 1, 1)]
+    [InlineData(62, 31, 1)]
+    [InlineData(93, 31, 2)]
+    [InlineData(186, 31, 5)]
+    [InlineData(365, 24, 11)]
+    public async Task The_club_info_splits_the_days_left_into_the_period_being_served_and_whole_periods_ahead(
+        int days,
+        int daysToPeriodEnd,
+        int periodsAhead
+    )
+    {
+        await Grain().ExtendAsync(SubscriptionType.HabboClub, days, Ct);
+
+        var info = SentClubInfo();
+
+        info.DaysToPeriodEnd.Should().Be(daysToPeriodEnd);
+        info.PeriodsSubscribedAhead.Should().Be(periodsAhead);
+        (info.PeriodsSubscribedAhead * 31 + info.DaysToPeriodEnd).Should().Be(days);
+        info.MinutesUntilExpiration.Should().BeInRange(days * 24 * 60 - 1, days * 24 * 60);
+    }
+
+    [Fact]
+    public async Task Member_periods_count_the_periods_already_served_not_the_new_one()
+    {
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddYears(-10),
+                ExpiresAt = DateTime.UtcNow.AddYears(-1),
+                TotalDaysSubscribed = 566,
+            }
+        );
+
+        await Grain().ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
+
+        var info = SentClubInfo();
+
+        info.MemberPeriods.Should().Be(18);
+        info.PastClubDays.Should().Be(566);
+        info.DaysToPeriodEnd.Should().Be(31);
+        info.PeriodsSubscribedAhead.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_membership_that_starts_again_starts_a_new_streak()
+    {
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddYears(-10),
+                RunStartedAt = DateTime.UtcNow.AddYears(-3),
+                ExpiresAt = DateTime.UtcNow.AddYears(-1),
+                TotalDaysSubscribed = 566,
+            }
+        );
+        var grain = Grain();
+
+        await grain.ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
+
+        (await grain.GetAsync(SubscriptionType.HabboClub, Ct)).CurrentStreakDays.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_membership_extended_while_it_runs_keeps_its_streak()
+    {
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddDays(-40),
+                RunStartedAt = DateTime.UtcNow.AddDays(-40).AddHours(-1),
+                ExpiresAt = DateTime.UtcNow.AddDays(22),
+                TotalDaysSubscribed = 62,
+            }
+        );
+        var grain = Grain();
+
+        await grain.ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
+
+        (await grain.GetAsync(SubscriptionType.HabboClub, Ct)).CurrentStreakDays.Should().Be(40);
+    }
+
+    private IPlayerSubscriptionGrain Grain() =>
+        (IPlayerSubscriptionGrain)
+            GrainHarness.Create(
+                typeof(PlayerModule).Assembly,
+                "Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain",
+                _fakes,
+                _db
+            );
+
+    private ScrSendUserInfoMessageComposer SentClubInfo() =>
+        _fakes
+            .Log.Of("SendComposerAsync")
+            .Select(x => x.Args[0])
+            .OfType<ScrSendUserInfoMessageComposer>()
+            .Single();
+
     [Fact]
     public async Task The_club_info_asked_for_is_followed_by_the_gift_notice_when_gifts_wait()
     {

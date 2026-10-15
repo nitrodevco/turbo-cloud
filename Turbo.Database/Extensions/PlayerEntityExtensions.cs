@@ -59,6 +59,9 @@ public static class PlayerEntityExtensions
             MinutesSinceLastModified = MinutesSince(entity.UpdatedAt, now),
             ExpiresAt = entity.ExpiresAt,
             FirstSubscribedAt = entity.FirstSubscribedAt,
+            DaysIntoRun = entity.RunStartedAt is { } started
+                ? (int)Math.Max(0, (now - started).TotalDays)
+                : null,
         };
     }
 

@@ -29,6 +29,13 @@ public class PlayerSubscriptionEntity : TurboEntity
     [Column("first_subscribed_at")]
     public DateTime? FirstSubscribedAt { get; set; }
 
+    /// <summary>
+    /// When the membership running now started: set when a grant finds it lapsed or never
+    /// started, kept while grants extend it. Null on rows written before it was kept.
+    /// </summary>
+    [Column("run_started_at")]
+    public DateTime? RunStartedAt { get; set; }
+
     /// <summary>Days ever granted, across every purchase. Never goes down.</summary>
     [Column("total_days_subscribed")]
     [DefaultValue(0)]
