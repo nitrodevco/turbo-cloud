@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms;
@@ -23,6 +24,9 @@ internal sealed class WiredTradeSession
 
     /// <summary>The contract's trade; null for a deposit.</summary>
     public WiredContractTradeRequest? Contract { get; init; }
+
+    /// <summary>When the trade opened, in Unix milliseconds (<c>@transaction.start_time</c>).</summary>
+    public long StartedAtMs { get; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     /// <summary>The offered items as the inventory held them when offered, in offer order.</summary>
     public List<FurnitureItemSnapshot> Offer { get; } = [];

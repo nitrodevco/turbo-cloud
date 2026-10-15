@@ -562,6 +562,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   80E75E50: RemoveWiredVariableFromAllHoldersAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, System.Threading.CancellationToken) -> Task<bool>
   1070F674: ReplaceVariableLeaderboardSubscriptionAsync(Turbo.Primitives.Action.ActionContext, int, int, string, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Networking.IComposer>>
   1F4E3E73: ReportWiredTransactionFailedAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.WiredTrading.Enums.WiredTransactionFailureType, System.Threading.CancellationToken) -> Task
+  D2644E67: ReportWiredTransactionProgressAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.WiredTrading.Snapshots.WiredTransactionProgressSnapshot?, System.Threading.CancellationToken) -> Task
   0027F358: RequestBotCommandConfigurationAsync(Turbo.Primitives.Action.ActionContext, int, Turbo.Primitives.Bots.Enums.BotSkillType, System.Threading.CancellationToken) -> Task<bool>
   CB583C1D: RequestPetCommandsAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   E8F24721: RequestPetInfoAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
