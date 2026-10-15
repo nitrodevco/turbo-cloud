@@ -40,6 +40,7 @@ public static class RoomEntityExtensions
             StaffPick = entity.StaffPick,
             ActiveEvent = activeEvent?.ToSnapshot(ownerName),
             HiddenByBc = entity.HiddenByBc,
+            HideOwner = entity.HideOwner,
             LastUpdatedUtc = nowUtc,
         };
 

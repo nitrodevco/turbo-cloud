@@ -60,4 +60,12 @@ public record RoomInfoSnapshot : RoomSummarySnapshot
     /// </summary>
     [Id(13)]
     public GuildSummarySnapshot? Guild { get; init; }
+
+    /// <summary>
+    /// The owner's name is left off the room's card and info (GuestRoomData's show-owner bit),
+    /// as Habbo does for its official rooms: every recorded room of official_rooms has it off
+    /// (84 of 84, official client capture, WIN63-202610131318), and so do a few players' rooms.
+    /// </summary>
+    [Id(14)]
+    public bool HideOwner { get; init; }
 }
