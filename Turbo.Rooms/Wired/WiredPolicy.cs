@@ -21,6 +21,8 @@ public sealed class WiredPolicy : IWiredPolicy
     public WiredCarryUserType? CarryUsers { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; } = WiredMovePhysicsFlags.None;
     public IReadOnlySet<RoomObjectId>? MoveThroughUserIds { get; set; }
+    public IReadOnlySet<int>? MoveThroughFurniIds { get; set; }
+    public IReadOnlySet<int>? BlockedByFurniIds { get; set; }
     public int? JumpStrength { get; set; }
     public WiredProjectileSettings? Projectile { get; set; }
     public IWiredContractSource? CustomContract { get; set; }

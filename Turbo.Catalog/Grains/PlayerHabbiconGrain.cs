@@ -235,6 +235,27 @@ internal sealed class PlayerHabbiconGrain : Grain, IPlayerHabbiconGrain
         );
     }
 
+    public async Task<bool> GiveAsync(int habbiconId, CancellationToken ct)
+    {
+        if (!_config.Enabled || !TryFind(habbiconId, out var collection, out _))
+            return false;
+
+        if (IsOwned(habbiconId))
+            return true;
+
+        var completedBefore = IsCompleted(collection);
+
+        if (!await SaveAsync([habbiconId], HabbiconState.Owned, ct))
+            return false;
+
+        await SendStatusAsync(habbiconId, ct);
+
+        if (!completedBefore && IsCompleted(collection) && collection.RewardHabbiconId > 0)
+            await SendStatusAsync(collection.RewardHabbiconId, ct);
+
+        return true;
+    }
+
     public async Task SetFavouriteAsync(int habbiconId, bool favourite, CancellationToken ct)
     {
         if (!_config.Enabled || !IsOwned(habbiconId))

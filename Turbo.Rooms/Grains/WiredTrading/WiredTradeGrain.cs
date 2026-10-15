@@ -156,6 +156,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
                 Timeout.InfiniteTimeSpan
             );
 
+        await ReportProgressAsync(_state.Session, ct);
+
         await SendAsync(
             [
                 new WiredTradeInitiateMessageComposer
@@ -234,6 +236,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
 
         session.IsAccepted = false;
 
+        await ReportProgressAsync(session, ct);
+
         List<IComposer> composers = [BuildItemsUpdate(session)];
 
         if (error is { } refused)
@@ -252,6 +256,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         session.Offer.RemoveAll(x => removed.Contains(x.ItemId));
         session.IsAccepted = false;
 
+        await ReportProgressAsync(session, ct);
+
         await SendAsync([BuildItemsUpdate(session)], ct);
     }
 
@@ -263,6 +269,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         if (!isFinalConfirm)
         {
             session.IsAccepted = true;
+
+            await ReportProgressAsync(session, ct);
 
             return;
         }
@@ -279,6 +287,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
 
         // The trade ends here whatever the room says; a second confirm finds nothing.
         End();
+
+        await ReportEndedAsync(session, ct);
 
         var (failure, success) = await CarryOutAsync(session, ct);
 
@@ -384,6 +394,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
     {
         End();
 
+        await ReportEndedAsync(session, ct);
+
         await SendAsync([new WiredTradeCancelledMessageComposer { FailureType = reason }], ct);
 
         if (session.Contract is { } request)
@@ -404,6 +416,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
 
         End();
 
+        await ReportEndedAsync(session, ct);
+
         if (session is { IsCancelPending: true, Contract: { } request })
             await _grainFactory
                 .GetRoomGrain(session.RoomId)
@@ -416,6 +430,42 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
 
         return true;
     }
+
+    /// <summary>
+    /// Tells the room where a contract's transaction is now, for its <c>@transaction.*</c>
+    /// variables. A deposit into a chest is not a contract's transaction and is not reported
+    /// (inference: Habbo's variables name a contract and a multiplier, which a deposit has not).
+    /// </summary>
+    private Task ReportProgressAsync(WiredTradeSession session, CancellationToken ct) =>
+        session.Contract is { } request
+            ? _grainFactory
+                .GetRoomGrain(session.RoomId)
+                .ReportWiredTransactionProgressAsync(
+                    _state.PlayerId,
+                    new()
+                    {
+                        StartedAtMs = session.StartedAtMs,
+                        ContractId = request.SourceId,
+                        State = session.IsAccepted
+                            ? WiredTransactionStateType.Confirmed
+                            : WiredTransactionStateType.AddingItems,
+                        CanAccept = CanAccept(session),
+                        Multiplier = Math.Min(
+                            WiredContractOffers.Evaluate(request, session.Offer).Times,
+                            request.Multiplier
+                        ),
+                    },
+                    ct
+                )
+            : Task.CompletedTask;
+
+    /// <summary>Tells the room a contract's transaction ended, so its variables let go of it.</summary>
+    private Task ReportEndedAsync(WiredTradeSession session, CancellationToken ct) =>
+        session.Contract is not null
+            ? _grainFactory
+                .GetRoomGrain(session.RoomId)
+                .ReportWiredTransactionProgressAsync(_state.PlayerId, null, ct)
+            : Task.CompletedTask;
 
     private void End()
     {

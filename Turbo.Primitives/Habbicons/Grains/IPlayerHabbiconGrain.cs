@@ -27,6 +27,12 @@ public interface IPlayerHabbiconGrain : IGrainWithIntegerKey
     /// <summary>Takes a claimable Habbicon (a completed collection's reward).</summary>
     Task ClaimAsync(int habbiconId, CancellationToken ct);
 
+    /// <summary>
+    /// Gives a Habbicon for nothing (a reward track prize). True when the player has it
+    /// afterwards, also when they had it already; false for an id no collection lists.
+    /// </summary>
+    Task<bool> GiveAsync(int habbiconId, CancellationToken ct);
+
     Task SetFavouriteAsync(int habbiconId, bool favourite, CancellationToken ct);
 
     /// <summary>

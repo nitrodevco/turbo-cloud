@@ -23,6 +23,9 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     /// <summary>The client ids of the NFT chat styles the player owns, lowest first.</summary>
     public Task<List<int>> GetOwnedNftChatStyleIdsAsync(CancellationToken ct);
 
+    /// <summary>The client ids of the purchasable chat styles the player owns, lowest first.</summary>
+    public Task<List<int>> GetOwnedPurchasableChatStyleIdsAsync(CancellationToken ct);
+
     /// <summary>The words in the player's own word filter, in the order they were added.</summary>
     public Task<List<string>> GetCustomFilterWordsAsync(CancellationToken ct);
 
@@ -69,6 +72,16 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     /// </summary>
     public Task SetOnlineIndicatorPreferenceAsync(int preference, CancellationToken ct);
     public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct);
+
+    /// <summary>Keeps the Discord settings window's choices. A version of 0 or less is refused.</summary>
+    public Task SetDiscordPreferencesAsync(
+        int version,
+        bool showHabbo,
+        bool shareActivity,
+        bool hideInHiddenRooms,
+        bool allowJoining,
+        CancellationToken ct
+    );
     public Task SetWiredPreferencesAsync(
         bool menuButton,
         bool inspectButton,

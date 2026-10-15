@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Quest;
 
 internal class StartCampaignMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new StartCampaignMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new StartCampaignMessage { CampaignCode = packet.PopString() };
 }

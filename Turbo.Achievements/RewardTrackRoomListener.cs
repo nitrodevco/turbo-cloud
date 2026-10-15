@@ -22,7 +22,8 @@ namespace Turbo.Achievements;
 /// <summary>
 /// Counts the reward track tasks no achievement fact covers from what players do in rooms: a
 /// wave (<c>wave</c>), starting a dance (<c>dance</c>), putting a furni down (<c>place_item</c>),
-/// moving one to another tile (<c>move_item</c>) or turning it in place (<c>rotate_item</c>) and
+/// putting down one the Builders Club lends (<c>place_builders_club_furni</c>, instead), moving
+/// one to another tile (<c>move_item</c>) or turning it in place (<c>rotate_item</c>) and
 /// saying something (<c>chat_with_someone</c>, any chat line that was not cancelled), the action
 /// types of the official client's <c>reward_track_tasks_&lt;type&gt;</c> images. Only a
 /// player's own doing counts, never wired's or a bot's, and only types some configured task counts
@@ -62,6 +63,8 @@ public sealed class RewardTrackRoomListener : IRoomEventListener
             } => RewardTrackActionTypes.WAVE,
             AvatarPerformsActionEvent { ActionType: AvatarActionType.Dance, Value: > 0 } =>
                 RewardTrackActionTypes.DANCE,
+            RoomItemPlacedEvent { IsBuildersClub: true } =>
+                RewardTrackActionTypes.PLACE_BUILDERS_CLUB_FURNI,
             RoomItemPlacedEvent => RewardTrackActionTypes.PLACE_ITEM,
             RoomItemMovedEvent { TileChanged: true } => RewardTrackActionTypes.MOVE_ITEM,
             RoomItemMovedEvent { TileChanged: false } => RewardTrackActionTypes.ROTATE_ITEM,

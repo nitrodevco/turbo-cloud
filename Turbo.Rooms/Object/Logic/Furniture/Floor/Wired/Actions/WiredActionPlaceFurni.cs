@@ -1,18 +1,28 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
@@ -55,6 +65,11 @@ public class WiredActionPlaceFurni(
 
     private const int SLOT_TARGET_FURNI = 1;
 
+    // The dialog Habbo sends when a copy cannot be placed, as recorded.
+    private const string PLACEMENT_FAILURE_TYPE = "wired.error";
+    private const string PLACEMENT_FAILURE_IMAGE = "${image.library.url}album1584/WIRD2.png";
+    private const string PLACEMENT_FAILURE_MESSAGE = "${room.error.wired.placement_failure}";
+
     private const int VARIABLE_SPAWN = 0;
     private const int VARIABLE_VALUE = 1;
     private const int VARIABLE_COUNT = 2;
@@ -89,20 +104,91 @@ public class WiredActionPlaceFurni(
             WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
-    // The furni to place, the custom target, and where the value variable is read.
+    // The furni to place (the snapshot by default, or furni as they stand now), the custom
+    // target, and where the value variable is read (official client capture 2026-10-14:
+    // [0,100,101,110,200,201] / [0,100,101,200,201] x2, defaults 110, 0, 200).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.Furni, WiredSources.Furni];
+        [
+            [WiredFurniSourceType.SnapshotItems, .. WiredSources.FurniOrSecondary],
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
-    // The custom target, and where the value variable is read.
+    // The custom target, and where the value variable is read (recorded defaults 0, 200).
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [WiredSources.Users, WiredSources.Users];
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
 
+    /// <summary>
+    /// Refuses a save that picks furni to copy that may not be copied, as Habbo does: with
+    /// <c>wiredfurni.error.furni_can_not_be_cloned</c> and the old configuration kept (official
+    /// client capture, WIN63-202610131318: a non-tradable chair from the inventory refused, a
+    /// lamp and a building block borrowed from the Builders Club copied). Only the furni to copy
+    /// is checked, not the custom target.
+    /// </summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        foreach (var proposedId in update.StuffIds)
+        {
+            if (
+                FurniModule.TryGetItem(
+                    WiredFurniIds.FromClient(FurniModule, proposedId),
+                    out var item
+                ) && !CanBeCopied(item)
+            )
+                throw new WiredSaveRefusedException(WiredSaveErrors.FURNI_CAN_NOT_BE_CLONED);
+        }
+
+        return base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
+
+    /// <summary>
+    /// Builders Club furni (<see cref="IRoomItem.IsBuildersClub"/>) "that do not have advanced
+    /// functionality" (the error's text). Both copies Habbo made were of borrowed furni and the
+    /// refused one was the player's own; that the borrowing, not the type, decides is inferred
+    /// from those three and the text. What counts as advanced is not recorded either: here it is
+    /// every furni that turns into something of value, which no hotel may let wired copy.
+    /// </summary>
+    private bool CanBeCopied(IRoomItem item) =>
+        (item.IsBuildersClub || !_roomGrain._wiredConfig.PlaceFurniBuildersClubOnly)
+        && item.Logic
+            is not (
+                FurnitureExchangeLogic
+                or FurniturePresentLogic
+                or FurnitureCrackableLogic
+                or FurnitureEffectBoxLogic
+                or FurniturePurchasableClothingLogic
+                or FurniturePetPackageLogic
+                or FurniturePetProductLogic
+            );
+
+    /// <summary>
+    /// What is copied: the box's snapshot of the picked furni for "Use the snapshot", otherwise
+    /// the furni of slot 0 as they stand now (picked, secondary picks, triggering, selector or
+    /// signal furni).
+    /// </summary>
+    private List<(int Id, WiredFurniSnapshotEntry Entry)> FurniToPlace(IWiredContext ctx)
+    {
+        if (GetFurniSources()[0].Contains(WiredFurniSourceType.SnapshotItems))
+            return [.. GetFurniSnapshot().Select(x => (x.Key, x.Value))];
+
+        return
+        [
+            .. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0))
+                .Select(item => (item.ObjectId.Value, EntryOf(item))),
+        ];
+    }
+
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var sources = GetFurniSnapshot().Values.ToList();
+        var toPlace = FurniToPlace(ctx);
+        var sources = toPlace.Select(x => x.Entry).ToList();
 
         if (sources.Count == 0)
             return false;
@@ -136,8 +222,9 @@ public class WiredActionPlaceFurni(
         var actionCtx = ctx.AsActionContext();
         var map = MapModule;
         var placed = false;
+        var failed = false;
 
-        foreach (var (sourceId, source) in GetFurniSnapshot())
+        foreach (var (sourceId, source) in toPlace)
         {
             // A box saved before the snapshot kept the furni's type copies the picked furni as it
             // is now, while it is still in the room.
@@ -154,8 +241,13 @@ public class WiredActionPlaceFurni(
             var x = source.X + dx;
             var y = source.Y + dy;
 
+            // Off the map is a copy that cannot be placed like any other.
             if (!map.InBounds(x, y))
+            {
+                failed = true;
+
                 continue;
+            }
 
             double z =
                 altitude switch
@@ -177,7 +269,11 @@ public class WiredActionPlaceFurni(
             );
 
             if (item is null)
+            {
+                failed = true;
+
                 continue;
+            }
 
             placed = true;
 
@@ -196,7 +292,61 @@ public class WiredActionPlaceFurni(
                 );
         }
 
+        if (failed)
+            await NotifyPlacementFailureAsync(ctx, ct);
+
         return placed;
+    }
+
+    /// <summary>
+    /// Tells the triggering user that a copy could not be placed, as Habbo does: a "wired.error"
+    /// notification dialog (official client capture, WIN63-202610131318, owner's room): once per
+    /// run however many copies failed, and to the same user at most once per
+    /// <see cref="WiredConfig.PlacementFailureNotificationCooldownMs"/> (runs 2.6, 3.6 and 4.4 s
+    /// after the last dialog got none, 6.6 s and later got one). Inference: the triggering user
+    /// is the one told (the room owner triggered every recorded run), and a run started by no
+    /// user tells nobody.
+    /// </summary>
+    private async Task NotifyPlacementFailureAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    {
+        var now = _roomGrain.NowMs();
+        var cooldown = _roomGrain._wiredConfig.PlacementFailureNotificationCooldownMs;
+        var notified = _roomGrain._state.WiredPlacementFailureNotifiedMs;
+
+        // Only who is still waiting is kept, so the list does not grow with every visitor.
+        foreach (
+            var playerId in notified
+                .Where(x => now - x.Value >= cooldown)
+                .Select(x => x.Key)
+                .ToList()
+        )
+            notified.Remove(playerId);
+
+        foreach (var avatarId in ctx.Selected.SelectedAvatarIds)
+        {
+            if (
+                !AvatarModule.TryGetAvatar(avatarId, out var avatar)
+                || avatar is not IRoomPlayer player
+            )
+                continue;
+
+            if (notified.TryGetValue(player.PlayerId, out var last) && now - last < cooldown)
+                continue;
+
+            notified[player.PlayerId] = now;
+
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                player.PlayerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = PLACEMENT_FAILURE_TYPE,
+                    Parameters = ImmutableDictionary<string, string>
+                        .Empty.Add("image", PLACEMENT_FAILURE_IMAGE)
+                        .Add("message", PLACEMENT_FAILURE_MESSAGE),
+                },
+                ct
+            );
+        }
     }
 
     /// <summary>

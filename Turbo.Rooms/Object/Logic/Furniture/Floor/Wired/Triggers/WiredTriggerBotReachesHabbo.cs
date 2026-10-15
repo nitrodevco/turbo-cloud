@@ -24,16 +24,27 @@ public class WiredTriggerBotReachesHabbo(
     public override int WiredCode => (int)WiredTriggerType.BOT_AVATAR_REACHED;
     public override List<Type> SupportedEventTypes { get; } = [typeof(BotReachedAvatarEvent)];
 
+    // Which bot: the one named in the box, or a selector's (official client capture of the
+    // box's sources). The reached user is the triggering user either way.
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [
-            [WiredPlayerSourceType.ReachedUser],
+            [WiredPlayerSourceType.BotByName, WiredPlayerSourceType.SelectorUsers],
         ];
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct) =>
         Task.FromResult(
             evt is BotReachedAvatarEvent reached
-                && (GetStringParam().Length == 0 || NamesMatch(reached.BotName, GetStringParam()))
+                && (
+                    !IsBotByName()
+                    || GetStringParam().Length == 0
+                    || NamesMatch(reached.BotName, GetStringParam())
+                )
         );
+
+    // A selector's bots are not known before the stack runs, so that source does not narrow
+    // which bot fires the trigger here; only a name does.
+    private bool IsBotByName() =>
+        GetPlayerSources() is not [var slot, ..] || slot.Contains(WiredPlayerSourceType.BotByName);
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.FromResult(ctx.Event is BotReachedAvatarEvent);

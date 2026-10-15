@@ -3,6 +3,7 @@ using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -25,6 +26,12 @@ public class WiredConditionCounterTimeMatch(
 {
     public override int WiredCode => (int)WiredConditionType.CLOCK_TIME_MATCHES;
 
+    // A counter box takes counters only ("Can only select counter furni.",
+    // wiredfurni.error.require_counter_furni; inference: which boxes the hotel text is for).
+    protected override bool CanPickFurni(IRoomItem item) => item.Logic is IWiredClock;
+
+    protected override string PickRefusedErrorKey => WiredSaveErrors.REQUIRE_COUNTER_FURNI;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(0, 59, 0),
@@ -33,8 +40,7 @@ public class WiredConditionCounterTimeMatch(
             new WiredRangeParamRule(0, 2, 1),
         ];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

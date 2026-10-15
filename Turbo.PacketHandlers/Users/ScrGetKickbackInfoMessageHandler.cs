@@ -43,9 +43,9 @@ public class ScrGetKickbackInfoMessageHandler(
         await ctx.SendComposerAsync(
                 new ScrSendKickbackInfoMessageComposer
                 {
-                    // The days of membership used up, while it runs: Turbo keeps no record of
-                    // a lapse between runs, so a returning member's streak counts every run.
-                    CurrentHcStreak = club.IsActive ? club.DaysConsumed : 0,
+                    // Only the run going on now: Habbo reads 0 a minute after a returning
+                    // member's 31 days HC box starts (official client capture, 2026-10-13).
+                    CurrentHcStreak = club.CurrentStreakDays,
                     FirstSubscriptionDate =
                         club.FirstSubscribedAt?.ToString(
                             _config.FirstSubscriptionDateFormat,

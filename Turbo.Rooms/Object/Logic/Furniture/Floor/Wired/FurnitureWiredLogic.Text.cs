@@ -15,7 +15,8 @@ public abstract partial class FurnitureWiredLogic
     /// <summary>
     /// The editor context of a box with a message editor (Show Message, Bot Talk): the
     /// placeholders the stack on its tile fills, as the "Add placeholder" button lists them,
-    /// then the stack's capturers. "User Says Keyword" contributes <c>trigger_text</c>.
+    /// then the stack's capturers. "User Says Keyword" contributes <c>trigger_text</c>, and the
+    /// room's Global Placeholder add-ons come after the stack's own.
     /// The order (the trigger's first, then the add-ons from the bottom up) is this server's:
     /// the only official capture is of a stack with none.
     /// </summary>
@@ -37,6 +38,9 @@ public abstract partial class FurnitureWiredLogic
                 .Select(placeholder => WiredPlaceholderText.NameOf(placeholder.Token))
                 .Where(name => name.Length > 0)
         );
+
+        // The room's Global Placeholder add-ons fill every stack's texts.
+        placeholderNames.AddRange(WiredSystem.GlobalPlaceholders.Select(global => global.Name));
 
         return
         [

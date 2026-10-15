@@ -3,7 +3,7 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Quest;
 
-/// <summary>QuestDailyMessageParser: whether there is a quest, then the quest and both counts.</summary>
+/// <summary>QuestDailyMessageParser: a flag, then - when set - the quest and the two counts.</summary>
 internal class QuestDailyMessageComposerSerializer(int header)
     : AbstractSerializer<QuestDailyMessageComposer>(header)
 {

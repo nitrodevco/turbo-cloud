@@ -79,6 +79,99 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task The_seasonal_list_is_the_lists_seasonal_quests_only()
+    {
+        await Grain().SendSeasonalQuestsAsync(Ct);
+
+        Single<SeasonalQuestsMessageComposer>()
+            .Quests.Select(x => (x.Id, x.CampaignCode, x.IsSeasonal, x.SecondsLeft))
+            .Should()
+            .Equal((FIRST_BADGE, "bawcollab_worlds", true, 86400));
+        Sent<QuestsMessageComposer>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_daily_quest_goes_through_the_open_quests_of_the_asked_kind()
+    {
+        await Grain().SendDailyQuestAsync(false, 0, Ct);
+        await Grain().SendDailyQuestAsync(false, 1, Ct);
+        await Grain().SendDailyQuestAsync(false, 2, Ct);
+        await Grain().SendDailyQuestAsync(true, 1, Ct);
+
+        Sent<QuestDailyMessageComposer>()
+            .Select(x => (x.Quest!.Id, x.EasyQuestCount, x.HardQuestCount))
+            .Should()
+            .Equal((FIRST_BADGE, 0, 2), (PET_FOOD, 0, 2), (FIRST_BADGE, 0, 2), (PET_FOOD, 0, 2));
+    }
+
+    [Fact]
+    public async Task The_daily_quest_is_the_one_being_done_and_none_when_all_are_done()
+    {
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().SendDailyQuestAsync(false, 0, Ct);
+
+        Single<QuestDailyMessageComposer>()
+            .Quest.Should()
+            .Match<Turbo.Primitives.Quests.Snapshots.QuestSnapshot>(x =>
+                x.Id == PET_FOOD && x.Accepted
+            );
+
+        using (var db = _db.CreateDbContext())
+        {
+            foreach (var id in new[] { FIRST_BADGE, SECOND_BADGE, PET_FOOD })
+                db.PlayerQuests.Add(
+                    new PlayerQuestEntity
+                    {
+                        PlayerEntityId = PLAYER + 1,
+                        QuestEntityId = id,
+                        CompletedAt = NOW,
+                    }
+                );
+            db.SaveChanges();
+        }
+
+        var other = Grain();
+        RoomHarness.SetField(other, "_playerId", (PlayerId)(PLAYER + 1));
+        await other.SendDailyQuestAsync(true, 0, Ct);
+
+        Sent<QuestDailyMessageComposer>().Last().Quest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Starting_a_campaign_accepts_its_current_quest()
+    {
+        await Grain().StartCampaignAsync("connect_dots26", Ct);
+        await Grain().StartCampaignAsync("no_such_campaign", Ct);
+
+        Single<QuestMessageComposer>()
+            .Quest.Should()
+            .Match<Turbo.Primitives.Quests.Snapshots.QuestSnapshot>(x =>
+                x.Id == PET_FOOD && x.Accepted
+            );
+    }
+
+    [Fact]
+    public async Task Starting_a_campaign_already_done_does_nothing()
+    {
+        using (var db = _db.CreateDbContext())
+        {
+            db.PlayerQuests.Add(
+                new PlayerQuestEntity
+                {
+                    PlayerEntityId = PLAYER,
+                    QuestEntityId = PET_FOOD,
+                    CompletedAt = NOW,
+                }
+            );
+            db.SaveChanges();
+        }
+
+        await Grain().StartCampaignAsync("connect_dots26", Ct);
+
+        Sent<QuestMessageComposer>().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Accepting_a_quest_drops_the_one_being_done()
     {
         await Grain().AcceptAsync(FIRST_BADGE, Ct);

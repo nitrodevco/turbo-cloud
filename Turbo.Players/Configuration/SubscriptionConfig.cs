@@ -71,6 +71,10 @@ public class SubscriptionConfig
     /// </summary>
     public int MinutesUntilPayday { get; init; } = 2880;
 
-    /// <summary>How the club centre writes the day a player first joined Habbo Club.</summary>
-    public string FirstSubscriptionDateFormat { get; init; } = "yyyy-MM-dd";
+    /// <summary>
+    /// How the club centre writes the day a player first joined Habbo Club. The client shows the
+    /// string as it comes (<c>ClubCenterView.dataReceived</c>); Habbo's reads 31-01-2013
+    /// (official client capture, 2026-10-13).
+    /// </summary>
+    public string FirstSubscriptionDateFormat { get; init; } = "dd-MM-yyyy";
 }

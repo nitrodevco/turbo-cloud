@@ -27,16 +27,10 @@ public class WiredActionCallStacks(
 {
     public override int WiredCode => (int)WiredActionType.CALL_ANOTHER_STACK;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
-
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (IsCallDepthExceeded(ctx))
-            return false;
-
         var stackIds = new HashSet<int>();
         var ownStackId = _ctx.GetTileIdx();
 

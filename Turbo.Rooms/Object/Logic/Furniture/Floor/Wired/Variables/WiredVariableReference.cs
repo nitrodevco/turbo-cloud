@@ -44,6 +44,19 @@ public class WiredVariableReference(
 ) : FurnitureWiredVariableLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const string SECTION = "variable_reference";
+
+    /// <summary>"Only the owner of this wired variable has the permission to make this change."</summary>
+    public const string ERROR_OWNER_ONLY = "wiredfurni.error.variables.permissions.1";
+
+    /// <summary>"Please select a valid reference variable."</summary>
+    public const string ERROR_INVALID = "wiredfurni.error.variables.reference.valid";
+
+    /// <summary>"Referencing to a variable in the same room is not allowed."</summary>
+    public const string ERROR_SAME_ROOM = "wiredfurni.error.variables.reference.same_room";
+
+    /// <summary>"A reference to this variable already exists in this room."</summary>
+    public const string ERROR_ALREADY_EXISTS =
+        "wiredfurni.error.variables.reference.already_exists";
     private const int PARAM_READ_ONLY = 0;
 
     /// <summary>The variable a box refers to, as saved with it.</summary>
@@ -117,7 +130,13 @@ public class WiredVariableReference(
 
     /// <summary>
     /// Only the box's owner sets it up, and only to a shared variable of one of their other rooms;
-    /// the room and the variable's kind are saved with the box.
+    /// the room and the variable's kind are saved with the box. A refusal names its hotel text
+    /// instead of the generic one: someone else than the owner -> <c>wiredfurni.error.variables.permissions.1</c>;
+    /// no variable picked, or one that is no shared variable of the owner's other rooms ->
+    /// <c>reference.valid</c>; a variable of this room -> <c>reference.same_room</c>; a variable
+    /// another reference box of this room already refers to -> <c>reference.already_exists</c>.
+    /// Inference: which text Habbo sends for each case is read off the texts' wording; no official
+    /// refusal of a reference box was recorded.
     /// </summary>
     public override async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -126,37 +145,50 @@ public class WiredVariableReference(
     )
     {
         if (ctx.Origin != ActionOrigin.System && ctx.PlayerId != _ctx.RoomObject.OwnerId)
-            return false;
+            throw new WiredSaveRefusedException(ERROR_OWNER_ONLY);
 
-        ReferenceData? reference = null;
+        // The editor sends "n" when no variable is picked (ReferenceVariable.readVariableIdsFromForm,
+        // WiredVariable._-I2U, AS3 WIN63-202610131318).
+        if (
+            update.VariableIds.Count == 0
+            || !WiredVariableId.TryParse(update.VariableIds[0], out var id)
+        )
+            throw new WiredSaveRefusedException(ERROR_INVALID);
+
+        var shared = (
+            await WiredSystem.GetOwnerSharedVariablesAsync(_ctx.RoomObject.OwnerId, ct)
+        ).FirstOrDefault(x => x.Variable.VariableId == id);
+
+        if (shared is null)
+            throw new WiredSaveRefusedException(
+                FurniModule.Items.Any(item =>
+                    item.Logic is FurnitureWiredVariableLogic variable
+                    && variable.GetVarSnapshot().VariableId == id
+                )
+                    ? ERROR_SAME_ROOM
+                    : ERROR_INVALID
+            );
 
         if (
-            update.VariableIds.Count > 0
-            && WiredVariableId.TryParse(update.VariableIds[0], out var id)
+            FurniModule.Items.Any(item =>
+                item.Logic is WiredVariableReference other
+                && !ReferenceEquals(other, this)
+                && other.Reference is { } taken
+                && taken.RoomId == shared.RoomId
+                && taken.VariableId == id.ToString()
+            )
         )
-        {
-            var shared = (
-                await WiredSystem.GetOwnerSharedVariablesAsync(_ctx.RoomObject.OwnerId, ct)
-            ).FirstOrDefault(x => x.Variable.VariableId == id);
+            throw new WiredSaveRefusedException(ERROR_ALREADY_EXISTS);
 
-            if (shared is not null)
-                reference = new ReferenceData(
-                    shared.RoomId,
-                    id.ToString(),
-                    shared.Variable.TargetType,
-                    shared.Variable.Flags
-                );
-        }
+        var reference = new ReferenceData(
+            shared.RoomId,
+            id.ToString(),
+            shared.Variable.TargetType,
+            shared.Variable.Flags
+        );
 
         _reference = reference;
-
-        if (reference is null)
-            _ctx.RoomObject.ExtraData.DeleteSection(SECTION);
-        else
-            _ctx.RoomObject.ExtraData.UpdateSection(
-                SECTION,
-                JsonSerializer.SerializeToNode(reference)
-            );
+        _ctx.RoomObject.ExtraData.UpdateSection(SECTION, JsonSerializer.SerializeToNode(reference));
 
         _values = [];
 

@@ -44,6 +44,18 @@ public interface IWiredPolicy
     public IReadOnlySet<RoomObjectId>? MoveThroughUserIds { get; set; }
 
     /// <summary>
+    /// The furni "move through furni" lets a moved furni land on even when nothing may be
+    /// stacked on them: the movement physics addon's first furni source. Null means every furni.
+    /// </summary>
+    public IReadOnlySet<int>? MoveThroughFurniIds { get; set; }
+
+    /// <summary>
+    /// The furni "blocked by furni" stops a moved furni at, even when they can be stacked on:
+    /// the movement physics addon's second furni source. Null means every furni.
+    /// </summary>
+    public IReadOnlySet<int>? BlockedByFurniIds { get; set; }
+
+    /// <summary>
     /// How high the stack's movements arc (the client's jump power for a user, curve strength
     /// for a furni). Null leaves a user their own jump and a furni a straight line.
     /// </summary>

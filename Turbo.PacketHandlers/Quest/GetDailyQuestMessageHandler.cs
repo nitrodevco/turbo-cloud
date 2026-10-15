@@ -7,7 +7,6 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Quest;
 
-/// <summary>The reception's daily quest widget and element, on refresh and "another quest".</summary>
 public class GetDailyQuestMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetDailyQuestMessage>
 {

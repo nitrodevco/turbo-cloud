@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -41,18 +43,21 @@ public class WiredAddonVariablePlaceholder(
             new WiredBoolParamRule(false),
         ];
 
+    /// <summary>The name, and the delimiter with "show all", are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        WiredNameRules.PlaceholderError(update.StringParam, showsAll: update.IntParams is [1, ..])
+            is { } error
+            ? throw new WiredSaveRefusedException(error)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+
     // Its holders come from one source, the furni or the user kind as the variable's target is
     // (AS3: mergedSelections [[0, 0]]); the triggering ones first, as it read before it had a
     // source of its own.
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.TriggeredItem,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.SelectedItems,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

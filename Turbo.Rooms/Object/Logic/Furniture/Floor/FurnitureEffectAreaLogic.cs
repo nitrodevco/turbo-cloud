@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -30,6 +31,12 @@ public class FurnitureEffectAreaLogic(IStuffDataFactory stuffDataFactory, IRoomF
 {
     private readonly int? _effectId = AvatarEffectFurni.EffectIdOf(ctx.Definition);
 
+    /// <summary>
+    /// The effects the client takes for swimming (<c>AvatarInfoWidget.isSwimming</c>): getting one
+    /// from water counts for a reward track's <c>swim</c> task.
+    /// </summary>
+    private static readonly HashSet<int> SWIM_EFFECT_IDS = [29, 30, 185];
+
     /// <summary>Avatars that stepped off it, settled on the next timer run.</summary>
     private readonly HashSet<RoomObjectId> _leaving = [];
 
@@ -49,7 +56,12 @@ public class FurnitureEffectAreaLogic(IStuffDataFactory stuffDataFactory, IRoomF
         _leaving.Remove(avatar.ObjectId);
 
         if (avatar.EffectId != effectId)
+        {
             await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct);
+
+            if (SWIM_EFFECT_IDS.Contains(effectId))
+                CountRewardTrackAction(avatar, RewardTrackActionTypes.SWIM);
+        }
 
         await OnOccupancyChangedAsync(occupied: true, ct);
     }

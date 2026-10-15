@@ -272,7 +272,13 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 known?.Descriptor.QueryRevision ?? 0
             );
 
-            if (known is not null && Key(known.Descriptor) == Key(descriptor))
+            var query = QueryOf(box.Config);
+
+            if (
+                known is not null
+                && Key(known.Descriptor) == Key(descriptor)
+                && known.Query == query
+            )
             {
                 found.Add(known);
 
@@ -288,7 +294,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
             )
                 _subscriptions.Remove(key);
 
-            found.Add(new Overlay(box, descriptor));
+            found.Add(new Overlay(box, descriptor, query));
         }
 
         var changed =
@@ -582,9 +588,26 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 );
     }
 
+    /// <summary>
+    /// What a leaderboard's rows depend on that its descriptor does not say: the filter. Turning it
+    /// on, or comparing with another value, is a new query revision too (official client capture
+    /// 2026-10-14: each such save was answered with a snapshot, an unchanged one with none).
+    /// </summary>
+    private static string QueryOf(VariableLeaderboardConfig config) =>
+        string.Join(
+            '	',
+            config.FilterEnabled,
+            config.FilterVariableId,
+            config.ComparisonEnabled,
+            config.OperandKind,
+            config.GlobalOperandVariableId,
+            config.Literal
+        );
+
     private sealed record Overlay(
         WiredAddonVariableLeaderboard Box,
-        VariableLeaderboardDescriptorSnapshot Descriptor
+        VariableLeaderboardDescriptorSnapshot Descriptor,
+        string Query
     );
 
     private sealed record Subscription(

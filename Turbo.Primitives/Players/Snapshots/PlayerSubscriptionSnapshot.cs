@@ -56,6 +56,13 @@ public sealed record PlayerSubscriptionSnapshot
     [Id(10)]
     public DateTime? FirstSubscribedAt { get; init; }
 
+    /// <summary>
+    /// Whole days since the membership running now started; null when the row predates that
+    /// being kept.
+    /// </summary>
+    [Id(11)]
+    public int? DaysIntoRun { get; init; }
+
     public bool IsActive => SecondsLeft > 0;
 
     /// <summary>Lapsed, but still inside the hotel's grace period.</summary>
@@ -65,4 +72,10 @@ public sealed record PlayerSubscriptionSnapshot
     public int DaysConsumed => Math.Max(0, TotalDaysSubscribed - DaysRemaining);
 
     public int MinutesUntilExpiration => (int)(SecondsLeft / 60d);
+
+    /// <summary>
+    /// The club centre's current streak: days into the run going on now, none once it has lapsed.
+    /// A row from before runs were kept counts every day used up instead.
+    /// </summary>
+    public int CurrentStreakDays => IsActive ? DaysIntoRun ?? DaysConsumed : 0;
 }

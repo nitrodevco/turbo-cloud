@@ -21,8 +21,17 @@ internal static class WiredRules
             WiredVariableTargetType.Context
         );
 
+    /// <summary>
+    /// A hand item; one past the hotel's last is refused with "Hand item type is not allowed!"
+    /// (<c>wiredfurni.error.invalid_handitem_type</c>). Inference: the editors offer a fixed list
+    /// plus any captured hand item (<c>ensureOptionExists</c>, actiontypes/_-M2V.as:108,
+    /// AS3 WIN63-202610131318), so the server's bound is the only one there is.
+    /// </summary>
     public static IWiredParamRule HandItem(WiredConfig config) =>
-        new WiredRangeParamRule(0, config.MaxHandItemId, 0);
+        new WiredRangeParamRule(0, config.MaxHandItemId, 0)
+        {
+            ErrorKey = "wiredfurni.error.invalid_handitem_type",
+        };
 
     public static IWiredParamRule Effect(WiredConfig config) =>
         new WiredRangeParamRule(0, config.MaxEffectId, 0);

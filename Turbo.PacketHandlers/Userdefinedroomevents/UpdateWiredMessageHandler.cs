@@ -36,7 +36,7 @@ public abstract class UpdateWiredMessageHandler<TMessage>(IGrainFactory grainFac
                     new WiredValidationErrorEventMessageComposer
                     {
                         LocalizationKey = result.ErrorKey ?? WiredSaveErrors.GENERIC,
-                        Parameters = [],
+                        Parameters = [.. result.Parameters],
                     },
                     ct
                 )

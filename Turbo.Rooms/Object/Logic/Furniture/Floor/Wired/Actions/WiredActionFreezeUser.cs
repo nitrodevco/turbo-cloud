@@ -29,10 +29,19 @@ public class WiredActionFreezeUser(
     /// </summary>
     public static readonly int[] FREEZE_EFFECT_IDS = [218, 12, 11, 53, 163];
 
+    /// <summary>"Picked an invalid effect!", for an option the editor does not offer (0 to 4, actiontypes/_-Q1s.as:43-47, AS3 WIN63-202610131318).</summary>
+    public const string ERROR_INVALID_EFFECT = "wiredfurni.error.invalid_freeze_effect";
+
     public override int WiredCode => (int)WiredActionType.FREEZE_USER;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 4, 0), new WiredBoolParamRule(false)];
+        [
+            new WiredRangeParamRule(0, FREEZE_EFFECT_IDS.Length - 1, 0)
+            {
+                ErrorKey = ERROR_INVALID_EFFECT,
+            },
+            new WiredBoolParamRule(false),
+        ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

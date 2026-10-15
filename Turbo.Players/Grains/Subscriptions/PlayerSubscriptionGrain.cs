@@ -146,6 +146,9 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         // two have to agree.
         var from = entity.ExpiresAt is { } end && end > now ? end : now;
 
+        if (from == now)
+            entity.RunStartedAt = now;
+
         entity.ExpiresAt = from.AddDays(days);
         entity.TotalDaysSubscribed += days;
         if (purchased)
@@ -278,17 +281,22 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
     {
         var club = await SnapshotAsync(SubscriptionType.HabboClub, ct);
         var daysPerPeriod = Math.Max(1, _subscriptionConfig.DaysPerPeriod);
+        // The client adds these two back up as periods * 31 + days (ClubBuyCatalogWidget), so
+        // they are a split of the same total, and the period being served is not one ahead:
+        // a fresh 31 days reads as 31 days and no periods ahead (official client capture of
+        // the 31 days HC box), so the days run 1..31 while a membership lasts.
+        var periodsAhead = club.DaysRemaining > 0 ? (club.DaysRemaining - 1) / daysPerPeriod : 0;
 
         await _grainFactory.SendComposerToPlayerAsync(
             PlayerId,
             new ScrSendUserInfoMessageComposer
             {
                 ProductName = _subscriptionConfig.HabboClubProductName,
-                // The client adds these two back up as periods * 31 + days
-                // (ClubBuyCatalogWidget), so they are a split of the same total.
-                DaysToPeriodEnd = club.DaysRemaining % daysPerPeriod,
-                PeriodsSubscribedAhead = club.DaysRemaining / daysPerPeriod,
-                MemberPeriods = club.TotalDaysSubscribed / daysPerPeriod,
+                DaysToPeriodEnd = club.DaysRemaining - periodsAhead * daysPerPeriod,
+                PeriodsSubscribedAhead = periodsAhead,
+                // Periods already served: the same capture reads 18 for 566 past days with the
+                // new 31 days not counted.
+                MemberPeriods = club.DaysConsumed / daysPerPeriod,
                 ResponseType = responseType,
                 HasEverBeenMember = club.HasEverBeenMember,
                 // The client gates group creation on this (HabboGroupsManager), and treats club
@@ -386,6 +394,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                 PlayerEntityId = row.PlayerEntityId,
                 SubscriptionType = subscriptionType,
                 FirstSubscribedAt = row.FirstSubscribedAt ?? now,
+                RunStartedAt = row.RunStartedAt ?? row.FirstSubscribedAt ?? now,
                 ExpiresAt = row.ExpiresAt is { } bought && bought > until ? bought : until,
                 TotalDaysSubscribed = row.TotalDaysSubscribed,
                 PurchasedDaysSubscribed = row.PurchasedDaysSubscribed,

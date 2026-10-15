@@ -35,9 +35,15 @@ public class WiredSelectorRemoteSelection(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 1, 0), WiredRules.AnyInt()];
 
+    // The selector boxes to run: the picked ones by default, or the triggering or signal furni
+    // (official form contract of Remote Selector, [0,100,201], default 100).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            [WiredFurniSourceType.SelectedItems],
+            [
+                WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SignalItems,
+            ],
         ];
 
     public override async Task<IWiredSelectionSet> SelectAsync(
@@ -47,7 +53,7 @@ public class WiredSelectorRemoteSelection(
     {
         var remotes = new List<FurnitureWiredSelectorLogic>();
 
-        foreach (var itemId in GetStuffIds())
+        foreach (var itemId in WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds)
         {
             if (
                 FurniModule.TryGetItem(itemId, out var item)

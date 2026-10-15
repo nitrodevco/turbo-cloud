@@ -24,7 +24,12 @@ public class WiredAddonVariableTextConnector(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
+    // The editor's text area takes 1000 characters (VariableTextConnectorAddon.buildInputs).
+    private const int TEXT_MAX_LENGTH = 1000;
+
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TEXT_CONVERTER;
+
+    protected override int GetStringParamMaxLength() => TEXT_MAX_LENGTH;
 
     /// <summary>The text of the box's "_=" line, or null when it has none.</summary>
     public string? GetFallback()
@@ -45,6 +50,33 @@ public class WiredAddonVariableTextConnector(
         }
 
         return fallback;
+    }
+
+    /// <summary>
+    /// The value of a line with no text ("0="), which an empty capture stands for: a trailing
+    /// exact-mode marker the player left out (official client capture). Null without one. Such a
+    /// line labels nothing, so it is not among <see cref="GetConnectors"/>.
+    /// </summary>
+    public WiredVariableValue? GetEmptyTextValue()
+    {
+        foreach (var line in Lines())
+        {
+            var index = line.IndexOf('=');
+
+            if (
+                index > 0
+                && line[(index + 1)..].Trim().Length == 0
+                && int.TryParse(
+                    line[..index].Trim(),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var value
+                )
+            )
+                return new WiredVariableValue(value);
+        }
+
+        return null;
     }
 
     private string[] Lines() =>

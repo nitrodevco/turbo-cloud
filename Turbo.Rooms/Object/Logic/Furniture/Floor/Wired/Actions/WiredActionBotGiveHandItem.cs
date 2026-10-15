@@ -35,11 +35,15 @@ public class WiredActionBotGiveHandItem(
     {
         var (botName, _) = SplitParam();
 
-        if (!TryResolveBot(botName, out _))
+        if (
+            IsBotByName(SLOT_BOTS)
+                ? !TryResolveBot(botName, out _)
+                : ResolveBots(ctx, SLOT_BOTS, botName).Count == 0
+        )
             return false;
 
         var handItemId = GetIntParamOrDefault(0, 0);
-        var players = GetPlayers(ctx.GetSelection(this));
+        var players = GetPlayers(TargetUsers(ctx));
 
         foreach (var player in players)
             await AvatarModule.SetHandItemAsync(player, handItemId, ct);

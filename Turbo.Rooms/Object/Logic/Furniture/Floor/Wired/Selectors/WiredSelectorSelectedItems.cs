@@ -11,6 +11,11 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
+/// <summary>
+/// "Furni Picks": selects the furni picked in the box. It has no input sources; its editor always
+/// picks furni (AS3 1318 wired_setup/selectors/_-412.as forceFurniSelection, official form
+/// contract with no sources).
+/// </summary>
 [RoomObjectLogic("wf_slc_furni_picks")]
 public class WiredSelectorSelectedItems(
     IGrainFactory grainFactory,
@@ -22,20 +27,14 @@ public class WiredSelectorSelectedItems(
 
     public override bool SupportsAdvancedMode() => false;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems],
-        ];
-
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = ctx.GetSelection(this);
         var output = new WiredSelectionSet();
 
-        foreach (var id in input.SelectedFurniIds)
+        foreach (var id in GetStuffIds())
         {
             if (FurniModule.TryGetItem(id, out var item))
                 output.SelectedFurniIds.Add((int)item.ObjectId);

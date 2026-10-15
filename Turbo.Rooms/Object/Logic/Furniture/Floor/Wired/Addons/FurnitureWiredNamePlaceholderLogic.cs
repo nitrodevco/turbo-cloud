@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
@@ -28,6 +30,17 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
     private const char SIGIL = '$';
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+
+    /// <summary>The name, and the delimiter with "show all", are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        WiredNameRules.PlaceholderError(update.StringParam, showsAll: update.IntParams is [1, ..])
+            is { } error
+            ? throw new WiredSaveRefusedException(error)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     /// <summary>The names of what the add-on's source selects, in selection order.</summary>
     protected abstract List<string> GetNames(IWiredExecutionContext ctx);

@@ -60,8 +60,12 @@ What the official client shows (2026-10-09 captures `introduction.png`, `rt-drag
 - Buying premium debits `CostCredits` and `CostDiamonds`, gives `InstantPoints` and the points
   of the premium levels the player already passed (inference: they would otherwise be lost).
 - A prize is claimable when it is not premium-locked and the points reach it. Activity points,
-  badges and furni (`FurnitureDefinitionId`, `Amount` items) can be given; anything else is
-  refused with code 7.
+  badges, furni (`FurnitureDefinitionId` or the sprite in `RewardTypeId`, `Amount` items),
+  Habbicons (`RewardTypeId` the Habbicon id, one of the hotel's Habbicon collections), pets
+  (`ExtraParams` the figure "type palette colour", a palette of the hotel's pet breeds) and
+  `GENERIC` bots (`ExtraParams` the look) can be given; anything else is refused with code 7.
+  A pet or bot is called `Name`, else `PetPrizeName` / `BotPrizeName` (Habbo's prizes carry no
+  name; "Pet" and "Bot" by default). Habbo's Introduction track ships with all 49 prizes.
 
 ## What counts
 
@@ -71,11 +75,31 @@ records an achievement fact for (`RewardTrackFactListener`): `enter_other_users_
 per room), `switch_item_state`, `change_figure`, `change_motto`, `give_respect`,
 `pet_respect`, `pet_level`, `pet_eat` and `wear_badge` (a badge put on). From room events
 (`RewardTrackRoomListener`, a player's own doing only, not wired's or a bot's) it counts `wave`,
-`dance` (starting one), `place_item`, `move_item` (a furni put on another tile), `rotate_item`
-(a floor furni turned in place; `RoomItemMovedEvent.TileChanged`) and `chat_with_someone` (a chat
-line that was not cancelled). The catalogue purchase grain counts `buy_from_catalogue` once a
-purchase landed and the navigator service `create_room` once a room was created. What each type
-counts is inference from the image's name; the official client only names them. Not hooked:
-`find_hand_item`, `follow_friend`, `friend_furni_locked`, `place_builders_club_furni`,
-`publish_picture`, `replenish_respect`, `request_friend`, `send_messenger_invite`,
-`send_messenger_message`, `set_relationship_status`, `swim`, `teleport` and `use_habbicon`.
+`dance` (starting one), `place_item`, `place_builders_club_furni` (a Builders Club furni put
+down, instead of `place_item`), `move_item` (a furni put on another tile), `rotate_item` (a floor
+furni turned in place; `RoomItemMovedEvent.TileChanged`) and `chat_with_someone` (a chat line that
+was not cancelled). Furni logic counts `find_hand_item` (a vending machine's drink handed over),
+`teleport` (a teleport that sends its occupant on), `swim` (water putting a swimming effect on, 29,
+30 or 185 as `AvatarInfoWidget.isSwimming` reads them) and `friend_furni_locked` (a love lock
+both locked, for both). The messenger service counts `request_friend` (a request sent),
+`send_messenger_message`, `send_messenger_invite` (once per invite that reached someone),
+`follow_friend` (a follow that went through) and `set_relationship_status` (one set, not
+cleared); the player grain `replenish_respect` (a replenish used); publishing a photo
+`publish_picture`; the catalogue purchase grain `buy_from_catalogue` once a purchase landed; the
+navigator service `create_room` once a room was created; and the Habbicon grain `use_habbicon`.
+What each type counts is inference from the image's name and the task's hotel texts
+(`reward_track.introduction.task.<id>.desc`); the official client only names them. All thirty
+are counted.
+
+## Wired
+
+- Progress Reward Track (action 58, `wf_act_progress_reward_track`): string "track id<TAB>task
+  id", ints add-to-existing (1) or set (0), number or variable, the number, the variable's
+  target. The selected users' task count moves to the score, or on by it, forward only and up
+  to the task's last level, each level passed giving its points as the player's own actions do.
+- Reset Reward Track (action 59, `wf_act_reset_reward_track`): string the track id. The
+  selected users' counts, points and claimed prizes go (a bought premium stays, inference) and
+  the tracks are sent again with `reload` set, which rebuilds the client's window and shows
+  "Reward Track updated" if it is open (AS3 `RewardTrackController.onRewardTracks`).
+
+Habbo's furnidata has no furni for either box yet, so their class names are Turbo's.

@@ -39,6 +39,10 @@ public class WiredSelectorItemsWithVariable(
 
     public override int GetMaxVariableIds() => 2;
 
+    // The variable and its reference by position: the same variable may be both (official client
+    // capture: Change Variable saved with ids [mark, mark]).
+    protected override bool HasPositionalVariableIds => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
@@ -54,8 +58,8 @@ public class WiredSelectorItemsWithVariable(
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [
-                WiredFurniSourceType.TriggeredItem,
                 WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.TriggeredItem,
                 WiredFurniSourceType.SignalItems,
             ],
         ];

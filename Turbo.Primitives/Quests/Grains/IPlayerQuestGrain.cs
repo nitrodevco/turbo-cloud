@@ -13,16 +13,23 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     /// <summary>Sends each campaign's current quest (Quests), opening the window or not.</summary>
     Task SendQuestsAsync(bool openWindow, CancellationToken ct);
 
+    /// <summary>Sends the seasonal ones of those quests (SeasonalQuests), in the same order.</summary>
+    Task SendSeasonalQuestsAsync(CancellationToken ct);
+
     /// <summary>
-    /// Sends the reception's daily quest (QuestDaily): the quest being done when it is one of the
-    /// campaigns' current quests, else the <paramref name="index"/>th current quest of the asked
-    /// difficulty, counting round, or of the other when there is none of it. None when every
-    /// campaign is done.
+    /// Sends the hotel view's daily quest (QuestDaily): the quest being done, else the
+    /// <paramref name="index"/>-th open quest of the easy or hard ones, with how many of each there are.
     /// </summary>
     Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct);
 
     /// <summary>Makes the quest the one the player is doing, dropping any other, and sends it.</summary>
     Task AcceptAsync(int questId, CancellationToken ct);
+
+    /// <summary>
+    /// Starts the campaign with that code: its current quest becomes the one the player is doing
+    /// (as <see cref="AcceptAsync"/>). Nothing for an unknown campaign or one already done.
+    /// </summary>
+    Task StartCampaignAsync(string campaignCode, CancellationToken ct);
 
     /// <summary>Drops the quest (or, with 0, whichever the player is doing): QuestCancelled.</summary>
     Task RejectAsync(int questId, CancellationToken ct);

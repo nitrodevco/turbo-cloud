@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Furniture.ExtraData;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
@@ -24,6 +25,17 @@ public abstract partial class FurnitureWiredLogic
             _roomGrain._logger
         ) ?? [];
 
+    /// <summary>How <paramref name="item"/> stands now, as a snapshot keeps it.</summary>
+    protected static WiredFurniSnapshotEntry EntryOf(IRoomFloorItem item) =>
+        new(
+            item.Logic.GetState(),
+            (int)item.Rotation,
+            item.X,
+            item.Y,
+            item.Z.ToInt(),
+            item.Definition.Id
+        );
+
     /// <summary>Captures the picked items as they stand now.</summary>
     private void CaptureFurniSnapshot(IEnumerable<int> itemIds)
     {
@@ -34,14 +46,7 @@ public abstract partial class FurnitureWiredLogic
             if (!TryGetFloorItem(itemId, out var item))
                 continue;
 
-            snapshot[itemId] = new WiredFurniSnapshotEntry(
-                item.Logic.GetState(),
-                (int)item.Rotation,
-                item.X,
-                item.Y,
-                item.Z.ToInt(),
-                item.Definition.Id
-            );
+            snapshot[itemId] = EntryOf(item);
         }
 
         _ctx.RoomObject.ExtraData.UpdateSection(WiredFurniSnapshotEntry.SECTION, snapshot);

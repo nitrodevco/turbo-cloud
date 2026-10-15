@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Messages.Registry;
@@ -8,6 +9,7 @@ using Turbo.Primitives.Messages.Incoming.Camera;
 using Turbo.Primitives.Messages.Outgoing.Camera;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Quests;
 
 namespace Turbo.PacketHandlers.Camera;
 
@@ -19,7 +21,8 @@ namespace Turbo.PacketHandlers.Camera;
 public class PublishPhotoMessageHandler(
     IGrainFactory grainFactory,
     CameraPhotoStore store,
-    IOptions<CameraConfig> config
+    IOptions<CameraConfig> config,
+    ILogger<PublishPhotoMessageHandler> logger
 ) : IMessageHandler<PublishPhotoMessage>
 {
     private readonly CameraConfig _config = config.Value;
@@ -73,6 +76,11 @@ public class PublishPhotoMessageHandler(
         }
 
         store.MarkPublished(ctx.PlayerId.Value);
+        grainFactory.CountRewardTrackAction(
+            ctx.PlayerId,
+            RewardTrackActionTypes.PUBLISH_PICTURE,
+            logger
+        );
 
         await ctx.SendComposerAsync(
                 new CameraPublishStatusMessageComposer

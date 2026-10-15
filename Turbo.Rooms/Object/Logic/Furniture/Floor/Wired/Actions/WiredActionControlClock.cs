@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -23,11 +24,16 @@ public class WiredActionControlClock(
 {
     public override int WiredCode => (int)WiredActionType.CONTROL_CLOCK;
 
+    // A counter box takes counters only ("Can only select counter furni.",
+    // wiredfurni.error.require_counter_furni; inference: which boxes the hotel text is for).
+    protected override bool CanPickFurni(IRoomItem item) => item.Logic is IWiredClock;
+
+    protected override string PickRefusedErrorKey => WiredSaveErrors.REQUIRE_COUNTER_FURNI;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredClockControlType>(WiredClockControlType.Start)];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

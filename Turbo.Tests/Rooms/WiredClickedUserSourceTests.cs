@@ -64,13 +64,13 @@ public sealed class WiredClickedUserSourceTests
         var give = _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
 
         (await _room.SaveAsync<UpdateTriggerMessage>(1, intParams: [0, 0])).Should().BeTrue();
+        // Its first user slot, the users given to (the second holds the reference holders).
         give.GetAllowedPlayerSources()
+            .First()
             .Should()
-            .ContainSingle()
-            .Which.Should()
             .NotContain(WiredPlayerSourceType.ClickedUser);
         give.GetOfferedPlayerSources()
-            .Single()
+            .First()
             .Should()
             .StartWith([WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.ClickedUser]);
         (
@@ -85,7 +85,7 @@ public sealed class WiredClickedUserSourceTests
                 variableIds: [_mark.GetVarSnapshot().VariableId.ToString()]
             )
         ).Should().BeTrue();
-        give.GetPlayerSources().Single().Should().Equal(source);
+        give.GetPlayerSources().First().Should().Equal(source);
         await StartAsync(0, 0);
 
         await Wired.OnRoomEventAsync(

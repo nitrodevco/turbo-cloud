@@ -2,6 +2,7 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
@@ -49,8 +50,14 @@ public sealed class WiredMonitorErrorListTests
     }
 
     [Fact]
-    public async Task A_call_chain_cut_too_deep_counts_as_a_recursion_timeout()
+    public async Task A_cancelled_execution_counts_in_its_row_until_the_list_is_cleared()
     {
+        // Any stack run takes this room past its usage cap, so each call is cancelled.
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_wiredConfig",
+            new WiredConfig { ExecutionCostCap = 0.5, ExecutionCostPerStack = 1 }
+        );
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
@@ -63,17 +70,17 @@ public sealed class WiredMonitorErrorListTests
         );
         await TickAsync();
 
-        await CallTooDeepAsync();
-        await CallTooDeepAsync();
+        await CallAsync();
+        await CallAsync();
         _now += 3_000;
 
         var errors = Wired.GetErrorLogs(_now);
 
         errors.Should().HaveCount(10);
-        errors[5].ErrorName.Should().Be("RECURSION_TIMEOUT");
-        errors[5].ThrowCount.Should().Be(2);
-        errors[5].MsSinceLastOccurrence.Should().Be(3_000);
-        errors.Where((_, i) => i != 5).Should().OnlyContain(x => x.ThrowCount == 0);
+        errors[0].ErrorName.Should().Be("EXECUTION_CAP");
+        errors[0].ThrowCount.Should().Be(2);
+        errors[0].MsSinceLastOccurrence.Should().Be(3_000);
+        errors.Where((_, i) => i != 0).Should().OnlyContain(x => x.ThrowCount == 0);
 
         Wired.ClearErrorLogs();
 
@@ -84,7 +91,7 @@ public sealed class WiredMonitorErrorListTests
             .And.OnlyContain(x => x.ThrowCount == 0 && x.MsSinceLastOccurrence == -1);
     }
 
-    private async Task CallTooDeepAsync()
+    private async Task CallAsync()
     {
         await Wired.OnRoomEventAsync(
             new WiredStackCalledEvent
@@ -94,7 +101,7 @@ public sealed class WiredMonitorErrorListTests
                 StackIds = [_room.Map.ToIdx(0, 0)],
                 FurniIds = [],
                 AvatarIds = [],
-                Depth = 1_000,
+                Depth = 1,
                 IsNegative = false,
             },
             Ct

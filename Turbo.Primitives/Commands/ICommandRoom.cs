@@ -64,6 +64,25 @@ public interface ICommandRoom
     /// </summary>
     Task<int?> EjectAllAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Sends every pet that is not the executor's back to its owner (<c>:ejectpets</c>), as
+    /// picking each up would. Null when the executor may not act as the room's owner; otherwise
+    /// how many left.
+    /// </summary>
+    Task<int?> EjectPetsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Empties every highscore board in the room (<c>:resetscores</c>). Null when the executor
+    /// has no rights here; otherwise how many boards there were.
+    /// </summary>
+    Task<int?> ResetScoresAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Stops the executor hearing pets talk in this room, or lets them hear it again
+    /// (<c>:mutepets</c>). True when pets are now muted for them.
+    /// </summary>
+    bool TogglePetsMuted();
+
     /// <summary>Whether the room is a group's homeroom.</summary>
     Task<bool> IsGroupRoomAsync(CancellationToken ct);
 

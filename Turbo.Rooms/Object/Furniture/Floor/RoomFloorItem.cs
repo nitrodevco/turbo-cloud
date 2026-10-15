@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Networking;
@@ -15,8 +16,30 @@ public sealed class RoomFloorItem
 {
     public new RoomFloorItemSnapshot GetSnapshot() => (RoomFloorItemSnapshot)base.GetSnapshot();
 
-    public override IComposer GetAddComposer() =>
-        new ObjectAddMessageComposer { FloorItem = GetSnapshot() };
+    /// <summary>
+    /// A temporary furni arrives as Habbo sends one: the room objects message holding it alone,
+    /// with its owner's name, rather than ObjectAdd (official client capture, WIN63-202610131318,
+    /// Place Temporary Furni: Objects with one floor item and owners {room owner}, then a height
+    /// map update). The client adds the objects of either message the same way
+    /// (<c>RoomMessageHandler.as:670</c>, <c>:690</c>); only ObjectAdd also tells the room
+    /// competition that the room changed (<c>quest/IncomingMessages.as:161</c>).
+    /// </summary>
+    public override IComposer GetAddComposer()
+    {
+        var snapshot = GetSnapshot();
+
+        if (!IsTemporary)
+            return new ObjectAddMessageComposer { FloorItem = snapshot };
+
+        return new ObjectsMessageComposer
+        {
+            OwnerNames = ImmutableDictionary<PlayerId, string>.Empty.Add(
+                snapshot.OwnerId,
+                snapshot.OwnerName
+            ),
+            FloorItems = [snapshot],
+        };
+    }
 
     public override IComposer GetUpdateComposer() =>
         new ObjectUpdateMessageComposer { FloorItem = GetSnapshot() };

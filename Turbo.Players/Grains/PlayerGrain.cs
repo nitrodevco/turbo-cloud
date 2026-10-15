@@ -19,6 +19,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Texts;
 
@@ -407,6 +408,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 RespectsLeft = _state.RespectsLeft,
                 PetRespectsLeft = _state.PetRespectsLeft,
                 RespectReplenishesLeft = _state.RespectReplenishesLeft,
+                AccountLevel = PlayerAccountLevel.DEFAULT,
             }
         );
 
@@ -458,6 +460,12 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         _state.RespectsLeft = _playerConfig.MaxRespectPerDay;
 
         await WriteToDatabaseAsync(ct);
+
+        _grainFactory.CountRewardTrackAction(
+            PlayerId,
+            RewardTrackActionTypes.REPLENISH_RESPECT,
+            _logger
+        );
 
         return true;
     }
@@ -548,7 +556,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                     : -1,
                 OpenProfileWindow = true,
                 IsHidden = false,
-                AccountLevel = 1,
+                AccountLevel = PlayerAccountLevel.DEFAULT,
                 IntegerField24 = 0,
                 StarGemCount = 0,
                 BooleanField26 = false,

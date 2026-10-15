@@ -1439,6 +1439,46 @@ namespace Turbo.Database.Migrations
                     b.ToTable("marketplace_tokens");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.PlayerTargetedOfferEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("OfferId")
+                        .HasColumnType("int")
+                        .HasColumnName("offer_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Purchased")
+                        .HasColumnType("int")
+                        .HasColumnName("purchased");
+
+                    b.Property<int>("TrackingState")
+                        .HasColumnType("int")
+                        .HasColumnName("tracking_state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "OfferId")
+                        .IsUnique();
+
+                    b.ToTable("player_targeted_offers");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -5662,6 +5702,36 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
+                    b.Property<bool>("DiscordAllowJoining")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_allow_joining");
+
+                    b.Property<bool>("DiscordHideInHiddenRooms")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_hide_in_hidden_rooms");
+
+                    b.Property<int>("DiscordPreferencesVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("discord_preferences_version");
+
+                    b.Property<bool>("DiscordShareActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_share_activity");
+
+                    b.Property<bool>("DiscordShowHabbo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("discord_show_habbo");
+
                     b.Property<bool>("FriendRequestsDisabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -5856,6 +5926,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("purchased_days_subscribed");
 
+                    b.Property<DateTime?>("RunStartedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("run_started_at");
+
                     b.Property<int>("SubscriptionType")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
@@ -5932,6 +6006,268 @@ namespace Turbo.Database.Migrations
                     b.HasKey("PlayerId", "Reference");
 
                     b.ToTable("wallet_credit_receipts");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AnswerType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("answer_type");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int?>("ParentQuestionId")
+                        .HasColumnType("int")
+                        .HasColumnName("parent_question_id");
+
+                    b.Property<int>("PollId")
+                        .HasColumnType("int")
+                        .HasColumnName("poll_id");
+
+                    b.Property<int>("QuestionType")
+                        .HasColumnType("int")
+                        .HasColumnName("question_type");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PollId", "SortOrder");
+
+                    b.ToTable("room_poll_questions");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("EndMessage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasDefaultValue("")
+                        .HasColumnName("end_message");
+
+                    b.Property<string>("Headline")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("headline");
+
+                    b.Property<bool>("NpsPoll")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("nps_poll");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("StartMessage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasDefaultValue("")
+                        .HasColumnName("start_message");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasDefaultValue("")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomEntityId", "Enabled");
+
+                    b.ToTable("room_polls");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChoiceType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("choice_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int")
+                        .HasColumnName("question_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("text");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId", "SortOrder");
+
+                    b.ToTable("room_poll_choices");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollAnswerEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("text")
+                        .HasColumnName("answer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("PollId")
+                        .HasColumnType("int")
+                        .HasColumnName("poll_id");
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int")
+                        .HasColumnName("question_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PollId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("PlayerEntityId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("room_poll_answers");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("PollId")
+                        .HasColumnType("int")
+                        .HasColumnName("poll_id");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PollId");
+
+                    b.HasIndex("PlayerEntityId", "PollId")
+                        .IsUnique();
+
+                    b.ToTable("player_room_polls");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.DailyTaskDefinitionEntity", b =>
@@ -7737,6 +8073,17 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.PlayerTargetedOfferEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.VoucherEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", "CurrencyTypeEntity")
@@ -8383,6 +8730,85 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollEntity", "Poll")
+                        .WithMany()
+                        .HasForeignKey("PollId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Poll");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoomEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollAnswerEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollEntity", "Poll")
+                        .WithMany()
+                        .HasForeignKey("PollId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("Poll");
+
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollEntity", "Poll")
+                        .WithMany()
+                        .HasForeignKey("PollId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("Poll");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerDailyTaskEntity", b =>

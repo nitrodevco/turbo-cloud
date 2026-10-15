@@ -11,6 +11,9 @@ public sealed record WiredProjectileSettings
 {
     public required IReadOnlySet<int> ProjectileIds { get; init; }
 
+    /// <summary>Every furni the stack moves is a projectile, whatever <see cref="ProjectileIds"/> holds.</summary>
+    public bool AllMoved { get; init; }
+
     /// <summary>Null leaves the projectile's rotation alone.</summary>
     public required WiredDirectionalSystemType? RotateBy { get; init; }
 

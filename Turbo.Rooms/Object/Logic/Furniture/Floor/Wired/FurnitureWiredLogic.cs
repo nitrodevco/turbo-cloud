@@ -575,13 +575,13 @@ public abstract partial class FurnitureWiredLogic(
                     continue;
                 }
 
+                var v = proposed[i];
+
+                if (!rule.IsValid(v))
+                    return RefuseInvalidParam(rule);
+
                 try
                 {
-                    var v = proposed[i];
-
-                    if (!rule.IsValid(v))
-                        return false;
-
                     normalized.Add(rule.Sanitize(v));
                 }
                 catch (Exception ex)
@@ -603,7 +603,7 @@ public abstract partial class FurnitureWiredLogic(
             var v = i < proposed.Count ? proposed[i] : rule.DefaultValue;
 
             if (i < proposed.Count && !rule.IsValid(v))
-                return false;
+                return RefuseInvalidParam(rule);
 
             normalized.Add(rule.Sanitize(v));
         }
@@ -613,13 +613,20 @@ public abstract partial class FurnitureWiredLogic(
             var v = proposed[i];
 
             if (!tailRule.IsValid(v))
-                return false;
+                return RefuseInvalidParam(tailRule);
 
             normalized.Add(tailRule.Sanitize(v));
         }
 
         return true;
     }
+
+    /// <summary>
+    /// A param its rule refuses fails the save: with the rule's hotel text when it has one
+    /// (<see cref="IWiredParamRule.ErrorKey"/>), otherwise with the generic one.
+    /// </summary>
+    private static bool RefuseInvalidParam(IWiredParamRule rule) =>
+        rule.ErrorKey is { } errorKey ? throw new WiredSaveRefusedException(errorKey) : false;
 
     /// <summary>
     /// Whether this box may pick the furni at all. A box that takes only one kind (click tiles,

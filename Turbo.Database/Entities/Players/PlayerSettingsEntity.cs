@@ -163,6 +163,27 @@ public class PlayerSettingsEntity : TurboEntity
     public NavigatorViewModeType NavigatorResultsMode { get; set; } =
         DEFAULT_NAVIGATOR_RESULTS_MODE;
 
+    // The Discord settings window (DiscordPreferences); version 0 is never saved.
+    [Column("discord_preferences_version")]
+    [DefaultValue(0)]
+    public int DiscordPreferencesVersion { get; set; }
+
+    [Column("discord_show_habbo")]
+    [DefaultValue(false)]
+    public bool DiscordShowHabbo { get; set; }
+
+    [Column("discord_share_activity")]
+    [DefaultValue(false)]
+    public bool DiscordShareActivity { get; set; }
+
+    [Column("discord_hide_in_hidden_rooms")]
+    [DefaultValue(false)]
+    public bool DiscordHideInHiddenRooms { get; set; }
+
+    [Column("discord_allow_joining")]
+    [DefaultValue(false)]
+    public bool DiscordAllowJoining { get; set; }
+
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
 }

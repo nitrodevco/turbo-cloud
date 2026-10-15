@@ -96,7 +96,7 @@ public sealed partial class RoomGrain
                 refused.ErrorKey
             );
 
-            return WiredSaveResult.RefusedWith(refused.ErrorKey);
+            return WiredSaveResult.RefusedWith(refused.ErrorKey, refused.Parameters);
         }
         catch (Exception ex)
         {
@@ -278,13 +278,11 @@ public sealed partial class RoomGrain
 
         var (floorItemCount, wallItemCount) = WiredSystem.CountRoomItems();
         var variables = (await WiredSystem.GetWiredVariablesSnapshotAsync(ct)).Variables;
-        var executionCost = WiredSystem.GetExecutionCost(NowMs());
-
         return new WiredRoomStatsSnapshot
         {
-            ExecutionCost = executionCost,
+            ExecutionCost = WiredSystem.GetExecutionCost(NowMs()),
             ExecutionCostCap = _wiredConfig.ExecutionCostCap,
-            IsHeavy = executionCost >= _wiredConfig.ExecutionCostCap,
+            IsHeavy = WiredSystem.IsHeavy,
             FloorItemCount = floorItemCount,
             FloorItemCap = _wiredConfig.MaxFloorItems,
             WallItemCount = wallItemCount,

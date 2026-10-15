@@ -231,20 +231,34 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 ct
             );
 
-        return _roomGrain.SendComposerToRoomAsync(
-            CreateComposer(
-                speech.Shout ? RoomChatType.Shout : RoomChatType.Chat,
-                speaker.ObjectId,
-                text,
-                AvatarGestureType.None,
-                speech.StyleId,
-                NO_TRACKING_ID,
-                receiverRoomIndex: null,
-                speech.BubbleWidth,
-                speech.HideUsername
-            ),
-            ct
+        var composer = CreateComposer(
+            speech.Shout ? RoomChatType.Shout : RoomChatType.Chat,
+            speaker.ObjectId,
+            text,
+            AvatarGestureType.None,
+            speech.StyleId,
+            NO_TRACKING_ID,
+            receiverRoomIndex: null,
+            speech.BubbleWidth,
+            speech.HideUsername
         );
+
+        // ":mutepets Ignore pet chats" (habbopages/chat/commands): whoever said it is not sent
+        // what pets say.
+        var petsMutedBy = _roomGrain._state.PetsMutedBy;
+
+        if (speaker is IRoomPet && petsMutedBy.Count > 0)
+            return _roomGrain._grainFactory.SendComposerToPlayersAsync(
+                [
+                    .. AvatarModule
+                        .Players.Select(x => x.PlayerId)
+                        .Where(x => !petsMutedBy.Contains(x)),
+                ],
+                composer,
+                ct
+            );
+
+        return _roomGrain.SendComposerToRoomAsync(composer, ct);
     }
 
     /// <summary>

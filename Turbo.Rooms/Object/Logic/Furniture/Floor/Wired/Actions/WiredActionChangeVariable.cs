@@ -33,6 +33,10 @@ public class WiredActionChangeVariable(
 
     public override int GetMaxVariableIds() => 2;
 
+    // The variable and its reference by position: the same variable may be both (official client
+    // capture: Change Variable saved with ids [mark, mark]).
+    protected override bool HasPositionalVariableIds => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             WiredRules.VariableTarget(WiredVariableTargetType.User),
@@ -50,9 +54,16 @@ public class WiredActionChangeVariable(
 
     protected override int GetRequiredIntParamCount() => PARAM_SAME_HOLDER;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+    // Two merged selections, the holders acted on and the reference holders, each its own furni
+    // and user slot (official client capture of the box's sources).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
+            WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
+        ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -64,7 +75,7 @@ public class WiredActionChangeVariable(
         if (variable is null)
             return false;
 
-        var selection = ctx.GetSelection(this);
+        var selection = GetMergedSelection(ctx, 0);
         var operation = GetIntParamOrDefault(1, WiredVariableOperationType.Set);
         long operand = 0;
         var sameHolder =
@@ -75,7 +86,7 @@ public class WiredActionChangeVariable(
         if (
             RequiresOperand(operation)
             && !sameHolder
-            && !TryResolveOperand(2, 3, 5, 1, selection, out operand)
+            && !TryResolveOperand(2, 3, 5, 1, GetMergedSelection(ctx, 1), out operand)
         )
             return false;
 

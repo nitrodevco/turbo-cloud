@@ -10,9 +10,12 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -148,6 +151,20 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         SecurityModule.CanManipulateFurniAsync(ctx);
 
     /// <summary>
+    /// Counts a reward track action (<see cref="RewardTrackActionTypes"/>) of the player behind
+    /// <paramref name="avatar"/>; a bot or a pet counts nothing.
+    /// </summary>
+    protected void CountRewardTrackAction(IRoomAvatar avatar, string actionType)
+    {
+        if (avatar is IRoomPlayer player)
+            CountRewardTrackAction(player.PlayerId, actionType);
+    }
+
+    /// <inheritdoc cref="CountRewardTrackAction(IRoomAvatar, string)"/>
+    protected void CountRewardTrackAction(PlayerId playerId, string actionType) =>
+        _roomGrain._grainFactory.CountRewardTrackAction(playerId, actionType, _roomGrain._logger);
+
+    /// <summary>
     /// Whether the acting player owns this item itself. The room's owner may not turn a guest's
     /// furni into something of theirs; for that, see <see cref="IsOwnedOutrightBy"/>.
     /// </summary>
@@ -157,7 +174,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// Whether the acting player owns this item and it is theirs for good: neither lent by the
     /// Builders Club nor temporary (placed by wired, owned by the wired box's owner). The rule
     /// for turning the item into something else that is theirs to keep (credits, a present's
-    /// contents, clothing, an effect, a prize): a borrowed or temporary furni is worth nothing, so
+    /// contents, a pet, clothing, an effect, a prize): a borrowed or temporary furni is worth nothing, so
     /// it never becomes anything that is.
     /// </summary>
     protected bool IsOwnedOutrightBy(ActionContext ctx) =>
@@ -298,6 +315,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
                 ObjectId = _ctx.ObjectId,
+                IsBuildersClub = _ctx.RoomObject.IsBuildersClub,
             },
             ct
         );

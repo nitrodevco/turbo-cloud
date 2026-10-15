@@ -50,68 +50,100 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
 
     private DateTime Now => _time.GetUtcNow().UtcDateTime;
 
-    public async Task SendQuestsAsync(bool openWindow, CancellationToken ct)
-    {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var data = await LoadAsync(dbCtx, ct);
-        var now = Now;
-
+    public async Task SendQuestsAsync(bool openWindow, CancellationToken ct) =>
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,
             new QuestsMessageComposer
             {
-                Quests =
-                [
-                    .. data
-                        .Campaigns.Select(campaign => data.Current(campaign))
-                        .Where(x => x is not null)
-                        .Select(x => data.Snapshot(x!, now)),
-                ],
+                Quests = [.. await CurrentQuestsAsync(ct)],
                 OpenWindow = openWindow,
             },
             ct
         );
-    }
 
-    public async Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct)
-    {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var data = await LoadAsync(dbCtx, ct);
-        var open = data
-            .Campaigns.Select(data.Current)
-            .OfType<QuestEntity>()
-            .Where(x => !data.Done(x))
-            .ToList();
-        var easyQuests = open.Where(x => x.Easy).ToList();
-        var hardQuests = open.Where(x => !x.Easy).ToList();
-
-        // The widget hides "another quest" while a quest is accepted, so the one being done is
-        // the one it shows.
-        var quest = open.FirstOrDefault(x =>
-            data.Rows.TryGetValue(x.Id, out var row) && row.Accepted
+    /// <summary>
+    /// The <see cref="SendQuestsAsync"/> list kept to its seasonal quests: official
+    /// SeasonalQuests carried the two seasonal quests of the Quests list sent just before it, in
+    /// its order, and left out the two that were not (official client capture 2026-10-12, 3 samples).
+    /// </summary>
+    public async Task SendSeasonalQuestsAsync(CancellationToken ct) =>
+        await _grainFactory.SendComposerToPlayerAsync(
+            _playerId,
+            new SeasonalQuestsMessageComposer
+            {
+                Quests = [.. (await CurrentQuestsAsync(ct)).Where(x => x.IsSeasonal)],
+            },
+            ct
         );
 
-        if (quest is null)
-        {
-            var pool = easy ? easyQuests : hardQuests;
-
-            if (pool.Count == 0)
-                pool = easy ? hardQuests : easyQuests;
-
-            if (pool.Count > 0)
-                quest = pool[Math.Abs(index % pool.Count)];
-        }
+    /// <summary>
+    /// What the hotel view's daily quest widget shows (<c>DailyQuestWidget.refreshContent</c>,
+    /// AS3 WIN63-202610131318): an accepted quest with its cancel link, else one not accepted with
+    /// "accept", the easy/hard switch when there are both and "next quest" when its kind has more
+    /// than one. Inference (no official QuestDaily recorded): the quests offered are the
+    /// campaigns' current quests not done, split by their easy flag; the index wraps round; with
+    /// none of the asked kind the other kind is offered.
+    /// </summary>
+    public async Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct)
+    {
+        var open = (await CurrentQuestsAsync(ct)).Where(x => x.Id != 0).ToList();
+        var easyCount = open.Count(x => x.Easy);
+        var pool = open.Where(x => x.Easy == easy).ToList() is { Count: > 0 } asked ? asked : open;
+        var quest =
+            open.FirstOrDefault(x => x.Accepted)
+            ?? (pool.Count > 0 ? pool[(int)((uint)index % (uint)pool.Count)] : null);
 
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,
             new QuestDailyMessageComposer
             {
-                Quest = quest is null ? null : data.Snapshot(quest, Now),
-                EasyQuestCount = easyQuests.Count,
-                HardQuestCount = hardQuests.Count,
+                Quest = quest,
+                EasyQuestCount = easyCount,
+                HardQuestCount = open.Count - easyCount,
             },
             ct
         );
+    }
+
+    private async Task<List<QuestSnapshot>> CurrentQuestsAsync(CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var data = await LoadAsync(dbCtx, ct);
+        var now = Now;
+
+        return
+        [
+            .. data
+                .Campaigns.Select(campaign => data.Current(campaign))
+                .Where(x => x is not null)
+                .Select(x => data.Snapshot(x!, now)),
+        ];
+    }
+
+    /// <summary>
+    /// The quest tracker sends the default campaign a new identity starts with after
+    /// <c>questing.startQuestDelayInSeconds</c> (<c>QuestTracker.startDefaultCampaign</c> /
+    /// <c>onStartQuestTimer</c>, AS3 WIN63-202610131318), and the VIP quests promo its campaign
+    /// on its button; the tracker then shows the Quest that comes back. Inference (no recording):
+    /// starting a campaign accepts its current quest.
+    /// </summary>
+    public async Task StartCampaignAsync(string campaignCode, CancellationToken ct)
+    {
+        int questId;
+
+        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            var data = await LoadAsync(dbCtx, ct);
+            var campaign = data.Campaigns.FirstOrDefault(x => x.Code == campaignCode);
+            var quest = campaign is null ? null : data.Current(campaign);
+
+            if (quest is null || data.Snapshot(quest, Now).Id == 0)
+                return;
+
+            questId = quest.Id;
+        }
+
+        await AcceptAsync(questId, ct);
     }
 
     public async Task AcceptAsync(int questId, CancellationToken ct)
@@ -330,7 +362,7 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
             x.CampaignEntityId
         );
 
-        public bool Done(QuestEntity quest) =>
+        private bool Done(QuestEntity quest) =>
             Rows.TryGetValue(quest.Id, out var row) && row.CompletedAt is not null;
 
         /// <summary>The campaign's first quest not done, else its last (the campaign is done).</summary>

@@ -75,6 +75,13 @@ public interface IWiredExecutionContext : IWiredContext
         bool instant
     );
 
+    /// <summary>
+    /// Pushes a user one tile, as Move/Rotate User does: a standing user slides there; a walking
+    /// user is pushed off the step it is taking and walks on (official client capture,
+    /// 2026-10-14). <paramref name="tileIdx"/> is reckoned from the tile being stepped onto.
+    /// </summary>
+    public Task<bool> ProcessUserPushAsync(IRoomAvatar avatar, int tileIdx);
+
     /// <summary>Turns an avatar in place.</summary>
     public Task ProcessUserDirectionAsync(IRoomAvatar avatar, Rotation body, Rotation head);
 
