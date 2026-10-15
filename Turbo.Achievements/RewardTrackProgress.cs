@@ -14,7 +14,7 @@ internal sealed class RewardTrackProgress
     public List<string> Claimed { get; set; } = [];
 
     /// <summary>
-    /// How many of a furniture prize's items have been given, by prize id, while it is being
+    /// How many of a furniture, pet or bot prize's items have been given, by prize id, while it is being
     /// claimed: each is saved as it is given, so a claim that fails part way and is tried again
     /// gives only the rest. Gone once the prize is claimed.
     /// </summary>

@@ -435,11 +435,89 @@
     ],
     "Prizes": [
         {
+            "Id": "free_001",
+            "RequiredPoints": 50,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "28"
+        },
+        {
+            "Id": "free_002",
+            "RequiredPoints": 100,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "29"
+        },
+        {
+            "Id": "premium_001",
+            "RequiredPoints": 100,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "50",
+            "Premium": true
+        },
+        {
+            "Id": "free_003",
+            "RequiredPoints": 150,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "30"
+        },
+        {
             "Id": "free_004",
             "RequiredPoints": 200,
             "ProductType": "ActivityPoints",
             "RewardTypeId": "0",
             "Amount": 50
+        },
+        {
+            "Id": "premium_002",
+            "RequiredPoints": 200,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "51",
+            "Premium": true
+        },
+        {
+            "Id": "free_005",
+            "RequiredPoints": 250,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "31"
+        },
+        {
+            "Id": "free_006",
+            "RequiredPoints": 300,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "32"
+        },
+        {
+            "Id": "premium_003",
+            "RequiredPoints": 300,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "52",
+            "Premium": true
+        },
+        {
+            "Id": "free_007",
+            "RequiredPoints": 350,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "33"
+        },
+        {
+            "Id": "free_008",
+            "RequiredPoints": 400,
+            "ProductType": "Pet",
+            "RewardTypeId": "1",
+            "ExtraParams": "1 0 ABABAB"
+        },
+        {
+            "Id": "premium_004",
+            "RequiredPoints": 400,
+            "ProductType": "Pet",
+            "RewardTypeId": "2",
+            "ExtraParams": "2 0 88E70D",
+            "Premium": true
+        },
+        {
+            "Id": "free_009",
+            "RequiredPoints": 450,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "34"
         },
         {
             "Id": "free_010",
@@ -457,6 +535,25 @@
             "Premium": true
         },
         {
+            "Id": "free_011",
+            "RequiredPoints": 550,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "35"
+        },
+        {
+            "Id": "free_012",
+            "RequiredPoints": 600,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "36"
+        },
+        {
+            "Id": "premium_006",
+            "RequiredPoints": 600,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "53",
+            "Premium": true
+        },
+        {
             "Id": "free_013",
             "RequiredPoints": 650,
             "ProductType": "Badge",
@@ -464,11 +561,30 @@
             "Amount": 1
         },
         {
+            "Id": "free_014",
+            "RequiredPoints": 700,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "37"
+        },
+        {
+            "Id": "premium_007",
+            "RequiredPoints": 700,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "54",
+            "Premium": true
+        },
+        {
             "Id": "free_015",
             "RequiredPoints": 750,
             "ProductType": "FloorItem",
             "RewardTypeId": "195",
             "Amount": 1
+        },
+        {
+            "Id": "free_016",
+            "RequiredPoints": 800,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "39"
         },
         {
             "Id": "premium_008",
@@ -479,11 +595,49 @@
             "Premium": true
         },
         {
+            "Id": "free_017",
+            "RequiredPoints": 850,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "40"
+        },
+        {
+            "Id": "free_018",
+            "RequiredPoints": 900,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "41"
+        },
+        {
+            "Id": "premium_009",
+            "RequiredPoints": 900,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "55",
+            "Premium": true
+        },
+        {
             "Id": "free_019",
             "RequiredPoints": 950,
             "ProductType": "ActivityPoints",
             "RewardTypeId": "0",
             "Amount": 50
+        },
+        {
+            "Id": "free_020",
+            "RequiredPoints": 1000,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "42"
+        },
+        {
+            "Id": "premium_010",
+            "RequiredPoints": 1000,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "56",
+            "Premium": true
+        },
+        {
+            "Id": "free_021",
+            "RequiredPoints": 1050,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "43"
         },
         {
             "Id": "free_022",
@@ -493,11 +647,57 @@
             "Amount": 1
         },
         {
+            "Id": "premium_011",
+            "RequiredPoints": 1100,
+            "ProductType": "Bot",
+            "RewardTypeId": "GENERIC",
+            "ExtraParams": "hr-3020-34.hd-3091-2.ch-225-92.lg-3058-100.sh-3089-1338.ca-3084-78-108.wa-2005",
+            "Premium": true
+        },
+        {
+            "Id": "free_023",
+            "RequiredPoints": 1150,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "44"
+        },
+        {
             "Id": "free_024",
             "RequiredPoints": 1200,
             "ProductType": "FloorItem",
             "RewardTypeId": "18490",
             "Amount": 1
+        },
+        {
+            "Id": "premium_012",
+            "RequiredPoints": 1200,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "57",
+            "Premium": true
+        },
+        {
+            "Id": "free_025",
+            "RequiredPoints": 1250,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "45"
+        },
+        {
+            "Id": "free_026",
+            "RequiredPoints": 1300,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "46"
+        },
+        {
+            "Id": "premium_013",
+            "RequiredPoints": 1300,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "58",
+            "Premium": true
+        },
+        {
+            "Id": "free_027",
+            "RequiredPoints": 1350,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "47"
         },
         {
             "Id": "premium_014",
@@ -506,6 +706,12 @@
             "RewardTypeId": "5",
             "Amount": 25,
             "Premium": true
+        },
+        {
+            "Id": "free_028",
+            "RequiredPoints": 1400,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "48"
         },
         {
             "Id": "premium_015",
@@ -536,6 +742,13 @@
             "ProductType": "FloorItem",
             "RewardTypeId": "18975",
             "Amount": 1
+        },
+        {
+            "Id": "premium_017",
+            "RequiredPoints": 1500,
+            "ProductType": "Habbicon",
+            "RewardTypeId": "59",
+            "Premium": true
         },
         {
             "Id": "free_031",

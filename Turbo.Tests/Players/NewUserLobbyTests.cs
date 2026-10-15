@@ -274,15 +274,13 @@ public sealed class NewUserLobbyTests : IDisposable
             .Levels.Select(x => (x.RequiredCount, x.Points))
             .Should()
             .Equal((1, 10), (5, 20), (20, 30));
-        // Only what Turbo can give: no Habbicons, pets or bots.
+        // All 49 prizes, the Habbicons, pets and bot among them.
+        track.Prizes.Should().HaveCount(49);
         track
-            .Prizes.Select(x => x.ProductType)
-            .Should()
-            .OnlyContain(x =>
-                x == ProductDisplayType.FloorItem
-                || x == ProductDisplayType.ActivityPoints
-                || x == ProductDisplayType.Badge
-            );
+            .Prizes.Should()
+            .Contain(x => x.Id == "free_008" && x.ProductType == ProductDisplayType.Pet)
+            .And.Contain(x => x.Id == "premium_011" && x.ProductType == ProductDisplayType.Bot)
+            .And.Contain(x => x.Id == "free_001" && x.ProductType == ProductDisplayType.Habbicon);
         track.Prizes.Should().Contain(x => x.Id == "free_031" && x.RewardTypeId == "JRH31");
     }
 

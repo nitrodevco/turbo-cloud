@@ -6,9 +6,10 @@ namespace Turbo.Achievements.Configuration;
 
 /// <summary>
 /// Habbo's Introduction track ("Start your Habbo Journey!") as Habbo sent it to a new account on
-/// 2026-10-12 (<c>RewardTracks</c>, hhus): its 30 tasks, points and premium as they are, and the
-/// 16 of its 49 prizes Turbo can give - duckets, diamonds, badges and furni (named by sprite, found
-/// in the hotel's furniture). Its 30 Habbicons, 2 pets and a bot are left out.
+/// 2026-10-12 (<c>RewardTracks</c>, hhus): its 30 tasks, points, premium and 49 prizes as they are -
+/// duckets, diamonds, badges, furni (named by sprite, found in the hotel's furniture), 30
+/// Habbicons (found in the hotel's Habbicon collections), 2 pets (of the hotel's pet palettes)
+/// and a bot.
 /// </summary>
 public static class HabboRewardTracks
 {

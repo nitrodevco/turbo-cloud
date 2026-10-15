@@ -10,6 +10,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Messenger;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Players.Messenger;
@@ -77,6 +78,13 @@ public sealed class MessengerService(
             .SendFriendRequestAsync(target, ct)
             .ConfigureAwait(false);
 
+        if (result.Success)
+            _grainFactory.CountRewardTrackAction(
+                playerId,
+                RewardTrackActionTypes.REQUEST_FRIEND,
+                _logger
+            );
+
         // A request that already stands, either way, or one to yourself fails with no error:
         // the client has no text for code 0 (HabboFriendList.showAlertView), so it is dropped.
         if (
@@ -121,15 +129,26 @@ public sealed class MessengerService(
         CancellationToken ct
     ) => _grainFactory.GetPlayerMessengerGrain(playerId).RemoveFriendsAsync(friendIds, ct);
 
-    public Task SetRelationshipStatusAsync(
+    public async Task SetRelationshipStatusAsync(
         PlayerId playerId,
         PlayerId friendId,
         int relationType,
         CancellationToken ct
-    ) =>
-        _grainFactory
+    )
+    {
+        var changed = await _grainFactory
             .GetPlayerMessengerGrain(playerId)
-            .SetRelationshipStatusAsync(friendId, (MessengerFriendRelationType)relationType, ct);
+            .SetRelationshipStatusAsync(friendId, (MessengerFriendRelationType)relationType, ct)
+            .ConfigureAwait(false);
+
+        // Setting one, not clearing it (relation 0, "none").
+        if (changed && relationType != (int)MessengerFriendRelationType.Zero)
+            _grainFactory.CountRewardTrackAction(
+                playerId,
+                RewardTrackActionTypes.SET_RELATIONSHIP_STATUS,
+                _logger
+            );
+    }
 
     public async Task<IComposer> SearchAsync(PlayerId playerId, string query, CancellationToken ct)
     {
@@ -159,6 +178,13 @@ public sealed class MessengerService(
             .GetPlayerMessengerGrain(playerId)
             .SendMessageAsync(chatId, message, confirmationId, sender.Name, sender.Figure, ct)
             .ConfigureAwait(false);
+
+        if (error is null && message.Length > 0)
+            _grainFactory.CountRewardTrackAction(
+                playerId,
+                RewardTrackActionTypes.SEND_MESSENGER_MESSAGE,
+                _logger
+            );
 
         // MainView.onInstantMessageError shows the text after the error's own words.
         return error is { } errorCode
@@ -241,6 +267,14 @@ public sealed class MessengerService(
             .SendRoomInviteAsync([.. friendIds.Select(PlayerId.Parse)], message, ct)
             .ConfigureAwait(false);
 
+        // One invite, however many friends it reached; none reached is no invite.
+        if (failed.Count < friendIds.Count)
+            _grainFactory.CountRewardTrackAction(
+                playerId,
+                RewardTrackActionTypes.SEND_MESSENGER_INVITE,
+                _logger
+            );
+
         // HabboFriendList.onRoomInviteError lists who was not reached.
         return failed.Count == 0
             ? null
@@ -263,6 +297,13 @@ public sealed class MessengerService(
                 : await _roomService
                     .FollowFriendAsync(playerId, friendId, ct)
                     .ConfigureAwait(false);
+
+        if (errorCode is null)
+            _grainFactory.CountRewardTrackAction(
+                playerId,
+                RewardTrackActionTypes.FOLLOW_FRIEND,
+                _logger
+            );
 
         return errorCode is { } error
             ? new FollowFriendFailedMessageComposer { ErrorCode = error }

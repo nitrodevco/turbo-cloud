@@ -56,4 +56,6 @@ public enum WiredActionType
     PLACE_FURNI = 55,
     REMOVE_FURNI = 56,
     MOVE_AS_GROUP = 57,
+    PROGRESS_REWARD_TRACK = 58,
+    RESET_REWARD_TRACK = 59,
 }

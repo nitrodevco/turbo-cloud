@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -164,6 +165,12 @@ public sealed class EffectFurniTests
         (avatar.X, avatar.Y).Should().Be((4, 3));
         avatar.EffectId.Should().Be(0);
         EffectMessages(avatar).Should().Equal([30, 0], "it is put on once and taken off once");
+        // Swimming (AvatarInfoWidget.isSwimming: 29, 30, 185) counts once for a swim task.
+        _room
+            .Harness.Fakes.Log.Of("RecordActionAsync")
+            .Select(x => (Convert.ToInt32(x.Key), x.Args[0]))
+            .Should()
+            .Equal((OWNER, RewardTrackActionTypes.SWIM));
     }
 
     [Fact]

@@ -18,11 +18,13 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Quests.Snapshots;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Achievements.Grains;
 
@@ -37,11 +39,13 @@ namespace Turbo.Achievements.Grains;
 internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 {
     private const string CREDIT_REFERENCE_PREFIX = "rewardtrack:";
+    private const string GENERIC_BOT_TYPE = "GENERIC";
 
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RewardTrackConfig _config;
     private readonly IGrainFactory _grainFactory;
     private readonly IFurnitureDefinitionProvider _definitions;
+    private readonly IPetBreedProvider _petBreeds;
     private readonly ILogger<IPlayerRewardTrackGrain> _logger;
 
     private readonly PlayerRewardTrackLiveState _state;
@@ -51,6 +55,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         IOptions<RewardTrackConfig> config,
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider definitions,
+        IPetBreedProvider petBreeds,
         ILogger<IPlayerRewardTrackGrain> logger
     )
     {
@@ -58,6 +63,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         _config = config.Value;
         _grainFactory = grainFactory;
         _definitions = definitions;
+        _petBreeds = petBreeds;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -147,27 +153,8 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                     counted.Add(distinctValue);
                 }
 
-                var row = RowOf(track.Id);
-
-                progress.Tasks[task.Id] = count + 1;
-                row.Points += task
-                    .Levels.Where(x =>
-                        x.RequiredCount > count
-                        && x.RequiredCount <= count + 1
-                        && (!x.Premium || premium)
-                    )
-                    .Sum(x => Boosted(track, x.Points, premium));
-
                 changed.Add(track.Id);
-                updates.Add(
-                    new RewardTrackProgressMessageComposer
-                    {
-                        TrackId = track.Id,
-                        TaskId = task.Id,
-                        ProgressCount = count + 1,
-                        Points = row.Points,
-                    }
-                );
+                updates.Add(Advance(track, task, count + 1));
             }
         }
 
@@ -176,6 +163,99 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 
         await SaveAsync(changed, ct);
         await _grainFactory.GetPlayerPresenceGrain(_state.PlayerId).SendComposerAsync(updates, ct);
+    }
+
+    public async Task<bool> ProgressTaskAsync(
+        string trackId,
+        string taskId,
+        int score,
+        bool add,
+        CancellationToken ct
+    )
+    {
+        if (
+            !_config.Enabled
+            || _config.Tracks.Find(x => x.Id == trackId) is not { } track
+            || track.Tasks.Find(x => x.Id == taskId) is not { } task
+            || (task.Premium && !IsPremium(trackId))
+        )
+            return false;
+
+        var count = ProgressOf(trackId).Tasks.GetValueOrDefault(taskId);
+        var target = Math.Min(
+            add ? (long)count + Math.Max(0, score) : score,
+            task.Levels[^1].RequiredCount
+        );
+
+        if (target <= count)
+            return false;
+
+        var update = Advance(track, task, (int)target);
+
+        await SaveAsync([trackId], ct);
+        await _grainFactory.SendComposerToPlayerAsync(_state.PlayerId, update, ct);
+
+        return true;
+    }
+
+    public async Task<bool> ResetTrackAsync(string trackId, CancellationToken ct)
+    {
+        if (
+            !_config.Enabled
+            || !_config.Tracks.Exists(x => x.Id == trackId)
+            || !_state.Rows.TryGetValue(trackId, out var row)
+        )
+            return false;
+
+        row.Points = 0;
+        _state.Progress[trackId] = new();
+
+        await SaveAsync([trackId], ct);
+        // RewardTrackController.onRewardTracks: a reload rebuilds the window's views and, when
+        // it is open, says so ("reward_track.reload.*").
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new RewardTracksMessageComposer
+            {
+                Disabled = false,
+                Tracks = [.. _config.Tracks.Select(Snapshot)],
+                Reload = true,
+            },
+            ct
+        );
+
+        return true;
+    }
+
+    /// <summary>
+    /// Moves a task's count up to <paramref name="target"/>, adding the points of each level it
+    /// passes (a premium level only for a premium owner, boosted for one).
+    /// </summary>
+    private RewardTrackProgressMessageComposer Advance(
+        RewardTrackDefinition track,
+        RewardTrackTaskDefinition task,
+        int target
+    )
+    {
+        var premium = IsPremium(track.Id);
+        var progress = ProgressOf(track.Id);
+        var count = progress.Tasks.GetValueOrDefault(task.Id);
+        var row = RowOf(track.Id);
+
+        progress.Tasks[task.Id] = target;
+        row.Points += task
+            .Levels.Where(x =>
+                x.RequiredCount > count && x.RequiredCount <= target && (!x.Premium || premium)
+            )
+            .Sum(x => Boosted(track, x.Points, premium));
+
+        return new RewardTrackProgressMessageComposer
+        {
+            TrackId = track.Id,
+            TaskId = task.Id,
+            ProgressCount = target,
+            Points = row.Points,
+        };
     }
 
     public async Task ClaimPrizeAsync(string trackId, string prizeId, CancellationToken ct)
@@ -411,21 +491,16 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
             case ProductDisplayType.FloorItem
             or ProductDisplayType.WallItem when FurnitureOf(prize) is { } definitionId:
             {
-                // Unlike a credit or a badge, a second grant is a second item, so each one given is
-                // saved before the next: a claim that failed part way gives only the rest on retry.
                 var inventory = _grainFactory.GetInventoryGrain(_state.PlayerId);
-                var progress = ProgressOf(track.Id);
 
-                RowOf(track.Id);
-
-                for (
-                    var given = progress.FurnitureGiven.GetValueOrDefault(prize.Id);
-                    given < prize.Amount;
-                    given++
-                )
-                {
-                    if (await inventory.GrantFurnitureAsync(definitionId, null, ct) is null)
+                return await GiveEachAsync(
+                    track,
+                    prize,
+                    async () =>
                     {
+                        if (await inventory.GrantFurnitureAsync(definitionId, null, ct) is not null)
+                            return true;
+
                         _logger.LogError(
                             "Reward track prize {TrackId}/{PrizeId}: furniture definition {DefinitionId} does not exist",
                             track.Id,
@@ -434,13 +509,74 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                         );
 
                         return false;
-                    }
+                    },
+                    ct
+                );
+            }
+            case ProductDisplayType.Habbicon
+                when int.TryParse(
+                    prize.RewardTypeId,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var habbiconId
+                ):
+                // Giving a Habbicon the player already has changes nothing, so a retry is safe.
+                return await _grainFactory
+                    .GetPlayerHabbiconGrain(_state.PlayerId)
+                    .GiveAsync(habbiconId, ct);
+            case ProductDisplayType.Pet when PetOf(prize) is { } pet:
+            {
+                var inventory = _grainFactory.GetInventoryGrain(_state.PlayerId);
+                var name = prize.Name.Length > 0 ? prize.Name : _config.PetPrizeName;
 
-                    progress.FurnitureGiven[prize.Id] = given + 1;
-                    await SaveAsync([track.Id], ct);
-                }
+                return await GiveEachAsync(
+                    track,
+                    prize,
+                    async () =>
+                        await inventory.CreatePetAsync(
+                            name,
+                            pet.TypeId,
+                            pet.PaletteId,
+                            pet.BreedId,
+                            pet.Color,
+                            pet.RarityLevel,
+                            [],
+                            ct
+                        )
+                            is not null,
+                    ct
+                );
+            }
+            // The client draws a bot prize by its look alone (ProductIconWidget); "GENERIC" is
+            // the only bot type Habbo's prizes name, and the only one a bot can be created as here.
+            case ProductDisplayType.Bot
+                when prize.ExtraParams.Length > 0
+                    && (
+                        prize.RewardTypeId.Length == 0
+                        || string.Equals(
+                            prize.RewardTypeId,
+                            GENERIC_BOT_TYPE,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    ):
+            {
+                var inventory = _grainFactory.GetInventoryGrain(_state.PlayerId);
+                var name = prize.Name.Length > 0 ? prize.Name : _config.BotPrizeName;
 
-                return true;
+                return await GiveEachAsync(
+                    track,
+                    prize,
+                    async () =>
+                        await inventory.CreateBotAsync(
+                            name,
+                            string.Empty,
+                            prize.ExtraParams,
+                            AvatarGenderType.Male,
+                            ct
+                        )
+                            is not null,
+                    ct
+                );
             }
             default:
                 _logger.LogError(
@@ -454,6 +590,76 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                 return false;
         }
     }
+
+    /// <summary>
+    /// Gives a prize's items one at a time. Unlike a credit or a badge, a second grant is a second
+    /// item, so each one given is saved before the next: a claim that failed part way gives only
+    /// the rest on retry.
+    /// </summary>
+    private async Task<bool> GiveEachAsync(
+        RewardTrackDefinition track,
+        RewardTrackPrizeDefinition prize,
+        Func<Task<bool>> giveOne,
+        CancellationToken ct
+    )
+    {
+        var progress = ProgressOf(track.Id);
+
+        RowOf(track.Id);
+
+        for (
+            var given = progress.FurnitureGiven.GetValueOrDefault(prize.Id);
+            given < prize.Amount;
+            given++
+        )
+        {
+            if (!await giveOne())
+                return false;
+
+            progress.FurnitureGiven[prize.Id] = given + 1;
+            await SaveAsync([track.Id], ct);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The pet a pet prize gives: its figure (<see cref="RewardTrackPrizeDefinition.ExtraParams"/>,
+    /// "type palette colour" as Habbo's prizes send it, e.g. "1 0 ABABAB") with the breed and
+    /// rarity of the hotel's palette. Null when the hotel has no such palette.
+    /// </summary>
+    private PetPrize? PetOf(RewardTrackPrizeDefinition prize)
+    {
+        var parts = prize.ExtraParams.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (
+            parts.Length < 3
+            || !int.TryParse(
+                parts[0],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var typeId
+            )
+            || !int.TryParse(
+                parts[1],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var paletteId
+            )
+            || _petBreeds.TryGetPalette(typeId, paletteId) is not { } palette
+        )
+            return null;
+
+        return new(typeId, paletteId, palette.BreedId, parts[2], palette.RarityLevel);
+    }
+
+    private sealed record PetPrize(
+        int TypeId,
+        int PaletteId,
+        int BreedId,
+        string Color,
+        int RarityLevel
+    );
 
     private static int Boosted(RewardTrackDefinition track, int points, bool premium) =>
         premium && track.Premium is { } config

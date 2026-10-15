@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -74,6 +75,12 @@ public sealed class TeleportSequenceTests
         // The near half opens, takes them in, shuts and flashes; the far half flashes, opens to
         // let them out and shuts behind them: each opens once.
         _states.Should().Equal("A:1", "A:0", "A:2", "A:0", "B:2", "B:1", "B:0");
+        // The teleport counts once for a reward track's teleport task.
+        _room
+            .Harness.Fakes.Log.Of("RecordActionAsync")
+            .Select(x => (Convert.ToInt32(x.Key), x.Args[0]))
+            .Should()
+            .Equal((OWNER, RewardTrackActionTypes.TELEPORT));
     }
 
     [Fact]

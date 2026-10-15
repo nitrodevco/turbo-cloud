@@ -23,6 +23,12 @@ public sealed class RewardTrackConfig
     /// </summary>
     public bool HabboIntroduction { get; set; } = true;
 
+    /// <summary>What a pet prize is called when its definition names none.</summary>
+    public string PetPrizeName { get; set; } = "Pet";
+
+    /// <summary>What a bot prize is called when its definition names none.</summary>
+    public string BotPrizeName { get; set; } = "Bot";
+
     /// <summary>What is wrong with the tracks, or null when they can be used.</summary>
     public string? Problem()
     {
