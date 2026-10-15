@@ -1085,6 +1085,14 @@ public class Revision20260909 : IRevision
                 new SetOnlineIndicatorPreferenceMessageParser()
             },
             { MessageEvent.SetSoundSettingsMessageEvent, new SetSoundSettingsMessageParser() },
+            {
+                MessageEvent.GetDiscordPreferencesMessageEvent,
+                new GetDiscordPreferencesMessageParser()
+            },
+            {
+                MessageEvent.SetDiscordPreferencesMessageEvent,
+                new SetDiscordPreferencesMessageParser()
+            },
             { MessageEvent.SetUIFlagsMessageEvent, new SetUIFlagsMessageParser() },
             #endregion
 
@@ -2820,6 +2828,12 @@ public class Revision20260909 : IRevision
             #endregion
 
             #region Preferences
+            {
+                typeof(DiscordPreferencesMessageComposer),
+                new DiscordPreferencesMessageComposerSerializer(
+                    MessageComposer.DiscordPreferencesMessageComposer
+                )
+            },
             {
                 typeof(AccountPreferencesEventMessageComposer),
                 new AccountPreferencesEventMessageComposerSerializer(

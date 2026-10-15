@@ -333,6 +333,41 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         return Task.CompletedTask;
     }
 
+    public Task SetDiscordPreferencesAsync(
+        int version,
+        bool showHabbo,
+        bool shareActivity,
+        bool hideInHiddenRooms,
+        bool allowJoining,
+        CancellationToken ct
+    )
+    {
+        // Version 0 is what "never saved" reads as, and the client never sends less than 1.
+        if (version <= 0)
+        {
+            _logger.LogWarning(
+                "Rejected Discord preferences version {Version} for player {PlayerId}",
+                version,
+                _state.PlayerId
+            );
+
+            return Task.CompletedTask;
+        }
+
+        Apply(
+            _state.Settings with
+            {
+                DiscordPreferencesVersion = version,
+                DiscordShowHabbo = showHabbo,
+                DiscordShareActivity = shareActivity,
+                DiscordHideInHiddenRooms = hideInHiddenRooms,
+                DiscordAllowJoining = allowJoining,
+            }
+        );
+
+        return Task.CompletedTask;
+    }
+
     public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct)
     {
         Apply(_state.Settings with { UIFlags = uiFlags });
@@ -543,6 +578,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             NavigatorWindowHeight = entity.NavigatorWindowHeight,
             NavigatorLeftPaneHidden = entity.NavigatorLeftPaneHidden,
             NavigatorResultsMode = entity.NavigatorResultsMode,
+            DiscordPreferencesVersion = entity.DiscordPreferencesVersion,
+            DiscordShowHabbo = entity.DiscordShowHabbo,
+            DiscordShareActivity = entity.DiscordShareActivity,
+            DiscordHideInHiddenRooms = entity.DiscordHideInHiddenRooms,
+            DiscordAllowJoining = entity.DiscordAllowJoining,
         };
 
     private static void ApplyTo(PlayerSettingsEntity entity, PlayerSettingsSnapshot settings)
@@ -575,5 +615,10 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         entity.NavigatorWindowHeight = settings.NavigatorWindowHeight;
         entity.NavigatorLeftPaneHidden = settings.NavigatorLeftPaneHidden;
         entity.NavigatorResultsMode = settings.NavigatorResultsMode;
+        entity.DiscordPreferencesVersion = settings.DiscordPreferencesVersion;
+        entity.DiscordShowHabbo = settings.DiscordShowHabbo;
+        entity.DiscordShareActivity = settings.DiscordShareActivity;
+        entity.DiscordHideInHiddenRooms = settings.DiscordHideInHiddenRooms;
+        entity.DiscordAllowJoining = settings.DiscordAllowJoining;
     }
 }

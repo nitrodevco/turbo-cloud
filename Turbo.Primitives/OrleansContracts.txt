@@ -392,6 +392,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Settings.IPlayerS
   00E83B77: RemoveCustomFilterWordAsync(string, System.Threading.CancellationToken) -> Task<bool>
   3D0F1463: SetChatPreferencesAsync(Turbo.Primitives.Navigator.Enums.ChatModeType, Turbo.Primitives.Navigator.Enums.ChatBubbleWidthType, Turbo.Primitives.Navigator.Enums.ChatScrollSpeedType, System.Threading.CancellationToken) -> Task
   BB410C01: SetChatStyleAsync(int, Turbo.Primitives.Navigator.Enums.ChatSizeType, System.Threading.CancellationToken) -> Task
+  C9FCE34F: SetDiscordPreferencesAsync(int, bool, bool, bool, bool, System.Threading.CancellationToken) -> Task
   1B033A04: SetFriendRequestsDisabledAsync(bool, System.Threading.CancellationToken) -> Task
   5E7D3636: SetHomeRoomAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   EA3D9F14: SetIgnoreRoomInvitesAsync(bool, System.Threading.CancellationToken) -> Task
