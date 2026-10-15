@@ -143,6 +143,36 @@ public sealed class WiredOfficialSourcesTests
                 ],
                 [100]
             },
+            {
+                typeof(WiredSelectorEntitiesOnItem),
+                "wf_slc_users_onfurni",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [],
+                []
+            },
+            {
+                typeof(WiredSelectorRemoteSelection),
+                "wf_slc_remote",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [],
+                []
+            },
+            {
+                typeof(WiredConditionSelectQuantity),
+                "wf_cnd_slc_quantity",
+                [Users],
+                [200],
+                [Users],
+                [200]
+            },
+            { typeof(WiredConditionTeamHasRank), "wf_cnd_team_has_rank", [], [], [Users], [0] },
+            { typeof(WiredConditionTeamHasScore), "wf_cnd_team_has_score", [], [], [Users], [0] },
             // The other bot boxes: user slot 0 is the bots (sources.users.title.bots), the boxes
             // that act on users too have the users in slot 1.
             { typeof(WiredActionBotTeleport), "wf_act_bot_teleport", [Furni], [100], [Bots], [100] },
