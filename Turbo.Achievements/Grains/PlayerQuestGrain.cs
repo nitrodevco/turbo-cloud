@@ -50,27 +50,45 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
 
     private DateTime Now => _time.GetUtcNow().UtcDateTime;
 
-    public async Task SendQuestsAsync(bool openWindow, CancellationToken ct)
+    public async Task SendQuestsAsync(bool openWindow, CancellationToken ct) =>
+        await _grainFactory.SendComposerToPlayerAsync(
+            _playerId,
+            new QuestsMessageComposer
+            {
+                Quests = [.. await CurrentQuestsAsync(ct)],
+                OpenWindow = openWindow,
+            },
+            ct
+        );
+
+    /// <summary>
+    /// The <see cref="SendQuestsAsync"/> list kept to its seasonal quests: official
+    /// SeasonalQuests carried the two seasonal quests of the Quests list sent just before it, in
+    /// its order, and left out the two that were not (official client capture 2026-10-12, 3 samples).
+    /// </summary>
+    public async Task SendSeasonalQuestsAsync(CancellationToken ct) =>
+        await _grainFactory.SendComposerToPlayerAsync(
+            _playerId,
+            new SeasonalQuestsMessageComposer
+            {
+                Quests = [.. (await CurrentQuestsAsync(ct)).Where(x => x.IsSeasonal)],
+            },
+            ct
+        );
+
+    private async Task<List<QuestSnapshot>> CurrentQuestsAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         var data = await LoadAsync(dbCtx, ct);
         var now = Now;
 
-        await _grainFactory.SendComposerToPlayerAsync(
-            _playerId,
-            new QuestsMessageComposer
-            {
-                Quests =
-                [
-                    .. data
-                        .Campaigns.Select(campaign => data.Current(campaign))
-                        .Where(x => x is not null)
-                        .Select(x => data.Snapshot(x!, now)),
-                ],
-                OpenWindow = openWindow,
-            },
-            ct
-        );
+        return
+        [
+            .. data
+                .Campaigns.Select(campaign => data.Current(campaign))
+                .Where(x => x is not null)
+                .Select(x => data.Snapshot(x!, now)),
+        ];
     }
 
     public async Task AcceptAsync(int questId, CancellationToken ct)

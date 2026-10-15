@@ -13,6 +13,9 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     /// <summary>Sends each campaign's current quest (Quests), opening the window or not.</summary>
     Task SendQuestsAsync(bool openWindow, CancellationToken ct);
 
+    /// <summary>Sends the seasonal ones of those quests (SeasonalQuests), in the same order.</summary>
+    Task SendSeasonalQuestsAsync(CancellationToken ct);
+
     /// <summary>Makes the quest the one the player is doing, dropping any other, and sends it.</summary>
     Task AcceptAsync(int questId, CancellationToken ct);
 

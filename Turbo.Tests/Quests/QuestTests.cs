@@ -79,6 +79,18 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task The_seasonal_list_is_the_lists_seasonal_quests_only()
+    {
+        await Grain().SendSeasonalQuestsAsync(Ct);
+
+        Single<SeasonalQuestsMessageComposer>()
+            .Quests.Select(x => (x.Id, x.CampaignCode, x.IsSeasonal, x.SecondsLeft))
+            .Should()
+            .Equal((FIRST_BADGE, "bawcollab_worlds", true, 86400));
+        Sent<QuestsMessageComposer>().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Accepting_a_quest_drops_the_one_being_done()
     {
         await Grain().AcceptAsync(FIRST_BADGE, Ct);
