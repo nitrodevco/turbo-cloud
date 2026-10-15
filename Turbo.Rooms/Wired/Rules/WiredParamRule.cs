@@ -9,6 +9,8 @@ public class WiredParamRule(int defaultValue) : IWiredParamRule
 
     public virtual Type? ValueType => typeof(int);
 
+    public string? ErrorKey { get; init; }
+
     public virtual bool IsValid(int value) => true;
 
     public virtual int Sanitize(int value) => IsValid(value) ? value : DefaultValue;

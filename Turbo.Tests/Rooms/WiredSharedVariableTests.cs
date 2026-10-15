@@ -28,6 +28,8 @@ public sealed class WiredSharedVariableTests
     private const int COINS = 10;
     private const int HP = 11;
     private const int REFERENCE = 20;
+    private const int SECOND_REFERENCE = 21;
+    private const int LOCAL = 12;
     private const int PLAYER_INDEX = 5;
 
     private readonly WiredRoom _shop = new(8, 8);
@@ -175,6 +177,16 @@ public sealed class WiredSharedVariableTests
     {
         await BuildShopAsync();
         _other.AddBox<WiredVariableReference>(REFERENCE, 3, 3, "wf_var_reference");
+        // Rights in the room let a player save its other boxes, not this one.
+        (
+            (ISet<Turbo.Primitives.Players.PlayerId>)
+                RoomHarness.GetMember(_other.Harness.State, "PlayerIdsWithRights")!
+        ).Add((Turbo.Primitives.Players.PlayerId)105);
+        RoomHarness.SetMember(
+            RoomHarness.GetMember(_other.Harness.State, "RoomSnapshot")!,
+            "WiredModifyPermissionMask",
+            WiredPermissionFlags.Rights
+        );
 
         (
             await _other.Harness.Room.ApplyWiredUpdateAsync(
@@ -195,8 +207,71 @@ public sealed class WiredSharedVariableTests
                 },
                 Ct
             )
-        ).IsSaved.Should().BeFalse();
+        ).ErrorKey.Should().Be("wiredfurni.error.variables.permissions.1");
     }
+
+    [Fact]
+    public async Task A_reference_with_no_variable_picked_is_refused()
+    {
+        await BuildShopAsync();
+        _other.AddBox<WiredVariableReference>(SECOND_REFERENCE, 4, 3, "wf_var_reference");
+
+        // "n" is what the editor sends when nothing is picked.
+        (await SaveSecondReferenceAsync("n"))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.variables.reference.valid");
+        (await SaveSecondReferenceAsync("123456"))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.variables.reference.valid");
+    }
+
+    [Fact]
+    public async Task A_reference_to_a_variable_of_the_same_room_is_refused()
+    {
+        await BuildShopAsync();
+        var local = _other.AddBox<WiredVariableRoom>(LOCAL, 6, 6, "wf_var_room");
+        (
+            await _other.SaveAsync<UpdateVariableMessage>(
+                LOCAL,
+                intParams: [(int)WiredAvailabilityType.Shared],
+                stringParam: "local"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await local.LoadWiredAsync(Ct);
+        _other.AddBox<WiredVariableReference>(SECOND_REFERENCE, 4, 3, "wf_var_reference");
+
+        (await SaveSecondReferenceAsync(local.GetVarSnapshot().VariableId.ToString()))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.variables.reference.same_room");
+    }
+
+    [Fact]
+    public async Task A_second_reference_to_the_same_variable_is_refused()
+    {
+        await BuildShopAsync();
+        var coinsId = _coins.GetVarSnapshot().VariableId.ToString();
+        await AddReferenceAsync(_coins.GetVarSnapshot().VariableId, readOnly: false);
+        _other.AddBox<WiredVariableReference>(SECOND_REFERENCE, 4, 3, "wf_var_reference");
+
+        (await SaveSecondReferenceAsync(coinsId))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.variables.reference.already_exists");
+        (await SaveSecondReferenceAsync(_hp.GetVarSnapshot().VariableId.ToString()))
+            .IsSaved.Should()
+            .BeTrue();
+    }
+
+    private Task<Turbo.Primitives.Rooms.Wired.WiredSaveResult> SaveSecondReferenceAsync(
+        string variableId
+    ) =>
+        _other.SaveWithResultAsync<UpdateVariableMessage>(
+            SECOND_REFERENCE,
+            intParams: [0],
+            stringParam: "linked2",
+            variableIds: [variableId]
+        );
 
     private async Task BuildShopAsync()
     {
