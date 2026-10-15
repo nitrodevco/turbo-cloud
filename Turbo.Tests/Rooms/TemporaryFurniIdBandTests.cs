@@ -84,6 +84,34 @@ public sealed class TemporaryFurniIdBandTests
         (await PlaceAsync(definition, 4, 4)).ObjectId.Value.Should().Be(CLIENT_TEMP_MIN);
     }
 
+    /// <summary>
+    /// Official client capture (WIN63-202610131318, room owner): picking up a temporary copy
+    /// answers ObjectRemove and a height map update and nothing reaches the inventory. Ours
+    /// refused the pickup.
+    /// </summary>
+    [Fact]
+    public async Task The_room_owner_picks_up_a_temporary_furni_and_it_is_gone()
+    {
+        var definition = _room.AddFloorItem(LAMP, 0, 0).Definition;
+        var copy = await PlaceAsync(definition, 2, 2);
+
+        (
+            await _room.Harness.Room.RemoveItemByIdAsync(
+                ActionContext.CreateForPlayer(1, 1),
+                copy.ObjectId,
+                false,
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        Furni.Items.Should().NotContain(copy);
+        _room
+            .Harness.Fakes.Log.Calls.Should()
+            .NotContain(x => x.Method == "AddFurnitureFromRoomItemSnapshotAsync");
+    }
+
     private async Task<Turbo.Primitives.Rooms.Object.Furniture.Floor.IRoomFloorItem> PlaceAsync(
         FurnitureDefinitionSnapshot definition,
         int x,

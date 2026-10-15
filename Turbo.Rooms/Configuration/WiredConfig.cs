@@ -63,6 +63,15 @@ public class WiredConfig
     // and a 10x18 area changes tiles in all 18 rows).
     public int SelectorMaxAreaSize { get; init; } = 0;
     public int SelectedItemsLimit { get; init; } = 20;
+
+    /// <summary>
+    /// Whether "Place Temporary Furni" may copy only Builders Club furni, as on Habbo: its save is
+    /// refused with <c>wiredfurni.error.furni_can_not_be_cloned</c> ("You can only select Builders
+    /// Club furniture that do not have advanced functionality.") for anything else. Off lets a
+    /// hotel without a Builders Club copy any furni; furni that turns into something of value
+    /// (credits, presents, pets) is refused either way.
+    /// </summary>
+    public bool PlaceFurniBuildersClubOnly { get; init; } = true;
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;
