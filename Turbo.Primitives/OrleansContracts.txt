@@ -439,6 +439,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerRewardTrack
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain")] Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain [Version(0)]
   F05B416C: AddPlayerToRoomAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   69EF2FC8: GetActiveRoomIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.RoomId>>
+  A0C13BCF: GetFriendFindingRoomAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.RoomId?>
   63E760C6: GetListingViewAsync(System.Guid, long, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomListingViewSnapshot>
   63B8C8DC: GetRandomPopulatedRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.RoomId?>
   090D4FC6: GetRoomPlayersAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>>

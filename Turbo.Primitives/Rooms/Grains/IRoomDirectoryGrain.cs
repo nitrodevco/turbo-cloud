@@ -44,6 +44,12 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct);
 
     /// <summary>
+    /// A friend finding room for the player: a random room with players in it that someone else
+    /// owns and the player is not in. Null when there is none.
+    /// </summary>
+    public Task<RoomId?> GetFriendFindingRoomAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>
     /// Every room that is loaded right now. It is the set to push a change to when the change
     /// only matters to rooms already holding something: a room that is not loaded reads whatever
     /// is current the next time it loads, so telling it would be waking it for nothing.
