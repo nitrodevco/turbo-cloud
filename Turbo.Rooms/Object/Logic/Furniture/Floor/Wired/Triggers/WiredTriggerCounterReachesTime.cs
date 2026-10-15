@@ -7,9 +7,11 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
@@ -27,6 +29,12 @@ public class WiredTriggerCounterReachesTime(
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.CLOCK_REACH_TIME;
+
+    // A counter box takes counters only ("Can only select counter furni.",
+    // wiredfurni.error.require_counter_furni; inference: which boxes the hotel text is for).
+    protected override bool CanPickFurni(IRoomItem item) => item.Logic is IWiredClock;
+
+    protected override string PickRefusedErrorKey => WiredSaveErrors.REQUIRE_COUNTER_FURNI;
     public override List<Type> SupportedEventTypes { get; } = [typeof(WiredClockTickEvent)];
 
     public override List<IWiredParamRule> GetIntParamRules() =>

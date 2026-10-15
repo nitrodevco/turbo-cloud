@@ -24,6 +24,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Storage;
 using Turbo.Rooms.Wired.Variables;
 
@@ -49,8 +50,15 @@ public abstract class FurnitureWiredVariableLogic
     protected virtual int? AvailabilityParamIndex => null;
 
     /// <summary>
-    /// Turning a box permanent consumes one of the room's permanent variable slots for its
-    /// target type, so the switch is refused once the configured cap is reached.
+    /// The name is the variable's, so it is refused rather than cut: 1 to 40 letters, digits and
+    /// "_" (<see cref="WiredNameRules"/>; Habbo answers an empty name with
+    /// <c>wiredfurni.error.variables.name_length</c>, official client capture
+    /// session-20261012-102507 and -181511), and not one another variable of this room already
+    /// goes by (Habbo refuses a furni variable named like a context one with
+    /// <c>name_uniq</c>, official client capture 2026-10-11). Turning a box permanent consumes
+    /// one of the room's permanent variable slots for its target type, so the switch is refused
+    /// once the configured cap is reached, with the text Habbo sends for it
+    /// (<c>permanent_limit</c>, official client capture 2026-10-11).
     /// </summary>
     public override async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -58,6 +66,17 @@ public abstract class FurnitureWiredVariableLogic
         CancellationToken ct
     )
     {
+        var name = VariableNameOf(update.StringParam);
+
+        if (!WiredNameRules.HasValidLength(name))
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_LENGTH);
+
+        if (!WiredNameRules.HasValidSyntax(name))
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_SYNTAX);
+
+        if (IsNameTaken(name))
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_UNIQUE);
+
         if (
             AvailabilityParamIndex is int index
             && index < update.IntParams.Count
@@ -65,10 +84,31 @@ public abstract class FurnitureWiredVariableLogic
             && !GetVarSnapshot().AvailabilityType.IsPermanent()
             && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )
-            throw new TurboException(TurboErrorCodeEnum.WiredPermanentVariableLimitReached);
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_PERMANENT_LIMIT);
 
         return await base.ApplyWiredUpdateAsync(ctx, update, ct);
     }
+
+    /// <summary>
+    /// The variable's name in a box's string param. For most boxes the whole param; a box that
+    /// saves more after the name (the daily task's "name	code") returns only the name.
+    /// </summary>
+    protected virtual string VariableNameOf(string? stringParam) => stringParam ?? string.Empty;
+
+    /// <summary>
+    /// Whether another variable box in this room has the name, whatever its target. Compared
+    /// exactly (inference: the capture had the same name twice, not two spellings of it).
+    /// </summary>
+    private bool IsNameTaken(string name) =>
+        FurniModule.Items.Any(item =>
+            item.Logic is FurnitureWiredVariableLogic other
+            && !ReferenceEquals(other, this)
+            && string.Equals(
+                other.VariableNameOf(other._wiredData?.StringParam),
+                name,
+                System.StringComparison.Ordinal
+            )
+        );
 
     protected virtual WiredVariableFlags Flags => WiredVariableFlags.None;
     protected KeyValueStore? _storage = null;

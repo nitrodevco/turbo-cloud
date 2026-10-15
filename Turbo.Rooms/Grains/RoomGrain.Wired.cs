@@ -96,7 +96,7 @@ public sealed partial class RoomGrain
                 refused.ErrorKey
             );
 
-            return WiredSaveResult.RefusedWith(refused.ErrorKey);
+            return WiredSaveResult.RefusedWith(refused.ErrorKey, refused.Parameters);
         }
         catch (Exception ex)
         {

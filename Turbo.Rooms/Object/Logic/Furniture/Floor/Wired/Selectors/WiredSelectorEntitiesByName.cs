@@ -1,7 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -18,6 +20,19 @@ public class WiredSelectorEntitiesByName(
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_NAME;
+
+    /// <summary>Habbo's limits for the list (official client capture 2026-10-14).</summary>
+    private const int MAX_NAME_LENGTH = 30;
+    private const int MAX_NAMES = 20;
+
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        WiredNameList.Refusal(update.StringParam, MAX_NAME_LENGTH, MAX_NAMES) is { } refusal
+            ? throw new WiredSaveRefusedException(refusal.Key, refusal.Parameter)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
