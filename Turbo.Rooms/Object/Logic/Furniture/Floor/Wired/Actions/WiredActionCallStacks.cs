@@ -31,9 +31,6 @@ public class WiredActionCallStacks(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (IsCallDepthExceeded(ctx))
-            return false;
-
         var stackIds = new HashSet<int>();
         var ownStackId = _ctx.GetTileIdx();
 

@@ -84,21 +84,6 @@ public abstract class FurnitureWiredActionLogic(
             );
 
     /// <summary>
-    /// Asked first by a box that sets more wired off (a signal, a stack call): past
-    /// <c>WiredConfig.MaxDepth</c> it records the error the wired log shows and says so. The
-    /// receiving end checks the same limit on the event it gets.
-    /// </summary>
-    protected bool IsCallDepthExceeded(IWiredExecutionContext ctx)
-    {
-        if (ctx.Depth < _roomGrain._wiredConfig.MaxDepth)
-            return false;
-
-        WiredSystem.RecordError(WiredErrorKind.RecursionTimeout, _roomGrain.NowMs());
-
-        return true;
-    }
-
-    /// <summary>
     /// Puts an avatar on a tile at once, the way every wired teleport does: a freeze that ends on
     /// a teleport ends here, then the move joins the stack's movement packet. The teleport box
     /// and the "user to furni" box in teleport mode both come here; the second used to skip the

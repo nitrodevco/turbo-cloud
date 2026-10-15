@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,8 +51,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private readonly Queue<RoomEvent> _eventQueue = new();
 
     // Floor furni whose state wired changed since the last state update. Habbo sends them as one
-    // ObjectsDataUpdate every 500 ms (recorded on hhus, WIN63-202610121709: one message every
-    // 500 ms carrying about 65 furni, the tiles the effects changed and the boxes that flashed).
+    // ObjectsDataUpdate per wired tick: the tiles the effects changed and the boxes that flashed
+    // (WiredConfig.StateUpdateMs).
     private readonly HashSet<RoomObjectId> _pendingFloorStates = [];
     private bool _collectingTickStates;
     private long _nextStateUpdateMs;
@@ -76,6 +77,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private int _tickMs => _roomGrain._wiredConfig.TickMs;
     private bool _firstRun = true;
     private long _nextStackExecutionId = 0;
+
+    // The execution running now; its signals and stack calls run inside it.
+    private WiredExecution? _execution;
+
+    // Signal and call runs per stack in the current visit window.
+    private readonly Dictionary<int, int> _visitsByStackId = [];
+    private long _visitWindowStartMs = long.MinValue;
+
+    // The wall clock the execution time limits read.
+    private Func<long> _wallClockMs = roomGrain.NowMs;
 
     /// <param name="dormant">
     /// Nobody is in the room: periodic and "at given time" triggers wait until someone is, and
@@ -111,6 +122,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             _collectingTickStates = false;
 
+            RollHeavyWindow(now);
+
             if (now >= _nextStateUpdateMs)
             {
                 var stateUpdateMs = Math.Max(1, _roomGrain._wiredConfig.StateUpdateMs);
@@ -123,8 +136,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     private async Task ProcessWiredTickAsync(long now, bool dormant, CancellationToken ct)
     {
-        RollExecutionWindow(now);
-
         if (_firstRun)
         {
             await ProcessInternalVariablesAsync(now, ct);
@@ -134,6 +145,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         await ProcessVariableBoxesAsync(now, ct);
         await ProcessWiredStacksAsync(now, ct);
+
+        // A KILLED room runs no wired until the halt ends; what happens meanwhile is not kept.
+        if (IsKilled(now))
+        {
+            _eventQueue.Clear();
+
+            return;
+        }
+
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
         if (_stacksById.Count == 0)
@@ -155,14 +175,89 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             if (evt is WiredSignalEvent signal)
                 FlashAntennas(signal);
 
-            await ProcessRoomEventAsync(evt, now, ct);
+            await RunExecutionAsync(() => ProcessRoomEventAsync(evt, now, ct), now, ct);
         }
+    }
+
+    /// <summary>
+    /// Runs one execution: <paramref name="start"/> fires the stacks it starts with, then every
+    /// action chain they and the signals and stack calls they make choose runs, in the order
+    /// chosen, until none is left or the execution is cancelled.
+    /// </summary>
+    private async Task RunExecutionAsync(Func<Task> start, long now, CancellationToken ct)
+    {
+        if (_execution is not null)
+        {
+            await start();
+
+            return;
+        }
+
+        var execution = new WiredExecution(now, _wallClockMs());
+        var startedTicks = Stopwatch.GetTimestamp();
+
+        _execution = execution;
+
+        try
+        {
+            await start();
+
+            while (!execution.IsStopped && execution.Ready.TryDequeue(out var next))
+            {
+                if (await ExecuteStackChainAsync(next.Key, next.Pending, now, ct))
+                    _pendingStackExecutions.Remove(next.Key);
+            }
+        }
+        finally
+        {
+            _execution = null;
+
+            // Only executions count as the room's wired time: loading boxes and building stacks,
+            // which a room does once when it wakes, is not.
+            _busyTicksInWindow += Stopwatch.GetTimestamp() - startedTicks;
+
+            KillIfOverrun(execution);
+        }
+    }
+
+    /// <summary>
+    /// A signal or stack call made inside an execution reaches its stacks at once: their
+    /// selectors and conditions read the room as it is when it is sent, and the actions they
+    /// choose join the execution (official client capture: receivers see the state from when the
+    /// signal was sent, and two receivers on one antenna do not see each other's changes).
+    /// </summary>
+    private Task DeliverInExecutionAsync(
+        RoomEvent evt,
+        WiredExecution execution,
+        CancellationToken ct
+    )
+    {
+        if (execution.IsStopped)
+            return Task.CompletedTask;
+
+        var timeoutMs = _roomGrain._wiredConfig.RecursionTimeoutMs;
+
+        if (timeoutMs > 0 && _wallClockMs() - execution.StartedAtWallMs > timeoutMs)
+        {
+            if (execution.Stop())
+                RecordError(WiredErrorKind.RecursionTimeout, execution.Now);
+
+            return Task.CompletedTask;
+        }
+
+        if (evt is WiredSignalEvent signal)
+            FlashAntennas(signal);
+
+        return ProcessRoomEventAsync(evt, execution.Now, ct);
     }
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is null)
             return Task.CompletedTask;
+
+        if (_execution is { } execution && evt is WiredSignalEvent or WiredStackCalledEvent)
+            return DeliverInExecutionAsync(evt, execution, ct);
 
         switch (evt)
         {
@@ -326,6 +421,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        if (
+            ctx.Event is WiredSignalEvent or WiredStackCalledEvent
+            && !TryVisitReceiver(ctx.Stack.StackId, now)
+        )
+            return;
+
+        if (
+            _execution is { } execution
+            && !ChargeExecution(execution, _roomGrain._wiredConfig.ExecutionCostPerStack)
+        )
+            return;
+
         var outer = _contextValues;
         var outerRunning = _running;
 
@@ -551,13 +658,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (evt.Depth > _roomGrain._wiredConfig.MaxDepth)
-        {
-            RecordError(WiredErrorKind.RecursionTimeout, now);
-
-            return;
-        }
-
         foreach (var stackId in evt.StackIds)
         {
             if (!_stacksById.TryGetValue(stackId, out var stack) || stack is null)
@@ -579,6 +679,38 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             await RunStackAsync(ctx, now, evt.IsNegative, ct);
         }
+    }
+
+    /// <summary>
+    /// Counts a signal or stack call running a stack; false once the stack had
+    /// <c>WiredConfig.MaxStackVisitsPerWindow</c> of them in the current window. Windows are fixed
+    /// <c>StackVisitWindowMs</c> slices of room time, so a chain that used up a stack's visits runs
+    /// again in the next one and a delay of half a second always finds fresh visits.
+    /// </summary>
+    private bool TryVisitReceiver(int stackId, long now)
+    {
+        var limit = _roomGrain._wiredConfig.MaxStackVisitsPerWindow;
+
+        if (limit <= 0)
+            return true;
+
+        var windowMs = Math.Max(1, _roomGrain._wiredConfig.StackVisitWindowMs);
+        var windowStart = now - now % windowMs;
+
+        if (windowStart != _visitWindowStartMs)
+        {
+            _visitsByStackId.Clear();
+            _visitWindowStartMs = windowStart;
+        }
+
+        _visitsByStackId.TryGetValue(stackId, out var visits);
+
+        if (visits >= limit)
+            return false;
+
+        _visitsByStackId[stackId] = visits + 1;
+
+        return true;
     }
 
     /// <summary>Whether the tile holds a stack with at least one wired box in it.</summary>
@@ -618,22 +750,49 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             ContextValues = ctx.ContextValues,
         };
 
+        // Without a delay the actions run in the execution that chose them; with one, they are
+        // a new execution when the delay is over.
+        if (pending.DueAtMs <= dueAtMs && _execution is { IsStopped: false } execution)
+        {
+            execution.Ready.Enqueue((key, pending));
+
+            return;
+        }
+
+        TryHoldPending(key, pending, dueAtMs);
+    }
+
+    /// <summary>
+    /// Keeps an execution to run when it is due. A room holds at most
+    /// <c>WiredConfig.MaxDelayedEvents</c>; one more is dropped and counted as DELAYED_EVENTS_CAP.
+    /// </summary>
+    private bool TryHoldPending(WiredExecutionKey key, WiredPendingStackExecution pending, long now)
+    {
+        var cap = _roomGrain._wiredConfig.MaxDelayedEvents;
+
+        if (
+            cap > 0
+            && !_pendingStackExecutions.ContainsKey(key)
+            && _pendingStackExecutions.Count >= cap
+        )
+        {
+            RecordError(WiredErrorKind.DelayedEventsCap, now);
+
+            return false;
+        }
+
         _pendingStackExecutions[key] = pending;
         _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
+
+        return true;
     }
 
     private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
     {
         var budget = _roomGrain._wiredConfig.MaxScheduledPerTick;
-        var costCap = _roomGrain._wiredConfig.ExecutionCostCap;
 
         while (budget-- > 0 && _stackSchedule.Count > 0)
         {
-            // A room that has spent its execution budget for the current cost window is
-            // throttled: due executions stay queued and resume once the window rolls over.
-            if (costCap > 0 && _executionsInWindow >= costCap)
-                break;
-
             var (entry, dueAtMs) = PeekSchedule();
 
             if (dueAtMs > now)
@@ -652,8 +811,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             if (pending.DueAtMs > now)
                 continue;
 
-            if (await ExecuteStackChainAsync(key, pending, now, ct))
-                _pendingStackExecutions.Remove(key);
+            // What runs after a delay is a new execution, with fresh budgets.
+            await RunExecutionAsync(
+                async () =>
+                {
+                    if (await ExecuteStackChainAsync(key, pending, now, ct))
+                        _pendingStackExecutions.Remove(key);
+                },
+                now,
+                ct
+            );
         }
 
         ((WiredExecutionKey key, long version) entry, long dueAtMs) PeekSchedule()
@@ -698,9 +865,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                     pending.WaitingActionIndex = i;
 
-                    RescheduleStack(key, pending, now + delayMs);
-
-                    return false;
+                    // Dropped at the delayed-events cap: the rest of the chain does not run.
+                    return !RescheduleStack(key, pending, now + delayMs);
                 }
             }
 
@@ -723,6 +889,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     VariableChanges = pending.VariableChanges,
                     ContextValues = pending.ContextValues,
                 };
+
+                // An action the room's usage cannot pay for cancels the execution, and with it the
+                // rest of this chain.
+                if (
+                    _execution is { } execution
+                    && !ChargeExecution(execution, ActionCost(action, ctx))
+                )
+                    break;
 
                 action
                     .FlashActivationStateAsync(ct)
@@ -752,8 +926,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     _contextValues = outer;
                     _running = outerRunning;
                 }
-
-                CountExecution();
 
                 FlushWiredContext(ctx);
             }
@@ -832,7 +1004,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
     }
 
-    private void RescheduleStack(
+    private bool RescheduleStack(
         WiredExecutionKey key,
         WiredPendingStackExecution pending,
         long dueAtMs
@@ -843,8 +1015,32 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         pending.DueAtMs = dueAtMs;
 
-        _pendingStackExecutions[key] = pending;
-        _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
+        return TryHoldPending(key, pending, _execution?.Now ?? dueAtMs);
+    }
+
+    /// <summary>
+    /// What an action adds to the room's usage: its own cost and one for each furni or user it
+    /// works on.
+    /// </summary>
+    private double ActionCost(IWiredAction action, WiredExecutionContext ctx)
+    {
+        var config = _roomGrain._wiredConfig;
+        var cost = config.ExecutionCostPerAction;
+
+        // A signal's antennas and a call's stacks are where it goes, not what it works on.
+        if (
+            config.ExecutionCostPerTarget > 0
+            && action is not (WiredActionSendSignal or WiredActionCallStacks)
+        )
+        {
+            var targets = ctx.GetSelection(action);
+
+            cost +=
+                config.ExecutionCostPerTarget
+                * (targets.SelectedFurniIds.Count + targets.SelectedAvatarIds.Count);
+        }
+
+        return cost;
     }
 
     /// <summary>

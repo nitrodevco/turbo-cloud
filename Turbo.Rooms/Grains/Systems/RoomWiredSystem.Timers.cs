@@ -44,6 +44,22 @@ public sealed partial class RoomWiredSystem
         _atTimeFiredVersion.Remove(objectId);
     }
 
+    /// <summary>
+    /// When a periodic trigger first fires, a period from now. A period of whole avatar ticks
+    /// starts on an avatar tick, so every firing lands in the room tick where walking avatars
+    /// step, after they did: Habbo pushes a walking user in the same millisecond as its step
+    /// (official client capture, a 0.5 s repeater with Move/Rotate User: UserUpdate and
+    /// WiredMovements at the same ms), and a push between steps snapped the walk back.
+    /// </summary>
+    private long FirstPeriodicAt(long now, long delayMs)
+    {
+        var avatarTickMs = _roomGrain._roomConfig.AvatarTickMs;
+
+        return avatarTickMs > 0 && delayMs % avatarTickMs == 0
+            ? _roomGrain.AlignToNextBoundary(now + delayMs, avatarTickMs)
+            : now + delayMs;
+    }
+
     private async Task ProcessTimedTriggersAsync(long now, CancellationToken ct)
     {
         var elapsedMs = GetElapsedTimerMs(now);
@@ -61,7 +77,7 @@ public sealed partial class RoomWiredSystem
 
                     if (!_nextPeriodicAtMs.TryGetValue(objectId, out var nextAt))
                     {
-                        _nextPeriodicAtMs[objectId] = now + delayMs;
+                        _nextPeriodicAtMs[objectId] = FirstPeriodicAt(now, delayMs);
 
                         continue;
                     }
@@ -69,19 +85,15 @@ public sealed partial class RoomWiredSystem
                     if (now < nextAt)
                         continue;
 
-                    _nextPeriodicAtMs[objectId] = now + delayMs;
+                    // The next firing counts from when this one was due, not from the tick that
+                    // ran it: ticks come a few ms late, and counting from them slowed a 20 Hz
+                    // timer to about 13 firings a second (Habbo keeps 20: official client capture,
+                    // 222 firings in about 11 s). A room more than a period behind starts over.
+                    var next = nextAt + delayMs;
 
-                    await FireTriggerWithEventAsync(
-                        trigger,
-                        new PeriodicRoomEvent
-                        {
-                            RoomId = _roomGrain.RoomId,
-                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                        },
-                        stack,
-                        now,
-                        ct
-                    );
+                    _nextPeriodicAtMs[objectId] = next > now ? next : FirstPeriodicAt(now, delayMs);
+
+                    await FireTimedTriggerAsync(trigger, stack, now, ct);
 
                     break;
                 }
@@ -100,21 +112,35 @@ public sealed partial class RoomWiredSystem
 
                     _atTimeFiredVersion[objectId] = _timersEpochVersion;
 
-                    await FireTriggerWithEventAsync(
-                        trigger,
-                        new PeriodicRoomEvent
-                        {
-                            RoomId = _roomGrain.RoomId,
-                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                        },
-                        stack,
-                        now,
-                        ct
-                    );
+                    await FireTimedTriggerAsync(trigger, stack, now, ct);
 
                     break;
                 }
             }
         }
     }
+
+    /// <summary>A periodic or "at given time" trigger firing starts an execution of its own.</summary>
+    private Task FireTimedTriggerAsync(
+        IWiredTrigger trigger,
+        IWiredStack stack,
+        long now,
+        CancellationToken ct
+    ) =>
+        RunExecutionAsync(
+            () =>
+                FireTriggerWithEventAsync(
+                    trigger,
+                    new PeriodicRoomEvent
+                    {
+                        RoomId = _roomGrain.RoomId,
+                        CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                    },
+                    stack,
+                    now,
+                    ct
+                ),
+            now,
+            ct
+        );
 }
