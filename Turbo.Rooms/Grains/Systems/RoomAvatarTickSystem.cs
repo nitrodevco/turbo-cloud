@@ -55,6 +55,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
                 }
 
                 CheckIdle(avatar, now);
+                await CheckIdleKickAsync(avatar, now, ct);
             }
             catch (Exception ex)
             {
@@ -117,6 +118,35 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         );
 
         AvatarModule.PublishIdleChanged(avatar);
+    }
+
+    /// <summary>
+    /// Sends a player out of the room once they have done nothing for the room's "Auto-kick after
+    /// timeout" (<c>navigator.roomsettings.idle_autokick</c>; Habbo's rooms come with it on at
+    /// 900 s and sleep at 300 s: official client capture of RoomSettingsData, WIN63-202610131318).
+    /// The kick is the room's own, as a wired kick is, so the owner and anyone above them stay
+    /// (inference: Habbo's idle kick itself was not recorded); whoever stays counts from now again.
+    /// </summary>
+    private async Task CheckIdleKickAsync(IRoomAvatar avatar, long now, CancellationToken ct)
+    {
+        var room = _roomGrain._state.RoomSnapshot;
+
+        if (
+            !room.IdleAutokickEnabled
+            || room.IdleAutokickTimeoutSeconds <= 0
+            || avatar is not IRoomPlayer player
+        )
+            return;
+
+        // A player who has not done anything yet counts from their first tick in the room.
+        if (avatar.LastActiveAtMs == 0)
+            avatar.Touch(now);
+
+        if (now - avatar.LastActiveAtMs < room.IdleAutokickTimeoutSeconds * 1000L)
+            return;
+
+        if (!await ModerationModule.KickPlayerBySystemAsync(player.PlayerId, string.Empty, ct))
+            avatar.Touch(now);
     }
 
     private async Task ProcessAvatarAsync(IRoomAvatar avatar, long now, CancellationToken ct)
