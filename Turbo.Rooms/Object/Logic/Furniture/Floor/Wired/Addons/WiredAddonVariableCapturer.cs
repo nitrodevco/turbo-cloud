@@ -98,7 +98,12 @@ public class WiredAddonVariableCapturer(
         value = 0;
 
         if (!GetIntParamOrDefault(0, false))
-            return long.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+            return long.TryParse(
+                typed,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out value
+            );
 
         var connectors = GetVariable(0)?.GetVarSnapshot().TextConnectors;
 

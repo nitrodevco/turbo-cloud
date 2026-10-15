@@ -175,7 +175,14 @@ public sealed class WiredOfficialSourcesTests
             { typeof(WiredConditionTeamHasScore), "wf_cnd_team_has_score", [], [], [Users], [0] },
             // The other bot boxes: user slot 0 is the bots (sources.users.title.bots), the boxes
             // that act on users too have the users in slot 1.
-            { typeof(WiredActionBotTeleport), "wf_act_bot_teleport", [Furni], [100], [Bots], [100] },
+            {
+                typeof(WiredActionBotTeleport),
+                "wf_act_bot_teleport",
+                [Furni],
+                [100],
+                [Bots],
+                [100]
+            },
             { typeof(WiredActionBotMove), "wf_act_bot_move", [Furni], [100], [Bots], [100] },
             { typeof(WiredActionBotChangeFigure), "wf_act_bot_clothes", [], [], [Bots], [100] },
             {

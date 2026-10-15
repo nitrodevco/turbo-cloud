@@ -47,7 +47,10 @@ public class WiredTriggerHabboSaysKeyword(
     private const int MATCH_ANY_TEXT = 2;
 
     // A Variable Capturer's marker in the keyword, "#(name)".
-    private static readonly Regex MarkerPattern = new(@"#\([^()]*\)", RegexOptions.CultureInvariant);
+    private static readonly Regex MarkerPattern = new(
+        @"#\([^()]*\)",
+        RegexOptions.CultureInvariant
+    );
 
     public override int WiredCode => (int)WiredTriggerType.AVATAR_SAYS_SOMETHING;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerChatEvent)];

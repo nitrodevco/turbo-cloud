@@ -50,7 +50,10 @@ public sealed class WiredTeamConditionSourcesTests
             await _room.SaveAsync<UpdateConditionMessage>(
                 1,
                 intParams: [0, 0, 1],
-                playerSources: [[source]]
+                playerSources:
+                [
+                    [source],
+                ]
             )
         )
             .Should()
