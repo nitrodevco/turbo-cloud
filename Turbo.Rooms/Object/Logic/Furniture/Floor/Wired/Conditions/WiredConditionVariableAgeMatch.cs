@@ -36,6 +36,10 @@ public class WiredConditionVariableAgeMatch(
 
     public override int GetMaxVariableIds() => 2;
 
+    // The variable and its reference by position: the same variable may be both (official client
+    // capture: Change Variable saved with ids [mark, mark]).
+    protected override bool HasPositionalVariableIds => true;
+
     protected override int GetRequiredIntParamCount() => PARAM_FROM_VARIABLE;
 
     public override List<IWiredParamRule> GetIntParamRules() =>

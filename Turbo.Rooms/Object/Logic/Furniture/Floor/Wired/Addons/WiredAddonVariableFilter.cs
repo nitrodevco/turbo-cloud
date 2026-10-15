@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -28,6 +29,22 @@ public abstract class WiredAddonVariableFilter(
 ) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     protected abstract WiredVariableTargetType TargetType { get; }
+
+    // The holders the operand variable is read on: one furni and one user slot (official client
+    // capture of the filter add-ons' sources).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SignalItems,
+            ],
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.SignalUsers],
+        ];
 
     public override int GetMaxVariableIds() => 2;
 
@@ -112,7 +129,7 @@ public abstract class WiredAddonVariableFilter(
 
         var targetType = GetTargetType(operand, 3);
 
-        foreach (var targetId in GetTargetIds(targetType, ctx.Selected))
+        foreach (var targetId in GetTargetIds(targetType, GetMergedSelection(ctx, 0)))
         {
             if (ReadVariable(operand, targetType, targetId) is { } value)
                 return value;

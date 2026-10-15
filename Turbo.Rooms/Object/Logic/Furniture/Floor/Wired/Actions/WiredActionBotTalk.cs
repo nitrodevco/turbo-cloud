@@ -26,6 +26,19 @@ public class WiredActionBotTalk(
 {
     public override int WiredCode => (int)WiredActionType.BOT_TALK;
 
+    // The bot named in the box by default, or the bots among the triggering, reached, selector
+    // or signal users (official client capture of the box's sources).
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [
+                WiredPlayerSourceType.BotByName,
+                WiredPlayerSourceType.TriggeredUser,
+                WiredPlayerSourceType.ReachedUser,
+                WiredPlayerSourceType.SelectorUsers,
+                WiredPlayerSourceType.SignalUsers,
+            ],
+        ];
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false),
@@ -45,19 +58,21 @@ public class WiredActionBotTalk(
     {
         var (botName, text) = SplitParam();
 
-        if (text.Length == 0 || !TryGetBot(botName, out var bot))
+        if (text.Length == 0 || ResolveBots(ctx, 0, botName) is not { Count: > 0 } bots)
             return false;
 
         var width = GetIntParamOrDefault(1, -1);
+        var formatted = await ctx.FormatTextAsync(text, ct);
 
-        await BotModule.TalkAsync(
-            bot,
-            await ctx.FormatTextAsync(text, ct),
-            GetIntParamOrDefault(0, false),
-            width < 0 ? null : width,
-            GetIntParamOrDefault(2, false),
-            ct
-        );
+        foreach (var bot in bots)
+            await BotModule.TalkAsync(
+                bot,
+                formatted,
+                GetIntParamOrDefault(0, false),
+                width < 0 ? null : width,
+                GetIntParamOrDefault(2, false),
+                ct
+            );
 
         return true;
     }

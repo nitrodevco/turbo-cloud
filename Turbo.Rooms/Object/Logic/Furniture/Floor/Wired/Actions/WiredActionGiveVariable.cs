@@ -63,6 +63,10 @@ public class WiredActionGiveVariable(
 
     public override int GetMaxVariableIds() => 2;
 
+    // The variable and its reference by position: the same variable may be both (official client
+    // capture: Change Variable saved with ids [mark, mark]).
+    protected override bool HasPositionalVariableIds => true;
+
     // Two merged selections, the holders given to and the reference holders, each its own furni
     // and user slot (mergedSelections [[0,0],[1,1]]; official client capture of the box's sources).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
