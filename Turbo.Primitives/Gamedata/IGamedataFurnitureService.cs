@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -29,6 +31,19 @@ public interface IGamedataFurnitureService
     public Task<GamedataChangeSetSnapshot?> ImportAsync(
         int releaseId,
         PlayerId? player,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A page (from 0) of the floor and wall definitions, by classname: those whose classname or
+    /// name holds <paramref name="query"/> (or whose id or sprite id it is), of
+    /// <paramref name="type"/> when given, carrying <paramref name="tag"/> when given.
+    /// </summary>
+    public Task<FurnitureListPage> ListAsync(
+        string? query,
+        ProductType? type,
+        FurnitureTag? tag,
+        int page,
         CancellationToken ct
     );
 

@@ -29,7 +29,8 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
     // The client offers opening it to its owner only, and sends a plain use; Nobody keeps the
     // use button away from everyone else, and this lets the owner's use through.
-    public override Task<bool> CanUseAsync(ActionContext ctx) => Task.FromResult(IsItemOwner(ctx));
+    public override Task<bool> CanUseAsync(ActionContext ctx) =>
+        Task.FromResult(IsOwnedOutrightBy(ctx));
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
@@ -55,8 +56,8 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
         if (interaction is not OpenPetPackageInteraction open)
             return false;
 
-        if (!IsItemOwner(ctx))
-            return Reject(ctx, interaction, "not the owner");
+        if (!IsOwnedOutrightBy(ctx))
+            return Reject(ctx, interaction, "not the owner, or borrowed or temporary");
 
         var contents = ReadContents();
 

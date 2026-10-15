@@ -5,8 +5,28 @@ library's asset data (`<name>.json`), its packed images (`<name>.png`) and their
 (`<name>_spritesheet.json`). The hotel takes them from Habbo: a **sync** downloads each library
 Habbo has that the hotel lacks, or has an older revision of, and converts it (`Turbo.Assets`,
 `NitroConverter`). The bundles are kept on this server, and **published** to where the client loads
-them: a folder on this server, or an FTP, FTPS or SFTP server. The admin panel's **Assets** page
-does all of this, and checks the bundles against the hotel's furniture, clothing, effects and pets.
+them: a folder on this server, or an FTP, FTPS or SFTP server. The admin panel's **Gamedata &
+assets** page does all of this beside the gamedata, and checks the bundles against the hotel's
+furniture, clothing, effects and pets: its **Updates** tab shows what a sync would download, each
+kind's tab (Furniture, Clothing, Effects, Pets) lists its bundles with its data, and **Publish**
+holds the targets.
+
+## Uploading
+
+The panel has one upload, for any file. The server reads what the file is from its content, not its
+name or a kind chosen for it (`AssetBundleService.UploadFileAsync`):
+
+- **A library** (an SWF, a `.hab` or a `.nitro`, by its first bytes) is converted, and its asset
+  data says its kind (`AssetKindDetector`): a `pet` logic or `pet_...` visualization is a pet; any
+  other logic or visualization is furniture; an animation of its own is an effect; assets named
+  `h_...` are clothing. When the data says none of these, a bundle already of that name gives its
+  kind. An effect or clothing library is converted again as one, dropping its shadows. It is kept
+  as an upload, which a sync never replaces.
+- **A gamedata file** (furniture data, product data, figure data, the figure or effect map, texts,
+  variables or a client config, as JSON, XML or text; `GamedataFileDetector`) is recognised and
+  not taken: the hotel builds its gamedata from the database. The panel points to where it is
+  changed; a client config opens the Variables import with it.
+- **Anything else** is refused as unknown (422), which the panel shows as a warning.
 
 ## Where bundles are kept
 
@@ -68,7 +88,7 @@ GB.
 
 ## Publishing
 
-A publish target is kept in `asset_publish_targets`, edited on the Assets page:
+A publish target is kept in `asset_publish_targets`, edited on the Publish tab:
 
 | Field | |
 | --- | --- |
@@ -119,6 +139,8 @@ Each lists how many, and up to `CheckSampleLimit` of them.
 | `JobLogLimit` | `300` | Lines of a job's log kept. |
 | `PageSize` | `60` | Bundles per page of the panel's list. |
 | `CheckSampleLimit` | `25` | Examples each check lists. |
+| `SyncPreviewMinutes` | `15` | How long Habbo's lists are kept for the view of what a sync would download; read again when asked, and by every sync. |
+| `SyncPreviewItemLimit` | `500` | Libraries each kind of that view lists; its counts cover them all. |
 | `SecretKey` | empty | The key passwords are sealed with (secret). |
 
 ## Admin API
@@ -138,6 +160,8 @@ runs at a time; starting another while one runs is 409.
 | `GET /assets/bundles/{kind}/{name}` | `AssetBundle` and `{ path, files: [ { name, size } ] }`, what the zip holds. |
 | `GET /assets/bundles/{kind}/{name}/file` | The `.nitro` file. |
 | `POST /assets/bundles` | Multipart `file` (a `.swf`, `.hab` or `.nitro`), `kind`, and `name` (default: the file's). Converts and keeps it as an upload; answers the `AssetBundle`. |
+| `POST /assets/upload` | Multipart `file` and `name` (default: the file's), any file, found by its content (see Uploading). `{ type: "bundle", bundle: AssetBundle }` or `{ type: "gamedata", gamedata: "furnidata"\|"productdata"\|"figuredata"\|"figuremap"\|"effectmap"\|"texts"\|"variables" }`; 422 with why when it can't be told what it is, 400 for a file it can't take. |
+| `GET /assets/pending?relist=` | What a sync would download, without downloading it: `{ domain, revision, listedAt, kinds: [ { kind, listed, habboLibraries, upToDate, uploads, new, updated, items: [ { name, reason: "new"\|"updated", habboRevision, hotelRevision, error } ], truncated } ] }`, furniture, clothing, effects and pets. Habbo's lists are read again after `SyncPreviewMinutes`, or now with `relist=true`; 502 when Habbo can't be read. |
 | `DELETE /assets/bundles/{kind}/{name}` | 204. A Habbo library is downloaded again by the next sync. |
 | `POST /assets/sync` | Starts a sync; answers the `AssetJob`. |
 | `GET /assets/job` | The job running or last run; 204 before the first. |

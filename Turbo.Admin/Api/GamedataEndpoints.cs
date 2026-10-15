@@ -11,6 +11,7 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
 using Turbo.Primitives.Figures;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -62,6 +63,11 @@ internal sealed class GamedataEndpoints(
         group.MapPost("/habbo/import/{releaseId:int}", ImportAsync);
         group.MapGet("/habbo/import/job", () => Results.Ok(new { job = imports.Current }));
         group.MapGet("/furniture", (string? q) => Results.Ok(catalog.SearchFurniture(q)));
+        group.MapGet(
+            "/furniture/list",
+            (string? q, string? type, string? tag, int? page, CancellationToken ct) =>
+                FurnitureListAsync(q, type, tag, page, ct)
+        );
         group.MapGet("/furniture/{id:int}", DefinitionAsync);
         group.MapPut("/furniture/{id:int}", UpdateDefinitionAsync);
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
@@ -225,9 +231,46 @@ internal sealed class GamedataEndpoints(
             }
         );
 
+    private async Task<IResult> FurnitureListAsync(
+        string? q,
+        string? type,
+        string? tag,
+        int? page,
+        CancellationToken ct
+    )
+    {
+        ProductType? kind = null;
+        FurnitureTag? only = null;
+
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            if (!FurnitureTagNames.TryParseType(type, out var parsed))
+                return AdminResults.Error(
+                    StatusCodes.Status400BadRequest,
+                    "The type is floor or wall."
+                );
+
+            kind = parsed;
+        }
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            if (!FurnitureTagNames.TryParse(tag, out var parsed))
+                return AdminResults.Error(StatusCodes.Status400BadRequest, $"{tag} is not a tag.");
+
+            only = parsed;
+        }
+
+        return Results.Ok(
+            FurnitureListResponse.From(
+                await furniture.ListAsync(q, kind, only, page ?? 0, ct).ConfigureAwait(false)
+            )
+        );
+    }
+
     private async Task<IResult> DefinitionAsync(int id, CancellationToken ct) =>
         await furniture.GetDefinitionAsync(id, ct).ConfigureAwait(false) is { } definition
-            ? Results.Ok(definition)
+            ? Results.Ok(FurnitureDefinitionResponse.From(definition))
             : Results.NotFound();
 
     private Task<IResult> UpdateDefinitionAsync(
@@ -254,7 +297,7 @@ internal sealed class GamedataEndpoints(
                             .UpdateDefinitionAsync(id, fields, AdminIdentity.Of(http).PlayerId, ct)
                             .ConfigureAwait(false)
                             is { } definition
-                        ? Results.Ok(definition)
+                        ? Results.Ok(FurnitureDefinitionResponse.From(definition))
                         : Results.NotFound();
                 }
                 catch (ArgumentException ex)

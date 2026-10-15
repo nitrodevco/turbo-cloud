@@ -4,8 +4,9 @@ namespace Turbo.Achievements.Configuration;
 
 /// <summary>
 /// A prize. <see cref="ProductType"/> and <see cref="RewardTypeId"/> are what the client draws
-/// (a point type, a badge code, a furni's sprite id); a furni prize also names the furniture
-/// definition to give in <see cref="FurnitureDefinitionId"/>.
+/// (a point type, a badge code, a furni's sprite id, a Habbicon id, a pet type); a furni prize
+/// also names the furniture definition to give in <see cref="FurnitureDefinitionId"/>. A pet's
+/// <see cref="ExtraParams"/> is its figure (type, palette and colour), a bot's its look.
 /// </summary>
 public sealed class RewardTrackPrizeDefinition
 {
@@ -24,4 +25,10 @@ public sealed class RewardTrackPrizeDefinition
     public bool Premium { get; set; }
 
     public int? FurnitureDefinitionId { get; set; }
+
+    /// <summary>
+    /// The name a pet or bot prize is given; empty for <see cref="RewardTrackConfig.PetPrizeName"/>
+    /// or <see cref="RewardTrackConfig.BotPrizeName"/>. Habbo's prizes carry none.
+    /// </summary>
+    public string Name { get; set; } = "";
 }

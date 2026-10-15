@@ -244,6 +244,88 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task The_preview_lists_what_a_sync_would_take_without_downloading_any_of_it()
+    {
+        var before = await _sync.PreviewAsync(relist: false, Ct);
+
+        _habbo.Requests.Should().NotContain(x => x.EndsWith(".swf", StringComparison.Ordinal));
+        before.Revision.Should().Be("PRODUCTION-1");
+        before
+            .Kinds.Select(x => x.Kind)
+            .Should()
+            .Equal(
+                AssetBundleKind.Furniture,
+                AssetBundleKind.Figure,
+                AssetBundleKind.Effect,
+                AssetBundleKind.Pet
+            );
+        before.Kinds.Should().OnlyContain(x => x.Listed && x.Updated == 0);
+        // Everything the first sync goes on to try, and only that.
+        before.Kinds.Sum(x => x.New).Should().Be(13);
+
+        var furniture = before.Kinds[0];
+
+        furniture.Uploads.Should().Be(1);
+        furniture
+            .Items.Select(x => x.Name)
+            .Should()
+            .Equal(
+                "ads_cheetos",
+                "ads_cheetos_camp",
+                "chair",
+                "gone",
+                "lamp",
+                "poster12",
+                "poster5"
+            );
+        furniture
+            .Items.Single(x => x.Name == "chair")
+            .Should()
+            .Match<AssetSyncPendingItem>(x =>
+                x.Reason == AssetSyncReason.New && x.HabboRevision == "7" && x.HotelRevision == null
+            );
+
+        await RunAsync();
+        _habbo.ClearRequests();
+
+        // After it, only what may pass now: the library Habbo's filter refused.
+        var after = await _sync.PreviewAsync(relist: false, Ct);
+
+        _habbo.Requests.Should().BeEmpty("the sync read Habbo's lists just now");
+        after.Kinds.Sum(x => x.UpToDate).Should().Be(12);
+        after
+            .Kinds.SelectMany(x => x.Items)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<AssetSyncPendingItem>(x =>
+                x.Name == "lamp"
+                && x.Reason == AssetSyncReason.New
+                && x.HotelRevision == "2"
+                && x.Error != null
+            );
+
+        // A newer revision at Habbo shows once its lists are read again.
+        _habbo.Serve(
+            FURNIDATA,
+            """{ "roomitemtypes": { "furnitype": [ { "classname": "chair", "revision": 8 } ] } }"""
+        );
+
+        (await _sync.PreviewAsync(relist: false, Ct)).Kinds[0].Updated.Should().Be(0);
+
+        var relisted = (await _sync.PreviewAsync(relist: true, Ct)).Kinds[0];
+
+        relisted.Updated.Should().Be(1);
+        relisted
+            .Items.Should()
+            .ContainSingle(x => x.Reason == AssetSyncReason.Updated)
+            .Which.Should()
+            .Match<AssetSyncPendingItem>(x =>
+                x.Name == "chair" && x.HotelRevision == "7" && x.HabboRevision == "8"
+            );
+    }
+
+    [Fact]
     public async Task A_newer_revision_is_taken_again_and_the_ids_follow_the_effect_map()
     {
         await RunAsync();

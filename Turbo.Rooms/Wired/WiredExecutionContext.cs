@@ -439,11 +439,18 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
     public async Task<string> FormatTextAsync(string text, CancellationToken ct)
     {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        // The room's Global Placeholder add-ons reach every stack, after the stack's own.
+        var globals = WiredSystem.GlobalPlaceholders.ToList();
+
         if (
-            string.IsNullOrEmpty(text)
-            || (Policy.TextPlaceholders.Count == 0 && CarriedPlaceholders.Count == 0)
+            Policy.TextPlaceholders.Count == 0
+            && CarriedPlaceholders.Count == 0
+            && globals.Count == 0
         )
-            return text ?? string.Empty;
+            return text;
 
         foreach (var placeholder in Policy.TextPlaceholders)
         {
@@ -463,6 +470,9 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
         foreach (var (token, value) in CarriedPlaceholders)
             text = text.Replace(token, value, StringComparison.Ordinal);
+
+        foreach (var global in globals)
+            text = await global.ApplyAsync(this, text, ct);
 
         // Placeholders expand the text, and a box can repeat one many times over.
         // Cut by hand rather than through ClientText.Truncate, which also trims: the text is

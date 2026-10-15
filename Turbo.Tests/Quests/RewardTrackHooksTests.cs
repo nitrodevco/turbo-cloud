@@ -41,6 +41,19 @@ public sealed class RewardTrackHooksTests
     }
 
     [Fact]
+    public void A_builders_club_furni_put_down_counts_as_such_and_not_as_placing_furni()
+    {
+        RewardTrackRoomListener
+            .ActionTypeOf(Placed(buildersClub: false))
+            .Should()
+            .Be(RewardTrackActionTypes.PLACE_ITEM);
+        RewardTrackRoomListener
+            .ActionTypeOf(Placed(buildersClub: true))
+            .Should()
+            .Be(RewardTrackActionTypes.PLACE_BUILDERS_CLUB_FURNI);
+    }
+
+    [Fact]
     public void A_chat_line_counts_unless_it_was_cancelled()
     {
         var chat = Chat();
@@ -131,6 +144,15 @@ public sealed class RewardTrackHooksTests
             ObjectId = 3,
             PrevIdx = 4,
             TileChanged = tileChanged,
+        };
+
+    private static RoomItemPlacedEvent Placed(bool buildersClub) =>
+        new()
+        {
+            RoomId = 7,
+            CausedBy = Player,
+            ObjectId = 3,
+            IsBuildersClub = buildersClub,
         };
 
     private static PlayerChatEvent Chat() =>

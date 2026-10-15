@@ -45,8 +45,8 @@ public abstract class FurniturePetProductLogic(
         if (interaction is not UseWithPetInteraction use)
             return false;
 
-        if (!IsItemOwner(ctx))
-            return Reject(ctx, interaction, "not the owner");
+        if (!IsOwnedOutrightBy(ctx))
+            return Reject(ctx, interaction, "not the owner, or borrowed or temporary");
 
         if (Prepare() is { } unusable)
             return Reject(ctx, interaction, unusable);

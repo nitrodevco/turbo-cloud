@@ -63,6 +63,17 @@ public sealed class GamedataImportTests : IDisposable
             )
         );
 
+        var habboItems = new HabboReleaseItems(_db, config);
+        var furnitureFiles = new HabboFurnitureFiles(
+            _db,
+            config,
+            new HabboGamedataClient(
+                _fakes.Create<System.Net.Http.IHttpClientFactory>(),
+                NullLogger<HabboGamedataClient>.Instance
+            ),
+            NullLogger<HabboFurnitureFiles>.Instance
+        );
+
         _files = _fakes.Create<IGamedataFileService>();
         _furniture = new GamedataFurnitureService(
             _db,
@@ -70,16 +81,9 @@ public sealed class GamedataImportTests : IDisposable
             definitions,
             _files,
             offers,
-            new HabboReleaseItems(_db, config),
-            new HabboFurnitureFiles(
-                _db,
-                config,
-                new HabboGamedataClient(
-                    _fakes.Create<System.Net.Http.IHttpClientFactory>(),
-                    NullLogger<HabboGamedataClient>.Instance
-                ),
-                NullLogger<HabboFurnitureFiles>.Instance
-            ),
+            habboItems,
+            furnitureFiles,
+            new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
             writes,
             TimeProvider.System,
             NullLogger<GamedataFurnitureService>.Instance

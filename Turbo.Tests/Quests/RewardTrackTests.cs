@@ -6,12 +6,15 @@ using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Pets.Providers;
+using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
@@ -446,6 +449,173 @@ public sealed class RewardTrackTests : IDisposable
     }
 
     [Fact]
+    public async Task A_habbicon_prize_gives_the_habbicon()
+    {
+        // Habbo's free_001: Habbicon 28.
+        AddPrize(
+            new()
+            {
+                Id = "free_001",
+                ProductType = ProductDisplayType.Habbicon,
+                RewardTypeId = "28",
+            }
+        );
+        _fakes.Handlers["GiveAsync"] = _ => Task.FromResult(true);
+
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "free_001", Ct);
+
+        _fakes.Log.Of("GiveAsync").Single().Args[0].Should().Be(28);
+        Single<RewardTrackClaimResultMessageComposer>()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.Success);
+    }
+
+    [Fact]
+    public async Task A_pet_prize_creates_the_pet_of_its_figure_with_the_hotels_breed()
+    {
+        // Habbo's free_008: pet type 1, figure "1 0 ABABAB".
+        AddPrize(
+            new()
+            {
+                Id = "free_008",
+                ProductType = ProductDisplayType.Pet,
+                RewardTypeId = "1",
+                ExtraParams = "1 0 ABABAB",
+            }
+        );
+        _fakes.Handlers["TryGetPalette"] = call =>
+            (int)call.Args[0]! == 1 && (int)call.Args[1]! == 0
+                ? new PetBreedSnapshot
+                {
+                    TypeId = 1,
+                    BreedId = 3,
+                    PaletteId = 0,
+                    RarityLevel = 2,
+                    Sellable = true,
+                    Rare = false,
+                    ColorTag = -1,
+                }
+                : null;
+        _fakes.Handlers["CreatePetAsync"] = _ =>
+            Task.FromResult<PetSnapshot?>(
+                (PetSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(PetSnapshot))
+            );
+
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "free_008", Ct);
+
+        _fakes
+            .Log.Of("CreatePetAsync")
+            .Single()
+            .Args.Take(6)
+            .Should()
+            .Equal(_config.PetPrizeName, 1, 0, 3, "ABABAB", 2);
+        Single<RewardTrackClaimResultMessageComposer>()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.Success);
+    }
+
+    [Fact]
+    public async Task A_pet_prize_of_a_palette_the_hotel_lacks_is_refused_with_code_7()
+    {
+        AddPrize(
+            new()
+            {
+                Id = "pet",
+                ProductType = ProductDisplayType.Pet,
+                ExtraParams = "1 0 ABABAB",
+            }
+        );
+
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "pet", Ct);
+
+        _fakes.Log.Of("CreatePetAsync").Should().BeEmpty();
+        Single<RewardTrackClaimResultMessageComposer>()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.Failed);
+    }
+
+    [Fact]
+    public async Task A_bot_prize_creates_a_bot_with_its_look()
+    {
+        // Habbo's premium_011: a GENERIC bot, its look in the extra parameters.
+        const string look = "hr-3020-34.hd-3091-2.ch-225-92";
+        AddPrize(
+            new()
+            {
+                Id = "premium_011",
+                ProductType = ProductDisplayType.Bot,
+                RewardTypeId = "GENERIC",
+                ExtraParams = look,
+            }
+        );
+        _fakes.Handlers["CreateBotAsync"] = _ =>
+            Task.FromResult<BotSnapshot?>(
+                (BotSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(BotSnapshot))
+            );
+
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "premium_011", Ct);
+
+        var created = _fakes.Log.Of("CreateBotAsync").Single();
+        created.Args[0].Should().Be(_config.BotPrizeName);
+        created.Args[2].Should().Be(look);
+        Single<RewardTrackClaimResultMessageComposer>()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.Success);
+    }
+
+    [Fact]
+    public async Task Wired_progress_adds_or_sets_a_tasks_count_forward_to_its_last_level()
+    {
+        var grain = await GrainAsync();
+
+        (await grain.ProgressTaskAsync(TRACK, "visit_rooms", 5, add: false, Ct)).Should().BeTrue();
+        (await grain.ProgressTaskAsync(TRACK, "visit_rooms", 2, add: false, Ct))
+            .Should()
+            .BeFalse("a set below the count leaves it");
+        (await grain.ProgressTaskAsync(TRACK, "visit_rooms", 100, add: true, Ct)).Should().BeTrue();
+        (await grain.ProgressTaskAsync(TRACK, "premium_wave", 1, add: true, Ct))
+            .Should()
+            .BeFalse("a premium task counts only for a premium owner");
+        (await grain.ProgressTaskAsync(TRACK, "nope", 1, add: true, Ct)).Should().BeFalse();
+
+        Sent<RewardTrackProgressMessageComposer>()
+            .Select(x => (x.ProgressCount, x.Points))
+            .Should()
+            .Equal((5, 30), (20, 60));
+    }
+
+    [Fact]
+    public async Task Wired_reset_takes_the_track_back_to_the_start_and_reloads_it()
+    {
+        var grain = await GrainAsync();
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "duckets", Ct);
+
+        (await grain.ResetTrackAsync(TRACK, Ct)).Should().BeTrue();
+
+        var sent = Sent<RewardTracksMessageComposer>().Should().ContainSingle().Subject;
+        sent.Reload.Should().BeTrue();
+        sent.Tracks[0].Points.Should().Be(0);
+        sent.Tracks[0].Tasks[0].ProgressCount.Should().Be(0);
+        sent.Tracks[0].Prizes[0].Claimed.Should().BeFalse();
+        (await grain.ResetTrackAsync("unknown", Ct)).Should().BeFalse();
+    }
+
+    private void AddPrize(RewardTrackPrizeDefinition prize)
+    {
+        prize.RequiredPoints = 10;
+        _config.Tracks[0].Prizes.Add(prize);
+    }
+
+    [Fact]
     public async Task Disabled_tracks_are_sent_as_disabled_and_refuse_claims_with_code_1()
     {
         _config.Enabled = false;
@@ -580,6 +750,7 @@ public sealed class RewardTrackTests : IDisposable
             _db
         );
         RoomHarness.SetField(grain, "_config", _config);
+        RoomHarness.SetField(grain, "_petBreeds", _fakes.Create<IPetBreedProvider>());
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerRewardTrackGrain)grain;

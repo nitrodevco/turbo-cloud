@@ -40,10 +40,6 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        // Nobody owns a temporary furni, so nobody picks one up into an inventory.
-        if (item.IsTemporary)
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
-
         // A borrowed furni is given back rather than picked up: it belongs to the club, so it
         // reaches no inventory and the room simply lets go of it. The client warns the player
         // that it cannot be borrowed again before it asks for this.
@@ -67,6 +63,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         if (pickupType == FurniturePickupType.None)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+        // A temporary furni is picked up like any other and then is simply gone: it reaches no
+        // inventory (official client capture, WIN63-202610131318: ObjectRemove and a height map
+        // update, no inventory update).
+        if (item.IsTemporary)
+            return await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
 
         if (!confirmed && await AskToConfirmPickupAsync(ctx, item, ct))
             return false;

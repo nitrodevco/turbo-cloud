@@ -12,11 +12,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Assets;
 using Turbo.Assets.Conversion;
+using Turbo.Assets.Hab;
 using Turbo.Assets.Nitro;
+using Turbo.Assets.Swf;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Files;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -259,6 +262,113 @@ internal sealed class AssetBundleService(
         if (extension is not (SWF or HAB or AssetBundleStore.EXTENSION))
             throw new ArgumentException("A bundle is uploaded as a .swf, .hab or .nitro file.");
 
+        CheckFile(data);
+        name = NameOf(name, fileName);
+
+        var bundle = ToBundle(kind, name, extension, data);
+
+        return await KeepAsync(kind, name, bundle, player, ct).ConfigureAwait(false);
+    }
+
+    public async Task<AssetUploadResult> UploadFileAsync(
+        string? name,
+        string fileName,
+        byte[] data,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        CheckFile(data);
+
+        if (!IsLibrary(data))
+        {
+            if (GamedataFileDetector.Detect(data) is not { } file)
+                throw new AssetKindUnknownException(
+                    $"{fileName} is neither a library (an SWF, a .hab or a .nitro) nor a gamedata file."
+                );
+
+            logger.LogInformation(
+                "Player {PlayerId} uploaded {FileName}, which is {File}; it is not taken",
+                player,
+                fileName,
+                file
+            );
+
+            return new AssetUploadResult { Gamedata = file };
+        }
+
+        name = NameOf(name, fileName);
+
+        var (kind, bundle) = await DetectAsync(name, fileName, data, ct).ConfigureAwait(false);
+
+        return new AssetUploadResult
+        {
+            Bundle = await KeepAsync(kind, name, bundle, player, ct).ConfigureAwait(false),
+        };
+    }
+
+    /// <summary>
+    /// The library's kind, by what its asset data holds or else by the bundle already of its name,
+    /// and the bundle to keep: an avatar library converted again as one, so its shadows go.
+    /// </summary>
+    private async Task<(AssetBundleKind Kind, byte[] Bundle)> DetectAsync(
+        string name,
+        string fileName,
+        byte[] data,
+        CancellationToken ct
+    )
+    {
+        NitroBundle converted;
+        AssetBundleKind? kind;
+
+        try
+        {
+            converted = NitroConverter.Convert(data, name);
+            kind = AssetKindDetector.Of(converted.AssetData(name));
+        }
+        catch (AssetFormatException ex)
+        {
+            throw new ArgumentException($"The file can't be taken: {ex.Message}", ex);
+        }
+
+        kind ??= await KindOfNamedAsync(name, ct).ConfigureAwait(false);
+
+        if (kind is not { } found)
+            throw new AssetKindUnknownException(
+                $"Nothing in {fileName} says whether it is furniture, a pet, an effect or clothing, and no bundle is named {name}."
+            );
+
+        if (NitroBundle.IsNitro(data))
+            return (found, data);
+
+        return (
+            found,
+            AssetTypeOf(found) is null ? converted.Write() : ToBundle(found, name, SWF, data)
+        );
+    }
+
+    /// <summary>The kind of the one bundle of this name; null when there is none, or one of several kinds.</summary>
+    private async Task<AssetBundleKind?> KindOfNamedAsync(string name, CancellationToken ct)
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var kinds = await dbCtx
+            .AssetBundles.AsNoTracking()
+            .Where(x => x.Name == name)
+            .Select(x => x.Kind)
+            .Distinct()
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return kinds.Count == 1 ? kinds[0] : null;
+    }
+
+    private static bool IsLibrary(byte[] data) =>
+        SwfLibrary.IsSwf(data) || HabLibrary.IsHab(data) || NitroBundle.IsNitro(data);
+
+    private void CheckFile(byte[] data)
+    {
         if (data.Length == 0)
             throw new ArgumentException("The file is empty.");
 
@@ -269,7 +379,11 @@ internal sealed class AssetBundleService(
                     $"The file is larger than {config.Value.UploadMaxMegabytes} MB."
                 )
             );
+    }
 
+    /// <summary>The bundle's name: the one given, or the file's without its extension.</summary>
+    private string NameOf(string? name, string fileName)
+    {
         name = string.IsNullOrWhiteSpace(name)
             ? Path.GetFileNameWithoutExtension(fileName)
             : name.Trim();
@@ -279,7 +393,18 @@ internal sealed class AssetBundleService(
                 $"\"{name}\" can't be a bundle's name: use letters, digits, _, - and ."
             );
 
-        var bundle = ToBundle(kind, name, extension, data);
+        return name;
+    }
+
+    /// <summary>Writes the bundle and keeps its row as an upload.</summary>
+    private async Task<AssetBundleSnapshot> KeepAsync(
+        AssetBundleKind kind,
+        string name,
+        byte[] bundle,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
         var hash = await store.WriteAsync(kind, name, bundle, ct).ConfigureAwait(false);
 
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);

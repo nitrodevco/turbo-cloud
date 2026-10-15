@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -55,6 +56,8 @@ internal sealed class AssetEndpoints(
         group.MapGet("/bundles/{kind}/{name}", DetailAsync);
         group.MapGet("/bundles/{kind}/{name}/file", FileAsync);
         group.MapPost("/bundles", UploadAsync);
+        group.MapPost("/upload", UploadFileAsync);
+        group.MapGet("/pending", (bool? relist, CancellationToken ct) => PendingAsync(relist, ct));
         group.MapDelete("/bundles/{kind}/{name}", DeleteAsync);
         group.MapPost("/sync", SyncAsync);
         group.MapGet(
@@ -129,97 +132,183 @@ internal sealed class AssetEndpoints(
         ManageAsync(
             http,
             ct,
-            async () =>
-            {
-                if (!http.Request.HasFormContentType)
-                    return AdminResults.Error(
-                        StatusCodes.Status400BadRequest,
-                        "Send the file as a form."
-                    );
+            () =>
+                WithFileAsync(
+                    http,
+                    ct,
+                    (form, file, data) =>
+                    {
+                        if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
+                            return Task.FromResult(
+                                AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND)
+                            );
 
-                var tooLarge = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"The file is larger than {bundles.UploadMaxBytes / (1024 * 1024)} MB."
-                );
-
-                if (
-                    http.Features.Get<IHttpMaxRequestBodySizeFeature>() is
-                    { IsReadOnly: false } limit
-                )
-                    limit.MaxRequestBodySize = bundles.UploadMaxBytes + FORM_OVERHEAD_BYTES;
-
-                IFormCollection form;
-
-                try
-                {
-                    form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
-                }
-                catch (BadHttpRequestException ex)
-                    when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, tooLarge);
-                }
-                catch (InvalidDataException ex)
-                {
-                    logger.LogWarning(ex, "An asset upload's form could not be read");
-
-                    return AdminResults.Error(
-                        StatusCodes.Status400BadRequest,
-                        $"The form could not be read: {ex.Message}"
-                    );
-                }
-
-                if (form.Files.GetFile("file") is not { } file)
-                    return AdminResults.Error(
-                        StatusCodes.Status400BadRequest,
-                        "Choose a .swf, .hab or .nitro file."
-                    );
-
-                if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND);
-
-                if (file.Length > bundles.UploadMaxBytes)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, tooLarge);
-
-                byte[] data;
-
-                using (var memory = new MemoryStream((int)file.Length))
-                {
-                    var stream = file.OpenReadStream();
-                    await using var streamScope = stream.ConfigureAwait(false);
-
-                    await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
-                    data = memory.ToArray();
-                }
-
-                try
-                {
-                    var bundle = await bundles
-                        .UploadAsync(
-                            kind,
-                            form["name"].FirstOrDefault(),
+                        return RefusedAsync(
+                            http,
                             file.FileName,
-                            data,
-                            AdminIdentity.Of(http).PlayerId,
-                            ct
-                        )
-                        .ConfigureAwait(false);
-
-                    return Results.Ok(AssetBundleResponse.From(bundle));
-                }
-                catch (ArgumentException ex)
-                {
-                    logger.LogWarning(
-                        "Player {PlayerId} uploaded {FileName} as an asset bundle, refused: {Reason}",
-                        AdminIdentity.Of(http).PlayerId,
-                        file.FileName,
-                        ex.Message
-                    );
-
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
+                            async () =>
+                                Results.Ok(
+                                    AssetBundleResponse.From(
+                                        await bundles
+                                            .UploadAsync(
+                                                kind,
+                                                form["name"].FirstOrDefault(),
+                                                file.FileName,
+                                                data,
+                                                AdminIdentity.Of(http).PlayerId,
+                                                ct
+                                            )
+                                            .ConfigureAwait(false)
+                                    )
+                                )
+                        );
+                    }
+                )
         );
+
+    /// <summary>
+    /// Any file, found by its content: a library kept as the kind of bundle it is, a gamedata file
+    /// named. One whose content says what it is no way is 422, so the panel can tell it apart from
+    /// a file it could not take.
+    /// </summary>
+    private Task<IResult> UploadFileAsync(HttpContext http, CancellationToken ct) =>
+        ManageAsync(
+            http,
+            ct,
+            () =>
+                WithFileAsync(
+                    http,
+                    ct,
+                    (form, file, data) =>
+                        RefusedAsync(
+                            http,
+                            file.FileName,
+                            async () =>
+                                Results.Ok(
+                                    AssetUploadResponse.From(
+                                        await bundles
+                                            .UploadFileAsync(
+                                                form["name"].FirstOrDefault(),
+                                                file.FileName,
+                                                data,
+                                                AdminIdentity.Of(http).PlayerId,
+                                                ct
+                                            )
+                                            .ConfigureAwait(false)
+                                    )
+                                )
+                        )
+                )
+        );
+
+    private async Task<IResult> PendingAsync(bool? relist, CancellationToken ct)
+    {
+        try
+        {
+            return Results.Ok(
+                AssetSyncPreviewResponse.From(
+                    await sync.PreviewAsync(relist == true, ct).ConfigureAwait(false)
+                )
+            );
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Habbo's lists of libraries could not be read for the panel");
+
+            return AdminResults.Error(
+                StatusCodes.Status502BadGateway,
+                $"Habbo could not be read: {ex.Message}"
+            );
+        }
+    }
+
+    /// <summary>An upload's refusal, with why: 422 when its kind can't be told, 400 otherwise.</summary>
+    private async Task<IResult> RefusedAsync(
+        HttpContext http,
+        string fileName,
+        Func<Task<IResult>> upload
+    )
+    {
+        try
+        {
+            return await upload().ConfigureAwait(false);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(
+                "Player {PlayerId} uploaded {FileName}, refused: {Reason}",
+                AdminIdentity.Of(http).PlayerId,
+                fileName,
+                ex.Message
+            );
+
+            return AdminResults.Error(
+                ex is AssetKindUnknownException
+                    ? StatusCodes.Status422UnprocessableEntity
+                    : StatusCodes.Status400BadRequest,
+                ex.Message
+            );
+        }
+    }
+
+    /// <summary>The form's <c>file</c>, read whole within the upload limit, handed on with the form.</summary>
+    private async Task<IResult> WithFileAsync(
+        HttpContext http,
+        CancellationToken ct,
+        Func<IFormCollection, IFormFile, byte[], Task<IResult>> take
+    )
+    {
+        if (!http.Request.HasFormContentType)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, "Send the file as a form.");
+
+        var tooLarge = string.Create(
+            CultureInfo.InvariantCulture,
+            $"The file is larger than {bundles.UploadMaxBytes / (1024 * 1024)} MB."
+        );
+
+        if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+            limit.MaxRequestBodySize = bundles.UploadMaxBytes + FORM_OVERHEAD_BYTES;
+
+        IFormCollection form;
+
+        try
+        {
+            form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+        }
+        catch (BadHttpRequestException ex)
+            when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, tooLarge);
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogWarning(ex, "An asset upload's form could not be read");
+
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                $"The form could not be read: {ex.Message}"
+            );
+        }
+
+        if (form.Files.GetFile("file") is not { } file)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose a file.");
+
+        if (file.Length > bundles.UploadMaxBytes)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, tooLarge);
+
+        byte[] data;
+
+        using (var memory = new MemoryStream((int)file.Length))
+        {
+            var stream = file.OpenReadStream();
+            await using var streamScope = stream.ConfigureAwait(false);
+
+            await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
+            data = memory.ToArray();
+        }
+
+        return await take(form, file, data).ConfigureAwait(false);
+    }
 
     private Task<IResult> DeleteAsync(
         string kind,

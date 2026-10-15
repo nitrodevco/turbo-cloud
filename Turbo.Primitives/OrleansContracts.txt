@@ -147,6 +147,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Habbicons.Grains.IPlayerHabbicon
   2F3E079D: BuyCollectionAsync(int, System.Threading.CancellationToken) -> Task
   52921C0C: CanUseAsync(int, System.Threading.CancellationToken) -> Task<bool>
   552B0D4B: ClaimAsync(int, System.Threading.CancellationToken) -> Task
+  EDC5E6D2: GiveAsync(int, System.Threading.CancellationToken) -> Task<bool>
   574714F6: NoteUsedAsync(int, System.Threading.CancellationToken) -> Task
   75173E98: SendInfoAsync(int, System.Threading.CancellationToken) -> Task
   A18E6892: SendLoginAsync(System.Threading.CancellationToken) -> Task
@@ -429,8 +430,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerQuestGrain"
 
 interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain")] Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain [Version(0)]
   E0832860: ClaimPrizeAsync(string, string, System.Threading.CancellationToken) -> Task
+  B00CABA2: ProgressTaskAsync(string, string, int, bool, System.Threading.CancellationToken) -> Task<bool>
   9F91EF78: PurchasePremiumAsync(string, System.Threading.CancellationToken) -> Task
   0EE5ECDF: RecordActionAsync(string, string, System.Threading.CancellationToken) -> Task
+  0F164BCA: ResetTrackAsync(string, System.Threading.CancellationToken) -> Task<bool>
   345CDD2A: SendTracksAsync(System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain")] Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain [Version(0)]
