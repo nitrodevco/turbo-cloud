@@ -13,6 +13,14 @@ public interface IPlayerQuestGrain : IGrainWithIntegerKey
     /// <summary>Sends each campaign's current quest (Quests), opening the window or not.</summary>
     Task SendQuestsAsync(bool openWindow, CancellationToken ct);
 
+    /// <summary>
+    /// Sends the reception's daily quest (QuestDaily): the quest being done when it is one of the
+    /// campaigns' current quests, else the <paramref name="index"/>th current quest of the asked
+    /// difficulty, counting round, or of the other when there is none of it. None when every
+    /// campaign is done.
+    /// </summary>
+    Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct);
+
     /// <summary>Makes the quest the one the player is doing, dropping any other, and sends it.</summary>
     Task AcceptAsync(int questId, CancellationToken ct);
 

@@ -1,11 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Hotel;
 using Turbo.Primitives.Messages.Incoming.Quest;
+using Turbo.Primitives.Messages.Outgoing.Quest;
 
 namespace Turbo.PacketHandlers.Quest;
 
-public class GetConcurrentUsersGoalProgressMessageHandler
+/// <summary>The reception's concurrent users element, on refresh and every five seconds after.</summary>
+public class GetConcurrentUsersGoalProgressMessageHandler(IConcurrentUsersGoalService goal)
     : IMessageHandler<GetConcurrentUsersGoalProgressMessage>
 {
     public async ValueTask HandleAsync(
@@ -14,6 +17,16 @@ public class GetConcurrentUsersGoalProgressMessageHandler
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
+
+        await ctx.SendComposerAsync(
+                new ConcurrentUsersGoalProgressMessageComposer
+                {
+                    Data = await goal.GetProgressAsync(ctx.PlayerId, ct).ConfigureAwait(false),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

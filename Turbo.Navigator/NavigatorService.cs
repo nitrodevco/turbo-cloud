@@ -525,6 +525,31 @@ public sealed class NavigatorService(
         return rooms.Count == 0 ? null : rooms[Random.Shared.Next(rooms.Count)].RoomId;
     }
 
+    public async Task<RoomId?> GetRoomNetworkRoomAsync(
+        int networkId,
+        RoomId homeRoomId,
+        CancellationToken ct
+    )
+    {
+        if (!_config.RoomNetworks.TryGetValue(networkId, out var configured))
+            return null;
+
+        await SyncListingsAsync(includeActiveRooms: false, ct).ConfigureAwait(false);
+
+        var rooms = (
+            await _navigatorProvider
+                .GetRoomsByIdsAsync([.. configured.Distinct().Select(RoomId.Parse)], ct)
+                .ConfigureAwait(false)
+        )
+            .Select(x => x.RoomId)
+            .ToList();
+
+        if (rooms.Contains(homeRoomId))
+            return homeRoomId;
+
+        return rooms.Count == 0 ? null : rooms[Random.Shared.Next(rooms.Count)];
+    }
+
     public async Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct)
     {
         if (roomId.Value <= 0)

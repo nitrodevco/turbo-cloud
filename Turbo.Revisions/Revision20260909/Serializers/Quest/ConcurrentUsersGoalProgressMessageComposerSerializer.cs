@@ -3,6 +3,7 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Quest;
 
+/// <summary>ConcurrentUsersGoalProgressMessageParser: the state, the users online and the goal.</summary>
 internal class ConcurrentUsersGoalProgressMessageComposerSerializer(int header)
     : AbstractSerializer<ConcurrentUsersGoalProgressMessageComposer>(header)
 {
@@ -11,6 +12,8 @@ internal class ConcurrentUsersGoalProgressMessageComposerSerializer(int header)
         ConcurrentUsersGoalProgressMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Data.State);
+        packet.WriteInteger(message.Data.UserCount);
+        packet.WriteInteger(message.Data.UserCountGoal);
     }
 }

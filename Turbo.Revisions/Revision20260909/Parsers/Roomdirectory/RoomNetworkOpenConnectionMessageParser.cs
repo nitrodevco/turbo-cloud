@@ -6,5 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Roomdirectory;
 
 internal class RoomNetworkOpenConnectionMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RoomNetworkOpenConnectionMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RoomNetworkOpenConnectionMessage
+        {
+            NetworkId = packet.PopInt(),
+            HomeRoomId = packet.PopInt(),
+        };
 }

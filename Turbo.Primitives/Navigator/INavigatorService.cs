@@ -79,6 +79,16 @@ public interface INavigatorService
 
     public Task<RoomId?> GetRandomPromotedRoomAsync(string eventCategory, CancellationToken ct);
 
+    /// <summary>
+    /// The room a room network sends a player to: <paramref name="homeRoomId"/> when it is one of
+    /// the network's rooms, else one of them that exists at random. Null for a network with none.
+    /// </summary>
+    public Task<RoomId?> GetRoomNetworkRoomAsync(
+        int networkId,
+        RoomId homeRoomId,
+        CancellationToken ct
+    );
+
     /// <summary>Whether the room exists, answered from the room cache.</summary>
     public Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct);
     public Task AddFavouriteRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);

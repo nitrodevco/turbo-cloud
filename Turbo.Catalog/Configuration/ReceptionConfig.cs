@@ -14,4 +14,16 @@ public sealed class ReceptionConfig
 
     /// <summary>Contributors a community goal's hall of fame lists, and the panel shows.</summary>
     public int HallOfFameSize { get; init; } = 10;
+
+    /// <summary>
+    /// Players wanted online at the same time for the reception's concurrent users goal; 0 turns
+    /// the goal off.
+    /// </summary>
+    public int ConcurrentUsersGoal { get; init; }
+
+    /// <summary>
+    /// The badge each player may take once the concurrent users goal is reached; empty for a goal
+    /// with no reward.
+    /// </summary>
+    public string ConcurrentUsersRewardBadge { get; init; } = "";
 }

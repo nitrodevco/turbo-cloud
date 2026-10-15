@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 
@@ -53,6 +54,13 @@ public class NavigatorConfig
     public string[]? MyWorldKeepEmpty { get; init; }
 
     internal static readonly string[] HabboMyWorldKeepEmpty = [NavigatorSearchCodes.FAVOURITES];
+
+    /// <summary>
+    /// The rooms of each room network, by network id: the reception's room hopper
+    /// (<c>landing.view.roomhopper.network.id</c>) sends a player to one of its network's rooms.
+    /// A network with no rooms listed here sends nobody anywhere.
+    /// </summary>
+    public Dictionary<int, int[]> RoomNetworks { get; init; } = [];
 
     /// <summary>The settings a newly created room starts with; Habbo's by default.</summary>
     public NewRoomConfig NewRoom { get; init; } = new();

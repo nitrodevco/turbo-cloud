@@ -318,8 +318,17 @@ client reads them (nitro-react's `HotelViewWidgets.ts`, after Flash's `WidgetCon
   (`IHotelViewService`, `PUT /api/gamedata/hotel-view`), variables and texts alike, and roll back
   as one from the history. Only `landing.view.*` variables can be saved there. Players see the
   change when they next load the client.
-- Widgets Nitro doesn't draw yet (the catalogue promos, daily quest, ...) can be chosen; players see
-  the slot empty, and the panel says so.
+- **Widgets the server answers** besides the tabs above:
+  - The **daily quest** (`dailyquest` widget and promo element) offers the quests' current quests
+    (each campaign's first one not done), easy or hard, and the one being done while there is one.
+  - The **concurrent users** element counts the players connected to the host against
+    `Turbo:Catalog:Reception:ConcurrentUsersGoal` (0, the default, turns it off). Once the goal is
+    reached, each player may take `ConcurrentUsersRewardBadge` once, until the host restarts.
+  - The **room hopper** (`roomhoppernetwork`) sends a player to a random room of its network
+    (`landing.view.roomhopper.network.id`), from the rooms listed under
+    `Turbo:Navigator:RoomNetworks:<id>`.
+  - The talent promo and the room competition elements have no server behind them yet: the
+    talent track and room competitions are not built.
 
 ## Setting it up in production (Ploi)
 

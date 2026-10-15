@@ -73,6 +73,47 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         );
     }
 
+    public async Task SendDailyQuestAsync(bool easy, int index, CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var data = await LoadAsync(dbCtx, ct);
+        var open = data
+            .Campaigns.Select(data.Current)
+            .OfType<QuestEntity>()
+            .Where(x => !data.Done(x))
+            .ToList();
+        var easyQuests = open.Where(x => x.Easy).ToList();
+        var hardQuests = open.Where(x => !x.Easy).ToList();
+
+        // The widget hides "another quest" while a quest is accepted, so the one being done is
+        // the one it shows.
+        var quest = open.FirstOrDefault(x =>
+            data.Rows.TryGetValue(x.Id, out var row) && row.Accepted
+        );
+
+        if (quest is null)
+        {
+            var pool = easy ? easyQuests : hardQuests;
+
+            if (pool.Count == 0)
+                pool = easy ? hardQuests : easyQuests;
+
+            if (pool.Count > 0)
+                quest = pool[Math.Abs(index % pool.Count)];
+        }
+
+        await _grainFactory.SendComposerToPlayerAsync(
+            _playerId,
+            new QuestDailyMessageComposer
+            {
+                Quest = quest is null ? null : data.Snapshot(quest, Now),
+                EasyQuestCount = easyQuests.Count,
+                HardQuestCount = hardQuests.Count,
+            },
+            ct
+        );
+    }
+
     public async Task AcceptAsync(int questId, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -289,7 +330,7 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
             x.CampaignEntityId
         );
 
-        private bool Done(QuestEntity quest) =>
+        public bool Done(QuestEntity quest) =>
             Rows.TryGetValue(quest.Id, out var row) && row.CompletedAt is not null;
 
         /// <summary>The campaign's first quest not done, else its last (the campaign is done).</summary>
