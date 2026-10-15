@@ -132,6 +132,8 @@ public sealed class WiredOfficialSourcesTests
                 [Users, Users],
                 [0, 200]
             },
+            { typeof(WiredConditionItemMatches), "wf_cnd_match_snapshot", [Furni], [100], [], [] },
+            { typeof(WiredSelectorSelectedItems), "wf_slc_furni_picks", [], [], [], [] },
             {
                 typeof(WiredAddonProjectile),
                 "wf_xtra_rotate_to_dir",
