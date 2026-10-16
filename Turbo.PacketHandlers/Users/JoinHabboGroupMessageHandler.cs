@@ -67,7 +67,12 @@ public class JoinHabboGroupMessageHandler(IGrainFactory grainFactory)
         await ctx.SendHabboGroupDetailsAsync(_grainFactory, message.GuildId, false, ct)
             .ConfigureAwait(false);
         await playerGuilds.WearIfNoneAsync(message.GuildId, ct).ConfigureAwait(false);
-        await ctx.SendComposerAsync(
+
+        // Through the player's presence, not the session: it follows the room's badge messages,
+        // which the wear only told the room to send (IPlayerPresenceGrain.HoldForRoomAsync).
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
                 new ExtendedProfileChangedMessageComposer { UserId = ctx.PlayerId.Value },
                 ct
             )

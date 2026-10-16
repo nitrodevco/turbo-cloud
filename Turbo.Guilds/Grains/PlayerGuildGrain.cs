@@ -375,12 +375,18 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     /// </summary>
     private async Task TellRoomOfFavouriteAsync(GuildSummarySnapshot? guild, CancellationToken ct)
     {
-        var activeRoom = await _grainFactory
-            .GetPlayerPresenceGrain(PlayerId)
-            .GetActiveRoomAsync(ct);
+        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
+        var activeRoom = await presence.GetActiveRoomAsync(ct);
 
         if (activeRoom.RoomId <= 0)
             return;
+
+        // What the player is sent after this (the profile changed, the group they left) follows
+        // the room's badge messages, as in Habbo (official client capture 2026-10-13: join 20:55
+        // and 21:07, HabboGroupBadges and FavoriteMembershipUpdate before ExtendedProfileChanged;
+        // leave 14:23, FavoriteMembershipUpdate before GuildMembershipRejected). The room is not
+        // awaited, so the presence holds those back until the room's publish reaches it.
+        var hold = await presence.HoldForRoomAsync(ct);
 
         // Told, not asked, and deliberately not awaited: the room reads this grain when a player
         // walks in (RoomAvatarModule.LoadFavouriteGuildAsync), so awaiting the room from here
@@ -392,6 +398,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 guild?.GuildId ?? -1,
                 guild is null ? WornGuildStatus.None : WornStatus(),
                 guild?.Name ?? string.Empty,
+                hold,
                 CancellationToken.None
             )
             .LogAndForget(
