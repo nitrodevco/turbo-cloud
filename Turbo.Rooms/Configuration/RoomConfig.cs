@@ -41,6 +41,14 @@ public class RoomConfig
     /// </summary>
     public int ListingChangeLogSize { get; init; } = 10000;
 
+    /// <summary>
+    /// How far back the room directory counts the players who entered each active room, which
+    /// the navigator's hot rooms (<c>hot</c>) are ordered by. Habbo's hot rooms are led by the
+    /// rooms that just filled up rather than the fullest ones (official client capture
+    /// 2026-10-16, three hotel views 32 minutes apart); the window length is inference.
+    /// </summary>
+    public int HotRoomWindowSeconds { get; init; } = 600;
+
     public int RoomCheckMs { get; init; } = 300000;
     public int RoomDeactivationDelayMs { get; init; } = 1800000;
     public int RoomTickMs { get; init; } = 50;

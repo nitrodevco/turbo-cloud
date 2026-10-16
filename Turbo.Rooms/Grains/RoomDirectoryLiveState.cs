@@ -30,4 +30,13 @@ internal sealed class RoomDirectoryLiveState
     /// copied every active room inside this hotel-wide grain's turn.
     /// </summary>
     public ImmutableArray<RoomActiveSnapshot>? ActiveRoomsView { get; set; }
+
+    /// <summary>
+    /// When <see cref="ActiveRoomsView"/> goes stale on its own: the first moment an entry it
+    /// counted falls out of the hot-room window.
+    /// </summary>
+    public DateTime ActiveRoomsViewExpiresUtc { get; set; } = DateTime.MaxValue;
+
+    /// <summary>When each player last entered each room, kept for the hot-room window.</summary>
+    public Dictionary<RoomId, Dictionary<PlayerId, DateTime>> RoomEntries { get; } = [];
 }

@@ -31,6 +31,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     private readonly IGrainFactory _grainFactory;
     private readonly EventSystem _eventSystem;
     private readonly ILogger<IRoomDirectoryGrain> _logger;
+    private readonly TimeProvider _time;
 
     private readonly RoomDirectoryLiveState _state = new();
 
@@ -40,13 +41,15 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         IOptions<RoomConfig> roomConfig,
         IGrainFactory grainFactory,
         EventSystem eventSystem,
-        ILogger<IRoomDirectoryGrain> logger
+        ILogger<IRoomDirectoryGrain> logger,
+        TimeProvider time
     )
     {
         _roomConfig = roomConfig.Value;
         _grainFactory = grainFactory;
         _eventSystem = eventSystem;
         _logger = logger;
+        _time = time;
     }
 
     public override Task OnActivateAsync(CancellationToken ct)
@@ -95,6 +98,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     {
         _state.ActiveRooms.Remove(roomId, out var current);
         _state.ActivatedRooms.Remove(roomId, out var activated);
+        _state.RoomEntries.Remove(roomId);
         _state.ActiveRoomsView = null;
 
         if (current is not null)
@@ -170,18 +174,51 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     }
 
     /// <summary>
-    /// The active rooms with their populations, built once per change rather than per request.
-    /// The array and its snapshots are immutable, so every caller can share one.
+    /// The active rooms with their populations and recent visitors, built once per change (or
+    /// once a counted entry leaves the hot-room window) rather than per request. The array and
+    /// its snapshots are immutable, so every caller can share one.
     /// </summary>
-    private ImmutableArray<RoomActiveSnapshot> GetActiveRoomsView() =>
-        _state.ActiveRoomsView ??= [
+    private ImmutableArray<RoomActiveSnapshot> GetActiveRoomsView()
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+
+        if (_state.ActiveRoomsView is { } view && now < _state.ActiveRoomsViewExpiresUtc)
+            return view;
+
+        var window = TimeSpan.FromSeconds(Math.Max(0, _roomConfig.HotRoomWindowSeconds));
+        var expires = DateTime.MaxValue;
+
+        foreach (var (roomId, entries) in _state.RoomEntries.ToArray())
+        {
+            foreach (var (playerId, enteredAt) in entries.ToArray())
+            {
+                if (enteredAt + window <= now)
+                    entries.Remove(playerId);
+                else if (enteredAt + window < expires)
+                    expires = enteredAt + window;
+            }
+
+            if (entries.Count == 0)
+                _state.RoomEntries.Remove(roomId);
+        }
+
+        _state.ActiveRoomsViewExpiresUtc = expires;
+
+        ImmutableArray<RoomActiveSnapshot> built =
+        [
             .. _state.ActiveRooms.Values.Select(x =>
                 RoomActiveSnapshot.From(
                     x,
-                    _state.RoomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0
+                    _state.RoomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0,
+                    _state.RoomEntries.TryGetValue(x.RoomId, out var entries) ? entries.Count : 0
                 )
             ),
         ];
+
+        _state.ActiveRoomsView = built;
+
+        return built;
+    }
 
     private void AppendListingChanges(IEnumerable<string> keys)
     {
@@ -205,6 +242,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         if (!playerIds.Contains(playerId))
         {
             playerIds.Add(playerId);
+            RecordEntry(roomId, playerId);
             Announce(roomId, playerId);
         }
 
@@ -274,6 +312,24 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         return Task.FromResult<RoomId?>(
             candidates.Length == 0 ? null : candidates[Random.Shared.Next(candidates.Length)]
         );
+    }
+
+    /// <summary>
+    /// Remembers when the player entered, once per player: walking in and out again does not
+    /// make a room hotter.
+    /// </summary>
+    private void RecordEntry(RoomId roomId, PlayerId playerId)
+    {
+        if (_roomConfig.HotRoomWindowSeconds <= 0)
+            return;
+
+        if (!_state.RoomEntries.TryGetValue(roomId, out var entries))
+        {
+            entries = [];
+            _state.RoomEntries[roomId] = entries;
+        }
+
+        entries[playerId] = _time.GetUtcNow().UtcDateTime;
     }
 
     private Task UpdatePopulationAsync(RoomId roomId)

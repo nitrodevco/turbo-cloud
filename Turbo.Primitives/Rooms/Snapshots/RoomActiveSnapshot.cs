@@ -22,6 +22,16 @@ public sealed record RoomActiveSnapshot : RoomInfoSnapshot
     public RoomActiveSnapshot(RoomInfoSnapshot info)
         : base(info) { }
 
-    public static RoomActiveSnapshot From(RoomInfoSnapshot room, int population) =>
-        new(room) { Population = population };
+    /// <summary>
+    /// Players who entered the room within the directory's hot-room window
+    /// (<c>RoomConfig.HotRoomWindowSeconds</c>), each counted once.
+    /// </summary>
+    [Id(0)]
+    public int RecentVisitors { get; init; }
+
+    public static RoomActiveSnapshot From(
+        RoomInfoSnapshot room,
+        int population,
+        int recentVisitors = 0
+    ) => new(room) { Population = population, RecentVisitors = recentVisitors };
 }
