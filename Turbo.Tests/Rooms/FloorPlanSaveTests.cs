@@ -91,6 +91,75 @@ public sealed class FloorPlanSaveTests : IDisposable
             .Be("00\r00", "a stock model is never written through");
     }
 
+    /// <summary>
+    /// A wall item is pinned to the tile its wall stands on, outside the floor, so checking that
+    /// tile for floor sent every poster, lamp and moodlight home on any save, even one that kept
+    /// every wall where it was (tester report 2026-10-15).
+    /// </summary>
+    [Fact]
+    public async Task Wall_items_stay_on_walls_the_new_plan_keeps_and_go_home_from_walls_it_drops()
+    {
+        var wired = new WiredRoom(6, 6);
+        RoomHarness.SetField(wired.Harness.Room, "_dbCtxFactory", _db);
+        RoomHarness.SetField(
+            wired.Harness.Room,
+            "_roomModelProvider",
+            new Turbo.Rooms.Providers.RoomModelProvider(
+                _db,
+                Microsoft
+                    .Extensions
+                    .Logging
+                    .Abstractions
+                    .NullLogger<Turbo.Primitives.Rooms.Providers.IRoomModelProvider>
+                    .Instance
+            )
+        );
+
+        // On the left wall west of (1, 2), on the right wall north of (2, 1), and on a left
+        // wall west of (4, 4), which the new plan no longer has a floor for.
+        var left = Hang(wired.AddWallItem(1), 0, 2, Rotation.South);
+        var right = Hang(wired.AddWallItem(2), 2, 0, Rotation.West);
+        var dropped = Hang(wired.AddWallItem(3), 3, 4, Rotation.South);
+
+        var error = await wired
+            .Harness.Module<RoomMapModule>()
+            .SaveFloorPlanAsync(
+                "xxxx\rx000\rx000\rx000",
+                new Turbo.Primitives.Rooms.Snapshots.Mapping.FloorPlanPropertiesSnapshot
+                {
+                    DoorX = 1,
+                    DoorY = 1,
+                    DoorRotation = 2,
+                    // The room's own wall settings, so only the tiles change.
+                    WallThickness = 0,
+                    FloorThickness = 0,
+                    FixedWallsHeight = 0,
+                },
+                false,
+                Ct
+            );
+
+        error.Should().BeNull();
+        var items = (System.Collections.IDictionary)
+            RoomHarness.GetMember(wired.Harness.State, "ItemsById")!;
+        items.Contains(left.ObjectId).Should().BeTrue("its wall and the floor it faces are kept");
+        items.Contains(right.ObjectId).Should().BeTrue("its wall and the floor it faces are kept");
+        items.Contains(dropped.ObjectId).Should().BeFalse("the floor it faced is gone");
+    }
+
+    private static Turbo.Rooms.Object.Furniture.Wall.RoomWallItem Hang(
+        Turbo.Rooms.Object.Furniture.Wall.RoomWallItem item,
+        int x,
+        int y,
+        Rotation rotation
+    )
+    {
+        item.SetPosition(x, y);
+        item.SetRotation(rotation);
+
+        return item;
+    }
+
     private static RoomModelEntity Model(int id, string name, string model, bool custom) =>
         new()
         {
