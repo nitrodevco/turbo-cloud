@@ -246,10 +246,10 @@ public sealed class MessengerService(
             .GetMessageHistoryAsync(chatId, beforeMessageId, ct)
             .ConfigureAwait(false);
 
-        // An empty page is not sent: MainView.loadMessageHistory has nothing to add.
-        return history.Count == 0
-            ? null
-            : new ConsoleMessageHistoryMessageComposer { ChatId = chatId, Messages = history };
+        // Habbo answers every page, an empty one too (official client capture hc-rights-test,
+        // the page before the oldest message: no messages); MainView.loadMessageHistory adds
+        // nothing from it.
+        return new ConsoleMessageHistoryMessageComposer { ChatId = chatId, Messages = history };
     }
 
     public async Task<IComposer?> SendRoomInviteAsync(

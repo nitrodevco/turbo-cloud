@@ -1496,7 +1496,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     )
     {
         // History off (the default), group chats (negative ids, never stored), and anyone who is
-        // not a friend all answer nothing, without a query.
+        // not a friend all get an empty page, without a query.
         if (
             _playerConfig.MessengerHistoryPageSize <= 0
             || chatPartnerId <= 0
