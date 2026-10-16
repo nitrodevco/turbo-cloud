@@ -12,8 +12,10 @@ namespace Turbo.Catalog.Providers;
 /// there only to lead to one below it sells nothing of its own.
 /// <para>
 /// The Builders Club catalog has no tabs: the client opens the first category under the root
-/// and lists what is under that. So the tabs (the root's children) are left out, and the pages
-/// under every tab are gathered, in tab order, under one category of its own.
+/// and lists what is under that. Habbo's root holds one real tab there, its "furni" tab, with
+/// every page under it. So the first tab that leads to Builders Club pages is that category,
+/// and the pages under the tabs after it are gathered under it too, in tab order, since the
+/// client would never reach a second one.
 /// </para>
 /// </summary>
 internal sealed record CatalogTree(
@@ -23,12 +25,6 @@ internal sealed record CatalogTree(
     ImmutableDictionary<int, ImmutableArray<int>> ChildIds
 )
 {
-    /// <summary>
-    /// The Builders Club catalog's one category, which no row holds. Below -1, so the client
-    /// asks for no page when it opens it, and apart from -1, which is "no parent".
-    /// </summary>
-    public const int BUILDERS_CLUB_CATEGORY_ID = -2;
-
     public static CatalogTree Cut(IReadOnlyCollection<CatalogPageEntity> all, CatalogType type)
     {
         // Should there be more than one page with no parent, the oldest is the catalog's; the
@@ -62,9 +58,10 @@ internal sealed record CatalogTree(
             return new(root.Id, pages, selling, childIds.ToImmutable());
         }
 
-        // A tab is not shown, but the pages under it are, so it is walked like any other page
-        // and then dropped; a tab that was only on the way leaves its pages to the category. An
-        // invisible tab hides what is under it here too, as it does in the normal catalog.
+        // Every tab is walked like any other page; the first one there is stays as the category
+        // and the later ones hand it their pages and are dropped. An invisible tab hides what is
+        // under it here too, as it does in the normal catalog.
+        CatalogPageEntity? category = null;
         var gathered = new List<int>();
 
         foreach (var tab in tabs)
@@ -72,28 +69,29 @@ internal sealed record CatalogTree(
             if (tab.Display == CatalogPageDisplay.Invisible || !Include(tab))
                 continue;
 
+            gathered.AddRange(childIds[tab.Id]);
+
+            if (category is null)
+            {
+                category = tab;
+                continue;
+            }
+
             pages.Remove(tab);
             selling.Remove(tab.Id);
-            gathered.AddRange(childIds[tab.Id]);
             childIds.Remove(tab.Id);
         }
 
-        var category = new CatalogPageEntity
+        if (category is null)
         {
-            Id = BUILDERS_CLUB_CATEGORY_ID,
-            ParentEntityId = root.Id,
-            Localization = "Builders Club",
-            Name = "builders_club",
-            Icon = 0,
-            Layout = root.Layout,
-            SortOrder = 0,
-            Display = CatalogPageDisplay.BuildersClubOnly,
-        };
+            childIds[root.Id] = [];
+
+            return new(root.Id, pages, selling, childIds.ToImmutable());
+        }
 
         foreach (var page in pages.Where(x => gathered.Contains(x.Id)))
             page.ParentEntityId = category.Id;
 
-        pages.Add(category);
         childIds[root.Id] = [category.Id];
         childIds[category.Id] = [.. gathered];
 
