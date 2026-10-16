@@ -162,6 +162,45 @@ public sealed class WiredControlClockTests
         (firstSecond - startReturnedAt).Should().BeLessThanOrEqualTo(1_000);
     }
 
+    [Fact]
+    public async Task A_counter_keeps_the_cycle_when_the_room_pass_runs_more_than_500_ms_late()
+    {
+        var clock = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    CLOCK,
+                    3,
+                    3,
+                    "wf_game_upcounter",
+                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                )
+                .Logic;
+        var timers = _room.Harness.Module<RoomTimerSystem>();
+        var startedAt = NowMs();
+
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+
+        // A busy test host: the passes below replay times the real clock has already left behind.
+        await Task.Delay(1_100, Ct);
+
+        var firstHalf = -1L;
+        var firstSecond = -1L;
+
+        for (var t = startedAt; t <= startedAt + 2_000 && firstSecond < 0; t++)
+        {
+            await timers.ProcessTimersAsync(t, Ct);
+
+            if (firstHalf < 0 && clock.HalfSeconds == 1)
+                firstHalf = t;
+
+            if (clock.HalfSeconds == 2)
+                firstSecond = t;
+        }
+
+        (firstHalf % 500).Should().Be(0);
+        firstSecond.Should().Be(firstHalf + 500, "each half second is due on its boundary, not when the pass ran");
+    }
+
     private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener

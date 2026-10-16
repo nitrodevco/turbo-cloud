@@ -24,12 +24,19 @@ public sealed class RoomTimerSystem(RoomGrain roomGrain) : RoomGrainComponent(ro
     /// Runs <paramref name="callback"/> once after <paramref name="delayMs"/>. A timer already
     /// pending for the same object is replaced.
     /// </summary>
-    public void Schedule(RoomObjectId objectId, int delayMs, Func<CancellationToken, Task> callback)
+    public void Schedule(RoomObjectId objectId, int delayMs, Func<CancellationToken, Task> callback) =>
+        ScheduleAt(objectId, _roomGrain.NowMs() + Math.Max(0, delayMs), callback);
+
+    /// <summary>
+    /// Runs <paramref name="callback"/> once on the first pass at or after <paramref name="dueAtMs"/>
+    /// (room clock). A timer already pending for the same object is replaced.
+    /// </summary>
+    public void ScheduleAt(RoomObjectId objectId, long dueAtMs, Func<CancellationToken, Task> callback)
     {
         var timer = new RoomTimer
         {
             Version = ++_nextVersion,
-            DueAtMs = _roomGrain.NowMs() + Math.Max(0, delayMs),
+            DueAtMs = dueAtMs,
             Callback = callback,
         };
 
