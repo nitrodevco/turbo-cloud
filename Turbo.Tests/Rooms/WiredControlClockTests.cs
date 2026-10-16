@@ -116,6 +116,52 @@ public sealed class WiredControlClockTests
         clock.HalfSeconds.Should().BeGreaterThanOrEqualTo(6);
     }
 
+    /// <summary>
+    /// Official client capture 2026-10-16 (five Control Clock starts): the counter counts the
+    /// room's 500 ms cycles from the start, so "1" shows on the second cycle after it, 500..1000
+    /// ms later, and every second after on the same cycle. Ours showed "1" 1000 ms after the
+    /// start, off the cycle. The test room's cycles fall on whole multiples of 500 ms.
+    /// </summary>
+    [Fact]
+    public async Task A_started_counter_ticks_on_the_rooms_500_ms_cycle()
+    {
+        var clock = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    CLOCK,
+                    3,
+                    3,
+                    "wf_game_upcounter",
+                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                )
+                .Logic;
+        var timers = _room.Harness.Module<RoomTimerSystem>();
+        var startedAt = NowMs();
+
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+
+        var startReturnedAt = NowMs();
+
+        var firstHalf = -1L;
+        var firstSecond = -1L;
+
+        for (var t = startedAt; t <= startReturnedAt + 1_600 && firstSecond < 0; t++)
+        {
+            await timers.ProcessTimersAsync(t, Ct);
+
+            if (firstHalf < 0 && clock.HalfSeconds == 1)
+                firstHalf = t;
+
+            if (clock.HalfSeconds == 2)
+                firstSecond = t;
+        }
+
+        (firstHalf % 500).Should().Be(0, "the first half second is the room's next cycle");
+        firstSecond.Should().Be(firstHalf + 500);
+        (firstSecond - startedAt).Should().BeGreaterThan(500);
+        (firstSecond - startReturnedAt).Should().BeLessThanOrEqualTo(1_000);
+    }
+
     private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener

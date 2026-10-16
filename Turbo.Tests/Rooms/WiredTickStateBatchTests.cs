@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -125,6 +126,80 @@ public sealed class WiredTickStateBatchTests
             .Which.StuffDatas.Single(x => x.Item1 == pad.ObjectId)
             .Item2.Should()
             .Be(pad.Logic.StuffData.GetSnapshot());
+    }
+
+    /// <summary>
+    /// Official client capture 2026-10-16 (Control Clock Reset on a click, 4 of 4): one
+    /// ObjectsDataUpdate carries the counter's "0" with the clock and trigger boxes, and the
+    /// counter stops. Ours sent the counter's "0" as an ObjectDataUpdate of its own at once.
+    /// </summary>
+    [Fact]
+    public async Task A_counter_reset_by_wired_joins_the_ticks_one_ObjectsDataUpdate()
+    {
+        const int COUNTER = 30;
+
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        var counter = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    COUNTER,
+                    3,
+                    3,
+                    "wf_game_upcounter",
+                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                )
+                .Logic;
+        await counter.AdjustAsync(WiredOperatorType.Set, 10, Ct);
+        _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionControlClock>(EFFECT_A, 0, 0, "wf_act_control_clock");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                TRIGGER,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT_A,
+                intParams: [(int)WiredClockControlType.Reset],
+                stuffIds: [COUNTER],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+        await TickAsync();
+
+        await ClickAsync();
+        List<IComposer> sent = [];
+        for (var i = 0; i < 10; i++)
+            sent.AddRange(await TickAsync());
+
+        counter.HalfSeconds.Should().Be(0);
+        sent.OfType<ObjectDataUpdateMessageComposer>().Should().BeEmpty();
+        sent.OfType<ObjectsDataUpdateMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.StuffDatas.Select(x => x.Item1)
+            .Should()
+            .BeEquivalentTo(
+                new[] { COUNTER, EFFECT_A, TRIGGER }.Select(id => _room.FloorItem(id).ObjectId)
+            );
     }
 
     private async Task BuildAsync()

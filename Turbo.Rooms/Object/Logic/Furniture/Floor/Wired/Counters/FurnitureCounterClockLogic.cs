@@ -121,7 +121,15 @@ public class FurnitureCounterClockLogic(
 
         _isRunning = true;
         _started = true;
-        _nextHalfSecondAtMs = _roomGrain.NowMs() + WiredPulses.MS;
+
+        // The count runs on the room's 500 ms cycle: the first cycle after the start is half a
+        // second, the second shows "1", 500..1000 ms after the start (official client capture
+        // 2026-10-16, five Control Clock starts: 597, 600, 849, 864 and 876 ms, each on the cycle
+        // the walking avatar's status updates kept).
+        _nextHalfSecondAtMs = _roomGrain.AlignToNextBoundary(
+            _roomGrain.NowMs() + 1,
+            _roomGrain._roomConfig.AvatarTickMs
+        );
 
         Schedule();
 
@@ -187,7 +195,8 @@ public class FurnitureCounterClockLogic(
         if (seconds != GetState())
         {
             StuffData.SetState(seconds.ToString(CultureInfo.InvariantCulture));
-            PersistStuffData(true);
+            // A tick goes out on its own; a change wired makes joins the tick's batch.
+            PersistStuffData(!WiredSystem.QueueFloorState(_ctx.ObjectId));
         }
 
         await _ctx.PublishRoomEventAsync(

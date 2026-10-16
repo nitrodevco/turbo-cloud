@@ -3,6 +3,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Wired;
@@ -181,15 +182,34 @@ public sealed class WiredTeleportToFurniTests
         _room.Avatars[5].EffectId.Should().Be(0);
     }
 
+    // Official client capture 2026-10-16 (walk-on + Teleport To with "fast teleportation", 2 of 2
+    // runs): AvatarEffect 235 with the box flash, the walk ends on the tile being stepped onto,
+    // UserUpdate at the target +1.0 s, AvatarEffect 0 +1.5 s, no WiredMovements. Ours sent a
+    // WiredMovements with no animation time in the tick the box fired.
     [Fact]
-    public async Task FastTeleportation_SendsTheMoveWithNoAnimationTime()
+    public async Task FastTeleportation_ShowsEffect235_StopsTheWalk_AndLandsOneSecondLater()
     {
         var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers, fast: true);
+        var avatars = _room.Harness.Module<RoomAvatarModule>();
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
+        (await avatars.WalkAvatarToAsync(_room.Avatars[5], 1, 6, Ct)).Should().BeTrue();
+        _room.Avatars[5].IsWalking.Should().BeTrue();
 
-        var context = await RunAsync(box, signalUsers: [5, 6, 7]);
+        var context = await RunAsync(box, signalUsers: [5]);
 
-        context.UserMoves.Select(m => m.AnimationTime).Should().Equal(0, 0, 0);
-        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+        context.UserMoves.Should().BeEmpty();
+        _room.Avatars[5].EffectId.Should().Be(235);
+        _room.Avatars[5].IsWalking.Should().BeFalse();
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 950, dormant: false, Ct);
+        _room.Positions()[0].Should().NotBe("5@5,5");
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 1_000, dormant: false, Ct);
+        _room.Positions()[0].Should().Be("5@5,5");
+        _room.Avatars[5].EffectId.Should().Be(235);
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 1_500, dormant: false, Ct);
+        _room.Avatars[5].EffectId.Should().Be(0);
     }
 
     [Fact]

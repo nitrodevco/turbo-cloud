@@ -1368,6 +1368,22 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         return item.Logic.SetStateAsync(state, false);
     }
 
+    /// <summary>
+    /// Sends a furni's new state with the wired tick's other states, when wired is running: a
+    /// Control Clock Reset shows the counter's "0" in the one ObjectsDataUpdate that flashes the
+    /// boxes (official client capture 2026-10-16, 4 of 4 resets). False outside a wired tick: the
+    /// caller sends it itself.
+    /// </summary>
+    public bool QueueFloorState(RoomObjectId objectId)
+    {
+        if (!_collectingTickStates)
+            return false;
+
+        _pendingFloorStates.Add(objectId);
+
+        return true;
+    }
+
     // Sends each pending furni's state as it is now, so a change made outside wired since (a
     // player's double-click, already sent) is never overwritten by an older one.
     private void FlushPendingFloorStates()
