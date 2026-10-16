@@ -12,9 +12,10 @@ public class NetworkingConfig
 
     /// <summary>
     /// How often every logged-in connection is sent a Ping, which the client answers with a Pong
-    /// (<c>IncomingMessages.onPing</c>), and how often silent connections are looked for.
+    /// (<c>IncomingMessages.onPing</c>), and how often silent connections are looked for. Habbo
+    /// pings every 60 to 90 seconds (median 60 s over three recorded official sessions).
     /// </summary>
-    public int PingIntervalMilliseconds { get; init; } = 10000;
+    public int PingIntervalMilliseconds { get; init; } = 60000;
 
     /// <summary>
     /// A connection that has sent nothing for this long, not even a Pong, is closed, which takes
@@ -22,7 +23,7 @@ public class NetworkingConfig
     /// sends a close of its own. Keep it several ping intervals long, so one slow Pong does not
     /// disconnect anybody.
     /// </summary>
-    public int SessionTimeoutMilliseconds { get; init; } = 60000;
+    public int SessionTimeoutMilliseconds { get; init; } = 180000;
 
     /// <summary>
     /// A logged-in player who has done nothing for this long is told "Idle disconnection!"
