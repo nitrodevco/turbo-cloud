@@ -1,9 +1,18 @@
+using System.Collections;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Wall;
 using Turbo.Tests.Support;
@@ -19,15 +28,80 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class DimmerOnWallTests
 {
+    private const int DIMMER = 51;
+    private const int OWNER = 1;
+
     private readonly LiveRoomHarness _room = new();
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
     public void A_moodlight_on_the_wall_gets_the_dimmer_logic()
     {
+        var dimmer = Dimmer();
+
+        var ensured = () => EnsureLogic(dimmer);
+
+        ensured.Should().NotThrow().Which.Should().Be(true);
+        dimmer.Logic.GetUsagePolicy().Should().Be(FurnitureUsageType.Controller);
+    }
+
+    /// <summary>
+    /// Switching a moodlight on reaches the room as the whole wall item (ItemUpdate), as Habbo
+    /// sends a used wall item (official client capture 2026-10-13: a wall item used twice came
+    /// back as ItemUpdate with data "0" then "1"). The client's dimmer logic lights the room from
+    /// that data update only; ItemDataUpdate feeds a post-it's text alone
+    /// (<c>RoomEngine.as:4018</c>, <c>FurnitureRoomDimmerLogic.as:95</c>), so the switch did
+    /// nothing (tester report 2026-10-16: "room dimmer doesnt work").
+    /// </summary>
+    [Fact]
+    public async Task Switching_a_moodlight_on_tells_the_room_the_whole_wall_item()
+    {
+        var dimmer = Dimmer();
+        EnsureLogic(dimmer);
+        ((IDictionary)RoomHarness.GetMember(_room.State, "ItemsById")!).Add(
+            (RoomObjectId)DIMMER,
+            dimmer
+        );
+
+        (
+            await _room.Room.InteractWithItemAsync(
+                ActionContext.CreateForPlayer(OWNER, 1),
+                DIMMER,
+                new ToggleDimmerInteraction(),
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        var sent = _room
+            .Fakes.Log.Of("OnNextAsync")
+            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
+            .ToList();
+
+        sent.OfType<ItemDataUpdateMessageComposer>().Should().BeEmpty();
+        sent.OfType<ItemUpdateMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.WallItem.StuffData.Should()
+            .BeOfType<LegacyStuffSnapshot>()
+            .Which.Data.Should()
+            .Be("2,1,1,#000000,255");
+    }
+
+    private bool EnsureLogic(RoomWallItem dimmer) =>
+        (bool)
+            typeof(RoomObjectModule)
+                .GetMethod("EnsureLogic", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(_room.Module<RoomObjectModule>(), [dimmer])!;
+
+    private static RoomWallItem Dimmer()
+    {
         var dimmer = new RoomWallItem
         {
-            ObjectId = 51,
-            OwnerId = 1,
+            ObjectId = DIMMER,
+            OwnerId = OWNER,
             OwnerName = "owner",
             Definition = new FurnitureDefinitionSnapshot
             {
@@ -55,12 +129,6 @@ public sealed class DimmerOnWallTests
         };
         dimmer.SetExtraData(null);
 
-        var ensured = () =>
-            typeof(RoomObjectModule)
-                .GetMethod("EnsureLogic", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(_room.Module<RoomObjectModule>(), [dimmer]);
-
-        ensured.Should().NotThrow().Which.Should().Be(true);
-        dimmer.Logic.GetUsagePolicy().Should().Be(FurnitureUsageType.Controller);
+        return dimmer;
     }
 }

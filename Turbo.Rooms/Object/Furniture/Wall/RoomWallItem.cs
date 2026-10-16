@@ -39,12 +39,10 @@ public class RoomWallItem
             State = Logic.StuffData.GetLegacyString(),
         };
 
-    public override IComposer GetRefreshStuffDataComposer() =>
-        new ItemDataUpdateMessageComposer
-        {
-            ObjectId = ObjectId,
-            State = Logic.StuffData.GetLegacyString(),
-        };
+    // Habbo tells the room of a wall item's new data with the whole item (ItemUpdate), which the
+    // client hands its logic as a data update: what lights a moodlight's room or switches a lamp.
+    // ItemDataUpdate only answers a post-it being opened; it reaches no other logic.
+    public override IComposer GetRefreshStuffDataComposer() => GetUpdateComposer();
 
     public override IComposer GetRemoveComposer(
         PlayerId pickerId,
