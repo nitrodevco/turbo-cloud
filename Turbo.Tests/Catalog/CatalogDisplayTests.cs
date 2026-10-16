@@ -87,12 +87,20 @@ public sealed class CatalogDisplayTests : IDisposable
     {
         var snapshot = await BuildersClubAsync();
 
-        // The root holds the one category the client opens, in place of tabs.
+        // The root holds the one category the client opens, in place of tabs: the tab itself,
+        // as Habbo's root holds its real "furni" page there.
         snapshot.RootPageId.Should().Be(ROOT);
-        var category = snapshot.PagesById[ROOT].ChildIds.Should().ContainSingle().Subject;
+        snapshot.PagesById[ROOT].ChildIds.Should().Equal(FURNITURE);
 
-        snapshot.PagesById.Should().NotContainKeys(FURNITURE, HIDDEN_PAGE, UNDER_SECRET, BASE);
-        snapshot.PagesById[category].ChildIds.Should().Equal(BUILDERS_PAGE, BY_DESIGN);
+        var furniture = snapshot.PagesById[FURNITURE];
+
+        furniture.Localization.Should().Be("Furniture");
+        furniture.Name.Should().Be("furniture");
+        furniture.Icon.Should().Be(1);
+        furniture.Visible.Should().BeTrue();
+        furniture.OfferIds.Should().BeEmpty("a tab is not shown in this catalog");
+        snapshot.PagesById.Should().NotContainKeys(HIDDEN_PAGE, UNDER_SECRET, BASE);
+        furniture.ChildIds.Should().Equal(BUILDERS_PAGE, BY_DESIGN);
 
         // By Design is regular only, but leads to Anna and Bathroom, so it is there too.
         var byDesign = snapshot.PagesById[BY_DESIGN];
@@ -107,5 +115,44 @@ public sealed class CatalogDisplayTests : IDisposable
         snapshot
             .OffersById.Keys.Should()
             .BeEquivalentTo([ON_ANNA, ON_BATHROOM], "Base and By Design are regular only");
+    }
+
+    [Fact]
+    public async Task TheBuildersClubCatalog_GathersTheLaterTabsPages_UnderTheFirstTab()
+    {
+        // A second tab with a Builders Club page; the client opens only the root's first child.
+        const int CLOTHING = 30;
+        const int HATS = 31;
+
+        _catalog.Db.Insert(Page(CLOTHING, ROOT, "Clothing", sort: 2));
+        _catalog.Db.Insert(Page(HATS, CLOTHING, "Hats", CatalogPageDisplay.BuildersClubOnly));
+
+        var snapshot = await BuildersClubAsync();
+
+        snapshot.PagesById[ROOT].ChildIds.Should().Equal(FURNITURE);
+        snapshot.PagesById[FURNITURE].ChildIds.Should().Equal(BUILDERS_PAGE, BY_DESIGN, HATS);
+        snapshot.PagesById[HATS].ParentId.Should().Be(FURNITURE);
+        snapshot.PagesById.Should().NotContainKey(CLOTHING);
+    }
+
+    [Fact]
+    public async Task TheBuildersClubCatalog_WithNoPages_HasAnEmptyRoot()
+    {
+        using var catalog = new CatalogFixture();
+        var provider = catalog.BuildersClubProvider();
+
+        // The fixture's only Builders Club page, made regular.
+        await using (var db = catalog.Db.CreateDbContext())
+        {
+            var page = await db.CatalogPages.FindAsync([BUILDERS_PAGE], Ct);
+
+            page!.Display = CatalogPageDisplay.Regular;
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await provider.ReloadAsync(Ct);
+
+        provider.Current.PagesById[ROOT].ChildIds.Should().BeEmpty();
+        provider.Current.PagesById.Keys.Should().Equal(ROOT);
     }
 }
