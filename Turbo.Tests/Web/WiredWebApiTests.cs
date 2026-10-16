@@ -28,6 +28,8 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -409,6 +411,206 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .Be((429, "wired.variables.too_many_requests"));
     }
 
+    [Fact]
+    public async Task Batched_writes_share_a_budget_a_minute_and_reads_are_free()
+    {
+        await using var limited = new WiredWebApiTests(
+            new WiredApiConfig { BatchWriteBudgetPerMinute = 3 }
+        );
+        var (read, write) = await limited.SetUpAsync();
+        var put = new JsonObject
+        {
+            ["method"] = "PUT",
+            ["path"] = $"users/{PLAYER_ID}",
+            ["body"] = new JsonObject { ["value"] = "1" },
+        };
+        var get = new JsonObject { ["method"] = "GET", ["path"] = $"users/{PLAYER_ID}" };
+
+        var results = (
+            await limited.JsonAsync(
+                HttpMethod.Post,
+                "/api/public/rooms/1/variables/user/points/batch",
+                read: read,
+                write: write,
+                body: new JsonObject
+                {
+                    ["requests"] = new JsonArray(
+                        put.DeepClone(),
+                        put.DeepClone(),
+                        put.DeepClone(),
+                        put.DeepClone(),
+                        get.DeepClone()
+                    ),
+                }.ToJsonString()
+            )
+        )!["results"]!.AsArray();
+
+        // The fourth write is over the budget and answered on its own; the read still runs.
+        results.Select(x => (int)x!["status"]!).Should().Equal(200, 200, 200, 429, 200);
+        results[3]!["error"]!["code"]!
+            .GetValue<string>()
+            .Should()
+            .Be("wired.variables.too_many_requests");
+        // A profile PATCH spends from the same budget, so it is refused whole.
+        (
+            await limited.SendAsync(
+                HttpMethod.Patch,
+                $"/api/public/rooms/1/variables_profile/user/users/{PLAYER_ID}",
+                write: write,
+                body: """{"variables":{"points":"2"}}"""
+            )
+        )
+            .Should()
+            .Be((429, "wired.variables.too_many_requests"));
+    }
+
+    [Fact]
+    public async Task A_player_who_is_away_is_found_by_name_or_unique_id_with_their_profile()
+    {
+        var (read, write) = await SetUpAsync();
+
+        _db.Insert(
+            new PlayerEntity
+            {
+                Id = PLAYER_ID,
+                Name = "bob",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+                PlayerStatus = PlayerStatusType.Offline,
+            }
+        );
+        await AddVariableAsync<WiredVariableUser>(
+            6,
+            6,
+            5,
+            "wf_var_user",
+            [(int)WiredAvailabilityType.Persistent, 1],
+            "coins"
+        );
+        await JsonAsync(
+            HttpMethod.Put,
+            $"/api/public/rooms/1/variables/user/coins/users/{PLAYER_ID}",
+            write: write,
+            body: """{"value":"5"}"""
+        );
+        Leave(PLAYER_INDEX);
+
+        foreach (var query in new[] { "name=BOB", $"unique_id={PLAYER_ID}" })
+        {
+            var profile = await JsonAsync(
+                HttpMethod.Get,
+                $"/api/public/rooms/1/variables_profile/user/users?{query}",
+                read: read
+            );
+
+            profile!["user"]!["id"]!.GetValue<int>().Should().Be(PLAYER_ID);
+            profile["user"]!["name"]!.GetValue<string>().Should().Be("bob");
+            profile["user"]!["unique_id"]!.GetValue<string>().Should().Be($"{PLAYER_ID}");
+            profile["variables"]!["coins"]!["value"]!.GetValue<string>().Should().Be("5");
+        }
+
+        (
+            await JsonAsync(
+                HttpMethod.Get,
+                $"/api/public/rooms/1/variables_profile/user/users/{PLAYER_ID}",
+                read: read
+            )
+        )!["user"]!["name"]!
+            .GetValue<string>()
+            .Should()
+            .Be("bob");
+        // alice exists but holds nothing permanent here: no profile.
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                "/api/public/rooms/1/variables_profile/user/users?name=alice",
+                read: read
+            )
+        )
+            .Should()
+            .Be((404, "wired.variables.entity_not_found"));
+    }
+
+    [Fact]
+    public async Task A_public_room_and_a_players_rooms_answer_as_the_document_says()
+    {
+        _db.Insert(NewRoom(2, "Hidden", doorMode: RoomDoorModeType.Invisible));
+        _db.Insert(NewRoom(3, "Shy", hideOwner: true, tags: "games,chill"));
+        await _server.StartAsync(Ct);
+
+        var (status, room) = await RawAsync(
+            HttpMethod.Get,
+            "/api/public/rooms/1",
+            null,
+            null,
+            null
+        );
+
+        status.Should().Be(200);
+        room!
+            .AsObject()
+            .Select(x => x.Key)
+            .Should()
+            .Equal(
+                "id",
+                "name",
+                "description",
+                "creationTime",
+                "tags",
+                "maximumVisitors",
+                "showOwnerName",
+                "ownerName",
+                "ownerUniqueId",
+                "categories",
+                "rating",
+                "uniqueId"
+            );
+        room["id"]!.GetValue<int>().Should().Be(ROOM);
+        room["name"]!.GetValue<string>().Should().Be("Variables");
+        room["creationTime"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(@"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00$");
+        room["maximumVisitors"]!.GetValue<int>().Should().Be(25);
+        room["ownerName"]!.GetValue<string>().Should().Be("alice");
+        room["ownerUniqueId"]!.GetValue<string>().Should().Be("1");
+        room["uniqueId"]!.GetValue<string>().Should().Be("1");
+
+        // Invisible rooms are not public; a hidden owner is not named.
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/2"))
+            .Should()
+            .Be((404, "room.not_found"));
+
+        var shy = (await RawAsync(HttpMethod.Get, "/api/public/rooms/3", null, null, null)).Item2!;
+
+        shy["showOwnerName"]!.GetValue<bool>().Should().BeFalse();
+        shy.AsObject().ContainsKey("ownerName").Should().BeFalse();
+        shy["tags"]!.AsArray().Select(x => (string)x!).Should().Equal("games", "chill");
+
+        var owned = (
+            await RawAsync(HttpMethod.Get, "/api/public/users/1/rooms", null, null, null)
+        ).Item2!.AsArray();
+
+        owned.Select(x => (int)x!["id"]!).Should().Equal(1, 3);
+        (await SendAsync(HttpMethod.Get, "/api/public/users/999/rooms")).Status.Should().Be(404);
+
+        _db.Insert(new PlayerSettingsEntity { PlayerEntityId = 1, ProfileHidden = true });
+
+        (await SendAsync(HttpMethod.Get, "/api/public/users/1/rooms")).Status.Should().Be(404);
+    }
+
+    private void Leave(int roomIndex)
+    {
+        (
+            (IDictionary<RoomObjectId, IRoomAvatar>)
+                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
+        ).Remove(roomIndex);
+        (
+            (IDictionary<PlayerId, RoomObjectId>)
+                RoomHarness.GetMember(_room.Harness.State, "AvatarsByPlayerId")!
+        ).Remove(100 + roomIndex);
+    }
+
     private async Task<(string read, string write)> SetUpAsync(bool allowBulkDelete = true)
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
@@ -578,34 +780,43 @@ public sealed class WiredWebApiTests : IAsyncDisposable
                 Custom = false,
             }
         );
-        _db.Insert(
-            new RoomEntity
-            {
-                Id = ROOM,
-                Name = "Variables",
-                PlayerEntityId = 1,
-                RoomModelEntityId = 1,
-                DoorMode = RoomDoorModeType.Open,
-                UsersNow = 0,
-                PlayersMax = 25,
-                WallHeight = -1,
-                HideWalls = false,
-                ThicknessWall = RoomThicknessType.Normal,
-                ThicknessFloor = RoomThicknessType.Normal,
-                AllowBlocking = true,
-                AllowPets = true,
-                AllowPetsEat = true,
-                TradeType = RoomTradeModeType.Disabled,
-                MuteType = ModSettingType.Owner,
-                KickType = ModSettingType.Owner,
-                BanType = ModSettingType.Owner,
-                ChatFloodType = ChatFloodSensitivityType.Minimal,
-                LastActive = DateTime.UtcNow,
-                PlayerEntity = null!,
-                RoomModelEntity = null!,
-            }
-        );
+        _db.Insert(NewRoom(ROOM, "Variables"));
     }
+
+    private static RoomEntity NewRoom(
+        int id,
+        string name,
+        RoomDoorModeType doorMode = RoomDoorModeType.Open,
+        bool hideOwner = false,
+        string? tags = null
+    ) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            PlayerEntityId = 1,
+            RoomModelEntityId = 1,
+            DoorMode = doorMode,
+            HideOwner = hideOwner,
+            Tags = tags,
+            UsersNow = 0,
+            PlayersMax = 25,
+            WallHeight = -1,
+            HideWalls = false,
+            ThicknessWall = RoomThicknessType.Normal,
+            ThicknessFloor = RoomThicknessType.Normal,
+            AllowBlocking = true,
+            AllowPets = true,
+            AllowPetsEat = true,
+            TradeType = RoomTradeModeType.Disabled,
+            MuteType = ModSettingType.Owner,
+            KickType = ModSettingType.Owner,
+            BanType = ModSettingType.Owner,
+            ChatFloodType = ChatFloodSensitivityType.Minimal,
+            LastActive = DateTime.UtcNow,
+            PlayerEntity = null!,
+            RoomModelEntity = null!,
+        };
 
     private IHostedService Build()
     {

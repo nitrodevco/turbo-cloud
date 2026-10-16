@@ -52,4 +52,18 @@ public sealed record WiredWebApiRequest
 
     [Id(13)]
     public string? UniqueId { get; init; }
+
+    /// <summary>
+    /// The player a user profile call names (by <see cref="Name"/>, <see cref="UniqueId"/> or
+    /// player id), as the hotel knows them, so one who is not in the room is found too.
+    /// </summary>
+    [Id(14)]
+    public int? PlayerId { get; init; }
+
+    [Id(15)]
+    public string? PlayerName { get; init; }
+
+    /// <summary>Batched writes the room may make a minute (each batch write and profile change costs one); 0 for no limit.</summary>
+    [Id(16)]
+    public int BatchWriteBudget { get; init; }
 }

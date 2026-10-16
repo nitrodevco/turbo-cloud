@@ -82,6 +82,7 @@ internal sealed class WebApiServer(
         ActivatorUtilities.CreateInstance<DiscordEndpoints>(services).Map(api);
         ActivatorUtilities.CreateInstance<AccountEndpoints>(services).Map(api);
         ActivatorUtilities.CreateInstance<WiredVariablesEndpoints>(services).Map(api);
+        ActivatorUtilities.CreateInstance<PublicRoomsEndpoints>(services).Map(api);
 
         try
         {

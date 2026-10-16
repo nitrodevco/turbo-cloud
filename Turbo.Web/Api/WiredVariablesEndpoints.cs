@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Web.Configuration;
 
@@ -119,6 +121,14 @@ internal sealed class WiredVariablesEndpoints(
         }
 
         var query = http.Request.Query;
+        var (playerId, playerName) = await FindPlayerAsync(
+            operation,
+            route["targetKind"] as string,
+            route["entityId"] as string,
+            query["name"],
+            query["unique_id"],
+            ct
+        );
         var request = new WiredWebApiRequest
         {
             Operation = operation,
@@ -135,6 +145,9 @@ internal sealed class WiredVariablesEndpoints(
             OrderDir = query["order_dir"],
             Name = query["name"],
             UniqueId = query["unique_id"],
+            PlayerId = playerId,
+            PlayerName = playerName,
+            BatchWriteBudget = Api.BatchWriteBudgetPerMinute,
         };
         var response = await grainFactory
             .GetRoomGrain(roomId)
@@ -152,6 +165,56 @@ internal sealed class WiredVariablesEndpoints(
         await using var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         return await db.Rooms.AnyAsync(room => room.Id == roomId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The player a user profile call names, by name, unique id (this hotel has none, so its
+    /// player id, inference) or the player id in the path, so the room can answer for a player
+    /// who is not there with their name. Nothing for other calls.
+    /// </summary>
+    private async Task<(int? Id, string? Name)> FindPlayerAsync(
+        WiredWebApiOperation operation,
+        string? targetKind,
+        string? entityId,
+        string? name,
+        string? uniqueId,
+        CancellationToken ct
+    )
+    {
+        int? byId = null;
+        string? byName = null;
+
+        switch (operation)
+        {
+            case WiredWebApiOperation.FindUserProfile when !string.IsNullOrEmpty(name):
+                byName = PlayerNames.Key(name);
+                break;
+            case WiredWebApiOperation.FindUserProfile when int.TryParse(uniqueId, out var id):
+                byId = id;
+                break;
+            case WiredWebApiOperation.GetUserProfile
+            or WiredWebApiOperation.PatchUserProfile
+            or WiredWebApiOperation.DeleteUserProfile
+                when targetKind == "users" && int.TryParse(entityId, out var id):
+                byId = id;
+                break;
+            default:
+                return (null, null);
+        }
+
+        await using var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var players = db.Players.AsNoTracking();
+        var player = await (
+            byName is not null
+                ? players.Where(x => x.NameKey == byName)
+                : players.Where(x => x.Id == byId)
+        )
+            .Select(x => new { x.Id, x.Name })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        return player is null ? (null, null) : (player.Id, player.Name);
     }
 
     private static string? Header(HttpContext http, string name) =>
