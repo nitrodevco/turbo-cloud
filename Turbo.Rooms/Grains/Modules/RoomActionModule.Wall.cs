@@ -32,15 +32,23 @@ public sealed partial class RoomActionModule
         if (item is not IRoomWallItem wallItem)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        // The spot and the room's limits are checked by the placement itself.
-        if (!await FurniModule.PlaceWallItemAsync(ctx, wallItem, x, y, z, wallOffset, rot, ct))
-            return false;
-
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
 
-        await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
-
-        return true;
+        // The spot and the room's limits are checked by the placement itself. Habbo takes a
+        // wall item out of the inventory before it shows it on the wall (official client
+        // captures 2026-10-16 09:03-09:04, 2 of 2: FurniListRemove, then ItemAdd), unlike a
+        // floor item, which is shown first.
+        return await FurniModule.PlaceWallItemAsync(
+            ctx,
+            wallItem,
+            x,
+            y,
+            z,
+            wallOffset,
+            rot,
+            ct,
+            beforeShown: () => inventory.RemoveFurnitureAsync(item.ObjectId, ct)
+        );
     }
 
     public async Task<bool> MoveWallItemByIdAsync(

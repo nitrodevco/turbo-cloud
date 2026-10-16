@@ -8,6 +8,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -74,6 +75,51 @@ public sealed class PlaceFurniOrderTests
             .Should()
             .Equal(typeof(ObjectAddMessageComposer), typeof(HeightMapUpdateMessageComposer));
         published.ExcludedPlayerIds.Should().Equal((PlayerId)OWNER);
+    }
+
+    /// <summary>
+    /// A wall item the other way round: FurniListRemove, then ItemAdd (official client captures
+    /// 2026-10-16 09:03-09:04, 2 of 2).
+    /// </summary>
+    [Fact]
+    public async Task A_wall_item_leaves_the_inventory_before_the_room_is_shown_it()
+    {
+        var item = _room.AddWallItem(40);
+        (
+            (System.Collections.IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!
+        ).Remove((RoomObjectId)40);
+        _room.Harness.Fakes.Handlers["CreateFromFurnitureItemSnapshot"] = _ => item;
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        (
+            await _room
+                .Harness.Module<RoomActionModule>()
+                .PlaceWallItemAsync(
+                    ActionContext.CreateForPlayer(OWNER, 1),
+                    (FurnitureItemSnapshot)
+                        RuntimeHelpers.GetUninitializedObject(typeof(FurnitureItemSnapshot)),
+                    0,
+                    2,
+                    Altitude.Zero,
+                    4,
+                    Rotation.North,
+                    Ct
+                )
+        )
+            .Should()
+            .BeTrue();
+
+        _room
+            .Harness.Fakes.Log.Calls.Where(x =>
+                x.Interface == typeof(IInventoryGrain) && x.Method == "RemoveFurnitureAsync"
+                || x.Method == "OnNextAsync"
+                    && ((RoomOutboundSnapshot)x.Args[0]!).Composers.Any(c =>
+                        c is ItemAddMessageComposer
+                    )
+            )
+            .Select(x => x.Method)
+            .Should()
+            .Equal("RemoveFurnitureAsync", "OnNextAsync");
     }
 
     private async Task PlaceAsync()
