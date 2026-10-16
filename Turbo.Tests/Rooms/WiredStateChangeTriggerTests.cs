@@ -34,7 +34,7 @@ public sealed class WiredStateChangeTriggerTests
     )
     {
         var lamp = _room.AddFloorItem(LAMP, 3, 3);
-        var trigger = _room.AddBox<WiredTriggerItemStateUpdated>(1, 0, 0, "wf_trg_state_changed");
+        var trigger = _room.AddBox<WiredTriggerItemStateUpdated>(1, 0, 0, "wf_trg_stuff_state");
 
         (
             await _room.SaveAsync<UpdateTriggerMessage>(

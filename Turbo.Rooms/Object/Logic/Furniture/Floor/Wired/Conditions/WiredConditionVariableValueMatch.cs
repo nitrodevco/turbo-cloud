@@ -33,14 +33,16 @@ public class WiredConditionVariableValueMatch(
     // capture: Change Variable saved with ids [mark, mark]).
     protected override bool HasPositionalVariableIds => true;
 
+    // A fresh box compares "more than" against a global reference (official client capture:
+    // defaultIntParams [1,2,0,0,0,-10,0]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             WiredRules.VariableTarget(WiredVariableTargetType.User),
-            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.Equals),
+            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
             new WiredBoolParamRule(false),
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.Global),
             new WiredBoolParamRule(false),
         ];
 

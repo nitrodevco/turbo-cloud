@@ -45,7 +45,8 @@ public class WiredActionMoveToDirection(
         [
             new WiredRangeParamRule(0, 7, 0),
             new WiredRangeParamRule(0, 6, 0),
-            new WiredBoolParamRule(false),
+            // Blocked by users unless unticked (official client capture: defaultIntParams [0,0,1]).
+            new WiredBoolParamRule(true),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];

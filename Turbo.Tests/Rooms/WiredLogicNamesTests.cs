@@ -220,6 +220,33 @@ public sealed class WiredLogicNamesTests
     }
 
     /// <summary>
+    /// The hotel's furnidata names wf_trg_state_changed "Furni Is Used" (changed by double-clicking)
+    /// and wf_trg_stuff_state "Furni State Is Changed"; the official client opens the first as
+    /// trigger code 4 (official client capture of stuffTypeId 3668). Ours had the two swapped, so
+    /// "Furni Is Used" fired on any state change and carried no user to show a message to.
+    /// </summary>
+    [Theory]
+    [InlineData("wf_trg_state_changed", typeof(WiredTriggerHabboChangesItemState), 4)]
+    [InlineData("wf_trg_stuff_state", typeof(WiredTriggerItemStateUpdated), 20)]
+    public void A_state_trigger_box_gets_the_logic_its_furnidata_name_describes(
+        string classname,
+        Type logic,
+        int code
+    )
+    {
+        var room = new WiredRoom();
+        var item = room.AddFloorItem(40, 1, 1, classname);
+
+        var instance = room.Harness.LogicProvider.CreateLogicInstance(
+            classname,
+            new RoomFloorItemContext(room.Harness.Room, item)
+        );
+
+        instance.Should().BeOfType(logic);
+        ((FurnitureWiredLogic)instance!).WiredCode.Should().Be(code);
+    }
+
+    /// <summary>
     /// On the test hotel the definitions of eight boxes (Variable Changed, both text output
     /// placeholders, Give / Remove / Change Variable, Unfreeze, Actor Direction) name no wired
     /// logic, so double-clicking them opened nothing. A wired classname with a logic of its own

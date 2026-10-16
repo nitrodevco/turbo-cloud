@@ -8,8 +8,11 @@ using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
-/// <summary>Fires when a player uses (double-clicks) one of the picked furni.</summary>
-[RoomObjectLogic("wf_trg_stuff_state")]
+/// <summary>
+/// "Furni Is Used" (wf_trg_state_changed in the hotel's furnidata): fires when a player uses
+/// (double-clicks) one of the picked furni. The official client opens this box as trigger code 4.
+/// </summary>
+[RoomObjectLogic("wf_trg_state_changed")]
 public class WiredTriggerHabboChangesItemState(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
