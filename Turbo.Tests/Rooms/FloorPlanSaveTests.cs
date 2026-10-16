@@ -106,7 +106,12 @@ public sealed class FloorPlanSaveTests : IDisposable
             "_roomModelProvider",
             new Turbo.Rooms.Providers.RoomModelProvider(
                 _db,
-                Microsoft.Extensions.Logging.Abstractions.NullLogger<Turbo.Primitives.Rooms.Providers.IRoomModelProvider>.Instance
+                Microsoft
+                    .Extensions
+                    .Logging
+                    .Abstractions
+                    .NullLogger<Turbo.Primitives.Rooms.Providers.IRoomModelProvider>
+                    .Instance
             )
         );
 
