@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
@@ -53,13 +54,26 @@ public sealed partial class RoomGrain
 
     private Task FlushDirtyTilesAsync(CancellationToken ct)
     {
+        SendComposersToRoomAndForget(TakeHeightMapUpdates());
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The tile heights that changed since they were last sent, as the HeightMapUpdates that tell
+    /// the client, and forgotten as changed. The tick sends them; an action that must have them
+    /// follow its own message takes them itself (a furni placed: ObjectAdd, HeightMapUpdate).
+    /// </summary>
+    internal ImmutableArray<IComposer> TakeHeightMapUpdates()
+    {
         if (_state.DirtyHeightTileIds.Count == 0)
-            return Task.CompletedTask;
+            return [];
         var dirtyHeightTileIds = _state.DirtyHeightTileIds;
         var sentValues = _state.DirtyHeightSentValues;
         _state.DirtyHeightTileIds = [];
         _state.DirtyHeightSentValues = [];
 
+        var updates = ImmutableArray.CreateBuilder<IComposer>();
         var heights = new List<(int X, int Y, short Height)>(
             Math.Min(dirtyHeightTileIds.Count, _roomConfig.MaxTileHeightsPerFlush)
         );
@@ -75,21 +89,15 @@ public sealed partial class RoomGrain
 
             if (heights.Count == heights.Capacity)
             {
-                SendComposerToRoomAndForget(
-                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
-                );
+                updates.Add(new HeightMapUpdateMessageComposer { TileHeights = [.. heights] });
 
                 heights.Clear();
             }
         }
 
         if (heights.Count > 0)
-        {
-            SendComposerToRoomAndForget(
-                new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
-            );
-        }
+            updates.Add(new HeightMapUpdateMessageComposer { TileHeights = [.. heights] });
 
-        return Task.CompletedTask;
+        return updates.ToImmutable();
     }
 }

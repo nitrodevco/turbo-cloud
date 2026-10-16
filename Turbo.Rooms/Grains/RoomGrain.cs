@@ -551,6 +551,30 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     }
 
     /// <summary>
+    /// <see cref="SendComposersToRoomAsync"/> for everyone in the room but these players, who
+    /// are sent the same composers on their own, ahead of what they are told next.
+    /// </summary>
+    public Task SendComposersToRoomExceptAsync(
+        ImmutableArray<IComposer> composers,
+        List<PlayerId> excludedPlayerIds,
+        CancellationToken ct
+    )
+    {
+        if (composers.IsDefaultOrEmpty)
+            return Task.CompletedTask;
+
+        return _roomOutbound.OnNextAsync(
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = composers,
+                ExcludedPlayerIds = excludedPlayerIds,
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
+        );
+    }
+
+    /// <summary>
     /// <see cref="SendComposerToRoomAsync"/> for code that must not wait on it: the tick, and a
     /// broadcast made once the answer is already known. The send goes out and a failure is
     /// logged. The same way to reach the room, not a second one; it exists so the fifteen

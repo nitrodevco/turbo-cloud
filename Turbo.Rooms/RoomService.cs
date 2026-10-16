@@ -542,8 +542,6 @@ internal sealed partial class RoomService(
         CancellationToken ct
     )
     {
-        var roomCtx = ctx with { RoomId = roomId };
-
         // One call for everything the room shows, taken in one of its turns.
         var view = await RoomTelemetry
             .MeasureAsync(
@@ -570,10 +568,12 @@ internal sealed partial class RoomService(
                     (doorEncoded & ((1 << _roomConfig.StackingBlockedMaskBit) - 1)) / 256.0
                 );
 
-        // The whole entry sequence as one batch to the player, in Habbo's order (hhus, four entries
-        // on two builds, 2026-10-13): RoomReady, RoomEntryTile, the room's properties, the maps,
-        // the visualization, Users, Objects, Items, RoomEvent, ConfigurationItemStates. The room's
-        // chat settings are not part of it: the client takes them from GetGuestRoomResult.
+        // The room as one batch to the player, in Habbo's order (hhus, four entries on two builds,
+        // 2026-10-13): RoomReady, RoomEntryTile, the room's properties, the maps, the
+        // visualization, Users, Objects, Items. The rest of the entry, from the player's own
+        // avatar to the raid protection, comes from the room as it makes the avatar
+        // (SetActiveRoomAsync). The room's chat settings are not part of it: the client takes
+        // them from GetGuestRoomResult.
         var nftChatStyleIds = await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .GetOwnedNftChatStyleIdsAsync(ct)
@@ -655,52 +655,7 @@ internal sealed partial class RoomService(
                 FloorItems = view.FloorItems,
             },
             new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems },
-            // Sent with no event too, as Habbo does, so the last room's event card goes.
-            new RoomEventMessageComposer { Event = view.ActiveEvent, SentAtUtc = DateTime.UtcNow },
         ]);
-
-        if (view.IsMuted)
-            composers.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
-
-        // Sent on every entry, off or on, as Habbo does.
-        composers.Add(
-            new ConfigurationItemStatesMessageComposer
-            {
-                IsHanditemControlBlocked = view.HanditemControlBlocked,
-                ChooserDisabled = view.ChooserDisabled,
-                FreeFurniMovementsEnabled = false,
-                InvisibleFurni = view.InvisibleFurni,
-            }
-        );
-
-        // Habbo sends Users even for an empty room, but no UserUpdate with nothing in it (hhus, 2026-10-13).
-        if (view.Avatars.Length > 0)
-            composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
-
-        // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
-        // replayed to the arriving player as their own updates. Any avatar can carry them; one
-        // that the client does not draw as a user simply never has one to replay.
-        composers.AddRange(
-            view.Avatars.Where(x => x.DanceType != AvatarDanceType.None)
-                .Select(x => new DanceMessageComposer
-                {
-                    ObjectId = x.ObjectId,
-                    DanceType = x.DanceType,
-                })
-        );
-        composers.AddRange(
-            view.Avatars.Where(x => x.EffectId > 0)
-                .Select(x => new AvatarEffectMessageComposer
-                {
-                    ObjectId = x.ObjectId,
-                    EffectId = x.EffectId,
-                    DelayMilliseconds = 0,
-                })
-        );
-        composers.AddRange(
-            view.Avatars.Where(x => x.IsIdle)
-                .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true })
-        );
 
         // A batch for one player is the one direct presence send AGENTS.md allows.
         await RoomTelemetry
@@ -716,49 +671,6 @@ internal sealed partial class RoomService(
                 RoomTelemetry.MEMBERSHIP,
                 roomId,
                 () => playerPresence.SetActiveRoomAsync(roomId, ct)
-            )
-            .ConfigureAwait(false);
-
-        await room.RefreshControllerLevelForPlayerAsync(roomCtx, ct).ConfigureAwait(false);
-
-        // The client answers this with GetGuestRoom(enterRoom: true), which is what populates its
-        // in-room info window and the owner-only settings buttons.
-        var controllerLevel = await room.GetControllerLevelAsync(ctx.PlayerId, ct)
-            .ConfigureAwait(false);
-
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                ctx.PlayerId,
-                new RoomEntryInfoMessageComposer
-                {
-                    RoomId = roomId,
-                    IsOwner = controllerLevel >= RoomControllerType.Owner,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        // Habbo rates the room at the end of the entry, right before the raid protection.
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                ctx.PlayerId,
-                new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = view.CanRate },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        // After the entry info: the client takes this only for the room it has entered, which
-        // that message is what tells it, and shows Room info's raid protection button on it.
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                ctx.PlayerId,
-                new RaidProtectionCapabilityMessageComposer
-                {
-                    RoomId = roomId,
-                    CanManage = await room.CanManageRaidProtectionAsync(roomCtx, ct)
-                        .ConfigureAwait(false),
-                },
-                ct
             )
             .ConfigureAwait(false);
 

@@ -9,7 +9,6 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired;
@@ -56,17 +55,12 @@ public sealed class WiredProgressAchievementTests
             .Which.EnabledAchievements.Should()
             .Equal("Lap", "Goal");
 
-        await Wired.OnRoomEventAsync(
-            new PlayerEnterEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForPlayer((PlayerId)PLAYER, (RoomId)1),
-                PlayerId = (PlayerId)PLAYER,
-            },
-            Ct
-        );
-
-        var sent = SentTo<WiredEnvironmentMessageComposer>(PLAYER).Should().ContainSingle().Subject;
+        var sent = Wired
+            .GetEntryState()
+            .OfType<WiredEnvironmentMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Subject;
         sent.HasClickUserWired.Should().BeFalse();
         sent.EnabledAchievements.Should().Equal("Lap", "Goal");
     }
@@ -210,16 +204,5 @@ public sealed class WiredProgressAchievementTests
             .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
             .OfType<RoomOutboundSnapshot>()
             .SelectMany(x => x.Composers)
-            .OfType<T>();
-
-    private IEnumerable<T> SentTo<T>(long playerId) =>
-        _room
-            .Harness.Fakes.Log.Calls.Where(x =>
-                x.Method == "SendComposerAsync" && x.Key is long key && key == playerId
-            )
-            .SelectMany(x =>
-                x.Args.OfType<IComposer>()
-                    .Concat(x.Args.OfType<IEnumerable<IComposer>>().SelectMany(c => c))
-            )
             .OfType<T>();
 }

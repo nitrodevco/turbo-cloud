@@ -286,6 +286,24 @@ public sealed class RoomSecurityModule(
             ct
         );
 
+        ShowControllerLevel(playerId, controllerLevel);
+    }
+
+    /// <summary>
+    /// The level of a player who has just walked in, shown on their avatar. What the client is
+    /// told of it goes in their entry (<c>RoomGrain.BuildEntryTailAsync</c>), not from here.
+    /// </summary>
+    public async Task<RoomControllerType> TakeEntryControllerLevelAsync(PlayerId playerId)
+    {
+        var controllerLevel = await GetControllerLevelAsync(playerId);
+
+        ShowControllerLevel(playerId, controllerLevel);
+
+        return controllerLevel;
+    }
+
+    private void ShowControllerLevel(PlayerId playerId, RoomControllerType controllerLevel)
+    {
         if (!AvatarModule.TryGetPlayer(playerId, out var avatar))
             return;
 

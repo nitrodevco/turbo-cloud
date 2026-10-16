@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Wired.Variables.Furniture;
 using Turbo.Tests.Support;
@@ -48,7 +49,7 @@ public sealed class RoomConfigurationFurniTests
             createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
         );
 
-        (await EntryViewAsync()).InvisibleFurni.Should().BeFalse();
+        NewcomerStates().InvisibleFurni.Should().BeFalse();
 
         await controller.Logic.OnUseAsync(Owner, 0, Ct);
 
@@ -57,7 +58,7 @@ public sealed class RoomConfigurationFurniTests
             .ContainSingle()
             .Which.InvisibleFurni.Should()
             .BeTrue();
-        (await EntryViewAsync()).InvisibleFurni.Should().BeTrue();
+        NewcomerStates().InvisibleFurni.Should().BeTrue();
 
         await controller.Logic.OnUseAsync(Owner, 0, Ct);
 
@@ -95,7 +96,7 @@ public sealed class RoomConfigurationFurniTests
                     InvisibleFurni = false,
                 }
             );
-        (await EntryViewAsync()).HanditemControlBlocked.Should().BeTrue();
+        NewcomerStates().IsHanditemControlBlocked.Should().BeTrue();
         (await PassHandItemAsync()).Should().BeFalse();
         giver.HandItemId.Should().Be(HAND_ITEM, "the blocker kept it in the giver's hand");
 
@@ -119,7 +120,7 @@ public sealed class RoomConfigurationFurniTests
             createLogic: (factory, ctx) => new FurnitureChooserDisableLogic(factory, ctx)
         );
 
-        (await EntryViewAsync()).ChooserDisabled.Should().BeFalse();
+        NewcomerStates().ChooserDisabled.Should().BeFalse();
 
         await disabler.Logic.OnUseAsync(Owner, 0, Ct);
 
@@ -128,7 +129,7 @@ public sealed class RoomConfigurationFurniTests
             .ContainSingle()
             .Which.ChooserDisabled.Should()
             .BeTrue();
-        (await EntryViewAsync()).ChooserDisabled.Should().BeTrue();
+        NewcomerStates().ChooserDisabled.Should().BeTrue();
 
         await disabler.Logic.OnDetachAsync(Ct);
 
@@ -276,6 +277,12 @@ public sealed class RoomConfigurationFurniTests
 
     private Task<RoomEntryViewSnapshot> EntryViewAsync() =>
         _room.Harness.Room.GetEntryViewAsync((PlayerId)105, Ct);
+
+    /// <summary>What a player walking in is told (<c>RoomGrain.BuildEntryTailAsync</c>).</summary>
+    private ConfigurationItemStatesMessageComposer NewcomerStates() =>
+        FurnitureConfigurationControlLogic.GetConfigurationItemStates(
+            _room.Harness.Module<RoomFurniModule>()
+        );
 
     private IEnumerable<T> SentToRoom<T>() =>
         _room

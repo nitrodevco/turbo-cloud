@@ -156,7 +156,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.PendingEntryRoomId = -1;
         _state.PendingEntry = RoomEntrySnapshot.Default;
 
-        await RoomTelemetry.MeasureAsync(
+        var entryTail = await RoomTelemetry.MeasureAsync(
             RoomTelemetry.AVATAR,
             roomId,
             () =>
@@ -169,6 +169,10 @@ internal sealed partial class PlayerPresenceGrain
                         ct
                     )
         );
+
+        // Queued the moment the room answers, ahead of anything the room stream brings next
+        // (the avatar's first UserUpdate among it), so the entry ends in Habbo's order.
+        await SendComposerAsync(entryTail, ct);
 
         // A rank moves when other players get badges too, so entering a room is when it is
         // looked at again. Told, not awaited: the presence never awaits the badge grain. A rank

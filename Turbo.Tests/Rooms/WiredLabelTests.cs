@@ -14,7 +14,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -50,11 +49,9 @@ public sealed class WiredLabelTests
     private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
 
     [Fact]
-    public async Task Whoever_walks_in_is_told_the_labels_after_the_wired_environment_even_none()
+    public void Whoever_walks_in_is_told_the_labels_after_the_wired_environment_even_none()
     {
-        await EnterAsync(105);
-
-        var sent = SentTo<IComposer>(105).ToList();
+        var sent = Wired.GetEntryState().ToList();
         var labels = sent.OfType<FurnitureLabelsAndRegionsMessageComposer>()
             .Should()
             .ContainSingle()
@@ -73,9 +70,9 @@ public sealed class WiredLabelTests
         Label(11);
         await WriteAsync(OWNER, 11, "Start here");
 
-        await EnterAsync(105);
-
-        SentTo<FurnitureLabelsAndRegionsMessageComposer>(105)
+        Wired
+            .GetEntryState()
+            .OfType<FurnitureLabelsAndRegionsMessageComposer>()
             .Single()
             .Entries.Should()
             .BeEquivalentTo([
@@ -418,33 +415,11 @@ public sealed class WiredLabelTests
             Ct
         );
 
-    private Task EnterAsync(long playerId) =>
-        Wired.OnRoomEventAsync(
-            new PlayerEnterEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForPlayer((PlayerId)playerId, (RoomId)1),
-                PlayerId = (PlayerId)playerId,
-            },
-            Ct
-        );
-
     private IEnumerable<T> SentToRoom<T>() =>
         _room
             .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
             .OfType<RoomOutboundSnapshot>()
             .SelectMany(x => x.Composers)
-            .OfType<T>();
-
-    private IEnumerable<T> SentTo<T>(long playerId) =>
-        _room
-            .Harness.Fakes.Log.Calls.Where(x =>
-                x.Method == "SendComposerAsync" && x.Key is long key && key == playerId
-            )
-            .SelectMany(x =>
-                x.Args.OfType<IComposer>()
-                    .Concat(x.Args.OfType<IEnumerable<IComposer>>().SelectMany(c => c))
-            )
             .OfType<T>();
 
     private static IEnumerable<string> MigrationSql(Migration migration, bool up)

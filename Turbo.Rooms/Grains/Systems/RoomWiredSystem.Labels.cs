@@ -1,9 +1,7 @@
+using System.Collections.Immutable;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -17,16 +15,13 @@ namespace Turbo.Rooms.Grains.Systems;
 /// </summary>
 public sealed partial class RoomWiredSystem
 {
-    /// <summary>What a player who walks in is told about the room's wired, in Habbo's order.</summary>
-    private async Task SendEntryStateAsync(PlayerId playerId, CancellationToken ct)
-    {
-        await SendClickUserEnvironmentAsync(playerId, ct);
-        await SendFurnitureLabelsAsync(playerId, ct);
-    }
-
-    private Task SendFurnitureLabelsAsync(PlayerId playerId, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
-            playerId,
+    /// <summary>
+    /// What a player who walks in is told about the room's wired, in Habbo's order. It goes in
+    /// their entry (<c>RoomGrain.BuildEntryTailAsync</c>), after the room's configuration states.
+    /// </summary>
+    public ImmutableArray<IComposer> GetEntryState() =>
+        [
+            BuildEnvironment(),
             new FurnitureLabelsAndRegionsMessageComposer
             {
                 Entries =
@@ -38,6 +33,5 @@ public sealed partial class RoomWiredSystem
                         .Select(x => x.GetLabelSnapshot()),
                 ],
             },
-            ct
-        );
+        ];
 }

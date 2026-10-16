@@ -275,10 +275,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
             case PlayerControllerLevelChangedEvent levelEvt:
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
-            case PlayerEnterEvent enterEvt:
-                QueueEvent(evt);
-
-                return SendEntryStateAsync(enterEvt.PlayerId, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
                 QueueEvent(evt);
