@@ -89,8 +89,29 @@ public sealed class FurniListUpdateTests : IDisposable
         var granted = await NewInventory().GrantFurnitureAsync(CHAIR, null, Ct);
 
         granted.Should().NotBeNull();
-        ListPackets().Should().BeEmpty("the client asks for the whole list when it opens");
+        ListPackets()
+            .OfType<FurniListAddOrUpdateEventMessageComposer>()
+            .Should()
+            .BeEmpty("the client asks for the whole list when it opens");
         _fakes.Log.Of("AddAsync").Should().ContainSingle("the item is still marked new");
+    }
+
+    [Fact]
+    public async Task APurchase_AfterTheInventoryGrainWasCollected_CallsTheListStaleOnce()
+    {
+        await NewInventory().SendFurnitureInventoryAsync(Session, Ct);
+
+        // Collected while the player stayed online: the next call activates a new grain, which
+        // does not know the client still holds the list it was sent.
+        var activatedAgain = NewInventory();
+        await activatedAgain.GrantFurnitureAsync(CHAIR, null, Ct);
+        await activatedAgain.GrantFurnitureAsync(CHAIR, null, Ct);
+
+        ListPackets()
+            .Should()
+            .ContainSingle("the client is told once that the list it holds lacks items")
+            .Which.Should()
+            .BeOfType<FurniListInvalidateEventMessageComposer>();
     }
 
     [Fact]
