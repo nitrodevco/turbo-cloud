@@ -24,8 +24,8 @@ using Xunit;
 namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
-/// The welcome message staff set in the admin panel: every login is shown it as the message of
-/// the day, last, and a login while it is empty is shown nothing.
+/// What a login sends unasked. The welcome message staff set in the admin panel is not among it:
+/// the client asks for it as the message of the day (GetMOTD).
 /// </summary>
 public class WelcomeMessageLoginTests
 {
@@ -152,27 +152,9 @@ public class WelcomeMessageLoginTests
     }
 
     [Fact]
-    public async Task AWelcomeMessage_IsShownAsTheMessageOfTheDay_LastOfTheLogin()
+    public async Task AWelcomeMessage_IsNotPushedAtLogin_TheClientAsksForIt()
     {
-        _welcome = "Welcome to the hotel!\nBe nice.";
-
-        await LogInAsync();
-
-        var sent = SentToSession();
-        sent.Last()
-            .Should()
-            .BeOfType<MOTDNotificationEventMessageComposer>()
-            .Which.Messages.Should()
-            .Equal("Welcome to the hotel!\nBe nice.");
-        sent.OfType<MOTDNotificationEventMessageComposer>().Should().ContainSingle();
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public async Task WithNoWelcomeMessage_NoneIsShown(string welcome)
-    {
-        _welcome = welcome;
+        _welcome = "Welcome to the hotel!";
 
         await LogInAsync();
 
