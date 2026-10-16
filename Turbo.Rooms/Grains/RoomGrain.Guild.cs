@@ -101,11 +101,17 @@ public sealed partial class RoomGrain
         int guildId,
         WornGuildStatus guildStatus,
         string guildName,
+        OutboundHold hold,
         CancellationToken ct
     )
     {
         if (!AvatarModule.TryGetPlayer(playerId, out var player))
+        {
+            if (!hold.IsNone)
+                await _grainFactory.GetPlayerPresenceGrain(playerId).ReleaseHoldAsync(hold, ct);
+
             return;
+        }
 
         player.SetFavouriteGuild(guildId, guildStatus, guildName);
 
@@ -130,6 +136,7 @@ public sealed partial class RoomGrain
                 Status = guildStatus,
                 GuildName = guildName,
             },
+            hold,
             ct
         );
     }

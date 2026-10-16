@@ -263,6 +263,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   8A6AE513: GetPendingRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomPendingSnapshot>
   9DB80013: GetPendingRoomEntryAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEntrySnapshot>
   38847EB8: HasActiveSessionAsync(System.Threading.CancellationToken) -> Task<bool>
+  E1FA5A63: HoldForRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.OutboundHold>
   C41A9582: OnBadgesRankChangedAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   449645B5: OnControllerLevelUpdatedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Enums.RoomControllerType, System.Threading.CancellationToken) -> Task
   0B26DD3D: OnCustomFilterWordsChangedAsync(System.Collections.Generic.List<string>, System.Threading.CancellationToken) -> Task
@@ -273,6 +274,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   CD1A0983: OnSelectedBadgesChangedAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>, System.Threading.CancellationToken) -> Task
   1D7FFABE: OnWornEffectChangedAsync(int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task
   7555A313: RegisterSessionObserverAsync(Turbo.Primitives.Networking.SessionKey, Turbo.Primitives.Orleans.Observers.ISessionContextObserver, System.Threading.CancellationToken) -> Task
+  6758D5B2: ReleaseHoldAsync(Turbo.Primitives.Players.OutboundHold, System.Threading.CancellationToken) -> Task
   504F327F: SendComposerAsync(System.Collections.Generic.IReadOnlyList<Turbo.Primitives.Networking.IComposer>, System.Threading.CancellationToken) -> Task
   2FF5A313: SendComposerAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task
   F69CCEBC: SetActiveRoomAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
@@ -612,7 +614,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   2F7D4AC3: SetPlayerBadgesAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>, System.Threading.CancellationToken) -> Task
   30F3232D: SetPlayerCustomFilterWordsAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Generic.List<string>, System.Threading.CancellationToken) -> Task
   70B8FFB5: SetPlayerEffectAsync(Turbo.Primitives.Action.ActionContext, int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
-  8F933AA2: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.WornGuildStatus, string, System.Threading.CancellationToken) -> Task
+  488CA217: SetPlayerFavouriteGuildAsync(Turbo.Primitives.Players.PlayerId, int, Turbo.Primitives.Guilds.Enums.WornGuildStatus, string, Turbo.Primitives.Players.OutboundHold, System.Threading.CancellationToken) -> Task
   2153CAF5: SetPlayerHabboClubAsync(Turbo.Primitives.Players.PlayerId, System.DateTime?, System.Threading.CancellationToken) -> Task
   D4AD0169: SetPlayerPermissionsAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot, System.Threading.CancellationToken) -> Task
   CCB393B3: SetRoomMutedBySystemAsync(bool, System.Threading.CancellationToken) -> Task<bool>

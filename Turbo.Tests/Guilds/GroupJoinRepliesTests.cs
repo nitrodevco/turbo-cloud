@@ -182,16 +182,19 @@ public sealed class GroupJoinRepliesTests : IDisposable
             .Should()
             .Equal(
                 nameof(GuildMembershipsMessageComposer),
-                nameof(HabboGroupDetailsMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer)
+                nameof(HabboGroupDetailsMessageComposer)
             );
         var details = Replies().OfType<HabboGroupDetailsMessageComposer>().Single();
         details.View.Status.Should().Be(GuildMembershipStatus.Member);
         details.OpenDetails.Should().BeFalse();
-        Replies()
-            .OfType<ExtendedProfileChangedMessageComposer>()
-            .Single()
-            .UserId.Should()
+
+        // Through the presence, behind the room's badge messages (GroupReplyOrderTests).
+        Sent(CAROL)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ExtendedProfileChangedMessageComposer>()
+            .Which.UserId.Should()
             .Be(CAROL);
     }
 
@@ -277,7 +280,7 @@ public sealed class GroupJoinRepliesTests : IDisposable
 
         await JoinAsync(CAROL);
 
-        Sent(CAROL).Should().BeEmpty();
+        Sent(CAROL).OfType<GuildMembershipUpdatedMessageComposer>().Should().BeEmpty();
 
         foreach (var manager in new[] { OWNER, BOB })
             Sent(manager)

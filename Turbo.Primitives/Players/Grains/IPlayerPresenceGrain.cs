@@ -61,6 +61,21 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct);
 
     /// <summary>
+    /// Holds the composers other grains send this player from now on until a publish of the
+    /// player's room carrying the returned hold arrives, the hold is released, or
+    /// <c>PlayerConfig.OutboundHoldMs</c> passes. Room publishes are not held. For a grain that
+    /// tells the room to send something without awaiting it and then sends the player its own
+    /// composers, which must follow the room's. <see cref="OutboundHold.None"/> when there is
+    /// nothing to wait for (no session, no room, holds off).
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<OutboundHold> HoldForRoomAsync(CancellationToken ct);
+
+    /// <summary>Ends a hold whose room publish will not come (the player was not in the room).</summary>
+    [AlwaysInterleave]
+    public Task ReleaseHoldAsync(OutboundHold hold, CancellationToken ct);
+
+    /// <summary>
     /// Interleaved: the player grain asks this while activating, and the presence grain may be
     /// waiting on that same activation. It only reads whether a session is attached.
     /// </summary>

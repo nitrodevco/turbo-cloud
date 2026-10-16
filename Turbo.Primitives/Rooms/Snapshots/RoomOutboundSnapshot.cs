@@ -26,4 +26,11 @@ public sealed record RoomOutboundSnapshot
     /// <summary>Optional diagnostics timestamp; zero when disabled or sent by an older silo.</summary>
     [Id(3)]
     public long PublishedAtUtcTicks { get; init; }
+
+    /// <summary>
+    /// The hold this publish ends once its composers are queued: that player's direct composers
+    /// held behind it go out after it (see <see cref="OutboundHold"/>).
+    /// </summary>
+    [Id(4)]
+    public OutboundHold ReleasesHold { get; init; }
 }

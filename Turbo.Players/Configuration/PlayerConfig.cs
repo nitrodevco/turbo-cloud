@@ -128,6 +128,12 @@ public class PlayerConfig
     public int MaxPendingComposers { get; init; } = 500;
 
     /// <summary>
+    /// The longest a player's composers wait behind a room publish they must follow (see
+    /// <c>IPlayerPresenceGrain.HoldForRoomAsync</c>); 0 turns holds off.
+    /// </summary>
+    public int OutboundHoldMs { get; init; } = 500;
+
+    /// <summary>
     /// How long a forward's pending entry (how a furni said the player will arrive) is honoured.
     /// A teleporter's entry lets the player past the target room's door, so one they never
     /// followed must not wait for them indefinitely.

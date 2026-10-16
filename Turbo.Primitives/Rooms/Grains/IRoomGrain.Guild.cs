@@ -70,13 +70,15 @@ public partial interface IRoomGrain
     ///
     /// The new badge arrives as arguments rather than being read back from the player's guild
     /// grain, because that grain is what calls this: reading it back would have the two waiting
-    /// on each other.
+    /// on each other. The badge publish ends <paramref name="hold"/>, so what the player is sent
+    /// after the change follows it; a player not in the room has the hold released.
     /// </summary>
     public Task SetPlayerFavouriteGuildAsync(
         PlayerId playerId,
         int guildId,
         WornGuildStatus guildStatus,
         string guildName,
+        OutboundHold hold,
         CancellationToken ct
     );
 }

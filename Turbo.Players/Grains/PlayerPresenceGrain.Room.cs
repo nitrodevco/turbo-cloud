@@ -244,6 +244,7 @@ internal sealed partial class PlayerPresenceGrain
     private async Task<RoomId> LeaveActiveRoomAsync(CancellationToken ct)
     {
         await UnsubscribeFromRoomStreamAsync();
+        ReleaseAllHolds();
 
         if (_state.ActiveRoomId <= 0)
             return -1;

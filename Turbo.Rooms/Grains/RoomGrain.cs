@@ -501,12 +501,24 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule.PublishAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
+        SendComposerToRoomAsync(composer, OutboundHold.None, ct);
+
+    /// <summary>
+    /// <see cref="SendComposerToRoomAsync(IComposer, CancellationToken)"/> that also ends a
+    /// player's hold once it reaches them: what they were sent while it waited follows it.
+    /// </summary>
+    internal Task SendComposerToRoomAsync(
+        IComposer composer,
+        OutboundHold releases,
+        CancellationToken ct
+    ) =>
         _roomOutbound.OnNextAsync(
             new RoomOutboundSnapshot
             {
                 RoomId = _state.RoomId,
                 Composers = [composer],
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+                ReleasesHold = releases,
             }
         );
 

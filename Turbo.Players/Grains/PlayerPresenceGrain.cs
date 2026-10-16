@@ -73,6 +73,7 @@ internal sealed partial class PlayerPresenceGrain
         _presenceTimer = null;
 
         _state.OutgoingQueue.Clear();
+        DropHolds();
 
         await UnregisterSessionObserverAsync(_state.SessionKey, ct);
     }
@@ -91,6 +92,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
+        DropHolds();
         _sessionObserver = observer;
 
         // A new session starts outside any room; the first flush tells it otherwise. No flush is
@@ -154,6 +156,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
+        DropHolds();
         _sessionObserver = null;
 
         _presenceTimer?.Dispose();
@@ -176,7 +179,7 @@ internal sealed partial class PlayerPresenceGrain
     {
         if (composer is not null)
         {
-            Enqueue(composer);
+            EnqueueDirect(composer);
             StartOutgoingFlush();
         }
 
@@ -188,7 +191,7 @@ internal sealed partial class PlayerPresenceGrain
         ct.ThrowIfCancellationRequested();
         if (_sessionObserver is null)
             return Task.FromResult(false);
-        Enqueue(composer);
+        EnqueueDirect(composer);
         StartOutgoingFlush();
         return Task.FromResult(true);
     }
@@ -207,7 +210,7 @@ internal sealed partial class PlayerPresenceGrain
         if (composers.Count > 0)
         {
             foreach (var composer in composers)
-                Enqueue(composer);
+                EnqueueDirect(composer);
 
             StartOutgoingFlush();
         }
@@ -218,16 +221,20 @@ internal sealed partial class PlayerPresenceGrain
     public Task OnNextAsync(RoomOutboundSnapshot item, StreamSequenceToken? token = null)
     {
         if (
-            _sessionObserver is null
-            || item.Composers.IsDefaultOrEmpty
-            || item.ExcludedPlayerIds is not null && item.ExcludedPlayerIds.Contains(PlayerId)
+            _sessionObserver is not null
+            && !item.Composers.IsDefaultOrEmpty
+            && (item.ExcludedPlayerIds is null || !item.ExcludedPlayerIds.Contains(PlayerId))
         )
-            return Task.CompletedTask;
+        {
+            RoomTelemetry.RecordStreamDelivery(item.PublishedAtUtcTicks);
 
-        RoomTelemetry.RecordStreamDelivery(item.PublishedAtUtcTicks);
+            foreach (var composer in item.Composers)
+                Enqueue(composer);
+        }
 
-        foreach (var composer in item.Composers)
-            Enqueue(composer);
+        // After its composers, so what waited behind them follows them in the same flush.
+        if (!item.ReleasesHold.IsNone)
+            ReleaseHold(item.ReleasesHold);
 
         StartOutgoingFlush();
 
