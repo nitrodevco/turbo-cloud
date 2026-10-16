@@ -5,12 +5,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Assets;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Support;
 
@@ -43,6 +45,25 @@ internal sealed class AssetPublishHotel : IDisposable
         );
 
         Store = new AssetBundleStore(Db, config, new TestEnvironment(_temp));
+
+        // A variable saved is kept in the database, as the variable service keeps it.
+        Fakes.Handlers[nameof(IGamedataVariableService.SaveAsync)] = call =>
+        {
+            using var dbCtx = Db.CreateDbContext();
+            var key = (string)call.Args[0]!;
+            var row = dbCtx.GamedataVariables.SingleOrDefault(x => x.Key == key);
+
+            if (row is null)
+                dbCtx.GamedataVariables.Add(
+                    new GamedataVariableEntity { Key = key, Value = (string)call.Args[1]! }
+                );
+            else
+                row.Value = (string)call.Args[1]!;
+
+            dbCtx.SaveChanges();
+
+            return Task.FromResult<VariableEntrySnapshot>(null!);
+        };
         Jobs = new AssetJobs(
             config,
             new Fakes().Create<IHostApplicationLifetime>(),
@@ -55,6 +76,13 @@ internal sealed class AssetPublishHotel : IDisposable
             Jobs,
             new AssetPasswordSealer(config, Store, NullLogger<AssetPasswordSealer>.Instance),
             new PublishConnections(config, NullLogger<PublishConnections>.Instance),
+            new PublishedPets(
+                Db,
+                Store,
+                Fakes.Create<IGamedataVariableService>(),
+                Fakes.Create<IPetBreedProvider>(),
+                NullLogger<PublishedPets>.Instance
+            ),
             config,
             TimeProvider.System,
             NullLogger<AssetPublishService>.Instance
@@ -62,6 +90,9 @@ internal sealed class AssetPublishHotel : IDisposable
     }
 
     public SqliteDb Db { get; } = new();
+
+    /// <summary>The variable service and pet breed provider the publish tells of its pets.</summary>
+    public Fakes Fakes { get; } = new();
 
     public AssetBundleStore Store { get; }
 
@@ -99,6 +130,29 @@ internal sealed class AssetPublishHotel : IDisposable
         row.Hash = hash;
         row.Size = bundle.Length;
         row.UpdatedAt = DateTime.UtcNow;
+
+        await dbCtx.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Writes a pet bundle to the store and saves its row, with the type ids Habbo gives it.</summary>
+    public async Task PutPetAsync(string name, byte[] bundle, string? ids, CancellationToken ct)
+    {
+        var hash = await Store.WriteAsync(AssetBundleKind.Pet, name, bundle, ct);
+
+        await using var dbCtx = await Db.CreateDbContextAsync(ct);
+
+        dbCtx.AssetBundles.Add(
+            new AssetBundleEntity
+            {
+                Kind = AssetBundleKind.Pet,
+                Name = name,
+                Source = ids is null ? AssetBundleSource.Upload : AssetBundleSource.Habbo,
+                Ids = ids,
+                Hash = hash,
+                Size = bundle.Length,
+                UpdatedAt = DateTime.UtcNow,
+            }
+        );
 
         await dbCtx.SaveChangesAsync(ct);
     }

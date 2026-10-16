@@ -45,7 +45,8 @@ Each bundle has a row in `asset_bundles`: its kind and name, the revision it was
 came from (`habbo`, `upload`, or `built` for a template the server builds from the hotel's own data: the chat styles, see `docs/admin-panel.md`), its SHA-1 and size, the ids that load it (the effects sharing an
 effect's library, a pet's type), and, when it has no file, why. Files are written beside their
 place and moved over it, so nothing ever reads half of one. Every server converting into the folder
-must share it.
+must share it, and it must outlive a deploy: the Ploi scripts keep it in `.deploy/shared/assets`
+(`TURBO_ASSETS_PATH`), not in a release folder a later deploy removes.
 
 ## Syncing from Habbo
 
@@ -111,6 +112,21 @@ A publish sends only what the target lacks or holds an older copy of, by the has
 place and renamed over it. What is sent is recorded as it goes, so a publish that stops resumes where
 it was. A **dry run** only counts. **Delete removed** also deletes from the target what the hotel no
 longer has. Each publish is kept in `asset_publishes`, the target's history.
+
+Before it sends anything (not on a dry run), a publish makes its pets known (`PublishedPets`):
+
+- **`renderer.petTypes`**, the client's pet types, where a type's id is its place in the list. Its
+  order is kept, since pets in the database are numbered by it. A pet bundle from Habbo fills the
+  places its type ids name (from Habbo's `pet.configuration`: `gnome` is both 26 and 27), growing the
+  list to them; a place the hotel set to another pet stays as it is, and is logged. The hotel's own
+  pet bundles, and one whose places were all taken, come after. A change is saved as a variable
+  change, so it is in the gamedata history.
+- **`pet_breeds`**: every palette a type's bundle can be drawn in that has no row yet, with the
+  bundle's `breed` (else the palette's id) and `colorTag` (else -1). A master palette, and one for a
+  part alone (tags without `body`: hair, a tail, a hat), are left out. Rows already there keep their
+  rarity and sellability, and the server's pet breeds are read again.
+
+The job's log says what changed; the history entry's error names the first file that failed, and why.
 
 ## Checks
 
