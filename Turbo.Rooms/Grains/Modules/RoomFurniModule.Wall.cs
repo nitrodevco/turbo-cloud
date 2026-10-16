@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -26,7 +27,8 @@ public sealed partial class RoomFurniModule
         Altitude z,
         int wallOffset,
         Rotation rot,
-        CancellationToken ct
+        CancellationToken ct,
+        Func<Task>? beforeShown = null
     )
     {
         if (!await ValidateNewWallItemPlacementAsync(ctx, item, x, y, z, wallOffset, rot))
@@ -48,6 +50,11 @@ public sealed partial class RoomFurniModule
         await item.Logic.OnPlaceAsync(ctx, ct);
 
         item.MarkDirty();
+
+        // What has to reach the player before the item does (their inventory losing it): a
+        // direct send made now is ahead of the room's publish.
+        if (beforeShown is not null)
+            await beforeShown();
 
         // Placed in a hidden area: it is there, and out of sight like the rest of the area.
         if (!IsHiddenByArea(item))

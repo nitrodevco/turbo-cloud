@@ -80,7 +80,20 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         item.SetOwnerId(pickerId);
 
-        await ObjectModule.RemoveObjectAsync(ctx, item, ct, pickerId);
+        // Habbo tells the room, then the heights, then the owner's inventory (official client
+        // captures 2026-10-13 21:38 and 2026-10-16 09:03-09:04: ObjectRemove, HeightMapUpdate,
+        // FurniListAddOrUpdate 5/5 floor; ItemRemove, FurniListAddOrUpdate 2/2 wall). An owner
+        // standing here hears of the removal first, so their inventory's update follows it.
+        var ownerHere =
+            pickerId == ctx.PlayerId || AvatarModule.GetPlayerPosition(pickerId) is not null;
+
+        await ObjectModule.RemoveObjectAsync(
+            ctx,
+            item,
+            ct,
+            pickerId,
+            toldFirst: ownerHere ? pickerId : null
+        );
 
         var snapshot = item.GetSnapshot();
 

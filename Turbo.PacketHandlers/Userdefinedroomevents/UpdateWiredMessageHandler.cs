@@ -45,7 +45,10 @@ public abstract class UpdateWiredMessageHandler<TMessage>(IGrainFactory grainFac
             return;
         }
 
-        await ctx.SendComposerAsync(new WiredSaveSuccessEventMessageComposer(), ct)
+        // Through the player's presence, after what the save sent them there (a selector's
+        // ObjectDataUpdate); straight to the session it would overtake it.
+        await _grainFactory
+            .SendComposerToPlayerAsync(ctx.PlayerId, new WiredSaveSuccessEventMessageComposer(), ct)
             .ConfigureAwait(false);
     }
 }
