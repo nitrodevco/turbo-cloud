@@ -114,18 +114,7 @@ public sealed class NavigatorService(
                     ct
                 )
                 .ConfigureAwait(false),
-            NavigatorSearchCodes.HOTEL_VIEW => await CreatePreviewBlocksAsync(
-                    query,
-                    [
-                        (NavigatorSearchCodes.POPULAR, string.Empty),
-                        .. (
-                            await GetFlatCategoriesForPlayerAsync(playerId, ct)
-                                .ConfigureAwait(false)
-                        ).Select(x => (NavigatorSearchCodes.Category(x.Name), x.Name)),
-                    ],
-                    keepEmpty: false,
-                    ct
-                )
+            NavigatorSearchCodes.HOTEL_VIEW => await CreateHotelViewBlocksAsync(query, ct)
                 .ConfigureAwait(false),
             NavigatorSearchCodes.MYWORLD_VIEW => await CreatePreviewBlocksAsync(
                     query,
@@ -187,8 +176,7 @@ public sealed class NavigatorService(
             && categoryId > 0
                 ? await GetCategoryRoomsAsync(query, categoryId, limit, ct).ConfigureAwait(false)
                 : await GetPopularRoomsAsync(query, limit, ct).ConfigureAwait(false),
-            NavigatorSearchType.RecommendedRooms => await GetPopularRoomsAsync(query, limit, ct)
-                .ConfigureAwait(false),
+            NavigatorSearchType.RecommendedRooms => GetRecommendedRooms(query, limit),
             NavigatorSearchType.RoomsWithHighestScore => await GetHighestScoredRoomsAsync(
                     query,
                     limit,
@@ -621,10 +609,9 @@ public sealed class NavigatorService(
     )
     {
         // One extra room tells us whether the block needs a "show more" action.
-        var fetchLimit = _config.BlockPreviewLimit + 1;
         var sectionRooms = await Task.WhenAll(
                 sections.Select(section =>
-                    GetSectionRoomsAsync(query, section.Code, fetchLimit, ct)
+                    GetSectionRoomsAsync(query, section.Code, PreviewLimit(section.Code) + 1, ct)
                 )
             )
             .ConfigureAwait(false);
@@ -645,25 +632,146 @@ public sealed class NavigatorService(
             )
                 continue;
 
-            var action =
-                rooms.Count > _config.BlockPreviewLimit
-                    ? NavigatorActionAllowedType.Expanded
-                    : NavigatorActionAllowedType.Collapsed;
-
-            blocks.Add(
-                CreateBlock(
-                    query,
-                    sections[i].Code,
-                    sections[i].Text,
-                    rooms,
-                    action,
-                    _config.BlockPreviewLimit
-                )
-            );
+            blocks.Add(CreatePreviewBlock(query, sections[i].Code, sections[i].Text, rooms));
         }
 
         return [.. blocks];
     }
+
+    /// <summary>
+    /// Habbo's hotel view (official client capture 2026-10-13 and 2026-10-16, six samples): hot,
+    /// popular, recommended, then one block per room category, each left out when it has no
+    /// rooms. Every room in them is occupied and open (no doorbell or password room in any of
+    /// the six, while a third of the occupied rooms its text searches return have one). Its
+    /// <c>nft_all_rooms</c> block is not sent: this hotel has no NFT rooms.
+    /// </summary>
+    private async Task<
+        ImmutableArray<NavigatorSearchResultBlockSnapshot>
+    > CreateHotelViewBlocksAsync(SearchQuery query, CancellationToken ct)
+    {
+        var categories = await GetFlatCategoriesForPlayerAsync(query.PlayerId, ct)
+            .ConfigureAwait(false);
+        var popular = await GetPopularRoomsAsync(
+                query,
+                PreviewLimit(NavigatorSearchCodes.POPULAR) + 1,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        IEnumerable<(string Code, string Text, List<RoomInfoSnapshot> Rooms)> sections =
+        [
+            (
+                NavigatorSearchCodes.HOT,
+                string.Empty,
+                GetHotRooms(query, PreviewLimit(NavigatorSearchCodes.HOT) + 1)
+            ),
+            (NavigatorSearchCodes.POPULAR, string.Empty, popular),
+            (
+                NavigatorSearchCodes.RECOMMENDED,
+                string.Empty,
+                GetRecommendedRooms(query, PreviewLimit(NavigatorSearchCodes.RECOMMENDED) + 1)
+            ),
+            .. categories.Select(category =>
+            {
+                var code = NavigatorSearchCodes.Category(category.Name);
+
+                return (
+                    code,
+                    CategoryText(category),
+                    ListedRooms(query)
+                        .Where(x => x.CategoryId == category.Id)
+                        .Take(PreviewLimit(code) + 1)
+                        .ToList<RoomInfoSnapshot>()
+                );
+            }),
+        ];
+
+        return
+        [
+            .. sections
+                .Where(x => x.Rooms.Count > 0)
+                .Select(x => CreatePreviewBlock(query, x.Code, x.Text, x.Rooms)),
+        ];
+    }
+
+    private int PreviewLimit(string code) =>
+        _config.BlockPreviewLimits.TryGetValue(code, out var limit)
+            ? limit
+            : _config.BlockPreviewLimit;
+
+    /// <summary>
+    /// A preview block of the rooms fetched with one to spare: the spare one tells the client
+    /// there is more to show.
+    /// </summary>
+    private NavigatorSearchResultBlockSnapshot CreatePreviewBlock(
+        SearchQuery query,
+        string code,
+        string text,
+        List<RoomInfoSnapshot> rooms
+    )
+    {
+        var limit = PreviewLimit(code);
+
+        return CreateBlock(
+            query,
+            code,
+            text,
+            rooms,
+            rooms.Count > limit
+                ? NavigatorActionAllowedType.Expanded
+                : NavigatorActionAllowedType.Collapsed,
+            limit
+        );
+    }
+
+    /// <summary>
+    /// A category block's title as Habbo sends it: a category with a global key is titled by
+    /// its text (<c>${navigator.flatcategory.global.GAMES}</c>), any other by its name
+    /// (official client capture 2026-10-16).
+    /// </summary>
+    private static string CategoryText(NavigatorFlatCategorySnapshot category) =>
+        string.IsNullOrEmpty(category.GlobalCategoryKey)
+            ? category.Name
+            : $"${{navigator.flatcategory.global.{category.GlobalCategoryKey}}}";
+
+    /// <summary>
+    /// Rooms Habbo lists in its hotel view: occupied, with an open door, fullest first.
+    /// </summary>
+    private static IEnumerable<RoomActiveSnapshot> ListedRooms(SearchQuery query) =>
+        query
+            .LiveRooms.Values.Where(x => x.Population > 0 && IsOpen(x))
+            .OrderByDescending(x => x.Population)
+            .ThenByDescending(x => x.Score)
+            .ThenBy(x => x.RoomId.Value);
+
+    /// <summary>
+    /// The rooms players are entering now, most recent visitors first. Habbo's hot rooms are
+    /// not its fullest: across three samples 32 minutes apart they were led by the rooms that
+    /// had just filled up (one went from 24 to 75 users and moved to the top), so ordering by
+    /// recent entries is inference from that.
+    /// </summary>
+    private static List<RoomInfoSnapshot> GetHotRooms(SearchQuery query, int limit) =>
+        [
+            .. ListedRooms(query)
+                .Where(x => x.RecentVisitors > 0)
+                .OrderByDescending(x => x.RecentVisitors)
+                .Take(limit),
+        ];
+
+    /// <summary>
+    /// Habbo's recommended rooms: the same few rooms in three samples 32 minutes apart, the
+    /// occupied ones with open doors, fullest first (official client capture 2026-10-16). Which
+    /// rooms it picks from is its own, so the pool is the configured categories.
+    /// </summary>
+    private List<RoomInfoSnapshot> GetRecommendedRooms(SearchQuery query, int limit) =>
+        [
+            .. ListedRooms(query)
+                .Where(x =>
+                    _config.RecommendedCategoryIds.Length == 0
+                    || _config.RecommendedCategoryIds.Contains(x.CategoryId)
+                )
+                .Take(limit),
+        ];
 
     private async Task<ImmutableArray<NavigatorSearchResultBlockSnapshot>> CreateSectionBlockAsync(
         SearchQuery query,
@@ -671,8 +779,10 @@ public sealed class NavigatorService(
         CancellationToken ct
     )
     {
-        var rooms = await GetSectionRoomsAsync(query, code, _config.SearchResultLimit, ct)
-            .ConfigureAwait(false);
+        var limit = _config.SearchResultLimits.TryGetValue(code, out var codeLimit)
+            ? codeLimit
+            : _config.SearchResultLimit;
+        var rooms = await GetSectionRoomsAsync(query, code, limit, ct).ConfigureAwait(false);
 
         if (rooms is null)
             return [];
@@ -682,19 +792,31 @@ public sealed class NavigatorService(
             StringComparison.Ordinal
         )
             ? FindEventCategory(code)?.Name ?? NavigatorSearchCodes.GetCategoryName(code)
-            : NavigatorSearchCodes.GetCategoryName(code);
+            : await GetCategoryTextAsync(query.PlayerId, code, ct).ConfigureAwait(false);
 
-        return
-        [
-            CreateBlock(
-                query,
-                code,
-                text,
-                rooms,
-                NavigatorActionAllowedType.Back,
-                _config.SearchResultLimit
-            ),
-        ];
+        return [CreateBlock(query, code, text, rooms, NavigatorActionAllowedType.Back, limit)];
+    }
+
+    /// <summary>
+    /// A full category search keeps the title its hotel view block had (inference: Habbo's
+    /// "show more" of a category was not recorded); any other code is untitled.
+    /// </summary>
+    private async Task<string> GetCategoryTextAsync(
+        PlayerId playerId,
+        string code,
+        CancellationToken ct
+    )
+    {
+        var name = NavigatorSearchCodes.GetCategoryName(code);
+
+        if (name.Length == 0)
+            return name;
+
+        var category = (
+            await GetFlatCategoriesForPlayerAsync(playerId, ct).ConfigureAwait(false)
+        ).FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+
+        return category is null ? name : CategoryText(category);
     }
 
     private static NavigatorSearchResultBlockSnapshot CreateBlock(
@@ -711,7 +833,11 @@ public sealed class NavigatorService(
             Text = text,
             ActionAllowed = action,
             Localization = string.Empty,
-            ForceClosed = query.Preferences?.CollapsedSearchCodes.Contains(code) ?? false,
+            // Not the player's collapsed blocks: the client applies those itself and opens the hot
+            // rooms in the hotel view anyway (BlockResultsView.applyHotelViewExpansionDefaults),
+            // which a forced close would override. Habbo sent false on every block of a player
+            // whose collapsed list starts with hot (official client capture 2026-10-13).
+            ForceClosed = false,
             ViewMode = query.Preferences?.GetViewMode(code) ?? NavigatorViewModeType.Rows,
             Results = [.. rooms.Take(limit).Select(x => ToSearchResult(x, query))],
         };
@@ -742,8 +868,12 @@ public sealed class NavigatorService(
                         .Take(limit),
                 ];
             }
+            case NavigatorSearchCodes.HOT:
+                return GetHotRooms(query, limit);
             case NavigatorSearchCodes.POPULAR:
                 return await GetPopularRoomsAsync(query, limit, ct).ConfigureAwait(false);
+            case NavigatorSearchCodes.RECOMMENDED:
+                return GetRecommendedRooms(query, limit);
             case NavigatorSearchCodes.MY_ROOMS:
             {
                 var cached = await _navigatorProvider
@@ -911,9 +1041,10 @@ public sealed class NavigatorService(
     }
 
     /// <summary>
-    /// Occupied rooms by population, straight from the directory. When fewer than
-    /// <paramref name="limit"/> rooms are occupied the list is topped up with the best-rated
-    /// rooms, so the view is not empty on a quiet hotel.
+    /// Occupied open rooms by population, straight from the directory: Habbo's popular rooms
+    /// (official client capture 2026-10-16: 12 in the hotel view and 75 in the full search, all
+    /// occupied and open). With <see cref="NavigatorConfig.PopularFillWithTopRated"/> a quiet
+    /// hotel's list is topped up with the best-rated rooms.
     /// </summary>
     private async Task<List<RoomInfoSnapshot>> GetPopularRoomsAsync(
         SearchQuery query,
@@ -921,15 +1052,9 @@ public sealed class NavigatorService(
         CancellationToken ct
     )
     {
-        var rooms = query
-            .LiveRooms.Values.Where(x => x.Population > 0 && IsVisibleTo(x, query.PlayerId))
-            .OrderByDescending(x => x.Population)
-            .ThenByDescending(x => x.Score)
-            .Take(limit)
-            .Cast<RoomInfoSnapshot>()
-            .ToList();
+        var rooms = ListedRooms(query).Take(limit).Cast<RoomInfoSnapshot>().ToList();
 
-        if (rooms.Count >= limit)
+        if (rooms.Count >= limit || !_config.PopularFillWithTopRated)
             return rooms;
 
         var topRated = await GetHighestScoredRoomsAsync(query, limit, ct).ConfigureAwait(false);
@@ -1184,6 +1309,9 @@ public sealed class NavigatorService(
 
     private static bool IsPublic(RoomInfoSnapshot room) =>
         room.DoorMode != RoomDoorModeType.Invisible && !room.HiddenByBc;
+
+    private static bool IsOpen(RoomInfoSnapshot room) =>
+        room.DoorMode == RoomDoorModeType.Open && !room.HiddenByBc;
 
     private static bool IsVisibleTo(RoomInfoSnapshot room, PlayerId playerId) =>
         IsPublic(room) || room.OwnerId == playerId;

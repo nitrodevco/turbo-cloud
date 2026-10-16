@@ -15,7 +15,9 @@ public static class NavigatorSearchCodes
     public const string ROOMADS_VIEW = "roomads_view";
 
     public const string OFFICIAL_ROOT = "official-root";
+    public const string HOT = "hot";
     public const string POPULAR = "popular";
+    public const string RECOMMENDED = "recommended";
     public const string MY_ROOMS = "my";
     public const string FAVOURITES = "favorites";
     public const string HISTORY = "history";
