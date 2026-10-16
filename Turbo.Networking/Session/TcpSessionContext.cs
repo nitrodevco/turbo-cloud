@@ -34,6 +34,10 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
 
     public void MarkReceived() => _state.MarkReceived();
 
+    public DateTime LastActiveUtc => _state.LastActiveUtc;
+
+    public void MarkActive() => _state.MarkActive();
+
     public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 
     public string? ServerCloseReason => _state.CloseReason;

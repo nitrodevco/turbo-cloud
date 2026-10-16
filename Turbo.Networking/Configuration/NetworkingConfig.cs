@@ -23,4 +23,13 @@ public class NetworkingConfig
     /// disconnect anybody.
     /// </summary>
     public int SessionTimeoutMilliseconds { get; init; } = 60000;
+
+    /// <summary>
+    /// A logged-in player who has done nothing for this long is told "Idle disconnection!"
+    /// (DisconnectReason 112, <c>disconnected.idle</c>) and disconnected. What the client sends on
+    /// its own timers (Pong, latency test, friend list and forum polls) is not doing something.
+    /// 0 turns it off. Habbo's own value is not known: a recorded official session (2026-10-12)
+    /// stayed connected through 107 minutes of nothing but those timers.
+    /// </summary>
+    public int IdleDisconnectMilliseconds { get; init; }
 }
