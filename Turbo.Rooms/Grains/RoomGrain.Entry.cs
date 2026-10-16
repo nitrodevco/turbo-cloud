@@ -196,7 +196,7 @@ public sealed partial class RoomGrain
             new RaidProtectionCapabilityMessageComposer
             {
                 RoomId = _state.RoomId,
-                CanManage = _roomConfig.RaidProtectionEnabled && isOwner,
+                CanManage = CanManageRaidProtection(controllerLevel),
             }
         );
 

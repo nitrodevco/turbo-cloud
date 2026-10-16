@@ -8,13 +8,15 @@ using Turbo.Database.Extensions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
+using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
 
 /// <summary>
-/// Raid protection's settings: the owner reads and saves them through its window. Detecting a
-/// raid is not built (nothing in the client or its texts says what counts as one), so no raid is
-/// ever active and the last raid is whatever the row holds.
+/// Raid protection's settings: a player with rights (<see cref="RoomConfig.RaidProtectionManageLevel"/>)
+/// reads and saves them through its window. Detecting a raid is not built (nothing in the client
+/// or its texts says what counts as one), so no raid is ever active and the last raid is whatever
+/// the row holds.
 /// </summary>
 public sealed partial class RoomGrain
 {
@@ -25,8 +27,13 @@ public sealed partial class RoomGrain
 
         await SecurityModule.EnsureRightsLoadedAsync(ct);
 
-        return await SecurityModule.GetControllerLevelAsync(ctx) >= RoomControllerType.Owner;
+        return CanManageRaidProtection(await SecurityModule.GetControllerLevelAsync(ctx));
     }
+
+    /// <summary>What <c>RaidProtectionCapability</c> tells a player at this controller level.</summary>
+    internal bool CanManageRaidProtection(RoomControllerType controllerLevel) =>
+        _roomConfig.RaidProtectionEnabled
+        && controllerLevel >= _roomConfig.RaidProtectionManageLevel;
 
     public async Task<RaidProtectionSettingsSnapshot?> GetRaidProtectionSettingsAsync(
         ActionContext ctx,

@@ -90,7 +90,7 @@ public interface IMessengerService
         CancellationToken ct
     );
 
-    /// <summary>A page of a conversation's stored history before a cursor, or null for none.</summary>
+    /// <summary>A page of a conversation's stored history before a cursor, empty for none.</summary>
     public Task<IComposer?> GetMessageHistoryAsync(
         PlayerId playerId,
         int chatId,

@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
@@ -114,7 +115,30 @@ public sealed class RaidProtectionSettingsTests : IDisposable
     }
 
     [Fact]
-    public async Task Only_the_owner_may_manage_it()
+    public async Task A_player_with_rights_may_manage_it_as_habbo_tells_them()
+    {
+        // Habbo's RaidProtectionCapability is true for rights 2 of 2 and group admin 1 of 1
+        // (official client captures), so the window it shows them has to read and save.
+        var room = Room();
+        RoomHarness.SetField(room.State, "<IsRightsLoaded>k__BackingField", true);
+        ((ISet<PlayerId>)RoomHarness.GetMember(room.State, "PlayerIdsWithRights")!).Add(GUEST);
+
+        (await room.Room.CanManageRaidProtectionAsync(Guest, Ct)).Should().BeTrue();
+        (await room.Room.SaveRaidProtectionSettingsAsync(Guest, Update(), Ct))
+            .Result.Should()
+            .Be(RaidProtectionSaveResultType.Saved);
+
+        var ownerOnly = Room(
+            new RoomConfig { RaidProtectionManageLevel = RoomControllerType.Owner }
+        );
+        RoomHarness.SetField(ownerOnly.State, "<IsRightsLoaded>k__BackingField", true);
+        ((ISet<PlayerId>)RoomHarness.GetMember(ownerOnly.State, "PlayerIdsWithRights")!).Add(GUEST);
+
+        (await ownerOnly.Room.CanManageRaidProtectionAsync(Guest, Ct)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_guest_without_rights_may_not_manage_it()
     {
         var room = Room();
 

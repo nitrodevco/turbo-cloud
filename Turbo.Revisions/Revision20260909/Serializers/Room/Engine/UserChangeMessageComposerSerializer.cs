@@ -12,7 +12,9 @@ internal class UserChangeMessageComposerSerializer(int header)
         packet
             .WriteInteger(message.ObjectId)
             .WriteString(message.Figure)
-            .WriteString(message.Gender.ToLegacyString())
+            // Lower case, unlike FigureUpdate's (official client captures: UserChange 18 of 18
+            // "m" or "f"; FigureUpdate "M").
+            .WriteString(message.Gender.ToLegacyString().ToLowerInvariant())
             .WriteString(message.CustomInfo)
             .WriteInteger(message.AchievementScore)
             .WriteString("")
