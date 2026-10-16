@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Tests.Support;
@@ -204,6 +205,19 @@ public sealed class RoomEntryTailTests
         var tail = await EnterAsync(OWNER);
 
         tail.Should().NotContain(x => x is NotificationDialogMessageComposer);
+    }
+
+    [Fact]
+    public async Task A_muted_room_is_not_told_as_mute_all_in_the_entry()
+    {
+        // Official client capture 2026-10-16T04-50-48 (build 1745): owner muted the room, left and
+        // came back; no MuteAllInRoom in the entry, the GetGuestRoomResult the client asks for
+        // carried allInRoomMuted.
+        await _room.Harness.Module<RoomModerationModule>().SetRoomMutedBySystemAsync(true, Ct);
+
+        var tail = await EnterAsync(OWNER);
+
+        tail.Should().NotContain(x => x is MuteAllInRoomEventMessageComposer);
     }
 
     private async Task SaveShowMessageAsync(string text)

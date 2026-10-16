@@ -160,12 +160,8 @@ public sealed partial class RoomGrain
             new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow }
         );
 
-        // Where Habbo sends it is unrecorded (no muted room was entered); with the room's other
-        // switches is inferred. Flash drops it here whatever the place: RoomEntryInfo empties the
-        // entered room (NavigatorData.onRoomEnter) and the mute only lands on one, so the client
-        // learns it from GetGuestRoomResult's allInRoomMuted (AS3 IncomingMessages.onMuteAllEvent).
-        if (_state.IsRoomMuted)
-            tail.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
+        // A muted room sends no MuteAllInRoom on entry: the client learns it from the
+        // GetGuestRoomResult it asks for after RoomEntryInfo (allInRoomMuted).
 
         // Sent on every entry, off or on, as Habbo does.
         tail.Add(FurnitureConfigurationControlLogic.GetConfigurationItemStates(FurniModule));
