@@ -18,4 +18,6 @@ class [GrainType("catalogpurchase")] Turbo.Catalog.Grains.CatalogPurchaseGrain
 
 class [GrainType("playerhabbicon")] Turbo.Catalog.Grains.PlayerHabbiconGrain
 
+class [GrainType("playerproductclaim")] Turbo.Catalog.Grains.PlayerProductClaimGrain
+
 class [GrainType("playertargetedoffer")] Turbo.Catalog.Grains.PlayerTargetedOfferGrain

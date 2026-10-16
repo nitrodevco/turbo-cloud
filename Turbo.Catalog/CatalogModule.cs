@@ -56,6 +56,9 @@ public sealed class CatalogModule : IHostPluginModule
                 "Turbo:Habbicons is invalid: unique collection and Habbicon ids, no negative prices."
             )
             .ValidateOnStart();
+        services
+            .AddOptions<ProductClaimConfig>()
+            .Bind(builder.Configuration.GetSection(ProductClaimConfig.SECTION_NAME));
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogEditService, CatalogEditService>();
