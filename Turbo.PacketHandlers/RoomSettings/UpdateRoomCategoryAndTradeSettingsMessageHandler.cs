@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
+using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 
@@ -39,7 +40,20 @@ public class UpdateRoomCategoryAndTradeSettingsMessageHandler(
             )
             .ConfigureAwait(false);
 
-        await ctx.SendRoomSettingsSaveFailureAsync(message.RoomId, result, ct)
+        if (
+            !await ctx.SendRoomSettingsSaveFailureAsync(message.RoomId, result, ct)
+                .ConfigureAwait(false)
+        )
+            return;
+
+        // Habbo confirms this save as it does the settings dialog's, first, ahead of the room's
+        // RoomInfoUpdated, RoomVisualizationSettings and RoomChatSettings (official client capture
+        // 2026-10-13, 2/2). The navigator reloads its room list on it
+        // (NewIncomingMessages.onRoomSettingsSaved).
+        await ctx.SendComposerAsync(
+                new RoomSettingsSavedEventMessageComposer { RoomId = message.RoomId },
+                ct
+            )
             .ConfigureAwait(false);
     }
 }
