@@ -21,11 +21,11 @@ namespace Turbo.Players.Grains.Badges;
 /// <summary>
 /// Badge figures for the whole hotel, one grain: owner counts per code and the rarity they give.
 /// It is a read-through cache: the player_badges rows are the truth, counted on activation and
-/// again on a timer, with grants and revokes adjusting the counts in between. Nothing here is
+/// again on a timer, with a grant or revoke recounting its own code in between. Nothing here is
 /// written back, so there is nothing to flush on deactivation.
 ///
 /// Every badge shown anywhere asks this grain, so its methods answer from memory and the only
-/// queries are the recount. Anything that queries per request (the leaderboards) lives in
+/// queries are the recounts. Anything that queries per request (the leaderboards) lives in
 /// <see cref="BadgeLeaderboardGrain"/>. Kept alive because reactivating means counting every
 /// badge row again while all of those reads wait.
 /// </summary>
@@ -105,12 +105,16 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
                 .ToImmutableArray()
         );
 
-    public Task<BadgeInfoSnapshot> OnBadgeGrantedAsync(string badgeCode, CancellationToken ct)
+    /// <summary>
+    /// The grant's row is saved before this is called, so a count taken in between (activation,
+    /// the recount timer) already holds it: the code's rows are counted again rather than one
+    /// added on top.
+    /// </summary>
+    public async Task<BadgeInfoSnapshot> OnBadgeGrantedAsync(string badgeCode, CancellationToken ct)
     {
-        _state.OwnerCountByCode[badgeCode] =
-            _state.OwnerCountByCode.GetValueOrDefault(badgeCode) + 1;
+        await RefreshCodesAsync([badgeCode], ct);
 
-        return Task.FromResult(GetInfo(badgeCode));
+        return GetInfo(badgeCode);
     }
 
     public async Task RefreshCodesAsync(ImmutableArray<string> badgeCodes, CancellationToken ct)
@@ -124,24 +128,24 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
             .Select(g => new { Code = g.Key, Count = g.Count() })
             .ToListAsync(ct);
         foreach (var code in codes)
-            _state.OwnerCountByCode[code] =
+        {
+            var owners =
                 counts
                     .FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
                     ?.Count
                 ?? 0;
+
+            // A code nobody holds any more is dropped, as the full recount leaves it out.
+            if (owners > 0)
+                _state.OwnerCountByCode[code] = owners;
+            else
+                _state.OwnerCountByCode.Remove(code);
+        }
     }
 
-    public Task OnBadgeRevokedAsync(string badgeCode, CancellationToken ct)
-    {
-        var remaining = _state.OwnerCountByCode.GetValueOrDefault(badgeCode) - 1;
-
-        if (remaining > 0)
-            _state.OwnerCountByCode[badgeCode] = remaining;
-        else
-            _state.OwnerCountByCode.Remove(badgeCode);
-
-        return Task.CompletedTask;
-    }
+    /// <summary>Counted again from the rows for the same reason as a grant: the row is gone already.</summary>
+    public Task OnBadgeRevokedAsync(string badgeCode, CancellationToken ct) =>
+        RefreshCodesAsync([badgeCode], ct);
 
     public Task<string?> GetRequestableBadgeAsync(string requestCode, CancellationToken ct) =>
         Task.FromResult(
