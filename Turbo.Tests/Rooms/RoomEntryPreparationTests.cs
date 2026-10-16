@@ -1,6 +1,7 @@
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -192,6 +193,82 @@ public class RoomEntryPreparationTests
             Assert.Empty(harness.Fakes.Log.Of("EnsureRoomActiveAsync"));
             Assert.Empty(harness.Fakes.Log.Of("GetEntryViewAsync"));
         }
+    }
+
+    [Fact]
+    public async Task Doorbell_TellsTheRingerToWaitWithANamelessDoorbell()
+    {
+        // Official client capture 2026-10-13 (ringing a doorbell room): OpenConnection, ...,
+        // Doorbell "" - the client's "waiting for an answer" view (navigator/IncomingMessages.as
+        // onDoorbell shows it only for an empty name). Turbo told the ringer nothing.
+        var harness = CreateHarness(RoomEntryAccessType.Doorbell);
+        harness.Fakes.Handlers["RingDoorbellAsync"] = _ => Task.FromResult(true);
+        harness.Fakes.Handlers["GetSummaryAsync"] = _ =>
+            Task.FromResult(
+                new PlayerSummarySnapshot
+                {
+                    PlayerId = 1,
+                    Name = "visitor",
+                    Motto = string.Empty,
+                    Figure = "hd-180-1",
+                    Gender = AvatarGenderType.Male,
+                    AchievementScore = 0,
+                    BadgesRank = 0,
+                    IsOnline = true,
+                    CreatedAt = DateTime.UnixEpoch,
+                    LastUpdated = DateTime.UnixEpoch,
+                    RespectPoints = 0,
+                    RespectsLeft = 0,
+                    PetRespectsLeft = 0,
+                    RespectReplenishesLeft = 0,
+                }
+            );
+
+        var packets = await OpenRoomAsync(harness);
+
+        Assert.Equal(
+            new[] { "OpenConnectionMessageComposer", "DoorbellMessageComposer" }.Select(
+                PacketHarness.Outgoing
+            ),
+            packets.Select(packet => (int)packet.Header)
+        );
+        Assert.Equal(string.Empty, packets[1].PopString());
+    }
+
+    [Fact]
+    public async Task Doorbell_AnAcceptedRingerIsToldTheDoorOpenedBeforeTheRoomLoads()
+    {
+        // Official client capture 2026-10-13 (let in after ringing): FlatAccessible (room, "")
+        // then RoomReady; the empty name closes the waiting view (IncomingMessages.as onDoorOpened).
+        var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
+            (PlayerId)2,
+            CancellationToken.None
+        );
+        var harness = CreateHarness(RoomEntryAccessType.Allowed);
+        harness.Fakes.Handlers["GetEntryViewAsync"] = _ => Task.FromResult(view);
+        harness.Fakes.Handlers["AnswerDoorbellAsync"] = _ => Task.FromResult<PlayerId?>(2);
+        harness.Fakes.Handlers["GetPendingRoomAsync"] = _ =>
+            Task.FromResult(
+                new RoomPendingSnapshot { RoomId = 42, State = RoomEntryState.RingingDoorbell }
+            );
+        harness.Fakes.Handlers["HasActiveSessionAsync"] = _ => Task.FromResult(true);
+        var service = (IRoomService)harness.Resolver.Resolve(typeof(IRoomService))!;
+
+        await service.AnswerDoorbellAsync(
+            ActionContext.CreateForPlayer(1, 42),
+            "visitor",
+            true,
+            CancellationToken.None
+        );
+
+        var packets = harness.Sent.Select(PacketHarness.Encode).ToList();
+        var headers = packets.Select(packet => (int)packet.Header).ToList();
+        var opened = headers.IndexOf(PacketHarness.Outgoing("FlatAccessibleMessageComposer"));
+
+        Assert.True(opened >= 0, "FlatAccessible was not sent");
+        Assert.True(opened < headers.IndexOf(PacketHarness.Outgoing("RoomReadyMessageComposer")));
+        Assert.Equal(42, packets[opened].PopInt());
+        Assert.Equal(string.Empty, packets[opened].PopString());
     }
 
     [Fact]
