@@ -1454,6 +1454,10 @@ public class Revision20260909 : IRevision
             { MessageEvent.ApplySnapshotMessageEvent, new ApplySnapshotMessageParser() },
             { MessageEvent.WiredClickUserMessageEvent, new WiredClickUserMessageParser() },
             {
+                MessageEvent.WiredGenerateWebApiKeyMessageEvent,
+                new WiredGenerateWebApiKeyMessageParser()
+            },
+            {
                 MessageEvent.SetFurnitureLabelDataMessageEvent,
                 new SetFurnitureLabelDataMessageParser()
             },
@@ -3505,6 +3509,12 @@ public class Revision20260909 : IRevision
                 typeof(WiredClickUserResponseMessageComposer),
                 new WiredClickUserResponseMessageComposerSerializer(
                     MessageComposer.WiredClickUserResponseMessageComposer
+                )
+            },
+            {
+                typeof(WiredWebApiKeyResultMessageComposer),
+                new WiredWebApiKeyResultMessageComposerSerializer(
+                    MessageComposer.WiredWebApiKeyResultMessageComposer
                 )
             },
             {

@@ -495,6 +495,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   F866B603: DropHandItemAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
   DD6F2D29: EnsureRoomActiveAsync(System.Threading.CancellationToken) -> Task
   C0F567D6: EvictEveryoneAndUnloadAsync(System.Threading.CancellationToken) -> Task
+  51AA73DA: GenerateWiredWebApiKeyAsync(Turbo.Primitives.Action.ActionContext, int, bool, System.Threading.CancellationToken) -> Task<string?>
   CB360794: GetActiveEventAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEventSnapshot?>
   FC781384: GetAllVariablesForBindingAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableBinding, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableValue)>>
   309B99F2: GetAvatarPositionAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Avatars.RoomAvatarPositionSnapshot?>
@@ -532,6 +533,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   7616249D: GetWiredVariablesSnapshotAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.WiredVariablesSnapshot?>
   D43F6E4E: GivePetSupplementAsync(Turbo.Primitives.Action.ActionContext, int, Turbo.Primitives.Pets.Enums.PetSupplementType, System.Threading.CancellationToken) -> Task<bool>
   302544C7: GiveRightsToPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
+  2EBADFB3: HandleWiredWebApiAsync(Turbo.Primitives.Rooms.Wired.WebApi.WiredWebApiRequest, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.WebApi.WiredWebApiResponse>
   60FAFA3B: HarvestPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   24810EA8: InteractWithItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Furniture.Interactions.FurnitureInteraction, System.Threading.CancellationToken) -> Task<bool>
   2580838F: InteractWithMusicPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Furniture.Interactions.FurnitureInteraction, System.Threading.CancellationToken) -> Task<bool>

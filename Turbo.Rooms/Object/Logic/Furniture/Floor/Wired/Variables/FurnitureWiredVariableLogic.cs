@@ -296,6 +296,91 @@ public abstract class FurnitureWiredVariableLogic
         }
     }
 
+    /// <summary>
+    /// The Web API names a player by id, in the room or not. One who is here is a holder like any
+    /// other (by room index); one who is away only holds values in a permanent user variable,
+    /// under their player id, which these read and write. No "variable changed" trigger hears
+    /// these changes, as none hears <see cref="RemoveAllValues"/> for an absent player: the
+    /// event names avatars by room index and they have none.
+    /// </summary>
+    public bool KeepsAbsentPlayers =>
+        _storage is not null && GetVarSnapshot().TargetType == WiredVariableTargetType.User;
+
+    public bool TryGetAbsentPlayerValue(
+        int playerId,
+        out WiredVariableValue value,
+        out long createdAtMs,
+        out long updatedAtMs
+    )
+    {
+        value = WiredVariableValue.Default;
+        createdAtMs = 0;
+        updatedAtMs = 0;
+
+        var storedKey = AbsentPlayerKey(playerId);
+
+        return KeepsAbsentPlayers
+            && _storage!.TryGetValue(storedKey, out value)
+            && _storage.TryGetTimestamps(storedKey, out createdAtMs, out updatedAtMs);
+    }
+
+    /// <summary>Gives (<paramref name="create"/>, replacing a value) or changes an absent player's value.</summary>
+    public async Task<bool> WriteAbsentPlayerValueAsync(
+        int playerId,
+        WiredVariableValue value,
+        bool create,
+        IWiredExecutionContext ctx
+    )
+    {
+        if (!KeepsAbsentPlayers)
+            return false;
+
+        var storedKey = AbsentPlayerKey(playerId);
+        var existed = _storage!.TryGetValue(storedKey, out var previous);
+
+        if (create)
+        {
+            if (!await _storage.GiveValueAsync(storedKey, value, replace: true))
+                return false;
+
+            ShareChange(
+                storedKey,
+                WiredVariableChangeType.Created,
+                value,
+                existed ? previous : value,
+                replace: true
+            );
+
+            return true;
+        }
+
+        if (!existed || !await _storage.SetValueAsync(ctx, storedKey, value))
+            return false;
+
+        ShareChange(storedKey, WiredVariableChangeType.Updated, value, previous);
+
+        return true;
+    }
+
+    public bool RemoveAbsentPlayerValue(int playerId)
+    {
+        var storedKey = AbsentPlayerKey(playerId);
+
+        if (
+            !KeepsAbsentPlayers
+            || !_storage!.TryGetValue(storedKey, out var previous)
+            || !_storage.RemoveValue(storedKey)
+        )
+            return false;
+
+        ShareChange(storedKey, WiredVariableChangeType.Removed, previous, previous);
+
+        return true;
+    }
+
+    private WiredVariableKey AbsentPlayerKey(int playerId) =>
+        new(_variableId, WiredVariableTargetType.User, playerId);
+
     public virtual bool RemoveValue(WiredVariableKey key)
     {
         if (!TryGetStore(key, out var store, out var storedKey) || store is null)

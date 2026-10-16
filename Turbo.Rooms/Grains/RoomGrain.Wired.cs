@@ -145,7 +145,19 @@ public sealed partial class RoomGrain
         if (!await CanReadWiredAsync(ctx, ct))
             return null;
 
-        return await WiredSystem.GetBoxSnapshotAsync(itemId, ct);
+        var snapshot = await WiredSystem.GetBoxSnapshotAsync(itemId, ct);
+
+        // A Web API add-on's keys are seen by whoever may set them, and nobody else ("Nobody
+        // else can see the contents of this box", wiredfurni.params.web_api.usage_info).
+        if (
+            snapshot is not null
+            && FurniModule.TryGetItem(itemId, out var item)
+            && item.Logic is Object.Logic.Furniture.Floor.Wired.Addons.WiredAddonVariablesWebApi addon
+            && await SecurityModule.GetControllerLevelAsync(ctx) < addon.MinimumControllerLevelToSave
+        )
+            return snapshot with { StringParam = string.Empty };
+
+        return snapshot;
     }
 
     public async Task<WiredVariablesSnapshot?> GetWiredVariablesSnapshotAsync(
