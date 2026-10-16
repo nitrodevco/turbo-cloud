@@ -32,6 +32,7 @@ release_name="$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD 2>/dev/null || 
 release_dir="$TURBO_DEPLOY_ROOT/releases/$release_name"
 
 mkdir -p "$TURBO_DEPLOY_ROOT/releases" "$TURBO_PLUGIN_PATH"
+turbo_adopt_assets
 
 turbo_log "Publishing release $release_name"
 "$TURBO_DOTNET" publish Turbo.Main/Turbo.Main.csproj \

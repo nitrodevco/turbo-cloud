@@ -59,7 +59,7 @@ public sealed class AssetSyncTests : IDisposable
 
         _habbo.Serve(
             VARIABLES,
-            $"flash.client.url=//images.habbo.com/gordon/flash-assets-PRODUCTION-1/\npet.configuration=dog,cat\n"
+            $"flash.client.url=//images.habbo.com/gordon/flash-assets-PRODUCTION-1/\npet.configuration=dog,cat,dog\n"
         );
         _habbo.Serve(
             FURNIDATA,
@@ -216,7 +216,7 @@ public sealed class AssetSyncTests : IDisposable
         rows[(AssetBundleKind.Pet, "dog")]
             .Should()
             .Match<AssetBundleEntity>(x =>
-                x.Revision == "PRODUCTION-1" && x.Ids == "0" && x.Hash != null
+                x.Revision == "PRODUCTION-1" && x.Ids == "0,2" && x.Hash != null
             );
         rows[(AssetBundleKind.Pet, "cat")].Ids.Should().Be("1");
         File.Exists(Path.Combine(_folder.Store.Root, "bundled", "pet", "cat.nitro"))
@@ -323,6 +323,24 @@ public sealed class AssetSyncTests : IDisposable
             .Match<AssetSyncPendingItem>(x =>
                 x.Name == "chair" && x.HotelRevision == "7" && x.HabboRevision == "8"
             );
+    }
+
+    [Fact]
+    public async Task A_bundle_whose_file_is_gone_is_downloaded_again()
+    {
+        await RunAsync();
+
+        // Its row still says it was taken at Habbo's revision; the folder lost the file.
+        var chair = _folder.Store.FullPathOf(AssetBundleKind.Furniture, "chair");
+
+        File.Delete(chair);
+        _habbo.ClearRequests();
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+        _habbo.Requests.Should().Contain($"{FURNI}/7/chair.swf");
+        File.Exists(chair).Should().BeTrue();
     }
 
     [Fact]

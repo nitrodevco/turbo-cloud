@@ -631,19 +631,31 @@ internal sealed class AssetSyncService(
             {
                 x.Kind,
                 x.Name,
-                Known = new AssetSyncPlan.Known(
-                    x.Revision,
-                    x.Source,
-                    x.Hash != null,
-                    x.Error,
-                    x.Retry,
-                    x.Ids
-                ),
+                x.Revision,
+                x.Source,
+                HasHash = x.Hash != null,
+                x.Error,
+                x.Retry,
+                x.Ids,
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return rows.ToDictionary(x => (x.Kind, x.Name), x => x.Known);
+        // A row's file, not its hash alone: a bundle whose file went (a folder lost, or moved
+        // away) is downloaded again rather than counted as had.
+        return rows.ToDictionary(
+            x => (x.Kind, x.Name),
+            x => new AssetSyncPlan.Known(
+                x.Revision,
+                x.Source,
+                x.HasHash
+                    && store.IsValidName(x.Name)
+                    && File.Exists(store.FullPathOf(x.Kind, x.Name)),
+                x.Error,
+                x.Retry,
+                x.Ids
+            )
+        );
     }
 
     private string FurnitureUrl(string domain, HabboLibrary library) =>

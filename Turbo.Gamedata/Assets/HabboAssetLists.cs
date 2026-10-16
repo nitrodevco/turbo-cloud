@@ -201,26 +201,35 @@ internal static class HabboAssetLists
     /// </summary>
     public static List<HabboLibrary> Pets(string? configuration, string revision)
     {
-        var pets = new List<HabboLibrary>();
-
         if (string.IsNullOrWhiteSpace(configuration))
-            return pets;
+            return [];
 
+        // A library may draw several types (gnome is Habbo's 26 and 27): it has every one of them.
+        var types = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         var parts = configuration.Split(',');
 
         for (var type = 0; type < parts.Length; type++)
         {
             var name = parts[type].Trim();
 
-            if (name.Length == 0 || pets.Any(x => x.Name == name))
+            if (name.Length == 0)
                 continue;
 
-            pets.Add(
-                new HabboLibrary(AssetBundleKind.Pet, name, revision, AssetBundleIds.Format([type]))
-            );
+            if (!types.TryGetValue(name, out var ids))
+                types[name] = ids = [];
+
+            ids.Add(type);
         }
 
-        return pets;
+        return
+        [
+            .. types.Select(x => new HabboLibrary(
+                AssetBundleKind.Pet,
+                x.Key,
+                revision,
+                AssetBundleIds.Format(x.Value)
+            )),
+        ];
     }
 
     private static int IntOf(JsonElement value) =>

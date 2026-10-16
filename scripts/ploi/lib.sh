@@ -32,6 +32,42 @@ turbo_load_env() {
   TURBO_DEPLOY_ROOT="${TURBO_DEPLOY_ROOT:-$TURBO_SITE_DIR/.deploy}"
   TURBO_PID_FILE="$TURBO_DEPLOY_ROOT/turbo.pid"
   TURBO_PLUGIN_PATH="${TURBO_PLUGIN_PATH:-$TURBO_DEPLOY_ROOT/shared/plugins}"
+  TURBO_ASSETS_PATH="${TURBO_ASSETS_PATH:-$TURBO_DEPLOY_ROOT/shared/assets}"
+}
+
+# Moves the asset bundles a release kept in its own folder (before TURBO_ASSETS_PATH existed)
+# into the shared one, once: from the kept release holding the most of them, moved rather than
+# copied so a hotel's tens of thousands of bundles are not doubled on disk.
+turbo_adopt_assets() {
+  local release best="" best_count=0 count
+
+  if [ -d "$TURBO_ASSETS_PATH/bundled" ]; then
+    return
+  fi
+
+  for release in "$TURBO_DEPLOY_ROOT"/releases/*/; do
+    [ -d "${release}assets/bundled" ] || continue
+    count="$(find "${release}assets/bundled" -type f -name '*.nitro' | wc -l)"
+
+    if [ "$count" -gt "$best_count" ]; then
+      best="${release}assets"
+      best_count="$count"
+    fi
+  done
+
+  if [ -n "$best" ]; then
+    turbo_log "Moving $best_count asset bundles from $best to $TURBO_ASSETS_PATH"
+    mkdir -p "$(dirname "$TURBO_ASSETS_PATH")"
+    rmdir "$TURBO_ASSETS_PATH" 2>/dev/null || true
+
+    if [ -e "$TURBO_ASSETS_PATH" ]; then
+      cp -a "$best/." "$TURBO_ASSETS_PATH/" && rm -rf "$best"
+    else
+      mv "$best" "$TURBO_ASSETS_PATH"
+    fi
+  fi
+
+  mkdir -p "$TURBO_ASSETS_PATH"
 }
 
 # Ploi runs deploy scripts and daemons with a minimal PATH, so a user-level install from
@@ -156,6 +192,9 @@ turbo_export_app_env() {
   # Plugins live outside the release folders so a deploy does not drop them.
   export "TURBO__Turbo__Plugin__PluginFolderPath=$TURBO_PLUGIN_PATH"
   export "TURBO__Turbo__Plugin__HotReloadEnabled=${TURBO_PLUGIN_HOT_RELOAD:-false}"
+
+  # So do the asset bundles: synced and uploaded ones are kept here, and published from here.
+  export "TURBO__Turbo__Assets__Directory=$TURBO_ASSETS_PATH"
 
   # Daemon output goes to a log file, where colour codes are noise.
   export "TURBO__Logging__TurboConsole__UseAnsiColor=${TURBO_LOG_COLOR:-false}"

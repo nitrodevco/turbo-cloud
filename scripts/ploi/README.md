@@ -20,6 +20,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
     releases/<timestamp>-<sha>/    one publish per deploy (last TURBO_KEEP_RELEASES kept)
     current -> releases/...        what the daemon runs
     shared/plugins/                plugin folder, kept across releases
+    shared/assets/                 asset bundles (Turbo:Assets:Directory), kept across releases
     turbo.pid                      written by start.sh, used by deploy.sh to restart
 ```
 
