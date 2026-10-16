@@ -57,6 +57,35 @@ public sealed record VariableLeaderboardConfig
     /// <summary>Rows per page by page size option (<c>VariableLeaderboardDescriptorData</c>).</summary>
     public static readonly ImmutableArray<int> PageSizes = [10, 15, 20];
 
+    /// <summary>
+    /// The ints of a box that was never published: the codec's <c>decodeUnpublished</c> (highest
+    /// value, Username XL + Value small, no filter, location 0,0, page size 10) as <c>encode</c>
+    /// writes it. Habbo sends them as a fresh box's ints and defaults (official client capture,
+    /// WIN63-202610151745).
+    /// </summary>
+    public static readonly ImmutableArray<int> UnpublishedIntParams =
+    [
+        SORT_HIGHEST_VALUE,
+        2,
+        COLUMN_USERNAME,
+        COLUMN_VALUE,
+        -1,
+        -1,
+        0,
+        0,
+        OPERAND_LITERAL,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+    ];
+
     public required string Title { get; init; }
     public required string Description { get; init; }
     public required ImmutableArray<VariableLeaderboardColumnSnapshot> Columns { get; init; }

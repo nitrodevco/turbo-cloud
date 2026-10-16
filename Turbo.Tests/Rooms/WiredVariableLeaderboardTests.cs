@@ -137,6 +137,43 @@ public sealed class WiredVariableLeaderboardTests
             .BeEmpty();
     }
 
+    /// <summary>
+    /// A box that was never saved opens with the codec's unpublished settings as its ints and as
+    /// its defaults (official client capture of a fresh box, WIN63-202610151745: intParams and
+    /// defaultIntParams both [0,2,0,1,-1,-1,0,0,0,0,0,0,0,0,3,0,0,0,0], 12 x "0", string ""),
+    /// which is <c>VariableLeaderboardConfigCodec.encode(decodeUnpublished())</c>.
+    /// </summary>
+    [Fact]
+    public async Task A_fresh_box_opens_with_the_official_unpublished_ints()
+    {
+        int[] official = [0, 2, 0, 1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0];
+        var leaderboard = _room.AddBox<WiredAddonVariableLeaderboard>(
+            LEADERBOARD,
+            3,
+            3,
+            "wf_xtra_var_leaderboard"
+        );
+
+        await leaderboard.LoadWiredAsync(Ct);
+
+        var snapshot = await Wired.GetBoxSnapshotAsync((RoomObjectId)LEADERBOARD, Ct);
+
+        snapshot!.IntParams.Should().Equal(official);
+        snapshot.DefaultIntParams.Should().Equal(official);
+        snapshot.StringParam.Should().BeEmpty();
+        snapshot.VariableIds.Select(id => id.ToString()).Should().Equal(NoVariables());
+        leaderboard.IsPublished.Should().BeFalse();
+
+        var bytes = HexOf(
+            PacketHarness.Encode(new WiredFurniAddonEventMessageComposer { WiredData = snapshot })
+        );
+
+        // The message ends with the default ints, as in the capture.
+        bytes
+            .Should()
+            .EndWith("00000013" + string.Concat(official.Select(value => value.ToString("X8"))));
+    }
+
     [Fact]
     public async Task A_configuration_the_client_would_not_send_is_refused()
     {
