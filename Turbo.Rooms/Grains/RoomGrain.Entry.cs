@@ -120,8 +120,9 @@ public sealed partial class RoomGrain
     /// <summary>
     /// The end of a player's entry, after the room itself (RoomReady through Items), for them
     /// alone and in Habbo's order (official client captures, 32 of 32 entries on builds 1709,
-    /// 1318 and 1745): their own avatar, RoomEntryInfo, RoomEvent, ConfigurationItemStates,
-    /// WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
+    /// 1318 and 1745): their own avatar, RoomEntryInfo, the wired text notice when the room has
+    /// one (<see cref="Systems.RoomWiredSystem.GetTriggerTextNotice"/>), RoomEvent,
+    /// ConfigurationItemStates, WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
     /// YouAreOwner, RoomRating, RaidProtectionCapability. A visitor without rights is told
     /// neither YouAreController nor YouAreNotController (6 of 6 such entries). No UserUpdate
     /// comes before the raid protection (0 of 32), so what the others are doing follows it.
@@ -149,12 +150,20 @@ public sealed partial class RoomGrain
             // The client answers this with GetGuestRoom(enterRoom: true), which is what fills its
             // room info window and the owner-only settings buttons.
             new RoomEntryInfoMessageComposer { RoomId = _state.RoomId, IsOwner = isOwner },
-            // Sent with no event too, as Habbo does, so the last room's event card goes.
-            new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow },
         };
 
+        if (WiredSystem.GetTriggerTextNotice() is { } notice)
+            tail.Add(notice);
+
+        // Sent with no event too, as Habbo does, so the last room's event card goes.
+        tail.Add(
+            new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow }
+        );
+
         // Where Habbo sends it is unrecorded (no muted room was entered); with the room's other
-        // switches is inferred.
+        // switches is inferred. Flash drops it here whatever the place: RoomEntryInfo empties the
+        // entered room (NavigatorData.onRoomEnter) and the mute only lands on one, so the client
+        // learns it from GetGuestRoomResult's allInRoomMuted (AS3 IncomingMessages.onMuteAllEvent).
         if (_state.IsRoomMuted)
             tail.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
 
