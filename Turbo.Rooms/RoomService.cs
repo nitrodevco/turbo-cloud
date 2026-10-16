@@ -405,6 +405,16 @@ internal sealed partial class RoomService(
             .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved, ct)
             .ConfigureAwait(false);
 
+        // A nameless FlatAccessible closes the ringer's waiting view, then the room loads
+        // (navigator/IncomingMessages.as onDoorOpened).
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ringerId.Value,
+                new FlatAccessibleMessageComposer { RoomId = ctx.RoomId, Username = string.Empty },
+                ct
+            )
+            .ConfigureAwait(false);
+
         await EnterRoomAsync(
                 ActionContext.CreateForPlayer(ringerId.Value, ctx.RoomId),
                 ringerPresence,
@@ -451,8 +461,20 @@ internal sealed partial class RoomService(
         var notified = await room.RingDoorbellAsync(playerId, player.Name, ct)
             .ConfigureAwait(false);
 
+        // The ringer is told to wait with a nameless Doorbell: the client shows its "waiting for
+        // an answer" view for that one only (navigator/IncomingMessages.as onDoorbell).
         if (notified)
+        {
+            await _grainFactory
+                .SendComposerToPlayerAsync(
+                    playerId,
+                    new DoorbellMessageComposer { Username = string.Empty },
+                    ct
+                )
+                .ConfigureAwait(false);
+
             return;
+        }
 
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
         await _grainFactory
