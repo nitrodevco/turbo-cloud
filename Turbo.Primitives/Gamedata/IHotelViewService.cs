@@ -38,4 +38,22 @@ public interface IHotelViewService
         PlayerId player,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Habbo's reception as its external variables have it now (read from Habbo when asked),
+    /// beside the hotel's: nothing is changed; the editor takes what it wants and saves it as any
+    /// edit. Habbo's values are text; each is written as JSON the way the hotel's is (a flag or a
+    /// number where the hotel's is one, else a text). Throws
+    /// <see cref="System.Net.Http.HttpRequestException"/> when Habbo can't be read.
+    /// </summary>
+    public Task<HotelViewHabboPreview> PreviewHabboAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Habbo's values of these texts (the ones Habbo's reception names), from the newest version
+    /// of its texts the hotel has found, the hotel's beside each.
+    /// </summary>
+    public Task<HotelViewHabboTexts> GetHabboTextsAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken ct
+    );
 }

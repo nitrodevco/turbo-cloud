@@ -96,6 +96,14 @@ internal sealed class GamedataEndpoints(
         group.MapPost("/variables/import", VariableImportAsync);
         group.MapGet("/hotel-view", HotelViewAsync);
         group.MapPost("/hotel-view/texts", HotelViewTextsAsync);
+        group.MapGet("/hotel-view/habbo", HabboHotelViewAsync);
+        group.MapPost(
+            "/hotel-view/habbo-texts",
+            async (HotelViewTextsRequest request, CancellationToken ct) =>
+                Results.Ok(
+                    await hotelView.GetHabboTextsAsync(request.Keys ?? [], ct).ConfigureAwait(false)
+                )
+        );
         group.MapPut("/hotel-view", SaveHotelViewAsync);
         group.MapGet("/products/import", ProductPreviewAsync);
         group.MapPost("/products/import/{versionId:int}", ProductImportAsync);
@@ -950,6 +958,24 @@ internal sealed class GamedataEndpoints(
                 texts = await hotelView.GetTextsAsync(request.Keys ?? [], ct).ConfigureAwait(false),
             }
         );
+
+    /// <summary>Habbo's reception now, beside the hotel's; 502 when Habbo can't be read.</summary>
+    private async Task<IResult> HabboHotelViewAsync(CancellationToken ct)
+    {
+        try
+        {
+            return Results.Ok(await hotelView.PreviewHabboAsync(ct).ConfigureAwait(false));
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Habbo's reception could not be read for the panel");
+
+            return AdminResults.Error(
+                StatusCodes.Status502BadGateway,
+                $"Habbo could not be read: {ex.Message}"
+            );
+        }
+    }
 
     private Task<IResult> SaveHotelViewAsync(
         HotelViewSaveRequest request,

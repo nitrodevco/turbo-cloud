@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +15,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Gamedata;
@@ -35,6 +40,7 @@ internal sealed class HotelViewService(
     GamedataWriteLock writes,
     IServerSettings settings,
     IHotelTextProvider hotelTexts,
+    HabboGamedataClient habbo,
     ILogger<HotelViewService> logger
 ) : IHotelViewService
 {
@@ -113,6 +119,131 @@ internal sealed class HotelViewService(
             .ConfigureAwait(false);
 
         return [.. texts.OrderBy(x => x.Key, StringComparer.Ordinal)];
+    }
+
+    public async Task<HotelViewHabboPreview> PreviewHabboAsync(CancellationToken ct)
+    {
+        var domain = config.Value.HabboDomain;
+        var theirs = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
+        var ours = (await GetVariablesAsync(ct).ConfigureAwait(false)).ToDictionary(
+            x => x.Key,
+            x => x.Value,
+            StringComparer.Ordinal
+        );
+        var variables = theirs
+            .Where(x => IsReceptionKey(x.Key))
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(x =>
+            {
+                var current = ours.GetValueOrDefault(x.Key);
+
+                return new HotelViewHabboEntry
+                {
+                    Key = x.Key,
+                    Value = JsonOf(x.Value, current),
+                    Current = current,
+                };
+            })
+            .ToImmutableArray();
+
+        return new HotelViewHabboPreview
+        {
+            Domain = domain,
+            Variables = variables,
+            Missing =
+            [
+                .. ours.Keys.Where(x => !theirs.ContainsKey(x)).Order(StringComparer.Ordinal),
+            ],
+        };
+    }
+
+    public async Task<HotelViewHabboTexts> GetHabboTextsAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken ct
+    )
+    {
+        var wanted = keys.Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var version = await dbCtx
+            .HabboTextVersions.AsNoTracking()
+            .Where(x => x.Domain == config.Value.HabboDomain)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (version is null || wanted.Count == 0)
+            return new HotelViewHabboTexts { Texts = [], CheckedAt = version?.CheckedAt };
+
+        var theirs = ExternalTextsFile.Parse(
+            Encoding.UTF8.GetString(GamedataBytes.Decompress(version.Content))
+        );
+        var found = wanted.Where(theirs.ContainsKey).ToList();
+        var ours = await dbCtx
+            .GamedataTexts.AsNoTracking()
+            .Where(x => found.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+
+        return new HotelViewHabboTexts
+        {
+            Texts =
+            [
+                .. found
+                    .Order(StringComparer.Ordinal)
+                    .Select(key => new HotelViewHabboEntry
+                    {
+                        Key = key,
+                        Value = theirs[key],
+                        Current = ours.GetValueOrDefault(key),
+                    }),
+            ],
+            CheckedAt = version.CheckedAt,
+        };
+    }
+
+    /// <summary>Whether the reception reads the key: one under <see cref="PREFIX"/>, or one of <see cref="OTHER_KEYS"/>.</summary>
+    private static bool IsReceptionKey(string key) =>
+        key.Length > PREFIX.Length && key.StartsWith(PREFIX, StringComparison.Ordinal)
+        || OTHER_KEYS.Contains(key, StringComparer.Ordinal);
+
+    /// <summary>
+    /// One of Habbo's values, which its variables file writes as bare text, as the JSON the hotel
+    /// keeps: a flag or a number where the hotel's value is one (or, with none, a flag that reads
+    /// as one), else a text.
+    /// </summary>
+    internal static string JsonOf(string raw, string? current)
+    {
+        var kind = current is null ? (JsonValueKind?)null : KindOf(current);
+
+        if (raw is "true" or "false" && (kind is null or JsonValueKind.True or JsonValueKind.False))
+            return raw;
+
+        if (
+            kind == JsonValueKind.Number
+            && double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+        )
+            return JsonNode.Parse(raw)!.ToJsonString();
+
+        return JsonSerializer.Serialize(raw);
+    }
+
+    private static JsonValueKind? KindOf(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            return document.RootElement.ValueKind;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public Task<GamedataChangeSetSnapshot?> SaveAsync(

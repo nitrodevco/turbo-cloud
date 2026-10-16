@@ -7,6 +7,7 @@ using Turbo.Gamedata;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
+using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.HotelView;
 using Turbo.Gamedata.Texts;
@@ -31,6 +32,7 @@ public sealed class HotelViewTests : IDisposable
 
     private readonly CatalogFixture _catalog = new();
     private readonly SettingsHarness _settings;
+    private readonly HabboVariables _habbo = new();
 
     public HotelViewTests() => _settings = new SettingsHarness(_catalog.Db, "{}", (_, _) => { });
 
@@ -38,6 +40,7 @@ public sealed class HotelViewTests : IDisposable
 
     public void Dispose()
     {
+        _habbo.Dispose();
         _settings.Dispose();
         _catalog.Dispose();
     }
@@ -198,6 +201,145 @@ public sealed class HotelViewTests : IDisposable
         (await hotel.View.GetVariablesAsync(Ct)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task habbos_reception_is_shown_beside_ours_written_as_ours_is_and_saved_as_any_edit()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("landing.view.promo.conf", "\"old\"", STAFF, Ct);
+        await hotel.Variables.SaveAsync("landing.view.slot.count", "3", STAFF, Ct);
+        await hotel.Variables.SaveAsync("landing.view.gone.widget", "\"x\"", STAFF, Ct);
+        await hotel.Variables.SaveAsync(HotelViewService.OTHER_KEYS[0], "true", STAFF, Ct);
+
+        _habbo.Text = string.Join(
+            '\n',
+            "landing.view.promo.conf=new;stuff",
+            "landing.view.slot.count=5",
+            "landing.view.fresh.enabled=true",
+            "next.limited.rare.countdown.widget.disabled=false",
+            "socket.url=wss://habbo",
+            "landing.view.=bare"
+        );
+
+        var preview = await hotel.View.PreviewHabboAsync(Ct);
+
+        // Only the reception's keys, each written as the hotel's is: a text, a number where ours
+        // is one, a flag where ours is one or there is none and it reads as one.
+        preview
+            .Variables.Select(x => (x.Key, x.Value, x.Current))
+            .Should()
+            .Equal(
+                ("landing.view.fresh.enabled", "true", null),
+                ("landing.view.promo.conf", "\"new;stuff\"", "\"old\""),
+                ("landing.view.slot.count", "5", "3"),
+                ("next.limited.rare.countdown.widget.disabled", "false", "true")
+            );
+        preview.Missing.Should().Equal("landing.view.gone.widget");
+
+        // Nothing changed by looking; taking Habbo's is an edit like any other.
+        (await VariablesAsync(hotel))["landing.view.promo.conf"]!
+            .GetValue<string>()
+            .Should()
+            .Be("old");
+
+        await hotel.View.SaveAsync(
+            new HotelViewEdit
+            {
+                Variables = preview.Variables.ToDictionary(x => x.Key, x => (string?)x.Value),
+                Texts = new Dictionary<string, string?>(),
+            },
+            STAFF,
+            Ct
+        );
+
+        var file = await VariablesAsync(hotel);
+
+        file["landing.view.promo.conf"]!.GetValue<string>().Should().Be("new;stuff");
+        file["landing.view.slot.count"]!.GetValue<int>().Should().Be(5);
+        file[HotelViewService.OTHER_KEYS[0]]!.GetValue<bool>().Should().BeFalse();
+        file.Should().NotContainKey("socket.url");
+    }
+
+    [Fact]
+    public async Task habbos_reception_texts_come_from_the_newest_texts_found_beside_ours()
+    {
+        var hotel = Hotel();
+
+        (await hotel.View.GetHabboTextsAsync(["landing.view.promo.header"], Ct))
+            .Should()
+            .Match<HotelViewHabboTexts>(x => x.Texts.IsEmpty && x.CheckedAt == null);
+
+        _catalog.Db.Insert(Texts(1, "landing.view.promo.header=Old Habbo\n"));
+        _catalog.Db.Insert(
+            Texts(2, "landing.view.promo.header=Hello\nlanding.view.promo.body=Read on\nother=x\n")
+        );
+        await hotel.Texts.SaveAsync("landing.view.promo.header", "Ours", STAFF, Ct);
+
+        var texts = await hotel.View.GetHabboTextsAsync(
+            ["landing.view.promo.header", "landing.view.promo.body", "not.at.habbo", " "],
+            Ct
+        );
+
+        texts
+            .Texts.Select(x => (x.Key, x.Value, x.Current))
+            .Should()
+            .Equal(
+                ("landing.view.promo.body", "Read on", null),
+                ("landing.view.promo.header", "Hello", "Ours")
+            );
+        texts.CheckedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task habbo_unreadable_is_said_and_changes_nothing()
+    {
+        var hotel = Hotel();
+
+        _habbo.Text = null;
+
+        var preview = () => hotel.View.PreviewHabboAsync(Ct);
+
+        await preview.Should().ThrowAsync<System.Net.Http.HttpRequestException>();
+    }
+
+    private static Turbo.Database.Entities.Gamedata.HabboTextVersionEntity Texts(
+        int id,
+        string text
+    ) =>
+        new()
+        {
+            Id = id,
+            Domain = "com",
+            Hash = $"hash{id}",
+            Content = GamedataBytes.Compress(Encoding.UTF8.GetBytes(text)),
+            TextCount = 1,
+            CheckedAt = DateTime.UtcNow,
+        };
+
+    /// <summary>Habbo's external variables, as its gamedata host serves them; none is a 404.</summary>
+    private sealed class HabboVariables
+        : System.Net.Http.HttpMessageHandler,
+            System.Net.Http.IHttpClientFactory
+    {
+        public string? Text { get; set; }
+
+        public System.Net.Http.HttpClient CreateClient(string name) =>
+            new(this, disposeHandler: false);
+
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(
+            System.Net.Http.HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            Task.FromResult(
+                Text is null
+                    ? new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.NotFound)
+                    : new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                    {
+                        Content = new System.Net.Http.StringContent(Text),
+                    }
+            );
+    }
+
     private HotelGamedata Hotel()
     {
         var config = Options.Create(new GamedataConfig());
@@ -220,6 +362,7 @@ public sealed class HotelViewTests : IDisposable
                 writes,
                 _settings.Settings,
                 hotelTexts,
+                new HabboGamedataClient(_habbo, NullLogger<HabboGamedataClient>.Instance),
                 NullLogger<HotelViewService>.Instance
             ),
             new GamedataVariableService(
