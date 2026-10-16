@@ -154,7 +154,12 @@ internal sealed class PlayerProductClaimGrain : Grain, IPlayerProductClaimGrain
 
         if (
             parts.Length < 3
-            || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var type)
+            || !int.TryParse(
+                parts[0],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var type
+            )
             || !int.TryParse(
                 parts[1],
                 NumberStyles.None,

@@ -28,7 +28,11 @@ public class ClaimProductMessageHandler(IGrainFactory grainFactory)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new ClaimProductResultMessageComposer { ClaimId = message.ClaimId, Result = result },
+                new ClaimProductResultMessageComposer
+                {
+                    ClaimId = message.ClaimId,
+                    Result = result,
+                },
                 ct
             )
             .ConfigureAwait(false);

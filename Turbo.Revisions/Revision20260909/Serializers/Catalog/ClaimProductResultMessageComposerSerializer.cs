@@ -6,7 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Serializers.Catalog;
 internal class ClaimProductResultMessageComposerSerializer(int header)
     : AbstractSerializer<ClaimProductResultMessageComposer>(header)
 {
-    protected override void Serialize(IServerPacket packet, ClaimProductResultMessageComposer message)
+    protected override void Serialize(
+        IServerPacket packet,
+        ClaimProductResultMessageComposer message
+    )
     {
         packet.WriteString(message.ClaimId).WriteInteger((int)message.Result);
     }

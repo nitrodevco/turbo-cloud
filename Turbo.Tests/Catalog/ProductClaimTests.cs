@@ -103,7 +103,9 @@ public sealed class ProductClaimTests : IDisposable
     public async Task The_answers_are_written_as_the_client_reads_them()
     {
         PacketHarness
-            .Encode(new HasClaimedProductResponseMessageComposer { ClaimId = CLAIM, HasClaimed = true })
+            .Encode(
+                new HasClaimedProductResponseMessageComposer { ClaimId = CLAIM, HasClaimed = true }
+            )
             .Should()
             .Match<ClientPacket>(p => p.PopString() == CLAIM && p.PopBoolean() && p.Remaining == 0);
         PacketHarness
@@ -115,7 +117,9 @@ public sealed class ProductClaimTests : IDisposable
                 }
             )
             .Should()
-            .Match<ClientPacket>(p => p.PopString() == CLAIM && p.PopInt() == 1 && p.Remaining == 0);
+            .Match<ClientPacket>(p =>
+                p.PopString() == CLAIM && p.PopInt() == 1 && p.Remaining == 0
+            );
     }
 
     [Fact]
@@ -161,7 +165,9 @@ public sealed class ProductClaimTests : IDisposable
         (await grain.ClaimAsync("off", 0, Ct)).Should().Be(ProductClaimResult.NotActive);
         (await grain.ClaimAsync(CLAIM, 2, Ct)).Should().Be(ProductClaimResult.Failed);
         // Two choices: a claim sent without one (the special items display's form) picks none.
-        (await grain.ClaimAsync(CLAIM, -1, Ct)).Should().Be(ProductClaimResult.Failed);
+        (await grain.ClaimAsync(CLAIM, -1, Ct))
+            .Should()
+            .Be(ProductClaimResult.Failed);
         (await grain.ClaimAsync("no_palette", -1, Ct)).Should().Be(ProductClaimResult.Failed);
 
         (await grain.HasClaimedAsync(CLAIM, Ct)).Should().BeFalse();
@@ -184,7 +190,9 @@ public sealed class ProductClaimTests : IDisposable
         );
 
         asked.Should().ContainSingle();
-        asked[0].Header.Should().Be(PacketHarness.Outgoing("HasClaimedProductResponseMessageComposer"));
+        asked[0]
+            .Header.Should()
+            .Be(PacketHarness.Outgoing("HasClaimedProductResponseMessageComposer"));
         asked[0].PopString().Should().Be(CLAIM);
         asked[0].PopBoolean().Should().BeFalse();
 
