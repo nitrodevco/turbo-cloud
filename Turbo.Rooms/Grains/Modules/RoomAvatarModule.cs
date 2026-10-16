@@ -899,11 +899,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         CancellationToken ct
     )
     {
-        if (
-            snapshot.PlayerId <= 0
-            || !TryGetPlayer(snapshot.PlayerId, out var avatarPlayer)
-            || !avatarPlayer.UpdateWithPlayer(snapshot)
-        )
+        if (snapshot.PlayerId <= 0 || !TryGetPlayer(snapshot.PlayerId, out var avatarPlayer))
+            return Task.FromResult(false);
+
+        var previousName = avatarPlayer.Name;
+
+        if (!avatarPlayer.UpdateWithPlayer(snapshot))
             return Task.FromResult(false);
 
         _roomGrain.SendComposerToRoomAndForget(
@@ -917,6 +918,20 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 BadgesRank = snapshot.BadgesRank,
             }
         );
+
+        // A new name: each client renames the user by room index, and the player's own session
+        // takes it as its name (AS3 1318 RoomUsersHandler.onUserNameChange :278,
+        // SessionDataManager.onUserNameChange :517; UserNameChangedMessageParser reads webId, room
+        // index, name).
+        if (avatarPlayer.Name != previousName)
+            _roomGrain.SendComposerToRoomAndForget(
+                new UserNameChangedMessageComposer
+                {
+                    WebId = (int)snapshot.PlayerId,
+                    Id = avatarPlayer.ObjectId.Value,
+                    Name = avatarPlayer.Name,
+                }
+            );
 
         return Task.FromResult(true);
     }

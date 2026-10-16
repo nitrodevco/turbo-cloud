@@ -17,9 +17,11 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Commands;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Avatars.Bot;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
@@ -56,6 +58,7 @@ public class PetAndScoreCommandsTests
             new EjectPetsCommand(),
             new ResetScoresCommand(),
             new MutePetsCommand(),
+            new MuteBotsCommand(),
         ]);
         _room.Harness.Fakes.Handlers["ReturnPetAsync"] = _ => Task.FromResult(true);
     }
@@ -129,6 +132,78 @@ public class PetAndScoreCommandsTests
 
         await PetSaysAsync(pet, "woof");
         _room.SaidToRoom().Should().Equal("woof");
+    }
+
+    [Fact]
+    public async Task A_room_set_to_mute_all_pets_sends_no_one_what_pets_say()
+    {
+        _room.AddPlayer(VISITOR);
+        _room.AddPlayer(BUILDER);
+        var pet = AddPet(VISITORS_PET, 101, VISITOR);
+
+        var state = _room.Harness.State;
+        var snapshot = state.GetType().GetProperty("RoomSnapshot", All)!;
+
+        snapshot.SetValue(
+            state,
+            (RoomSnapshot)snapshot.GetValue(state)! with
+            {
+                MuteAllPets = true,
+            }
+        );
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        await PetSaysAsync(pet, "woof");
+
+        _room.SaidToRoom().Should().BeEmpty();
+        PetLinesTo(VISITOR).Should().BeEmpty();
+        PetLinesTo(BUILDER).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Mutebots_stops_and_restarts_bot_talk_for_the_player_alone()
+    {
+        _room.AddPlayer(VISITOR, PermissionNodes.Command.MUTEBOTS);
+        _room.AddPlayer(BUILDER);
+        var bot = AddBot(102);
+
+        await _room.SayAsync(VISITOR, ":mutebots");
+        _room.SaidToRoom().Should().BeEmpty("the line is a command, not chat");
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        await _room.Harness.Room.ChatSystem.SayAsAvatarAsync(bot, "beep", new AvatarSpeech(), Ct);
+        PetLinesTo(VISITOR).Should().BeEmpty();
+        PetLinesTo(BUILDER).Should().Equal("beep");
+
+        await _room.SayAsync(VISITOR, ":mutebots");
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        await _room.Harness.Room.ChatSystem.SayAsAvatarAsync(bot, "beep", new AvatarSpeech(), Ct);
+        _room.SaidToRoom().Should().Equal("beep");
+    }
+
+    private IRoomBot AddBot(int objectId)
+    {
+        var bot = new RoomBotAvatar
+        {
+            ObjectId = objectId,
+            BotId = objectId,
+            OwnerId = OWNER,
+            OwnerName = $"player{OWNER}",
+            RoomId = 1,
+            Skills = [],
+        };
+        bot.SetPosition(2, 2);
+        var state = _room.Harness.State;
+
+        (
+            (IDictionary<RoomObjectId, IRoomAvatar>)
+                RoomHarness.GetMember(state, "AvatarsByObjectId")!
+        )[objectId] = bot;
+        ((IList<IRoomBot>)RoomHarness.GetMember(state, "Bots")!).Add(bot);
+        _room.Harness.Module<RoomMapModule>().AddAvatar(bot, false);
+
+        return bot;
     }
 
     private Task PetSaysAsync(IRoomPet pet, string line) =>

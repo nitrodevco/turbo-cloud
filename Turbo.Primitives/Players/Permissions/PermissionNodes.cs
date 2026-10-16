@@ -146,6 +146,12 @@ public static class PermissionNodes
         public const string RESETSCORES = "command.resetscores";
         public const string MUTEPETS = "command.mutepets";
 
+        /// <summary>
+        /// <c>:mutebots</c> ("Ignore bot chats", habbopages): the Flash client has no case for
+        /// it, so it reaches the server as chat like any other line.
+        /// </summary>
+        public const string MUTEBOTS = "command.mutebots";
+
         /// <summary>Go ahead with a line the server asked to have confirmed.</summary>
         public const string CONFIRM = "command.confirm";
 
