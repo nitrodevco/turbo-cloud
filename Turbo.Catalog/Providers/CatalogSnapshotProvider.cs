@@ -39,6 +39,23 @@ public sealed class CatalogSnapshotProvider<TTag>(
         return Current;
     }
 
+    public void SetLtdRemaining(int seriesId, int remaining)
+    {
+        // Swapped in only over the snapshot it was made from, so a reload or another sale that
+        // lands first is not overwritten.
+        while (true)
+        {
+            var current = Volatile.Read(ref _current);
+            var next = current.WithLtdRemaining(seriesId, remaining);
+
+            if (ReferenceEquals(next, current))
+                return;
+
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _current, next, current), current))
+                return;
+        }
+    }
+
     public async Task ReloadAsync(CancellationToken ct)
     {
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);

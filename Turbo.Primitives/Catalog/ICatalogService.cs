@@ -11,6 +11,12 @@ public interface ICatalogService
     public CatalogSnapshot GetCatalogSnapshot(CatalogType catalogType);
 
     /// <summary>
+    /// A limited series sold one: the normal catalog's page and product offer say how many are
+    /// left from now on (the limited item widget asks again every 20 seconds).
+    /// </summary>
+    public void SetLtdRemaining(int seriesId, int remaining);
+
+    /// <summary>
     /// The Habbo Club memberships on sale, cheapest first. The buyer-dependent fields are left
     /// at zero; the caller fills them with <see cref="Snapshots.ClubOfferSnapshot.ForSubscription"/>.
     /// </summary>

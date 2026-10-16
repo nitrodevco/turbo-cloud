@@ -12,4 +12,10 @@ public interface ICatalogSnapshotProvider<TTag>
     public CatalogSnapshot Current { get; }
     public Task<CatalogSnapshot> GetSnapshotAsync(CancellationToken ct);
     public Task ReloadAsync(CancellationToken ct);
+
+    /// <summary>
+    /// A sale from a limited series changed how many are left: the catalog shows the new count
+    /// without being reloaded.
+    /// </summary>
+    public void SetLtdRemaining(int seriesId, int remaining);
 }

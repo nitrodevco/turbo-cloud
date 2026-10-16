@@ -85,7 +85,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         {
             try
             {
-                await ExecuteRaffleAsync(ct);
+                await ExecuteRaffleAsync();
             }
             catch (Exception ex)
             {
@@ -169,28 +169,33 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 ? _state.Series.RaffleWindowSeconds
                 : _config.LtdRaffle.DefaultBufferSeconds;
 
-        if (buffer <= 0 || _state.RaffleFinished)
-        {
-            var instantWin = await TryFinalizeWinnerAsync(playerId, null, false, ct);
-            return instantWin
-                ? LtdRaffleEntryResult.Succeeded("instant")
-                : LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SoldOut);
-        }
-
+        // Every sale is a won entry, the raffle's and the ones after it, so the limit holds
+        // for both.
         if (_config.LtdRaffle.LimitOnePerCustomer)
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
+            // The column is an int; compared with the PlayerId itself the query can not be
+            // translated.
+            var buyerId = (int)playerId;
             var alreadyWon = await dbCtx.LtdRaffleEntries.AnyAsync(
                 e =>
                     e.SeriesEntityId == _state.Series.Id
-                    && e.PlayerEntityId == playerId
+                    && e.PlayerEntityId == buyerId
                     && e.Result == "won",
                 ct
             );
 
             if (alreadyWon)
                 return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
+        }
+
+        if (buffer <= 0 || _state.RaffleFinished)
+        {
+            var instantWin = await TryFinalizeWinnerAsync(playerId, null, false, ct);
+            return instantWin
+                ? LtdRaffleEntryResult.Succeeded("instant")
+                : LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SoldOut);
         }
 
         if (_state.CurrentBatchEntries.ContainsKey(playerId))
@@ -201,8 +206,9 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             _state.CurrentBatchId = Guid.NewGuid().ToString();
             _state.IsInBufferPeriod = true;
             _raffleTimer = this.RegisterGrainTimer<object?>(
-                static async (self, ct) =>
-                    await ((CatalogLtdRaffleGrain)self!).ExecuteRaffleAsync(ct),
+                // The timer's token is not passed on: the draw disposes this timer, which
+                // cancels that token, and a draw stopped there answers no one.
+                static async (self, _) => await ((CatalogLtdRaffleGrain)self!).ExecuteRaffleAsync(),
                 this,
                 TimeSpan.FromSeconds(buffer),
                 Timeout.InfiniteTimeSpan
@@ -227,8 +233,14 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         return LtdRaffleEntryResult.Succeeded(_state.CurrentBatchId);
     }
 
-    private async Task ExecuteRaffleAsync(CancellationToken ct)
+    /// <summary>
+    /// Draws the running batch. Not cancellable: once the batch is taken every entrant is
+    /// answered, won or lost, or their purchase window would wait on a result that never comes.
+    /// </summary>
+    private async Task ExecuteRaffleAsync()
     {
+        var ct = CancellationToken.None;
+
         if (_state.CurrentBatchId == null || _state.CurrentBatchEntries.Count == 0)
         {
             _state.IsInBufferPeriod = false;
@@ -356,24 +368,47 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
             series.RemainingQuantity--;
 
-            if (batchId != null)
-            {
-                var entry = await dbCtx
-                    .LtdRaffleEntries.OrderBy(e => e.Id)
-                    .FirstOrDefaultAsync(e => e.BatchId == batchId && e.PlayerEntityId == playerId);
+            var entry =
+                batchId == null
+                    ? null
+                    : await dbCtx
+                        .LtdRaffleEntries.OrderBy(e => e.Id)
+                        .FirstOrDefaultAsync(e =>
+                            e.BatchId == batchId && e.PlayerEntityId == playerId
+                        );
 
-                if (entry != null)
+            // A sale after the raffle is a batch of one. It is written down like a raffle win,
+            // or the next random serial could be one already handed out.
+            if (entry == null)
+            {
+                var now = DateTime.UtcNow;
+
+                entry = new LtdRaffleEntryEntity
                 {
-                    entry.Result = "won";
-                    entry.SerialNumber = serial;
-                    entry.ProcessedAt = DateTime.UtcNow;
-                }
+                    SeriesEntityId = series.Id,
+                    PlayerEntityId = playerId,
+                    BatchId = batchId ?? Guid.NewGuid().ToString(),
+                    EnteredAt = now,
+                    Result = "won",
+                };
+
+                dbCtx.LtdRaffleEntries.Add(entry);
             }
+
+            entry.Result = "won";
+            entry.SerialNumber = serial;
+            entry.ProcessedAt = DateTime.UtcNow;
 
             await dbCtx.SaveChangesAsync();
             await tx.CommitAsync();
 
             committed = true;
+
+            // What is left, as the catalog page, the product offer and the next entrant see it.
+            _catalogService.SetLtdRemaining(series.Id, series.RemainingQuantity);
+
+            if (_state.Series is { } held)
+                _state.Series = held with { RemainingQuantity = series.RemainingQuantity };
 
             await _grainFactory
                 .GetInventoryGrain(playerId)
@@ -634,6 +669,6 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     public async Task ForceRunRaffleAsync(CancellationToken ct)
     {
         _raffleTimer?.Dispose();
-        await ExecuteRaffleAsync(ct);
+        await ExecuteRaffleAsync();
     }
 }
