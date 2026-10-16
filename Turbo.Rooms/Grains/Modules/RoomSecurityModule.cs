@@ -267,11 +267,16 @@ public sealed class RoomSecurityModule(
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         var controllerLevel = await GetControllerLevelAsync(playerId);
-        var playerPresence = _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId);
+        var inRoom = AvatarModule.TryGetPlayer(playerId, out var avatar);
 
-        await playerPresence
-            .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct)
-            .ConfigureAwait(false);
+        // Habbo tells YouAreController / YouAreNotController only when the level moved: a member
+        // joining or kicked from the homeroom's group without rights is told neither (official
+        // client captures: 2 joins, 2 kicks), one made or unmade an admin is (3 of 3).
+        if (!inRoom || ShownControllerLevel(avatar!) != controllerLevel)
+            await _roomGrain
+                ._grainFactory.GetPlayerPresenceGrain(playerId)
+                .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct)
+                .ConfigureAwait(false);
 
         // Whatever else depends on the level (the wired permissions a player is shown) hears it
         // here, so this module does not have to know who that is.
@@ -286,8 +291,28 @@ public sealed class RoomSecurityModule(
             ct
         );
 
+        // Then, as in the entry, whether they may manage raid protection (official client
+        // captures: after WiredPermissions on every level refresh, 7 of 7).
+        if (inRoom)
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new RaidProtectionCapabilityMessageComposer
+                {
+                    RoomId = _roomGrain.RoomId,
+                    CanManage = _roomGrain.CanManageRaidProtection(controllerLevel),
+                },
+                ct
+            );
+
         ShowControllerLevel(playerId, controllerLevel);
     }
+
+    /// <summary>The level the avatar shows (its <c>flatctrl</c> status), none if it shows none.</summary>
+    private static RoomControllerType ShownControllerLevel(IRoomPlayer avatar) =>
+        avatar.Statuses.TryGetValue(AvatarStatusType.FlatControl, out var shown)
+        && int.TryParse(shown, out var level)
+            ? (RoomControllerType)level
+            : RoomControllerType.None;
 
     /// <summary>
     /// The level of a player who has just walked in, shown on their avatar. What the client is

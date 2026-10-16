@@ -338,6 +338,13 @@ public class RoomConfig
     public bool RaidProtectionEnabled { get; init; } = true;
 
     /// <summary>
+    /// The lowest controller level told it may manage raid protection, and allowed to read and
+    /// save it. Habbo tells every player with rights in the room it may (official client
+    /// captures: rights 2 of 2, group admin 1 of 1, owner 25 of 25; none 12 of 12 told not).
+    /// </summary>
+    public RoomControllerType RaidProtectionManageLevel { get; init; } = RoomControllerType.Rights;
+
+    /// <summary>
     /// The temporary ban lengths raid protection accepts: the client's ban length menu
     /// (<c>RaidProtectionSettingsController.BAN_DURATION_VALUES</c>), 5 minutes to 1 week.
     /// </summary>
