@@ -17,7 +17,21 @@ internal class CatalogIndexMessageComposerSerializer(int header)
         if (!message.Catalog.PagesById.TryGetValue(message.Catalog.RootPageId, out var rootPage))
             return;
 
-        SerializePage(packet, message.Catalog, rootPage);
+        // The root is the index, not a page: Habbo sends it as page -1 named "root" with no
+        // title or icon, whatever the row above the tabs holds, and the client stops its walk
+        // up the tree at the node whose parent is named "root".
+        SerializePage(
+            packet,
+            message.Catalog,
+            rootPage with
+            {
+                Id = -1,
+                Name = "root",
+                Localization = string.Empty,
+                Icon = 0,
+                Visible = true,
+            }
+        );
 
         packet
             .WriteBoolean(message.NewAdditionsAvailable)
