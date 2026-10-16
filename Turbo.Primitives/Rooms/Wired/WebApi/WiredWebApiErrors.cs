@@ -14,7 +14,8 @@ public static class WiredWebApiErrors
     public const string OPERATION_NOT_ALLOWED = "wired.variables.operation_not_allowed";
     public const string USER_NOT_PARTICIPATING = "wired.variables.user_not_participating";
     public const string BULK_DELETE_EMPTY = "wired.variables.bulk_delete_empty";
-    public const string BULK_DELETE_INVALID_VARIABLE = "wired.variables.bulk_delete_invalid_variable";
+    public const string BULK_DELETE_INVALID_VARIABLE =
+        "wired.variables.bulk_delete_invalid_variable";
     public const string BULK_DELETE_NOT_ENABLED = "wired.variables.bulk_delete_not_enabled";
     public const string BATCH_EMPTY = "wired.variables.batch_empty";
     public const string BATCH_LIMIT_EXCEEDED = "wired.variables.batch_limit_exceeded";

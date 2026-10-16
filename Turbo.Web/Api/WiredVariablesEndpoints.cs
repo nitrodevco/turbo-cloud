@@ -51,7 +51,10 @@ internal sealed class WiredVariablesEndpoints(
             "/variables/global/{variableName}",
             Handle(WiredWebApiOperation.PatchGlobal)
         );
-        rooms.MapPost("/variables/{scope}/{variableName}/batch", Handle(WiredWebApiOperation.Batch));
+        rooms.MapPost(
+            "/variables/{scope}/{variableName}/batch",
+            Handle(WiredWebApiOperation.Batch)
+        );
         rooms.MapGet(
             "/variables/{scope}/{variableName}/{targetKind}",
             Handle(WiredWebApiOperation.ListValues)
@@ -99,7 +102,11 @@ internal sealed class WiredVariablesEndpoints(
 
         if (!_limits.TryAcquire(roomId, operation))
         {
-            await WriteAsync(http, WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS), Error(WiredWebApiErrors.TOO_MANY_REQUESTS));
+            await WriteAsync(
+                http,
+                WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS),
+                Error(WiredWebApiErrors.TOO_MANY_REQUESTS)
+            );
 
             return;
         }
@@ -152,7 +159,14 @@ internal sealed class WiredVariablesEndpoints(
 
     private async Task<string?> ReadBodyAsync(HttpContext http, CancellationToken ct)
     {
-        if (http.Request.ContentLength is 0 || !(HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsPut(http.Request.Method) || HttpMethods.IsPatch(http.Request.Method)))
+        if (
+            http.Request.ContentLength is 0
+            || !(
+                HttpMethods.IsPost(http.Request.Method)
+                || HttpMethods.IsPut(http.Request.Method)
+                || HttpMethods.IsPatch(http.Request.Method)
+            )
+        )
             return null;
 
         var buffer = new char[Api.MaxBodyBytes];

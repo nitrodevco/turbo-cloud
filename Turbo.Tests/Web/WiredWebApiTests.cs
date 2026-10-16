@@ -18,7 +18,6 @@ using Turbo.Database.Entities.Room;
 using Turbo.Players.Accounts;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Authentication;
-
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
@@ -124,13 +123,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         )
             .ErrorKey.Should()
             .Be(WiredSaveErrors.INVALID_API_KEYS);
-        (
-            await _room.SaveAsync<UpdateAddonMessage>(
-                ADDON,
-                intParams: [1],
-                stringParam: read + "\t"
-            )
-        )
+        (await _room.SaveAsync<UpdateAddonMessage>(ADDON, intParams: [1], stringParam: read + "\t"))
             .Should()
             .BeTrue();
 
@@ -266,8 +259,13 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .GetValue<string>()
             .Should()
             .Be("3");
-        (await JsonAsync(HttpMethod.Get, "/api/public/rooms/1/variables_profile/global", read: read))!
-            ["variables"]!["round"]!["value"]!
+        (
+            await JsonAsync(
+                HttpMethod.Get,
+                "/api/public/rooms/1/variables_profile/global",
+                read: read
+            )
+        )!["variables"]!["round"]!["value"]!
             .GetValue<string>()
             .Should()
             .Be("3");
@@ -298,11 +296,18 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         results.Select(x => (string?)x!["op_id"]).Should().Equal("put", "get", "bad", null);
         results.Select(x => (int)x!["status"]!).Should().Equal(200, 200, 400, 204);
         results[1]!["body"]!["value"]!.GetValue<string>().Should().Be("7");
-        results[2]!["error"]!["code"]!.GetValue<string>().Should().Be("wired.variables.invalid_target");
+        results[2]!["error"]!["code"]!
+            .GetValue<string>()
+            .Should()
+            .Be("wired.variables.invalid_target");
 
-        var tooMany = new JsonArray(
-            [.. Enumerable.Range(0, 51).Select(_ => (JsonNode)new JsonObject { ["method"] = "GET", ["path"] = $"users/{PLAYER_ID}" })]
-        );
+        var tooMany = new JsonArray([
+            .. Enumerable
+                .Range(0, 51)
+                .Select(_ =>
+                    (JsonNode)new JsonObject { ["method"] = "GET", ["path"] = $"users/{PLAYER_ID}" }
+                ),
+        ]);
 
         (
             await SendAsync(
@@ -351,11 +356,16 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         )
             .Should()
             .Be((404, "wired.variables.entity_not_found"));
-        (await JsonAsync(
-            HttpMethod.Get,
-            $"/api/public/rooms/1/variables/user/points/users/count",
-            read: read
-        ))!["count"]!.GetValue<int>().Should().Be(0);
+        (
+            await JsonAsync(
+                HttpMethod.Get,
+                $"/api/public/rooms/1/variables/user/points/users/count",
+                read: read
+            )
+        )!["count"]!
+            .GetValue<int>()
+            .Should()
+            .Be(0);
     }
 
     [Fact]
@@ -379,14 +389,21 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     public async Task Each_room_has_its_own_limit_per_kind_of_call()
     {
         await using var limited = new WiredWebApiTests(
-            new WiredApiConfig { Writes = new WiredApiLimit { PerMinute = 120, Burst = 2 } }
+            new WiredApiConfig
+            {
+                Writes = new WiredApiLimit { PerMinute = 120, Burst = 2 },
+            }
         );
         var (_, write) = await limited.SetUpAsync();
         var path = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
         var body = """{"value":"1"}""";
 
-        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body)).Status.Should().Be(200);
-        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body)).Status.Should().Be(200);
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
+            .Status.Should()
+            .Be(200);
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
+            .Status.Should()
+            .Be(200);
         (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
             .Should()
             .Be((429, "wired.variables.too_many_requests"));
@@ -397,9 +414,30 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         _room.Enter(PLAYER_INDEX, 1, 1);
         _room.AddFloorItem(CHAIR, 2, 2);
         _room.AddWallItem(WALL_LAMP);
-        await AddVariableAsync<WiredVariableFurni>(FURNI_VAR, 5, 5, "wf_var_furni", [1, (int)WiredAvailabilityType.RoomActive], "hp");
-        await AddVariableAsync<WiredVariableUser>(USER_VAR, 5, 6, "wf_var_user", [(int)WiredAvailabilityType.UserActive, 1], "points");
-        await AddVariableAsync<WiredVariableRoom>(GLOBAL_VAR, 5, 7, "wf_var_room", [(int)WiredAvailabilityType.RoomActive], "round");
+        await AddVariableAsync<WiredVariableFurni>(
+            FURNI_VAR,
+            5,
+            5,
+            "wf_var_furni",
+            [1, (int)WiredAvailabilityType.RoomActive],
+            "hp"
+        );
+        await AddVariableAsync<WiredVariableUser>(
+            USER_VAR,
+            5,
+            6,
+            "wf_var_user",
+            [(int)WiredAvailabilityType.UserActive, 1],
+            "points"
+        );
+        await AddVariableAsync<WiredVariableRoom>(
+            GLOBAL_VAR,
+            5,
+            7,
+            "wf_var_room",
+            [(int)WiredAvailabilityType.RoomActive],
+            "round"
+        );
 
         _room.AddBox<WiredAddonVariablesWebApi>(ADDON, 0, 0, "wf_xtra_var_web_api");
         var read = await IssueAsync(true);
@@ -430,7 +468,14 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             )
         )!;
 
-    private async Task AddVariableAsync<T>(int id, int x, int y, string logic, int[] intParams, string name)
+    private async Task AddVariableAsync<T>(
+        int id,
+        int x,
+        int y,
+        string logic,
+        int[] intParams,
+        string name
+    )
         where T : FurnitureWiredVariableLogic
     {
         var box = _room.AddBox<T>(id, x, y, logic);
@@ -450,7 +495,9 @@ public sealed class WiredWebApiTests : IAsyncDisposable
                 },
                 Ct
             );
-        await _room.Harness.Module<RoomWiredSystem>().ProcessWiredAsync(_nowMs += 10_000, dormant: false, Ct);
+        await _room
+            .Harness.Module<RoomWiredSystem>()
+            .ProcessWiredAsync(_nowMs += 10_000, dormant: false, Ct);
     }
 
     private async Task<(int Status, string? Error)> SendAsync(

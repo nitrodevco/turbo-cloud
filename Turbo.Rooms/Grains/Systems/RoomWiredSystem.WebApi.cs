@@ -37,8 +37,10 @@ public sealed partial class RoomWiredSystem
     private const int DEFAULT_PAGE_SIZE = 50;
     private const int MAX_PAGE_SIZE = 100;
 
-    private readonly Dictionary<(WiredVariableId, string), (int Count, long ExpiresAtMs)> _webApiCounts =
-        [];
+    private readonly Dictionary<
+        (WiredVariableId, string),
+        (int Count, long ExpiresAtMs)
+    > _webApiCounts = [];
 
     public async Task<WiredWebApiResponse> HandleWebApiAsync(
         WiredWebApiRequest request,
@@ -222,7 +224,11 @@ public sealed partial class RoomWiredSystem
     ) =>
         WebApiVariables(targetType)
             .FirstOrDefault(variable =>
-                string.Equals(variable.GetVarSnapshot().VariableName, name, StringComparison.Ordinal)
+                string.Equals(
+                    variable.GetVarSnapshot().VariableName,
+                    name,
+                    StringComparison.Ordinal
+                )
             );
 
     private static WiredVariableTargetType ScopeTarget(string scope) =>
@@ -292,7 +298,9 @@ public sealed partial class RoomWiredSystem
                     : new WiredWebApiEntity(WiredVariableTargetType.User, targetKind, id, -1, null);
             case WiredWebApiEntity.PETS:
             {
-                var pet = AvatarModule.Avatars.OfType<IRoomPet>().FirstOrDefault(x => x.PetId == id);
+                var pet = AvatarModule
+                    .Avatars.OfType<IRoomPet>()
+                    .FirstOrDefault(x => x.PetId == id);
 
                 return new WiredWebApiEntity(
                     WiredVariableTargetType.User,
@@ -304,7 +312,9 @@ public sealed partial class RoomWiredSystem
             }
             case WiredWebApiEntity.BOTS:
             {
-                var bot = AvatarModule.Avatars.OfType<IRoomBot>().FirstOrDefault(x => x.BotId == id);
+                var bot = AvatarModule
+                    .Avatars.OfType<IRoomBot>()
+                    .FirstOrDefault(x => x.BotId == id);
 
                 return new WiredWebApiEntity(
                     WiredVariableTargetType.User,
@@ -509,7 +519,8 @@ public sealed partial class RoomWiredSystem
             return WiredWebApiErrors.OPERATION_NOT_ALLOWED;
 
         if (!entity.IsHere)
-            return entity.Kind == WiredWebApiEntity.USERS
+            return
+                entity.Kind == WiredWebApiEntity.USERS
                 && variable.RemoveAbsentPlayerValue(entity.ApiId)
                 ? null
                 : WiredWebApiErrors.NOT_FOUND;
@@ -539,8 +550,9 @@ public sealed partial class RoomWiredSystem
             {
                 var apiId = avatar switch
                 {
-                    IRoomPlayer player when targetKind == WiredWebApiEntity.USERS =>
-                        player.PlayerId.Value,
+                    IRoomPlayer player when targetKind == WiredWebApiEntity.USERS => player
+                        .PlayerId
+                        .Value,
                     IRoomPet pet when targetKind == WiredWebApiEntity.PETS => pet.PetId,
                     IRoomBot bot when targetKind == WiredWebApiEntity.BOTS => bot.BotId,
                     _ => -1,
@@ -635,15 +647,21 @@ public sealed partial class RoomWiredSystem
     {
         var page = Math.Max(1, request.Page ?? 1);
         var size = Math.Clamp(request.Size ?? DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
-        var descending = string.Equals(request.OrderDir, "desc", StringComparison.OrdinalIgnoreCase);
+        var descending = string.Equals(
+            request.OrderDir,
+            "desc",
+            StringComparison.OrdinalIgnoreCase
+        );
         var holders = HoldersOf(variable, request.TargetKind);
-        Func<(int ApiId, WiredVariableValue Value, long CreatedAtMs, long UpdatedAtMs), long> order =
-            request.OrderBy switch
-            {
-                "value" => holder => holder.Value.Value,
-                "update_time" => holder => holder.UpdatedAtMs,
-                _ => holder => holder.CreatedAtMs,
-            };
+        Func<
+            (int ApiId, WiredVariableValue Value, long CreatedAtMs, long UpdatedAtMs),
+            long
+        > order = request.OrderBy switch
+        {
+            "value" => holder => holder.Value.Value,
+            "update_time" => holder => holder.UpdatedAtMs,
+            _ => holder => holder.CreatedAtMs,
+        };
         var ordered = descending
             ? holders.OrderByDescending(order).ThenBy(holder => holder.ApiId)
             : holders.OrderBy(order).ThenBy(holder => holder.ApiId);
@@ -651,7 +669,11 @@ public sealed partial class RoomWiredSystem
 
         foreach (var holder in ordered.Skip((page - 1) * size).Take(size))
         {
-            var item = WiredWebApiJson.Variable(holder.Value, holder.CreatedAtMs, holder.UpdatedAtMs);
+            var item = WiredWebApiJson.Variable(
+                holder.Value,
+                holder.CreatedAtMs,
+                holder.UpdatedAtMs
+            );
 
             item.Insert(0, "id", holder.ApiId);
             items.Add(item);
@@ -676,8 +698,7 @@ public sealed partial class RoomWiredSystem
         if (!addon.AllowsBulkDelete)
             return WiredWebApiJson.Error(403, WiredWebApiErrors.BULK_DELETE_NOT_ENABLED);
 
-        var names =
-            body is null ? null : JsonNode.Parse(body)?["variables"] as JsonArray;
+        var names = body is null ? null : JsonNode.Parse(body)?["variables"] as JsonArray;
 
         if (names is null || names.Count == 0)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.BULK_DELETE_EMPTY);
@@ -686,7 +707,8 @@ public sealed partial class RoomWiredSystem
 
         foreach (var node in names)
         {
-            var name = node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+            var name =
+                node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
             var variable = name is null
                 ? null
                 : FindWebApiVariable(name, WiredVariableTargetType.User)
@@ -780,9 +802,7 @@ public sealed partial class RoomWiredSystem
         return player is null
             ? WiredWebApiJson.Error(404, WiredWebApiErrors.ENTITY_NOT_FOUND)
             : WiredWebApiJson.Ok(
-                ProfileOf(
-                    ResolveEntity(WiredWebApiEntity.USERS, player.PlayerId.Value.ToString())!
-                )
+                ProfileOf(ResolveEntity(WiredWebApiEntity.USERS, player.PlayerId.Value.ToString())!)
             );
     }
 
@@ -799,15 +819,15 @@ public sealed partial class RoomWiredSystem
     {
         var global =
             request.Operation
-                is WiredWebApiOperation.GetGlobalProfile
-                    or WiredWebApiOperation.PatchGlobalProfile;
-        var targetType = global
-            ? WiredVariableTargetType.Global
+            is WiredWebApiOperation.GetGlobalProfile
+                or WiredWebApiOperation.PatchGlobalProfile;
+        var targetType =
+            global ? WiredVariableTargetType.Global
             : request.Operation
                 is WiredWebApiOperation.GetFurniProfile
                     or WiredWebApiOperation.PatchFurniProfile
                 ? WiredVariableTargetType.Furni
-                : WiredVariableTargetType.User;
+            : WiredVariableTargetType.User;
         var kind = global ? WiredWebApiEntity.GLOBAL : request.TargetKind;
 
         if (!global && !WiredWebApiEntity.IsKindOf(kind, targetType))
@@ -817,7 +837,8 @@ public sealed partial class RoomWiredSystem
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET);
 
         var exists =
-            entity.IsHere || (entity.Kind == WiredWebApiEntity.USERS && HasUserProfile(entity.ApiId));
+            entity.IsHere
+            || (entity.Kind == WiredWebApiEntity.USERS && HasUserProfile(entity.ApiId));
 
         if (!exists)
             return WiredWebApiJson.Error(404, WiredWebApiErrors.ENTITY_NOT_FOUND);
@@ -855,7 +876,10 @@ public sealed partial class RoomWiredSystem
                     if (node is null)
                     {
                         if (global)
-                            return WiredWebApiJson.Error(403, WiredWebApiErrors.OPERATION_NOT_ALLOWED);
+                            return WiredWebApiJson.Error(
+                                403,
+                                WiredWebApiErrors.OPERATION_NOT_ALLOWED
+                            );
 
                         planned.Add((variable, null));
 
@@ -906,7 +930,13 @@ public sealed partial class RoomWiredSystem
 
             if (
                 !variables.ContainsKey(name)
-                && TryReadWebApiValue(variable, entity, out var value, out var created, out var updated)
+                && TryReadWebApiValue(
+                    variable,
+                    entity,
+                    out var value,
+                    out var created,
+                    out var updated
+                )
             )
                 variables[name] = WiredWebApiJson.Variable(value, created, updated);
         }

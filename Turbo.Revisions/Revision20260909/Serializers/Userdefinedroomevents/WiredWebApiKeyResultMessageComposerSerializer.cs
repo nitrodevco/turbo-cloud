@@ -11,6 +11,9 @@ internal class WiredWebApiKeyResultMessageComposerSerializer(int header)
         WiredWebApiKeyResultMessageComposer message
     )
     {
-        packet.WriteInteger(message.WiredId).WriteBoolean(message.IsReadKey).WriteString(message.Key);
+        packet
+            .WriteInteger(message.WiredId)
+            .WriteBoolean(message.IsReadKey)
+            .WriteString(message.Key);
     }
 }

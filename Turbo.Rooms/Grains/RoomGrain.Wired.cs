@@ -152,8 +152,10 @@ public sealed partial class RoomGrain
         if (
             snapshot is not null
             && FurniModule.TryGetItem(itemId, out var item)
-            && item.Logic is Object.Logic.Furniture.Floor.Wired.Addons.WiredAddonVariablesWebApi addon
-            && await SecurityModule.GetControllerLevelAsync(ctx) < addon.MinimumControllerLevelToSave
+            && item.Logic
+                is Object.Logic.Furniture.Floor.Wired.Addons.WiredAddonVariablesWebApi addon
+            && await SecurityModule.GetControllerLevelAsync(ctx)
+                < addon.MinimumControllerLevelToSave
         )
             return snapshot with { StringParam = string.Empty };
 

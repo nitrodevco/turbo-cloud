@@ -28,7 +28,12 @@ public class WiredGenerateWebApiKeyMessageHandler(IGrainFactory grainFactory)
 
         var key = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
-            .GenerateWiredWebApiKeyAsync(ctx.AsActionContext(), message.WiredId, message.IsReadKey, ct)
+            .GenerateWiredWebApiKeyAsync(
+                ctx.AsActionContext(),
+                message.WiredId,
+                message.IsReadKey,
+                ct
+            )
             .ConfigureAwait(false);
 
         if (key is null)

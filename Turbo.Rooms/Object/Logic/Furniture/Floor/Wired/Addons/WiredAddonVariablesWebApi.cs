@@ -82,13 +82,23 @@ public class WiredAddonVariablesWebApi(
         var read = KeyAt(update.StringParam, 0);
         var write = KeyAt(update.StringParam, 1);
 
-        if (!IsKnownKey(read, ReadKey, _issuedReadKeys) || !IsKnownKey(write, WriteKey, _issuedWriteKeys))
+        if (
+            !IsKnownKey(read, ReadKey, _issuedReadKeys)
+            || !IsKnownKey(write, WriteKey, _issuedWriteKeys)
+        )
             throw new WiredSaveRefusedException(WiredSaveErrors.INVALID_API_KEYS);
 
         _issuedReadKeys.Clear();
         _issuedWriteKeys.Clear();
 
-        return base.ApplyWiredUpdateAsync(ctx, update with { StringParam = read + KEY_SEPARATOR + write }, ct);
+        return base.ApplyWiredUpdateAsync(
+            ctx,
+            update with
+            {
+                StringParam = read + KEY_SEPARATOR + write,
+            },
+            ct
+        );
     }
 
     public override FurniturePickupConfirmation? GetPickupConfirmation() =>
