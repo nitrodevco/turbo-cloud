@@ -21,9 +21,8 @@ public class WiredActionChaseHabbo(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
-    // How far a furni notices a player, and how close counts as having caught one. The client
-    // has no setting for either; they are the classic chase behaviour.
-    private const int CHASE_RANGE = 3;
+    // How close counts as having caught a player: the furni never moves when adjacent (official
+    // client capture 2026-10-16). How far it notices one is WiredConfig.ChaseRange.
     private const int COLLISION_RANGE = 1;
     private const int NO_TILE = -1;
 
@@ -34,6 +33,7 @@ public class WiredActionChaseHabbo(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var map = MapModule;
+        var range = _roomGrain._wiredConfig.ChaseRange;
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {
@@ -43,7 +43,7 @@ public class WiredActionChaseHabbo(
             if (
                 AvatarModule.TryGetNearestPlayer(
                     floorIdx,
-                    CHASE_RANGE,
+                    range > 0 ? range : int.MaxValue,
                     out var player,
                     out var distance
                 )

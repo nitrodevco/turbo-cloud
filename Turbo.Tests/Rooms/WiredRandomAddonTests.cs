@@ -60,6 +60,27 @@ public sealed class WiredRandomAddonTests
                 .NotBe(landed[i - 1], $"click {i + 1} avoids the effect of click {i}");
     }
 
+    // Official client capture 2026-10-16 (Pick 1, Avoid last 2, two Toggle effects): 6 of 6 clicks
+    // alternated. Ours avoided both once each had run, then picked either at random.
+    [Fact]
+    public async Task AvoidingMoreExecutionsThanThereAreOtherEffects_StillAlternates()
+    {
+        await BuildAsync(avoid: 2, picks: 1);
+
+        var landed = new List<string>();
+
+        for (var i = 0; i < 20; i++)
+        {
+            await ClickAsync();
+            landed.Add(_room.Positions()[0]);
+        }
+
+        for (var i = 1; i < landed.Count; i++)
+            landed[i]
+                .Should()
+                .NotBe(landed[i - 1], $"click {i + 1} avoids the effect of click {i}");
+    }
+
     [Fact]
     public async Task AvoidingNothing_RunsOneOfTheEffects_NeitherIsLeftOut()
     {

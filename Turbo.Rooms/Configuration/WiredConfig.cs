@@ -189,6 +189,25 @@ public class WiredConfig
     public int ActionDelayMaxPulses { get; init; } = 120;
 
     /// <summary>
+    /// Teleport To without "fast teleportation" (official client capture 2026-10-16, walk-on +
+    /// Teleport To, 2 of 2 runs): the user gets this effect when the box fires, stands on the
+    /// target <see cref="TeleportDelayMs"/> later and loses the effect
+    /// <see cref="TeleportEffectMs"/> after the box fired.
+    /// </summary>
+    public int TeleportEffectId { get; init; } = 4;
+
+    public int TeleportDelayMs { get; init; } = 2000;
+
+    public int TeleportEffectMs { get; init; } = 3500;
+
+    /// <summary>
+    /// How many tiles away Chase notices a player; 0 is the whole room. Habbo chased from 7, 6,
+    /// 5, 4, 3 and 2 tiles in an 8-wide room (official client capture 2026-10-16), so no limit
+    /// showed there; ours stopped at 3. Farther than 7 is untested.
+    /// </summary>
+    public int ChaseRange { get; init; } = 0;
+
+    /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the
     /// match is given up and logged.
     /// </summary>

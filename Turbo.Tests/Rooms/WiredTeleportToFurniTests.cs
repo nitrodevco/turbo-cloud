@@ -3,6 +3,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -14,17 +15,22 @@ namespace Turbo.Tests.Rooms;
 /// "Teleport To Furni" with a signal's users, as a hotel builds it: a stack sends a signal with
 /// every user a selector picked, a second stack receives it and teleports those users onto a
 /// furni. The box is saved the way the client sends it, and run with a real execution context.
-/// A teleport puts a user down at once, so users already standing on the furni do not stop the
-/// others; a closed tile and a furni nobody can stand on still do.
+/// A teleport puts a user down without walking, so users already standing on the furni do not stop
+/// the others; a closed tile and a furni nobody can stand on still do. Without "fast teleportation"
+/// the user lands two seconds after the box fired (official client capture 2026-10-16).
 /// </summary>
 public sealed class WiredTeleportToFurniTests
 {
     private const int BOX = 7;
     private const int TARGET = 30;
 
+    private const long FIRED_AT = 10_000;
+
     private readonly WiredRoom _room = new(8, 8);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
 
     public WiredTeleportToFurniTests()
     {
@@ -149,14 +155,30 @@ public sealed class WiredTeleportToFurniTests
 
     // --- "Fast teleportation" ---
 
+    // Official client capture 2026-10-16 (walk-on + Teleport To, 2 of 2 runs): AvatarEffect 4 with
+    // the box flash, UserUpdate at the target +2.0 s, AvatarEffect 0 +3.5 s and no WiredMovements.
+    // Ours sent a WiredMovements glide (500 ms) in the tick the box fired.
     [Fact]
-    public async Task ATeleport_GlidesOverTheStacksAnimationTime_ByDefault()
+    public async Task ATeleport_ShowsTheEffect_LandsTwoSecondsLater_AndSendsNoWiredMovement()
     {
         var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers);
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
 
-        var context = await RunAsync(box, signalUsers: [5, 6, 7]);
+        var context = await RunAsync(box, signalUsers: [5]);
 
-        context.UserMoves.Select(m => m.AnimationTime).Should().Equal(500, 500, 500);
+        context.UserMoves.Should().BeEmpty();
+        _room.Avatars[5].EffectId.Should().Be(4);
+        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 1_950, dormant: false, Ct);
+        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 2_000, dormant: false, Ct);
+        _room.Positions().Should().Equal("5@5,5", "6@1,3", "7@3,1");
+        _room.Avatars[5].EffectId.Should().Be(4);
+
+        await Wired.ProcessWiredAsync(FIRED_AT + 3_500, dormant: false, Ct);
+        _room.Avatars[5].EffectId.Should().Be(0);
     }
 
     [Fact]
@@ -250,6 +272,11 @@ public sealed class WiredTeleportToFurniTests
             CancellationToken = Ct,
         };
 
-        return await box.ExecuteAsync(context, Ct);
+        var moved = await box.ExecuteAsync(context, Ct);
+
+        // Past the landing of a teleport that is not fast.
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
+
+        return moved;
     }
 }
