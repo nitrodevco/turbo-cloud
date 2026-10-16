@@ -25,6 +25,12 @@ public sealed class WiredApiConfig
 
     /// <summary>Batches and profile PATCHes (Habbo counts a profile PATCH as a batch); its burst is not published.</summary>
     public WiredApiLimit Batches { get; init; } = new() { PerMinute = 30, Burst = 10 };
+
+    /// <summary>
+    /// Writes a room's batches and profile PATCHes may make a minute between them, each write in
+    /// a batch and each variable a profile PATCH changes costing one; 0 for no limit.
+    /// </summary>
+    public int BatchWriteBudgetPerMinute { get; init; } = 500;
 }
 
 public sealed class WiredApiLimit

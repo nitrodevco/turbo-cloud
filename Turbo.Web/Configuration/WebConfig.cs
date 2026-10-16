@@ -54,4 +54,6 @@ public sealed class WebConfig
     public DiscordConfig Discord { get; init; } = new();
 
     public WiredApiConfig WiredApi { get; init; } = new();
+
+    public PublicApiConfig PublicApi { get; init; } = new();
 }

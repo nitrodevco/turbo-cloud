@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -41,6 +42,9 @@ public sealed partial class RoomWiredSystem
         (WiredVariableId, string),
         (int Count, long ExpiresAtMs)
     > _webApiCounts = [];
+
+    private long _webApiBudgetSinceMs;
+    private int _webApiBudgetSpent;
 
     public async Task<WiredWebApiResponse> HandleWebApiAsync(
         WiredWebApiRequest request,
@@ -185,7 +189,7 @@ public sealed partial class RoomWiredSystem
                 if (!TryGetScopedVariable(request, out var variable, out var refusal))
                     return refusal!;
 
-                return await RunBatchAsync(variable!, request.Body, ct);
+                return await RunBatchAsync(variable!, request.Body, request.BatchWriteBudget, ct);
             }
             case WiredWebApiOperation.FindUserProfile:
                 return FindUserProfile(request);
@@ -739,11 +743,14 @@ public sealed partial class RoomWiredSystem
 
     /// <summary>
     /// Up to 50 reads and writes of one variable, each answered in its own result with the
-    /// <c>op_id</c> it came with; one failing does not stop the rest.
+    /// <c>op_id</c> it came with; one failing does not stop the rest. Each write is paid from the
+    /// room's batched write budget, and one the budget cannot pay is answered 429 on its own
+    /// (<c>WiredBatchOperationResultError</c> allows a 429 per operation).
     /// </summary>
     private async Task<WiredWebApiResponse> RunBatchAsync(
         FurnitureWiredVariableLogic variable,
         string? body,
+        int writeBudget,
         CancellationToken ct
     )
     {
@@ -772,14 +779,17 @@ public sealed partial class RoomWiredSystem
             var response =
                 operation is null || path.Length != 2
                     ? WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET)
-                    : await RunValueOperationAsync(
-                        variable,
-                        operation.Value,
-                        path[0],
-                        path[1],
-                        node?["body"]?["value"],
-                        ct
-                    );
+                : operation != WiredWebApiOperation.GetValue
+                && !TrySpendWebApiWrites(writeBudget, 1)
+                    ? WiredWebApiJson.Error(429, WiredWebApiErrors.TOO_MANY_REQUESTS)
+                : await RunValueOperationAsync(
+                    variable,
+                    operation.Value,
+                    path[0],
+                    path[1],
+                    node?["body"]?["value"],
+                    ct
+                );
 
             results.Add(WiredWebApiJson.BatchResult(opId, response));
         }
@@ -787,23 +797,58 @@ public sealed partial class RoomWiredSystem
         return WiredWebApiJson.Ok(new JsonObject { ["results"] = results });
     }
 
+    /// <summary>
+    /// Pays writes from the room's batched write budget, writes a minute on top of the batch
+    /// call limit ("extra batched write-cost budget 500/min", The Wired Faculty,
+    /// #api-technical-info): all of them or none. A budget of 0 pays everything.
+    /// </summary>
+    private bool TrySpendWebApiWrites(int budget, int writes)
+    {
+        if (budget <= 0)
+            return true;
+
+        var now = _roomGrain.NowMs();
+
+        if (now - _webApiBudgetSinceMs >= 60_000)
+        {
+            _webApiBudgetSinceMs = now;
+            _webApiBudgetSpent = 0;
+        }
+
+        if (_webApiBudgetSpent + writes > budget)
+            return false;
+
+        _webApiBudgetSpent += writes;
+
+        return true;
+    }
+
+    /// <summary>
+    /// A player's profile by name or unique id, whether they are here or away holding a
+    /// permanent variable; the hotel names who the call means (<see cref="WiredWebApiRequest.PlayerId"/>).
+    /// </summary>
     private WiredWebApiResponse FindUserProfile(WiredWebApiRequest request)
     {
         if (string.IsNullOrEmpty(request.Name) && string.IsNullOrEmpty(request.UniqueId))
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET);
 
-        // Only the players here can be found by name; this hotel has no unique ids to look up.
-        var player = string.IsNullOrEmpty(request.Name)
+        var here = string.IsNullOrEmpty(request.Name)
             ? null
             : AvatarModule.Players.FirstOrDefault(x =>
                 string.Equals(x.Name, request.Name, StringComparison.OrdinalIgnoreCase)
             );
+        var playerId = here?.PlayerId.Value ?? request.PlayerId;
 
-        return player is null
-            ? WiredWebApiJson.Error(404, WiredWebApiErrors.ENTITY_NOT_FOUND)
-            : WiredWebApiJson.Ok(
-                ProfileOf(ResolveEntity(WiredWebApiEntity.USERS, player.PlayerId.Value.ToString())!)
-            );
+        if (
+            playerId is null
+            || ResolveEntity(WiredWebApiEntity.USERS, playerId.Value.ToString()) is not { } entity
+            || (!entity.IsHere && !HasUserProfile(entity.ApiId))
+        )
+            return WiredWebApiJson.Error(404, WiredWebApiErrors.ENTITY_NOT_FOUND);
+
+        return WiredWebApiJson.Ok(
+            ProfileOf(entity with { Name = entity.Name ?? request.PlayerName })
+        );
     }
 
     /// <summary>
@@ -835,6 +880,13 @@ public sealed partial class RoomWiredSystem
 
         if (ResolveEntity(kind, request.EntityId) is not { } entity)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET);
+
+        if (
+            entity.Name is null
+            && kind == WiredWebApiEntity.USERS
+            && request.PlayerId == entity.ApiId
+        )
+            entity = entity with { Name = request.PlayerName };
 
         var exists =
             entity.IsHere
@@ -891,6 +943,10 @@ public sealed partial class RoomWiredSystem
 
                     planned.Add((variable, value));
                 }
+
+                // Habbo counts a profile PATCH as a batch: each change is a batched write.
+                if (!TrySpendWebApiWrites(request.BatchWriteBudget, planned.Count))
+                    return WiredWebApiJson.Error(429, WiredWebApiErrors.TOO_MANY_REQUESTS);
 
                 foreach (var (variable, value) in planned)
                 {
@@ -950,6 +1006,11 @@ public sealed partial class RoomWiredSystem
 
         if (entity.Name is not null)
             target["name"] = entity.Name;
+
+        // WiredUserProfileTarget.unique_id: this hotel has no unique ids, so a player's is their
+        // player id, the one users?unique_id= finds them by (inference).
+        if (entity.Kind == WiredWebApiEntity.USERS)
+            target["unique_id"] = entity.ApiId.ToString(CultureInfo.InvariantCulture);
 
         profile[WiredWebApiEntity.ProfileFieldOf(entity.Kind)] = target;
 
