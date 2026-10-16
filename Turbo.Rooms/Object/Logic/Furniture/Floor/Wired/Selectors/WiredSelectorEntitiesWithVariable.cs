@@ -24,6 +24,10 @@ public class WiredSelectorEntitiesWithVariable(
 
     public override int WiredCode => (int)WiredSelectorType.USERS_WITH_VARIABLE;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     // The reference is a global variable on a fresh box (official client capture:
     // defaultIntParams [2,0,0,0,-10,0]).
     public override List<IWiredParamRule> GetIntParamRules() =>

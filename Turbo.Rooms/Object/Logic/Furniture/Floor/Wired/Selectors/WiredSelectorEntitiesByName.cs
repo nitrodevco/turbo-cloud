@@ -21,6 +21,10 @@ public class WiredSelectorEntitiesByName(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_NAME;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     /// <summary>Habbo's limits for the list (official client capture 2026-10-14).</summary>
     private const int MAX_NAME_LENGTH = 30;
     private const int MAX_NAMES = 20;

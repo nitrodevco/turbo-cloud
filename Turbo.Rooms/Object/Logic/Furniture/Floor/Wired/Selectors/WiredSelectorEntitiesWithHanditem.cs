@@ -22,6 +22,10 @@ public class WiredSelectorEntitiesWithHanditem(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_WITH_HANDITEM;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [WiredRules.HandItem(_roomGrain._wiredConfig)];
 

@@ -22,6 +22,10 @@ public class WiredSelectorEntitiesByAction(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_PERFORMING_ACTION;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Sit)];
 

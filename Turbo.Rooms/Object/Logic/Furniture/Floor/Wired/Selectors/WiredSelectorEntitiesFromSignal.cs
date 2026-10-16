@@ -20,6 +20,10 @@ public class WiredSelectorEntitiesFromSignal(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_FROM_SIGNAL;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
