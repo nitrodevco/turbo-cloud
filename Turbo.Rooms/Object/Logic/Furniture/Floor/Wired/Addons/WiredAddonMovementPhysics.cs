@@ -37,9 +37,10 @@ public class WiredAddonMovementPhysics(
 
     public override int WiredCode => (int)WiredAddonType.MOVE_PHYSICS;
 
+    // Keep altitude is on for a fresh box (official client capture: defaultIntParams [1,0,0,0]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(true),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),

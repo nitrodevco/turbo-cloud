@@ -52,12 +52,18 @@ public class WiredTriggerVariableChanged(
     private const int UPDATE_UNCHANGED = 1 << 2;
     private const int ALL_ORIGINS = -1;
 
+    // A fresh box fires on created and on value changes of every kind (official client capture:
+    // defaultIntParams [1,1,0,7,-1,0]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
+            new WiredBoolParamRule(true),
+            new WiredBoolParamRule(true),
             new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, 0b111, 0),
+            new WiredRangeParamRule(
+                0,
+                0b111,
+                UPDATE_INCREASED | UPDATE_DECREASED | UPDATE_UNCHANGED
+            ),
             new WiredRangeParamRule(ALL_ORIGINS, 0b1111, ALL_ORIGINS),
             new WiredBoolParamRule(false),
         ];

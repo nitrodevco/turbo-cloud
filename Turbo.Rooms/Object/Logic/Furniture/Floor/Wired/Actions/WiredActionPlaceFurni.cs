@@ -101,7 +101,9 @@ public class WiredActionPlaceFurni(
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
             WiredRules.AnyInt(),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            // A fresh box reads the value from a context variable (official client capture:
+            // defaultIntParams [0 x9, -20]).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
         ];
 
     // The furni to place (the snapshot by default, or furni as they stand now), the custom

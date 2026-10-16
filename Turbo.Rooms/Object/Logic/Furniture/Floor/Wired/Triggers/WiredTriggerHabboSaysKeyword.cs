@@ -55,11 +55,12 @@ public class WiredTriggerHabboSaysKeyword(
     public override int WiredCode => (int)WiredTriggerType.AVATAR_SAYS_SOMETHING;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerChatEvent)];
 
+    // A fresh box hides the message (official client capture: defaultIntParams [0,0,1]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(0, 2, 0),
-            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(true),
         ];
 
     /// <summary>
