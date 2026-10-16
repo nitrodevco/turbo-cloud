@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
@@ -83,6 +84,18 @@ internal sealed class RoomLiveState
     /// </summary>
     public Dictionary<int, short> DirtyHeightSentValues { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
+
+    /// <summary>
+    /// Every furni as the room read it from the database, by id: what a wired menu rollback puts
+    /// back. Taken once, when the furni is loaded.
+    /// </summary>
+    public Dictionary<RoomObjectId, RoomItemSnapshot> LoadedItemSnapshots { get; } = [];
+
+    /// <summary>
+    /// Set by a rollback on its way out: furni changes are no longer handed to persistence, so
+    /// nothing that moves before the room unloads writes over what the rollback put back.
+    /// </summary>
+    public bool IsDiscardingItemChanges { get; internal set; } = false;
 
     /// <summary>Pets and bots whose row is out of date, by pet or bot id; handed over with the items.</summary>
     public HashSet<int> DirtyPetIds { get; } = [];

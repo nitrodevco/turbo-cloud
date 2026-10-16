@@ -631,6 +631,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   4B6D62CA: UpdateCategoryAndTradeSettingsAsync(Turbo.Primitives.Action.ActionContext, int?, Turbo.Primitives.Rooms.Enums.RoomTradeModeType, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RoomSettingsSaveResultSnapshot>
   0E33EEF0: UpdateEventAsync(Turbo.Primitives.Action.ActionContext, int, string, string, System.Threading.CancellationToken) -> Task<bool>
   68F3B6B7: UpdateRoomFilterAsync(Turbo.Primitives.Action.ActionContext, bool, string, System.Threading.CancellationToken) -> Task<bool>
+  31ADE087: UpdateWiredRoomStateAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>>
   F14128EE: UseItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken, int) -> Task<bool>
   1728DE5E: WalkAvatarToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>
   647C59A3: WhisperToPlayerAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
@@ -646,6 +647,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGra
   11BDFF78: EnqueueDirtyItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, System.Threading.CancellationToken, bool) -> Task
   1847F886: EnqueueDirtyItemsAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task
   64DB0503: EnqueueDirtyPetsAsync(System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
+  1BAF3003: FlushNowAsync(System.Threading.CancellationToken) -> Task
   9ACCF37C: InsertBuildersClubItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, int, System.Threading.CancellationToken) -> Task<bool>
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomTradeGrain")] Turbo.Primitives.Rooms.Grains.IRoomTradeGrain [Version(0)]

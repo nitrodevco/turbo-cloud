@@ -321,26 +321,40 @@ public sealed class RoomModerationModule(
     /// </summary>
     public async Task EvictEveryoneAndUnloadAsync(CancellationToken ct)
     {
-        foreach (var player in AvatarModule.Players.ToList())
+        foreach (var playerId in await RemoveEveryoneAndUnloadAsync(ct))
         {
-            await AvatarModule.RemoveAvatarFromPlayerAsync(
-                ActionContext.CreateForSystem(_roomGrain.RoomId),
-                player.PlayerId,
-                ct
-            );
-
             _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(player.PlayerId)
+                ._grainFactory.GetPlayerPresenceGrain(playerId)
                 .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
                 .LogAndForget(
                     _roomGrain._logger,
                     "close the room session of player {PlayerId} when room {RoomId} unloads",
-                    player.PlayerId,
+                    playerId,
                     _roomGrain.RoomId
                 );
         }
+    }
+
+    /// <summary>
+    /// Removes every avatar, the owner's and staff's too, and has the room unload when its turn
+    /// is over. Returns whose avatars were removed: their sessions are still to be closed.
+    /// </summary>
+    public async Task<ImmutableArray<PlayerId>> RemoveEveryoneAndUnloadAsync(CancellationToken ct)
+    {
+        var playerIds = AvatarModule.Players.Select(x => x.PlayerId).ToImmutableArray();
+
+        foreach (var playerId in playerIds)
+        {
+            await AvatarModule.RemoveAvatarFromPlayerAsync(
+                ActionContext.CreateForSystem(_roomGrain.RoomId),
+                playerId,
+                ct
+            );
+        }
 
         _roomGrain.DeactivateRoom();
+
+        return playerIds;
     }
 
     public async Task<bool> BanPlayerAsync(

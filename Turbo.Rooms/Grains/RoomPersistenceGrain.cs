@@ -893,6 +893,8 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     private Task FlushDirtyItemsAsync(CancellationToken ct) =>
         FlushDirtyItemsAsync(_roomConfig.MaxDirtyBatchesPerFlush, ct);
 
+    public Task FlushNowAsync(CancellationToken ct) => FlushDirtyItemsAsync(int.MaxValue, ct);
+
     /// <summary>
     /// Writes up to <paramref name="maxBatches"/> batches of each queue. One batch per tick
     /// left a busy room further behind on every tick. Each queue stops at its first batch that

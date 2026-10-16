@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -430,6 +431,57 @@ public sealed partial class RoomGrain
         }
     }
 
+    /// <summary>
+    /// The settings tab enables Reload for whoever may modify the room's wired and Rollback for
+    /// the owner or staff only (<c>WiredMenuSettingsTab.updateButtonsUI</c>). Reload saves what
+    /// the room holds; Rollback first queues every furni the room loaded as it was loaded, so
+    /// furni movement and state changes since the last load are gone, while furni placed or
+    /// picked up since stays as it is (<c>wiredmenu.settings.room_state.roll_back.warning</c>
+    /// names movement and state changes only). Both write before anyone is sent out, so the room
+    /// they come back to is read from what was just written.
+    /// </summary>
+    public async Task<ImmutableArray<PlayerId>> UpdateWiredRoomStateAsync(
+        ActionContext ctx,
+        bool rollback,
+        CancellationToken ct
+    )
+    {
+        var allowed = rollback
+            ? await GetWiredControllerLevelAsync(ctx, ct) >= RoomControllerType.Owner
+            : await CanModifyWiredAsync(ctx, ct);
+
+        if (!allowed)
+            return [];
+
+        var persistence = _grainFactory.GetRoomPersistenceGrain(_state.RoomId);
+
+        if (rollback)
+        {
+            var restored = _state
+                .ItemsById.Keys.Where(_state.LoadedItemSnapshots.ContainsKey)
+                .Select(x => _state.LoadedItemSnapshots[x])
+                .ToList();
+
+            _state.IsDiscardingItemChanges = true;
+
+            if (restored.Count > 0)
+                await persistence.EnqueueDirtyItemsAsync(_state.RoomId, restored, ct);
+
+            // Thrown-away changes cannot be had back, so a rollback leaves a trace.
+            _logger.LogInformation(
+                "Player {PlayerId} rolled room {RoomId} back: {Restored} furni put back as loaded",
+                ctx.PlayerId,
+                _state.RoomId,
+                restored.Count
+            );
+        }
+
+        await HandOverToPersistenceAsync(ct);
+        await persistence.FlushNowAsync(ct);
+
+        return await ModerationModule.RemoveEveryoneAndUnloadAsync(ct);
+    }
+
     private async Task<bool> CanReadWiredAsync(ActionContext ctx, CancellationToken ct)
     {
         var (_, canRead) = await GetWiredPermissionsAsync(ctx, ct);
@@ -447,6 +499,11 @@ public sealed partial class RoomGrain
     private async Task<(bool canModify, bool canRead)> GetWiredPermissionsAsync(
         ActionContext ctx,
         CancellationToken ct
+    ) => WiredSystem.GetPermissions(await GetWiredControllerLevelAsync(ctx, ct));
+
+    private async Task<RoomControllerType> GetWiredControllerLevelAsync(
+        ActionContext ctx,
+        CancellationToken ct
     )
     {
         await SecurityModule.EnsureRightsLoadedAsync(ct);
@@ -461,7 +518,7 @@ public sealed partial class RoomGrain
         )
             level = RoomControllerType.Owner;
 
-        return WiredSystem.GetPermissions(level);
+        return level;
     }
 
     private WiredRoomSettingsSnapshot CreateWiredRoomSettingsSnapshot() =>

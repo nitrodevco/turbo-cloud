@@ -36,6 +36,9 @@ public sealed partial class RoomGrain
         var persistence = _grainFactory.GetRoomPersistenceGrain(_state.RoomId);
         var handOvers = new List<Task>(4);
 
+        if (_state.IsDiscardingItemChanges)
+            _state.DirtyItemIds.Clear();
+
         if (_state.DirtyItemIds.Count > 0)
         {
             var items = new List<RoomItemSnapshot>(_state.DirtyItemIds.Count);
