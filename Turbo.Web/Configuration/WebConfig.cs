@@ -52,4 +52,6 @@ public sealed class WebConfig
     public int SignInAttemptsPerMinute { get; init; } = 20;
 
     public DiscordConfig Discord { get; init; } = new();
+
+    public WiredApiConfig WiredApi { get; init; } = new();
 }

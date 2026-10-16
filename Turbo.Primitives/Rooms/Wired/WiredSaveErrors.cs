@@ -15,6 +15,9 @@ public static class WiredSaveErrors
     /// </summary>
     public const string ACHIEVEMENT_NOT_ALLOWED = "wiredfurni.error.achievement_not_allowed";
 
+    /// <summary>"Invalid Web API keys": a Web API add-on saved with a key its box did not issue.</summary>
+    public const string INVALID_API_KEYS = "wiredfurni.error.invalid_api_keys";
+
     /// <summary>
     /// "Placements are not allowed for the selected furni type. You can only select Builders Club
     /// furniture that do not have advanced functionality."

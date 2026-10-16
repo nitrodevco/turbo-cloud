@@ -13,7 +13,7 @@ namespace Turbo.Tests.Rooms;
 /// Every wired box of the hotel's furnidata has a logic of its own name: a furni definition's
 /// logic is its classname, so a box whose logic is registered under another name stays plain
 /// furniture. The Variable FX add-ons were registered as <c>wf_xtra_var_fx_*</c> while the boxes
-/// are <c>wf_xtra_varfx_*</c>. (<c>wf_xtra_var_web_api</c>, the Variables web API, is not built.)
+/// are <c>wf_xtra_varfx_*</c>.
 /// </summary>
 public sealed class WiredLogicNamesTests
 {
@@ -198,6 +198,7 @@ public sealed class WiredLogicNamesTests
         "wf_xtra_var_lvlup_system",
         "wf_xtra_var_text_connector",
         "wf_xtra_var_time_util",
+        "wf_xtra_var_web_api",
         "wf_xtra_varfx_boss",
         "wf_xtra_varfx_hp",
         "wf_xtra_varfx_levelling",

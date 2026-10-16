@@ -18,6 +18,13 @@ public sealed record FurniturePickupConfirmation
         BodyKey = "wiredfurni.variables.pickup.body",
     };
 
+    /// <summary>The Web API add-on: the room's Web API stops and its keys are gone for good.</summary>
+    public static readonly FurniturePickupConfirmation WiredWebApi = new()
+    {
+        TitleKey = "wiredfurni.web_api.pickup.title",
+        BodyKey = "wiredfurni.web_api.pickup.body",
+    };
+
     [Id(0)]
     public required string TitleKey { get; init; }
 
