@@ -201,6 +201,16 @@ public class WiredConfig
     public int TeleportEffectMs { get; init; } = 3500;
 
     /// <summary>
+    /// The same with "fast teleportation" (official client capture 2026-10-16, 2 of 2 runs):
+    /// effect 235, the walk ends on the tile being stepped onto, landing +1.0 s, effect off +1.5 s.
+    /// </summary>
+    public int TeleportFastEffectId { get; init; } = 235;
+
+    public int TeleportFastDelayMs { get; init; } = 1000;
+
+    public int TeleportFastEffectMs { get; init; } = 1500;
+
+    /// <summary>
     /// How many tiles away Chase notices a player; 0 is the whole room. Habbo chased from 7, 6,
     /// 5, 4, 3 and 2 tiles in an 8-wide room (official client capture 2026-10-16), so no limit
     /// showed there; ours stopped at 3. Farther than 7 is untested.
