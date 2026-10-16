@@ -34,8 +34,19 @@ public sealed partial class RoomActionModule
         )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
-        // The spot and the room's limits are checked by the placement itself.
-        if (!await FurniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
+        // The spot and the room's limits are checked by the placement itself. The owner hears
+        // of it first, so their inventory's removal follows it.
+        if (
+            !await FurniModule.PlaceFloorItemAsync(
+                ctx,
+                floorItem,
+                x,
+                y,
+                rot,
+                ct,
+                toldFirst: item.OwnerId
+            )
+        )
             return false;
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);

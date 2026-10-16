@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -32,7 +35,8 @@ public sealed partial class RoomFurniModule
         int y,
         Rotation rot,
         CancellationToken ct,
-        Altitude? z = null
+        Altitude? z = null,
+        PlayerId? toldFirst = null
     )
     {
         if (!CanPlaceFloorItem(item, x, y, rot))
@@ -55,9 +59,28 @@ public sealed partial class RoomFurniModule
 
         item.MarkDirty();
 
-        // Placed in a hidden area: it is there, and out of sight like the rest of the area.
-        if (!IsHiddenByArea(item))
-            await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
+        // The furni, then the heights it changed, as Habbo sends them (official client captures,
+        // 3 of 3 placements: ObjectAdd, HeightMapUpdate, FurniListRemove). Placed in a hidden
+        // area it is there, and out of sight like the rest of the area.
+        ImmutableArray<IComposer> composers =
+        [
+            .. IsHiddenByArea(item) ? [] : new[] { item.GetAddComposer() },
+            .. _roomGrain.TakeHeightMapUpdates(),
+        ];
+
+        // The player whose inventory it left is told directly, so the removal their inventory
+        // sends next comes after; through the room it would reach them later than that.
+        if (toldFirst is { } playerId && playerId > 0)
+        {
+            await _roomGrain.SendComposersToRoomExceptAsync(composers, [playerId], ct);
+
+            foreach (var composer in composers)
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
+        }
+        else
+        {
+            await _roomGrain.SendComposersToRoomAsync(composers, ct);
+        }
 
         return true;
     }
