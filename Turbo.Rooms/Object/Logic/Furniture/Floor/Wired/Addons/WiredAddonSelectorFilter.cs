@@ -14,9 +14,11 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Keeps only the first N entries of the selector pool. Params: N, operand mode (literal or
-/// from a variable), operand target; the variable, when used, supplies N. Applied after the
-/// selectors ran and before the conditions look at the pool.
+/// Keeps N entries of the selector pool, picked at random on every firing: Furni In Area over four
+/// lamps with Filter To 1 Furni toggled one lamp per click, a different one at random, repeats
+/// included (official client capture 2026-10-16, 15 clicks: 135 x5, 123 x4, 133 x3, 129 x3).
+/// Params: N, operand mode (literal or from a variable), operand target; the variable, when used,
+/// supplies N. Applied after the selectors ran and before the conditions look at the pool.
 /// </summary>
 public abstract class WiredAddonSelectorFilter(
     IGrainFactory grainFactory,
@@ -56,21 +58,24 @@ public abstract class WiredAddonSelectorFilter(
         var keep = (int)Math.Max(0, ResolveCount(ctx));
 
         if (FiltersFurni)
-        {
-            var kept = ctx.SelectorPool.SelectedFurniIds.Take(keep).ToList();
-
-            ctx.SelectorPool.SelectedFurniIds.Clear();
-            ctx.SelectorPool.SelectedFurniIds.UnionWith(kept);
-        }
+            KeepAtRandom(ctx.SelectorPool.SelectedFurniIds, keep);
         else
-        {
-            var kept = ctx.SelectorPool.SelectedAvatarIds.Take(keep).ToList();
-
-            ctx.SelectorPool.SelectedAvatarIds.Clear();
-            ctx.SelectorPool.SelectedAvatarIds.UnionWith(kept);
-        }
+            KeepAtRandom(ctx.SelectorPool.SelectedAvatarIds, keep);
 
         return Task.FromResult(true);
+    }
+
+    private static void KeepAtRandom<T>(ISet<T> pool, int keep)
+    {
+        if (pool.Count <= keep)
+            return;
+
+        var all = pool.ToArray();
+
+        Random.Shared.Shuffle(all);
+
+        pool.Clear();
+        pool.UnionWith(all.Take(keep));
     }
 
     private long ResolveCount(IWiredProcessingContext ctx)
