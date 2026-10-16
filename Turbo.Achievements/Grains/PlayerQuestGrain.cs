@@ -146,7 +146,12 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         await AcceptAsync(questId, ct);
     }
 
-    public async Task AcceptAsync(int questId, CancellationToken ct)
+    public Task AcceptAsync(int questId, CancellationToken ct) => AcceptAsync(questId, false, ct);
+
+    public Task AcceptFromWindowAsync(int questId, CancellationToken ct) =>
+        AcceptAsync(questId, true, ct);
+
+    private async Task AcceptAsync(int questId, bool sendList, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         var data = await LoadAsync(dbCtx, ct);
@@ -170,6 +175,11 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
 
         data.Row(dbCtx, quest).Accepted = true;
         await dbCtx.SaveChangesAsync(ct);
+
+        // The quest window's accept: the list as it now is first, without opening the window
+        // (official client capture: AcceptQuest -> Quests(openWindow false) -> Quest, 1/1).
+        if (sendList)
+            await SendQuestsAsync(false, ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,
@@ -222,7 +232,12 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         await AcceptAsync(next.Id, ct);
     }
 
-    public async Task RejectAsync(int questId, CancellationToken ct)
+    public Task RejectAsync(int questId, CancellationToken ct) => RejectAsync(questId, false, ct);
+
+    public Task RejectFromWindowAsync(int questId, CancellationToken ct) =>
+        RejectAsync(questId, true, ct);
+
+    private async Task RejectAsync(int questId, bool sendList, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         var data = await LoadAsync(dbCtx, ct);
@@ -235,6 +250,11 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
 
         row.Accepted = false;
         await dbCtx.SaveChangesAsync(ct);
+
+        // The quest's "Cancel Quest": the list first, opening the window (official client
+        // capture: RejectQuest -> Quests(openWindow true) -> QuestCancelled, 1/1).
+        if (sendList)
+            await SendQuestsAsync(true, ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,

@@ -436,9 +436,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGr
 
 interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerQuestGrain")] Turbo.Primitives.Quests.Grains.IPlayerQuestGrain [Version(0)]
   8CD37FD0: AcceptAsync(int, System.Threading.CancellationToken) -> Task
+  E3890BA1: AcceptFromWindowAsync(int, System.Threading.CancellationToken) -> Task
   C1293542: OpenTrackerAsync(System.Threading.CancellationToken) -> Task
   647EC69A: RecordAsync(string, string, System.Threading.CancellationToken) -> Task
   8EA13D68: RejectAsync(int, System.Threading.CancellationToken) -> Task
+  C1144E20: RejectFromWindowAsync(int, System.Threading.CancellationToken) -> Task
   B85000C8: SendDailyQuestAsync(bool, int, System.Threading.CancellationToken) -> Task
   D97351A0: SendQuestsAsync(bool, System.Threading.CancellationToken) -> Task
   337EB0D7: SendSeasonalQuestsAsync(System.Threading.CancellationToken) -> Task

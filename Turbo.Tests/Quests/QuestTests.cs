@@ -212,6 +212,28 @@ public sealed class QuestTests : IDisposable
     }
 
     [Fact]
+    public async Task The_windows_accept_and_cancel_send_the_list_first()
+    {
+        // Official client capture: AcceptQuest -> Quests(openWindow false, accepted) -> Quest;
+        // RejectQuest -> Quests(openWindow true, none accepted) -> QuestCancelled (1/1 each).
+        await Grain().AcceptFromWindowAsync(PET_FOOD, Ct);
+        await Grain().RejectFromWindowAsync(PET_FOOD, Ct);
+
+        SentNames()
+            .Should()
+            .Equal(
+                nameof(QuestsMessageComposer),
+                nameof(QuestMessageComposer),
+                nameof(QuestsMessageComposer),
+                nameof(QuestCancelledMessageComposer)
+            );
+        var lists = Sent<QuestsMessageComposer>().ToList();
+        lists.Select(x => x.OpenWindow).Should().Equal(false, true);
+        lists[0].Quests.Single(x => x.Id == PET_FOOD).Accepted.Should().BeTrue();
+        lists[1].Quests.Should().OnlyContain(x => !x.Accepted);
+    }
+
+    [Fact]
     public async Task Wearing_the_quests_badge_completes_it_and_the_next_one_is_current()
     {
         await Grain().AcceptAsync(FIRST_BADGE, Ct);
@@ -413,6 +435,19 @@ public sealed class QuestTests : IDisposable
                 }
             )
             .OfType<T>();
+
+    private IEnumerable<string> SentNames() =>
+        _fakes
+            .Log.Of("SendComposerAsync")
+            .SelectMany(x =>
+                x.Args[0] switch
+                {
+                    IReadOnlyList<IComposer> many => many,
+                    IComposer one => [one],
+                    _ => [],
+                }
+            )
+            .Select(x => x.GetType().Name);
 
     private T Single<T>()
         where T : IComposer => Sent<T>().Should().ContainSingle().Subject;

@@ -24,7 +24,7 @@ public class RejectQuestMessageHandler(IGrainFactory grainFactory)
 
         await _grainFactory
             .GetPlayerQuestGrain(ctx.PlayerId)
-            .RejectAsync(message.QuestId, ct)
+            .RejectFromWindowAsync(message.QuestId, ct)
             .ConfigureAwait(false);
     }
 }
