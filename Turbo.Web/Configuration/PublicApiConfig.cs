@@ -12,10 +12,14 @@ public sealed class PublicApiConfig
 
     /// <summary>
     /// A room's thumbnail, with <c>{roomId}</c> for its id, such as the navigator's thumbnail
-    /// address. Empty leaves <c>thumbnailUrl</c> out.
+    /// address (Habbo's: <c>.../navigator-thumbnail/hhus/{roomId}.png</c>). Empty leaves
+    /// <c>thumbnailUrl</c> out.
     /// </summary>
     public string RoomThumbnailUrl { get; init; } = "";
 
-    /// <summary>A room's full-size picture, with <c>{roomId}</c>. Empty leaves <c>imageUrl</c> out.</summary>
+    /// <summary>
+    /// A room's full-size picture, with <c>{roomId}</c> (Habbo's: <c>.../fullroom-photo/hhus/{roomId}.png</c>).
+    /// Empty leaves <c>imageUrl</c> out.
+    /// </summary>
     public string RoomImageUrl { get; init; } = "";
 }

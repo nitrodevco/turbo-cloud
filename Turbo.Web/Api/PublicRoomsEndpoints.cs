@@ -13,7 +13,6 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Web.Api.Contracts;
 using Turbo.Web.Configuration;
 
@@ -22,8 +21,10 @@ namespace Turbo.Web.Api;
 /// <summary>
 /// The public API's rooms (Habbo's OpenAPI document): <c>/public/rooms/{roomId}</c>, "a public
 /// room", and <c>/public/users/{id}/rooms</c>, the public rooms a player owns, "only returned if
-/// the user is found and the profile is visible". A public room is one the navigator lists to
-/// anyone: not invisible and not hidden by Builders Club.
+/// the user is found and the profile is visible". A room shows here when the navigator lists it to
+/// anyone: not invisible and not hidden by Builders Club (inference). The errors are those of an
+/// official client capture of these endpoints (2026-10-16): <c>{"error":"not-found"}</c> for no
+/// such room, player or a hidden profile, and the <c>errors</c> list for an id that cannot be one.
 /// </summary>
 internal sealed class PublicRoomsEndpoints(
     IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -45,17 +46,30 @@ internal sealed class PublicRoomsEndpoints(
     {
         var rooms = await PublicRoomsAsync(room => room.Id == roomId, ct).ConfigureAwait(false);
 
-        // The document's room-not-found error (WiredRoomNotFoundError) is the only one it names.
-        return rooms.Length == 0
-            ? Results.Json(new { error = WiredWebApiErrors.ROOM_NOT_FOUND }, statusCode: 404)
-            : Results.Ok(rooms[0]);
+        return rooms.Length == 0 ? NotFound() : Results.Ok(rooms[0]);
     }
 
-    /// <summary>The player's public rooms, oldest first; 404 for no such player or a hidden profile.</summary>
+    private static IResult NotFound() => Results.Json(new { error = "not-found" }, statusCode: 404);
+
+    /// <summary>The player's rooms, oldest first; 404 for no such player or a hidden profile, not an empty list.</summary>
     private async Task<IResult> PlayerRoomsAsync(string id, CancellationToken ct)
     {
         if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var playerId))
-            return Results.NotFound();
+            return Results.Json(
+                new
+                {
+                    errors = new[]
+                    {
+                        new
+                        {
+                            param = "id",
+                            msg = "user.invalid_id",
+                            value = id,
+                        },
+                    },
+                },
+                statusCode: 404
+            );
 
         await using (var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
         {
@@ -69,7 +83,7 @@ internal sealed class PublicRoomsEndpoints(
                     .ConfigureAwait(false);
 
             if (!visible)
-                return Results.NotFound();
+                return NotFound();
         }
 
         return Results.Ok(
@@ -78,7 +92,7 @@ internal sealed class PublicRoomsEndpoints(
         );
     }
 
-    private async Task<PublicRoom[]> PublicRoomsAsync(
+    private async Task<PublicApiRoom[]> PublicRoomsAsync(
         Expression<Func<RoomEntity, bool>> which,
         CancellationToken ct
     )
@@ -108,6 +122,8 @@ internal sealed class PublicRoomsEndpoints(
                     ? null
                     : room.NavigatorFlatCategoryEntity.GlobalCategory,
                 room.Score,
+                room.StaffPick,
+                room.DoorMode,
                 GuildId = db
                     .Guilds.Where(guild => guild.RoomEntityId == room.Id)
                     .Select(guild => (int?)guild.Id)
@@ -118,14 +134,14 @@ internal sealed class PublicRoomsEndpoints(
 
         return
         [
-            .. rows.Select(row => new PublicRoom(
+            .. rows.Select(row => new PublicApiRoom(
                 row.Id,
                 row.Name,
                 row.Description ?? string.Empty,
-                // As the document's example: 2000-11-01T11:41:05.000+00:00.
+                // As the document's example and the capture: to the second, 2026-10-12T06:20:23.000+00:00.
                 DateTime
                     .SpecifyKind(row.CreatedAt, DateTimeKind.Utc)
-                    .ToString("yyyy-MM-dd'T'HH:mm:ss.fff'+00:00'", CultureInfo.InvariantCulture),
+                    .ToString("yyyy-MM-dd'T'HH:mm:ss'.000+00:00'", CultureInfo.InvariantCulture),
                 row.GuildId?.ToString(CultureInfo.InvariantCulture),
                 [.. RoomTags.Parse(row.Tags)],
                 row.PlayersMax,
@@ -136,6 +152,9 @@ internal sealed class PublicRoomsEndpoints(
                 UrlOf(Api.RoomThumbnailUrl, row.Id),
                 UrlOf(Api.RoomImageUrl, row.Id),
                 row.Score,
+                // The navigator's official rooms (inference: the capture's own room says false).
+                row.StaffPick,
+                DoorModeOf(row.DoorMode),
                 row.Id.ToString(CultureInfo.InvariantCulture)
             )),
         ];
@@ -149,6 +168,21 @@ internal sealed class PublicRoomsEndpoints(
         !string.IsNullOrEmpty(globalKey) ? [$"navigator.flatcategory.global.{globalKey}"]
         : !string.IsNullOrEmpty(name) ? [name]
         : [];
+
+    /// <summary>
+    /// The capture's <c>"open"</c>; the others by the hotel's text keys
+    /// (<c>navigator.roomsettings.doormode.doorbell|password|invisible</c>) and Flash's
+    /// <c>RoomSettingsData.DOOR_MODE_NOOBS_ONLY</c> (inference: only "open" is recorded).
+    /// </summary>
+    private static string DoorModeOf(RoomDoorModeType doorMode) =>
+        doorMode switch
+        {
+            RoomDoorModeType.Locked => "doorbell",
+            RoomDoorModeType.Password => "password",
+            RoomDoorModeType.Invisible => "invisible",
+            RoomDoorModeType.NoobLobby => "noobs_only",
+            _ => "open",
+        };
 
     private static string? UrlOf(string template, int roomId) =>
         string.IsNullOrEmpty(template)

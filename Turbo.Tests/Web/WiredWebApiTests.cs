@@ -532,10 +532,18 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task A_public_room_and_a_players_rooms_answer_as_the_document_says()
+    public async Task A_public_room_and_a_players_rooms_answer_as_the_official_api_does()
     {
         _db.Insert(NewRoom(2, "Hidden", doorMode: RoomDoorModeType.Invisible));
-        _db.Insert(NewRoom(3, "Shy", hideOwner: true, tags: "games,chill"));
+        _db.Insert(
+            NewRoom(
+                3,
+                "Shy",
+                doorMode: RoomDoorModeType.Locked,
+                hideOwner: true,
+                tags: "games,chill"
+            )
+        );
         await _server.StartAsync(Ct);
 
         var (status, room) = await RawAsync(
@@ -546,6 +554,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             null
         );
 
+        // Field order of an official client capture of GET rooms/80462556 (2026-10-16).
         status.Should().Be(200);
         room!
             .AsObject()
@@ -563,6 +572,8 @@ public sealed class WiredWebApiTests : IAsyncDisposable
                 "ownerUniqueId",
                 "categories",
                 "rating",
+                "publicRoom",
+                "doorMode",
                 "uniqueId"
             );
         room["id"]!.GetValue<int>().Should().Be(ROOM);
@@ -570,7 +581,9 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         room["creationTime"]!
             .GetValue<string>()
             .Should()
-            .MatchRegex(@"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00$");
+            .MatchRegex(@"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.000\+00:00$");
+        room["publicRoom"]!.GetValue<bool>().Should().BeFalse();
+        room["doorMode"]!.GetValue<string>().Should().Be("open");
         room["maximumVisitors"]!.GetValue<int>().Should().Be(25);
         room["ownerName"]!.GetValue<string>().Should().Be("alice");
         room["ownerUniqueId"]!.GetValue<string>().Should().Be("1");
@@ -579,12 +592,13 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         // Invisible rooms are not public; a hidden owner is not named.
         (await SendAsync(HttpMethod.Get, "/api/public/rooms/2"))
             .Should()
-            .Be((404, "room.not_found"));
+            .Be((404, "not-found"));
 
         var shy = (await RawAsync(HttpMethod.Get, "/api/public/rooms/3", null, null, null)).Item2!;
 
         shy["showOwnerName"]!.GetValue<bool>().Should().BeFalse();
         shy.AsObject().ContainsKey("ownerName").Should().BeFalse();
+        shy["doorMode"]!.GetValue<string>().Should().Be("doorbell");
         shy["tags"]!.AsArray().Select(x => (string)x!).Should().Equal("games", "chill");
 
         var owned = (
@@ -592,11 +606,20 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         ).Item2!.AsArray();
 
         owned.Select(x => (int)x!["id"]!).Should().Equal(1, 3);
-        (await SendAsync(HttpMethod.Get, "/api/public/users/999/rooms")).Status.Should().Be(404);
+        (await SendAsync(HttpMethod.Get, "/api/public/users/999/rooms"))
+            .Should()
+            .Be((404, "not-found"));
+        (await RawAsync(HttpMethod.Get, "/api/public/users/hhus-x/rooms", null, null, null))
+            .Item2!.ToJsonString()
+            .Should()
+            .Be("""{"errors":[{"param":"id","msg":"user.invalid_id","value":"hhus-x"}]}""");
 
         _db.Insert(new PlayerSettingsEntity { PlayerEntityId = 1, ProfileHidden = true });
 
-        (await SendAsync(HttpMethod.Get, "/api/public/users/1/rooms")).Status.Should().Be(404);
+        // A hidden profile is not found, not an empty list.
+        (await SendAsync(HttpMethod.Get, "/api/public/users/1/rooms"))
+            .Should()
+            .Be((404, "not-found"));
     }
 
     private void Leave(int roomIndex)
