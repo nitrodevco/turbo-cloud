@@ -155,12 +155,8 @@ public class FurnitureCounterClockLogic(
         await PublishAsync(ct);
     }
 
-    private void Schedule() =>
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            (int)Math.Max(0, _nextHalfSecondAtMs - _roomGrain.NowMs()),
-            TickAsync
-        );
+    // Due at the boundary itself: a delay computed from a second clock read could land 1 ms late.
+    private void Schedule() => TimerSystem.ScheduleAt(_ctx.ObjectId, _nextHalfSecondAtMs, TickAsync);
 
     private async Task TickAsync(CancellationToken ct)
     {
