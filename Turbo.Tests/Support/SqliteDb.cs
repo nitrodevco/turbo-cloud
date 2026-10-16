@@ -22,7 +22,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
         _conn.Open();
         _options = new DbContextOptionsBuilder<TurboDbContext>()
             .UseSqlite(_conn)
-            .AddInterceptors(new StampTimestamps())
+            .AddInterceptors(new StampTimestamps(), new NoRowLocks())
             .ConfigureWarnings(w =>
             {
                 w.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning);
@@ -157,5 +157,44 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
                     entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
             }
         }
+    }
+
+    /// <summary>
+    /// SQLite locks the whole database for a writer and has no <c>FOR UPDATE</c>; a query that
+    /// takes a MySQL row lock runs here without it.
+    /// </summary>
+    private sealed class NoRowLocks : DbCommandInterceptor
+    {
+        public override InterceptionResult<System.Data.Common.DbDataReader> ReaderExecuting(
+            System.Data.Common.DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<System.Data.Common.DbDataReader> result
+        )
+        {
+            Strip(command);
+
+            return result;
+        }
+
+        public override ValueTask<
+            InterceptionResult<System.Data.Common.DbDataReader>
+        > ReaderExecutingAsync(
+            System.Data.Common.DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<System.Data.Common.DbDataReader> result,
+            CancellationToken ct = default
+        )
+        {
+            Strip(command);
+
+            return ValueTask.FromResult(result);
+        }
+
+        private static void Strip(System.Data.Common.DbCommand command) =>
+            command.CommandText = command.CommandText.Replace(
+                " FOR UPDATE",
+                string.Empty,
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 }

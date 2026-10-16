@@ -7,6 +7,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Catalog;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
@@ -66,6 +67,16 @@ public class PurchaseFromCatalogMessageHandler(
         if (result.Success)
             return;
 
+        // HabboCatalog.onLimitedEditionSoldOut: the "Sold Out!" alert, and the purchase window
+        // closes; a purchase error would leave it open on a generic failure.
+        if (result.Error == LtdRaffleEntryErrorType.SoldOut)
+        {
+            await ctx.SendComposerAsync(new LimitedEditionSoldOutEventMessageComposer(), ct)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         if (result.BalanceFailure is { } balanceFailure)
         {
             await ctx.SendBalanceFailureAsync(balanceFailure, ct).ConfigureAwait(false);
@@ -77,7 +88,6 @@ public class PurchaseFromCatalogMessageHandler(
         {
             LtdRaffleEntryErrorType.AlreadyWon => CatalogPurchaseErrorType.LtdPurchasesLimited,
             LtdRaffleEntryErrorType.RaffleProcessing => CatalogPurchaseErrorType.RaffleOngoing,
-            LtdRaffleEntryErrorType.SoldOut => CatalogPurchaseErrorType.OfferNotFound,
             LtdRaffleEntryErrorType.InsufficientFunds => CatalogPurchaseErrorType.NotEnoughCredits,
             LtdRaffleEntryErrorType.RequiresHabboClub => CatalogPurchaseErrorType.RequiresHabboClub,
             _ => CatalogPurchaseErrorType.PurchaseFailed,

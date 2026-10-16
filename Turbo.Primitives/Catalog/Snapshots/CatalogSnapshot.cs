@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Orleans;
 using Turbo.Primitives.Catalog.Enums;
 
@@ -96,6 +97,37 @@ public sealed record CatalogSnapshot
 
         return ProductIdByLtdSeriesId.TryGetValue(seriesId, out var productId)
             && ProductsById.TryGetValue(productId, out product);
+    }
+
+    /// <summary>
+    /// This catalog with a limited series showing how many are left now: the product that sells
+    /// it, and the offer listing that product, both carry the count the page and the product
+    /// offer send. The same snapshot when no product sells the series.
+    /// </summary>
+    public CatalogSnapshot WithLtdRemaining(int seriesId, int remaining)
+    {
+        if (!TryGetLtdProduct(seriesId, out var product) || product.UniqueRemaining == remaining)
+            return this;
+
+        var updated = product with { UniqueRemaining = remaining };
+        var offersById = OffersById;
+
+        if (OffersById.TryGetValue(product.OfferId, out var offer))
+        {
+            offersById = OffersById.SetItem(
+                offer.Id,
+                offer with
+                {
+                    Products = [.. offer.Products.Select(p => p.Id == product.Id ? updated : p)],
+                }
+            );
+        }
+
+        return this with
+        {
+            ProductsById = ProductsById.SetItem(product.Id, updated),
+            OffersById = offersById,
+        };
     }
 
     public static CatalogSnapshot Empty =>

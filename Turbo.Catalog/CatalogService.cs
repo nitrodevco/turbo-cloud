@@ -50,6 +50,9 @@ public sealed class CatalogService(
         };
     }
 
+    public void SetLtdRemaining(int seriesId, int remaining) =>
+        _normalCatalogProvider.SetLtdRemaining(seriesId, remaining);
+
     /// <summary>
     /// Walks the normal catalog for offers whose product grants Habbo Club days. There are a
     /// handful of them and the client asks twice a session (the catalog opening and the club
