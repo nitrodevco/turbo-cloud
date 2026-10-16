@@ -1547,6 +1547,7 @@ public class Revision20260909 : IRevision
                 MessageEvent.WiredSetRoomSettingsMessageEvent,
                 new WiredSetRoomSettingsMessageParser()
             },
+            { MessageEvent.WiredUpdateRoomMessageEvent, new WiredUpdateRoomMessageParser() },
             #endregion
 
             #endregion

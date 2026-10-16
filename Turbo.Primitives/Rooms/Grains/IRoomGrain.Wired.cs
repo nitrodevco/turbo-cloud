@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -173,6 +174,20 @@ public partial interface IRoomGrain
     public Task<bool> RemoveWiredVariableFromAllHoldersAsync(
         ActionContext ctx,
         WiredVariableId variableId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The wired menu's room state (<c>WiredUpdateRoom</c>). A reload, for anyone who may modify
+    /// the room's wired, writes everything the room holds; a rollback, for the owner or staff,
+    /// puts every furni the room loaded back where and as it was loaded. Either way everyone is
+    /// sent out and the room unloads, so it is read from the database again. Returns who was
+    /// sent out, for the caller to close their sessions and send back in; empty when the asker
+    /// may not.
+    /// </summary>
+    public Task<ImmutableArray<PlayerId>> UpdateWiredRoomStateAsync(
+        ActionContext ctx,
+        bool rollback,
         CancellationToken ct
     );
 }

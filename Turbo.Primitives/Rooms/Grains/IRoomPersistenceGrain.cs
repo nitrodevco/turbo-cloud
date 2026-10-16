@@ -38,6 +38,12 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
         bool remove = false
     );
 
+    /// <summary>
+    /// Writes every queued furni, pet and bot change now rather than on the next tick, for a room
+    /// that is about to be read from the database again.
+    /// </summary>
+    public Task FlushNowAsync(CancellationToken ct);
+
     /// <summary>Deletes the item's row on the next flush instead of updating it.</summary>
     [AlwaysInterleave]
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct);

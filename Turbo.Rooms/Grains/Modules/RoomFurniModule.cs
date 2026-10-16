@@ -240,7 +240,26 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         foreach (var item in wallItems)
             await ObjectModule.AttatchObjectAsync(item, ct);
 
+        CaptureLoadedItems();
+
         _roomGrain._state.IsFurniLoaded = true;
+    }
+
+    /// <summary>
+    /// Remembers every furni as it was loaded, for a wired menu rollback. A temporary furni has
+    /// no row to put back.
+    /// </summary>
+    internal void CaptureLoadedItems()
+    {
+        var snapshots = _roomGrain._state.LoadedItemSnapshots;
+
+        snapshots.Clear();
+
+        foreach (var item in _roomGrain._state.ItemsById.Values)
+        {
+            if (!item.IsTemporary)
+                snapshots[item.ObjectId] = item.GetSnapshot();
+        }
     }
 
     public Task<RoomItemSnapshot?> GetItemSnapshotByIdAsync(
