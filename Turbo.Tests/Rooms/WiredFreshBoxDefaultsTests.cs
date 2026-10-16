@@ -86,6 +86,18 @@ public sealed class WiredFreshBoxDefaultsTests
             .Should()
             .Equal(2, 0, 0, 0, -10, 0);
 
+    // Official client capture 2026-10-16 (wf_slc_furni_with_var, code 17): defaultIntParams
+    // [2,0,0,0,-10,0], the reference on a global like the users box; ours had it on furni.
+    [Fact]
+    public async Task A_fresh_furni_with_variable_references_a_global() =>
+        (
+            await OpenedWith(
+                _room.AddBox<WiredSelectorItemsWithVariable>(BOX, 0, 0, "wf_slc_furni_with_var")
+            )
+        )
+            .Should()
+            .Equal(2, 0, 0, 0, -10, 0);
+
     [Fact]
     public async Task A_fresh_place_furni_reads_a_context_value() =>
         (await OpenedWith(_room.AddBox<WiredActionPlaceFurni>(BOX, 0, 0, "wf_act_place_furni")))

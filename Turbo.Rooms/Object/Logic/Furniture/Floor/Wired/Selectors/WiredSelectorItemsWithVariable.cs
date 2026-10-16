@@ -43,13 +43,15 @@ public class WiredSelectorItemsWithVariable(
     // capture: Change Variable saved with ids [mark, mark]).
     protected override bool HasPositionalVariableIds => true;
 
+    // The reference is a global variable on a fresh box, for furni as for users (official client
+    // capture 2026-10-16: wf_slc_furni_with_var defaultIntParams [2,0,0,0,-10,0]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
             new WiredRangeParamRule(REFERENCE_NONE, REFERENCE_VARIABLE, REFERENCE_NONE),
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
-            WiredRules.VariableTarget(WiredVariableTargetType.Furni),
+            WiredRules.VariableTarget(WiredVariableTargetType.Global),
             new WiredBoolParamRule(false),
         ];
 

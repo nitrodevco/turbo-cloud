@@ -27,16 +27,4 @@ public class WiredSelectorEntitiesWithVariable(
     public override bool SelectsFurni => false;
 
     public override bool SelectsUsers => true;
-
-    // The reference is a global variable on a fresh box (official client capture:
-    // defaultIntParams [2,0,0,0,-10,0]).
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [
-            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
-            new WiredRangeParamRule(REFERENCE_NONE, REFERENCE_VARIABLE, REFERENCE_NONE),
-            WiredRules.AnyInt(),
-            WiredRules.AnyInt(),
-            WiredRules.VariableTarget(WiredVariableTargetType.Global),
-            new WiredBoolParamRule(false),
-        ];
 }
