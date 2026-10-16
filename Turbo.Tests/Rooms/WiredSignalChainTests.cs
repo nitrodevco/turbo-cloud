@@ -123,7 +123,7 @@ public sealed class WiredSignalChainTests
     }
 
     [Fact]
-    public async Task AUserClickingTheFurni_WithTheSelectorFilteringTheExistingSelection_TeleportsOnlyTheClicker()
+    public async Task AUserClickingTheFurni_WithTheSelectorFilteringTheExistingSelection_TeleportsNobody()
     {
         await BuildSenderAsync(
             WiredPlayerSourceType.SelectorUsers,
@@ -136,8 +136,9 @@ public sealed class WiredSignalChainTests
         await ClickAsync(6);
         await TickAsync(6);
 
-        // Filtering narrows what the trigger selected (the clicker) to the players: just 6.
-        _room.Positions().Should().Equal("5@1,1", "6@5,5", "7@3,1");
+        // The filter is the stack's only selector, so it has nothing to narrow: it does not pick
+        // the clicker either (official client capture, see WiredSelectorFilterSeedTests).
+        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
     }
 
     [Fact]

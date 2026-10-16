@@ -23,6 +23,10 @@ public class WiredSelectorEntitiesInTeam(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_TEAM;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<GameTeamType>(GameTeamType.None)];
 

@@ -21,6 +21,10 @@ public class WiredSelectorEntitiesInArea(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_AREA;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         WiredArea.GetParamRules(_roomGrain._wiredConfig);
 

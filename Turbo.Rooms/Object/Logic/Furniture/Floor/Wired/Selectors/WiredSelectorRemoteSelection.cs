@@ -32,6 +32,8 @@ public class WiredSelectorRemoteSelection(
 
     public override int WiredCode => (int)WiredSelectorType.REMOTE_SELECTOR;
 
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 1, 0), WiredRules.AnyInt()];
 

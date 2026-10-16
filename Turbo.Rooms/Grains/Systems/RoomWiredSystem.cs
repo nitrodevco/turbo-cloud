@@ -453,8 +453,23 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        // The selectors' picks add up first; "filter existing selection" ones then narrow them,
+        // wherever they stand in the stack (official client capture: a filter placed below its
+        // seed still removed a seeded user of the wrong type).
         foreach (var selector in ctx.Stack.Selectors)
         {
+            if (selector.GetIsFilter())
+                continue;
+
+            await ApplySelectorAsync(ctx, selector, ct);
+            Flash(selector);
+        }
+
+        foreach (var selector in ctx.Stack.Selectors)
+        {
+            if (!selector.GetIsFilter())
+                continue;
+
             await ApplySelectorAsync(ctx, selector, ct);
             Flash(selector);
         }
@@ -510,9 +525,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Adds a selector's result to the pool. Filter selectors narrow what is already there
-    /// (the pool, or the triggering set when the pool is still empty); inverted selectors
-    /// contribute everything in the room they did not pick.
+    /// Adds a selector's result to the pool. Filter selectors narrow what the other selectors
+    /// picked and pick nothing on their own: with no seed the pool stays empty, the triggering
+    /// user or a signal's furni included (official client capture: a users-by-type filter alone
+    /// selected no user, and a furni-with-variable filter whose "furni from signal" seed was moved
+    /// off the stack forwarded nothing). Filtering and inverting work on the selector's own kind,
+    /// furni or users, and leave the other kind in the pool as it was.
     /// </summary>
     private async Task ApplySelectorAsync(
         WiredProcessingContext ctx,
@@ -523,7 +541,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var set = await selector.SelectAsync(ctx, ct);
 
         if (selector.GetIsInvert())
-            set = InvertSelection(set);
+            set = InvertSelection(selector, set);
 
         if (!selector.GetIsFilter())
         {
@@ -532,48 +550,64 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             return;
         }
 
-        var basis =
-            ctx.SelectorPool.HasFurni || ctx.SelectorPool.HasAvatars
-                ? ctx.SelectorPool
-                : ctx.Selected;
+        // The pool is rebuilt from the kept ids in its own order, through buffers this system
+        // keeps, as it is read out while it is being narrowed.
+        var pool = ctx.SelectorPool;
 
-        // The pool is rebuilt from the kept ids in the basis' own order, as before, but through
-        // buffers this system keeps: the basis can be the pool itself, so it is read out first.
-        _keptFurni.Clear();
-        _keptAvatars.Clear();
-
-        foreach (var furniId in basis.SelectedFurniIds)
+        if (selector.SelectsFurni)
         {
-            if (set.SelectedFurniIds.Contains(furniId))
-                _keptFurni.Add(furniId);
+            _keptFurni.Clear();
+
+            foreach (var furniId in pool.SelectedFurniIds)
+            {
+                if (set.SelectedFurniIds.Contains(furniId))
+                    _keptFurni.Add(furniId);
+            }
+
+            pool.SelectedFurniIds.Clear();
+            pool.SelectedFurniIds.UnionWith(_keptFurni);
         }
 
-        foreach (var avatarId in basis.SelectedAvatarIds)
+        if (selector.SelectsUsers)
         {
-            if (set.SelectedAvatarIds.Contains(avatarId))
-                _keptAvatars.Add(avatarId);
-        }
+            _keptAvatars.Clear();
 
-        ctx.SelectorPool.SelectedFurniIds.Clear();
-        ctx.SelectorPool.SelectedAvatarIds.Clear();
-        ctx.SelectorPool.SelectedFurniIds.UnionWith(_keptFurni);
-        ctx.SelectorPool.SelectedAvatarIds.UnionWith(_keptAvatars);
+            foreach (var avatarId in pool.SelectedAvatarIds)
+            {
+                if (set.SelectedAvatarIds.Contains(avatarId))
+                    _keptAvatars.Add(avatarId);
+            }
+
+            pool.SelectedAvatarIds.Clear();
+            pool.SelectedAvatarIds.UnionWith(_keptAvatars);
+        }
     }
 
-    private WiredSelectionSet InvertSelection(IWiredSelectionSet set)
+    /// <summary>
+    /// What an inverted selector picks: every furni or user of its kind in the room that it did
+    /// not match (<c>wiredfurni.danger.1.change.confirm.body</c>: "all furni/users that do NOT
+    /// match the requirement").
+    /// </summary>
+    private WiredSelectionSet InvertSelection(IWiredSelector selector, IWiredSelectionSet set)
     {
         var inverted = new WiredSelectionSet();
 
-        foreach (var item in FurniModule.Items)
+        if (selector.SelectsFurni)
         {
-            if (!set.SelectedFurniIds.Contains(item.ObjectId))
-                inverted.SelectedFurniIds.Add(item.ObjectId);
+            foreach (var item in FurniModule.Items)
+            {
+                if (!set.SelectedFurniIds.Contains(item.ObjectId))
+                    inverted.SelectedFurniIds.Add(item.ObjectId);
+            }
         }
 
-        foreach (var avatar in AvatarModule.Avatars)
+        if (selector.SelectsUsers)
         {
-            if (!set.SelectedAvatarIds.Contains(avatar.ObjectId))
-                inverted.SelectedAvatarIds.Add(avatar.ObjectId);
+            foreach (var avatar in AvatarModule.Avatars)
+            {
+                if (!set.SelectedAvatarIds.Contains(avatar.ObjectId))
+                    inverted.SelectedAvatarIds.Add(avatar.ObjectId);
+            }
         }
 
         return inverted;

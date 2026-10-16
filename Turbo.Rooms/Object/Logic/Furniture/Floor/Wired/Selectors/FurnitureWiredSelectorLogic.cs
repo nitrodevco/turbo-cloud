@@ -49,6 +49,10 @@ public abstract class FurnitureWiredSelectorLogic(
 
     public bool GetIsInvert() => _isInvert;
 
+    public virtual bool SelectsFurni => true;
+
+    public virtual bool SelectsUsers => false;
+
     public virtual Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct

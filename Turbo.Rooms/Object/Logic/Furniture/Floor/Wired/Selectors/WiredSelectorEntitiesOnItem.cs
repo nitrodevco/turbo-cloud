@@ -21,6 +21,10 @@ public class WiredSelectorEntitiesOnItem(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_ON_FURNI;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     // Picked, triggering or signal furni; a selector does not read the selector pool (official
     // form contract of Users On Furni, [0,100,201], default 100).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

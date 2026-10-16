@@ -16,6 +16,10 @@ public class WiredSelectorEntitiesInNeighborhood(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_NEIGHBORHOOD;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
         foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileId))

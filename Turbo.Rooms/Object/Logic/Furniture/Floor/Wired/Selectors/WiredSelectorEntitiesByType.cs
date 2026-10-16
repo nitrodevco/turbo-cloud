@@ -31,6 +31,10 @@ public class WiredSelectorEntitiesByType(
 
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_TYPE;
 
+    public override bool SelectsFurni => false;
+
+    public override bool SelectsUsers => true;
+
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(0, 7, 1)];
 
     public override Task<IWiredSelectionSet> SelectAsync(
