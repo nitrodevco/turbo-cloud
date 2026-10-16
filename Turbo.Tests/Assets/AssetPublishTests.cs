@@ -167,7 +167,12 @@ public sealed class AssetPublishTests : IDisposable
         var entry = (await _hotel.Publishing.GetHistoryAsync(target.Id, Ct))!.Single();
 
         entry.Uploaded.Should().Be(1);
-        entry.Error.Should().Contain("1 files");
+        // Why, too: the first file that failed and its reason, not the count alone.
+        entry
+            .Error.Should()
+            .Contain("1 files")
+            .And.Contain("bundled/furniture/table.nitro")
+            .And.Contain("table.nitro'");
     }
 
     [Fact]

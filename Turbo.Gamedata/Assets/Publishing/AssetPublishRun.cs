@@ -49,6 +49,7 @@ internal sealed class AssetPublishRun(
 
     private int _uploaded;
     private int _failed;
+    private string? _firstFailure;
     private int _deleted;
     private long _bytes;
 
@@ -121,7 +122,10 @@ internal sealed class AssetPublishRun(
             throw;
         }
 
-        var error = _failed > 0 ? $"{_failed} files could not be sent or deleted." : null;
+        var error =
+            _failed > 0
+                ? $"{_failed} files could not be sent or deleted. The first: {_firstFailure}"
+                : null;
 
         await FinishHistoryAsync(historyId, already, error).ConfigureAwait(false);
 
@@ -129,6 +133,14 @@ internal sealed class AssetPublishRun(
             $"{_uploaded} sent ({Megabytes(_bytes)}), {already} already there, {_deleted} deleted";
 
         return _failed > 0 ? $"{result}, {_failed} failed" : result;
+    }
+
+    /// <summary>A file that could not be sent or deleted: logged, counted, and the first kept for the history.</summary>
+    private void Failed(string line, IAssetJobProgress progress)
+    {
+        progress.Log(line);
+        Interlocked.CompareExchange(ref _firstFailure, line, null);
+        Interlocked.Increment(ref _failed);
     }
 
     private static string Megabytes(long bytes) => $"{bytes / BYTES_PER_MEGABYTE:0.0} MB";
@@ -286,8 +298,7 @@ internal sealed class AssetPublishRun(
                         file.Path,
                         target.Id
                     );
-                    progress.Log($"{file.Path}: {ex.Message}");
-                    Interlocked.Increment(ref _failed);
+                    Failed($"{file.Path}: {ex.Message}", progress);
                     progress.Advance(failed: true);
                 }
 
@@ -334,8 +345,7 @@ internal sealed class AssetPublishRun(
                         path,
                         target.Id
                     );
-                    progress.Log($"{path}: {ex.Message}");
-                    _failed++;
+                    Failed($"{path}: {ex.Message}", progress);
                     progress.Advance(failed: true);
                 }
             }
