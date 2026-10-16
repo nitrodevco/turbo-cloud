@@ -198,7 +198,9 @@ public sealed class WiredControlClockTests
         }
 
         (firstHalf % 500).Should().Be(0);
-        firstSecond.Should().Be(firstHalf + 500, "each half second is due on its boundary, not when the pass ran");
+        firstSecond
+            .Should()
+            .Be(firstHalf + 500, "each half second is due on its boundary, not when the pass ran");
     }
 
     private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
