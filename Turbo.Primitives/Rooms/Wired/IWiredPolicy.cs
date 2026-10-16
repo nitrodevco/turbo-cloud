@@ -26,7 +26,10 @@ public interface IWiredPolicy
     /// <summary>How many actions a random firing picks.</summary>
     public int RandomPickCount { get; set; }
 
-    /// <summary>How many actions a random firing skips before picking.</summary>
+    /// <summary>
+    /// How many of its last executions a random firing avoids the actions of
+    /// (<c>wiredfurni.params.skipactions</c>: "Avoid effects from last %skips% executions").
+    /// </summary>
     public int RandomSkipCount { get; set; }
     public WiredAnimationModeType AnimationMode { get; set; }
     public int AnimationTimeMs { get; set; }

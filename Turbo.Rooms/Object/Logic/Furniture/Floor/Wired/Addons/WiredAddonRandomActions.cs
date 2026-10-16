@@ -12,8 +12,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Runs a random pick of the actions instead of all of them. Params: how many actions at
-/// the top of the stack to skip (they always run in order) and how many to pick.
+/// Runs a random pick of the actions instead of all of them. Params: how many of its last
+/// executions to avoid the actions of, and how many to pick (AS3 1745
+/// wired_setup/addons/_-D1I.as:30, <c>wiredfurni.params.skipactions</c> / <c>.pickamount</c>).
 /// </summary>
 [RoomObjectLogic("wf_xtra_random")]
 public class WiredAddonRandomActions(

@@ -48,6 +48,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private readonly Dictionary<int, IWiredStack> _stacksById = [];
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
     private readonly Dictionary<int, int> _nextUnseenIndexByStackId = [];
+    private readonly Dictionary<int, Queue<List<IWiredAction>>> _recentRandomPicksByStackId = [];
     private readonly Queue<RoomEvent> _eventQueue = new();
 
     // Floor furni whose state wired changed since the last state update. Habbo sends them as one
@@ -1173,6 +1174,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     {
         _stacksById.Remove(stackId);
         _nextUnseenIndexByStackId.Remove(stackId);
+        _recentRandomPicksByStackId.Remove(stackId);
 
         var wiredItems = FurniModule
             .GetFloorItemsOnTile(stackId)
@@ -1246,28 +1248,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case WiredEffectModeType.FirstOnly:
                 return [actions[0]];
             case WiredEffectModeType.Random:
-            {
-                var skip = Math.Min(Math.Max(0, policy.RandomSkipCount), actions.Count);
-                var candidates = actions.GetRange(skip, actions.Count - skip);
-
-                if (candidates.Count == 0)
-                    return [];
-
-                var picks = Math.Clamp(policy.RandomPickCount, 1, candidates.Count);
-
-                // A partial Fisher-Yates: only as many swaps as picks, each pick uniform over
-                // what is left, which is what shuffling the whole list and taking its head gave.
-                for (var i = 0; i < picks; i++)
-                {
-                    var j = Random.Shared.Next(i, candidates.Count);
-
-                    (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
-                }
-
-                candidates.RemoveRange(picks, candidates.Count - picks);
-
-                return candidates;
-            }
+                return ChooseRandomActions(actions, policy, stackId);
             case WiredEffectModeType.Unseen:
             {
                 _nextUnseenIndexByStackId.TryGetValue(stackId, out var index);
@@ -1281,6 +1262,75 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             default:
                 return [.. actions];
         }
+    }
+
+    /// <summary>
+    /// The random add-on: picks its number of actions at random, avoiding the ones it picked in
+    /// its last executions (AS3 1745 wired_setup/addons/_-D1I.as:30: params [skips, picks];
+    /// <c>wiredfurni.params.skipactions</c> "Avoid effects from last %skips% executions"). When
+    /// too few others are left it tops up from the avoided ones, so a firing always runs its
+    /// number of picks (inferred: the text says "Pick %picks% effects").
+    /// </summary>
+    private List<IWiredAction> ChooseRandomActions(
+        List<IWiredAction> actions,
+        IWiredPolicy policy,
+        int stackId
+    )
+    {
+        var avoidCount = Math.Max(0, policy.RandomSkipCount);
+        var picks = Math.Clamp(policy.RandomPickCount, 1, actions.Count);
+        _recentRandomPicksByStackId.TryGetValue(stackId, out var recent);
+
+        var candidates = new List<IWiredAction>(actions.Count);
+        var avoided = new List<IWiredAction>();
+
+        foreach (var action in actions)
+        {
+            if (recent is not null && avoidCount > 0 && recent.Any(run => run.Contains(action)))
+                avoided.Add(action);
+            else
+                candidates.Add(action);
+        }
+
+        var chosen = PickAtRandom(candidates, picks);
+
+        if (chosen.Count < picks)
+            chosen.AddRange(PickAtRandom(avoided, picks - chosen.Count));
+
+        if (avoidCount > 0)
+        {
+            recent ??= _recentRandomPicksByStackId[stackId] = new Queue<List<IWiredAction>>();
+            recent.Enqueue([.. chosen]);
+
+            while (recent.Count > avoidCount)
+                recent.Dequeue();
+        }
+        else
+        {
+            _recentRandomPicksByStackId.Remove(stackId);
+        }
+
+        return chosen;
+    }
+
+    /// <summary>
+    /// A partial Fisher-Yates: only as many swaps as picks, each pick uniform over what is left,
+    /// which is what shuffling the whole list and taking its head gives.
+    /// </summary>
+    private static List<IWiredAction> PickAtRandom(List<IWiredAction> from, int picks)
+    {
+        picks = Math.Min(picks, from.Count);
+
+        for (var i = 0; i < picks; i++)
+        {
+            var j = Random.Shared.Next(i, from.Count);
+
+            (from[i], from[j]) = (from[j], from[i]);
+        }
+
+        from.RemoveRange(picks, from.Count - picks);
+
+        return from;
     }
 
     /// <summary>
