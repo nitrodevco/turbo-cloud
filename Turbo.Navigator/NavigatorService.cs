@@ -730,9 +730,12 @@ public sealed class NavigatorService(
     )
     {
         var matches = await SearchByFilterAsync(query, filterType, value, ct).ConfigureAwait(false);
+        // Nothing matching answers no block at all (official client capture 2026-10-16).
+        if (matches.Count == 0)
+            return [];
+
         var blocks = new List<NavigatorSearchResultBlockSnapshot>
         {
-            // Inference: sent even when nothing matches, as the single block was before.
             CreatePreviewBlock(
                 query,
                 NavigatorSearchCodes.QUERY,
@@ -789,9 +792,10 @@ public sealed class NavigatorService(
     }
 
     /// <summary>
-    /// The "show more" of a block of the filtered hotel view: the query block's matches, or the
-    /// section's own full list filtered by the text. Habbo's answer to these was not recorded,
-    /// so they mirror the block they expand (inference); null for any other code.
+    /// The "show more" of a block of the filtered hotel view (official client capture
+    /// 2026-10-16, "trade"): one block, action back, of the query's matches (75) or of the
+    /// section's own full list filtered by the text (Trading: its 12 matches, empty rooms
+    /// included); null for any other code.
     /// </summary>
     private async Task<NavigatorSearchResultBlockSnapshot?> CreateFilteredSectionBlockAsync(
         SearchQuery query,
@@ -812,7 +816,7 @@ public sealed class NavigatorService(
                 string.Empty,
                 [.. matches.OrderByDescending(x => PopulationOf(x, query))],
                 NavigatorActionAllowedType.Back,
-                _config.SearchResultLimit
+                _config.SearchResultLimits.GetValueOrDefault(code, _config.SearchResultLimit)
             );
         }
 

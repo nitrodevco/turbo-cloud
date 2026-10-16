@@ -43,10 +43,15 @@ public class NavigatorConfig
     /// <summary>
     /// Full-search sizes by search code, where Habbo caps one below
     /// <see cref="SearchResultLimit"/>: its "popular" search returns 75 rooms (official client
-    /// capture 2026-10-16, the 75th still had 2 users).
+    /// capture 2026-10-16, the 75th still had 2 users), and so does the "show more" of a text
+    /// search's query block (2026-10-16, "trade").
     /// </summary>
     public Dictionary<string, int> SearchResultLimits { get; init; } =
-        new(StringComparer.Ordinal) { [NavigatorSearchCodes.POPULAR] = 75 };
+        new(StringComparer.Ordinal)
+        {
+            [NavigatorSearchCodes.POPULAR] = 75,
+            [NavigatorSearchCodes.QUERY] = 75,
+        };
 
     /// <summary>
     /// Rooms in a full category search (<c>category__&lt;name&gt;</c>, the category's "show

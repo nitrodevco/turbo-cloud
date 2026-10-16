@@ -286,6 +286,34 @@ public sealed class NavigatorHotelViewTests
     }
 
     [Fact]
+    public async Task text_nothing_matches_answers_no_blocks()
+    {
+        // Habbo's "zzzvjw" (official client capture 2026-10-16): a result with no blocks.
+        SearchMatches();
+
+        (await Service().SearchAsync(PLAYER, "hotel_view", "nothing like it", Ct))
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public async Task show_more_of_the_query_block_lists_75_matches()
+    {
+        // Habbo's show more of "Text Search" for "trade" (official client capture 2026-10-16):
+        // one query block, action back, 75 rooms.
+        for (var i = 1; i <= 80; i++)
+            Live(1000 + i, TRADING, population: 0);
+
+        SearchMatches();
+
+        var block = Assert.Single(await Service().SearchAsync(PLAYER, "query", "room", Ct));
+
+        block.SearchCode.Should().Be("query");
+        block.ActionAllowed.Should().Be(NavigatorActionAllowedType.Back);
+        block.Results.Should().HaveCount(75);
+    }
+
+    [Fact]
     public async Task show_more_of_a_filtered_category_lists_its_matching_rooms()
     {
         SearchMatches();
