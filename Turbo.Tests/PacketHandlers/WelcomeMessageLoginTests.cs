@@ -162,4 +162,17 @@ public class WelcomeMessageLoginTests
         sent.Should().NotBeEmpty();
         sent.OfType<MOTDNotificationEventMessageComposer>().Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task TheLogin_IsNotTheFirstLoginOfTheDay()
+    {
+        await LogInAsync();
+
+        SentToSession()
+            .OfType<Turbo.Primitives.Messages.Outgoing.Handshake.IsFirstLoginOfDayMessage>()
+            .Should()
+            .ContainSingle()
+            .Which.IsFirstLoginOfDay.Should()
+            .BeFalse();
+    }
 }

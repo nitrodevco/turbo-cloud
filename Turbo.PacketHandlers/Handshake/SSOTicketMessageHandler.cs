@@ -356,7 +356,9 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-        await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = true }, ct)
+        // Official logins answer false, a new account's first one included; the client reads it only
+        // to open the seasonal quest calendar, which the hotel has switched off.
+        await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = false }, ct)
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(
                 new MysteryBoxKeysMessageComposer
