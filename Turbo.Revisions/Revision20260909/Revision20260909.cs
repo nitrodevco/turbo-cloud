@@ -278,6 +278,8 @@ public class Revision20260909 : IRevision
                 new GetCatalogPageWithEarliestExpiryMessageParser()
             },
             { MessageEvent.GetClubGiftMessageEvent, new GetClubGiftInfoMessageParser() },
+            { MessageEvent.HasClaimedProductMessageEvent, new HasClaimedProductMessageParser() },
+            { MessageEvent.ClaimProductMessageEvent, new ClaimProductMessageParser() },
             { MessageEvent.GetClubOffersMessageEvent, new GetClubOffersMessageParser() },
             {
                 MessageEvent.GetGiftWrappingConfigurationMessageEvent,
@@ -1881,6 +1883,18 @@ public class Revision20260909 : IRevision
                 typeof(CatalogPublishedMessageComposer),
                 new CatalogPublishedMessageComposerSerializer(
                     MessageComposer.CatalogPublishedMessageComposer
+                )
+            },
+            {
+                typeof(HasClaimedProductResponseMessageComposer),
+                new HasClaimedProductResponseMessageComposerSerializer(
+                    MessageComposer.HasClaimedProductResponseMessageComposer
+                )
+            },
+            {
+                typeof(ClaimProductResultMessageComposer),
+                new ClaimProductResultMessageComposerSerializer(
+                    MessageComposer.ClaimProductResultMessageComposer
                 )
             },
             {
