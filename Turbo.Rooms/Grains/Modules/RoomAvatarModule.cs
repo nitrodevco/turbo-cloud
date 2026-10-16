@@ -894,30 +894,43 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 _roomGrain.RoomId
             );
 
-    public Task<bool> UpdateAvatarWithPlayerAsync(
+    public async Task<bool> UpdateAvatarWithPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
     )
     {
         if (snapshot.PlayerId <= 0 || !TryGetPlayer(snapshot.PlayerId, out var avatarPlayer))
-            return Task.FromResult(false);
+            return false;
 
         var previousName = avatarPlayer.Name;
 
         if (!avatarPlayer.UpdateWithPlayer(snapshot))
-            return Task.FromResult(false);
+            return false;
 
-        _roomGrain.SendComposerToRoomAndForget(
-            new UserChangeMessageComposer
+        var change = new UserChangeMessageComposer
+        {
+            ObjectId = avatarPlayer.ObjectId,
+            Figure = avatarPlayer.Figure,
+            Gender = avatarPlayer.Gender,
+            CustomInfo = avatarPlayer.Motto,
+            AchievementScore = snapshot.AchievementScore,
+            BadgesRank = snapshot.BadgesRank,
+        };
+
+        // The player is told first as room index -1, which their own session, me menu icon and
+        // landing view avatar take as theirs (SessionDataManager.as:443, MeMenuIconLoader.as:119,
+        // AvatarImageWidget.as:80); official client captures: 9 of 9 own changes (figure 2,
+        // achievement score 7), each followed by the room's.
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            snapshot.PlayerId,
+            change with
             {
-                ObjectId = avatarPlayer.ObjectId,
-                Figure = avatarPlayer.Figure,
-                Gender = avatarPlayer.Gender,
-                CustomInfo = avatarPlayer.Motto,
-                AchievementScore = snapshot.AchievementScore,
-                BadgesRank = snapshot.BadgesRank,
-            }
+                ObjectId = -1,
+            },
+            ct
         );
+
+        _roomGrain.SendComposerToRoomAndForget(change);
 
         // A new name: each client renames the user by room index, and the player's own session
         // takes it as its name (AS3 1318 RoomUsersHandler.onUserNameChange :278,
@@ -933,7 +946,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 }
             );
 
-        return Task.FromResult(true);
+        return true;
     }
 
     public Task<bool> SetAvatarDanceAsync(
