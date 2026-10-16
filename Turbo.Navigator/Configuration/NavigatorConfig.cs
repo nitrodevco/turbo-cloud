@@ -18,7 +18,8 @@ public class NavigatorConfig
 
     /// <summary>
     /// Preview sizes by block code. Habbo's hotel view (official client capture 2026-10-13/16,
-    /// six samples): hot 12, popular 12, recommended 7.
+    /// six samples): hot 12, popular 12, recommended 7; the text search's query block 12
+    /// (2026-10-12, eight filters); the events tab's top promotions 8 (2026-10-13, two samples).
     /// </summary>
     public Dictionary<string, int> BlockPreviewLimits { get; init; } =
         new(StringComparer.Ordinal)
@@ -26,7 +27,15 @@ public class NavigatorConfig
             [NavigatorSearchCodes.HOT] = 12,
             [NavigatorSearchCodes.POPULAR] = 12,
             [NavigatorSearchCodes.RECOMMENDED] = 7,
+            [NavigatorSearchCodes.QUERY] = 12,
+            [NavigatorSearchCodes.TOP_PROMOTIONS] = 8,
         };
+
+    /// <summary>
+    /// Rooms in each event category block (<c>eventcategory__&lt;id&gt;</c>) of the events tab
+    /// before "show more": 6 in Habbo's (official client capture 2026-10-13, two samples).
+    /// </summary>
+    public int EventCategoryBlockPreviewLimit { get; init; } = 6;
 
     /// <summary>Rooms returned for a single full search.</summary>
     public int SearchResultLimit { get; init; } = 100;

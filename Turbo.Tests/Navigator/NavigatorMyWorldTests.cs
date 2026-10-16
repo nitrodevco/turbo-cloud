@@ -217,7 +217,8 @@ public sealed class NavigatorMyWorldTests
 
         var block = blocks.Single(x => x.SearchCode.StartsWith("eventcategory__"));
         block.SearchCode.Should().Be("eventcategory__2");
-        block.Text.Should().Be("Parties & Music");
+        // Habbo's event blocks carry no text (official client capture 2026-10-13).
+        block.Text.Should().BeEmpty();
 
         foreach (var code in new[] { "eventcategory__2", "eventcategory__Parties & Music" })
             Assert
@@ -225,6 +226,68 @@ public sealed class NavigatorMyWorldTests
                 .Results.Select(x => x.RoomId.Value)
                 .Should()
                 .Equal(20);
+    }
+
+    [Fact]
+    public async Task the_events_tab_has_habbos_blocks_sizes_and_promotion_order()
+    {
+        // Habbo's roomads_view (official client capture 2026-10-13, two samples): top_promotions
+        // 8, longest running first whatever the population; eventcategory__<id> 6 each; no
+        // new_ads block.
+        var now = DateTime.UtcNow;
+        var rooms = Enumerable
+            .Range(1, 10)
+            .Select(i =>
+                Uninitialized<RoomInfoSnapshot>() with
+                {
+                    RoomId = 100 + i,
+                    Name = $"event {i}",
+                    OwnerId = STRANGER,
+                    DoorMode = RoomDoorModeType.Open,
+                    Population = i,
+                    Tags = [],
+                    ActiveEvent = new RoomEventSnapshot
+                    {
+                        EventId = i,
+                        RoomId = 100 + i,
+                        OwnerId = STRANGER,
+                        OwnerName = "stranger",
+                        CategoryId = 2,
+                        Name = $"event {i}",
+                        Description = "",
+                        CreatedAtUtc = now.AddMinutes(-i),
+                        // Listed 101 first, but room 110 runs longest.
+                        ExpiresAtUtc = now.AddMinutes(900 + (i * 10)),
+                    },
+                }
+            )
+            .ToList();
+        _fakes.Handlers["GetEventCategories"] = _ =>
+            (ImmutableArray<NavigatorEventCategorySnapshot>)
+                [
+                    new()
+                    {
+                        Id = 2,
+                        Name = "Parties & Music",
+                        Visible = true,
+                    },
+                ];
+        _fakes.Handlers["GetRoomsWithActiveEventsAsync"] = _ => Task.FromResult(rooms.ToList());
+
+        var blocks = await Service()
+            .SearchAsync(PLAYER, NavigatorSearchCodes.ROOMADS_VIEW, string.Empty, Ct);
+
+        blocks
+            .Select(x => (x.SearchCode, x.Results.Length, x.ActionAllowed))
+            .Should()
+            .Equal(
+                ("top_promotions", 8, NavigatorActionAllowedType.Expanded),
+                ("eventcategory__2", 6, NavigatorActionAllowedType.Expanded)
+            );
+        blocks[0]
+            .Results.Select(x => x.RoomId.Value)
+            .Should()
+            .Equal(110, 109, 108, 107, 106, 105, 104, 103);
     }
 
     [Fact]

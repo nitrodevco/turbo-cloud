@@ -228,6 +228,94 @@ public sealed class NavigatorHotelViewTests
             .HaveCount(25);
     }
 
+    [Fact]
+    public async Task text_in_the_hotel_view_answers_a_query_block_then_the_matching_blocks()
+    {
+        // Habbo's "room linker" / "trade" (official client capture 2026-10-12): query (every
+        // match, doorbell and password rooms too, fullest first), then recommended and the
+        // categories with their matching rooms only; no hot or popular.
+        SearchMatches();
+
+        var blocks = await Service().SearchAsync(PLAYER, "hotel_view", "room 20", Ct);
+
+        blocks
+            .Select(x => (x.SearchCode, x.ActionAllowed))
+            .Should()
+            .Equal(
+                ("query", NavigatorActionAllowedType.Collapsed),
+                ("recommended", NavigatorActionAllowedType.Collapsed),
+                ("category__global games", NavigatorActionAllowedType.Collapsed)
+            );
+        blocks[0].Results.Select(x => x.RoomId.Value).Should().Equal(201, 200, 20);
+        blocks[0].Text.Should().BeEmpty();
+        blocks[1].Results.Select(x => x.RoomId.Value).Should().Equal(20);
+        blocks[2].Results.Select(x => x.RoomId.Value).Should().Equal(20);
+    }
+
+    [Fact]
+    public async Task the_filtered_hotel_views_blocks_have_habbos_sizes()
+    {
+        // query 12, recommended 7, categories 9 ("room linker", "trade"); a category's block
+        // keeps the empty rooms its full list ends with (Habbo's Trading block for "trade").
+        SearchMatches();
+
+        var blocks = await Service().SearchAsync(PLAYER, "hotel_view", "room", Ct);
+
+        blocks
+            .Select(x => (x.SearchCode, x.Results.Length, x.ActionAllowed))
+            .Should()
+            .Equal(
+                ("query", 12, NavigatorActionAllowedType.Expanded),
+                ("recommended", 7, NavigatorActionAllowedType.Expanded),
+                ("category__global games", 9, NavigatorActionAllowedType.Expanded),
+                ("category__Trading", 5, NavigatorActionAllowedType.Collapsed),
+                ("category__global help", 1, NavigatorActionAllowedType.Collapsed)
+            );
+        blocks[0].Results.Select(x => x.RoomId.Value).Should().StartWith([201, 200, 20, 19]);
+    }
+
+    [Fact]
+    public async Task a_prefixed_filter_in_the_hotel_view_answers_the_query_block_alone()
+    {
+        // Habbo's "owner:results!" (official client capture 2026-10-13): query only.
+        SearchMatches();
+
+        var blocks = await Service().SearchAsync(PLAYER, "hotel_view", "roomname:room 2", Ct);
+
+        blocks.Select(x => x.SearchCode).Should().Equal("query");
+    }
+
+    [Fact]
+    public async Task show_more_of_a_filtered_category_lists_its_matching_rooms()
+    {
+        SearchMatches();
+
+        var block = Assert.Single(
+            await Service().SearchAsync(PLAYER, "category__global games", "room 2", Ct)
+        );
+
+        block.ActionAllowed.Should().Be(NavigatorActionAllowedType.Back);
+        block.Results.Select(x => x.RoomId.Value).Should().Equal(20, 2);
+    }
+
+    /// <summary>The room search: rooms whose name has the text, best-rated (here newest) first.</summary>
+    private void SearchMatches()
+    {
+        _fakes.Handlers["TryConsumeSearchQuotaAsync"] = _ => Task.FromResult(true);
+        _fakes.Handlers["GetRoomsByCategoryAsync"] = _ =>
+            Task.FromResult(new List<RoomInfoSnapshot>());
+        _fakes.Handlers["SearchRoomsAsync"] = call =>
+            Task.FromResult(
+                _live
+                    .Values.Where(x =>
+                        x.Name.Contains((string)call.Args[1]!, StringComparison.OrdinalIgnoreCase)
+                    )
+                    .OrderByDescending(x => x.RoomId.Value)
+                    .Cast<RoomInfoSnapshot>()
+                    .ToList()
+            );
+    }
+
     private NavigatorService Service(NavigatorConfig? config = null) =>
         new(
             NullLogger<INavigatorService>.Instance,

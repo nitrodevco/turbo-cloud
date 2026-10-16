@@ -89,6 +89,23 @@ public sealed class NavigatorService(
         if (filterText.Length > 0)
         {
             var (filterType, value) = ParseFilter(filterText);
+
+            if (code == NavigatorSearchCodes.HOTEL_VIEW)
+                return await CreateFilteredHotelViewBlocksAsync(query, filterType, value, ct)
+                    .ConfigureAwait(false);
+
+            var filteredSection = await CreateFilteredSectionBlockAsync(
+                    query,
+                    code,
+                    filterType,
+                    value,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            if (filteredSection is not null)
+                return [filteredSection];
+
             var rooms = await SearchByFilterAsync(query, filterType, value, ct)
                 .ConfigureAwait(false);
 
@@ -126,19 +143,21 @@ public sealed class NavigatorService(
                 .ConfigureAwait(false),
             NavigatorSearchCodes.ROOMADS_VIEW => await CreatePreviewBlocksAsync(
                     query,
+                    // Habbo's events tab (official client capture 2026-10-13, two samples): top
+                    // promotions, then one block per event category; no new_ads block.
                     [
                         (NavigatorSearchCodes.TOP_PROMOTIONS, string.Empty),
-                        (NavigatorSearchCodes.NEW_ADS, string.Empty),
                         .. GetEventCategories()
                             .Where(x => x.Visible)
-                            // Habbo names these blocks by id (eventcategory__2), which the
-                            // client titles from navigator.searchcode.title.eventcategory__2.
+                            // Habbo names these blocks by id (eventcategory__2) and sends no
+                            // text: the client titles them from
+                            // navigator.searchcode.title.eventcategory__2.
                             .Select(x =>
                                 (
                                     NavigatorSearchCodes.EventCategory(
                                         x.Id.ToString(CultureInfo.InvariantCulture)
                                     ),
-                                    x.Name
+                                    string.Empty
                                 )
                             ),
                     ],
@@ -694,10 +713,148 @@ public sealed class NavigatorService(
         ];
     }
 
+    /// <summary>
+    /// Habbo's hotel view with text typed into its search (official client capture 2026-10-12,
+    /// eight filters, and 2026-10-13): a <c>query</c> block of every matching room, doorbell and
+    /// password rooms included, fullest first; then the recommended and category blocks holding
+    /// only their own rooms that match. Hot and popular are not sent. A prefixed filter
+    /// (<c>owner:</c>, 2026-10-13) is answered with the query block alone.
+    /// </summary>
+    private async Task<
+        ImmutableArray<NavigatorSearchResultBlockSnapshot>
+    > CreateFilteredHotelViewBlocksAsync(
+        SearchQuery query,
+        NavigatorSearchFilterType filterType,
+        string value,
+        CancellationToken ct
+    )
+    {
+        var matches = await SearchByFilterAsync(query, filterType, value, ct).ConfigureAwait(false);
+        var blocks = new List<NavigatorSearchResultBlockSnapshot>
+        {
+            // Inference: sent even when nothing matches, as the single block was before.
+            CreatePreviewBlock(
+                query,
+                NavigatorSearchCodes.QUERY,
+                string.Empty,
+                [.. matches.OrderByDescending(x => PopulationOf(x, query))]
+            ),
+        };
+
+        if (filterType != NavigatorSearchFilterType.Anything)
+            return [.. blocks];
+
+        var text = value.Trim();
+        var categories = await GetFlatCategoriesForPlayerAsync(query.PlayerId, ct)
+            .ConfigureAwait(false);
+        // Each category block is that category's own "show more" list filtered by the text:
+        // Habbo's listed the best-rated empty rooms the full list ends with, and none of the
+        // matching rooms outside it.
+        var categoryRooms = await Task.WhenAll(
+                categories.Select(category =>
+                    GetCategoryRoomsAsync(query, category.Id, _config.CategorySearchResultLimit, ct)
+                )
+            )
+            .ConfigureAwait(false);
+
+        IEnumerable<(string Code, string Text, IEnumerable<RoomInfoSnapshot> Rooms)> sections =
+        [
+            (
+                NavigatorSearchCodes.RECOMMENDED,
+                string.Empty,
+                GetRecommendedRooms(query, int.MaxValue)
+            ),
+            .. categories.Select(
+                (category, i) =>
+                    (
+                        NavigatorSearchCodes.Category(category.Name),
+                        CategoryText(category),
+                        (IEnumerable<RoomInfoSnapshot>)categoryRooms[i]
+                    )
+            ),
+        ];
+
+        foreach (var (code, title, rooms) in sections)
+        {
+            var matching = rooms
+                .Where(x => MatchesText(x, text))
+                .Take(PreviewLimit(code) + 1)
+                .ToList();
+
+            if (matching.Count > 0)
+                blocks.Add(CreatePreviewBlock(query, code, title, matching));
+        }
+
+        return [.. blocks];
+    }
+
+    /// <summary>
+    /// The "show more" of a block of the filtered hotel view: the query block's matches, or the
+    /// section's own full list filtered by the text. Habbo's answer to these was not recorded,
+    /// so they mirror the block they expand (inference); null for any other code.
+    /// </summary>
+    private async Task<NavigatorSearchResultBlockSnapshot?> CreateFilteredSectionBlockAsync(
+        SearchQuery query,
+        string code,
+        NavigatorSearchFilterType filterType,
+        string value,
+        CancellationToken ct
+    )
+    {
+        if (code == NavigatorSearchCodes.QUERY)
+        {
+            var matches = await SearchByFilterAsync(query, filterType, value, ct)
+                .ConfigureAwait(false);
+
+            return CreateBlock(
+                query,
+                code,
+                string.Empty,
+                [.. matches.OrderByDescending(x => PopulationOf(x, query))],
+                NavigatorActionAllowedType.Back,
+                _config.SearchResultLimit
+            );
+        }
+
+        if (
+            filterType != NavigatorSearchFilterType.Anything
+            || (
+                code != NavigatorSearchCodes.RECOMMENDED
+                && !code.StartsWith(NavigatorSearchCodes.CATEGORY_PREFIX, StringComparison.Ordinal)
+            )
+        )
+            return null;
+
+        var block = (
+            await CreateSectionBlockAsync(query, code, ct).ConfigureAwait(false)
+        ).FirstOrDefault();
+        var text = value.Trim();
+
+        return block is null
+            ? null
+            : block with
+            {
+                Results = [.. block.Results.Where(x => MatchesText(x, text))],
+            };
+    }
+
+    /// <summary>
+    /// The in-memory form of the room search for unprefixed text: the room's name contains it,
+    /// or its owner or one of its tags is it.
+    /// </summary>
+    private static bool MatchesText(RoomInfoSnapshot room, string text) =>
+        room.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(room.OwnerName, text, StringComparison.OrdinalIgnoreCase)
+        || (
+            !room.Tags.IsDefault
+            && room.Tags.Any(tag => string.Equals(tag, text, StringComparison.OrdinalIgnoreCase))
+        );
+
     private int PreviewLimit(string code) =>
-        _config.BlockPreviewLimits.TryGetValue(code, out var limit)
-            ? limit
-            : _config.BlockPreviewLimit;
+        _config.BlockPreviewLimits.TryGetValue(code, out var limit) ? limit
+        : code.StartsWith(NavigatorSearchCodes.EVENT_CATEGORY_PREFIX, StringComparison.Ordinal)
+            ? _config.EventCategoryBlockPreviewLimit
+        : _config.BlockPreviewLimit;
 
     /// <summary>
     /// A preview block of the rooms fetched with one to spare: the spare one tells the client
@@ -961,11 +1118,14 @@ public sealed class NavigatorService(
                 var rooms = await GetEventRoomsAsync(query, null, _config.SearchResultLimit, ct)
                     .ConfigureAwait(false);
 
+                // Habbo's top promotions run longest first: both samples (official client
+                // capture 2026-10-13) are in falling minutes left (9301, 4499, 2868, ... 546),
+                // whatever their population.
                 return
                 [
                     .. rooms
-                        .OrderByDescending(x => PopulationOf(x, query))
-                        .ThenByDescending(x => x.Score)
+                        .OrderByDescending(x => x.ActiveEvent!.ExpiresAtUtc)
+                        .ThenByDescending(x => x.RoomId.Value)
                         .Take(limit),
                 ];
             }

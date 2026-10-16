@@ -35,6 +35,9 @@ public static class NavigatorSearchCodes
     /// </summary>
     public const string GROUPS = "groups";
 
+    /// <summary>The block of rooms matching the text typed into the hotel view's search.</summary>
+    public const string QUERY = "query";
+
     public const string TOP_PROMOTIONS = "top_promotions";
     public const string NEW_ADS = "new_ads";
 
