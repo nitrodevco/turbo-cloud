@@ -1,10 +1,13 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -97,6 +100,11 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
     /// back itself, so the borrower hears one new total rather than one per furni.
     /// </param>
     /// <param name="removeDelayMs">How long the client waits before it takes the item away.</param>
+    /// <param name="toldFirst">
+    /// A player in the room who is sent something of their own straight after (the picked-up
+    /// item in their inventory): they are told of the removal and the heights it changed
+    /// directly, so what follows reaches them after it; through the room it would come later.
+    /// </param>
     public async Task<bool> RemoveObjectAsync(
         ActionContext ctx,
         IRoomObject roomObject,
@@ -104,7 +112,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
         int pickerId = -1,
         bool announce = true,
         bool reportBorrow = true,
-        int removeDelayMs = 0
+        int removeDelayMs = 0,
+        PlayerId? toldFirst = null
     )
     {
         switch (roomObject)
@@ -115,7 +124,24 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                     return false;
 
                 // A caller removing many items at once tells the room once for all of them.
-                if (announce)
+                if (announce && toldFirst is { } playerId && playerId > 0)
+                {
+                    ImmutableArray<IComposer> composers =
+                    [
+                        item.GetRemoveComposer(pickerId, delay: removeDelayMs),
+                        .. _roomGrain.TakeHeightMapUpdates(),
+                    ];
+
+                    await _roomGrain.SendComposersToRoomExceptAsync(composers, [playerId], ct);
+
+                    foreach (var composer in composers)
+                        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                            playerId,
+                            composer,
+                            ct
+                        );
+                }
+                else if (announce)
                     await _roomGrain.SendComposerToRoomAsync(
                         item.GetRemoveComposer(pickerId, delay: removeDelayMs),
                         ct
