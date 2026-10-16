@@ -59,6 +59,7 @@ public class WiredActionInitiateTransaction(
     private const int TIMEOUT_MIN_SECONDS = 30;
     private const int TIMEOUT_MAX_SECONDS = 3600;
     private const int TIMEOUT_DEFAULT_SECONDS = 300;
+    private const int DEFAULT_MULTIPLIER = 10;
 
     public override int WiredCode => (int)WiredActionType.INITIATE_TRANSACTION;
 
@@ -66,12 +67,18 @@ public class WiredActionInitiateTransaction(
 
     public override int GetMaxVariableIds() => 1;
 
+    // A fresh box asks x10 and reads the multiplier from a context variable (official client
+    // capture: defaultIntParams [0,10,0,-20,0,300]).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<TradeRequirementRulesType>(TradeRequirementRulesType.Single),
-            new WiredRangeParamRule(1, _roomGrain._wiredChestConfig.MaxTransactionMultiplier, 1),
+            new WiredRangeParamRule(
+                1,
+                _roomGrain._wiredChestConfig.MaxTransactionMultiplier,
+                Math.Min(DEFAULT_MULTIPLIER, _roomGrain._wiredChestConfig.MaxTransactionMultiplier)
+            ),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(
                 TIMEOUT_MIN_SECONDS,

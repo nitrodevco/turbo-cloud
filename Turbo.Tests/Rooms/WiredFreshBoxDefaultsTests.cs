@@ -15,7 +15,7 @@ namespace Turbo.Tests.Rooms;
 /// (official client capture, WIN63-202610131318 / 202610121709): User Says Keyword [0,0,1] (hide
 /// the message), Move To Direction [0,0,1] (blocked by users), Movement Physics [1,0,0,0] (keep
 /// altitude), Variable Changed [1,1,0,7,-1,0], Variable Value [1,2,0,0,0,-10,0], Users With
-/// Variable [2,0,0,0,-10,0] and Place Furni [0 x9, -20]. Ours opened every one of them with the
+/// Variable [2,0,0,0,-10,0] Place Furni [0 x9, -20] and Initiate Transaction [0,10,0,-20,0,300]. Ours opened every one of them with the
 /// ticks off, "equals" and the reference on users.
 /// </summary>
 public sealed class WiredFreshBoxDefaultsTests
@@ -91,6 +91,16 @@ public sealed class WiredFreshBoxDefaultsTests
         (await OpenedWith(_room.AddBox<WiredActionPlaceFurni>(BOX, 0, 0, "wf_act_place_furni")))
             .Should()
             .Equal(0, 0, 0, 0, 0, 0, 0, 0, 0, -20);
+
+    [Fact]
+    public async Task A_fresh_initiate_transaction_asks_ten_from_a_context_value() =>
+        (
+            await OpenedWith(
+                _room.AddBox<WiredActionInitiateTransaction>(BOX, 0, 0, "wf_act_init_transaction")
+            )
+        )
+            .Should()
+            .Equal(0, 10, 0, -20, 0, 300);
 
     /// <summary>The int params and the defaults the editor gets for a box that was never saved.</summary>
     private static async Task<List<int>> OpenedWith(FurnitureWiredLogic box)
