@@ -1269,8 +1269,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// The random add-on: picks its number of actions at random, avoiding the ones it picked in
     /// its last executions (AS3 1745 wired_setup/addons/_-D1I.as:30: params [skips, picks];
     /// <c>wiredfurni.params.skipactions</c> "Avoid effects from last %skips% executions"). When
-    /// too few others are left it tops up from the avoided ones, so a firing always runs its
-    /// number of picks (inferred: the text says "Pick %picks% effects").
+    /// too few others are left the oldest of those executions stop counting: Pick 1, Avoid last 2
+    /// over two effects alternates strictly and never runs empty or repeats (official client
+    /// capture 2026-10-16, 6 of 6 clicks), as if it avoided only the last one. Should even the
+    /// last execution leave too few, it tops up from the avoided ones (inferred: the text says
+    /// "Pick %picks% effects").
     /// </summary>
     private List<IWiredAction> ChooseRandomActions(
         List<IWiredAction> actions,
@@ -1282,12 +1285,29 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var picks = Math.Clamp(policy.RandomPickCount, 1, actions.Count);
         _recentRandomPicksByStackId.TryGetValue(stackId, out var recent);
 
+        // The executions to avoid, newest first, as many as still leave enough to pick from.
+        var avoidedSet = new HashSet<IWiredAction>();
+
+        if (recent is not null && avoidCount > 0)
+        {
+            foreach (var run in recent.Reverse())
+            {
+                var widened = new HashSet<IWiredAction>(avoidedSet);
+                widened.UnionWith(run.Where(actions.Contains));
+
+                if (avoidedSet.Count > 0 && actions.Count - widened.Count < picks)
+                    break;
+
+                avoidedSet = widened;
+            }
+        }
+
         var candidates = new List<IWiredAction>(actions.Count);
         var avoided = new List<IWiredAction>();
 
         foreach (var action in actions)
         {
-            if (recent is not null && avoidCount > 0 && recent.Any(run => run.Contains(action)))
+            if (avoidedSet.Contains(action))
                 avoided.Add(action);
             else
                 candidates.Add(action);
