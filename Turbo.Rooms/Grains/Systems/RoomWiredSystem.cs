@@ -146,6 +146,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         await ProcessVariableBoxesAsync(now, ct);
         await ProcessWiredStacksAsync(now, ct);
+        await RunDueDeferredAsync(now, ct);
 
         // A KILLED room runs no wired until the halt ends; what happens meanwhile is not kept.
         if (IsKilled(now))

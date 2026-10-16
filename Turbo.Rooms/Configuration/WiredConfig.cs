@@ -189,6 +189,18 @@ public class WiredConfig
     public int ActionDelayMaxPulses { get; init; } = 120;
 
     /// <summary>
+    /// Teleport To without "fast teleportation" (official client capture 2026-10-16, walk-on +
+    /// Teleport To, 2 of 2 runs): the user gets this effect when the box fires, stands on the
+    /// target <see cref="TeleportDelayMs"/> later and loses the effect
+    /// <see cref="TeleportEffectMs"/> after the box fired.
+    /// </summary>
+    public int TeleportEffectId { get; init; } = 4;
+
+    public int TeleportDelayMs { get; init; } = 2000;
+
+    public int TeleportEffectMs { get; init; } = 3500;
+
+    /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the
     /// match is given up and logged.
     /// </summary>
