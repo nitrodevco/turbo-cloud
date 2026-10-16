@@ -45,7 +45,12 @@ public class WiredAddonVariableLeaderboard(
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_LEADERBOARD;
 
-    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [
+            .. VariableLeaderboardConfig.UnpublishedIntParams.Select(value =>
+                WiredRules.AnyInt(value)
+            ),
+        ];
 
     public override int GetMaxVariableIds() => VariableLeaderboardConfig.VARIABLE_ID_COUNT;
 
