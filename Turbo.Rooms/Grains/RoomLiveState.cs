@@ -125,6 +125,11 @@ internal sealed class RoomLiveState
     /// </summary>
     public HashSet<PlayerId> PetsMutedBy { get; } = [];
 
+    /// <summary>
+    /// Who said <c>:mutebots</c> here: bots' lines are not sent to them while the room is loaded.
+    /// </summary>
+    public HashSet<PlayerId> BotsMutedBy { get; } = [];
+
     /// <summary>When the room next hands what changed to its persistence grain.</summary>
     public long NextPersistenceBoundaryMs { get; set; } = 0;
 }

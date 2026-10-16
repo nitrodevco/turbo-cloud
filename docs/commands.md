@@ -204,6 +204,7 @@ chat as it is now. Operator commands are in §4.1.
 | `:ejectpets` | `command.ejectpets` (granted by default) | the room owner (or `room.control.any`), as the client gates it | `RoomPetModule.EjectPetsAsync`: every pet that is not the executor's goes back to its owner, as picking each up would. Built. |
 | `:resetscores` | `command.resetscores` (granted by default) | rights, as the client gates it | `RoomGameSystem.ResetHighscoresAsync`: every highscore board in the room is emptied. Built. |
 | `:mutepets` | `command.mutepets` (granted by default) | — | Habbo's habbopages/chat/commands: "Ignore pet chats". The executor stops hearing pets talk in the room until they say it again (`RoomLiveState.PetsMutedBy`). Built. |
+| `:mutebots` | `command.mutebots` (granted by default) | — | Habbo's habbopages/chat/commands: "Ignore bot chats". The Flash client has no case for it, so it arrives as chat; the executor stops hearing bots talk in the room until they say it again (`RoomLiveState.BotsMutedBy`). Built. |
 
 `:moonwalk`, `:habnam`, `:yyxxabxa` and `:mpgame` are client easter eggs and a game. Nothing
 needs them, so none is planned.

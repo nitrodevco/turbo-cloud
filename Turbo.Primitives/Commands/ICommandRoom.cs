@@ -83,6 +83,12 @@ public interface ICommandRoom
     /// </summary>
     bool TogglePetsMuted();
 
+    /// <summary>
+    /// Stops the executor hearing bots talk in this room, or lets them hear it again
+    /// (<c>:mutebots</c>). True when bots are now muted for them.
+    /// </summary>
+    bool ToggleBotsMuted();
+
     /// <summary>Whether the room is a group's homeroom.</summary>
     Task<bool> IsGroupRoomAsync(CancellationToken ct);
 

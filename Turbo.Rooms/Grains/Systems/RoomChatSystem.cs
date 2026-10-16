@@ -249,17 +249,18 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (speaker is IRoomPet && _roomGrain._state.RoomSnapshot.MuteAllPets)
             return Task.CompletedTask;
 
-        // ":mutepets Ignore pet chats" (habbopages/chat/commands): whoever said it is not sent
-        // what pets say.
-        var petsMutedBy = _roomGrain._state.PetsMutedBy;
+        // ":mutepets Ignore pet chats" and ":mutebots Ignore bot chats" (habbopages/chat/commands):
+        // whoever said it is not sent what pets, or bots, say.
+        var mutedBy = speaker switch
+        {
+            IRoomPet => _roomGrain._state.PetsMutedBy,
+            IRoomBot => _roomGrain._state.BotsMutedBy,
+            _ => null,
+        };
 
-        if (speaker is IRoomPet && petsMutedBy.Count > 0)
+        if (mutedBy is { Count: > 0 })
             return _roomGrain._grainFactory.SendComposerToPlayersAsync(
-                [
-                    .. AvatarModule
-                        .Players.Select(x => x.PlayerId)
-                        .Where(x => !petsMutedBy.Contains(x)),
-                ],
+                [.. AvatarModule.Players.Select(x => x.PlayerId).Where(x => !mutedBy.Contains(x))],
                 composer,
                 ct
             );

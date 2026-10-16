@@ -173,6 +173,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             GrantedByDefault: true
         ),
         new(
+            PermissionNodes.Command.MUTEBOTS,
+            "Use :mutebots to stop or start hearing bots talk.",
+            GrantedByDefault: true
+        ),
+        new(
             PermissionNodes.Command.CONFIRM,
             "Use :confirm to go ahead with a command that asked to be confirmed.",
             GrantedByDefault: true

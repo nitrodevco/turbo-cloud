@@ -166,6 +166,18 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
         return true;
     }
 
+    public bool ToggleBotsMuted()
+    {
+        var mutedBy = roomGrain._state.BotsMutedBy;
+
+        if (mutedBy.Remove(action.PlayerId))
+            return false;
+
+        mutedBy.Add(action.PlayerId);
+
+        return true;
+    }
+
     public Task<bool> IsGroupRoomAsync(CancellationToken ct) => roomGrain.GetIsGroupRoomAsync(ct);
 
     public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>
