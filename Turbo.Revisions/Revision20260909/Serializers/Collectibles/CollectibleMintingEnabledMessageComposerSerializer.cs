@@ -11,6 +11,6 @@ internal class CollectibleMintingEnabledMessageComposerSerializer(int header)
         CollectibleMintingEnabledMessageComposer message
     )
     {
-        //
+        packet.WriteBoolean(message.Enabled);
     }
 }

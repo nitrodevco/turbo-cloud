@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Collectibles;
 
 internal class GetNftCollectionsMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetNftCollectionsMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetNftCollectionsMessage { WalletAddress = packet.PopString() };
 }

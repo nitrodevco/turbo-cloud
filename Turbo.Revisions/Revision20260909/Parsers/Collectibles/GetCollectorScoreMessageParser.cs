@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Collectibles;
 
 internal class GetCollectorScoreMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetCollectorScoreMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetCollectorScoreMessage { WalletAddress = packet.PopString() };
 }

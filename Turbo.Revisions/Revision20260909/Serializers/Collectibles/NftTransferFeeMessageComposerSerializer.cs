@@ -8,6 +8,6 @@ internal class NftTransferFeeMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, NftTransferFeeMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.TransferFee);
     }
 }

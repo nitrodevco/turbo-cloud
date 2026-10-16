@@ -8,6 +8,6 @@ internal class NftCollectionsMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, NftCollectionsMessageComposer message)
     {
-        //
+        packet.WriteInteger(0);
     }
 }

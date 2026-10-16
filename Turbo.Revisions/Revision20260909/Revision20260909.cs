@@ -371,7 +371,9 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.GetCollectorScoreMessageEvent, new GetCollectorScoreMessageParser() },
             { MessageEvent.GetMintTokenOffersMessageEvent, new GetMintTokenOffersMessageParser() },
+            { MessageEvent.GetNftClaimsMessageEvent, new GetNftClaimsMessageParser() },
             { MessageEvent.GetNftCollectionsMessageEvent, new GetNftCollectionsMessageParser() },
+            { MessageEvent.GetNftStoreOffersMessageEvent, new GetNftStoreOffersMessageParser() },
             { MessageEvent.GetNftTransferFeeMessageEvent, new GetNftTransferFeeMessageParser() },
             { MessageEvent.MintItemMessageEvent, new MintItemMessageParser() },
             {
@@ -2078,6 +2080,10 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(NftClaimsMessageComposer),
+                new NftClaimsMessageComposerSerializer(MessageComposer.NftClaimsMessageComposer)
+            },
+            {
                 typeof(NftCollectionsMessageComposer),
                 new NftCollectionsMessageComposerSerializer(
                     MessageComposer.NftCollectionsMessageComposer
@@ -2087,6 +2093,12 @@ public class Revision20260909 : IRevision
                 typeof(NftCollectionsScoreMessageComposer),
                 new NftCollectionsScoreMessageComposerSerializer(
                     MessageComposer.NftCollectionsScoreMessageComposer
+                )
+            },
+            {
+                typeof(NftStoreOffersMessageComposer),
+                new NftStoreOffersMessageComposerSerializer(
+                    MessageComposer.NftStoreOffersMessageComposer
                 )
             },
             {
