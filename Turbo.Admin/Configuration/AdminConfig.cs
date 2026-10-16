@@ -130,6 +130,14 @@ public sealed class AdminConfig
     /// </summary>
     public string ClientLoginUrl { get; init; } = "";
 
+    /// <summary>
+    /// The avatar imager the panel draws avatars, heads and badges with (nitro-imager, or any
+    /// server answering Habbo's <c>/avatar?figure=...&amp;headonly=1</c>), as its address:
+    /// <c>https://imager.example.com</c>. It must send CORS headers for previews drawn on a
+    /// canvas. Empty, previews show no avatars.
+    /// </summary>
+    public string ImagerUrl { get; init; } = "";
+
     /// <summary>The hits the panel's search lists of each kind; the rest are on that kind's page.</summary>
     public int SearchHitsPerKind { get; init; } = 5;
 

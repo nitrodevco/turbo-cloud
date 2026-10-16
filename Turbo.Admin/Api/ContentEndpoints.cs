@@ -1,17 +1,21 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Content;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Orleans;
@@ -21,7 +25,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The game's content: achievements, badges, the navigator's categories, groups, pets, bots and currencies. For staff with <c>admin.content.view</c>;
+/// The game's content: achievements, badges, the navigator's categories, groups, pets, bots, currencies and chat styles. For staff with <c>admin.content.view</c>;
 /// changing anything needs <c>content.manage</c> as well.
 /// <para>
 /// An achievement is published through its catalog (<see cref="IAchievementCatalog.ImportAsync"/>):
@@ -37,11 +41,15 @@ internal sealed partial class ContentEndpoints(
     AdminGroupQueries groups,
     AdminPetBotEditor petsAndBots,
     AdminCurrencyEditor currencies,
+    IChatStyleService chatStyles,
     ILogger<ContentEndpoints> logger
 )
 {
     private const string NO_ACCESS = "You can't see the game's content.";
     private const string NO_MANAGE = "You can't change the game's content.";
+
+    // The chat bubbles' bundle is a few hundred kilobytes; this leaves room for a hotel's own.
+    private const long CHAT_BUNDLE_MAX_BYTES = 32L * 1024 * 1024;
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -331,6 +339,94 @@ internal sealed partial class ContentEndpoints(
                     }
                 )
         );
+        group.MapGet("/chat-styles", ListChatStylesAsync);
+        group.MapGet(
+            "/chat-styles/{id:int}/bitmaps/{file}",
+            async (int id, string file, CancellationToken ct) =>
+                await chatStyles.GetBitmapAsync(id, file, ct).ConfigureAwait(false) is { } png
+                    ? Results.File(png, "image/png")
+                    : Results.NotFound()
+        );
+        group.MapPost(
+            "/chat-styles",
+            (ChatStyleRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await chatStyles
+                                .SaveAsync(0, request.ToEdit(), AdminIdentity.Of(http).PlayerId, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPut(
+            "/chat-styles/{id:int}",
+            (int id, ChatStyleRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await chatStyles
+                                .SaveAsync(
+                                    id,
+                                    request.ToEdit(),
+                                    AdminIdentity.Of(http).PlayerId,
+                                    ct
+                                )
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/chat-styles/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Removed(
+                            await chatStyles
+                                .DeleteAsync(id, AdminIdentity.Of(http).PlayerId, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPost("/chat-styles/import", ImportChatStylesAsync);
+        group.MapPost(
+            "/chat-styles/import-url",
+            (ChatStyleImportRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                    {
+                        try
+                        {
+                            return Results.Ok(
+                                await chatStyles
+                                    .ImportBundleFromAsync(
+                                        request.Url ?? string.Empty,
+                                        AdminIdentity.Of(http).PlayerId,
+                                        ct
+                                    )
+                                    .ConfigureAwait(false)
+                            );
+                        }
+                        catch (HttpRequestException ex)
+                        {
+                            logger.LogWarning(ex, "A chat style bundle could not be downloaded");
+
+                            return AdminResults.Error(
+                                StatusCodes.Status502BadGateway,
+                                $"The bundle could not be downloaded: {ex.Message}"
+                            );
+                        }
+                    }
+                )
+        );
         group.MapGet(
             "/navigator",
             async (CancellationToken ct) =>
@@ -461,6 +557,63 @@ internal sealed partial class ContentEndpoints(
                 )
         );
     }
+
+    private async Task<IResult> ListChatStylesAsync(CancellationToken ct)
+    {
+        var list = await chatStyles.ListAsync(ct).ConfigureAwait(false);
+
+        return Results.Ok(
+            new ChatStyleListResponse(
+                [.. list.Styles.Select(ChatStyleItem.From)],
+                list.NextId,
+                list.Bundle is null ? null : AssetBundleResponse.From(list.Bundle),
+                list.LibraryBitmaps
+            )
+        );
+    }
+
+    /// <summary>A habbo-free-flow-chat-com bundle sent as a form's <c>file</c>, taken in.</summary>
+    private Task<IResult> ImportChatStylesAsync(HttpContext http, CancellationToken ct) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                if (!http.Request.HasFormContentType)
+                    return AdminResults.Error(
+                        StatusCodes.Status400BadRequest,
+                        "Send the bundle as a form."
+                    );
+
+                if (
+                    http.Features.Get<IHttpMaxRequestBodySizeFeature>() is
+                    { IsReadOnly: false } limit
+                )
+                    limit.MaxRequestBodySize = CHAT_BUNDLE_MAX_BYTES;
+
+                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+
+                if (form.Files.GetFile("file") is not { } file)
+                    return AdminResults.Error(
+                        StatusCodes.Status400BadRequest,
+                        "Choose the bundle."
+                    );
+
+                using var memory = new MemoryStream(
+                    (int)Math.Min(file.Length, CHAT_BUNDLE_MAX_BYTES)
+                );
+                var stream = file.OpenReadStream();
+                await using var streamScope = stream.ConfigureAwait(false);
+
+                await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
+
+                return Results.Ok(
+                    await chatStyles
+                        .ImportBundleAsync(memory.ToArray(), AdminIdentity.Of(http).PlayerId, ct)
+                        .ConfigureAwait(false)
+                );
+            }
+        );
 
     private async Task<IResult> ListAchievementsAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(

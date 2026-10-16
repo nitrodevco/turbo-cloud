@@ -946,8 +946,36 @@ The **Content** page is the game's content, each change made at once and on reco
   skills could (name, motto, look, lines, roaming, dance; held to `Turbo:Bots`' lengths, not
   word-filtered) through its room grain (`StaffUpdateBotAsync`), so the room sees it, or taken back
   to its owner's inventory. A bot in an inventory can only be deleted.
+- **Chat styles**: every chat bubble the hotel has, built as Nitro Studio builds them (see
+  [Chat styles](#chat-styles)).
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
+
+### Chat styles
+
+Each chat bubble is a row in `player_chat_styles`: the id the client draws it by, its asset id, who
+may speak with it (club members, owners of a bought or NFT style, ambassadors, staff, or no player
+for a system style; the server checks each line, and says one in a bubble its speaker may not use
+in the normal one), how it behaves (staff may pick it anyway, formatted text, notification), and
+how it is drawn: its reg points (`reg_points`, as `chat-style-definitions.json` has them) and its
+bitmaps (`player_chat_style_bitmaps`, each kept untrimmed: the nine-slice counts from its edges).
+
+The tab draws the style picked as a room does: the client's own text renderer and fonts (vendored
+from nitro-theme into the panel), the room's bubble widths and chat font sizes, the speaker's head
+from the imager (`ImagerUrl`) and their shirt's colour in a coloured bubble, the icon and emblems
+where a style has them. Any style is edited or copied: its colours round the wheel and its bitmaps
+replaced; its words' face, size and colour; its flags; and every reg point, with guides drawn over
+the bubble. The normal bubble (0) stays everyone's, and a style someone owns can't be deleted.
+
+Every change builds `habbo-free-flow-chat-com` again (`ChatStyleService`), the drawable styles in
+the hotel's order with the library's own bitmaps, as a **template** bundle in
+`bundled/templates/` (source `built`), which the publish targets send with the rest and the client
+loads from `asset.bundles.templates`. The looks come in from a bundle (**Published bundle**, from the
+client's `asset.bundles.templates`, or **A bundle file**): each style in it is given its look, and one
+the hotel lacks is added, but who may speak with a style the hotel has stays as the hotel set it.
+
+The preview pieces (`src/preview`: text, bubbles, avatars, images, the stage) are the panel's own,
+for other previews to draw with too.
 
 ## Hotel view
 
@@ -959,6 +987,11 @@ news** (promos, articles), **Campaigns** (community goals, bonus rare, expiring 
 for **Save** and are one change set together; articles and campaigns save as you go. It needs
 `admin.gamedata.view` to look and `gamedata.manage` to save; a save is one change set in the
 gamedata history. `docs/gamedata.md` has the details.
+
+**Pull from Habbo** reads Habbo's latest external variables and lists each reception variable
+(`landing.view.*` and the ones the reception reads besides) beside the hotel's, with the texts its
+new promos name. What you take goes into the draft, a number or switch kept as one, and is saved
+with **Save** like any other change.
 
 ## Server settings
 
@@ -1005,6 +1038,7 @@ them.
 | `CatalogFurnitureSearchLimit` | `25` | | Items the catalog editor's item picker lists at once. |
 | `CatalogBuilderItemLimit` | `500` | | Items a catalog page builder's preview lists at once. |
 | `ClientLoginUrl` | empty | `TURBO_ADMIN_CLIENT_LOGIN_URL` | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link, and an image address in the external variables that names no host is read under it. |
+| `ImagerUrl` | empty | `TURBO_ADMIN_IMAGER_URL` | The nitro-imager the panel draws avatars with, e.g. `https://imager.example.com`: the speakers' heads in the chat style previews. It must serve images to other sites (nitro-imager does). Empty, previews draw no avatars. |
 | `TicketMaxLifetimeDays` | `365` | | The longest a ticket from the panel can work for, short of never. |
 | `RoomAlertMaxLength` | `500` | | The longest room alert the panel sends. |
 | `RoomMuteMaxMinutes` | `60` | | The longest the panel mutes a player in a room. |

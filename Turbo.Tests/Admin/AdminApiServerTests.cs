@@ -193,6 +193,8 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Pets.Providers.IPetBreedProvider),
                 typeof(Turbo.Primitives.Pets.Providers.IPetSpeechProvider),
                 typeof(Turbo.Primitives.Players.Providers.ICurrencyTypeProvider),
+                typeof(Turbo.Primitives.Players.Providers.IChatStyleProvider),
+                typeof(IChatStyleService),
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),

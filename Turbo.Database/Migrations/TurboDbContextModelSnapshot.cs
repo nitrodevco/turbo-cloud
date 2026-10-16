@@ -601,13 +601,11 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("AutoChat")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("auto_chat");
 
                     b.Property<int>("ChatDelaySeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("chat_delay");
@@ -636,7 +634,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("figure");
 
                     b.Property<bool>("FreeRoam")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("free_roam");
@@ -647,7 +644,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("gender");
 
                     b.Property<bool>("MixSentences")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("mix_sentences");
@@ -678,19 +674,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("direction");
 
                     b.Property<int>("X")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("x");
 
                     b.Property<int>("Y")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("y");
 
                     b.Property<double>("Z")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("double(10,3)")
                         .HasDefaultValue(0.0)
                         .HasColumnName("z");
@@ -927,13 +920,11 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("CanBundle")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_bundle");
 
                     b.Property<bool>("CanGift")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_gift");
@@ -947,19 +938,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("club_gift_days_required");
 
                     b.Property<int>("ClubLevel")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("club_level");
 
                     b.Property<int>("CostCredits")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("cost_credits");
 
                     b.Property<int>("CostCurrency")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("cost_currency");
@@ -982,13 +970,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("localization_id");
 
                     b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
 
                     b.Property<bool>("Visible")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("visible");
@@ -1024,7 +1010,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("display");
 
                     b.Property<int>("Icon")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("icon");
@@ -1057,7 +1042,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("parent_id");
 
                     b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
@@ -1143,19 +1127,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("definition_id");
 
                     b.Property<int>("ProductType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("product_type");
 
                     b.Property<int>("Quantity")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("quantity");
 
                     b.Property<int>("SubscriptionDays")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("subscription_days");
@@ -1198,7 +1179,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("type");
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("enabled");
@@ -1299,19 +1279,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("ends_at");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsRaffleFinished")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("has_raffle_finished");
 
                     b.Property<int>("RaffleWindowSeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(30)
                         .HasColumnName("raffle_window_seconds");
@@ -1627,25 +1604,21 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("direction");
 
                     b.Property<int>("WallOffset")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("wall_offset");
 
                     b.Property<int>("X")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("x");
 
                     b.Property<int>("Y")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("y");
 
                     b.Property<double>("Z")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("double(10,3)")
                         .HasDefaultValue(0.0)
                         .HasColumnName("z");
@@ -1674,49 +1647,41 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("ad_url");
 
                     b.Property<bool>("CanGroup")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_group");
 
                     b.Property<bool>("CanLay")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("can_lay");
 
                     b.Property<bool>("CanRecycle")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("can_recycle");
 
                     b.Property<bool>("CanSell")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_sell");
 
                     b.Property<bool>("CanSit")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("can_sit");
 
                     b.Property<bool>("CanStack")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_stack");
 
                     b.Property<bool>("CanTrade")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("can_trade");
 
                     b.Property<bool>("CanWalk")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("can_walk");
@@ -1739,7 +1704,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("custom_params");
 
                     b.Property<int>("DefaultDirection")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("default_dir");
@@ -1755,7 +1719,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("environment");
 
                     b.Property<bool>("ExcludedDynamic")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("excluded_dynamic");
@@ -1776,7 +1739,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("furni_line");
 
                     b.Property<int>("Length")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("length");
@@ -1810,13 +1772,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("public_name");
 
                     b.Property<bool>("Rare")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("rare");
 
                     b.Property<int>("Revision")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("revision");
@@ -1826,13 +1786,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("sprite_id");
 
                     b.Property<double>("StackHeight")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("double(10,4)")
                         .HasDefaultValue(0.0)
                         .HasColumnName("stack_height");
 
                     b.Property<int>("TotalStates")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("total_states");
@@ -1843,7 +1801,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("usage_policy");
 
                     b.Property<int>("Width")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("width");
@@ -1907,25 +1864,21 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("direction");
 
                     b.Property<int>("WallOffset")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("wall_offset");
 
                     b.Property<int>("X")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("x");
 
                     b.Property<int>("Y")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("y");
 
                     b.Property<double>("Z")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("double(10,3)")
                         .HasDefaultValue(0.0)
                         .HasColumnName("z");
@@ -2908,37 +2861,31 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("last_message_player_id");
 
                     b.Property<int>("MessageCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("message_count");
 
                     b.Property<int>("ModeratePermission")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(2)
                         .HasColumnName("moderate_permission");
 
                     b.Property<int>("PostMessagePermission")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("post_message_permission");
 
                     b.Property<int>("PostThreadPermission")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("post_thread_permission");
 
                     b.Property<int>("ReadPermission")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("read_permission");
 
                     b.Property<int>("ThreadCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("thread_count");
@@ -2988,7 +2935,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<byte>("State")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint unsigned")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("state");
@@ -3080,13 +3026,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("guild_id");
 
                     b.Property<bool>("IsLocked")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_locked");
 
                     b.Property<bool>("IsSticky")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_sticky");
@@ -3096,7 +3040,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("last_message_at");
 
                     b.Property<int>("MessageCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("message_count");
@@ -3114,7 +3057,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<byte>("State")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint unsigned")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("state");
@@ -3153,7 +3095,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("guild_id");
 
                     b.Property<bool>("IsFavourite")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_favourite");
@@ -3541,7 +3482,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<short>("RelationType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0)
                         .HasColumnName("relation");
@@ -3613,7 +3553,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("delivered");
 
                     b.Property<int>("HabbiconId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("habbicon_id");
@@ -3738,13 +3677,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("appeal_resolved_at");
 
                     b.Property<byte>("AppealStatus")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint unsigned")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("appeal_status");
 
                     b.Property<bool>("AutoModerated")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("auto_moderated");
@@ -3818,13 +3755,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("room_id");
 
                     b.Property<bool>("Sanctioned")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("sanctioned");
 
                     b.Property<int>("Source")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("source");
@@ -3859,7 +3794,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("consequence");
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("enabled");
@@ -3871,7 +3805,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("name");
 
                     b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
@@ -4049,7 +3982,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Automatic")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("automatic");
@@ -4072,7 +4004,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("global_category");
 
                     b.Property<int>("MinRank")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("min_rank");
@@ -4084,7 +4015,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("name");
 
                     b.Property<int>("OrderNum")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("order_num");
@@ -4095,13 +4025,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("required_node");
 
                     b.Property<bool>("StaffOnly")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("staff_only");
 
                     b.Property<bool>("Visible")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("visible");
@@ -4128,7 +4056,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<int>("OrderNum")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("order_num");
@@ -4140,7 +4067,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("search_code");
 
                     b.Property<bool>("Visible")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("visible");
@@ -4286,7 +4212,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("name");
 
                     b.Property<int>("Weight")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("weight");
@@ -4577,7 +4502,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("breed_id");
 
                     b.Property<int>("ColorTag")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(-1)
                         .HasColumnName("color_tag");
@@ -4594,19 +4518,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("palette_id");
 
                     b.Property<bool>("Rare")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("rare");
 
                     b.Property<int>("RarityLevel")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("rarity_level");
 
                     b.Property<bool>("Sellable")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("sellable");
@@ -4633,7 +4554,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("AnyoneCanRide")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("anyone_can_ride");
@@ -4661,7 +4581,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("custom_parts");
 
                     b.Property<int>("Energy")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("energy");
@@ -4671,7 +4590,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("energy_decay_due_at");
 
                     b.Property<int>("Experience")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("experience");
@@ -4681,19 +4599,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("harvested_at");
 
                     b.Property<bool>("HasBreedingPermission")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("breeding_permission");
 
                     b.Property<bool>("HasSaddle")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("has_saddle");
 
                     b.Property<int>("Level")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("level");
@@ -4705,7 +4620,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("name");
 
                     b.Property<int>("Nutrition")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("nutrition");
@@ -4723,13 +4637,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("RarityLevel")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("rarity_level");
 
                     b.Property<int>("Respect")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("respect");
@@ -4752,19 +4664,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("watered_at");
 
                     b.Property<int>("X")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("x");
 
                     b.Property<int>("Y")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("y");
 
                     b.Property<double>("Z")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("double(10,3)")
                         .HasDefaultValue(0.0)
                         .HasColumnName("z");
@@ -4887,6 +4796,41 @@ namespace Turbo.Database.Migrations
                     b.ToTable("pet_speech");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.ChatStyleLibraryBitmapEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("chat_style_library_bitmaps");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectOperationEntity", b =>
                 {
                     b.Property<string>("OperationId")
@@ -4964,7 +4908,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int?>("SlotId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("slot_id");
@@ -5002,7 +4945,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<int>("CreditsTowardNextReward")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("credits_toward_next_reward");
@@ -5012,7 +4954,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("RewardsReceived")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("rewards_received");
@@ -5059,6 +5000,45 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_bound_clothing");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleBitmapEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChatStyleId")
+                        .HasColumnType("int")
+                        .HasColumnName("chat_style_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("data");
+
+                    b.Property<string>("File")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("file");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatStyleId", "File")
+                        .IsUnique();
+
+                    b.ToTable("player_chat_style_bitmaps");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -5068,20 +5048,22 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AllowHtml")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("allow_html");
+
                     b.Property<bool>("AmbassadorOnly")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("ambassador_only");
 
                     b.Property<int>("ClientStyleId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("client_style_id");
 
                     b.Property<bool>("ClubOnly")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("club_only");
@@ -5098,20 +5080,37 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(64)")
                         .HasColumnName("name");
 
+                    b.Property<bool>("Notification")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("notification");
+
                     b.Property<bool>("Purchasable")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("purchasable");
 
+                    b.Property<string>("RegPoints")
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("reg_points");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
                     b.Property<bool>("StaffOnly")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("staff_only");
 
+                    b.Property<bool>("StaffOverrideable")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("staff_overrideable");
+
                     b.Property<bool>("System")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("system");
@@ -5199,7 +5198,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("Amount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("amount");
@@ -5216,7 +5214,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("currency_type_id");
 
                     b.Property<long>("PendingRewardAmount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L)
                         .HasColumnName("pending_reward_amount");
@@ -5294,13 +5291,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("expires_at");
 
                     b.Property<int>("InactiveCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("inactive_count");
 
                     b.Property<bool>("IsPermanent")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_permanent");
@@ -5310,7 +5305,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("SubType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sub_type");
@@ -5356,18 +5350,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_login");
 
-                    b.Property<bool>("OnboardingNamePending")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("onboarding_name_pending");
-
-                    b.Property<bool>("OnboardingRoomPending")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("onboarding_room_pending");
-
                     b.Property<string>("Motto")
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)")
@@ -5385,8 +5367,17 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("name_key");
 
+                    b.Property<bool>("OnboardingNamePending")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_name_pending");
+
+                    b.Property<bool>("OnboardingRoomPending")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("onboarding_room_pending");
+
                     b.Property<int>("PetRespectsLeft")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("pet_respects_left");
@@ -5397,13 +5388,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("status");
 
                     b.Property<int>("RespectPoints")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("respect_points");
 
                     b.Property<int>("RespectReplenishesLeft")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("respect_replenishes_left");
@@ -5413,7 +5402,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("respect_reset_date");
 
                     b.Property<int>("RespectsLeft")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("respects_left");
@@ -5789,7 +5777,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("chat_scroll_speed");
 
                     b.Property<int>("ChatStyleId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("chat_style_id");
@@ -5802,49 +5789,41 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<bool>("DiscordAllowJoining")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("discord_allow_joining");
 
                     b.Property<bool>("DiscordHideInHiddenRooms")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("discord_hide_in_hidden_rooms");
 
                     b.Property<int>("DiscordPreferencesVersion")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("discord_preferences_version");
 
                     b.Property<bool>("DiscordShareActivity")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("discord_share_activity");
 
                     b.Property<bool>("DiscordShowHabbo")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("discord_show_habbo");
 
                     b.Property<bool>("FriendRequestsDisabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("friend_requests_disabled");
 
                     b.Property<int>("FurniVolume")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("furni_volume");
 
                     b.Property<int>("GenericVolume")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("generic_volume");
@@ -5854,7 +5833,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("home_room_id");
 
                     b.Property<bool>("NavigatorLeftPaneHidden")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("navigator_left_pane_hidden");
@@ -5865,31 +5843,26 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("navigator_results_mode");
 
                     b.Property<int>("NavigatorWindowHeight")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(400)
                         .HasColumnName("navigator_window_height");
 
                     b.Property<int>("NavigatorWindowWidth")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(425)
                         .HasColumnName("navigator_window_width");
 
                     b.Property<int>("NavigatorWindowX")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(427)
                         .HasColumnName("navigator_window_x");
 
                     b.Property<int>("NavigatorWindowY")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(41)
                         .HasColumnName("navigator_window_y");
 
                     b.Property<int>("OnlineIndicatorPreference")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("online_indicator_preference");
@@ -5899,25 +5872,21 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<bool>("ProfileHidden")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("profile_hidden");
 
                     b.Property<bool>("RoomCameraFollowDisabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("room_camera_follow_disabled");
 
                     b.Property<bool>("RoomInvitesIgnored")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("room_invites_ignored");
 
                     b.Property<int>("TraxVolume")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("trax_volume");
@@ -5928,25 +5897,21 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("ui_flags");
 
                     b.Property<bool>("WiredInspectButton")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("wired_inspect_button");
 
                     b.Property<bool>("WiredMenuButton")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("wired_menu_button");
 
                     b.Property<bool>("WiredPlayTestMode")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("wired_play_test_mode");
 
                     b.Property<bool>("WiredShowAllNotifications")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("wired_show_all_notifications");
@@ -5960,13 +5925,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("wired_ui_style");
 
                     b.Property<int>("WiredVariableSyntaxMode")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("wired_variable_syntax_mode");
 
                     b.Property<bool>("WiredWhisperDisabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("wired_whisper_disabled");
@@ -6004,13 +5967,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("first_subscribed_at");
 
                     b.Property<int>("FurniLimit")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("furni_limit");
 
                     b.Property<int>("PeriodsPurchased")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("periods_purchased");
@@ -6020,7 +5981,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("PurchasedDaysSubscribed")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("purchased_days_subscribed");
@@ -6035,7 +5995,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("subscription_type");
 
                     b.Property<int>("TotalDaysSubscribed")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("total_days_subscribed");
@@ -6107,7 +6066,7 @@ namespace Turbo.Database.Migrations
                     b.ToTable("wallet_credit_receipts");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -6116,15 +6075,49 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AnswerType")
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("answer_type");
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
-                    b.Property<int>("Category")
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("category");
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("PollId")
+                        .HasColumnType("int")
+                        .HasColumnName("poll_id");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PollId");
+
+                    b.HasIndex("PlayerEntityId", "PollId")
+                        .IsUnique();
+
+                    b.ToTable("player_room_polls");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollAnswerEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("text")
+                        .HasColumnName("answer");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -6133,17 +6126,54 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
-                    b.Property<int?>("ParentQuestionId")
+                    b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
-                        .HasColumnName("parent_question_id");
+                        .HasColumnName("player_id");
 
                     b.Property<int>("PollId")
                         .HasColumnType("int")
                         .HasColumnName("poll_id");
 
-                    b.Property<int>("QuestionType")
+                    b.Property<int>("QuestionId")
                         .HasColumnType("int")
-                        .HasColumnName("question_type");
+                        .HasColumnName("question_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PollId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("PlayerEntityId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("room_poll_answers");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChoiceType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("choice_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int")
+                        .HasColumnName("question_id");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
@@ -6156,11 +6186,17 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("text");
 
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("value");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PollId", "SortOrder");
+                    b.HasIndex("QuestionId", "SortOrder");
 
-                    b.ToTable("room_poll_questions");
+                    b.ToTable("room_poll_choices");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollEntity", b =>
@@ -6236,7 +6272,7 @@ namespace Turbo.Database.Migrations
                     b.ToTable("room_polls");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -6245,10 +6281,15 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ChoiceType")
+                    b.Property<int>("AnswerType")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
-                        .HasColumnName("choice_type");
+                        .HasColumnName("answer_type");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("category");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -6257,9 +6298,17 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
-                    b.Property<int>("QuestionId")
+                    b.Property<int?>("ParentQuestionId")
                         .HasColumnType("int")
-                        .HasColumnName("question_id");
+                        .HasColumnName("parent_question_id");
+
+                    b.Property<int>("PollId")
+                        .HasColumnType("int")
+                        .HasColumnName("poll_id");
+
+                    b.Property<int>("QuestionType")
+                        .HasColumnType("int")
+                        .HasColumnName("question_type");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
@@ -6272,101 +6321,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("text");
 
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
-                        .HasColumnName("value");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionId", "SortOrder");
+                    b.HasIndex("PollId", "SortOrder");
 
-                    b.ToTable("room_poll_choices");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollAnswerEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Answer")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("text")
-                        .HasColumnName("answer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<int>("PlayerEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("player_id");
-
-                    b.Property<int>("PollId")
-                        .HasColumnType("int")
-                        .HasColumnName("poll_id");
-
-                    b.Property<int>("QuestionId")
-                        .HasColumnType("int")
-                        .HasColumnName("question_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PollId");
-
-                    b.HasIndex("QuestionId");
-
-                    b.HasIndex("PlayerEntityId", "QuestionId")
-                        .IsUnique();
-
-                    b.ToTable("room_poll_answers");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<int>("PlayerEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("player_id");
-
-                    b.Property<int>("PollId")
-                        .HasColumnType("int")
-                        .HasColumnName("poll_id");
-
-                    b.Property<int>("State")
-                        .HasColumnType("int")
-                        .HasColumnName("state");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PollId");
-
-                    b.HasIndex("PlayerEntityId", "PollId")
-                        .IsUnique();
-
-                    b.ToTable("player_room_polls");
+                    b.ToTable("room_poll_questions");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Quests.DailyTaskDefinitionEntity", b =>
@@ -6398,7 +6357,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("enabled");
@@ -6410,7 +6368,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("image_version");
 
                     b.Property<bool>("IsBonus")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_bonus");
@@ -6422,19 +6379,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("quest_type");
 
                     b.Property<int>("RequiredRepeats")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("required_repeats");
 
                     b.Property<int>("RewardAmount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("reward_amount");
 
                     b.Property<short>("RewardProductType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)8)
                         .HasColumnName("reward_product_type");
@@ -6502,13 +6456,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("Repeats")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("repeats");
 
                     b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint unsigned")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("status");
@@ -6532,7 +6484,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Accepted")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("accepted");
@@ -6553,7 +6504,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("Progress")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("progress");
@@ -6593,13 +6543,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("Points")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("points");
 
                     b.Property<bool>("Premium")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("premium");
@@ -6647,7 +6595,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("enabled");
@@ -6657,7 +6604,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("ends_at");
 
                     b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
@@ -6680,7 +6626,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ActivityPointType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("activity_point_type");
@@ -6709,7 +6654,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<bool>("Easy")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("easy");
@@ -6727,13 +6671,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("localization_code");
 
                     b.Property<int>("RewardAmount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("reward_amount");
 
                     b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
@@ -6745,7 +6687,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("target");
 
                     b.Property<int>("TotalSteps")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("total_steps");
@@ -6935,19 +6876,16 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("AllowBlocking")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("allow_blocking");
 
                     b.Property<bool>("AllowPets")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("allow_pets");
 
                     b.Property<bool>("AllowPetsEat")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("allow_pets_eat");
@@ -6980,43 +6918,36 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("door_mode");
 
                     b.Property<bool>("HiddenByBc")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("hidden_by_bc");
 
                     b.Property<bool>("HideOwner")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("hide_owner");
 
                     b.Property<bool>("HideWalls")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("hide_walls");
 
                     b.Property<bool>("IdleAutokickEnabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("idle_autokick_enabled");
 
                     b.Property<int>("IdleAutokickTimeoutSeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("idle_autokick_timeout_seconds");
 
                     b.Property<bool>("IdleSleepEnabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("idle_sleep_enabled");
 
                     b.Property<int>("IdleSleepTimeoutSeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("idle_sleep_timeout_seconds");
@@ -7034,13 +6965,11 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("LastActive"));
 
                     b.Property<bool>("LeaveOnDoorTile")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("leave_on_door_tile");
 
                     b.Property<bool>("MuteAllPets")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("mute_all_pets");
@@ -7085,7 +7014,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("player_id");
 
                     b.Property<int>("PlayersMax")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(25)
                         .HasColumnName("players_max");
@@ -7095,13 +7023,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("model_id");
 
                     b.Property<int>("Score")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("score");
 
                     b.Property<bool>("StaffPick")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("staff_pick");
@@ -7127,13 +7053,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("trade_type");
 
                     b.Property<int>("UsersNow")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("users_now");
 
                     b.Property<int>("WallHeight")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(-1)
                         .HasColumnName("wall_height");
@@ -7314,7 +7238,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<bool>("Custom")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("custom");
@@ -7325,19 +7248,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("door_rotation");
 
                     b.Property<int>("DoorX")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("door_x");
 
                     b.Property<int>("DoorY")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("door_y");
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
                         .HasColumnName("enabled");
@@ -7410,13 +7330,11 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ActionType")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("action_type");
 
                     b.Property<int>("BanDurationSeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(900)
                         .HasColumnName("ban_duration_seconds");
@@ -7429,31 +7347,26 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
                     b.Property<int>("DetectionSensitivity")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("detection_sensitivity");
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("enabled");
 
                     b.Property<int>("GuardDurationSeconds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(900)
                         .HasColumnName("guard_duration_seconds");
 
                     b.Property<bool>("GuardEnabled")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("guard_enabled");
 
                     b.Property<int>("GuardSensitivity")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("guard_sensitivity");
@@ -7616,7 +7529,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("ip_address");
 
                     b.Property<bool>("IsLocked")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("is_locked");
@@ -8659,6 +8571,17 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleBitmapEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerChatStyleEntity", "ChatStyle")
+                        .WithMany("Bitmaps")
+                        .HasForeignKey("ChatStyleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatStyle");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleOwnedEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerChatStyleEntity", "ChatStyle")
@@ -8859,37 +8782,23 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
                 {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Turbo.Database.Entities.Polls.RoomPollEntity", "Poll")
                         .WithMany()
                         .HasForeignKey("PollId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("PlayerEntity");
+
                     b.Navigation("Poll");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
-                        .WithMany()
-                        .HasForeignKey("RoomEntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("RoomEntity");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", "Question")
-                        .WithMany()
-                        .HasForeignKey("QuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Question");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollAnswerEntity", b =>
@@ -8919,21 +8828,35 @@ namespace Turbo.Database.Migrations
                     b.Navigation("Question");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Polls.PlayerRoomPollEntity", b =>
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollChoiceEntity", b =>
                 {
-                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                    b.HasOne("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", "Question")
                         .WithMany()
-                        .HasForeignKey("PlayerEntityId")
+                        .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoomEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Polls.RoomPollQuestionEntity", b =>
+                {
                     b.HasOne("Turbo.Database.Entities.Polls.RoomPollEntity", "Poll")
                         .WithMany()
                         .HasForeignKey("PollId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("PlayerEntity");
 
                     b.Navigation("Poll");
                 });
@@ -9289,6 +9212,8 @@ namespace Turbo.Database.Migrations
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleEntity", b =>
                 {
+                    b.Navigation("Bitmaps");
+
                     b.Navigation("OwnedChatStyles");
                 });
 

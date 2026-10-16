@@ -17,4 +17,10 @@ public enum AssetBundleKind
     /// <c>lib</c>; the parts figuredata's sets use are drawn from it (<c>bundled/figures</c>).
     /// </summary>
     Figure = 3,
+
+    /// <summary>
+    /// A library of the client's own UI (<c>bundled/templates</c>), named as the client asks for it:
+    /// the chat bubbles' <c>habbo-free-flow-chat-com</c>, built from the hotel's chat styles.
+    /// </summary>
+    Template = 4,
 }

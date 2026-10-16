@@ -180,7 +180,7 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
             .EnumerateArray()
             .Select(x => x.GetProperty("kind").GetString())
             .Should()
-            .Equal("furniture", "effect", "pet", "figure");
+            .Equal("furniture", "effect", "pet", "figure", "template");
 
         (await SendAsync(HttpMethod.Delete, "/api/assets/bundles/furniture/lamp"))
             .StatusCode.Should()

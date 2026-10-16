@@ -16,13 +16,23 @@ namespace Turbo.Admin.Api.Contracts;
 /// <c>image.library.url</c>: the folder a catalog featured item's promo image is under, its
 /// path appended.
 /// </param>
+/// <param name="Templates">
+/// <c>asset.bundles.templates</c>: a library of the client's own UI, <c>%libname%</c> its name
+/// (the chat bubbles' <c>habbo-free-flow-chat-com</c>).
+/// </param>
+/// <param name="Imager">
+/// The avatar imager's address (<c>Turbo:Admin:ImagerUrl</c>), without its trailing slash; empty
+/// without one.
+/// </param>
 public sealed record ClientAssetsResponse(
     string CatalogIcon,
     string CatalogImage,
     string FurniIcon,
     string Badge,
-    string ImageLibrary
+    string ImageLibrary,
+    string Templates,
+    string Imager
 )
 {
-    public static readonly ClientAssetsResponse NONE = new("", "", "", "", "");
+    public static readonly ClientAssetsResponse NONE = new("", "", "", "", "", "", "");
 }

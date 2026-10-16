@@ -103,6 +103,10 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerChatStyleOwnedEntity>? PlayerOwnedChatStyles { get; set; }
 
+    public DbSet<PlayerChatStyleBitmapEntity>? PlayerChatStyleBitmaps { get; set; }
+
+    public DbSet<ChatStyleLibraryBitmapEntity>? ChatStyleLibraryBitmaps { get; set; }
+
     public DbSet<PlayerCustomFilterWordEntity>? PlayerCustomFilterWords { get; set; }
 
     public DbSet<PerformanceLogEntity>? PerformanceLogs { get; set; }

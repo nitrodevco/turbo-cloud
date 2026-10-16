@@ -20,6 +20,7 @@ public static class AssetContractNames
             AssetBundleKind.Effect => "effect",
             AssetBundleKind.Pet => "pet",
             AssetBundleKind.Figure => "figure",
+            AssetBundleKind.Template => "template",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -28,6 +29,7 @@ public static class AssetContractNames
         {
             AssetBundleSource.Habbo => "habbo",
             AssetBundleSource.Upload => "upload",
+            AssetBundleSource.Built => "built",
             _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
         };
 
@@ -76,6 +78,7 @@ public static class AssetContractNames
             "effect" => AssetBundleKind.Effect,
             "pet" => AssetBundleKind.Pet,
             "figure" => AssetBundleKind.Figure,
+            "template" => AssetBundleKind.Template,
             _ => null,
         };
 

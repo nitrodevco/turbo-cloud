@@ -36,7 +36,7 @@ internal sealed class AssetEndpoints(
     private const string NO_ACCESS = "You can't see the asset bundles.";
     private const string NO_MANAGE = "You can't change the asset bundles.";
     private const string NO_BUNDLE = "There is no such bundle.";
-    private const string BAD_KIND = "The kind is furniture, effect, pet or figure.";
+    private const string BAD_KIND = "The kind is furniture, effect, pet, figure or template.";
     private const string BAD_STATUS = "The status is all, ok, failed or unused.";
     private const string NITRO_CONTENT_TYPE = "application/octet-stream";
 

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Nodes;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
+using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -236,3 +239,118 @@ public sealed record CurrencyRequest(
     int? ActivityPointType,
     bool? Enabled
 );
+
+/// <summary>
+/// A chat bubble style whole: the id the client draws it by and its asset id, who may speak with
+/// it, how the client draws it (its reg points and bitmaps, as chat-style-definitions.json has
+/// them), and how many own it and have it as their bubble. <c>Drawable</c> says whether the
+/// bundle carries it: it needs reg points and its three bitmaps.
+/// </summary>
+public sealed record ChatStyleItem(
+    int Id,
+    int ClientStyleId,
+    string AssetId,
+    bool ClubOnly,
+    bool AmbassadorOnly,
+    bool StaffOnly,
+    bool Purchasable,
+    bool System,
+    bool StaffOverrideable,
+    bool AllowHtml,
+    bool Notification,
+    JsonObject? RegPoints,
+    string[] Bitmaps,
+    int SortOrder,
+    int Owners,
+    int Preferring,
+    bool Drawable
+)
+{
+    public static ChatStyleItem From(ChatStyleDefinitionSnapshot style) =>
+        new(
+            style.Id,
+            style.ClientStyleId,
+            style.AssetId,
+            style.ClubOnly,
+            style.AmbassadorOnly,
+            style.StaffOnly,
+            style.Purchasable,
+            style.System,
+            style.StaffOverrideable,
+            style.AllowHtml,
+            style.Notification,
+            style.RegPoints is null ? null : JsonNode.Parse(style.RegPoints) as JsonObject,
+            [.. style.Bitmaps],
+            style.SortOrder,
+            style.Owners,
+            style.Preferring,
+            style.Drawable
+        );
+}
+
+/// <summary>Every chat style in the client's order, the id a new one takes, and the bundle built from them.</summary>
+public sealed record ChatStyleListResponse(
+    List<ChatStyleItem> Items,
+    int NextId,
+    AssetBundleResponse? Bundle,
+    int LibraryBitmaps
+);
+
+/// <summary>
+/// A chat style to add or change; anything left out keeps what it was (off, for a new one).
+/// <c>Files</c> sets bitmaps by file as base64 PNG, or removes one with null; a new style starts
+/// with the bitmaps of <c>CopyFrom</c> (a style's id) that it doesn't set.
+/// </summary>
+public sealed record ChatStyleRequest(
+    int? ClientStyleId,
+    string? AssetId,
+    bool? ClubOnly,
+    bool? AmbassadorOnly,
+    bool? StaffOnly,
+    bool? Purchasable,
+    bool? System,
+    bool? StaffOverrideable,
+    bool? AllowHtml,
+    bool? Notification,
+    JsonObject? RegPoints,
+    Dictionary<string, string?>? Files,
+    int? CopyFrom
+)
+{
+    /// <summary>The request as the service takes it; a file that isn't base64 is refused.</summary>
+    public ChatStyleEdit ToEdit() =>
+        new()
+        {
+            ClientStyleId = ClientStyleId,
+            AssetId = AssetId,
+            ClubOnly = ClubOnly,
+            AmbassadorOnly = AmbassadorOnly,
+            StaffOnly = StaffOnly,
+            Purchasable = Purchasable,
+            System = System,
+            StaffOverrideable = StaffOverrideable,
+            AllowHtml = AllowHtml,
+            Notification = Notification,
+            RegPoints = RegPoints?.ToJsonString(),
+            Files = Files?.ToDictionary(
+                x => x.Key,
+                x => x.Value is null ? null : Decode(x.Key, x.Value)
+            ),
+            CopyFrom = CopyFrom,
+        };
+
+    private static byte[] Decode(string file, string base64)
+    {
+        try
+        {
+            return Convert.FromBase64String(base64);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException($"{file} is not base64.", ex);
+        }
+    }
+}
+
+/// <summary>Where to download a habbo-free-flow-chat-com bundle to import from.</summary>
+public sealed record ChatStyleImportRequest(string? Url);

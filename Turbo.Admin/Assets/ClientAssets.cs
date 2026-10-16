@@ -31,6 +31,7 @@ public sealed class ClientAssets(
     public const string FURNI_ICON = "asset.urls.icons.furni";
     public const string BADGE = "badge.asset.url";
     public const string IMAGE_LIBRARY = "image.library.url";
+    public const string TEMPLATES = "asset.bundles.templates";
 
     private const string KEY_OPEN = "${";
     private const char KEY_CLOSE = '}';
@@ -98,7 +99,9 @@ public sealed class ClientAssets(
             Value(CATALOG_IMAGE),
             Value(FURNI_ICON),
             Value(BADGE),
-            Value(IMAGE_LIBRARY)
+            Value(IMAGE_LIBRARY),
+            Value(TEMPLATES),
+            _config.ImagerUrl.TrimEnd('/')
         );
     }
 

@@ -7,4 +7,7 @@ public enum AssetBundleSource
 
     /// <summary>Uploaded in the panel. A sync leaves it alone, so a hotel's own edit is not overwritten.</summary>
     Upload = 1,
+
+    /// <summary>Built by the hotel from what it keeps (the chat styles' bundle). A sync leaves it alone.</summary>
+    Built = 2,
 }

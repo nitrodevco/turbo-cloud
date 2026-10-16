@@ -23,7 +23,12 @@ public static class SpriteSheetPacker
 
     public sealed record Result(RgbaImage Sheet, JsonObject Frames);
 
-    public static Result? Pack(ImageBundle bundle, string sheetName)
+    /// <summary>
+    /// The bundle's referenced images on one sheet. <paramref name="trim"/> off keeps each image
+    /// whole, for art drawn by its own size (a chat bubble's nine-slice reg points count from its
+    /// bitmap's edges).
+    /// </summary>
+    public static Result? Pack(ImageBundle bundle, string sheetName, bool trim = true)
     {
         var names = bundle.Referenced.Where(bundle.Images.ContainsKey).ToList();
 
@@ -44,7 +49,7 @@ public static class SpriteSheetPacker
 
             if (known is null)
             {
-                known = Trim(image);
+                known = trim ? Trim(image) : Whole(image);
                 candidates.Add(known);
                 distinct.Add(known);
             }
@@ -121,6 +126,9 @@ public static class SpriteSheetPacker
             ["w"] = w,
             ["h"] = h,
         };
+
+    private static Trimmed Whole(RgbaImage image) =>
+        new(image, 0, 0, image.Width, image.Height, false);
 
     /// <summary>The image less its transparent edges, as free-tex-packer's trimmer cuts them.</summary>
     private static Trimmed Trim(RgbaImage image)

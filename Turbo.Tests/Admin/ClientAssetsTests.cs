@@ -35,12 +35,13 @@ public sealed class ClientAssetsTests
                 "asset.urls.catalog": "${image.library.url}catalogue/%name%.gif",
                 "asset.urls.icons.furni": "/bundled/furniture/icons/%libname%%param%_icon.png",
                 "badge.asset.url": "badges/%badgename%.gif",
+                "asset.bundles.templates": "${image.library.url}bundled/templates/%libname%.nitro",
                 "socket.url": "ws://localhost:9001",
                 "log.debug": false
             }
             """;
 
-        var assets = await Assets().GetAsync(Ct);
+        var assets = await Assets(imager: "https://imager.example/").GetAsync(Ct);
 
         assets
             .Should()
@@ -50,7 +51,9 @@ public sealed class ClientAssetsTests
                     "https://images.example/c_images/catalogue/%name%.gif",
                     "https://hotel.example/bundled/furniture/icons/%libname%%param%_icon.png",
                     "https://hotel.example/play/badges/%badgename%.gif",
-                    "https://images.example/c_images/"
+                    "https://images.example/c_images/",
+                    "https://images.example/c_images/bundled/templates/%libname%.nitro",
+                    "https://imager.example"
                 )
             );
     }
@@ -117,11 +120,12 @@ public sealed class ClientAssetsTests
 
     private ClientAssets Assets(
         string clientPage = CLIENT_PAGE,
-        CapturingLogger<ClientAssets>? log = null
+        CapturingLogger<ClientAssets>? log = null,
+        string imager = ""
     ) =>
         new(
             _variables,
-            Options.Create(new AdminConfig { ClientLoginUrl = clientPage }),
+            Options.Create(new AdminConfig { ClientLoginUrl = clientPage, ImagerUrl = imager }),
             log ?? new CapturingLogger<ClientAssets>()
         );
 

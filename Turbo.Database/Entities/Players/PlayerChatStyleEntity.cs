@@ -47,5 +47,35 @@ public class PlayerChatStyleEntity : TurboEntity
     [DefaultValue(false)]
     public bool System { get; set; }
 
+    // How the client draws it: the rest of its chat-style-definitions.json entry, built into the
+    // habbo-free-flow-chat-com bundle with the bitmaps below. The flags above are its
+    // hcOnly (club_only), ambassadorOnly, purchasable and systemStyle (system).
+
+    /// <summary>Staff may pick it whatever its other flags (the client's <c>staffOverrideable</c>).</summary>
+    [Column("staff_overrideable")]
+    [DefaultValue(false)]
+    public bool StaffOverrideable { get; set; }
+
+    /// <summary>Its lines may carry HTML (the client's <c>allowHTML</c>).</summary>
+    [Column("allow_html")]
+    [DefaultValue(false)]
+    public bool AllowHtml { get; set; }
+
+    /// <summary>A notification bubble: markup in its text and its icon centred (the client's <c>notification</c>).</summary>
+    [Column("notification")]
+    [DefaultValue(false)]
+    public bool Notification { get; set; }
+
+    /// <summary>Its reg points (nine-slice, margins, face, font...) as the client's JSON object; null before it has a look.</summary>
+    [Column("reg_points", TypeName = "longtext")]
+    public string? RegPoints { get; set; }
+
+    /// <summary>Its place in the client's style picker, which lists styles in the bundle's order.</summary>
+    [Column("sort_order")]
+    [DefaultValue(0)]
+    public int SortOrder { get; set; }
+
     public List<PlayerChatStyleOwnedEntity>? OwnedChatStyles { get; set; }
+
+    public List<PlayerChatStyleBitmapEntity>? Bitmaps { get; set; }
 }

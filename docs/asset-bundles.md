@@ -39,9 +39,10 @@ serves it, so it can itself be served, or published as it is:
 | Effect | `bundled/effects/<lib>.nitro` | the effect map's `lib` | `avatar.asset.effect.url` |
 | Pet | `bundled/pet/<name>.nitro` | the name `pet.configuration` lists | `pet.asset.url` |
 | Figure (clothing) | `bundled/figures/<lib>.nitro` | the figure map's `lib` (`hh_human_body`, `shirt_U_...`) | `avatar.asset.url` |
+| Template | `bundled/templates/<library>.nitro` | the client library (`habbo-free-flow-chat-com`) | `asset.bundles.templates` |
 
 Each bundle has a row in `asset_bundles`: its kind and name, the revision it was taken at, where it
-came from (`habbo` or `upload`), its SHA-1 and size, the ids that load it (the effects sharing an
+came from (`habbo`, `upload`, or `built` for a template the server builds from the hotel's own data: the chat styles, see `docs/admin-panel.md`), its SHA-1 and size, the ids that load it (the effects sharing an
 effect's library, a pet's type), and, when it has no file, why. Files are written beside their
 place and moved over it, so nothing ever reads half of one. Every server converting into the folder
 must share it.
