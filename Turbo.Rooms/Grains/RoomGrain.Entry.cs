@@ -120,8 +120,9 @@ public sealed partial class RoomGrain
     /// <summary>
     /// The end of a player's entry, after the room itself (RoomReady through Items), for them
     /// alone and in Habbo's order (official client captures, 32 of 32 entries on builds 1709,
-    /// 1318 and 1745): their own avatar, RoomEntryInfo, RoomEvent, ConfigurationItemStates,
-    /// WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
+    /// 1318 and 1745): their own avatar, RoomEntryInfo, the wired text notice when the room has
+    /// one (<see cref="Systems.RoomWiredSystem.GetTriggerTextNotice"/>), RoomEvent,
+    /// ConfigurationItemStates, WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
     /// YouAreOwner, RoomRating, RaidProtectionCapability. A visitor without rights is told
     /// neither YouAreController nor YouAreNotController (6 of 6 such entries). No UserUpdate
     /// comes before the raid protection (0 of 32), so what the others are doing follows it.
@@ -149,14 +150,18 @@ public sealed partial class RoomGrain
             // The client answers this with GetGuestRoom(enterRoom: true), which is what fills its
             // room info window and the owner-only settings buttons.
             new RoomEntryInfoMessageComposer { RoomId = _state.RoomId, IsOwner = isOwner },
-            // Sent with no event too, as Habbo does, so the last room's event card goes.
-            new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow },
         };
 
-        // Where Habbo sends it is unrecorded (no muted room was entered); with the room's other
-        // switches is inferred.
-        if (_state.IsRoomMuted)
-            tail.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
+        if (WiredSystem.GetTriggerTextNotice() is { } notice)
+            tail.Add(notice);
+
+        // Sent with no event too, as Habbo does, so the last room's event card goes.
+        tail.Add(
+            new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow }
+        );
+
+        // A muted room sends no MuteAllInRoom on entry: the client learns it from the
+        // GetGuestRoomResult it asks for after RoomEntryInfo (allInRoomMuted).
 
         // Sent on every entry, off or on, as Habbo does.
         tail.Add(FurnitureConfigurationControlLogic.GetConfigurationItemStates(FurniModule));

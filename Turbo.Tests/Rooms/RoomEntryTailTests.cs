@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
@@ -15,7 +17,9 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -33,6 +37,7 @@ public sealed class RoomEntryTailTests
 {
     private const int OWNER = 1;
     private const int VISITOR = 42;
+    private const int SHOW_MESSAGE = 7;
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -154,6 +159,81 @@ public sealed class RoomEntryTailTests
             .Should()
             .BeGreaterThan(tail.FindIndex(x => x is RaidProtectionCapabilityMessageComposer));
         update.Avatars.Should().ContainSingle().Which.ObjectId.Should().Be((RoomObjectId)5);
+    }
+
+    [Theory]
+    [InlineData(OWNER)]
+    [InlineData(VISITOR)]
+    public async Task A_room_whose_wired_writes_the_trigger_text_says_so_right_after_the_entry_info(
+        int playerId
+    )
+    {
+        // Official client captures (18 of 18 entries into a room whose Show Message held
+        // $(trigger_text), builds 1709 and 1318): NotificationDialog wired.error between
+        // RoomEntryInfo and RoomEvent. Turbo never sent it.
+        await SaveShowMessageAsync("$(trigger_text)[b] said it");
+
+        var tail = (await EnterAsync(playerId)).ToList();
+        var notice = tail.OfType<NotificationDialogMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        tail.IndexOf(notice)
+            .Should()
+            .Be(tail.FindIndex(x => x is RoomEntryInfoMessageComposer) + 1)
+            .And.Be(tail.FindIndex(x => x is RoomEventMessageComposer) - 1);
+        notice.NotificationType.Should().Be("wired.error");
+        notice
+            .Parameters.Should()
+            .Equal(
+                new Dictionary<string, string>
+                {
+                    ["image"] = "${image.library.url}album1584/WIRD1.png",
+                    ["message"] = "${room.error.wired.trigger_text_capture}",
+                }
+            );
+    }
+
+    [Fact]
+    public async Task A_wired_text_without_the_trigger_text_brings_no_notice()
+    {
+        // Saved as "parity test", the next official entry came without it (13:10:11); put back,
+        // the one after had it again (13:10:29).
+        await SaveShowMessageAsync("parity test");
+
+        var tail = await EnterAsync(OWNER);
+
+        tail.Should().NotContain(x => x is NotificationDialogMessageComposer);
+    }
+
+    [Fact]
+    public async Task A_muted_room_is_not_told_as_mute_all_in_the_entry()
+    {
+        // Official client capture 2026-10-16T04-50-48 (build 1745): owner muted the room, left and
+        // came back; no MuteAllInRoom in the entry, the GetGuestRoomResult the client asks for
+        // carried allInRoomMuted.
+        await _room.Harness.Module<RoomModerationModule>().SetRoomMutedBySystemAsync(true, Ct);
+
+        var tail = await EnterAsync(OWNER);
+
+        tail.Should().NotContain(x => x is MuteAllInRoomEventMessageComposer);
+    }
+
+    private async Task SaveShowMessageAsync(string text)
+    {
+        _room.AddBox<WiredActionShowMessage>(SHOW_MESSAGE, 0, 0, "wf_act_show_message");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                SHOW_MESSAGE,
+                intParams: [1, 34, -1],
+                stringParam: text,
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task<IReadOnlyList<IComposer>> EnterAsync(int playerId) =>

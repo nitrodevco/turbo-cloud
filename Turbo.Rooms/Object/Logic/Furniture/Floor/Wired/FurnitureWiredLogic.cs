@@ -511,6 +511,10 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>The text the box was saved with, trimmed; empty when there is none.</summary>
     protected string GetStringParam() => _wiredData.StringParam?.Trim() ?? string.Empty;
 
+    /// <summary>Whether this box's text writes <c>$(trigger_text)</c>, the full text of the message that triggered it.</summary>
+    public bool UsesTriggerText() =>
+        GetStringParam().Contains(WiredPlaceholderText.TriggerTextToken, StringComparison.Ordinal);
+
     /// <summary>
     /// The text as a positive id (a room, a group), read the invariant way; null when it is
     /// empty or is not one.

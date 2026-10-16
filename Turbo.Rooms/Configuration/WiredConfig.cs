@@ -155,6 +155,14 @@ public class WiredConfig
     /// </summary>
     public int PlacementFailureNotificationCooldownMs { get; init; } = 5000;
 
+    /// <summary>
+    /// Whether a player entering a room whose wired writes <c>$(trigger_text)</c> is told that the
+    /// room can use the full text of what they say, as Habbo does (official client captures,
+    /// WIN63-202610121709 and 202610131318: on every entry while a Show Message text held it, on
+    /// none once it was saved without).
+    /// </summary>
+    public bool NotifyTriggerTextCaptureOnEntry { get; init; } = true;
+
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;
