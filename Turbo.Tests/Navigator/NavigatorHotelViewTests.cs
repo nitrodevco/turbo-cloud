@@ -182,9 +182,7 @@ public sealed class NavigatorHotelViewTests
         for (var i = 1; i <= 80; i++)
             Live(1000 + i, TRADING, population: 1);
 
-        var block = Assert.Single(
-            await Service().SearchAsync(PLAYER, "popular", string.Empty, Ct)
-        );
+        var block = Assert.Single(await Service().SearchAsync(PLAYER, "popular", string.Empty, Ct));
 
         block.Results.Should().HaveCount(75);
         block.ActionAllowed.Should().Be(NavigatorActionAllowedType.Back);

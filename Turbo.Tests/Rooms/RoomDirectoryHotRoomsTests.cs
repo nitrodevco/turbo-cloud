@@ -18,7 +18,9 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class RoomDirectoryHotRoomsTests
 {
-    private readonly ManualTimeProvider _time = new(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
+    private readonly ManualTimeProvider _time = new(
+        new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero)
+    );
     private readonly IRoomDirectoryGrain _directory;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -53,7 +55,9 @@ public sealed class RoomDirectoryHotRoomsTests
         _time.Advance(TimeSpan.FromSeconds(2));
 
         // The first entries left the window; only player 13's is still counted.
-        (await VisitorsAsync()).Should().Equal((1, 0), (2, 1));
+        (await VisitorsAsync())
+            .Should()
+            .Equal((1, 0), (2, 1));
     }
 
     [Fact]
