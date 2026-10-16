@@ -156,7 +156,8 @@ public class FurnitureCounterClockLogic(
     }
 
     // Due at the boundary itself: a delay computed from a second clock read could land 1 ms late.
-    private void Schedule() => TimerSystem.ScheduleAt(_ctx.ObjectId, _nextHalfSecondAtMs, TickAsync);
+    private void Schedule() =>
+        TimerSystem.ScheduleAt(_ctx.ObjectId, _nextHalfSecondAtMs, TickAsync);
 
     private async Task TickAsync(CancellationToken ct)
     {
