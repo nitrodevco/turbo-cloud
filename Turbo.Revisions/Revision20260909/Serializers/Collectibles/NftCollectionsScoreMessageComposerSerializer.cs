@@ -11,6 +11,9 @@ internal class NftCollectionsScoreMessageComposerSerializer(int header)
         NftCollectionsScoreMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Score)
+            .WriteInteger(message.HighestScore)
+            .WriteInteger(message.Level);
     }
 }

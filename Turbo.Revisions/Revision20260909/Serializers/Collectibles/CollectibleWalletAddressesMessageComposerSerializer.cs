@@ -11,6 +11,11 @@ internal class CollectibleWalletAddressesMessageComposerSerializer(int header)
         CollectibleWalletAddressesMessageComposer message
     )
     {
-        //
+        packet
+            .WriteString(message.StardustWalletAddress)
+            .WriteInteger(message.WalletAddresses.Length);
+
+        foreach (var address in message.WalletAddresses)
+            packet.WriteString(address);
     }
 }

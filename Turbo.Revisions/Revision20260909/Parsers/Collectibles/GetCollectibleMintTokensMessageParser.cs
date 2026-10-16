@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Collectibles;
 
 internal class GetCollectibleMintTokensMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetCollectibleMintTokensMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetCollectibleMintTokensMessage { WalletAddress = packet.PopString() };
 }

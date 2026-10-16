@@ -11,6 +11,6 @@ internal class CollectableMintableItemTypesMessageComposerSerializer(int header)
         CollectableMintableItemTypesMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(0);
     }
 }

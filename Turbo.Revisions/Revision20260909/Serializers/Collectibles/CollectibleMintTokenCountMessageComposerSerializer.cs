@@ -11,6 +11,6 @@ internal class CollectibleMintTokenCountMessageComposerSerializer(int header)
         CollectibleMintTokenCountMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Count);
     }
 }

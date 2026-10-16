@@ -11,6 +11,6 @@ internal class CollectibleMintTokenOffersMessageComposerSerializer(int header)
         CollectibleMintTokenOffersMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(0);
     }
 }
