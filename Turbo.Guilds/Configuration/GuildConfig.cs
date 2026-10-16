@@ -72,8 +72,11 @@ public class GuildConfig
     /// </summary>
     public bool BlockingEnabled { get; init; }
 
-    /// <summary>Guild base rooms the navigator's hottest-groups search returns.</summary>
-    public int GuildBaseSearchResultLimit { get; init; } = 50;
+    /// <summary>
+    /// Guild base rooms the navigator's hottest-groups search returns: 60 in Habbo's
+    /// (official client capture 2026-10-13, the <c>groups</c> search).
+    /// </summary>
+    public int GuildBaseSearchResultLimit { get; init; } = 60;
 
     /// <summary>Groups a name search returns.</summary>
     public int NameSearchResultLimit { get; init; } = 50;
