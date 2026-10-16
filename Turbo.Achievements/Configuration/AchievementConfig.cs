@@ -45,4 +45,12 @@ public sealed class AchievementConfig
     /// achievements they have progressed, so a new account is not shown things it can never earn.
     /// </summary>
     public bool ArchiveShowsAll { get; set; }
+
+    /// <summary>
+    /// A level's ducket reward (activity points type 0) waits in the earnings vault's Achievements
+    /// category until the player claims it, as Habbo's does: a level-up sends
+    /// IncomeRewardNotification {rewardCategory 2} and no purse update, and the vault lists one
+    /// row per level reward. False credits the purse directly. Other currencies always go to the purse.
+    /// </summary>
+    public bool DucketRewardsToVault { get; set; } = true;
 }

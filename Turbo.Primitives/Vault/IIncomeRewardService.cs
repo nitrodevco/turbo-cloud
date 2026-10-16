@@ -25,4 +25,19 @@ public interface IIncomeRewardService
         VaultRewardCategoryType category,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Puts an earning into the player's vault and tells an online player (Flash
+    /// <c>IncomeRewardNotificationMessageEvent</c>). At most once per <paramref name="reference"/>
+    /// for the player, so a payer that retries after a crash cannot deposit twice; false when the
+    /// reward cannot be held (no amount, or a product row).
+    /// </summary>
+    public Task<bool> DepositAsync(
+        PlayerId player,
+        VaultRewardCategoryType category,
+        VaultRewardType type,
+        int amount,
+        string reference,
+        CancellationToken ct
+    );
 }

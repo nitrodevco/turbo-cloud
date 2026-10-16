@@ -5499,6 +5499,67 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_figure_sets");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerIncomeRewardEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int")
+                        .HasColumnName("category");
+
+                    b.Property<string>("ClaimReference")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("claim_reference");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("product_code");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("reference");
+
+                    b.Property<int>("RewardType")
+                        .HasColumnType("int")
+                        .HasColumnName("reward_type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "Reference")
+                        .IsUnique();
+
+                    b.ToTable("player_income_rewards");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerNavigatorCollapsedCategoryEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -8689,6 +8750,17 @@ namespace Turbo.Database.Migrations
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerFigureSetEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerIncomeRewardEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany()

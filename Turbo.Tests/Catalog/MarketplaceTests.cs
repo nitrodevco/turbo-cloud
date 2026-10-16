@@ -548,7 +548,12 @@ public sealed class MarketplaceTests : IDisposable
     [Fact]
     public async Task A_sale_waits_in_the_earnings_vault_and_its_claim_pays_the_seller()
     {
-        var vault = new IncomeRewardService([new MarketplaceIncomeRewardSource(_marketplace)]);
+        var vault = new IncomeRewardService(
+            [new MarketplaceIncomeRewardSource(_marketplace)],
+            _catalog.Db,
+            _catalog.Fakes.Create<IGrainFactory>(),
+            _time
+        );
         var first = Give(SELLER, CHAIR);
         var second = Give(SELLER, LAMP);
         await _marketplace.MakeOfferAsync(SELLER, 100, [-first], Ct);
