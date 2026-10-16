@@ -243,6 +243,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             speech.HideUsername
         );
 
+        // The room setting "Mute all pets" (navigator.roomsettings.mute_all_pets, RoomSettingsCtrl
+        // mute_all_pets_checkbox): no one in the room is sent what pets say. Inference from the
+        // setting's name; not recorded.
+        if (speaker is IRoomPet && _roomGrain._state.RoomSnapshot.MuteAllPets)
+            return Task.CompletedTask;
+
         // ":mutepets Ignore pet chats" (habbopages/chat/commands): whoever said it is not sent
         // what pets say.
         var petsMutedBy = _roomGrain._state.PetsMutedBy;

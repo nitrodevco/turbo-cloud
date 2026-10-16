@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Commands;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -129,6 +130,32 @@ public class PetAndScoreCommandsTests
 
         await PetSaysAsync(pet, "woof");
         _room.SaidToRoom().Should().Equal("woof");
+    }
+
+    [Fact]
+    public async Task A_room_set_to_mute_all_pets_sends_no_one_what_pets_say()
+    {
+        _room.AddPlayer(VISITOR);
+        _room.AddPlayer(BUILDER);
+        var pet = AddPet(VISITORS_PET, 101, VISITOR);
+
+        var state = _room.Harness.State;
+        var snapshot = state.GetType().GetProperty("RoomSnapshot", All)!;
+
+        snapshot.SetValue(
+            state,
+            (RoomSnapshot)snapshot.GetValue(state)! with
+            {
+                MuteAllPets = true,
+            }
+        );
+        _room.Harness.Fakes.Log.Calls.Clear();
+
+        await PetSaysAsync(pet, "woof");
+
+        _room.SaidToRoom().Should().BeEmpty();
+        PetLinesTo(VISITOR).Should().BeEmpty();
+        PetLinesTo(BUILDER).Should().BeEmpty();
     }
 
     private Task PetSaysAsync(IRoomPet pet, string line) =>
