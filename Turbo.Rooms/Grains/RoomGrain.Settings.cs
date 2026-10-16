@@ -174,7 +174,7 @@ public sealed partial class RoomGrain
         if (!await PersistSettingsAsync(next, ct))
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.Invalid);
 
-        await ApplySettingsAsync(current, next, ct);
+        await ApplySettingsAsync(current, next, ct, savedByOwner: true);
 
         return RoomSettingsSaveResultSnapshot.Success;
     }
@@ -202,7 +202,7 @@ public sealed partial class RoomGrain
         if (!await PersistSettingsAsync(next, ct))
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.Invalid);
 
-        await ApplySettingsAsync(current, next, ct);
+        await ApplySettingsAsync(current, next, ct, savedByOwner: true);
 
         return RoomSettingsSaveResultSnapshot.Success;
     }
@@ -374,11 +374,17 @@ public sealed partial class RoomGrain
     /// <summary>
     /// Publishes saved settings: the room hears about the changes it can see, the navigator
     /// directory gets the new listing data, and cached listings that no longer match are dropped.
+    /// A save from the owner's settings dialog (<paramref name="savedByOwner"/>) is followed by
+    /// RoomInfoUpdated, RoomVisualizationSettings and RoomChatSettings whether anything they
+    /// carry changed or not, in that order (official client capture 2026-10-13, two category and
+    /// trade saves that changed neither walls nor chat: RoomSettingsSaved, RoomInfoUpdated,
+    /// RoomVisualizationSettings, RoomChatSettings in the same millisecond).
     /// </summary>
     private async Task ApplySettingsAsync(
         RoomSnapshot current,
         RoomSnapshot next,
-        CancellationToken ct
+        CancellationToken ct,
+        bool savedByOwner = false
     )
     {
         _state.RoomSnapshot = next;
@@ -418,26 +424,35 @@ public sealed partial class RoomGrain
                 .GetRoomDirectoryGrain()
                 .PublishListingChangesAsync([.. changedKeys], ct);
 
-        if (current.ChatProtection != next.ChatProtection)
+        var chat = new RoomChatSettingsMessageComposer { ChatProtection = next.ChatProtection };
+        var visualization = new RoomVisualizationSettingsMessageComposer
+        {
+            WallsHidden = next.HideWalls,
+            WallThickness = next.WallThickness,
+            FloorThickness = next.FloorThickness,
+        };
+
+        if (savedByOwner)
+        {
             await SendComposerToRoomAsync(
-                new RoomChatSettingsMessageComposer { ChatProtection = next.ChatProtection },
+                new RoomInfoUpdatedMessageComposer { RoomId = _state.RoomId },
                 ct
             );
+            await SendComposerToRoomAsync(visualization, ct);
+            await SendComposerToRoomAsync(chat, ct);
+
+            return;
+        }
+
+        if (current.ChatProtection != next.ChatProtection)
+            await SendComposerToRoomAsync(chat, ct);
 
         if (
             current.HideWalls != next.HideWalls
             || current.WallThickness != next.WallThickness
             || current.FloorThickness != next.FloorThickness
         )
-            await SendComposerToRoomAsync(
-                new RoomVisualizationSettingsMessageComposer
-                {
-                    WallsHidden = next.HideWalls,
-                    WallThickness = next.WallThickness,
-                    FloorThickness = next.FloorThickness,
-                },
-                ct
-            );
+            await SendComposerToRoomAsync(visualization, ct);
 
         await SendComposerToRoomAsync(
             new RoomInfoUpdatedMessageComposer { RoomId = _state.RoomId },
