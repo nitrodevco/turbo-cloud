@@ -1,5 +1,7 @@
+using System.Text.Json;
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
@@ -20,6 +22,7 @@ using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -207,6 +210,24 @@ public sealed class RoomEntryTailTests
         tail.Should().NotContain(x => x is NotificationDialogMessageComposer);
     }
 
+    [Theory]
+    [InlineData("$(trigger_text)[b] said it", true)]
+    [InlineData("parity test", false)]
+    public async Task The_first_entry_into_a_room_just_woken_reads_the_boxes_the_wired_tick_has_not_loaded(
+        string text,
+        bool told
+    )
+    {
+        // A woken room's boxes load on the wired tick; an entry before it read a box with no data
+        // and lost the whole entry ("Failed to create avatar": the player stood in an empty room).
+        StoreShowMessage(text);
+
+        var tail = await EnterAsync(OWNER);
+
+        tail.Should().Contain(x => x is RoomEntryInfoMessageComposer);
+        tail.Any(x => x is NotificationDialogMessageComposer).Should().Be(told);
+    }
+
     [Fact]
     public async Task A_muted_room_is_not_told_as_mute_all_in_the_entry()
     {
@@ -234,6 +255,18 @@ public sealed class RoomEntryTailTests
         )
             .Should()
             .BeTrue();
+    }
+
+    /// <summary>A Show Message saved with <paramref name="text"/> that the wired tick has not loaded yet.</summary>
+    private void StoreShowMessage(string text)
+    {
+        _room.AddBox<WiredActionShowMessage>(SHOW_MESSAGE, 0, 0, "wf_act_show_message");
+        _room
+            .FloorItem(SHOW_MESSAGE)
+            .ExtraData.UpdateSection(
+                ExtraDataSectionType.WIRED,
+                JsonSerializer.SerializeToNode(new WiredData { StringParam = text })!
+            );
     }
 
     private async Task<IReadOnlyList<IComposer>> EnterAsync(int playerId) =>

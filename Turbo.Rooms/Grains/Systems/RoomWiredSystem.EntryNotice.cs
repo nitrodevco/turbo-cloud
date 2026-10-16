@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
@@ -19,23 +21,35 @@ public sealed partial class RoomWiredSystem
     /// into a room whose Show Message held it, builds 1709 and 1318; saving that text without the
     /// placeholder took it away from the next entry and putting it back brought it back). Every
     /// recorded entry was the owner's; that a visitor is told too is inferred from the text.
+    /// A box the wired tick has not loaded yet (the room has only just woken) is loaded here, so
+    /// the first entry into a woken room reads every box's saved text too.
     /// </summary>
-    public NotificationDialogMessageComposer? GetTriggerTextNotice()
+    public async Task<NotificationDialogMessageComposer?> GetTriggerTextNoticeAsync(
+        CancellationToken ct
+    )
     {
-        if (
-            !_roomGrain._wiredConfig.NotifyTriggerTextCaptureOnEntry
-            || !FurniModule.Items.Any(x =>
-                x.Logic is FurnitureWiredLogic box && box.UsesTriggerText()
-            )
-        )
+        if (!_roomGrain._wiredConfig.NotifyTriggerTextCaptureOnEntry)
             return null;
 
-        return new NotificationDialogMessageComposer
+        foreach (
+            var box in FurniModule.Items.Select(x => x.Logic).OfType<FurnitureWiredLogic>().ToList()
+        )
+        {
+            await box.EnsureWiredLoadedAsync(ct);
+
+            if (box.UsesTriggerText())
+                return TriggerTextNotice();
+        }
+
+        return null;
+    }
+
+    private static NotificationDialogMessageComposer TriggerTextNotice() =>
+        new()
         {
             NotificationType = TRIGGER_TEXT_NOTICE_TYPE,
             Parameters = ImmutableDictionary<string, string>
                 .Empty.Add("image", TRIGGER_TEXT_NOTICE_IMAGE)
                 .Add("message", TRIGGER_TEXT_NOTICE_MESSAGE),
         };
-    }
 }
