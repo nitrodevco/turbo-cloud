@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
@@ -38,10 +39,36 @@ public class JoinHabboGroupMessageHandler(IGrainFactory grainFactory)
             return;
         }
 
-        // The window the player is looking at reads the group's details, not the join's answer,
-        // so the refresh is what actually redraws their join button as a leave button.
+        // A request to an exclusive group is not recorded; the refresh redraws the window the
+        // player is looking at, which reads the group's details.
+        if (result.Status != GuildMembershipStatus.Member)
+        {
+            await ctx.SendComposerAsync(
+                    new GroupDetailsChangedMessageComposer { GuildId = message.GuildId },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
+
+        // Habbo answers a join with the joiner's groups and the group's details, then wears the
+        // group if they wore none and says their profile changed (official client capture
+        // 2026-10-13 20:55 and 21:07, both joins: WiredPermissions, RaidProtectionCapability,
+        // GuildMemberships, HabboGroupDetails with favourite still false, HabboGroupBadges,
+        // FavoriteMembershipUpdate, ExtendedProfileChanged). The rights come from the homeroom,
+        // the badge from the room they stand in. The details redraw the join button the window
+        // disabled when it was clicked (GroupDetailsCtrl.as:175).
+        var playerGuilds = _grainFactory.GetPlayerGuildGrain(ctx.PlayerId);
+        var guilds = await playerGuilds.GetMembershipsAsync(ct).ConfigureAwait(false);
+
+        await ctx.SendComposerAsync(new GuildMembershipsMessageComposer { Guilds = guilds }, ct)
+            .ConfigureAwait(false);
+        await ctx.SendHabboGroupDetailsAsync(_grainFactory, message.GuildId, false, ct)
+            .ConfigureAwait(false);
+        await playerGuilds.WearIfNoneAsync(message.GuildId, ct).ConfigureAwait(false);
         await ctx.SendComposerAsync(
-                new GroupDetailsChangedMessageComposer { GuildId = message.GuildId },
+                new ExtendedProfileChangedMessageComposer { UserId = ctx.PlayerId.Value },
                 ct
             )
             .ConfigureAwait(false);
