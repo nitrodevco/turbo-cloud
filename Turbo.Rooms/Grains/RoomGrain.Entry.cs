@@ -152,7 +152,7 @@ public sealed partial class RoomGrain
             new RoomEntryInfoMessageComposer { RoomId = _state.RoomId, IsOwner = isOwner },
         };
 
-        if (WiredSystem.GetTriggerTextNotice() is { } notice)
+        if (await WiredSystem.GetTriggerTextNoticeAsync(ct) is { } notice)
             tail.Add(notice);
 
         // Sent with no event too, as Habbo does, so the last room's event card goes.
