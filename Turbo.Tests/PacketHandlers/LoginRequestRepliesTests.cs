@@ -1,8 +1,11 @@
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.PacketHandlers.Nft;
 using Turbo.PacketHandlers.Users;
 using Turbo.Primitives.Hotel.Grains;
+using Turbo.Primitives.Messages.Incoming.Nft;
 using Turbo.Primitives.Messages.Incoming.Users;
+using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Networking;
 using Turbo.Tests.Support;
@@ -12,7 +15,9 @@ namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
 /// Requests the client makes once it has logged in, each answered on its own as the official
-/// hotel answers it: GetMOTD with the message of the day (nothing while there is none).
+/// hotel answers it: GetMOTD with the message of the day (nothing while there is none),
+/// GetNftCredits with the emerald balance and GetSilver with the silver balance (official client
+/// capture: every login answers one EmeraldBalance and one SilverBalance).
 /// </summary>
 public sealed class LoginRequestRepliesTests
 {
@@ -64,5 +69,33 @@ public sealed class LoginRequestRepliesTests
         );
 
         Assert.Empty(sent);
+    }
+
+    [Fact]
+    public async Task GetNftCredits_is_answered_with_the_emerald_balance_only()
+    {
+        var sent = await SendAsync(grains =>
+            new GetNftCreditsMessageHandler(grains).HandleAsync(
+                new GetNftCreditsMessage(),
+                Context(),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.IsType<EmeraldBalanceMessageComposer>(Assert.Single(sent));
+    }
+
+    [Fact]
+    public async Task GetSilver_is_answered_with_the_silver_balance()
+    {
+        var sent = await SendAsync(grains =>
+            new GetSilverMessageHandler(grains).HandleAsync(
+                new GetSilverMessage(),
+                Context(),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.IsType<SilverBalanceMessageComposer>(Assert.Single(sent));
     }
 }

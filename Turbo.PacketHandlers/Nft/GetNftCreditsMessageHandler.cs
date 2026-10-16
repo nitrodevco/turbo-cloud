@@ -27,17 +27,12 @@ public class GetNftCreditsMessageHandler(IGrainFactory grainFactory)
         var emeralds = await wallet
             .GetAmountForCurrencyAsync(CurrencyKind.Emeralds, ct)
             .ConfigureAwait(false);
-        var silver = await wallet
-            .GetAmountForCurrencyAsync(CurrencyKind.Silver, ct)
-            .ConfigureAwait(false);
 
+        // Emeralds only: the client asks for silver on its own (GetSilver).
         await ctx.SendComposerAsync(
                 new EmeraldBalanceMessageComposer { EmeraldBalance = emeralds },
                 ct
             )
-            .ConfigureAwait(false);
-
-        await ctx.SendComposerAsync(new SilverBalanceMessageComposer { SilverBalance = silver }, ct)
             .ConfigureAwait(false);
     }
 }
