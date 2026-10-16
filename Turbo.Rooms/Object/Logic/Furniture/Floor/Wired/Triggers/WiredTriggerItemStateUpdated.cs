@@ -14,7 +14,11 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
-[RoomObjectLogic("wf_trg_state_changed")]
+/// <summary>
+/// "Furni State Is Changed" (wf_trg_stuff_state in the hotel's furnidata): fires whatever changed
+/// a picked furni's state, trigger code 20.
+/// </summary>
+[RoomObjectLogic("wf_trg_stuff_state")]
 public class WiredTriggerItemStateUpdated(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

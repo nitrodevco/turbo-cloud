@@ -86,7 +86,7 @@ public sealed class WiredNumberBlockCounterTutorialTests
 
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
         _room.AddBox<WiredActionToggleItemState>(2, 0, 0, "wf_act_toggle_state");
-        _room.AddBox<WiredTriggerItemStateUpdated>(3, 0, 5, "wf_trg_state_changed");
+        _room.AddBox<WiredTriggerItemStateUpdated>(3, 0, 5, "wf_trg_stuff_state");
         _room.AddBox<WiredSelectorItemsInNeighborhood>(4, 0, 5, "wf_slc_furni_neighborhood");
         _room.AddBox<WiredSelectorItemsByType>(5, 0, 5, "wf_slc_furni_bytype");
         _room.AddBox<WiredActionToggleItemState>(6, 0, 5, "wf_act_toggle_state");
