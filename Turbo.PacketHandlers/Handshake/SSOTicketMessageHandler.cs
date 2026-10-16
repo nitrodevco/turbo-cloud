@@ -123,8 +123,6 @@ public class SSOTicketMessageHandler(
         var clubGiftsTask = _grainFactory
             .GetCatalogPurchaseGrain(playerId)
             .GetClubGiftInfoAsync(ct);
-        // The welcome message staff set in the admin panel; answered from memory.
-        var welcomeMessageTask = _grainFactory.GetWelcomeMessageGrain().GetMessageAsync(ct);
         // The effects the player owns, with what is left of any that is running.
         var effectsTask = _grainFactory.GetPlayerEffectGrain(playerId).GetEffectsAsync(ct);
         // The clothing they own, which the avatar editor offers them besides what everyone has.
@@ -140,7 +138,6 @@ public class SSOTicketMessageHandler(
                 settingsTask,
                 favouriteRoomIdsTask,
                 clubGiftsTask,
-                welcomeMessageTask,
                 effectsTask,
                 ownedClothingTask,
                 boundClothingTask,
@@ -359,7 +356,9 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-        await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = true }, ct)
+        // Official logins answer false, a new account's first one included; the client reads it only
+        // to open the seasonal quest calendar, which the hotel has switched off.
+        await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = false }, ct)
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(
                 new MysteryBoxKeysMessageComposer
@@ -370,15 +369,5 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-
-        // Last, so it opens over the hotel view. None is shown while the message is empty.
-        var welcomeMessage = await welcomeMessageTask.ConfigureAwait(false);
-
-        if (!string.IsNullOrWhiteSpace(welcomeMessage))
-            await ctx.SendComposerAsync(
-                    new MOTDNotificationEventMessageComposer { Messages = [welcomeMessage] },
-                    ct
-                )
-                .ConfigureAwait(false);
     }
 }
