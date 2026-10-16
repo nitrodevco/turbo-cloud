@@ -395,16 +395,26 @@ public sealed partial class RoomMapModule
     }
 
     /// <summary>
-    /// Whether a plan has an open tile under every tile this furni covers. A floor item is
-    /// measured over its whole footprint, turned the way it stands; a wall item hangs off the
-    /// one tile it is pinned to.
+    /// Whether a plan still has a place for this furni. A floor item needs an open tile under
+    /// its whole footprint, turned the way it stands. A wall item is pinned to the tile its wall
+    /// stands on, which is outside the floor (<c>LegacyWallGeometry.getOldLocation</c>:
+    /// <c>floor(x - 0.5)</c> on the left wall, <c>floor(y - 0.5)</c> on the right), so its wall
+    /// is still there while that tile stays closed and the floor tile it faces stays open.
     /// </summary>
     private static bool FitsOnModel(RoomModelSnapshot model, IRoomItem item)
     {
-        if (item is not IRoomFloorItem floor)
-            return IsOpenOnModel(model, item.X, item.Y);
+        if (item is IRoomFloorItem floor)
+            return FloorFootprint
+                .Of(floor)
+                .Tiles()
+                .All(tile => IsOpenOnModel(model, tile.X, tile.Y));
 
-        return FloorFootprint.Of(floor).Tiles().All(tile => IsOpenOnModel(model, tile.X, tile.Y));
+        // The left wall (`l`, read as south) faces the tile east of it, the right wall (`r`,
+        // west) the tile south of it.
+        var (faceX, faceY) =
+            item.Rotation == Rotation.South ? (item.X + 1, item.Y) : (item.X, item.Y + 1);
+
+        return !IsOpenOnModel(model, item.X, item.Y) && IsOpenOnModel(model, faceX, faceY);
     }
 
     private static bool IsOpenOnModel(RoomModelSnapshot model, int x, int y) =>
