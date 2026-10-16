@@ -3,8 +3,10 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Orleans;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
+using Turbo.Catalog.Vault;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
@@ -16,11 +18,14 @@ using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -69,6 +74,11 @@ public sealed class AchievementProgressionTests : IDisposable
         RoomHarness.SetField(grain, "_recorder", recorder);
         RoomHarness.SetField(grain, "_rewards", new AchievementRewardRegistry());
         RoomHarness.SetField(grain, "_observers", _observers);
+        RoomHarness.SetField(
+            grain,
+            "_incomeRewards",
+            new IncomeRewardService([], _database, _fakes.Create<IGrainFactory>(), _clock)
+        );
         RoomHarness.SetField(grain, "_time", _clock);
         RoomHarness.SetField(
             grain,
@@ -155,6 +165,97 @@ public sealed class AchievementProgressionTests : IDisposable
         Assert.Equal(3, projection.EarnedLevels);
         Assert.True((await db.AchievementFacts.SingleAsync(Ct)).Processed);
     }
+
+    /// <summary>
+    /// Habbo pays a level's duckets into the earnings vault: the official client capture
+    /// (2026-10-13, AvatarLooks 1 / LegDay 4 / RoomDecoFurniCount 7) shows
+    /// IncomeRewardNotification {rewardCategory 2} at each level-up and no purse update, then one
+    /// Achievements duckets row per level reward in IncomeRewardStatus.
+    /// </summary>
+    [Fact]
+    public async Task DucketLevelRewardsWaitInTheEarningsVaultOncePerLevel()
+    {
+        _catalog.Current = [WithDucketRewards(Definition(100000))];
+        await RecordAsync("action-1", AchievementSources.FIGURE, 2);
+        await NewGrain().ProcessAsync(Ct);
+        await NewGrain().ProcessAsync(Ct);
+
+        Assert.DoesNotContain(
+            _fakes.Log.Calls,
+            x => x.Method == nameof(IPlayerWalletGrain.CreditAchievementAsync)
+        );
+        Assert.Equal(
+            [
+                new IncomeRewardNotificationMessageComposer
+                {
+                    RewardCategory = VaultRewardCategoryType.Achievements,
+                },
+                new IncomeRewardNotificationMessageComposer
+                {
+                    RewardCategory = VaultRewardCategoryType.Achievements,
+                },
+            ],
+            _fakes
+                .Log.Of(nameof(IPlayerPresenceGrain.TrySendComposerAsync))
+                .Select(x => x.Args[0])
+                .OfType<IncomeRewardNotificationMessageComposer>()
+        );
+        var vault = new IncomeRewardService([], _database, _fakes.Create<IGrainFactory>(), _clock);
+        Assert.Equal(
+            [
+                (VaultRewardCategoryType.Achievements, VaultRewardType.Duckets, 10),
+                (VaultRewardCategoryType.Achievements, VaultRewardType.Duckets, 20),
+            ],
+            (await vault.GetRewardsAsync(1, Ct)).Select(x =>
+                (x.RewardCategory, x.RewardType, x.Amount)
+            )
+        );
+    }
+
+    [Fact]
+    public async Task DucketLevelRewardsGoToThePurseWhenTheVaultIsTurnedOff()
+    {
+        _catalog.Current = [WithDucketRewards(Definition(100000))];
+        await RecordAsync("action-1", AchievementSources.FIGURE, 1);
+        _fakes.Handlers[nameof(IPlayerWalletGrain.CreditAchievementAsync)] = _ =>
+            Task.FromResult(true);
+        var grain = NewGrain();
+        RoomHarness.SetField(
+            grain,
+            "_config",
+            new AchievementConfig { DucketRewardsToVault = false }
+        );
+        await grain.ProcessAsync(Ct);
+
+        Assert.Equal(
+            10,
+            _fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAchievementAsync)).Single().Args[2]
+        );
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Empty(await db.PlayerIncomeRewards.ToListAsync(Ct));
+    }
+
+    private static AchievementDefinition WithDucketRewards(AchievementDefinition definition) =>
+        definition with
+        {
+            Levels =
+            [
+                .. definition.Levels.Select(
+                    (level, index) =>
+                        level with
+                        {
+                            Rewards =
+                            [
+                                new AchievementReward
+                                {
+                                    Currency = CurrencyKind.ActivityPoints(0),
+                                    Amount = 10 * (index + 1),
+                                },
+                            ],
+                        }
+                ),
+            ],
+        };
 
     [Fact]
     public async Task ObserversHearEachCompletedLevelOnceAndNeverAgainOnReplay()

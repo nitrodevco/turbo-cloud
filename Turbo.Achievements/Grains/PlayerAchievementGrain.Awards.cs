@@ -11,6 +11,8 @@ using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Enums.Wallet;
+using Turbo.Primitives.Vault.Enums;
 
 namespace Turbo.Achievements.Grains;
 
@@ -111,7 +113,30 @@ internal sealed partial class PlayerAchievementGrain
                 {
                     var reward = level.Rewards[delivered];
                     var receiptKey = $"{awardKey}:reward:{delivered}";
-                    if (reward.Handler == "wallet" && reward.Version == 1)
+                    if (
+                        reward.Handler == "wallet"
+                        && reward.Version == 1
+                        && _config.DucketRewardsToVault
+                        && reward.Currency
+                            is { CurrencyType: CurrencyType.ActivityPoints, ActivityPointType: 0 }
+                    )
+                    {
+                        // The receipt key is the vault row's reference, so a replay holds it once.
+                        if (
+                            !await _incomeRewards.DepositAsync(
+                                _state.PlayerId,
+                                VaultRewardCategoryType.Achievements,
+                                VaultRewardType.Duckets,
+                                reward.Amount,
+                                receiptKey,
+                                ct
+                            )
+                        )
+                            throw new InvalidOperationException(
+                                "Vault reward blocked: the earnings vault refused it."
+                            );
+                    }
+                    else if (reward.Handler == "wallet" && reward.Version == 1)
                     {
                         if (
                             reward.Currency is not { } currency

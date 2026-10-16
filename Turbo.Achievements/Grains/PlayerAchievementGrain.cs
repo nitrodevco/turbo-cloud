@@ -18,6 +18,7 @@ using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Achievements.Grains;
 using Turbo.Primitives.Achievements.Snapshots;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Vault;
 
 namespace Turbo.Achievements.Grains;
 
@@ -38,6 +39,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
     private readonly IAchievementFactRecorder _recorder;
     private readonly IAchievementRewardRegistry _rewards;
     private readonly IAchievementObserverRegistry _observers;
+    private readonly IIncomeRewardService _incomeRewards;
     private readonly TimeProvider _time;
     private readonly AchievementStateEvaluator _evaluator;
     private readonly ILogger<IPlayerAchievementGrain> _logger;
@@ -51,6 +53,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
         IAchievementFactRecorder recorder,
         IAchievementRewardRegistry rewards,
         IAchievementObserverRegistry observers,
+        IIncomeRewardService incomeRewards,
         TimeProvider time,
         AchievementStateEvaluator evaluator,
         ILogger<IPlayerAchievementGrain> logger
@@ -63,6 +66,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
         _recorder = recorder;
         _rewards = rewards;
         _observers = observers;
+        _incomeRewards = incomeRewards;
         _time = time;
         _evaluator = evaluator;
         _logger = logger;

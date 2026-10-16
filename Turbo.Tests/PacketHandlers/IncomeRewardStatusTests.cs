@@ -1,3 +1,4 @@
+using Orleans;
 using Turbo.Catalog.Vault;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Vault;
@@ -15,14 +16,21 @@ namespace Turbo.Tests.PacketHandlers;
 /// disable the claim buttons of empty categories (<c>EarningsView.onIncomeRewardDataReceived</c>);
 /// a claim is always answered, or its button stays disabled (<c>EarningsView.performClaim</c>).
 /// </summary>
-public sealed class IncomeRewardStatusTests
+public sealed class IncomeRewardStatusTests : IDisposable
 {
+    private readonly SqliteDb _db = new();
+
+    public void Dispose() => _db.Dispose();
+
+    private IncomeRewardService NewVault(Fakes fakes) =>
+        new([], _db, fakes.Create<IGrainFactory>(), TimeProvider.System);
+
     [Fact]
     public async Task The_vault_status_is_answered_with_nothing_to_claim()
     {
         var fakes = new Fakes();
 
-        await new IncomeRewardStatusMessageHandler(new IncomeRewardService([])).HandleAsync(
+        await new IncomeRewardStatusMessageHandler(NewVault(fakes)).HandleAsync(
             new IncomeRewardStatusMessage(),
             new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
             TestContext.Current.CancellationToken
@@ -44,7 +52,7 @@ public sealed class IncomeRewardStatusTests
     {
         var fakes = new Fakes();
 
-        await new IncomeRewardClaimMessageHandler(new IncomeRewardService([])).HandleAsync(
+        await new IncomeRewardClaimMessageHandler(NewVault(fakes)).HandleAsync(
             new IncomeRewardClaimMessage { RewardCategory = category },
             new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
             TestContext.Current.CancellationToken
