@@ -11,20 +11,21 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
-namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
+namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 
 /// <summary>
 /// A moodlight. Its legacy data is <c>state,presetId,effectId,#RRGGBB,brightness</c> as the client
 /// renders it; the three presets live in the item's extra data under <see cref="PRESETS_SECTION"/>.
-/// Editing needs room rights, which is also when the client offers the editor.
+/// Editing needs room rights, which is also when the client offers the editor. Every moodlight
+/// Habbo has hangs on the wall (furnidata <c>wallitemtypes</c>, category <c>dimmer</c>).
 /// </summary>
 [RoomObjectLogic("dimmer")]
-public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureFloorLogic(stuffDataFactory, ctx)
+public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
+    : FurnitureWallLogic(stuffDataFactory, ctx)
 {
     private const string PRESETS_SECTION = "dimmer";
     private const int STATE_FIELD = 0;
