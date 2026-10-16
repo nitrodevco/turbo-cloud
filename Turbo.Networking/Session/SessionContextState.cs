@@ -26,6 +26,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     // Written by the receive loop, read by the heartbeat on another thread.
     private long _lastReceivedTicks = DateTime.UtcNow.Ticks;
 
+    // Written by the receive loop for anything but a client timer message, read by the heartbeat.
+    private long _lastActiveTicks = DateTime.UtcNow.Ticks;
+
     // How long a client has to answer a WebSocket close frame before its connection is dropped.
     private static readonly TimeSpan CLOSE_ANSWER_GRACE = TimeSpan.FromSeconds(5);
 
@@ -54,6 +57,10 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
 
     public void MarkReceived() =>
         Interlocked.Exchange(ref _lastReceivedTicks, DateTime.UtcNow.Ticks);
+
+    public DateTime LastActiveUtc => new(Interlocked.Read(ref _lastActiveTicks), DateTimeKind.Utc);
+
+    public void MarkActive() => Interlocked.Exchange(ref _lastActiveTicks, DateTime.UtcNow.Ticks);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {

@@ -46,6 +46,10 @@ public sealed class PackageHandler(
             {
                 var message = parser.Parse(packet);
 
+                // Marked before the handlers run, for the same reason as MarkReceived above.
+                if (message is not IClientTimerMessage)
+                    ctx.MarkActive();
+
                 if (_logger.IsEnabled(LogLevel.Debug))
                     _logger.LogDebug("Incoming {Message}", message);
 

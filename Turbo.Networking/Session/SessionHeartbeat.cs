@@ -22,6 +22,11 @@ namespace Turbo.Networking.Session;
 /// their room and offline. A connection that never logged in is not pinged, so it is closed once
 /// it has been silent that long too.
 ///
+/// A logged-in player who has done nothing for <see cref="NetworkingConfig.IdleDisconnectMilliseconds"/>
+/// (when set) is sent DisconnectReason 112, which the client shows as "Idle disconnection!"
+/// (<c>disconnected.idle</c>), and their connection is closed. Pongs and the client's other
+/// timer messages do not count (<see cref="ISessionContext.LastActiveUtc"/>).
+///
 /// The connections are checked side by side, and a Ping that cannot be sent within one interval
 /// closes its connection: a client that keeps sending but stops reading fills its socket, its
 /// sends wait on one another, and checking connections one after another let that one stall the
@@ -40,6 +45,11 @@ internal sealed class SessionHeartbeat(
     // One composer for every ping: it carries nothing, and a composer is never changed after it
     // is handed to a send.
     private static readonly PingMessage PING = new();
+
+    private static readonly DisconnectReasonEventMessageComposer IDLE = new()
+    {
+        Reason = DisconnectReasonEventMessageComposer.Idle,
+    };
 
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -97,14 +107,18 @@ internal sealed class SessionHeartbeat(
 
     private async Task TickAsync(CancellationToken ct)
     {
-        var silentSince =
-            DateTime.UtcNow - TimeSpan.FromMilliseconds(_config.SessionTimeoutMilliseconds);
+        var now = DateTime.UtcNow;
+        var silentSince = now - TimeSpan.FromMilliseconds(_config.SessionTimeoutMilliseconds);
+        DateTime? idleSince =
+            _config.IdleDisconnectMilliseconds > 0
+                ? now - TimeSpan.FromMilliseconds(_config.IdleDisconnectMilliseconds)
+                : null;
         var checks = new List<Task>();
 
         foreach (var session in _sessionGateway.GetSessions())
         {
             if (!session.Connection.IsClosed)
-                checks.Add(CheckEachAsync(session, silentSince, ct));
+                checks.Add(CheckEachAsync(session, silentSince, idleSince, ct));
         }
 
         await Task.WhenAll(checks).ConfigureAwait(false);
@@ -114,12 +128,13 @@ internal sealed class SessionHeartbeat(
     private async Task CheckEachAsync(
         ISessionContext session,
         DateTime silentSince,
+        DateTime? idleSince,
         CancellationToken ct
     )
     {
         try
         {
-            await CheckAsync(session, silentSince, ct).ConfigureAwait(false);
+            await CheckAsync(session, silentSince, idleSince, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -134,6 +149,7 @@ internal sealed class SessionHeartbeat(
     private async Task CheckAsync(
         ISessionContext session,
         DateTime silentSince,
+        DateTime? idleSince,
         CancellationToken ct
     )
     {
@@ -165,6 +181,13 @@ internal sealed class SessionHeartbeat(
 
         try
         {
+            if (idleSince is { } since && session.LastActiveUtc < since)
+            {
+                await DisconnectIdleAsync(session, ping.Token).ConfigureAwait(false);
+
+                return;
+            }
+
             await session.SendComposerAsync(PING, ping.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -181,5 +204,19 @@ internal sealed class SessionHeartbeat(
                 )
                 .ConfigureAwait(false);
         }
+    }
+
+    private async Task DisconnectIdleAsync(ISessionContext session, CancellationToken ct)
+    {
+        _logger.LogInformation(
+            "Closing session {SessionKey}: idle since {LastActive}",
+            session.SessionKey,
+            session.LastActiveUtc
+        );
+
+        await session.SendComposerAsync(IDLE, ct).ConfigureAwait(false);
+        await session
+            .CloseSessionAsync($"idle, nothing done since {session.LastActiveUtc:O}")
+            .ConfigureAwait(false);
     }
 }

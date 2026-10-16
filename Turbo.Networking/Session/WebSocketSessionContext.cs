@@ -44,6 +44,10 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
 
     public void MarkReceived() => _state.MarkReceived();
 
+    public DateTime LastActiveUtc => _state.LastActiveUtc;
+
+    public void MarkActive() => _state.MarkActive();
+
     public ArrayBufferWriter<byte>? WsBuffer { get; } = new(4096);
 
     public string? ServerCloseReason => _state.CloseReason;

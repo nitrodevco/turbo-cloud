@@ -343,66 +343,84 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
                 "unlawful_activity"
             );
         topics.Select(x => x.Name).Should().OnlyHaveUniqueItems();
-        topics
-            .Where(x => x.Id != 14)
-            .Select(x => (x.Id, x.Name, x.Consequence))
-            .Should()
-            .Contain((12, "bullying", ""))
-            .And.Contain((13, "habbo_name", ""))
-            .And.Contain((34, "inappropiate_room_group_event", ""))
-            .And.Contain((39, "topic_39", ""));
-        // The official report window's tree (2026-10-09), in its order; 14 is the operator's.
+        // Every official CfhTopicsInit recorded (6, 2026-10-12): Habbo's order, names and
+        // consequences; 14 is the operator's.
         topics
             .Where(x => x.Enabled)
             .OrderBy(x => x.SortOrder)
-            .Select(x => x.Id)
+            .Select(x => (x.Id, x.Name, x.Consequence))
             .Should()
             .Equal(
-                1,
-                2,
-                3,
-                30,
-                39,
-                6,
-                8,
-                9,
-                10,
-                11,
-                32,
-                33,
-                12,
-                13,
-                34,
-                15,
-                16,
-                17,
-                18,
-                19,
-                20,
-                21,
-                22,
-                29,
-                35,
-                40
+                (1, "explicit_sexual_talk", "auto_reply"),
+                (2, "cybersex", "auto_reply"),
+                (3, "sexual_webcam_images", "auto_reply"),
+                (36, "sex_links", "auto_reply"),
+                (39, "sexual_abuse_and_exploitation_of_children_anonymous_report", "auto_reply"),
+                (6, "meet_irl", "auto_reply"),
+                (8, "asking_pii", "auto_reply"),
+                (9, "scamsites_promoting", "auto_reply"),
+                (10, "selling_buying_accounts_or_furni", "auto_reply"),
+                (11, "stealing_accounts_or_furni", "auto_reply"),
+                (32, "hacking_scamming_tricks", "auto_reply"),
+                (33, "fraud", "auto_reply"),
+                (12, "bullying", "auto_reply"),
+                (13, "habbo_name", "auto_reply"),
+                (34, "inappropiate_room_group_event", "auto_reply"),
+                (15, "drugs_promotion", "auto_reply"),
+                (16, "gambling", "auto_reply"),
+                (17, "staff_impersonation", "auto_reply"),
+                (18, "minors_access", "auto_reply"),
+                (19, "hate_speech", "auto_reply"),
+                (20, "violent_roleplay", "auto_reply"),
+                (21, "self_threatening", "self_harm_notification"),
+                (22, "flooding", "auto_reply"),
+                (29, "raids", "auto_reply"),
+                (35, "scripting", "auto_reply"),
+                (40, "unlawful_activity", "auto_reply")
             );
         topics
-            .Where(x => x.Id != 14)
+            .Where(x => x.Enabled)
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.Category)
+            .Distinct()
             .Should()
-            .OnlyContain(x =>
-                x.Consequence == ""
-                && (
-                    x.Name == "topic_" + x.Id
-                    || x.Name == "bullying"
-                    || x.Name == "habbo_name"
-                    || x.Name == "inappropiate_room_group_event"
-                )
+            .Equal(
+                "sexual_content",
+                "pii_meeting_irl",
+                "scamming",
+                "trolling_bad_behavior",
+                "violent_behavior",
+                "game_interruption",
+                "unlawful_activity"
             );
-        topics.Select(x => x.Id).Should().NotContain([4, 5, 24, 25, 26, 27, 28, 36, 37, 41]);
+        topics.Select(x => x.Id).Should().NotContain([4, 5, 24, 25, 26, 27, 28, 30, 37, 41]);
         topics
             .Single(x => x.Id == 14)
             .Should()
             .Match<Turbo.Database.Entities.Moderation.CfhTopicEntity>(x =>
                 x.Name == "swearing" && !x.Enabled
             );
+    }
+
+    [Fact]
+    public async Task CfhTopicNames_LeaveATopicAHotelChanged()
+    {
+        RequireServer();
+        await using var db = Context();
+        await db.Database.MigrateAsync("20261009233500_SeedOfficialCfhTopicTree", Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE `cfh_topics` SET `consequence` = 'mods' WHERE `id` IN (9, 30)",
+            Ct
+        );
+
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        var topics = await db.CfhTopics.AsNoTracking().ToDictionaryAsync(x => x.Id, Ct);
+
+        topics[9].Name.Should().Be("topic_9");
+        topics[30].Name.Should().Be("topic_30");
+        topics.Should().NotContainKey(36);
+        topics[10].Name.Should().Be("selling_buying_accounts_or_furni");
+        topics[10].Consequence.Should().Be("auto_reply");
     }
 }

@@ -38,6 +38,16 @@ public interface ISessionContext : IAppSession
     public void MarkReceived();
 
     /// <summary>
+    /// When the client last sent something the player did (UTC): any message but those it sends
+    /// on a timer of its own (<see cref="IClientTimerMessage"/>). The heartbeat disconnects a
+    /// session idle for too long, as Habbo's <c>disconnected.idle</c> does.
+    /// </summary>
+    public DateTime LastActiveUtc { get; }
+
+    /// <summary>Records that the player did something; called as each such message is parsed.</summary>
+    public void MarkActive();
+
+    /// <summary>
     /// Closes the connection, once; <paramref name="reason"/> is logged with the close so a
     /// disconnect can be explained afterwards.
     /// </summary>
