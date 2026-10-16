@@ -367,6 +367,9 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         return true;
     }
 
+    public async Task<bool> WearIfNoneAsync(GuildId guildId, CancellationToken ct) =>
+        _state.FavouriteGuildId is null && await SetFavouriteGuildAsync(guildId, ct);
+
     /// <summary>
     /// Tells the room the player is standing in which group badge they now wear, or none.
     /// </summary>

@@ -48,6 +48,12 @@ public interface IPlayerGuildGrain : IGrainWithIntegerKey
     /// </summary>
     public Task<bool> SetFavouriteGuildAsync(GuildId? guildId, CancellationToken ct);
 
+    /// <summary>
+    /// <see cref="SetFavouriteGuildAsync"/> for a group just joined, taken only when the player
+    /// wears no group yet. Answers whether it was taken.
+    /// </summary>
+    public Task<bool> WearIfNoneAsync(GuildId guildId, CancellationToken ct);
+
     /// <summary>What the create wizard opens on: the price, the eligible rooms and a starting badge.</summary>
     public Task<GuildCreationInfoSnapshot> GetCreationInfoAsync(CancellationToken ct);
 

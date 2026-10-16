@@ -64,7 +64,9 @@ internal sealed partial class GuildGrain
         if (!await CanTakeAnotherGroupAsync(playerId, ct))
             return GuildJoinResultSnapshot.Failed(GuildJoinFailedType.TooManyGroups);
 
-        await AddOrUpdateMemberAsync(playerId, newRank, ct);
+        // The badge is worn by the join handler once the details are out, which is Habbo's order
+        // (see JoinHabboGroupMessageHandler).
+        await AddOrUpdateMemberAsync(playerId, newRank, ct, wearIfNone: false);
 
         if (newRank == GuildMemberRank.Requested)
         {
@@ -86,7 +88,10 @@ internal sealed partial class GuildGrain
             return GuildJoinResultSnapshot.Requested();
         }
 
-        await PublishMembershipUpdatedAsync(playerId, ct);
+        // The joiner hears no GuildMembershipUpdated: Habbo answers them with their groups, the
+        // details and their profile changed (official client capture 2026-10-13 20:55 and 21:07),
+        // which the join handler sends. The managers' members page is not recorded.
+        await PublishMembershipUpdatedAsync(playerId, ct, tellMember: false);
 
         return GuildJoinResultSnapshot.Joined();
     }
@@ -487,7 +492,8 @@ internal sealed partial class GuildGrain
     private async Task AddOrUpdateMemberAsync(
         PlayerId playerId,
         GuildMemberRank rank,
-        CancellationToken ct
+        CancellationToken ct,
+        bool wearIfNone = true
     )
     {
         // Someone who becomes a member while wearing no group wears this one: Habbo's join of an
@@ -495,7 +501,8 @@ internal sealed partial class GuildGrain
         // (official client capture 2026-10-13, GuildMemberships favourite:true after joining
         // 402778), the same rule a new group's owner gets.
         var wearsNone =
-            GuildMemberRanks.IsMember(rank)
+            wearIfNone
+            && GuildMemberRanks.IsMember(rank)
             && !GuildMemberRanks.IsMember(
                 _state.RankByPlayerId.TryGetValue(playerId.Value, out var current) ? current : null
             )
