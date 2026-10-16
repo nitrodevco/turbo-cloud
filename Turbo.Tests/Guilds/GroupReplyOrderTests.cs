@@ -331,7 +331,7 @@ public sealed class GroupReplyOrderTests : IDisposable
         _roomTold.Should().HaveCount(2);
         _roomTold.Reverse();
         await RoomPublishesAsync();
-        await SessionHarness.Settle();
+        await ReceivedAtLeastAsync(4);
 
         var received = ReceivedComposers();
         received.Should().HaveCount(4);
@@ -559,6 +559,16 @@ public sealed class GroupReplyOrderTests : IDisposable
     }
 
     private List<IComposer> ReceivedComposers() => _hotel.Received(_key);
+
+    // The presence flushes on the thread pool: a fixed Settle (200 ms) was too short in a loaded
+    // full run (2 of 4 received). Wait for the count, then settle once more for any extra.
+    private async Task ReceivedAtLeastAsync(int count)
+    {
+        for (var i = 0; i < 250 && ReceivedComposers().Count < count; i++)
+            await Task.Delay(20, Ct);
+
+        await SessionHarness.Settle();
+    }
 
     private List<string> Received() => [.. ReceivedComposers().Select(x => x.GetType().Name)];
 }
