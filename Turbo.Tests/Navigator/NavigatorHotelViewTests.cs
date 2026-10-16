@@ -190,6 +190,31 @@ public sealed class NavigatorHotelViewTests
     }
 
     [Fact]
+    public async Task a_categorys_show_more_lists_75_open_rooms_fullest_then_best_rated()
+    {
+        // Habbo's category__Trading: 75 open rooms, occupied by users, then empty by score.
+        var empty = Enumerable
+            .Range(1, 80)
+            .Select(i => Room(2000 + i, TRADING, 0, i))
+            .Append(Room(3000, TRADING, 0, 999, RoomDoorModeType.Locked))
+            .ToList();
+        _fakes.Handlers["GetRoomsByCategoryAsync"] = _ => Task.FromResult(empty);
+
+        var block = Assert.Single(
+            await Service().SearchAsync(PLAYER, "category__Trading", string.Empty, Ct)
+        );
+
+        block.Text.Should().Be("Trading");
+        block.ActionAllowed.Should().Be(NavigatorActionAllowedType.Back);
+        block
+            .Results.Select(x => x.RoomId.Value)
+            .Should()
+            .HaveCount(75)
+            .And.StartWith([105, 104, 103, 102, 101, 2080, 2079])
+            .And.NotContain([201, 3000]);
+    }
+
+    [Fact]
     public async Task the_full_hot_and_recommended_searches_answer()
     {
         // Every open games room had recent visitors; the trading rooms had none.
@@ -222,18 +247,29 @@ public sealed class NavigatorHotelViewTests
         RoomDoorModeType door = RoomDoorModeType.Open
     ) =>
         _live[roomId] = RoomActiveSnapshot.From(
-            Uninitialized<RoomInfoSnapshot>() with
-            {
-                RoomId = roomId,
-                Name = $"room {roomId}",
-                OwnerId = OWNER,
-                DoorMode = door,
-                CategoryId = categoryId,
-                Tags = [],
-            },
+            Room(roomId, categoryId, population, score: 0, door),
             population,
             recentVisitors
         );
+
+    private static RoomInfoSnapshot Room(
+        int roomId,
+        int categoryId,
+        int population,
+        int score,
+        RoomDoorModeType door = RoomDoorModeType.Open
+    ) =>
+        Uninitialized<RoomInfoSnapshot>() with
+        {
+            RoomId = roomId,
+            Name = $"room {roomId}",
+            OwnerId = OWNER,
+            DoorMode = door,
+            CategoryId = categoryId,
+            Population = population,
+            Score = score,
+            Tags = [],
+        };
 
     private static NavigatorFlatCategorySnapshot Category(int id, string name, string key) =>
         new()

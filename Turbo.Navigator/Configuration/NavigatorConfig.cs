@@ -40,6 +40,12 @@ public class NavigatorConfig
         new(StringComparer.Ordinal) { [NavigatorSearchCodes.POPULAR] = 75 };
 
     /// <summary>
+    /// Rooms in a full category search (<c>category__&lt;name&gt;</c>, the category's "show
+    /// more"): 75 in Habbo's (official client capture 2026-10-16).
+    /// </summary>
+    public int CategorySearchResultLimit { get; init; } = 75;
+
+    /// <summary>
     /// Room categories the hotel view's "recommended" block draws from; empty draws from every
     /// category. Habbo's block holds occupied open rooms by population, but which rooms it
     /// considers is its own (mostly one category for the recorded player), so the pool is left

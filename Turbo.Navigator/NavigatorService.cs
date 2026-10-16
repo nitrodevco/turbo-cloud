@@ -779,8 +779,10 @@ public sealed class NavigatorService(
         CancellationToken ct
     )
     {
-        var limit = _config.SearchResultLimits.TryGetValue(code, out var codeLimit)
-            ? codeLimit
+        var limit =
+            _config.SearchResultLimits.TryGetValue(code, out var codeLimit) ? codeLimit
+            : code.StartsWith(NavigatorSearchCodes.CATEGORY_PREFIX, StringComparison.Ordinal)
+                ? _config.CategorySearchResultLimit
             : _config.SearchResultLimit;
         var rooms = await GetSectionRoomsAsync(query, code, limit, ct).ConfigureAwait(false);
 
@@ -1084,6 +1086,11 @@ public sealed class NavigatorService(
         ];
     }
 
+    /// <summary>
+    /// A category's open rooms, fullest first, then the best-rated empty ones: Habbo's "show
+    /// more" of a category (official client capture 2026-10-16: 75 rooms, all open, 69 occupied
+    /// by users then score, then 6 empty by score).
+    /// </summary>
     private async Task<List<RoomInfoSnapshot>> GetCategoryRoomsAsync(
         SearchQuery query,
         int categoryId,
@@ -1097,7 +1104,7 @@ public sealed class NavigatorService(
 
         return
         [
-            .. MergeLive(cached, query, x => x.CategoryId == categoryId && IsPublic(x))
+            .. MergeLive(cached, query, x => x.CategoryId == categoryId && IsOpen(x))
                 .OrderByDescending(x => PopulationOf(x, query))
                 .ThenByDescending(x => x.Score)
                 .Take(limit),
