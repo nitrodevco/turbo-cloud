@@ -6886,6 +6886,12 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("hidden_by_bc");
 
+                    b.Property<bool>("HideOwner")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("hide_owner");
+
                     b.Property<bool>("HideWalls")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")

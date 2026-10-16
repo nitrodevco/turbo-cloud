@@ -29,7 +29,7 @@ internal class RoomSettingsSerializer
             packet.WriteString(tag);
 
         var activeEvent = message.ActiveEvent is { } evt && evt.IsActiveAt(nowUtc) ? evt : null;
-        var bitmask = RoomBitmaskFlags.ShowOwner;
+        var bitmask = message.HideOwner ? RoomBitmaskFlags.None : RoomBitmaskFlags.ShowOwner;
 
         if (message.AllowPets)
             bitmask |= RoomBitmaskFlags.AllowPets;

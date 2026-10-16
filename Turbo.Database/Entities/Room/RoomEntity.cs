@@ -162,6 +162,11 @@ public class RoomEntity : TurboEntity
     [DefaultValue(false)]
     public bool HiddenByBc { get; set; }
 
+    /// <summary>The room's card and info leave out its owner's name, as Habbo's official rooms do.</summary>
+    [Column("hide_owner")]
+    [DefaultValue(false)]
+    public bool HideOwner { get; set; }
+
     [Column("wired_modify_permission_mask")]
     [DefaultValue(DEFAULT_WIRED_PERMISSION_MASK)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
