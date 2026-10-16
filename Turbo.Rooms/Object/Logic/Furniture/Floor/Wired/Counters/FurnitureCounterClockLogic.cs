@@ -31,6 +31,11 @@ public class FurnitureCounterClockLogic(
     private bool _isRunning;
     private bool _started;
 
+    // When the next half second is due. Each tick is scheduled from this, not from when the room
+    // tick got round to running the last one, so that lateness does not add up: rescheduling
+    // 500 ms after each late run made a counter's second last ~1.1 s on a local server.
+    private long _nextHalfSecondAtMs;
+
     public bool IsRunning => _isRunning;
 
     public WiredClockState ClockState =>
@@ -116,6 +121,7 @@ public class FurnitureCounterClockLogic(
 
         _isRunning = true;
         _started = true;
+        _nextHalfSecondAtMs = _roomGrain.NowMs() + WiredPulses.MS;
 
         Schedule();
 
@@ -141,7 +147,12 @@ public class FurnitureCounterClockLogic(
         await PublishAsync(ct);
     }
 
-    private void Schedule() => TimerSystem.Schedule(_ctx.ObjectId, WiredPulses.MS, TickAsync);
+    private void Schedule() =>
+        TimerSystem.Schedule(
+            _ctx.ObjectId,
+            (int)Math.Max(0, _nextHalfSecondAtMs - _roomGrain.NowMs()),
+            TickAsync
+        );
 
     private async Task TickAsync(CancellationToken ct)
     {
@@ -158,6 +169,8 @@ public class FurnitureCounterClockLogic(
         _halfSeconds++;
 
         await PublishAsync(ct);
+
+        _nextHalfSecondAtMs += WiredPulses.MS;
 
         Schedule();
     }

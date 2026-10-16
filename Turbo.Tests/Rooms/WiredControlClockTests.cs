@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentAssertions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -5,6 +6,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Tests.Support;
 using Xunit;
@@ -80,6 +82,41 @@ public sealed class WiredControlClockTests
         heard.OfType<WiredClockTickEvent>().Select(tick => tick.HalfSeconds).Should().Equal(60, 0);
         clock.GetState().Should().Be(0);
     }
+
+    /// <summary>
+    /// A running counter keeps time even when the room tick runs its timers late. Each half
+    /// second used to be rescheduled 500 ms after the late run, so passes 120 ms apart made every
+    /// half second last 600 ms (a local server's counter took ~1.1 s per second). Three seconds
+    /// of passes now count six half seconds.
+    /// </summary>
+    [Fact]
+    public async Task A_running_counter_keeps_time_when_the_room_tick_runs_late()
+    {
+        var clock = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    CLOCK,
+                    3,
+                    3,
+                    "wf_game_upcounter",
+                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                )
+                .Logic;
+        var timers = _room.Harness.Module<RoomTimerSystem>();
+        var started = Stopwatch.StartNew();
+
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+
+        while (started.ElapsedMilliseconds < 3_050)
+        {
+            await Task.Delay(120, Ct);
+            await timers.ProcessTimersAsync(NowMs(), Ct);
+        }
+
+        clock.HalfSeconds.Should().BeGreaterThanOrEqualTo(6);
+    }
+
+    private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener
     {
