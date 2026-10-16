@@ -5,11 +5,14 @@ using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Guilds;
+using Turbo.Messages.Registry;
+using Turbo.PacketHandlers.Users;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
+using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Navigator.Enums;
@@ -36,7 +39,9 @@ namespace Turbo.Tests.Guilds;
 /// then GuildMembershipRejected, ExtendedProfileChanged and GroupDetailsChanged (14:23). The room
 /// sends its part through the room stream and is told, not awaited (it reads the player's groups
 /// on entry, so awaiting it could deadlock), so Turbo's own replies overtook it: join sent
-/// ExtendedProfileChanged first, leave sent FavoriteMembershipUpdate last.
+/// ExtendedProfileChanged first, leave sent FavoriteMembershipUpdate last. Dropping and picking
+/// group 402778 as favourite: FavoriteMembershipUpdate (after HabboGroupBadges when picked), then
+/// ExtendedProfileChanged (14:21); Turbo sent the profile change on the session, ahead of both.
 ///
 /// The real presence, player group grain and group grain run here; only the room is played by
 /// the test, which delivers its publishes after the replies were sent, the way the stream does.
@@ -52,6 +57,7 @@ public sealed class GroupReplyOrderTests : IDisposable
     private readonly SqliteDb _db = new();
     private readonly List<FakeCall> _roomTold = [];
     private SessionKey _key;
+    private ISessionContext _session = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -169,6 +175,52 @@ public sealed class GroupReplyOrderTests : IDisposable
         await SessionHarness.Settle();
 
         Received().Should().BeEmpty("the profile change waits for the room's badge messages");
+
+        await RoomPublishesAsync();
+        await SessionHarness.Settle();
+
+        Received()
+            .Should()
+            .Equal(
+                nameof(FavoriteMembershipUpdateMessageComposer),
+                nameof(ExtendedProfileChangedMessageComposer)
+            );
+    }
+
+    [Fact]
+    public async Task Picking_a_favourite_says_the_profile_changed_after_the_rooms_badge_messages()
+    {
+        await OnlineInRoomAsync(memberWearing: false);
+
+        await new SelectFavouriteHabboGroupMessageHandler(
+            _hotel.Fakes.Create<IGrainFactory>()
+        ).HandleAsync(new SelectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
+        await SessionHarness.Settle();
+
+        Received().Should().BeEmpty("the profile change waits for the room's badge messages");
+
+        await RoomPublishesAsync();
+        await SessionHarness.Settle();
+
+        Received()
+            .Should()
+            .Equal(
+                nameof(FavoriteMembershipUpdateMessageComposer),
+                nameof(ExtendedProfileChangedMessageComposer)
+            );
+    }
+
+    [Fact]
+    public async Task Dropping_the_favourite_says_the_profile_changed_after_the_rooms_badge_message()
+    {
+        await OnlineInRoomAsync(memberWearing: true);
+
+        await new DeselectFavouriteHabboGroupMessageHandler(
+            _hotel.Fakes.Create<IGrainFactory>()
+        ).HandleAsync(new DeselectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
+        await SessionHarness.Settle();
+
+        Received().Should().BeEmpty("the profile change waits for the room's badge message");
 
         await RoomPublishesAsync();
         await SessionHarness.Settle();
@@ -417,9 +469,9 @@ public sealed class GroupReplyOrderTests : IDisposable
             new PlayerConfig { OutboundHoldMs = holdMs }
         );
 
-        var session = _hotel.NewSession(1);
-        _key = session.SessionKey;
-        await _hotel.Gateway.AddSessionAsync(_key, session);
+        _session = _hotel.NewSession(1);
+        _key = _session.SessionKey;
+        await _hotel.Gateway.AddSessionAsync(_key, _session);
         await _hotel.Gateway.AddSessionToPlayerAsync(_key, PLAYER);
         RoomHarness.SetMember(
             RoomHarness.GetField(_hotel.Presence, "_state")!,
@@ -469,6 +521,8 @@ public sealed class GroupReplyOrderTests : IDisposable
 
         return (IGuildGrain)grain;
     }
+
+    private MessageContext Ctx() => new(_session, PLAYER, ROOM);
 
     private Task SendProfileChangedAsync() =>
         _hotel
