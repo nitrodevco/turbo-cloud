@@ -272,25 +272,6 @@ public class RoomEntryPreparationTests
     }
 
     [Fact]
-    public async Task ApprovedEntry_SendsTheEventAndConfigurationStatesEvenWhenNone()
-    {
-        // Habbo, entering a room with no event and no configuration furni on: an empty
-        // RoomEvent (ids -1) and ConfigurationItemStates all off, so nothing of the room before
-        // is kept.
-        var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
-            (PlayerId)1,
-            CancellationToken.None
-        );
-        var harness = CreateHarness(RoomEntryAccessType.Allowed);
-        harness.Fakes.Handlers["GetEntryViewAsync"] = _ => Task.FromResult(view);
-
-        var headers = (await OpenRoomAsync(harness)).Select(packet => (int)packet.Header).ToList();
-
-        Assert.Contains(PacketHarness.Outgoing("RoomEventMessageComposer"), headers);
-        Assert.Contains(PacketHarness.Outgoing("ConfigurationItemStatesMessageComposer"), headers);
-    }
-
-    [Fact]
     public void NoEvent_IsWrittenAsHabbosEmptyEvent()
     {
         var packet = PacketHarness.Encode(
@@ -437,9 +418,9 @@ public class RoomEntryPreparationTests
     public async Task ApprovedEntry_SendsTheRoomInHabbosOrder()
     {
         // hhus, four entries on two builds (2026-10-13): RoomReady, RoomEntryTile, RoomProperty x3,
-        // HeightMap, FloorHeightMap, RoomVisualizationSettings, Users, Objects, Items, ..., RoomEvent,
-        // ConfigurationItemStates, ..., RoomEntryInfo ..., RoomRating, RaidProtectionCapability.
-        // The rating comes at the end, and RoomChatSettings is not part of an entry (the client
+        // HeightMap, FloorHeightMap, RoomVisualizationSettings, Users, Objects, Items. The rest,
+        // from the player's own avatar to RaidProtectionCapability, comes from the room with the
+        // avatar (RoomEntryTailTests). RoomChatSettings is not part of an entry (the client
         // takes the room's chat settings from GetGuestRoomResult; Habbo sends it on a change).
         var view = await new WiredRoom(8, 8).Harness.Room.GetEntryViewAsync(
             (PlayerId)1,
@@ -469,11 +450,6 @@ public class RoomEntryPreparationTests
             "UsersMessageComposer",
             "ObjectsMessageComposer",
             "ItemsMessageComposer",
-            "RoomEventMessageComposer",
-            "ConfigurationItemStatesMessageComposer",
-            "RoomEntryInfoMessageComposer",
-            "RoomRatingMessageComposer",
-            "RaidProtectionCapabilityMessageComposer",
         ];
         var firsts = order.Select(name => headers.IndexOf(PacketHarness.Outgoing(name))).ToList();
 
@@ -487,6 +463,7 @@ public class RoomEntryPreparationTests
             headers.Count(h => h == PacketHarness.Outgoing("RoomPropertyMessageComposer"))
         );
         Assert.DoesNotContain(PacketHarness.Outgoing("RoomChatSettingsMessageComposer"), headers);
+        Assert.Equal(PacketHarness.Outgoing("ItemsMessageComposer"), headers[^1]);
     }
 
     private static async Task<PacketHarness> ApprovedHarnessAsync(

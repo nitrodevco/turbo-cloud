@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Permissions;
@@ -25,7 +26,13 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
-    public Task<bool> CreateAvatarFromPlayerAsync(
+    /// <summary>
+    /// Puts the player's avatar in the room. Returns the end of their entry, for them alone and
+    /// in Habbo's order, starting with their own avatar (which everyone else is sent through the
+    /// room); empty when no avatar could be made. The caller sends it before anything the room
+    /// says next, so the player is not told about their avatar after it has moved.
+    /// </summary>
+    public Task<ImmutableArray<IComposer>> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
         RoomEntrySnapshot entry,

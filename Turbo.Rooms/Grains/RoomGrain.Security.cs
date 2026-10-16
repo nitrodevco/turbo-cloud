@@ -52,23 +52,6 @@ public sealed partial class RoomGrain
             .ToImmutableArray();
     }
 
-    public async Task RefreshControllerLevelForPlayerAsync(ActionContext ctx, CancellationToken ct)
-    {
-        try
-        {
-            await SecurityModule.RefreshControllerLevelForPlayerAsync(ctx.PlayerId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to refresh the controller level of player {PlayerId} in room {RoomId}",
-                ctx.PlayerId,
-                _state.RoomId
-            );
-        }
-    }
-
     public async Task GiveRightsToPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,

@@ -7,7 +7,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -52,17 +51,9 @@ public sealed class WiredClickUserEnvironmentTests
             .Which.HasClickUserWired.Should()
             .BeTrue();
 
-        await Wired.OnRoomEventAsync(
-            new PlayerEnterEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForPlayer((PlayerId)(100 + CLICKER), (RoomId)1),
-                PlayerId = (PlayerId)(100 + CLICKER),
-            },
-            Ct
-        );
-
-        SentTo<WiredEnvironmentMessageComposer>(100 + CLICKER)
+        Wired
+            .GetEntryState()
+            .OfType<WiredEnvironmentMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.HasClickUserWired.Should()
@@ -70,21 +61,13 @@ public sealed class WiredClickUserEnvironmentTests
     }
 
     [Fact]
-    public async Task Whoever_walks_into_a_room_without_the_trigger_is_told_so()
+    public void Whoever_walks_into_a_room_without_the_trigger_is_told_so()
     {
         // As Habbo does on every entry (WiredEnvironment all off), so the client drops the
         // enabled achievements of the room before.
-        await Wired.OnRoomEventAsync(
-            new PlayerEnterEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForPlayer((PlayerId)(100 + CLICKER), (RoomId)1),
-                PlayerId = (PlayerId)(100 + CLICKER),
-            },
-            Ct
-        );
-
-        var environment = SentTo<WiredEnvironmentMessageComposer>(100 + CLICKER)
+        var environment = Wired
+            .GetEntryState()
+            .OfType<WiredEnvironmentMessageComposer>()
             .Should()
             .ContainSingle()
             .Subject;

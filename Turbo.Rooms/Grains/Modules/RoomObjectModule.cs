@@ -64,9 +64,25 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                 await AttatchLogicAsync(avatar, ct);
                 await AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
-                _roomGrain.SendComposerToRoomAndForget(
-                    new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
-                );
+                var users = new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] };
+
+                // A player walking in is sent their own avatar first thing in the rest of their
+                // entry (RoomGrain.BuildEntryTailAsync); through the room it would reach them
+                // whenever the stream does, after the entry rather than at its head.
+                if (avatar is IRoomPlayer player)
+                    _roomGrain
+                        .SendComposerToRoomExceptAsync(
+                            users,
+                            [player.PlayerId],
+                            CancellationToken.None
+                        )
+                        .LogAndForget(
+                            _roomGrain._logger,
+                            "send a new avatar to room {RoomId}",
+                            _roomGrain._state.RoomId
+                        );
+                else
+                    _roomGrain.SendComposerToRoomAndForget(users);
                 break;
             }
             default:

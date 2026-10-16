@@ -10,8 +10,9 @@ using Turbo.Primitives.Rooms.Snapshots.Mapping;
 namespace Turbo.Primitives.Rooms.Snapshots;
 
 /// <summary>
-/// Everything a player walking in is shown of the room, taken in one turn of the room grain:
-/// entering asked for it in nine calls, and the room could change between any two of them.
+/// Everything a player walking in is shown of the room before their avatar, taken in one turn of
+/// the room grain: entering asked for it in nine calls, and the room could change between any two
+/// of them. What follows the avatar the room sends with it (<c>CreateAvatarFromPlayerAsync</c>).
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record RoomEntryViewSnapshot
@@ -37,29 +38,7 @@ public sealed record RoomEntryViewSnapshot
     [Id(6)]
     public required ImmutableArray<KeyValuePair<RoomPropertyType, string>> Properties { get; init; }
 
-    /// <summary>Whether the arriving player may still rate the room.</summary>
-    [Id(7)]
-    public required bool CanRate { get; init; }
-
-    [Id(8)]
-    public RoomEventSnapshot? ActiveEvent { get; init; }
-
-    [Id(9)]
-    public required bool IsMuted { get; init; }
-
     /// <summary>The areas hidden by a switched-on Room Area Hider, sent with the floor map.</summary>
     [Id(10)]
     public required ImmutableArray<AreaHideDataSnapshot> AreaHides { get; init; }
-
-    /// <summary>An Invisible Furni Controller is switched on.</summary>
-    [Id(11)]
-    public required bool InvisibleFurni { get; init; }
-
-    /// <summary>A Handitem blocker is switched on.</summary>
-    [Id(12)]
-    public required bool HanditemControlBlocked { get; init; }
-
-    /// <summary>A <c>:chooser</c> disabler is switched on.</summary>
-    [Id(13)]
-    public required bool ChooserDisabled { get; init; }
 }

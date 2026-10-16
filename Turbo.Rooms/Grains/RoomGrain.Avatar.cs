@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
@@ -13,6 +14,7 @@ using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
@@ -20,7 +22,7 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> CreateAvatarFromPlayerAsync(
+    public async Task<ImmutableArray<IComposer>> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
         RoomEntrySnapshot entry,
@@ -41,7 +43,7 @@ public sealed partial class RoomGrain
                 ct
             );
 
-            return true;
+            return avatar is IRoomPlayer player ? await BuildEntryTailAsync(player, ct) : [];
         }
         catch (Exception ex)
         {
@@ -52,7 +54,7 @@ public sealed partial class RoomGrain
                 _state.RoomId
             );
 
-            return false;
+            return [];
         }
     }
 
