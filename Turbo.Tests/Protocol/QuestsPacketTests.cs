@@ -163,11 +163,17 @@ public class QuestsPacketTests
                 playerId: 3
             );
 
+        // The quest window's accept and cancel send the list first; ActivateQuest does not.
         Assert.Equal(
-            [42, 42],
-            harness.Fakes.Log.Of("AcceptAsync").Select(x => (int)x.Args[0]!).ToArray()
+            42,
+            (int)Assert.Single(harness.Fakes.Log.Of("AcceptFromWindowAsync")).Args[0]!
         );
-        Assert.Equal(42, (int)Assert.Single(harness.Fakes.Log.Of("RejectAsync")).Args[0]!);
+        Assert.Equal(42, (int)Assert.Single(harness.Fakes.Log.Of("AcceptAsync")).Args[0]!);
+        Assert.Equal(
+            42,
+            (int)Assert.Single(harness.Fakes.Log.Of("RejectFromWindowAsync")).Args[0]!
+        );
+        Assert.Empty(harness.Fakes.Log.Of("RejectAsync"));
     }
 
     [Fact]

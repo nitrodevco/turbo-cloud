@@ -24,7 +24,7 @@ public class AcceptQuestMessageHandler(IGrainFactory grainFactory)
 
         await _grainFactory
             .GetPlayerQuestGrain(ctx.PlayerId)
-            .AcceptAsync(message.QuestId, ct)
+            .AcceptFromWindowAsync(message.QuestId, ct)
             .ConfigureAwait(false);
     }
 }
