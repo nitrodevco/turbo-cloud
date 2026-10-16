@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Pets.Providers;
@@ -26,6 +28,8 @@ public sealed class RoomModule : IHostPluginModule
         services.Configure<WiredChestConfig>(
             builder.Configuration.GetSection(WiredChestConfig.SECTION_NAME)
         );
+        // The room directory times its hot-room window by it.
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IRoomAvatarProvider, RoomAvatarProvider>();
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();
         services.AddSingleton<IRoomNpcProvider, RoomNpcProvider>();

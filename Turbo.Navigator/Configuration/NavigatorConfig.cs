@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
@@ -8,11 +9,55 @@ public class NavigatorConfig
 {
     public const string SECTION_NAME = "Turbo:Navigator";
 
-    /// <summary>Rooms shown in each block of a top-level view before "show more".</summary>
-    public int BlockPreviewLimit { get; init; } = 10;
+    /// <summary>
+    /// Rooms shown in each block of a top-level view before "show more", unless
+    /// <see cref="BlockPreviewLimits"/> names the block. Habbo shows 9 (its hotel view's
+    /// category blocks and My World's history, official client capture 2026-10-13/16).
+    /// </summary>
+    public int BlockPreviewLimit { get; init; } = 9;
+
+    /// <summary>
+    /// Preview sizes by block code. Habbo's hotel view (official client capture 2026-10-13/16,
+    /// six samples): hot 12, popular 12, recommended 7.
+    /// </summary>
+    public Dictionary<string, int> BlockPreviewLimits { get; init; } =
+        new(StringComparer.Ordinal)
+        {
+            [NavigatorSearchCodes.HOT] = 12,
+            [NavigatorSearchCodes.POPULAR] = 12,
+            [NavigatorSearchCodes.RECOMMENDED] = 7,
+        };
 
     /// <summary>Rooms returned for a single full search.</summary>
     public int SearchResultLimit { get; init; } = 100;
+
+    /// <summary>
+    /// Full-search sizes by search code, where Habbo caps one below
+    /// <see cref="SearchResultLimit"/>: its "popular" search returns 75 rooms (official client
+    /// capture 2026-10-16, the 75th still had 2 users).
+    /// </summary>
+    public Dictionary<string, int> SearchResultLimits { get; init; } =
+        new(StringComparer.Ordinal) { [NavigatorSearchCodes.POPULAR] = 75 };
+
+    /// <summary>
+    /// Rooms in a full category search (<c>category__&lt;name&gt;</c>, the category's "show
+    /// more"): 75 in Habbo's (official client capture 2026-10-16).
+    /// </summary>
+    public int CategorySearchResultLimit { get; init; } = 75;
+
+    /// <summary>
+    /// Room categories the hotel view's "recommended" block draws from; empty draws from every
+    /// category. Habbo's block holds occupied open rooms by population, but which rooms it
+    /// considers is its own (mostly one category for the recorded player), so the pool is left
+    /// to the hotel.
+    /// </summary>
+    public int[] RecommendedCategoryIds { get; init; } = [];
+
+    /// <summary>
+    /// Tops the popular rooms up with the best-rated empty rooms when fewer are occupied, so a
+    /// quiet hotel's navigator is not empty. Habbo lists occupied rooms only, so it is off.
+    /// </summary>
+    public bool PopularFillWithTopRated { get; init; }
 
     // The per-player limits of this section (history, favourites, saved searches, collapsed
     // codes, view modes, the search quota) are bound into Turbo.Players' PlayerNavigatorConfig,
