@@ -51,6 +51,13 @@ public class RoomConfig
 
     public int RoomCheckMs { get; init; } = 300000;
     public int RoomDeactivationDelayMs { get; init; } = 1800000;
+
+    /// <summary>
+    /// How long after a wired menu Reload or Rollback sends everyone out they are sent back in.
+    /// Habbo forwards about two seconds after the close (official client capture, 2026-10-16:
+    /// 2001 ms and 2005 ms).
+    /// </summary>
+    public int RoomStateReturnDelayMs { get; init; } = 2000;
     public int RoomTickMs { get; init; } = 50;
     public int AvatarTickMs { get; init; } = 500;
     public int RollerTickMs { get; init; } = 2000;

@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -137,11 +139,23 @@ public sealed class WiredRoomStateTests
     }
 
     [Fact]
-    public async Task Everyone_sent_out_has_their_session_closed_then_is_sent_back_in()
+    public async Task Everyone_sent_out_is_closed_like_habbo_then_sent_back_in_two_seconds_later()
     {
         var packets = new PacketHarness();
         packets.Fakes.Handlers["UpdateWiredRoomStateAsync"] = _ =>
             Task.FromResult(ImmutableArray.Create<PlayerId>(OWNER, VISITOR));
+        var stamps = new List<(string Call, long At)>();
+        var clock = Stopwatch.StartNew();
+        packets.Fakes.Handlers["OnRemovedFromRoomAsync"] = call =>
+        {
+            stamps.Add(("close", clock.ElapsedMilliseconds));
+            return Task.CompletedTask;
+        };
+        packets.Fakes.Handlers["ForwardToRoomAsync"] = call =>
+        {
+            stamps.Add(("forward", clock.ElapsedMilliseconds));
+            return Task.CompletedTask;
+        };
 
         await packets.SendAsync(
             PacketHarness.Incoming("WiredUpdateRoomMessageEvent"),
@@ -150,17 +164,28 @@ public sealed class WiredRoomStateTests
             roomId: 7
         );
 
+        // Official client capture (2026-10-16, Reload and Rollback): YouArePlayingGame(false) and
+        // CloseConnection in the same instant, RoomForward 2001 / 2005 ms later.
         packets
             .Fakes.Log.Calls.Where(x =>
-                x.Method is "OnRemovedFromRoomAsync" or "ForwardToRoomAsync"
+                x.Method is "SendComposerAsync" or "OnRemovedFromRoomAsync" or "ForwardToRoomAsync"
             )
-            .Select(x => $"{x.Method} {x.Key} {x.Args[0]}")
+            .Select(x =>
+                x.Args[0] is YouArePlayingGameMessageComposer game
+                    ? $"YouArePlayingGame({game.IsPlaying}) {x.Key}"
+                    : $"{x.Method} {x.Key} {x.Args[0]}"
+            )
             .Should()
             .Equal(
+                $"YouArePlayingGame(False) {OWNER}",
                 $"OnRemovedFromRoomAsync {OWNER} 7",
-                $"ForwardToRoomAsync {OWNER} 7",
+                $"YouArePlayingGame(False) {VISITOR}",
                 $"OnRemovedFromRoomAsync {VISITOR} 7",
+                $"ForwardToRoomAsync {OWNER} 7",
                 $"ForwardToRoomAsync {VISITOR} 7"
             );
+        (stamps.First(x => x.Call == "forward").At - stamps.Last(x => x.Call == "close").At)
+            .Should()
+            .BeGreaterThanOrEqualTo(1900);
     }
 }
