@@ -12,6 +12,7 @@ using Turbo.PacketHandlers.Camera;
 using Turbo.Primitives.Camera;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Gamedata;
@@ -40,11 +41,7 @@ public sealed class CameraPhotoServingTests : IAsyncDisposable
     {
         int port;
 
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        port = TestPorts.Free();
 
         var config = Options.Create(new CameraConfig { StoragePath = _storage });
 

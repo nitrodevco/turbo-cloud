@@ -37,11 +37,7 @@ public sealed class SongEndpointsTests : IAsyncDisposable
 
     public SongEndpointsTests()
     {
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            _port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        _port = TestPorts.Free();
 
         _fakes.Handlers["GetSessionAsync"] = _ =>
             Task.FromResult<AdminSessionSnapshot?>(

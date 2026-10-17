@@ -13,6 +13,7 @@ using Turbo.PacketHandlers.Camera;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Rooms;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Gamedata;
@@ -40,11 +41,7 @@ public sealed class RoomThumbnailServingTests : IAsyncDisposable
     {
         int port;
 
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        port = TestPorts.Free();
 
         _thumbnails = new RoomThumbnailStore(
             Options.Create(new CameraConfig { StoragePath = _storage })

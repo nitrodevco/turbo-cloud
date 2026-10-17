@@ -46,11 +46,7 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
 
     public ContentEndpointsTests()
     {
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            _port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        _port = TestPorts.Free();
 
         foreach (var (id, name) in new[] { (1, "staff"), (2, "alice"), (3, "bob") })
             _db.Insert(

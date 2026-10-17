@@ -79,11 +79,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
 
     private WiredWebApiTests(WiredApiConfig wiredApi)
     {
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            _port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        _port = TestPorts.Free();
 
         _config = new WebConfig
         {

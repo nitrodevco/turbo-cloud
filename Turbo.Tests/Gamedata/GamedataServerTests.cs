@@ -10,6 +10,7 @@ using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Gamedata;
@@ -30,11 +31,7 @@ public sealed class GamedataServerTests : IAsyncDisposable
     {
         int port;
 
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        port = TestPorts.Free();
 
         var services = new ServiceCollection()
             .AddSingleton<IGamedataFileService>(new OneBuild())
