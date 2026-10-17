@@ -90,6 +90,52 @@ public sealed class DimmerOnWallTests
             .Be("2,1,1,#000000,255");
     }
 
+    /// <summary>
+    /// A saved preset is read back from the item's extra data, which stores it camel-cased. It was
+    /// read case-sensitively, so every read fell back to the defaults: switching the moodlight off
+    /// wrote the default black preset into its data and the dialog reopened on defaults (user
+    /// report 2026-10-17: blue, full brightness, background only, turned off, reopened - "the
+    /// preset's data was gone").
+    /// </summary>
+    [Fact]
+    public async Task A_saved_preset_survives_switching_the_moodlight_off()
+    {
+        var dimmer = Dimmer();
+        EnsureLogic(dimmer);
+        ((IDictionary)RoomHarness.GetMember(_room.State, "ItemsById")!).Add(
+            (RoomObjectId)DIMMER,
+            dimmer
+        );
+        var ctx = ActionContext.CreateForPlayer(OWNER, 1);
+
+        (
+            await _room.Room.InteractWithItemAsync(
+                ctx,
+                DIMMER,
+                new SaveDimmerPresetInteraction
+                {
+                    PresetId = 2,
+                    EffectType = 2,
+                    Color = "#0053F7",
+                    Brightness = 255,
+                    Apply = true,
+                },
+                Ct
+            )
+        ).Should().BeTrue();
+        (await _room.Room.InteractWithItemAsync(ctx, DIMMER, new ToggleDimmerInteraction(), Ct))
+            .Should()
+            .BeTrue();
+
+        _room
+            .Fakes.Log.Of("OnNextAsync")
+            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
+            .OfType<ItemUpdateMessageComposer>()
+            .Select(u => ((LegacyStuffSnapshot)u.WallItem.StuffData).Data)
+            .Should()
+            .Equal("2,2,2,#0053F7,255", "1,2,2,#0053F7,255");
+    }
+
     private bool EnsureLogic(RoomWallItem dimmer) =>
         (bool)
             typeof(RoomObjectModule)
