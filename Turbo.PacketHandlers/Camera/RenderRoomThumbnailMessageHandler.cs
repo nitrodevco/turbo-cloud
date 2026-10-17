@@ -12,13 +12,14 @@ namespace Turbo.PacketHandlers.Camera;
 
 /// <summary>
 /// The room thumbnail camera's capture: the render data is kept for the room the player is in and
-/// drawn (<see cref="CameraRenderer"/>), and <c>ThumbnailStatusMessage</c> answers (ok, or the
+/// drawn (<see cref="CameraRenderer"/>) as the room's thumbnail (<see cref="RoomThumbnailStore"/>), and <c>ThumbnailStatusMessage</c> answers (ok, or the
 /// day's limit hit). Only a player who may edit the room's settings (owner level, as the room
 /// grain's own settings check) gets one: the client shows the button only to them
 /// (<c>RoomInfoViewCtrl</c>: <c>add_thumbnail_region</c> visible when <c>canEditRoomSettings</c>).
 /// </summary>
 public class RenderRoomThumbnailMessageHandler(
     CameraPhotoStore store,
+    RoomThumbnailStore thumbnails,
     CameraRenderer renderer,
     IGrainFactory grainFactory,
     IOptions<CameraConfig> config
@@ -70,8 +71,8 @@ public class RenderRoomThumbnailMessageHandler(
             return;
         }
 
-        var (jsonPath, pngPath) = await store
-            .SaveThumbnailAsync(ctx.RoomId.Value, json, ct)
+        var (jsonPath, pngPath) = await thumbnails
+            .SaveAsync(ctx.RoomId.Value, json, ct)
             .ConfigureAwait(false);
 
         // Best effort, as the photo's render: the data is stored either way and the PNG logged if not drawn.

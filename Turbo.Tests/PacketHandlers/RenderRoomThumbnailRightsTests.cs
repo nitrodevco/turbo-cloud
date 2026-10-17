@@ -48,6 +48,7 @@ public class RenderRoomThumbnailRightsTests
 
         return new RenderRoomThumbnailMessageHandler(
             new CameraPhotoStore(config),
+            new RoomThumbnailStore(config),
             new CameraRenderer(config, NullLogger<CameraRenderer>.Instance),
             _fakes.Create<Orleans.IGrainFactory>(),
             config

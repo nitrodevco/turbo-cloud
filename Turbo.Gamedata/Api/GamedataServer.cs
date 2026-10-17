@@ -34,6 +34,12 @@ namespace Turbo.Gamedata.Api;
 /// <item><c>/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
 /// (<see cref="IStarterRoomDirectory"/>), which the room picker shows; it can be taken again, so it
 /// is cached for a minute only.</item>
+/// <item><c>/gamedata/navigator-thumbnail/&lt;room id&gt;.png</c> is a room's thumbnail
+/// (<see cref="IRoomThumbnailFiles"/>), the picture the navigator shows: the client's
+/// <c>navigator.thumbnail.url_base</c> is this address without the room id, as Habbo's is its
+/// <c>.../navigator-thumbnail/hhus/</c>. Under <c>/gamedata/</c>, so the reverse proxy that passes
+/// the gamedata on passes it too. Its owner can take it again at any time, so the browser asks
+/// again each time it shows it (<c>no-cache</c>, answered 304 while it is the same).</item>
 /// </list>
 /// Anyone may load them, from any site: they are what every player's client downloads. Its own
 /// small web host beside the silo, off unless <see cref="GamedataConfig.Enabled"/>.
@@ -50,6 +56,10 @@ internal sealed class GamedataServer(
     private const string IMMUTABLE = "public, max-age=31536000, immutable";
     private const int HASH_LENGTH = 40;
     private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
+    private const string ROOM_THUMBNAIL_CACHE = "public, no-cache";
+
+    /// <summary>Where a room's thumbnail is served, before <c>&lt;room id&gt;.png</c>.</summary>
+    public const string ROOM_THUMBNAIL_ROUTE = "/gamedata/navigator-thumbnail/";
 
     private WebApplication? _app;
 
@@ -73,6 +83,7 @@ internal sealed class GamedataServer(
         var app = builder.Build();
         var files = services.GetRequiredService<IGamedataFileService>();
         var starterRooms = services.GetService<IStarterRoomDirectory>();
+        var thumbnails = services.GetService<IRoomThumbnailFiles>();
 
         // Behind the reverse proxy the request comes from loopback; its forwarded headers give
         // the scheme and host clients used, which the hashes list's addresses are built on.
@@ -94,6 +105,11 @@ internal sealed class GamedataServer(
             app.MapGet(
                 "/starter-rooms/{roomId:int}.png",
                 (HttpContext http, int roomId) => StarterRoomPicture(http, starterRooms, roomId)
+            );
+        if (thumbnails is not null)
+            app.MapGet(
+                ROOM_THUMBNAIL_ROUTE + "{roomId:int}.png",
+                (HttpContext http, int roomId) => RoomThumbnail(http, thumbnails, roomId)
             );
         app.MapGet(
             "/gamedata/{file}/{version}",
@@ -140,6 +156,27 @@ internal sealed class GamedataServer(
         http.Response.Headers.CacheControl = STARTER_ROOM_PICTURE_CACHE;
 
         return Results.File(Path.GetFullPath(file), "image/png");
+    }
+
+    /// <summary>A room's thumbnail, as the room thumbnail camera last drew it; 404 when there is none.</summary>
+    private static IResult RoomThumbnail(
+        HttpContext http,
+        IRoomThumbnailFiles thumbnails,
+        int roomId
+    )
+    {
+        var file = thumbnails.GetThumbnailFile(new RoomId(roomId));
+
+        if (file is null)
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = ROOM_THUMBNAIL_CACHE;
+
+        return Results.File(
+            Path.GetFullPath(file),
+            "image/png",
+            lastModified: File.GetLastWriteTimeUtc(file)
+        );
     }
 
     public async Task StopAsync(CancellationToken ct)
