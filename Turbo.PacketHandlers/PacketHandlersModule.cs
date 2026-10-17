@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.PacketHandlers.Camera;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers;
 
@@ -16,5 +17,9 @@ public sealed class PacketHandlersModule : IHostPluginModule
         );
         services.AddSingleton<CameraPhotoStore>();
         services.AddSingleton<CameraRenderer>();
+        services.AddSingleton<RoomThumbnailStore>();
+        services.AddSingleton<IRoomThumbnailFiles>(sp =>
+            sp.GetRequiredService<RoomThumbnailStore>()
+        );
     }
 }

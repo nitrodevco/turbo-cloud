@@ -10,8 +10,8 @@ using Microsoft.Extensions.Options;
 namespace Turbo.PacketHandlers.Camera;
 
 /// <summary>
-/// The renders the camera was sent: each photo's and room thumbnail's render data, inflated and
-/// written under <see cref="CameraConfig.StoragePath"/>, each player's last photo (what a purchase or
+/// The renders the camera was sent: each photo's render data, inflated and written under
+/// <see cref="CameraConfig.StoragePath"/> (a room thumbnail's: <see cref="RoomThumbnailStore"/>), each player's last photo (what a purchase or
 /// a publish is of), and the daily counts and publish times the limits are kept by.
 /// </summary>
 public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
@@ -87,22 +87,6 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
         _lastPhotos[playerId] = photo;
 
         return photo;
-    }
-
-    /// <summary>Writes the thumbnail's render data; the JSON and PNG paths the renderer draws between.</summary>
-    public async Task<(string JsonPath, string PngPath)> SaveThumbnailAsync(
-        int roomId,
-        string json,
-        CancellationToken ct
-    )
-    {
-        var folder = Path.Combine(_config.StoragePath, "thumbnails");
-        var jsonPath = Path.Combine(folder, $"{roomId}.json");
-
-        Directory.CreateDirectory(folder);
-        await File.WriteAllTextAsync(jsonPath, json, ct).ConfigureAwait(false);
-
-        return (jsonPath, Path.Combine(folder, $"{roomId}.png"));
     }
 
     public CameraPhoto? GetLastPhoto(int playerId) =>
