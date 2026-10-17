@@ -100,11 +100,14 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         avatar.NextTileId = MapModule.ToIdx(startX, startY);
 
+        // Turned before it attaches: the Users the others get then already faces into the room,
+        // as Habbo's does (official client capture, 2026-10-13 duo doorbell re-entry: Users
+        // direction 2 for the one walking in, door direction 2).
+        avatar.SetRotation(startRot);
+
         await ObjectModule.AttatchObjectAsync(avatar, ct);
 
         _roomGrain._state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
-
-        avatar.SetRotation(startRot);
 
         _roomGrain.WakeTick();
 

@@ -19,6 +19,8 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -77,7 +79,8 @@ public sealed class RoomEntryTailTests
                 typeof(WiredPermissionsEventMessageComposer),
                 typeof(YouAreOwnerMessageComposer),
                 typeof(RoomRatingMessageComposer),
-                typeof(RaidProtectionCapabilityMessageComposer)
+                typeof(RaidProtectionCapabilityMessageComposer),
+                typeof(UserUpdateMessageComposer)
             );
         tail.OfType<UsersMessageComposer>()
             .Single()
@@ -161,7 +164,75 @@ public sealed class RoomEntryTailTests
         tail.IndexOf(update)
             .Should()
             .BeGreaterThan(tail.FindIndex(x => x is RaidProtectionCapabilityMessageComposer));
-        update.Avatars.Should().ContainSingle().Which.ObjectId.Should().Be((RoomObjectId)5);
+        // Own status first, then the others' (official duo entries, 2026-10-13).
+        var own = tail.OfType<UsersMessageComposer>().Single().Avatars.Single().ObjectId;
+        update.Avatars.Select(x => x.ObjectId).Should().Equal(own, (RoomObjectId)5);
+    }
+
+    [Theory]
+    [InlineData(Rotation.East)]
+    [InlineData(Rotation.South)]
+    [InlineData(Rotation.West)]
+    public async Task The_player_walking_in_faces_the_doors_direction_for_themselves_and_the_others(
+        Rotation door
+    )
+    {
+        // Bill, 2026-10-17: the avatar stood in the door facing the wall. Habbo sends the door's
+        // direction in Users and again in the UserUpdate after the raid protection (53 of 54
+        // official entries); the client takes the Users one as an angle, so only the update turns it.
+        var model = (RoomModelSnapshot)RoomHarness.GetMember(_room.Harness.State, "Model")!;
+        RoomHarness.SetMember(
+            _room.Harness.State,
+            "Model",
+            model with
+            {
+                DoorX = 0,
+                DoorY = 3,
+                DoorRotation = door,
+            }
+        );
+        _room.Enter(5, 3, 3);
+
+        var tail = await EnterAsync(VISITOR);
+
+        tail.OfType<UsersMessageComposer>()
+            .Single()
+            .Avatars.Single()
+            .BodyRotation.Should()
+            .Be(door);
+        tail.OfType<UserUpdateMessageComposer>()
+            .Single()
+            .Avatars[0]
+            .Should()
+            .Match<RoomAvatarSnapshot>(x =>
+                x.BodyRotation == door && x.HeadRotation == door && x.X == 0 && x.Y == 3
+            );
+
+        // Everyone already here: the Users that draws the newcomer, then their status.
+        var toOthers = _room
+            .Harness.Fakes.Log.Of("OnNextAsync")
+            .Select(call => (RoomOutboundSnapshot)call.Args[0]!)
+            .Where(x => x.ExcludedPlayerIds?.Contains((PlayerId)VISITOR) == true)
+            .SelectMany(x => x.Composers)
+            .ToList();
+
+        toOthers
+            .Select(x => x.GetType())
+            .Should()
+            .Equal(typeof(UsersMessageComposer), typeof(UserUpdateMessageComposer));
+        toOthers
+            .OfType<UsersMessageComposer>()
+            .Single()
+            .Avatars.Single()
+            .BodyRotation.Should()
+            .Be(door);
+        toOthers
+            .OfType<UserUpdateMessageComposer>()
+            .Single()
+            .Avatars.Should()
+            .ContainSingle()
+            .Which.BodyRotation.Should()
+            .Be(door);
     }
 
     [Theory]
