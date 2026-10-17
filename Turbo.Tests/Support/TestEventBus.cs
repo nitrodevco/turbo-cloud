@@ -34,6 +34,14 @@ public sealed class TestEventBus
     public IEnumerable<T> Of<T>()
         where T : IEvent => Published.OfType<T>();
 
+    /// <summary>
+    /// Waits until <paramref name="count"/> events of the type went by and no more came for
+    /// <see cref="CountWait.Quiet"/> (a publish is usually told, not awaited), so a test may assert
+    /// exactly that many, none included.
+    /// </summary>
+    public Task WhenPublishedAsync<T>(int count)
+        where T : IEvent => CountWait.ForAsync(() => Of<T>().Count(), count);
+
     public void On<T>(Action<T> handler)
         where T : class, IEvent
     {

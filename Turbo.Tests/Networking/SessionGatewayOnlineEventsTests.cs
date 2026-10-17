@@ -27,9 +27,9 @@ public class SessionGatewayOnlineEventsTests
         return session.SessionKey;
     }
 
-    private async Task<bool[]> AnnouncedAsync()
+    private async Task<bool[]> AnnouncedAsync(int count)
     {
-        await SessionHarness.Settle();
+        await _hotel.Events.WhenPublishedAsync<PlayerOnlineChangedEvent>(count);
 
         return
         [
@@ -41,42 +41,45 @@ public class SessionGatewayOnlineEventsTests
     }
 
     [Fact]
-    public async Task LoggingIn_AndTheConnectionClosing_AreEachAnnouncedOnce()
-    {
-        var key = await LogInAsync(1);
+    public Task LoggingIn_AndTheConnectionClosing_AreEachAnnouncedOnce() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var key = await LogInAsync(1);
 
-        (await AnnouncedAsync()).Should().Equal(true);
+            (await AnnouncedAsync(1)).Should().Equal(true);
 
-        await _hotel.Gateway.RemoveSessionAsync(key, CancellationToken.None);
+            await _hotel.Gateway.RemoveSessionAsync(key, CancellationToken.None);
 
-        (await AnnouncedAsync()).Should().Equal(true, false);
-    }
-
-    [Fact]
-    public async Task ALoginReplacingAnother_LeavesThePlayerOnline_SoNothingIsAnnounced()
-    {
-        var first = await LogInAsync(1);
-        var second = await LogInAsync(2);
-
-        await _hotel.Gateway.RemoveSessionAsync(first, CancellationToken.None);
-
-        (await AnnouncedAsync()).Should().Equal([true], "the player never went offline");
-
-        await _hotel.Gateway.RemoveSessionAsync(second, CancellationToken.None);
-
-        (await AnnouncedAsync()).Should().Equal(true, false);
-    }
+            (await AnnouncedAsync(2)).Should().Equal(true, false);
+        });
 
     [Fact]
-    public async Task TheSessionLeavingThePlayer_IsAnnounced()
-    {
-        await LogInAsync(1);
+    public Task ALoginReplacingAnother_LeavesThePlayerOnline_SoNothingIsAnnounced() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var first = await LogInAsync(1);
+            var second = await LogInAsync(2);
 
-        await _hotel.Gateway.RemoveSessionFromPlayerAsync(
-            SessionHarness.PlayerId,
-            CancellationToken.None
-        );
+            await _hotel.Gateway.RemoveSessionAsync(first, CancellationToken.None);
 
-        (await AnnouncedAsync()).Should().Equal(true, false);
-    }
+            (await AnnouncedAsync(1)).Should().Equal([true], "the player never went offline");
+
+            await _hotel.Gateway.RemoveSessionAsync(second, CancellationToken.None);
+
+            (await AnnouncedAsync(2)).Should().Equal(true, false);
+        });
+
+    [Fact]
+    public Task TheSessionLeavingThePlayer_IsAnnounced() =>
+        SessionHarness.InTurns(async () =>
+        {
+            await LogInAsync(1);
+
+            await _hotel.Gateway.RemoveSessionFromPlayerAsync(
+                SessionHarness.PlayerId,
+                CancellationToken.None
+            );
+
+            (await AnnouncedAsync(2)).Should().Equal(true, false);
+        });
 }
