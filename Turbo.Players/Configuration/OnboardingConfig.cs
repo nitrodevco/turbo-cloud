@@ -38,7 +38,7 @@ public sealed class OnboardingConfig
 
     /// <summary>
     /// The folder starter room pictures are drawn into (one PNG per room, served by the gamedata
-    /// host at <c>/starter-rooms/&lt;room id&gt;.png</c>), with each picture's render data.
+    /// host at <c>/gamedata/starter-rooms/&lt;room id&gt;.png</c>), with each picture's render data.
     /// </summary>
     public string PictureDirectory { get; init; } = "camera/starter-rooms";
 

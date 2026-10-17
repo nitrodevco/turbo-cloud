@@ -269,7 +269,7 @@ data of the room under it - as the thumbnail camera's - and, from nitro-next, th
 render data carries no wall or floor textures, the view does. The camera renderer frames the view
 (`render.mjs --frame starter-room --scene <png>`) into Habbo's 296x315 round picture and draws the
 furni that break out of the frame from the render data; without a view it draws the room from the
-data alone. The picture is served by the gamedata host at `/starter-rooms/<room id>.png`.
+data alone. The picture is served by the gamedata host at `/gamedata/starter-rooms/<room id>.png`.
 
 Only a player holding `command.starterroom`, in that room, for one of the hotel's starter rooms, is
 answered; the view is trusted because only staff send it.
