@@ -165,187 +165,195 @@ public sealed class GroupReplyOrderTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     [Fact]
-    public async Task Joining_says_the_profile_changed_after_the_rooms_badge_messages()
-    {
-        var player = await OnlineInRoomAsync(memberWearing: false);
+    public Task Joining_says_the_profile_changed_after_the_rooms_badge_messages() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var player = await OnlineInRoomAsync(memberWearing: false);
 
-        // What JoinHabboGroupMessageHandler does once the join succeeded.
-        await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
-        await SendProfileChangedAsync();
-        await SessionHarness.Settle();
+            // What JoinHabboGroupMessageHandler does once the join succeeded.
+            await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
+            await SendProfileChangedAsync();
+            await SentAsync(0);
 
-        Received().Should().BeEmpty("the profile change waits for the room's badge messages");
+            Received().Should().BeEmpty("the profile change waits for the room's badge messages");
 
-        await RoomPublishesAsync();
-        await SessionHarness.Settle();
+            await RoomPublishesAsync();
+            await SentAsync(2);
 
-        Received()
-            .Should()
-            .Equal(
-                nameof(FavoriteMembershipUpdateMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer)
+            Received()
+                .Should()
+                .Equal(
+                    nameof(FavoriteMembershipUpdateMessageComposer),
+                    nameof(ExtendedProfileChangedMessageComposer)
+                );
+        });
+
+    [Fact]
+    public Task Picking_a_favourite_says_the_profile_changed_after_the_rooms_badge_messages() =>
+        SessionHarness.InTurns(async () =>
+        {
+            await OnlineInRoomAsync(memberWearing: false);
+
+            await new SelectFavouriteHabboGroupMessageHandler(
+                _hotel.Fakes.Create<IGrainFactory>()
+            ).HandleAsync(new SelectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
+            await SentAsync(0);
+
+            Received().Should().BeEmpty("the profile change waits for the room's badge messages");
+
+            await RoomPublishesAsync();
+            await SentAsync(2);
+
+            Received()
+                .Should()
+                .Equal(
+                    nameof(FavoriteMembershipUpdateMessageComposer),
+                    nameof(ExtendedProfileChangedMessageComposer)
+                );
+        });
+
+    [Fact]
+    public Task Dropping_the_favourite_says_the_profile_changed_after_the_rooms_badge_message() =>
+        SessionHarness.InTurns(async () =>
+        {
+            await OnlineInRoomAsync(memberWearing: true);
+
+            await new DeselectFavouriteHabboGroupMessageHandler(
+                _hotel.Fakes.Create<IGrainFactory>()
+            ).HandleAsync(new DeselectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
+            await SentAsync(0);
+
+            Received().Should().BeEmpty("the profile change waits for the room's badge message");
+
+            await RoomPublishesAsync();
+            await SentAsync(2);
+
+            Received()
+                .Should()
+                .Equal(
+                    nameof(FavoriteMembershipUpdateMessageComposer),
+                    nameof(ExtendedProfileChangedMessageComposer)
+                );
+        });
+
+    [Fact]
+    public Task Leaving_the_worn_group_sends_the_badge_change_before_the_leave_replies() =>
+        SessionHarness.InTurns(async () =>
+        {
+            await OnlineInRoomAsync(memberWearing: true);
+            var group = await GroupAsync();
+
+            await group.KickAsync(PLAYER, PLAYER, false, Ct);
+            await RoomPublishesAsync();
+            await SentAsync(4);
+
+            Received()
+                .Should()
+                .Equal(
+                    nameof(FavoriteMembershipUpdateMessageComposer),
+                    nameof(GuildMembershipRejectedMessageComposer),
+                    nameof(ExtendedProfileChangedMessageComposer),
+                    nameof(GroupDetailsChangedMessageComposer)
+                );
+        });
+
+    [Fact]
+    public Task Holds_off_sends_in_the_order_turbo_used_to() =>
+        SessionHarness.InTurns(async () =>
+        {
+            await OnlineInRoomAsync(memberWearing: true, holdMs: 0);
+            var group = await GroupAsync();
+
+            await group.KickAsync(PLAYER, PLAYER, false, Ct);
+            await RoomPublishesAsync();
+            await SentAsync(4);
+
+            Received()
+                .Should()
+                .Equal(
+                    nameof(GuildMembershipRejectedMessageComposer),
+                    nameof(ExtendedProfileChangedMessageComposer),
+                    nameof(GroupDetailsChangedMessageComposer),
+                    nameof(FavoriteMembershipUpdateMessageComposer)
+                );
+        });
+
+    [Fact]
+    public Task A_room_publish_that_never_comes_holds_the_player_no_longer_than_configured() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var player = await OnlineInRoomAsync(memberWearing: false, holdMs: 50);
+
+            await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
+            await SendProfileChangedAsync();
+            await Task.Delay(100, Ct);
+
+            // The grain timer does not run without a silo; the next send finds the hold overdue.
+            await _hotel.PresenceGrain.SendComposerAsync(
+                new GroupDetailsChangedMessageComposer { GuildId = GROUP },
+                Ct
             );
-    }
+            await SentAsync(2);
+
+            Received()
+                .Should()
+                .Equal(
+                    nameof(ExtendedProfileChangedMessageComposer),
+                    nameof(GroupDetailsChangedMessageComposer)
+                );
+        });
 
     [Fact]
-    public async Task Picking_a_favourite_says_the_profile_changed_after_the_rooms_badge_messages()
-    {
-        await OnlineInRoomAsync(memberWearing: false);
+    public Task Leaving_the_room_lets_what_waited_go() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var player = await OnlineInRoomAsync(memberWearing: false);
 
-        await new SelectFavouriteHabboGroupMessageHandler(
-            _hotel.Fakes.Create<IGrainFactory>()
-        ).HandleAsync(new SelectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
-        await SessionHarness.Settle();
+            await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
+            await SendProfileChangedAsync();
+            await _hotel.PresenceGrain.ClearActiveRoomAsync(Ct);
+            await SentAsync(1);
 
-        Received().Should().BeEmpty("the profile change waits for the room's badge messages");
+            Received().Should().Equal(nameof(ExtendedProfileChangedMessageComposer));
+        });
 
-        await RoomPublishesAsync();
-        await SessionHarness.Settle();
+    [Fact]
+    public Task Concurrent_badge_changes_lose_nothing_and_keep_the_send_order() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var player = await OnlineInRoomAsync(memberWearing: false);
 
-        Received()
-            .Should()
-            .Equal(
-                nameof(FavoriteMembershipUpdateMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer)
+            // Two changes in flight at once (join, then take it off and on), each followed by a
+            // reply; the room answers them out of order. Nothing goes before both are answered.
+            await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
+            await _hotel.PresenceGrain.SendComposerAsync(
+                new ExtendedProfileChangedMessageComposer { UserId = 1 },
+                Ct
             );
-    }
-
-    [Fact]
-    public async Task Dropping_the_favourite_says_the_profile_changed_after_the_rooms_badge_message()
-    {
-        await OnlineInRoomAsync(memberWearing: true);
-
-        await new DeselectFavouriteHabboGroupMessageHandler(
-            _hotel.Fakes.Create<IGrainFactory>()
-        ).HandleAsync(new DeselectFavouriteHabboGroupMessage { GuildId = GROUP }, Ctx(), Ct);
-        await SessionHarness.Settle();
-
-        Received().Should().BeEmpty("the profile change waits for the room's badge message");
-
-        await RoomPublishesAsync();
-        await SessionHarness.Settle();
-
-        Received()
-            .Should()
-            .Equal(
-                nameof(FavoriteMembershipUpdateMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer)
+            await player.SetFavouriteGuildAsync(null, Ct);
+            await _hotel.PresenceGrain.SendComposerAsync(
+                new ExtendedProfileChangedMessageComposer { UserId = 2 },
+                Ct
             );
-    }
 
-    [Fact]
-    public async Task Leaving_the_worn_group_sends_the_badge_change_before_the_leave_replies()
-    {
-        await OnlineInRoomAsync(memberWearing: true);
-        var group = await GroupAsync();
+            _roomTold.Should().HaveCount(2);
+            _roomTold.Reverse();
+            await RoomPublishesAsync();
+            await SentAsync(4);
 
-        await group.KickAsync(PLAYER, PLAYER, false, Ct);
-        await RoomPublishesAsync();
-        await SessionHarness.Settle();
-
-        Received()
-            .Should()
-            .Equal(
-                nameof(FavoriteMembershipUpdateMessageComposer),
-                nameof(GuildMembershipRejectedMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer),
-                nameof(GroupDetailsChangedMessageComposer)
-            );
-    }
-
-    [Fact]
-    public async Task Holds_off_sends_in_the_order_turbo_used_to()
-    {
-        await OnlineInRoomAsync(memberWearing: true, holdMs: 0);
-        var group = await GroupAsync();
-
-        await group.KickAsync(PLAYER, PLAYER, false, Ct);
-        await RoomPublishesAsync();
-        await SessionHarness.Settle();
-
-        Received()
-            .Should()
-            .Equal(
-                nameof(GuildMembershipRejectedMessageComposer),
-                nameof(ExtendedProfileChangedMessageComposer),
-                nameof(GroupDetailsChangedMessageComposer),
-                nameof(FavoriteMembershipUpdateMessageComposer)
-            );
-    }
-
-    [Fact]
-    public async Task A_room_publish_that_never_comes_holds_the_player_no_longer_than_configured()
-    {
-        var player = await OnlineInRoomAsync(memberWearing: false, holdMs: 50);
-
-        await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
-        await SendProfileChangedAsync();
-        await Task.Delay(100, Ct);
-
-        // The grain timer does not run without a silo; the next send finds the hold overdue.
-        await _hotel.PresenceGrain.SendComposerAsync(
-            new GroupDetailsChangedMessageComposer { GuildId = GROUP },
-            Ct
-        );
-        await SessionHarness.Settle();
-
-        Received()
-            .Should()
-            .Equal(
-                nameof(ExtendedProfileChangedMessageComposer),
-                nameof(GroupDetailsChangedMessageComposer)
-            );
-    }
-
-    [Fact]
-    public async Task Leaving_the_room_lets_what_waited_go()
-    {
-        var player = await OnlineInRoomAsync(memberWearing: false);
-
-        await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
-        await SendProfileChangedAsync();
-        await _hotel.PresenceGrain.ClearActiveRoomAsync(Ct);
-        await SessionHarness.Settle();
-
-        Received().Should().Equal(nameof(ExtendedProfileChangedMessageComposer));
-    }
-
-    [Fact]
-    public async Task Concurrent_badge_changes_lose_nothing_and_keep_the_send_order()
-    {
-        var player = await OnlineInRoomAsync(memberWearing: false);
-
-        // Two changes in flight at once (join, then take it off and on), each followed by a
-        // reply; the room answers them out of order. Nothing goes before both are answered.
-        await player.WearIfNoneAsync(GuildId.Parse(GROUP), Ct);
-        await _hotel.PresenceGrain.SendComposerAsync(
-            new ExtendedProfileChangedMessageComposer { UserId = 1 },
-            Ct
-        );
-        await player.SetFavouriteGuildAsync(null, Ct);
-        await _hotel.PresenceGrain.SendComposerAsync(
-            new ExtendedProfileChangedMessageComposer { UserId = 2 },
-            Ct
-        );
-
-        _roomTold.Should().HaveCount(2);
-        _roomTold.Reverse();
-        await RoomPublishesAsync();
-        await ReceivedAtLeastAsync(4);
-
-        var received = ReceivedComposers();
-        received.Should().HaveCount(4);
-        received
-            .Take(2)
-            .Should()
-            .AllBeOfType<FavoriteMembershipUpdateMessageComposer>("the room's go as they come");
-        received
-            .Skip(2)
-            .Cast<ExtendedProfileChangedMessageComposer>()
-            .Select(x => x.UserId)
-            .Should()
-            .Equal(1, 2);
-    }
+            var received = ReceivedComposers();
+            received.Should().HaveCount(4);
+            received
+                .Take(2)
+                .Should()
+                .AllBeOfType<FavoriteMembershipUpdateMessageComposer>("the room's go as they come");
+            received
+                .Skip(2)
+                .Cast<ExtendedProfileChangedMessageComposer>()
+                .Select(x => x.UserId)
+                .Should()
+                .Equal(1, 2);
+        });
 
     [Fact]
     public async Task The_room_ends_the_hold_with_its_badge_publish_or_at_once_for_a_player_not_there()
@@ -478,14 +486,8 @@ public sealed class GroupReplyOrderTests : IDisposable
             "ActiveRoomId",
             (RoomId)ROOM
         );
-        await SessionHarness.Settle();
-
-        // The login flush finishes before the test starts: without a silo the presence's flush
-        // runs on the thread pool, beside the test, rather than one turn at a time.
-        var state = RoomHarness.GetField(_hotel.Presence, "_state")!;
-        for (var i = 0; i < 100 && (bool)RoomHarness.GetMember(state, "IsProcessingQueue")!; i++)
-            await Task.Delay(20, Ct);
-
+        // The login flush finishes before the test starts.
+        await SentAsync(0);
         _hotel.Fakes.Log.Calls.Clear();
 
         var grain = GrainHarness.Create(
@@ -560,14 +562,22 @@ public sealed class GroupReplyOrderTests : IDisposable
 
     private List<IComposer> ReceivedComposers() => _hotel.Received(_key);
 
-    // The presence flushes on the thread pool: a fixed Settle (200 ms) was too short in a loaded
-    // full run (2 of 4 received). Wait for the count, then settle once more for any extra.
-    private async Task ReceivedAtLeastAsync(int count)
+    /// <summary>
+    /// The tests run in turns (<see cref="SessionHarness.InTurns"/>), so the presence flushes
+    /// whenever the test awaits: this lets everything already queued run first, then waits (5 s
+    /// at most, never a fixed time) for <paramref name="count"/> composers with nothing left to
+    /// send. Count 0 is "nothing went": what is held stays held, not in flight.
+    /// </summary>
+    private async Task SentAsync(int count)
     {
-        for (var i = 0; i < 250 && ReceivedComposers().Count < count; i++)
-            await Task.Delay(20, Ct);
+        await Task.Yield();
 
-        await SessionHarness.Settle();
+        for (
+            var i = 0;
+            i < 500 && !(ReceivedComposers().Count >= count && _hotel.PresenceIdle());
+            i++
+        )
+            await Task.Delay(10, Ct);
     }
 
     private List<string> Received() => [.. ReceivedComposers().Select(x => x.GetType().Name)];
