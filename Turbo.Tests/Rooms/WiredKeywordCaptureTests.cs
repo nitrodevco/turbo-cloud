@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -36,6 +37,15 @@ public sealed class WiredKeywordCaptureTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
+
+    // The match is time boxed by wall clock (50 ms by default): on a loaded machine a 200 character
+    // pattern overran it and did not fire. These tests are about what fires, not the time box.
+    public WiredKeywordCaptureTests() =>
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_wiredConfig",
+            new WiredConfig { RegexMatchTimeoutMs = 10_000 }
+        );
 
     [Theory]
     [InlineData("price 250", 0, 250)]
