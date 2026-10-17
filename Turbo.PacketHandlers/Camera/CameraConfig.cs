@@ -46,6 +46,24 @@ public sealed class CameraConfig
     /// <summary>The furniture bundles (the client's <c>asset.urls.furni</c>, <c>%libname%</c> for the library); empty uses the script's default.</summary>
     public string RendererFurniUrl { get; init; } = "";
 
+    /// <summary>The figure libraries an avatar's parts are drawn from (the client's <c>asset.bundles.avatar</c>); empty uses the script's default.</summary>
+    public string RendererFigureUrl { get; init; } = "";
+
+    /// <summary>The figure map naming each part's library (the client's <c>figuremap.url</c>); empty uses the script's default.</summary>
+    public string RendererFigureMapUrl { get; init; } = "";
+
+    /// <summary>The avatar effect libraries (the client's <c>asset.bundles.effects</c>); empty uses the script's default.</summary>
+    public string RendererEffectUrl { get; init; } = "";
+
+    /// <summary>The effect map naming each avatar effect's library (the client's <c>effectmap.url</c>); empty uses the script's default.</summary>
+    public string RendererEffectMapUrl { get; init; } = "";
+
+    /// <summary>
+    /// Where the photo lab's composite and frame pictures are, <c>&lt;name&gt;.png</c> under it (the
+    /// client's <c>image.library.url</c> + <c>Habbo-Stories/</c>); empty uses the script's default.
+    /// </summary>
+    public string RendererEffectImageUrl { get; init; } = "";
+
     /// <summary>
     /// The url prefixes an external image in a render (a sprite named <c>http...</c>: an image
     /// library picture, a group badge, another photo) may be fetched from, each ending in <c>/</c>.

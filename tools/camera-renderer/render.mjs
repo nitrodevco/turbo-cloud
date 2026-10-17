@@ -3,7 +3,9 @@
 // thumbnails/<roomId>.json) into the PNG the client loads (stories.image_url_base + photos/<id>.png).
 //
 //   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>]
-//                   [--external-url <url prefix>]... [--small]
+//                   [--figure-url <url with %libname%>] [--figuremap-url <url>]
+//                   [--effect-url <url with %libname%>] [--effectmap-url <url>]
+//                   [--effect-image-url <url prefix>] [--external-url <url prefix>]... [--small]
 //
 // --small also writes <out>_small.png at half the size: a photo poster on a wall loads that copy
 // (FurnitureExternalImageVisualization.buildThumbnailUrl), and without it the poster is blank.
@@ -11,19 +13,25 @@
 // What is drawn, far to near (the highest z first, as the client sorts them):
 //   - the planes: each a flat quad in its colour (the first is the background over the whole viewport);
 //   - the sprites: furniture assets looked up in the hotel's .nitro bundles (the CDN url the client's
-//     asset.urls.furni gives, cached under --cache), external images (http...) under one of the
-//     --external-url prefixes, with the sprite's alpha, colour tint, flipH and additive blend.
+//     asset.urls.furni gives, cached under --cache), the avatars' parts (`h_std_ch_215_2_0`: the
+//     figure library the figure map names for the part, or an effect's `..._fx<id>_...` the effect
+//     map names), external images (http...) under one of the --external-url prefixes, with the
+//     sprite's alpha, colour tint, flipH and additive blend;
+//   - then the photo lab's choices (`filters` and `zoom`, as CameraPhotoLab.renderAllEffects draws
+//     them): zoomed, the middle half at twice the size; each colour matrix and composite picture at
+//     its strength, in the order sent; a frame over all. A composite or frame picture is
+//     <--effect-image-url><name>.png (CameraFxPreloader: <image.library.url>Habbo-Stories/).
 //
 // The render data is the client's, so nothing in it is trusted: an external image is fetched only
 // from a prefix the hotel named (none by default), a library name is a plain file name, and the
 // canvas, the images decoded and the bytes downloaded are capped, so a crafted render can neither
 // reach other hosts nor run the server out of memory.
-// Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): avatars
-// (the client sends `avatar_<id>` only - the port has no figure sprite list), plane textures and
-// masks (the client sends none), the lab's filters.
+// Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): plane
+// textures and masks (the client sends none), an avatar effect sprite outside the `fx<id>` naming,
+// a lab effect this renderer does not know.
 // Zero dependencies: a small zip reader, PNG decoder and PNG encoder over node:zlib.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { inflateRawSync, deflateSync, inflateSync } from 'node:zlib';
 
@@ -31,6 +39,11 @@ const args = process.argv.slice(2);
 const positional = [];
 let cacheDir = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.cache');
 let furniUrl = 'https://images.nitrodev.co/bundled/furniture/%libname%.nitro';
+let figureUrl = 'https://images.nitrodev.co/bundled/figures/%libname%.nitro';
+let figureMapUrl = 'https://images.nitrodev.co/gamedata/FigureMap.json';
+let effectUrl = 'https://images.nitrodev.co/bundled/effects/%libname%.nitro';
+let effectMapUrl = 'https://images.nitrodev.co/gamedata/EffectMap.json';
+let effectImageUrl = 'https://images.habbo.com/c_images/Habbo-Stories/';
 const externalUrls = [];
 let writeSmall = false;
 let frame = '';
@@ -39,6 +52,11 @@ let scenePath = '';
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--cache') cacheDir = args[++i];
     else if (args[i] === '--furni-url') furniUrl = args[++i];
+    else if (args[i] === '--figure-url') figureUrl = args[++i];
+    else if (args[i] === '--figuremap-url') figureMapUrl = args[++i];
+    else if (args[i] === '--effect-url') effectUrl = args[++i];
+    else if (args[i] === '--effectmap-url') effectMapUrl = args[++i];
+    else if (args[i] === '--effect-image-url') effectImageUrl = args[++i];
     else if (args[i] === '--external-url') externalUrls.push(new URL(args[++i]));
     else if (args[i] === '--small') writeSmall = true;
     else if (args[i] === '--frame') frame = args[++i];
@@ -53,7 +71,10 @@ const MAX_ITEMS = 5000;
 const MAX_IMAGE_PIXELS = 4096 * 4096;
 const MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
 const MAX_EXTERNAL_BYTES = 4 * 1024 * 1024;
+const MAX_MAP_BYTES = 16 * 1024 * 1024;
 const LIBRARY_NAME = /^[A-Za-z0-9_-]+$/;
+// A figure map or effect map in the cache is fetched again after a day, so new clothes draw.
+const MAP_CACHE_MS = 24 * 60 * 60 * 1000;
 
 const [ inPath, outPath ] = positional;
 
@@ -249,10 +270,10 @@ const readZip = (buf) => {
 const bundles = new Map();
 
 /** The body of a GET, refused past maxBytes; redirects are refused, so an allowed host cannot point elsewhere. */
-const fetchBytes = async (url, maxBytes, cacheName) => {
+const fetchBytes = async (url, maxBytes, cacheName, maxAgeMs = Infinity) => {
     const cachePath = cacheName ? join(cacheDir, cacheName) : null;
 
-    if (cachePath && existsSync(cachePath)) return readFileSync(cachePath);
+    if (cachePath && existsSync(cachePath) && ((Date.now() - statSync(cachePath).mtimeMs) < maxAgeMs)) return readFileSync(cachePath);
 
     const response = await fetch(url, { redirect: 'error' });
 
@@ -278,14 +299,16 @@ const fetchBytes = async (url, maxBytes, cacheName) => {
     return bytes;
 };
 
-/** A furniture bundle: its assets (name -> source, x, y, flipH) and the sheet's frames. */
-const loadBundle = async (lib) => {
-    if (bundles.has(lib)) return bundles.get(lib);
+/** A bundle (furniture, figure or effect library): its assets (name -> source, x, y, flipH) and the sheet's frames. */
+const loadBundle = async (lib, url = furniUrl, kind = '') => {
+    const key = `${kind}${lib}`;
+
+    if (bundles.has(key)) return bundles.get(key);
 
     let bundle = null;
 
     try {
-        const entries = readZip(await fetchBytes(furniUrl.replace('%libname%', lib), MAX_BUNDLE_BYTES, `${lib}.nitro`));
+        const entries = readZip(await fetchBytes(url.replace('%libname%', lib), MAX_BUNDLE_BYTES, `${key}.nitro`));
         let assets = {}, frames = {}, image = null;
 
         for (const [ name, bytes ] of Object.entries(entries)) {
@@ -305,9 +328,77 @@ const loadBundle = async (lib) => {
         console.error(`bundle ${lib}: ${err.message}`);
     }
 
-    bundles.set(lib, bundle);
+    bundles.set(key, bundle);
 
     return bundle;
+};
+
+// ---------- avatars ----------
+
+let figureLibraries = null;
+let effectLibraries = null;
+
+/** A gamedata map (FigureMap.json / EffectMap.json), or null when it cannot be had. */
+const loadMap = async (url, cacheName) => {
+    try {
+        return JSON.parse((await fetchBytes(url, MAX_MAP_BYTES, cacheName, MAP_CACHE_MS)).toString('utf8'));
+    } catch (err) {
+        console.error(`map ${url}: ${err.message}`);
+
+        return null;
+    }
+};
+
+/** The figure map as `<part type>:<part id>` -> library. */
+const getFigureLibraries = async () => {
+    if (figureLibraries) return figureLibraries;
+
+    figureLibraries = new Map();
+
+    for (const library of (await loadMap(figureMapUrl, 'FigureMap.json'))?.libraries ?? []) {
+        for (const part of library.parts ?? []) {
+            const key = `${part.type}:${part.id}`;
+
+            if (!figureLibraries.has(key)) figureLibraries.set(key, library.id);
+        }
+    }
+
+    return figureLibraries;
+};
+
+/** The effect map as effect id -> library. */
+const getEffectLibraries = async () => {
+    if (effectLibraries) return effectLibraries;
+
+    effectLibraries = new Map();
+
+    for (const effect of (await loadMap(effectMapUrl, 'EffectMap.json'))?.effects ?? []) effectLibraries.set(String(effect.id), effect.lib);
+
+    return effectLibraries;
+};
+
+/**
+ * The library an avatar sprite's asset is in, by its name (AvatarImageCache and AvatarVisualization
+ * name them `<scale>_<action>_<part type>_<part id>_<direction>_<frame>` and
+ * `<scale>_<effect member>_<direction>_<frame>`): an effect's (`..._fx<id>...`) from the effect map,
+ * a figure part's from the figure map; null when it is neither.
+ */
+const getAvatarBundle = async (name) => {
+    const effect = name.match(/^s?h_[a-z]+_fx(\d+)_/);
+
+    if (effect) {
+        const lib = (await getEffectLibraries()).get(effect[1]);
+
+        return (lib && LIBRARY_NAME.test(lib)) ? loadBundle(lib, effectUrl, 'effect_') : null;
+    }
+
+    const part = name.match(/^s?h_[a-z]+_([a-z]+)_(\d+)_\d+_\d+$/);
+
+    if (!part) return null;
+
+    const lib = (await getFigureLibraries()).get(`${part[1]}:${part[2]}`);
+
+    return (lib && LIBRARY_NAME.test(lib)) ? loadBundle(lib, figureUrl, 'figure_') : null;
 };
 
 /** The cut-out of one asset as RGBA (already flipped when the asset says so), or null. */
@@ -416,6 +507,159 @@ const fillQuad = (canvas, points, color) => {
     }
 };
 
+
+// ---------- photo lab ----------
+
+/**
+ * The lab's effects as CameraEffect.initEffects defines them (CameraEffect.as, WIN63-202610151745):
+ * a colour matrix, a composite picture drawn in a blend mode, or a frame. Only these names are
+ * drawn, so a render cannot make the server fetch any other picture.
+ */
+const CAMERA_EFFECTS = {
+    dark_sepia: { type: 'colormatrix', matrix: [ 0.4, 0.4, 0.1, 0, 110, 0.3, 0.4, 0.1, 0, 30, 0.3, 0.2, 0.1, 0, 0, 0, 0, 0, 1, 0 ] },
+    increase_saturation: { type: 'colormatrix', matrix: [ 2, -0.5, -0.5, 0, 0, -0.5, 2, -0.5, 0, 0, -0.5, -0.5, 2, 0, 0, 0, 0, 0, 1, 0 ] },
+    increase_contrast: { type: 'colormatrix', matrix: [ 1.5, 0, 0, 0, -50, 0, 1.5, 0, 0, -50, 0, 0, 1.5, 0, -50, 0, 0, 0, 1.5, 0 ] },
+    shadow_multiply_02: { type: 'composite', blendmode: 'multiply' },
+    color_1: { type: 'colormatrix', matrix: [ 0.393, 0.769, 0.189, 0, 0, 0.349, 0.686, 0.168, 0, 0, 0.272, 0.534, 0.131, 0, 0, 0, 0, 0, 1, 0 ] },
+    hue_bright_sat: { type: 'colormatrix', matrix: [ 1, 0.6, 0.2, 0, -50, 0.2, 1, 0.6, 0, -50, 0.6, 0.2, 1, 0, -50, 0, 0, 0, 1, 0 ] },
+    hearts_hardlight_02: { type: 'composite', blendmode: 'hardlight' },
+    texture_overlay: { type: 'composite', blendmode: 'overlay' },
+    pinky_nrm: { type: 'composite', blendmode: 'normal' },
+    color_2: { type: 'colormatrix', matrix: [ 0.333, 0.333, 0.333, 0, 0, 0.333, 0.333, 0.333, 0, 0, 0.333, 0.333, 0.333, 0, 0, 0, 0, 0, 1, 0 ] },
+    night_vision: { type: 'colormatrix', matrix: [ 0, 0, 0, 0, 0, 0, 1.1, 0, 0, -50, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 ] },
+    stars_hardlight_02: { type: 'composite', blendmode: 'hardlight' },
+    coffee_mpl: { type: 'composite', blendmode: 'multiply' },
+    security_hardlight: { type: 'composite', blendmode: 'hardlight' },
+    bluemood_mpl: { type: 'composite', blendmode: 'multiply' },
+    rusty_mpl: { type: 'composite', blendmode: 'multiply' },
+    decr_conrast: { type: 'colormatrix', matrix: [ 0.5, 0, 0, 0, 50, 0, 0.5, 0, 0, 50, 0, 0, 0.5, 0, 50, 0, 0, 0, 1, 0 ] },
+    green_2: { type: 'colormatrix', matrix: [ 0.5, 0.5, 0.5, 0, 0, 0.5, 0.5, 0.5, 0, 90, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 1, 0 ] },
+    alien_hrd: { type: 'composite', blendmode: 'hardlight' },
+    color_3: { type: 'colormatrix', matrix: [ 0.609, 0.609, 0.082, 0, 0, 0.309, 0.609, 0.082, 0, 0, 0.309, 0.609, 0.082, 0, 0, 0, 0, 0, 1, 0 ] },
+    color_4: { type: 'colormatrix', matrix: [ 0.8, -0.8, 1, 0, 70, 0.8, -0.8, 1, 0, 70, 0.8, -0.8, 1, 0, 70, 0, 0, 0, 1, 0 ] },
+    toxic_hrd: { type: 'composite', blendmode: 'hardlight' },
+    hypersaturated: { type: 'colormatrix', matrix: [ 2, -1, 0, 0, 0, -1, 2, 0, 0, 0, 0, -1, 2, 0, 0, 0, 0, 0, 1, 0 ] },
+    Yellow: { type: 'colormatrix', matrix: [ 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 ] },
+    misty_hrd: { type: 'composite', blendmode: 'hardlight' },
+    x_ray: { type: 'colormatrix', matrix: [ 0, 1.2, 0, 0, -100, 0, 2, 0, 0, -120, 0, 2, 0, 0, -120, 0, 0, 0, 1, 0 ] },
+    decrease_saturation: { type: 'colormatrix', matrix: [ 0.7, 0.2, 0.2, 0, 0, 0.2, 0.7, 0.2, 0, 0, 0.2, 0.2, 0.7, 0, 0, 0, 0, 0, 1, 0 ] },
+    drops_mpl: { type: 'composite', blendmode: 'multiply' },
+    shiny_hrd: { type: 'composite', blendmode: 'hardlight' },
+    glitter_hrd: { type: 'composite', blendmode: 'hardlight' },
+    frame_gold: { type: 'frame' },
+    frame_gray_4: { type: 'frame' },
+    frame_black_2: { type: 'frame' },
+    frame_wood_2: { type: 'frame' },
+    finger_nrm: { type: 'frame' },
+    color_5: { type: 'colormatrix', matrix: [ 3.309, 0.609, 1.082, 0.2, 0, 0.309, 0.609, 0.082, 0, 0, 1.309, 0.609, 0.082, 0, 0, 0, 0, 0, 1, 0 ] },
+    black_white_negative: { type: 'colormatrix', matrix: [ -0.5, -0.5, -0.5, 0, 255, -0.5, -0.5, -0.5, 0, 255, -0.5, -0.5, -0.5, 0, 255, 0, 0, 0, 1, 0 ] },
+    blue: { type: 'colormatrix', matrix: [ 0.5, 0.5, 0.5, 0, -255, 0.5, 0.5, 0.5, 0, -170, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 1, 0 ] },
+    red: { type: 'colormatrix', matrix: [ 0.5, 0.5, 0.5, 0, 0, 0.5, 0.5, 0.5, 0, -170, 0.5, 0.5, 0.5, 0, -170, 0, 0, 0, 1, 0 ] },
+    green: { type: 'colormatrix', matrix: [ 0.5, 0.5, 0.5, 0, -170, 0.5, 0.5, 0.5, 0, 0, 0.5, 0.5, 0.5, 0, -170, 0, 0, 0, 1, 0 ] },
+};
+
+const IDENTITY_MATRIX = [ 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0 ];
+const MAX_EFFECTS = 64;
+
+/** A channel as Flash keeps it: 0-255, whole. */
+const clampChannel = (value) => Math.max(0, Math.min(255, Math.round(value)));
+
+/** `renderAllEffects`'s zoom (a matrix of 2 moved back by half the size, unsmoothed): the middle half at twice the size. */
+const zoomTwice = (image) => {
+    const { width, height, data } = image;
+    const out = new Uint8Array(data.length);
+
+    for (let y = 0; y < height; y++) {
+        const sy = Math.floor((y + (height / 2)) / 2);
+
+        for (let x = 0; x < width; x++) {
+            const sx = Math.floor((x + (width / 2)) / 2);
+            const s = ((sy * width) + sx) * 4, d = ((y * width) + x) * 4;
+
+            out[d] = data[s]; out[d + 1] = data[s + 1]; out[d + 2] = data[s + 2]; out[d + 3] = data[s + 3];
+        }
+    }
+
+    return { width, height, data: out };
+};
+
+/** `getColorMatrixFilter`: the matrix mixed with the identity by the strength, over every pixel, clamped. */
+const applyColorMatrix = (image, matrix, strength) => {
+    const m = matrix.map((value, i) => (value * strength) + (IDENTITY_MATRIX[i] * (1 - strength)));
+    const data = image.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+
+        data[i] = clampChannel((m[0] * r) + (m[1] * g) + (m[2] * b) + (m[3] * a) + m[4]);
+        data[i + 1] = clampChannel((m[5] * r) + (m[6] * g) + (m[7] * b) + (m[8] * a) + m[9]);
+        data[i + 2] = clampChannel((m[10] * r) + (m[11] * g) + (m[12] * b) + (m[13] * a) + m[14]);
+        data[i + 3] = clampChannel((m[15] * r) + (m[16] * g) + (m[17] * b) + (m[18] * a) + m[19]);
+    }
+};
+
+/** Flash's blend modes on one channel (0-255): the source `s` over the destination `d`. */
+const BLEND = {
+    normal: (s) => s,
+    multiply: (s, d) => (s * d) / 255,
+    hardlight: (s, d) => ((s <= 127) ? ((2 * s * d) / 255) : (255 - ((2 * (255 - s) * (255 - d)) / 255))),
+    overlay: (s, d) => ((d <= 127) ? ((2 * s * d) / 255) : (255 - ((2 * (255 - s) * (255 - d)) / 255))),
+};
+
+/** A composite or frame picture drawn over the photo at 0,0 in a blend mode, its alpha times `strength`. */
+const drawOver = (image, picture, blendmode, strength) => {
+    const blend = BLEND[blendmode] ?? BLEND.normal;
+
+    for (let y = 0; y < Math.min(image.height, picture.height); y++) {
+        for (let x = 0; x < Math.min(image.width, picture.width); x++) {
+            const s = ((y * picture.width) + x) * 4, d = ((y * image.width) + x) * 4;
+            const a = (picture.data[s + 3] / 255) * strength;
+
+            if (a <= 0) continue;
+
+            for (let c = 0; c < 3; c++) image.data[d + c] = clampChannel((blend(picture.data[s + c], image.data[d + c]) * a) + (image.data[d + c] * (1 - a)));
+
+            image.data[d + 3] = Math.min(255, image.data[d + 3] + (255 * a));
+        }
+    }
+};
+
+/** The lab's zoom and effects over the drawn photo (CameraPhotoLab.renderAllEffects), in the order the client sent them. */
+const applyPhotoLab = async (canvas, filters, zoom) => {
+    let image = canvas;
+
+    if (Number(zoom) === 2) image = zoomTwice(image);
+
+    const list = Array.isArray(filters) ? filters.slice(0, MAX_EFFECTS) : [];
+
+    for (const filter of list) {
+        const name = String(filter?.name ?? '');
+        const effect = Object.hasOwn(CAMERA_EFFECTS, name) ? CAMERA_EFFECTS[name] : null;
+
+        if (!effect) {
+            console.error(`effect ${name}: unknown`);
+            continue;
+        }
+
+        // `getEffectDataJson`: the strength as alpha 0-255; a frame has none and is drawn whole.
+        const strength = (effect.type === 'frame') ? 1 : Math.max(0, Math.min(255, Number(filter.alpha) || 0)) / 255;
+
+        if (effect.type === 'colormatrix') {
+            applyColorMatrix(image, effect.matrix, strength);
+            continue;
+        }
+
+        try {
+            const picture = decodePng(await fetchBytes(`${effectImageUrl}${name}.png`, MAX_EXTERNAL_BYTES, `effect_image_${name}.png`));
+
+            drawOver(image, picture, effect.blendmode ?? 'normal', strength);
+        } catch (err) {
+            console.error(`effect ${name}: ${err.message}`);
+        }
+    }
+
+    return image;
+};
 
 // ---------- frames ----------
 
@@ -570,7 +814,12 @@ const render = async () => {
                 console.error(`external ${name}: ${err.message}`);
             }
         } else {
-            const match = name.match(/^(.+?)_(64|32)_/);
+            // An avatar's part first; a furni whose library starts with h_ is looked up as furni after it.
+            const avatarBundle = /^s?h_/.test(name) ? await getAvatarBundle(name) : null;
+
+            if (avatarBundle) image = getAssetImage(avatarBundle, name);
+
+            const match = image ? null : name.match(/^(.+?)_(64|32)_/);
 
             if (match && LIBRARY_NAME.test(match[1])) {
                 const bundle = await loadBundle(match[1]);
@@ -614,10 +863,12 @@ const render = async () => {
         return;
     }
 
-    writeFileSync(outPath, encodePng(width, height, canvas.data));
+    const photo = await applyPhotoLab(canvas, data.filters, data.zoom);
+
+    writeFileSync(outPath, encodePng(width, height, photo.data));
 
     if (writeSmall) {
-        const small = halve(width, height, canvas.data);
+        const small = halve(width, height, photo.data);
 
         writeFileSync(outPath.replace(/\.png$/, '') + '_small.png', encodePng(small.width, small.height, small.data));
     }
