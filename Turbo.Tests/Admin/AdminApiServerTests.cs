@@ -200,6 +200,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
+                typeof(Turbo.Primitives.Plugins.IPluginAdministration),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -230,6 +231,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
+        services.AddSingleton<Turbo.Admin.Plugins.AdminPluginAudit>();
 
         // Internal to Turbo.Admin, as the host knows it.
         var serverType = typeof(AdminConfig).Assembly.GetType("Turbo.Admin.Api.AdminApiServer")!;

@@ -39,6 +39,13 @@ internal static partial class PluginHelpers
                     nameof(manifest.Name)
                 );
 
+            if (string.IsNullOrWhiteSpace(manifest.Key))
+                throw new PluginManifestException(
+                    PluginManifestErrorType.MissingField,
+                    path,
+                    nameof(manifest.Key)
+                );
+
             if (string.IsNullOrWhiteSpace(manifest.Version))
                 throw new PluginManifestException(
                     PluginManifestErrorType.MissingField,

@@ -317,6 +317,25 @@ public static class PermissionNodes
         /// groups, pets and bots. Changing it needs <see cref="Content.MANAGE"/> as well.
         /// </summary>
         public const string CONTENT_VIEW = "admin.content.view";
+
+        /// <summary>
+        /// See the server's plugins in the panel: each one's manifest, whether it loaded and why
+        /// not, and the capabilities, packet headers and migrations it added.
+        /// </summary>
+        public const string PLUGINS_VIEW = "admin.plugins.view";
+
+        /// <summary>
+        /// Reload a plugin, scan the plugin folders again and turn a plugin off or on (kept across
+        /// restarts) in the panel. Seeing them needs <see cref="PLUGINS_VIEW"/> as well.
+        /// </summary>
+        public const string PLUGINS_MANAGE = "admin.plugins.manage";
+
+        /// <summary>
+        /// Install a plugin package from the panel, when the server allows it
+        /// (<c>Turbo:Plugin:UploadEnabled</c>). A package is server code, so the node is explicit
+        /// only: no wildcard grants it. Needs <see cref="PLUGINS_MANAGE"/> as well.
+        /// </summary>
+        public const string PLUGINS_INSTALL = "admin.plugins.install";
     }
 
     /// <summary>

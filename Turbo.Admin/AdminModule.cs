@@ -14,6 +14,7 @@ using Turbo.Admin.Notifications;
 using Turbo.Admin.Performance;
 using Turbo.Admin.Permissions;
 using Turbo.Admin.Players;
+using Turbo.Admin.Plugins;
 using Turbo.Admin.Rooms;
 using Turbo.Admin.Search;
 using Turbo.Contracts.Plugins;
@@ -56,6 +57,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
+        services.AddSingleton<AdminPluginAudit>();
         services.AddSingleton<AdminLiveFeed>();
         services.AddHostedService(sp => sp.GetRequiredService<AdminLiveFeed>());
         services.AddSingleton<AdminPerformanceRecorder>();

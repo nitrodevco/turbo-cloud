@@ -364,6 +364,19 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Change the game's content in the admin panel: publish achievements, give and take badges, edit navigator categories, fix and remove groups, edit pet breeds, pet speech and bots."
         ),
         new(
+            PermissionNodes.Admin.PLUGINS_VIEW,
+            "See the server's plugins in the admin panel: whether each loaded, and what it added."
+        ),
+        new(
+            PermissionNodes.Admin.PLUGINS_MANAGE,
+            "Reload, rescan and turn the server's plugins off or on in the admin panel."
+        ),
+        new(
+            PermissionNodes.Admin.PLUGINS_INSTALL,
+            "Install a plugin package from the admin panel, when the server allows it. A package is server code.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Figure.ANY,
             "Wear any clothing and colour, whatever the figure data says of club, sale or selection."
         ),

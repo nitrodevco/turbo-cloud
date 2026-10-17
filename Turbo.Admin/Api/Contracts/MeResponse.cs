@@ -17,5 +17,6 @@ public sealed record MeResponse(
     bool CanViewChatlog,
     bool CanViewGamedata,
     bool CanViewSettings,
-    bool CanViewContent
+    bool CanViewContent,
+    bool CanViewPlugins
 );
