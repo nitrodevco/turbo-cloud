@@ -1137,23 +1137,28 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         var rotation = RotationExtensions.FromPoints(avatar.X, avatar.Y, targetX, targetY);
 
-        // Official client capture: a target ahead or one octant either side turns the head only,
-        // the body stays. A seat or bed holds the body, so an avatar sitting or lying on one never
-        // turns it; past the head's reach any other avatar turns whole, one sitting on the floor
-        // too (its sit is kept).
-        if (
+        // Official client capture: an avatar sitting or lying on a seat or bed turns neither head
+        // nor body, but the room still gets its unchanged update when the target lies elsewhere.
+        if (IsHeldByFurni(avatar))
+        {
+            if (rotation != avatar.HeadRotation)
+                avatar.MarkDirty();
+        }
+        // A target ahead or one octant either side turns the head only, the body stays; past the
+        // head's reach the avatar turns whole, one sitting on the floor too (its sit is kept).
+        else if (
             rotation == avatar.Rotation
             || rotation == avatar.Rotation.Rotate(-1)
             || rotation == avatar.Rotation.Rotate(1)
         )
             avatar.SetHeadRotation(rotation);
-        else if (!IsHeldByFurni(avatar))
+        else
             avatar.SetRotation(rotation);
 
         return Task.FromResult(true);
     }
 
-    /// <summary>Whether the avatar sits or lies on a seat or bed, which holds its body still.</summary>
+    /// <summary>Whether the avatar sits or lies on a seat or bed, which holds it still.</summary>
     private bool IsHeldByFurni(IRoomAvatar avatar)
     {
         if (!avatar.HasStatus(AvatarStatusType.Sit) && !avatar.HasStatus(AvatarStatusType.Lay))

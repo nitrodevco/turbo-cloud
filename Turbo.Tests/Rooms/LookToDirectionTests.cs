@@ -28,7 +28,7 @@ public class LookToDirectionTests
 
     [Theory]
     [MemberData(nameof(Postures))]
-    public async Task Look_to_turns_the_head_and_keeps_a_body_held_by_a_seat_still(
+    public async Task Look_to_turns_the_head_and_keeps_an_avatar_held_by_a_seat_still(
         string posture,
         Rotation target
     )
@@ -45,6 +45,7 @@ public class LookToDirectionTests
         if (posture == "bed")
             avatar.Lay(true, rot: Rotation.East);
         var offset = TargetOffsets[(int)target];
+        avatar.GetSnapshot();
 
         Assert.True(
             await room.Harness.Room.LookToAsync(
@@ -56,12 +57,13 @@ public class LookToDirectionTests
         );
 
         // Official client capture: a floor sit turns body and head together like standing; a
-        // seat or bed holds the body.
+        // seat or bed turns neither, yet any target off the current direction still updates.
         var inReach =
             target == Rotation.East || target == Rotation.NorthEast || target == Rotation.SouthEast;
         var held = posture is "chair" or "bed";
         Assert.Equal(inReach || held ? Rotation.East : target, avatar.Rotation);
-        Assert.Equal(inReach || !held ? target : Rotation.East, avatar.HeadRotation);
+        Assert.Equal(held ? Rotation.East : target, avatar.HeadRotation);
+        Assert.Equal(target != Rotation.East, avatar.IsDirty);
         Assert.Equal(posture is "floor-sit" or "chair", avatar.HasStatus(AvatarStatusType.Sit));
         Assert.Equal(posture == "bed", avatar.HasStatus(AvatarStatusType.Lay));
     }
