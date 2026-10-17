@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Hotel;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
@@ -88,7 +90,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _logger = logger;
     }
 
-    public async Task<CatalogOfferSnapshot> PurchaseOfferFromCatalogAsync(
+    public async Task<CatalogPurchaseResult> PurchaseOfferFromCatalogAsync(
         CatalogType catalogType,
         int offerId,
         string extraParam,
@@ -156,9 +158,11 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         await DebitAsync(debitRequests, ct);
 
+        ImmutableArray<FurnitureItemSnapshot> granted;
+
         try
         {
-            await _grainFactory
+            granted = await _grainFactory
                 .GetInventoryGrain(this.GetPlayerId())
                 .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
             await GrantBadgesAsync(offer, ct);
@@ -198,7 +202,23 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
 
-        return offer;
+        // The confirmation lists the furni bought after the offer, floor and wall apart.
+        return new CatalogPurchaseResult
+        {
+            Offer = offer,
+            FloorItemIds =
+            [
+                .. granted
+                    .Where(x => x.Definition.ProductType != ProductType.Wall)
+                    .Select(x => x.ItemId),
+            ],
+            WallItemIds =
+            [
+                .. granted
+                    .Where(x => x.Definition.ProductType == ProductType.Wall)
+                    .Select(x => x.ItemId),
+            ],
+        };
     }
 
     /// <summary>

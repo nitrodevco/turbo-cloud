@@ -10,7 +10,7 @@ namespace Turbo.Primitives.Catalog.Grains;
 
 public partial interface ICatalogPurchaseGrain : IGrainWithIntegerKey
 {
-    public Task<CatalogOfferSnapshot> PurchaseOfferFromCatalogAsync(
+    public Task<CatalogPurchaseResult> PurchaseOfferFromCatalogAsync(
         CatalogType catalogType,
         int offerId,
         string extraParam,

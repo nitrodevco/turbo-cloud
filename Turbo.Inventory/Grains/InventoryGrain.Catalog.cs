@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading;
@@ -11,6 +12,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Texts;
 
@@ -21,9 +23,9 @@ internal sealed partial class InventoryGrain
     /// <summary>
     /// Hands a bought offer to the sections its products belong to. Everything that can refuse
     /// the purchase (a missing definition, a bad pet name) is checked before anything is
-    /// created, so a refusal leaves nothing behind.
+    /// created, so a refusal leaves nothing behind. Returns the furni created.
     /// </summary>
-    public async Task GrantCatalogOfferAsync(
+    public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantCatalogOfferAsync(
         CatalogOfferSnapshot offer,
         string extraParam,
         int quantity,
@@ -96,8 +98,8 @@ internal sealed partial class InventoryGrain
         foreach (var bot in bots)
             await BotModule.GrantProductAsync(bot, ct);
 
-        await FurniModule.GrantAsync(furniture, ct);
-        await FurniModule.GrantTeleportPairsAsync(teleportPairs, ct);
+        var granted = await FurniModule.GrantAsync(furniture, ct);
+        var pairs = await FurniModule.GrantTeleportPairsAsync(teleportPairs, ct);
 
         // The check before the charge makes a refusal here a race (a second purchase in flight);
         // it still throws, so the buyer is refunded instead of charged for nothing.
@@ -112,6 +114,8 @@ internal sealed partial class InventoryGrain
                     $"Effect {effectId} could not be given to player {PlayerId}: {result}."
                 );
         }
+
+        return [.. granted, .. pairs];
     }
 
     /// <summary>

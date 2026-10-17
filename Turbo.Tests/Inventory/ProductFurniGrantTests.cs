@@ -103,6 +103,18 @@ public sealed class ProductFurniGrantTests : IDisposable
     }
 
     [Fact]
+    public async Task TheGrant_ReturnsTheFurniItCreated_ForThePurchaseConfirmation()
+    {
+        var granted = await NewInventory()
+            .GrantCatalogOfferAsync(Offer(7, null), string.Empty, 2, Ct);
+
+        var listed = await NewInventory().GetAllItemSnapshotsAsync(Ct);
+
+        granted.Should().HaveCount(2);
+        granted.Select(x => x.ItemId).Should().BeEquivalentTo(listed.Select(x => x.ItemId));
+    }
+
+    [Fact]
     public async Task ASongDisc_NamesItsSong()
     {
         await NewInventory().GrantCatalogOfferAsync(Offer(5, "5"), string.Empty, 1, Ct);

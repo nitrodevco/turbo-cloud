@@ -43,7 +43,12 @@ public partial interface IInventoryGrain
     /// ignored.
     /// </summary>
     public Task ReleaseFurnitureAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct);
-    public Task GrantCatalogOfferAsync(
+
+    /// <summary>
+    /// Gives the player a bought offer's products. Returns the furni it created, teleporter
+    /// pairs included; pets, bots and effects are not furni and are not listed.
+    /// </summary>
+    public Task<ImmutableArray<FurnitureItemSnapshot>> GrantCatalogOfferAsync(
         CatalogOfferSnapshot offer,
         string extraParam,
         int quantity,

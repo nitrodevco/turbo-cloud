@@ -198,13 +198,15 @@ public sealed class CatalogSnapshotTests : IDisposable
                 ]
             );
 
-        return await ((ICatalogPurchaseGrain)grain).PurchaseOfferFromCatalogAsync(
+        var purchase = await ((ICatalogPurchaseGrain)grain).PurchaseOfferFromCatalogAsync(
             CatalogType.Normal,
             offerId,
             string.Empty,
             1,
             Ct
         );
+
+        return purchase.Offer;
     }
 
     private static void Set(object grain, string field, object value) =>
