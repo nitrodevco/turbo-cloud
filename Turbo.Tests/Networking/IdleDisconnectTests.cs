@@ -134,8 +134,13 @@ public sealed class IdleDisconnectTests
 
             return Task.CompletedTask;
         };
+        // A closed session is skipped by the next tick (Connection.IsClosed), as the gateway's is;
+        // without it a tick that ran before the heartbeat was disposed told it idle again.
+        var closed = false;
+        _fakes.Handlers["get_IsClosed"] = _ => closed;
         _fakes.Handlers["CloseSessionAsync"] = _ =>
         {
+            closed = true;
             first.TrySetResult();
 
             return Task.CompletedTask;
