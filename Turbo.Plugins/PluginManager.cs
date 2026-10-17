@@ -351,7 +351,18 @@ public sealed class PluginManager(
         var asm = GetLoadedPluginAssembly(m, folder);
 
         if (current is not null)
+        {
+            // Until the new version is up, nothing of the plugin is registered: not "loaded".
+            if (_status.TryGetValue(m.Key, out var was))
+                _status[m.Key] = was with
+                {
+                    State = PluginStateType.NotLoaded,
+                    LoadedAtUtc = null,
+                    Migrations = [],
+                };
+
             await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
+        }
 
         var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
 
