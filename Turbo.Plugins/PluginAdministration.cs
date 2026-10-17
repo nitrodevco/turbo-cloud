@@ -25,6 +25,9 @@ internal sealed partial class PluginAdministration(
 {
     private const string MANIFEST = "manifest.json";
 
+    /// <summary>Beside the plugins: the earlier versions kept, a zip each. Discovery skips dot-folders.</summary>
+    public const string VERSIONS = ".versions";
+
     public bool UploadEnabled => manager.Config.UploadEnabled;
 
     public long MaxUploadBytes => manager.Config.MaxUploadBytes;
@@ -119,7 +122,68 @@ internal sealed partial class PluginAdministration(
             .ConfigureAwait(false);
     }
 
-    public async Task<PluginActionResult> InstallAsync(Stream package, CancellationToken ct)
+    public Task<PluginActionResult> InstallAsync(Stream package, CancellationToken ct) =>
+        InstallAsync(package, null, ct);
+
+    public ImmutableArray<string> VersionsOf(string key)
+    {
+        var folder = VersionFolder(key);
+
+        if (folder is null || !Directory.Exists(folder))
+            return [];
+
+        var installed = Find(key)?.Version;
+
+        return
+        [
+            .. new DirectoryInfo(folder)
+                .EnumerateFiles("*.zip")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Select(f => Path.GetFileNameWithoutExtension(f.Name))
+                .Where(v => installed is null || v != FileNameOf(installed)),
+        ];
+    }
+
+    public async Task<PluginActionResult?> RollbackAsync(
+        string key,
+        string version,
+        CancellationToken ct
+    )
+    {
+        var folder = VersionFolder(key);
+        var path = folder is null ? null : Path.Combine(folder, FileNameOf(version) + ".zip");
+
+        if (path is null || !File.Exists(path))
+            return null;
+
+        // Read whole first: installing keeps the version it replaces in this same folder.
+        using var copy = new MemoryStream(
+            await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false)
+        );
+
+        var result = await InstallAsync(copy, key, ct).ConfigureAwait(false);
+
+        if (!result.Ok)
+            return result;
+
+        manager.State.RolledBack(key, version);
+
+        return result with
+        {
+            Message = $"Rolled {result.Plugin?.Name ?? key} back to {version}.",
+        };
+    }
+
+    /// <summary>
+    /// <see cref="InstallAsync(Stream, CancellationToken)"/>; with <paramref name="expectedKey"/>,
+    /// a package holding another plugin is refused. The version replaced is kept (see
+    /// <see cref="VersionsOf"/>), and put back when the new one does not load.
+    /// </summary>
+    internal async Task<PluginActionResult> InstallAsync(
+        Stream package,
+        string? expectedKey,
+        CancellationToken ct
+    )
     {
         if (!UploadEnabled)
             return new PluginActionResult(false, "Installing plugins from the panel is off.", null);
@@ -153,6 +217,23 @@ internal sealed partial class PluginAdministration(
                     null
                 );
 
+            if (
+                expectedKey is not null
+                && !string.Equals(manifest.Key, expectedKey, StringComparison.OrdinalIgnoreCase)
+            )
+                return new PluginActionResult(
+                    false,
+                    $"The package holds the plugin \"{manifest.Key}\", not \"{expectedKey}\".",
+                    null
+                );
+
+            if (manifest.ApiVersion is { } api && api != PluginApi.VERSION)
+                return new PluginActionResult(
+                    false,
+                    $"{manifest.Name} {manifest.Version} was built for plugin API {api}{(manifest.BuiltAgainst is { } built ? $" (turbo-cloud {built})" : "")}; this server has plugin API {PluginApi.VERSION}. Install a build made for it.",
+                    null
+                );
+
             manager.Refresh();
 
             var existing = manager.FolderOf(manifest.Key);
@@ -165,6 +246,7 @@ internal sealed partial class PluginAdministration(
                 );
 
             var target = existing ?? Path.Combine(manager.Config.PluginFolderPath, manifest.Key);
+            var kept = existing is null ? null : Keep(manifest.Key, existing);
 
             Replace(staging, target);
 
@@ -185,11 +267,17 @@ internal sealed partial class PluginAdministration(
                     off
                 );
 
-            return await RunAsync(
+            var loaded = await RunAsync(
                     manifest.Key,
                     $"Installed and loaded {manifest.Name} {manifest.Version}.",
                     () => manager.ReloadAsync(manifest.Key, ct)
                 )
+                .ConfigureAwait(false);
+
+            if (loaded.Ok || kept is null)
+                return loaded;
+
+            return await PutBackAsync(manifest, kept.Value, target, loaded.Message, ct)
                 .ConfigureAwait(false);
         }
         finally
@@ -205,6 +293,107 @@ internal sealed partial class PluginAdministration(
             }
         }
     }
+
+    /// <summary>
+    /// The version that did not load is taken out again and the one it replaced installed; what
+    /// the operator sees is why the new one failed, and that the old one is back.
+    /// </summary>
+    private async Task<PluginActionResult> PutBackAsync(
+        PluginManifest failed,
+        (string Version, string Path) kept,
+        string target,
+        string error,
+        CancellationToken ct
+    )
+    {
+        var staging = Path.Combine(
+            Path.GetTempPath(),
+            "turbo-plugin-" + Guid.NewGuid().ToString("N")
+        );
+
+        try
+        {
+            ZipFile.ExtractToDirectory(kept.Path, staging);
+            Replace(staging, target);
+        }
+        finally
+        {
+            if (Directory.Exists(staging))
+                Directory.Delete(staging, recursive: true);
+        }
+
+        logger.LogWarning(
+            "Plugin {Key}@{Version} did not load; put back {Kept}",
+            failed.Key,
+            failed.Version,
+            kept.Version
+        );
+
+        manager.Refresh();
+
+        var back = await RunAsync(failed.Key, "", () => manager.ReloadAsync(failed.Key, ct))
+            .ConfigureAwait(false);
+
+        return new PluginActionResult(
+            false,
+            back.Ok
+                ? $"{failed.Name} {failed.Version} did not load: {error} Put back {kept.Version}."
+                : $"{failed.Name} {failed.Version} did not load: {error} Putting back {kept.Version} failed too: {back.Message}",
+            back.Plugin
+        );
+    }
+
+    /// <summary>
+    /// Zips the plugin's folder as it is into <c>.versions/&lt;key&gt;/&lt;version&gt;.zip</c>
+    /// and drops the oldest past <c>KeepVersions</c>; null when its manifest can't be read.
+    /// </summary>
+    private (string Version, string Path)? Keep(string key, string folder)
+    {
+        string version;
+
+        try
+        {
+            version = PluginHelpers.ReadManifest(folder).Version;
+        }
+        catch (PluginException)
+        {
+            return null;
+        }
+
+        var versions = VersionFolder(key)!;
+        var path = Path.Combine(versions, FileNameOf(version) + ".zip");
+
+        Directory.CreateDirectory(versions);
+
+        if (File.Exists(path))
+            File.Delete(path);
+
+        ZipFile.CreateFromDirectory(folder, path);
+
+        foreach (
+            var old in new DirectoryInfo(versions)
+                .EnumerateFiles("*.zip")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Skip(Math.Max(1, manager.Config.KeepVersions))
+        )
+            old.Delete();
+
+        return (version, path);
+    }
+
+    private string? VersionFolder(string key) =>
+        KeyPattern().IsMatch(key)
+            ? Path.Combine(manager.Config.PluginFolderPath, VERSIONS, key)
+            : null;
+
+    /// <summary>The version as a file name: anything a path can't hold becomes '_'.</summary>
+    private static string FileNameOf(string version) =>
+        string.Concat(
+                version.Select(c =>
+                    char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '+' ? c : '_'
+                )
+            )
+            .TrimStart('.');
 
     private PluginSnapshot? Find(string key) =>
         manager

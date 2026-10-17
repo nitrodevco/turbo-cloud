@@ -13,8 +13,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Sources;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Tests.Support;
 using Xunit;
@@ -42,6 +44,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     private readonly IHostedService _server;
 
     private PluginAdministration _plugins;
+    private PluginSources _sources = null!;
     private bool _uploadEnabled = true;
 
     /// <summary>The nodes the staff member holds.</summary>
@@ -73,7 +76,18 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         // The endpoints reach the plugins through the interface the host registers.
         _fakes.Handlers["get_UploadEnabled"] = _ => _plugins.UploadEnabled;
         _fakes.Handlers["get_MaxUploadBytes"] = _ => _plugins.MaxUploadBytes;
-        _fakes.Handlers["List"] = _ => _plugins.List();
+        _fakes.Handlers["List"] = call =>
+            call.Interface == typeof(IPluginSources) ? _sources.List() : _plugins.List();
+        _fakes.Handlers["VersionsOf"] = call => _plugins.VersionsOf((string)call.Args[0]!);
+        _fakes.Handlers["RollbackAsync"] = call =>
+            _plugins.RollbackAsync((string)call.Args[0]!, (string)call.Args[1]!, Ct);
+        _fakes.Handlers["get_AllowedOwners"] = _ => _sources.AllowedOwners;
+        _fakes.Handlers["get_CheckMinutes"] = _ => _sources.CheckMinutes;
+        _fakes.Handlers["get_Job"] = _ => _sources.Job;
+        _fakes.Handlers["Add"] = call =>
+            _sources.Add((PluginSourceInput)call.Args[0]!, (int)call.Args[1]!);
+        _fakes.Handlers["Edit"] = call =>
+            _sources.Edit((string)call.Args[0]!, (PluginSourceInput)call.Args[1]!);
         _fakes.Handlers["RescanAsync"] = _ => _plugins.RescanAsync(Ct);
         _fakes.Handlers["ReloadAsync"] = call => _plugins.ReloadAsync((string)call.Args[0]!, Ct);
         _fakes.Handlers["SetEnabledAsync"] = call =>
@@ -379,6 +393,60 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Linking_a_repository_needs_the_install_node_and_the_refusal_is_logged()
+    {
+        _holds = node => node != PermissionNodes.Admin.PLUGINS_INSTALL;
+        await _server.StartAsync(Ct);
+
+        var response = await SendJsonAsync(
+            HttpMethod.Post,
+            "/api/plugins/sources",
+            new { repository = "Diddyy/turbo-bugreport-plugin", follow = "latest" }
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        Log().Should().Equal([("source add Diddyy/turbo-bugreport-plugin", "refused")]);
+        _sources.List().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_linked_repository_is_listed_with_whether_it_has_a_token_never_the_token()
+    {
+        await _server.StartAsync(Ct);
+
+        var response = await SendJsonAsync(
+            HttpMethod.Post,
+            "/api/plugins/sources",
+            new
+            {
+                repository = "https://github.com/Diddyy/turbo-bugreport-plugin",
+                follow = "latest",
+                token = "ghp_secret",
+            }
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // The install it starts asks GitHub, which is not here: it ends at once.
+        while (_sources.Job?.Status == PluginJobStatus.Running)
+            await Task.Delay(20, Ct);
+
+        var body = await (
+            await SendAsync(HttpMethod.Get, "/api/plugins")
+        ).Content.ReadAsStringAsync(Ct);
+        var source = JsonDocument
+            .Parse(body)
+            .RootElement.GetProperty("sources")
+            .EnumerateArray()
+            .Single();
+
+        body.Should().NotContain("ghp_secret");
+        source.GetProperty("repository").GetString().Should().Be("Diddyy/turbo-bugreport-plugin");
+        source.GetProperty("hasToken").GetBoolean().Should().BeTrue();
+        Log().Should().Equal([("source add Diddyy/turbo-bugreport-plugin", "completed")]);
+    }
+
+    [Fact]
     public void The_install_node_is_never_granted_by_a_wildcard()
     {
         new CorePermissionNodeSource()
@@ -389,16 +457,43 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
 
     private PluginAdministration Restart()
     {
+        var options = Options.Create(
+            new PluginConfig { PluginFolderPath = _folder, UploadEnabled = _uploadEnabled }
+        );
         var manager = new PluginManager(
             new ServiceCollection().BuildServiceProvider(),
             new AssemblyProcessor([]),
-            Options.Create(
-                new PluginConfig { PluginFolderPath = _folder, UploadEnabled = _uploadEnabled }
-            ),
+            options,
             NullLogger<PluginManager>.Instance
         );
 
-        return new PluginAdministration(manager, NullLogger<PluginAdministration>.Instance);
+        var plugins = new PluginAdministration(manager, NullLogger<PluginAdministration>.Instance);
+
+        // GitHub is not asked here (PluginSourcesTests asks a stand-in): every request fails.
+        _sources = new PluginSources(
+            manager,
+            plugins,
+            new PluginJobs(
+                new Fakes().Create<IHostApplicationLifetime>(),
+                TimeProvider.System,
+                NullLogger<PluginJobs>.Instance
+            ),
+            new PluginSecrets(options, NullLogger<PluginSecrets>.Instance),
+            new GitHubReleases(new HttpClient(new NoGitHub()), options),
+            options,
+            TimeProvider.System,
+            NullLogger<PluginSources>.Instance
+        );
+
+        return plugins;
+    }
+
+    private sealed class NoGitHub : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
     }
 
     private void WritePlugin(string key, string name)
@@ -462,6 +557,26 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         )
         {
             Content = form,
+        };
+
+        request.Headers.Authorization = new("Bearer", "a-session");
+
+        return await _client.SendAsync(request, Ct);
+    }
+
+    private async Task<HttpResponseMessage> SendJsonAsync(
+        HttpMethod method,
+        string path,
+        object body
+    )
+    {
+        var request = new HttpRequestMessage(method, $"http://127.0.0.1:{_port}{path}")
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(body),
+                Encoding.UTF8,
+                "application/json"
+            ),
         };
 
         request.Headers.Authorization = new("Bearer", "a-session");

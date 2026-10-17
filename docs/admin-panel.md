@@ -1032,8 +1032,31 @@ plugin folder unless it passes. It is installed into `<plugin folder>/<key>`, re
 plugin's files if it is installed already, and loaded. `Turbo:Plugin:MaxUploadBytes` (16 MB)
 bounds the package, packed and unpacked. A plugin from `DevPluginPaths` can't be replaced this way.
 
+Every install keeps the version it replaces, zipped, in `<plugin folder>/.versions/<key>/`
+(the newest `Turbo:Plugin:KeepVersions`, 3); the plugin's **Earlier versions** roll back to one,
+through the same checks, and the version rolled back from is kept in turn. A new version that does
+not load is taken out again and the one it replaced put back, with why it failed. A manifest may
+say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
+people to read); a server with another `PluginApi.VERSION` refuses it, saying both.
+
+**Linked from GitHub**: a plugin can be installed from a GitHub repository's releases and kept up
+to date. Link one by its URL (`https://github.com/owner/repo`) or `owner/repo`, following its
+newest release or one tag, with an optional token for a private repository (sealed on disk with
+`Turbo:Plugin:SecretKey`, or a `.plugin-key` made once beside the plugins; the panel only says a
+token is set). The package is the release's only `.zip` asset, or the asset named on the link; it
+is downloaded (checked against the SHA-256 GitHub lists for it) and installed as an uploaded
+package is, so linking, updating and rolling back need what installing needs. Every
+`Turbo:Plugin:UpdateCheckMinutes` (60; 0: only on request) the links are checked and a newer
+release shows as **Update available**; a link set to update on its own installs it then, except a
+release staff rolled back from. **Check now** (with `admin.plugins.manage`) and **Update** run as
+a job, with its steps and log on the page. `Turbo:Plugin:AllowedSources` limits the GitHub owners
+plugins may be linked from (empty: any); `Turbo:Plugin:GitHubApiUrl` points at GitHub Enterprise.
+A plugin repository builds its release package in CI against turbo-cloud (the bug report plugin's
+`.github/workflows/release.yml` is one). Links are kept in `plugins.json` under `Sources`.
+
 Every action on the page, refused ones included, is written to the command log as `plugin
-<action> <key>` from the `panel`, whoever takes it.
+<action> <key>` (`plugin source add owner/repo`, `plugin update owner/repo`, `plugin rollback key
+version`, ...) from the `panel`, whoever takes it.
 
 ## Server settings
 

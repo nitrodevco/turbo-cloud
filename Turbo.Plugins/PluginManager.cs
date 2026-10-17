@@ -103,6 +103,10 @@ public sealed class PluginManager(
         {
             foreach (var dir in Directory.EnumerateDirectories(_config.PluginFolderPath))
             {
+                // Dot-folders are the server's own (".versions": earlier versions kept to roll back to).
+                if (Path.GetFileName(dir).StartsWith('.'))
+                    continue;
+
                 try
                 {
                     var manifest = PluginHelpers.ReadManifest(dir);
