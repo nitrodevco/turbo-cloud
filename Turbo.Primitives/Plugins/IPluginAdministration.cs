@@ -48,6 +48,22 @@ public interface IPluginAdministration
     /// with the same key is replaced, and the plugin is loaded.
     /// </summary>
     public Task<PluginActionResult> InstallAsync(Stream package, CancellationToken ct);
+
+    /// <summary>
+    /// The earlier versions of the plugin kept to roll back to (<c>Turbo:Plugin:KeepVersions</c>),
+    /// newest first, without the one installed.
+    /// </summary>
+    public ImmutableArray<string> VersionsOf(string key);
+
+    /// <summary>
+    /// Installs a kept earlier version again, as a package is installed; the version it replaces
+    /// is kept in turn. Null when the plugin has no such version kept.
+    /// </summary>
+    public Task<PluginActionResult?> RollbackAsync(
+        string key,
+        string version,
+        CancellationToken ct
+    );
 }
 
 /// <summary>How a plugin stands right now.</summary>

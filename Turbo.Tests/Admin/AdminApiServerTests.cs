@@ -201,6 +201,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
                 typeof(Turbo.Primitives.Plugins.IPluginAdministration),
+                typeof(Turbo.Primitives.Plugins.IPluginSources),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));

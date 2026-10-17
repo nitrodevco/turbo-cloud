@@ -21,11 +21,14 @@ namespace Turbo.Admin.Api;
 /// The server's plugins, for staff with <c>admin.plugins.view</c>. Reloading one, scanning the
 /// folders again and turning one off or on need <c>admin.plugins.manage</c>; installing a package
 /// needs <c>admin.plugins.install</c>, named on purpose, and <c>Turbo:Plugin:UploadEnabled</c>.
+/// So do linking a GitHub repository, updating from it and rolling back to a kept version: each
+/// puts server code in place. Checking a link for a new release needs <c>admin.plugins.manage</c>.
 /// Every action, refused ones too, goes to the command log (<see cref="AdminPluginAudit"/>).
 /// </summary>
 internal sealed class PluginEndpoints(
     IGrainFactory grainFactory,
     IPluginAdministration plugins,
+    IPluginSources sources,
     AdminPluginAudit audit
 )
 {
@@ -45,6 +48,24 @@ internal sealed class PluginEndpoints(
         group.MapGet("/", ListAsync);
         group.MapPost("/rescan", RescanAsync);
         group.MapPost("/install", InstallAsync);
+        group.MapGet(
+            "/job",
+            () => sources.Job is { } job ? Results.Ok(PluginJobView.From(job)) : Results.NoContent()
+        );
+        group.MapPost("/job/cancel", CancelJobAsync);
+        group.MapPost("/sources", AddSourceAsync);
+        group.MapPost(
+            "/sources/check",
+            (HttpContext http, CancellationToken ct) => CheckAsync(null, http, ct)
+        );
+        group.MapPut("/sources/{id}", EditSourceAsync);
+        group.MapDelete("/sources/{id}", RemoveSourceAsync);
+        group.MapPost(
+            "/sources/{id}/check",
+            (string id, HttpContext http, CancellationToken ct) => CheckAsync(id, http, ct)
+        );
+        group.MapPost("/sources/{id}/update", UpdateAsync);
+        group.MapPost("/{key}/rollback", RollbackAsync);
         group.MapPost("/{key}/reload", ReloadAsync);
         group.MapPost(
             "/{key}/enable",
@@ -65,13 +86,17 @@ internal sealed class PluginEndpoints(
 
         return Results.Ok(
             new PluginsResponse(
-                [.. plugins.List().Select(PluginView.From)],
+                [.. plugins.List().Select(p => PluginView.From(p, plugins.VersionsOf(p.Key)))],
                 canManage,
                 canManage
                     && await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct)
                         .ConfigureAwait(false),
                 plugins.UploadEnabled,
-                plugins.MaxUploadBytes
+                plugins.MaxUploadBytes,
+                [.. sources.List().Select(PluginSourceView.From)],
+                sources.Job is { } job ? PluginJobView.From(job) : null,
+                [.. sources.AllowedOwners],
+                sources.CheckMinutes
             )
         );
     }
@@ -187,6 +212,247 @@ internal sealed class PluginEndpoints(
 
         return Answer(result);
     }
+
+    private async Task<IResult> AddSourceAsync(
+        PluginSourceRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var repository = request.Repository?.Trim() ?? "";
+
+        if (
+            await RefuseInstallAsync(http, $"source add {repository}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        var result = sources.Add(request.ToInput(), AdminIdentity.Of(http).PlayerId.Value);
+
+        return await AnswerAsync(
+                http,
+                $"source add {result.Source?.Repository ?? repository}",
+                result
+            )
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IResult> EditSourceAsync(
+        string id,
+        PluginSourceRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var name = NameOf(id);
+
+        if (
+            await RefuseInstallAsync(http, $"source edit {name}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        return await AnswerAsync(http, $"source edit {name}", sources.Edit(id, request.ToInput()))
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IResult> RemoveSourceAsync(string id, HttpContext http, CancellationToken ct)
+    {
+        var name = NameOf(id);
+
+        if (
+            await RefuseManageAsync(http, $"source remove {name}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        return await AnswerAsync(http, $"source remove {name}", sources.Remove(id))
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IResult> CheckAsync(string? id, HttpContext http, CancellationToken ct)
+    {
+        var name = id is null ? "all" : NameOf(id);
+
+        if (await RefuseManageAsync(http, $"check {name}", ct).ConfigureAwait(false) is { } refused)
+            return refused;
+
+        return await AnswerAsync(
+                http,
+                $"check {name}",
+                sources.Check(id, AdminIdentity.Of(http).PlayerId.Value)
+            )
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IResult> UpdateAsync(string id, HttpContext http, CancellationToken ct)
+    {
+        var name = NameOf(id);
+
+        if (
+            await RefuseInstallAsync(http, $"update {name}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        return await AnswerAsync(
+                http,
+                $"update {name}",
+                sources.Update(id, AdminIdentity.Of(http).PlayerId.Value)
+            )
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IResult> CancelJobAsync(HttpContext http, CancellationToken ct)
+    {
+        if (await RefuseManageAsync(http, "stop job", ct).ConfigureAwait(false) is { } refused)
+            return refused;
+
+        var stopped = sources.CancelJob();
+
+        await audit
+            .WriteAsync(
+                AdminIdentity.Of(http).PlayerId,
+                "stop job",
+                stopped ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        return stopped
+            ? Results.NoContent()
+            : AdminResults.Error(StatusCodes.Status409Conflict, "No plugin job is running.");
+    }
+
+    private async Task<IResult> RollbackAsync(
+        string key,
+        PluginRollbackRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var version = request.Version?.Trim() ?? "";
+        var arguments = $"rollback {key} {version}".TrimEnd();
+
+        if (await RefuseInstallAsync(http, arguments, ct).ConfigureAwait(false) is { } refused)
+            return refused;
+
+        if (version.Length == 0)
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "Choose the version to roll back to."
+            );
+
+        // Not the request's token: a plugin folder half-replaced would be a broken plugin.
+        var result = await plugins
+            .RollbackAsync(key, version, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        await audit
+            .WriteAsync(
+                AdminIdentity.Of(http).PlayerId,
+                arguments,
+                result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        return result is null
+            ? AdminResults.Error(
+                StatusCodes.Status404NotFound,
+                "That plugin has no such version kept."
+            )
+            : Answer(result);
+    }
+
+    /// <summary>
+    /// A refusal, written to the command log, unless the staff member may put server code in
+    /// place: <c>admin.plugins.manage</c> and <c>admin.plugins.install</c>, on a server that allows
+    /// installing from the panel.
+    /// </summary>
+    private async Task<IResult?> RefuseInstallAsync(
+        HttpContext http,
+        string arguments,
+        CancellationToken ct
+    )
+    {
+        if (
+            !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false)
+            || !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct)
+                .ConfigureAwait(false)
+        )
+        {
+            await audit
+                .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+                .ConfigureAwait(false);
+
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_INSTALL);
+        }
+
+        if (!plugins.UploadEnabled)
+        {
+            await audit
+                .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+                .ConfigureAwait(false);
+
+            return AdminResults.Error(StatusCodes.Status403Forbidden, UPLOAD_OFF);
+        }
+
+        return null;
+    }
+
+    private async Task<IResult?> RefuseManageAsync(
+        HttpContext http,
+        string arguments,
+        CancellationToken ct
+    )
+    {
+        if (await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false))
+            return null;
+
+        await audit
+            .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+            .ConfigureAwait(false);
+
+        return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+    }
+
+    /// <summary>
+    /// A link action's answer, written to the command log: a job it started is <c>Completed</c>
+    /// here (how the job ends is in its log), a refusal <c>Failed</c>; 404 for no such link.
+    /// </summary>
+    private async Task<IResult> AnswerAsync(
+        HttpContext http,
+        string arguments,
+        PluginSourceResult? result
+    )
+    {
+        await audit
+            .WriteAsync(
+                AdminIdentity.Of(http).PlayerId,
+                arguments,
+                result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        if (result is null)
+            return AdminResults.Error(
+                StatusCodes.Status404NotFound,
+                "There is no such linked repository."
+            );
+
+        return result.Ok
+            ? Results.Ok(PluginSourceActionResponse.From(result))
+            : Results.Json(
+                PluginSourceActionResponse.From(result),
+                statusCode: StatusCodes.Status422UnprocessableEntity
+            );
+    }
+
+    /// <summary>The link's repository for the command log, or its id when there is none.</summary>
+    private string NameOf(string id) =>
+        sources.List().FirstOrDefault(x => x.Id == id)?.Repository ?? id;
 
     /// <summary>
     /// An action by someone who holds <c>admin.plugins.manage</c>, written to the command log

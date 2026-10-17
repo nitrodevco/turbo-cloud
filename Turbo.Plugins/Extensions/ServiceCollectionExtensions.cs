@@ -1,8 +1,13 @@
+using System;
+using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Sources;
 using Turbo.Primitives.Plugins;
 
 namespace Turbo.Plugins.Extensions;
@@ -19,7 +24,20 @@ public static class ServiceCollectionExtensions
         services.Configure<PluginConfig>(pluginSection);
 
         services.AddSingleton<PluginManager>();
-        services.AddSingleton<IPluginAdministration, PluginAdministration>();
+        services.AddSingleton<PluginAdministration>();
+        services.AddSingleton<IPluginAdministration>(sp =>
+            sp.GetRequiredService<PluginAdministration>()
+        );
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<PluginJobs>();
+        services.AddSingleton<PluginSecrets>();
+        services.AddSingleton(sp => new GitHubReleases(
+            new HttpClient { Timeout = TimeSpan.FromMinutes(2) },
+            sp.GetRequiredService<IOptions<PluginConfig>>()
+        ));
+        services.AddSingleton<PluginSources>();
+        services.AddSingleton<IPluginSources>(sp => sp.GetRequiredService<PluginSources>());
+        services.AddHostedService<PluginUpdateWatcher>();
         services.AddHostedService<PluginBootstrapper>();
 
         // Read through the bound class, not by key name: a string literal here would keep
