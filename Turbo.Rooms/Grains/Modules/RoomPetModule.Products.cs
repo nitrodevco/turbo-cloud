@@ -107,7 +107,17 @@ public sealed partial class RoomPetModule
         builder.Add(partId);
         builder.Add(paletteId);
 
-        pet.SetPetFigure(pet.PetFigure with { CustomParts = builder.ToImmutable() });
+        await SetCustomPartsAsync(pet, builder.ToImmutable(), ct);
+    }
+
+    /// <summary>Replaces all of the pet's custom parts (a hair dye or style changing several layers).</summary>
+    internal async Task SetCustomPartsAsync(
+        IRoomPet pet,
+        ImmutableArray<int> customParts,
+        CancellationToken ct
+    )
+    {
+        pet.SetPetFigure(pet.PetFigure with { CustomParts = customParts });
 
         await BroadcastFigureAsync(pet, ct);
         Persist(pet);
