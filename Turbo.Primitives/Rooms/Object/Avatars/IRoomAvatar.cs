@@ -49,6 +49,11 @@ public interface IRoomAvatar : IRoomObject
     public long NextMoveUpdateAtMs { get; set; }
     public long PendingStopAtMs { get; set; }
 
+    /// <summary>
+    /// When a head turned toward someone talking looks back to the body, 0 for none.
+    /// </summary>
+    public long HeadRevertAtMs { get; set; }
+
     /// <summary>The hand item (drink, snack) the avatar carries, 0 for none.</summary>
     public int HandItemId { get; }
 

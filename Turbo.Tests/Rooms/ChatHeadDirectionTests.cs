@@ -65,8 +65,8 @@ public class ChatHeadDirectionTests
     [InlineData(0, -7, RoomChatType.Chat, false, Rotation.NorthWest)]
     [InlineData(0, -7, RoomChatType.Shout, false, Rotation.North)]
     [InlineData(0, 1, RoomChatType.Shout, false, Rotation.NorthWest)]
-    [InlineData(1, -1, RoomChatType.Whisper, false, Rotation.NorthWest)]
-    public async Task Chat_preserves_overlap_walking_range_and_whisper_rules(
+    [InlineData(1, -1, RoomChatType.Whisper, false, Rotation.NorthEast)]
+    public async Task Chat_preserves_overlap_walking_range_and_whisper_recipient_rules(
         int dx,
         int dy,
         RoomChatType chatType,

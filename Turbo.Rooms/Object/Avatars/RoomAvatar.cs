@@ -39,6 +39,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public long NextMoveStepAtMs { get; set; } = 0;
     public long NextMoveUpdateAtMs { get; set; } = 0;
     public long PendingStopAtMs { get; set; } = 0;
+    public long HeadRevertAtMs { get; set; } = 0;
     public int HandItemId { get; private set; } = 0;
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public int EffectId { get; private set; } = 0;

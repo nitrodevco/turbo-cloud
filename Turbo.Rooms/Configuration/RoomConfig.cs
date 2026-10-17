@@ -306,6 +306,7 @@ public class RoomConfig
     public int ObjectDataMaxKeyLength { get; init; } = 64;
     public int ObjectDataMaxValueLength { get; init; } = 512;
     public int ChatLookAtRange { get; init; } = 6;
+    public int ChatLookAtRevertMs { get; init; } = 5000;
     public int ChatFloodMaxMessagesExtraSensitivity { get; init; } = 4;
     public int ChatFloodMaxMessagesNormalSensitivity { get; init; } = 6;
     public int ChatFloodMaxMessagesMinimalSensitivity { get; init; } = 8;

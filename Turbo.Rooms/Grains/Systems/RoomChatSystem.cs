@@ -173,8 +173,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         else
             await BroadcastAsync(evt, speaker, recipient, ct);
 
-        if (chatType != RoomChatType.Whisper)
-            TurnHeadsTowards(speaker, chatType);
+        TurnHeadsTowards(speaker, chatType, recipient);
 
         await PetModule.HandleChatAsync(evt, ct);
 
@@ -465,13 +464,28 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             },
         };
 
-    private void TurnHeadsTowards(IRoomPlayer speaker, RoomChatType chatType)
+    /// <summary>
+    /// Listeners within head reach look at the speaker and back to their body a while later
+    /// (official client capture, hhus 2026-10-17: head toward the speaker, body kept, on the next
+    /// update; the head back exactly ~5.0 s after that, 3/3 for talk, talk, whisper). A whisper
+    /// turns its recipient only. A listener held by a seat keeps its head, yet the room still gets
+    /// its unchanged update when the time is up (1/1); one behind the speaker gets neither (3/3).
+    /// </summary>
+    private void TurnHeadsTowards(
+        IRoomPlayer speaker,
+        RoomChatType chatType,
+        IRoomPlayer? recipient
+    )
     {
         var range = _roomGrain._roomConfig.ChatLookAtRange;
+        var revertAtMs = _roomGrain.NowMs() + _roomGrain._roomConfig.ChatLookAtRevertMs;
 
         foreach (var avatar in AvatarModule.Avatars)
         {
             if (avatar.ObjectId == speaker.ObjectId || avatar.IsWalking)
+                continue;
+
+            if (chatType == RoomChatType.Whisper && avatar.ObjectId != recipient?.ObjectId)
                 continue;
 
             if (avatar.X == speaker.X && avatar.Y == speaker.Y)
@@ -506,7 +520,10 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             )
                 continue;
 
-            avatar.SetHeadRotation(targetRotation);
+            if (!AvatarModule.IsHeldByFurni(avatar))
+                avatar.SetHeadRotation(targetRotation);
+
+            avatar.HeadRevertAtMs = revertAtMs;
         }
     }
 
