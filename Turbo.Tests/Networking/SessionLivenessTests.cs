@@ -42,10 +42,10 @@ public sealed class SessionLivenessTests : IAsyncDisposable
     );
     private readonly CapturingLogger<SessionLivenessTests> _closeLog = new();
     private readonly ClientWebSocket _client = new();
-    private readonly IHost _host;
-    private readonly int _port = FreePort();
+    private IHost? _host;
+    private int _port;
 
-    public SessionLivenessTests()
+    private IHost BuildHost(int port)
     {
         var fakes = new Fakes();
         var builder = WebSocketHostBuilder.Create();
@@ -53,7 +53,7 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         builder.ConfigureSuperSocket(options =>
         {
             options.Name = "SessionLivenessTests";
-            options.AddListener(new ListenOptions { Ip = "127.0.0.1", Port = _port });
+            options.AddListener(new ListenOptions { Ip = "127.0.0.1", Port = port });
         });
         builder.ConfigureServices(
             (_, services) =>
@@ -90,20 +90,24 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         builder.UseSession<WebSocketSessionContext>();
         builder.UseSessionGateway();
 
-        _host = builder.Build();
+        return builder.Build();
     }
 
     public async ValueTask DisposeAsync()
     {
         _releaseSlowHandler.TrySetResult();
         _client.Dispose();
+
+        if (_host is null)
+            return;
+
         await _host.StopAsync(TimeSpan.FromSeconds(5));
         _host.Dispose();
     }
 
     private async Task<ISessionContext> ConnectAsync()
     {
-        await _host.StartAsync();
+        await StartAsync();
         await _client.ConnectAsync(new Uri($"ws://127.0.0.1:{_port}/"), CancellationToken.None);
         await SendAsync();
 
@@ -187,6 +191,30 @@ public sealed class SessionLivenessTests : IAsyncDisposable
             await Task.Delay(25);
         }
         return condition();
+    }
+
+    // A port found free can be taken again before the server binds it, by a test or a client
+    // connection running beside this one, and then the server fails to start: so it starts on
+    // another (1 in 200 runs failed so under load).
+    private async Task StartAsync()
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            _port = FreePort();
+            var host = BuildHost(_port);
+
+            try
+            {
+                await host.StartAsync();
+                _host = host;
+
+                return;
+            }
+            catch (Exception) when (attempt < 5)
+            {
+                host.Dispose();
+            }
+        }
     }
 
     private static int FreePort()
