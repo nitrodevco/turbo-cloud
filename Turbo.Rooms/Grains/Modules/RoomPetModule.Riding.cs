@@ -58,6 +58,8 @@ public sealed partial class RoomPetModule
             return true;
         }
 
+        // The pet stops for its rider, else it roams off the tile the rider walks to.
+        await AvatarModule.StopWalkingAsync(pet, ct);
         pet.PendingRiderObjectId = rider.ObjectId;
 
         if (await WalkNextToAsync(rider, pet, ct))
@@ -211,8 +213,18 @@ public sealed partial class RoomPetModule
 
         if (
             parts.Length < 2
-            || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x)
-            || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var y)
+            || !int.TryParse(
+                parts[0],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var x
+            )
+            || !int.TryParse(
+                parts[1],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var y
+            )
         )
             return riderMove;
 

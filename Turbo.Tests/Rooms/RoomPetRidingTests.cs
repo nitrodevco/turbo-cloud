@@ -85,7 +85,9 @@ public sealed class RoomPetRidingTests
             .BeTrue();
         await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(10_000, Ct);
 
-        RiderSnapshot().Status.Should().Contain($"mv 5,4,{Altitude.FromValue(RiderHeight).ToStatusString()}");
+        RiderSnapshot()
+            .Status.Should()
+            .Contain($"mv 5,4,{Altitude.FromValue(RiderHeight).ToStatusString()}");
         HorseSnapshot().Status.Should().Contain("mv 5,4,0.0");
 
         await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(20_000, Ct);
@@ -102,6 +104,28 @@ public sealed class RoomPetRidingTests
         (await Pets.MountPetAsync(Owner, PET, false, Ct)).Should().BeTrue();
 
         RiderSnapshot().Z.Value.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AHorseSomeoneWalksOverToRide_WaitsForThem()
+    {
+        _owner.SetPosition(1, 4);
+        (await Pets.PlacePetAsync(Owner, PET, 4, 4, Ct)).Should().BeTrue();
+        Pets.TryGetPet(PET, out var pet).Should().BeTrue();
+        pet!.IsFreeRoaming = true;
+
+        (await Pets.MountPetAsync(Owner, PET, true, Ct)).Should().BeTrue();
+
+        for (var tick = 1; tick <= 10 && !pet.IsRiding; tick++)
+        {
+            await _harness.Room.PetTickSystem.ProcessPetsAsync(long.MaxValue / 2, Ct);
+            await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(tick * 10_000L, Ct);
+            await _harness.Room.PetTickSystem.ProcessPetsAsync(long.MaxValue / 2, Ct);
+        }
+
+        (pet.X, pet.Y).Should().Be((4, 4), "it waited where it stood");
+        pet.RiderObjectId.Should().Be(_owner.ObjectId);
+        RiderSnapshot().Z.Value.Should().Be(RiderHeight);
     }
 
     private async Task MountAsync()
