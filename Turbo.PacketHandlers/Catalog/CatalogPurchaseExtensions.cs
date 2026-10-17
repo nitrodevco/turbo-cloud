@@ -29,12 +29,20 @@ internal static class CatalogPurchaseExtensions
     {
         try
         {
-            var offer = await grainFactory
+            var purchase = await grainFactory
                 .GetCatalogPurchaseGrain(ctx.PlayerId)
                 .PurchaseOfferFromCatalogAsync(catalogType, offerId, extraParam, quantity, ct)
                 .ConfigureAwait(false);
 
-            await ctx.SendComposerAsync(new PurchaseOKMessageComposer { Offer = offer }, ct)
+            await ctx.SendComposerAsync(
+                    new PurchaseOKMessageComposer
+                    {
+                        Offer = purchase.Offer,
+                        FloorItemIds = purchase.FloorItemIds,
+                        WallItemIds = purchase.WallItemIds,
+                    },
+                    ct
+                )
                 .ConfigureAwait(false);
         }
         catch (CatalogPurchaseException ex)

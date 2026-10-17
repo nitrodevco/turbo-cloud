@@ -69,8 +69,19 @@ public static class CatalogDecoders
         return new CatalogPage(pageId, layout, offers);
     }
 
-    /// <summary>PurchaseOK: the offer as bought, without the silver cost or the trailing fields.</summary>
-    public static CatalogOffer PurchaseOk(PacketReader reader) => Offer(reader, purchased: true);
+    /// <summary>
+    /// PurchaseOK: the offer as bought, without the silver cost or the trailing fields, then the
+    /// floor and the wall furni ids the purchase created.
+    /// </summary>
+    public static CatalogOffer PurchaseOk(PacketReader reader)
+    {
+        var offer = Offer(reader, purchased: true);
+
+        _ = reader.Ints(); // floor item ids
+        _ = reader.Ints(); // wall item ids
+
+        return offer;
+    }
 
     private static CatalogOffer Offer(PacketReader reader, bool purchased)
     {

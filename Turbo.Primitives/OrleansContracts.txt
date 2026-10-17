@@ -80,7 +80,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.ICatalogPurchaseG
   D08490B9: ClaimClubGiftAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
   A8DE1494: GetClubGiftInfoAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.ClubGiftInfoSnapshot>
   A3D26B82: PurchaseOfferAsGiftAsync(Turbo.Primitives.Catalog.CatalogGiftRequest, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
-  297AFF96: PurchaseOfferFromCatalogAsync(Turbo.Primitives.Catalog.Enums.CatalogType, int, string, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
+  297AFF96: PurchaseOfferFromCatalogAsync(Turbo.Primitives.Catalog.Enums.CatalogType, int, string, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.CatalogPurchaseResult>
   81BEB073: PurchaseRoomAdAsync(int, Turbo.Primitives.Rooms.RoomId, int, string, string, bool, System.TimeSpan, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot>
 
 interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.IPlayerProductClaimGrain")] Turbo.Primitives.Catalog.Grains.IPlayerProductClaimGrain [Version(0)]
@@ -183,7 +183,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   93437806: GetItemSnapshotAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   0FAD35D9: GetItemSnapshotsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
   11F706E8: GetPetSnapshotAsync(int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
-  AECD63A1: GrantCatalogOfferAsync(Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot, string, int, System.Threading.CancellationToken) -> Task
+  AECD63A1: GrantCatalogOfferAsync(Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot, string, int, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
   B25B9F79: GrantFurnitureAsync(int, string?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   C598006F: GrantLtdFurnitureAsync(int, int, int, System.Threading.CancellationToken) -> Task
   3B9E90DC: ReceiveFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>, System.Threading.CancellationToken) -> Task

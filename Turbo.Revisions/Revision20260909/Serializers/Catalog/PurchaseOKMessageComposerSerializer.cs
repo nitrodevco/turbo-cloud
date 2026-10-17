@@ -10,5 +10,17 @@ internal class PurchaseOKMessageComposerSerializer(int header)
     protected override void Serialize(IServerPacket packet, PurchaseOKMessageComposer message)
     {
         CatalogOfferSerializer.SerializeAsPurchased(packet, message.Offer);
+
+        // The official server follows the offer with the furni bought, floor then wall, which
+        // the Flash client (PurchaseOKMessageOfferData) does not read.
+        packet.WriteInteger(message.FloorItemIds.Length);
+
+        foreach (var itemId in message.FloorItemIds)
+            packet.WriteInteger(itemId.Value);
+
+        packet.WriteInteger(message.WallItemIds.Length);
+
+        foreach (var itemId in message.WallItemIds)
+            packet.WriteInteger(itemId.Value);
     }
 }
