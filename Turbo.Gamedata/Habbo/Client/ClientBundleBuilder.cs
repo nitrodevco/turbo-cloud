@@ -156,7 +156,9 @@ internal sealed partial class ClientBundleBuilder(
                 continue;
             }
 
-            var revision = $"client:{BUILD}:{sha256}{(stamp.Length > 0 ? ":" + stamp : "")}";
+            // Half the library's hash, as the templates have it: the revision column holds 64.
+            var revision =
+                $"client:{BUILD}:{sha256[..Math.Min(sha256.Length, 32)]}{(stamp.Length > 0 ? ":" + stamp : "")}";
 
             if (row?.Revision == revision && row.Error is null)
                 continue;

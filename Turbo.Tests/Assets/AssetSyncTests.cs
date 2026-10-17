@@ -975,7 +975,21 @@ public sealed class AssetSyncTests : IDisposable
     {
         await using var db = _db.CreateDbContext();
 
-        return await db.AssetBundles.AsNoTracking().ToDictionaryAsync(x => (x.Kind, x.Name), Ct);
+        var rows = await db
+            .AssetBundles.AsNoTracking()
+            .ToDictionaryAsync(x => (x.Kind, x.Name), Ct);
+        var entity = db.Model.FindEntityType(typeof(AssetBundleEntity))!;
+
+        // SQLite keeps a string of any length; the hotel's MySQL refuses one longer than its column.
+        foreach (var row in rows.Values)
+        foreach (var property in entity.GetProperties())
+            if (
+                property.GetMaxLength() is { } max
+                && property.PropertyInfo?.GetValue(row) is string text
+            )
+                text.Length.Should().BeLessThanOrEqualTo(max, $"{row.Name}'s {property.Name}");
+
+        return rows;
     }
 
     /// <summary>Habbo's hosts: what it serves by address, 404 for the rest; each request recorded.</summary>
