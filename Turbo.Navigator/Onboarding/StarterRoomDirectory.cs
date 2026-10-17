@@ -23,7 +23,7 @@ namespace Turbo.Navigator.Onboarding;
 /// <see cref="IStarterRoomDirectory"/> over <c>starter_rooms</c>. After every change the client's
 /// side is written again: <c>new.user.flow.roomTypes</c> lists the rooms' ids in picker order,
 /// <c>new.user.flow.room.image.url</c> points at the gamedata host's
-/// <c>/starter-rooms/%type%.png</c>, and each room's <c>room.name.&lt;id&gt;</c> and
+/// <c>/gamedata/starter-rooms/%type%.png</c>, and each room's <c>room.name.&lt;id&gt;</c> and
 /// <c>room.description.&lt;id&gt;</c> are its own name and description. With no rooms left the
 /// built-in ones are offered again: room type <c>10</c> and Habbo's picture.
 /// </summary>
@@ -45,7 +45,7 @@ public sealed class StarterRoomDirectory(
         "https://images.habbo.com/c_images/nux/nux_room_%type%_round.png";
 
     /// <summary>Where the gamedata host serves the pictures, under its public address.</summary>
-    public const string PICTURE_ROUTE = "/starter-rooms/";
+    public const string PICTURE_ROUTE = "/gamedata/starter-rooms/";
 
     private const string GAMEDATA_PUBLIC_URL_SETTING = "Turbo:Gamedata:PublicUrl";
 

@@ -505,7 +505,7 @@ public sealed class NewUserOnboardingTests : IDisposable
         variables["new.user.flow.roomTypes"].Should().Be("\"70,71,72\"");
         variables["new.user.flow.room.image.url"]
             .Should()
-            .Be("\"https://gamedata.example/starter-rooms/%type%.png\"");
+            .Be("\"https://gamedata.example/gamedata/starter-rooms/%type%.png\"");
         texts["room.name.71"].Should().Be("Room 71");
 
         (await directory.RemoveAsync(new RoomId(71), OTHER_PLAYER, Ct))

@@ -35,7 +35,7 @@ Build the room in the hotel like any room - floor plan, paint, furni - then, sta
 1. **`:starterroom add`** offers it (permission node `command.starterroom`, not granted by default;
    up to `Turbo:Onboarding:MaxStarterRooms`, 3, as many as the picker lays out). Turbo writes the
    client's side for you: the room joins `new.user.flow.roomTypes` (its id is its room type),
-   `new.user.flow.room.image.url` points at the gamedata host's `/starter-rooms/%type%.png`, and
+   `new.user.flow.room.image.url` points at the gamedata host's `/gamedata/starter-rooms/%type%.png`, and
    `room.name.<id>` / `room.description.<id>` are the room's own name and description.
 2. **The starter room camera opens** (nitro-next). Move the room or the window until the room sits
    well in the circle, step out of it yourself, and take the picture. Turbo draws it into Habbo's

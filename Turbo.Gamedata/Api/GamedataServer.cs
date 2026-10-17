@@ -44,9 +44,12 @@ namespace Turbo.Gamedata.Api;
 /// <c>.../photodata/public/furni/</c>. A <c>POST</c> of a JSON array of ids to the same address
 /// without an id answers each known photo's <c>{ id, url }</c>, which posters on the wall ask
 /// for together under <c>extra_data_batches_enabled</c> (<c>ExtraDataManager.handleBatch</c>).</item>
-/// <item><c>/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
-/// (<see cref="IStarterRoomDirectory"/>), which the room picker shows; it can be taken again, so it
-/// is cached for a minute only.</item>
+/// <item><c>/gamedata/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
+/// (<see cref="IStarterRoomDirectory"/>), which the room picker shows: the client's
+/// <c>new.user.flow.room.image.url</c> is this address with <c>%type%</c> for the id. Under
+/// <c>/gamedata/</c>, so the reverse proxy that passes the gamedata on passes it too. It can be
+/// taken again, so it is cached for a minute only. <c>/starter-rooms/&lt;room id&gt;.png</c>, where it
+/// was served before, still answers for a client holding the old address.</item>
 /// <item><c>/gamedata/navigator-thumbnail/&lt;room id&gt;.png</c> is a room's thumbnail
 /// (<see cref="IRoomThumbnailFiles"/>), the picture the navigator shows: the client's
 /// <c>navigator.thumbnail.url_base</c> is this address without the room id, as Habbo's is its
@@ -71,6 +74,12 @@ internal sealed class GamedataServer(
 
     /// <summary>Where a camera photo is served, before <c>&lt;photo id&gt;.png</c>.</summary>
     public const string PHOTO_ROUTE = "/gamedata/photos/";
+
+    /// <summary>Where a starter room's picture is served, before <c>&lt;room id&gt;.png</c>.</summary>
+    public const string STARTER_ROOM_PICTURE_ROUTE = "/gamedata/starter-rooms/";
+
+    /// <summary>Where a starter room's picture was served before <see cref="STARTER_ROOM_PICTURE_ROUTE"/>.</summary>
+    public const string OLD_STARTER_ROOM_PICTURE_ROUTE = "/starter-rooms/";
     private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
     private const string ROOM_THUMBNAIL_CACHE = "public, no-cache";
     private const string PHOTO_DATA_CACHE = "no-store";
@@ -148,10 +157,16 @@ internal sealed class GamedataServer(
             );
         }
         if (starterRooms is not null)
+        {
             app.MapGet(
-                "/starter-rooms/{roomId:int}.png",
+                STARTER_ROOM_PICTURE_ROUTE + "{roomId:int}.png",
                 (HttpContext http, int roomId) => StarterRoomPicture(http, starterRooms, roomId)
             );
+            app.MapGet(
+                OLD_STARTER_ROOM_PICTURE_ROUTE + "{roomId:int}.png",
+                (HttpContext http, int roomId) => StarterRoomPicture(http, starterRooms, roomId)
+            );
+        }
         if (thumbnails is not null)
             app.MapGet(
                 ROOM_THUMBNAIL_ROUTE + "{roomId:int}.png",
