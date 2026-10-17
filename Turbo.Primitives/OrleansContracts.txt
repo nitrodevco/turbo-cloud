@@ -260,6 +260,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   C36B0902: ClearPendingRoomAsync(System.Threading.CancellationToken) -> Task
   4E4033AB: ForwardToRoomAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.RoomEntrySnapshot, System.Threading.CancellationToken) -> Task
   04E2AEB6: GetActiveRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomPointerSnapshot>
+  FBD2DC93: GetClientCapabilityVersionAsync(Turbo.Primitives.Networking.SessionKey, string, System.Threading.CancellationToken) -> Task<int>
   8A6AE513: GetPendingRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomPendingSnapshot>
   9DB80013: GetPendingRoomEntryAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEntrySnapshot>
   38847EB8: HasActiveSessionAsync(System.Threading.CancellationToken) -> Task<bool>

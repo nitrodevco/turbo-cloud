@@ -100,6 +100,23 @@ public static class GrainFactoryExtensions
         CancellationToken ct
     ) => factory.GetPlayerPresenceGrain(playerId).TrySendComposerAsync(composer, ct);
 
+    /// <summary>
+    /// Whether the player's session <paramref name="sessionKey"/> accepted the extension
+    /// <paramref name="capability"/>: what an extension packet's handler checks first, with the
+    /// <c>PlayerId</c> and <c>SessionKey</c> of its message context (<c>docs/plugin-packets.md</c>).
+    /// </summary>
+    public static async Task<bool> SessionAcceptsCapabilityAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        SessionKey sessionKey,
+        string capability,
+        CancellationToken ct
+    ) =>
+        await factory
+            .GetPlayerPresenceGrain(playerId)
+            .GetClientCapabilityVersionAsync(sessionKey, capability, ct)
+            .ConfigureAwait(false) > 0;
+
     /// <summary>The same composer to several players. Each presence is its own grain, so the sends run side by side.</summary>
     public static Task SendComposerToPlayersAsync(
         this IGrainFactory factory,
