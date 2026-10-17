@@ -313,6 +313,13 @@ public static class PermissionNodes
         public const string SETTINGS_VIEW = "admin.settings.view";
 
         /// <summary>
+        /// Restart the server from the panel after a countdown the hotel is warned of: everyone is
+        /// sent home, what the grains hold is saved, and the process ends for its host to start it
+        /// again, so settings waiting on a restart apply. Every request is in the command log.
+        /// </summary>
+        public const string SERVER_RESTART = "admin.server.restart";
+
+        /// <summary>
         /// See the game's content in the panel: achievements, badges, the navigator's categories,
         /// groups, pets and bots. Changing it needs <see cref="Content.MANAGE"/> as well.
         /// </summary>

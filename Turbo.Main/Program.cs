@@ -32,6 +32,7 @@ using Turbo.Operations;
 using Turbo.PacketHandlers;
 using Turbo.Players;
 using Turbo.Plugins.Extensions;
+using Turbo.Primitives.Availability;
 using Turbo.Rooms;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Web;
@@ -177,6 +178,11 @@ internal class Program
             host.Services.GetService<ConsoleCommandService>()?.Enable();
 
             await host.WaitForShutdownAsync(ct).ConfigureAwait(false);
+
+            // A restart from the panel ends with its own code, for the host to start the server
+            // again; a shutdown or a signal with 0.
+            return host.Services.GetService<IHotelAvailability>()?.ExitCode
+                ?? DatabaseStartup.EXIT_OK;
         }
         catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
         {

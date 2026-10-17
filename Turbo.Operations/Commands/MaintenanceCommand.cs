@@ -27,7 +27,7 @@ public sealed record MaintenanceArguments(string When, RestOfLine? Reason = null
 [RequiresPermission(PermissionNodes.Command.MAINTENANCE)]
 public sealed class MaintenanceCommand(
     IHotelAvailability availability,
-    IOptions<OperationsConfig> config
+    IOptionsMonitor<OperationsConfig> config
 ) : IOperatorCommand<MaintenanceArguments>
 {
     private const string SCHEDULED = "scheduled";
@@ -64,7 +64,7 @@ public sealed class MaintenanceCommand(
                     : CommandResult.Fail(NOT_ACTIVE)
             );
 
-        var max = config.Value.MaxCountdownMinutes;
+        var max = config.CurrentValue.MaxCountdownMinutes;
 
         if (
             !int.TryParse(

@@ -12,10 +12,13 @@ public static class AvailabilityMessages
 {
     public const string MAINTENANCE_STARTED = "hotel.maintenance.started";
     public const string SHUTTING_DOWN = "hotel.shutting_down";
+    public const string RESTARTING = "hotel.restarting";
 
     private const string DEFAULT_MAINTENANCE_STARTED =
         "The hotel is now in maintenance. Please come back later.";
     private const string DEFAULT_SHUTTING_DOWN = "The hotel is shutting down.";
+    private const string DEFAULT_RESTARTING =
+        "The hotel is restarting. Please come back in a minute.";
 
     public static async Task<string> MaintenanceStartedAsync(
         IHotelTextProvider texts,
@@ -28,4 +31,9 @@ public static class AvailabilityMessages
         IHotelTextProvider texts,
         CancellationToken ct
     ) => await texts.GetTextAsync(SHUTTING_DOWN, ct).ConfigureAwait(false) ?? DEFAULT_SHUTTING_DOWN;
+
+    public static async Task<string> RestartingAsync(
+        IHotelTextProvider texts,
+        CancellationToken ct
+    ) => await texts.GetTextAsync(RESTARTING, ct).ConfigureAwait(false) ?? DEFAULT_RESTARTING;
 }

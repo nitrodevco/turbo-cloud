@@ -73,8 +73,12 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
         var sessions = Hotel.Fakes.Create<Turbo.Primitives.Networking.ISessionGateway>();
         var texts = Hotel.Fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>();
 
+        var live = new TestOptionsMonitor<Turbo.Operations.Configuration.OperationsConfig>(
+            Config.Value
+        );
+
         _availability = new HotelAvailabilityService(
-            Config,
+            live,
             Clock,
             sessions,
             Grains,
@@ -95,8 +99,8 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
             new PermCommand(Grains),
             new StatusCommand(Grains, sessions, _availability, Clock),
             new OnlineCommand(Grains, sessions, Config),
-            new MaintenanceCommand(_availability, Config),
-            new ShutdownCommand(_availability, Config),
+            new MaintenanceCommand(_availability, live),
+            new ShutdownCommand(_availability, live),
             new ReloadCommand(
                 Hotel.Fakes.Create<Turbo.Primitives.Catalog.Providers.ICatalogSnapshotProvider<Turbo.Primitives.Catalog.Tags.NormalCatalog>>(),
                 Hotel.Fakes.Create<Turbo.Primitives.Catalog.Providers.ICatalogSnapshotProvider<Turbo.Primitives.Catalog.Tags.BuildersClubCatalog>>(),

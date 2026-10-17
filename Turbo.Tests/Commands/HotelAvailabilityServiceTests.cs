@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Turbo.Operations;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Availability;
@@ -25,6 +24,7 @@ public class HotelAvailabilityServiceTests
 
     private readonly Fakes _fakes = new();
     private readonly ManualTimeProvider _clock = new(START);
+    private readonly TestOptionsMonitor<OperationsConfig> _config = new(new OperationsConfig());
     private readonly HotelAvailabilityService _service;
     private readonly List<int> _disconnected = [];
     private readonly Dictionary<int, IComposer?> _farewells = [];
@@ -51,7 +51,7 @@ public class HotelAvailabilityServiceTests
                 : Fakes.NotHandled;
 
         _service = new HotelAvailabilityService(
-            Options.Create(new OperationsConfig()),
+            _config,
             _clock,
             _fakes.Create<ISessionGateway>(),
             _fakes.Create<Orleans.IGrainFactory>(),
@@ -232,5 +232,110 @@ public class HotelAvailabilityServiceTests
         _service.Current.Phase.Should().Be(HotelAvailabilityPhase.ShutdownScheduled);
         _service.ScheduleMaintenance(TimeSpan.FromMinutes(1), string.Empty).Should().BeFalse();
         _service.Current.Phase.Should().Be(HotelAvailabilityPhase.ShutdownScheduled);
+    }
+
+    [Fact]
+    public async Task ARestartCountdown_WarnsLikeAShutdown_ThenSendsEveryoneHome_AndEndsWithTheRestartExitCode()
+    {
+        _service.ScheduleRestart(TimeSpan.FromMinutes(2), "Applying settings").Should().BeTrue();
+
+        await TickAsync();
+
+        _service.Current.Restart.Should().BeTrue();
+        SentTo(GUEST)
+            .OfType<InfoHotelClosingMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.MinutesUntilClosing.Should()
+            .Be(2);
+        SentTo(GUEST)
+            .OfType<HabboBroadcastMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.Message.Should()
+            .Be("Applying settings");
+        _service.ExitCode.Should().Be(0);
+
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        await TickAsync();
+
+        _disconnected.Should().BeEquivalentTo([GUEST, STAFF]);
+        _farewells[GUEST]
+            .Should()
+            .BeOfType<HabboBroadcastMessageComposer>()
+            .Which.Message.Should()
+            .Contain("restarting");
+        _fakes.Log.Of("StopApplication").Should().ContainSingle();
+        _service.Current.Phase.Should().Be(HotelAvailabilityPhase.ShuttingDown);
+        _service.ExitCode.Should().Be(new OperationsConfig().RestartExitCode);
+        (await _service.AdmitsAsync(STAFF, CancellationToken.None)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AShutdown_EndsWithZero_AndARestartDoesNotOverruleIt()
+    {
+        _service.ScheduleShutdown(TimeSpan.FromMinutes(5), string.Empty);
+
+        _service.ScheduleRestart(TimeSpan.FromMinutes(1), string.Empty).Should().BeFalse();
+        _service.Current.Restart.Should().BeFalse();
+
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        await TickAsync();
+
+        _fakes.Log.Of("StopApplication").Should().ContainSingle();
+        _service.ExitCode.Should().Be(0);
+        _service.ScheduleRestart(TimeSpan.FromMinutes(1), string.Empty).Should().BeFalse();
+    }
+
+    [Fact]
+    public void AShutdownReplacesARestart_AndARestartReplacesAMaintenance()
+    {
+        _service.ScheduleMaintenance(TimeSpan.FromMinutes(5), string.Empty);
+        _service.ScheduleRestart(TimeSpan.FromMinutes(5), string.Empty).Should().BeTrue();
+
+        _service.Current.Phase.Should().Be(HotelAvailabilityPhase.ShutdownScheduled);
+        _service.Current.Restart.Should().BeTrue();
+
+        _service.ScheduleShutdown(TimeSpan.FromMinutes(5), string.Empty);
+
+        _service.Current.Restart.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ACalledOffRestart_NeverStopsTheHost()
+    {
+        _service.ScheduleRestart(TimeSpan.FromMinutes(1), string.Empty);
+
+        _service.Cancel().Should().BeTrue();
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await TickAsync();
+
+        _fakes.Log.Of("StopApplication").Should().BeEmpty();
+        _service.Current.Should().Be(HotelAvailabilitySnapshot.Open);
+        _service.ExitCode.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TheRestartExitCode_AndTheReminders_AreReadAsTheyAreUsed()
+    {
+        _service.ScheduleRestart(TimeSpan.FromMinutes(10), string.Empty);
+        await TickAsync();
+
+        // Changed in the panel while the countdown runs: it applies to this one.
+        _config.Set(new OperationsConfig { CountdownReminderMinutes = [7], RestartExitCode = 42 });
+
+        _clock.Advance(TimeSpan.FromMinutes(3));
+        await TickAsync();
+
+        SentTo(GUEST)
+            .OfType<InfoHotelClosingMessageComposer>()
+            .Select(x => x.MinutesUntilClosing)
+            .Should()
+            .Equal(10, 7);
+
+        _clock.Advance(TimeSpan.FromMinutes(7));
+        await TickAsync();
+
+        _service.ExitCode.Should().Be(42);
     }
 }

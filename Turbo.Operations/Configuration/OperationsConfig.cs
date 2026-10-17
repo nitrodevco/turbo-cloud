@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Operations.Configuration;
 
 /// <summary>
@@ -12,16 +14,32 @@ public class OperationsConfig
     /// How many minutes before a maintenance or a shutdown the hotel is reminded, besides when it
     /// is announced. A countdown shorter than one of these does not announce that one.
     /// </summary>
+    [LiveSetting]
     public int[] CountdownReminderMinutes { get; init; } = [30, 15, 10, 5, 2, 1];
 
     /// <summary>How often the countdown looks at the clock, in milliseconds.</summary>
     public int CountdownTickMs { get; init; } = 1000;
 
     /// <summary>The minutes <c>:shutdown</c> counts down from when it is given none.</summary>
+    [LiveSetting]
     public int DefaultShutdownMinutes { get; init; } = 5;
 
-    /// <summary>The longest maintenance or shutdown countdown a command may start, in minutes.</summary>
+    /// <summary>
+    /// The longest maintenance, shutdown or restart countdown a command or the panel may start, in
+    /// minutes.
+    /// </summary>
+    [LiveSetting]
     public int MaxCountdownMinutes { get; init; } = 1440;
+
+    /// <summary>
+    /// What the process exits with when a restart stops it, for the host to start it again: a
+    /// shutdown exits with 0. Supervisor with <c>autorestart=true</c> (Ploi's daemons) starts it
+    /// again on any exit; with <c>autorestart=unexpected</c> and <c>exitcodes=0</c>, or systemd's
+    /// <c>RestartForceExitStatus=</c>, only a restart comes back. A host that restarts nothing
+    /// leaves the server stopped, as a shutdown does.
+    /// </summary>
+    [LiveSetting]
+    public int RestartExitCode { get; init; } = 75;
 
     /// <summary>The most one <c>:give</c> may add or take, so a typo is not a hotel's economy.</summary>
     public int MaxCurrencyAmount { get; init; } = 10_000_000;

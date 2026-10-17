@@ -94,6 +94,54 @@ public sealed class ServerSettingsTests : IDisposable
     }
 
     [Fact]
+    public async Task a_live_setting_applies_at_once_and_never_waits_on_a_restart()
+    {
+        var harness = Harness();
+
+        harness.Settings.Get("Test:Hotel:GreetingSeconds")!.Live.Should().BeTrue();
+        harness.Settings.Get("Test:Hotel:MaxUsers")!.Live.Should().BeFalse();
+        harness.Live<TestHotelConfig>().GreetingSeconds.Should().Be(2);
+
+        var saved = await harness.Settings.SaveAsync("Test:Hotel:GreetingSeconds", "9", STAFF, Ct);
+
+        saved.Value.Should().Be("9");
+        saved.Running.Should().Be("9");
+        saved.PendingRestart.Should().BeFalse();
+        harness.Live<TestHotelConfig>().GreetingSeconds.Should().Be(9);
+
+        await harness.Settings.ResetAsync("Test:Hotel:GreetingSeconds", STAFF, Ct);
+
+        harness.Live<TestHotelConfig>().GreetingSeconds.Should().Be(2);
+        harness.Settings.Get("Test:Hotel:GreetingSeconds")!.PendingRestart.Should().BeFalse();
+    }
+
+    [Fact]
+    public void the_restart_and_countdown_settings_apply_at_once_the_other_operations_ones_after_a_restart()
+    {
+        var harness = Harness(
+            "{}",
+            (services, configuration) =>
+                services.Configure<Turbo.Operations.Configuration.OperationsConfig>(
+                    configuration.GetSection(
+                        Turbo.Operations.Configuration.OperationsConfig.SECTION_NAME
+                    )
+                )
+        );
+
+        harness
+            .Settings.List()
+            .Where(x => x.Live)
+            .Select(x => x.Path)
+            .Should()
+            .BeEquivalentTo(
+                "Turbo:Operations:CountdownReminderMinutes",
+                "Turbo:Operations:DefaultShutdownMinutes",
+                "Turbo:Operations:MaxCountdownMinutes",
+                "Turbo:Operations:RestartExitCode"
+            );
+    }
+
+    [Fact]
     public async Task a_list_or_map_is_overridden_whole_not_merged_with_the_files()
     {
         var harness = Harness();

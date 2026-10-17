@@ -30,9 +30,11 @@ environment variable overrides it, and **Put back** (or deleting its row) remove
 - **Its summary**, from the `/// <summary>` on its property. The build writes each assembly's XML
   documentation beside it (`GenerateDocumentationFile` in `Directory.Build.props`), and the page
   reads it from there.
-- **Value and running value.** The server reads its options once, as it starts, so a change applies
-  after a restart. Until then the setting shows **after restart**, with the value it runs with
-  now.
+- **Value and running value.** The server reads most options once, as it starts, so a change
+  applies after a restart. Until then the setting shows **after restart**, with the value it runs
+  with now, and the page offers **Restart** to staff with `admin.server.restart` (see
+  `docs/admin-panel.md`, *Restarting the server*). A setting marked **applies now** is read as it
+  is used, so a change takes effect at once.
 - **Its source**: the default, the file that sets it, the panel, or the environment variable.
 
 ## Kinds of setting
@@ -41,10 +43,14 @@ environment variable overrides it, and **Put back** (or deleting its row) remove
 | --- | --- | --- |
 | `[SecretSetting]` | `Turbo:Crypto:PrivateKey`, `Turbo:Web:Discord:ClientSecret`, `Turbo:Database:ConnectionString` | Can be replaced, never shown. Its history records only that it changed. No external variable can follow it. |
 | `[StartupSetting]` | `Turbo:Database`, `Turbo:Orleans`, `Turbo:Admin:Enabled`, `Url`, `PanelUrl`, `PasskeyRpId` | Shown, not changed: the panel stands on it. A wrong value would lock staff out of the panel that could fix it. |
-| neither | everything else | Changed, applies after a restart. |
+| `[LiveSetting]` | `Turbo:Operations:CountdownReminderMinutes`, `DefaultShutdownMinutes`, `MaxCountdownMinutes`, `RestartExitCode` | Changed, **applies now**: every reader reads it through `IOptionsMonitor<T>.CurrentValue` as it uses it, so it never waits on a restart. |
+| none of these | everything else | Changed, applies after a restart. |
 
 Mark a new option `[SecretSetting]` when its value must not be read, and `[StartupSetting]` (on the
-property or its class) when the panel itself depends on it.
+property or its class) when the panel itself depends on it. Mark it `[LiveSetting]` only when every
+reader takes it from `IOptionsMonitor<T>.CurrentValue` each time (never `IOptions<T>.Value`, and
+never kept in a field or used to build something once at start): the page then compares the value
+with what the monitor reads now instead of with what the server started with.
 
 ## Values
 

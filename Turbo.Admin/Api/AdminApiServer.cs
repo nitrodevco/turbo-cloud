@@ -103,6 +103,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<PlayerEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PlayerAccountEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<HotelEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<ServerEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<DashboardEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<LiveEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<SearchEndpoints>(services).Map(secured);

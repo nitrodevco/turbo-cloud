@@ -21,11 +21,13 @@ namespace Turbo.Operations;
 /// <summary>
 /// The hotel's maintenance and shutdown. A command starts a countdown; this reminds the hotel as
 /// it runs down, and at zero either closes the hotel to everyone without the bypass node (a
-/// maintenance) or sends everybody home and stops the host (a shutdown). It is process state: a
-/// restart opens the hotel again, which is what a restart is for.
+/// maintenance) or sends everybody home and stops the host (a shutdown, or a restart, which ends
+/// the process with the restart exit code). It is process state: a restart opens the hotel again,
+/// which is what a restart is for. The reminders and the exit code are read as they are used, so
+/// a change in the panel applies to a countdown already running.
 /// </summary>
 public sealed class HotelAvailabilityService(
-    IOptions<OperationsConfig> config,
+    IOptionsMonitor<OperationsConfig> config,
     TimeProvider timeProvider,
     ISessionGateway sessionGateway,
     IGrainFactory grainFactory,
@@ -34,12 +36,12 @@ public sealed class HotelAvailabilityService(
     ILogger<IHotelAvailability> logger
 ) : BackgroundService, IHotelAvailability
 {
-    private readonly OperationsConfig _config = config.Value;
     private readonly Lock _gate = new();
     private readonly HashSet<int> _announced = [];
 
     private HotelAvailabilitySnapshot _current = HotelAvailabilitySnapshot.Open;
     private bool _announcePending;
+    private int _exitCode;
 
     public HotelAvailabilitySnapshot Current
     {
@@ -47,6 +49,19 @@ public sealed class HotelAvailabilityService(
         {
             lock (_gate)
                 return _current;
+        }
+    }
+
+    public TimeSpan MaxCountdown => TimeSpan.FromMinutes(config.CurrentValue.MaxCountdownMinutes);
+
+    public int RestartExitCode => config.CurrentValue.RestartExitCode;
+
+    public int ExitCode
+    {
+        get
+        {
+            lock (_gate)
+                return _exitCode;
         }
     }
 
@@ -93,6 +108,23 @@ public sealed class HotelAvailabilityService(
         }
     }
 
+    public bool ScheduleRestart(TimeSpan delay, string reason)
+    {
+        lock (_gate)
+        {
+            // A shutdown was asked for on purpose: a restart does not bring the hotel back from it.
+            if (
+                _current.Phase == HotelAvailabilityPhase.ShuttingDown
+                || _current is { Phase: HotelAvailabilityPhase.ShutdownScheduled, Restart: false }
+            )
+                return false;
+
+            Schedule(HotelAvailabilityPhase.ShutdownScheduled, delay, reason, restart: true);
+        }
+
+        return true;
+    }
+
     public bool Cancel()
     {
         lock (_gate)
@@ -112,7 +144,9 @@ public sealed class HotelAvailabilityService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_config.CountdownTickMs));
+        using var timer = new PeriodicTimer(
+            TimeSpan.FromMilliseconds(config.CurrentValue.CountdownTickMs)
+        );
 
         try
         {
@@ -154,7 +188,7 @@ public sealed class HotelAvailabilityService(
                 _announcePending = false;
 
                 // A reminder the countdown has already passed is not made up for.
-                foreach (var minutes in _config.CountdownReminderMinutes)
+                foreach (var minutes in config.CurrentValue.CountdownReminderMinutes)
                     if (remaining <= TimeSpan.FromMinutes(minutes) && _announced.Add(minutes))
                         remind = true;
             }
@@ -166,16 +200,21 @@ public sealed class HotelAvailabilityService(
             await AnnounceAsync(scheduled, (int)Math.Ceiling(remaining.TotalMinutes), ct);
     }
 
-    private void Schedule(HotelAvailabilityPhase phase, TimeSpan delay, string reason)
+    private void Schedule(
+        HotelAvailabilityPhase phase,
+        TimeSpan delay,
+        string reason,
+        bool restart = false
+    )
     {
         var at = timeProvider.GetUtcNow().UtcDateTime + delay;
 
-        _current = new HotelAvailabilitySnapshot(phase, at, reason);
+        _current = new HotelAvailabilitySnapshot(phase, at, reason, restart);
         _announced.Clear();
         _announcePending = true;
 
         // A reminder this countdown is already inside has been made by the announcement itself.
-        foreach (var minutes in _config.CountdownReminderMinutes)
+        foreach (var minutes in config.CurrentValue.CountdownReminderMinutes)
             if (delay <= TimeSpan.FromMinutes(minutes))
                 _announced.Add(minutes);
     }
@@ -234,17 +273,29 @@ public sealed class HotelAvailabilityService(
                     ? HotelAvailabilityPhase.ShuttingDown
                     : HotelAvailabilityPhase.Maintenance,
                 null,
-                scheduled.Reason
+                scheduled.Reason,
+                scheduled.Restart
             );
+
+            if (scheduled.Restart)
+                _exitCode = config.CurrentValue.RestartExitCode;
         }
 
         if (scheduled.Phase == HotelAvailabilityPhase.ShutdownScheduled)
         {
-            logger.LogWarning("The shutdown countdown ran out; closing the hotel and stopping");
+            if (scheduled.Restart)
+                logger.LogWarning(
+                    "The restart countdown ran out; closing the hotel and stopping with exit code {ExitCode} for the host to start it again",
+                    ExitCode
+                );
+            else
+                logger.LogWarning("The shutdown countdown ran out; closing the hotel and stopping");
 
             await DisconnectAsync(
                 sessionGateway.GetOnlinePlayerIds(),
-                await AvailabilityMessages.ShuttingDownAsync(textProvider, ct),
+                scheduled.Restart
+                    ? await AvailabilityMessages.RestartingAsync(textProvider, ct)
+                    : await AvailabilityMessages.ShuttingDownAsync(textProvider, ct),
                 ct
             );
 

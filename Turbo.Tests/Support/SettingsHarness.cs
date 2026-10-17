@@ -82,6 +82,10 @@ internal sealed class SettingsHarness : IDisposable
     public T Running<T>()
         where T : class => _services.GetRequiredService<IOptions<T>>().Value;
 
+    /// <summary>The options of the class as a reader that reads them as it uses them gets them now.</summary>
+    public T Live<T>()
+        where T : class => _services.GetRequiredService<IOptionsMonitor<T>>().CurrentValue;
+
     /// <summary>The same settings built again from the same file and database, as after a restart.</summary>
     public SettingsHarness Restart() => new(_db, _folder, _register, EnvironmentPrefix);
 
@@ -149,6 +153,10 @@ public sealed class TestHotelConfig
 
     [StartupSetting]
     public int Port { get; init; } = 3000;
+
+    /// <summary>Read as it is used, so a change applies at once.</summary>
+    [LiveSetting]
+    public int GreetingSeconds { get; init; } = 2;
 
     public TestHotelLinks Links { get; init; } = new();
 

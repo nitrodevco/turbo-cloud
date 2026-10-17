@@ -309,6 +309,9 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
                 Instance(section, () => _configuration.GetSection(section.Name).Get(section.Type))
                 ?? defaults;
             var running = Instance(section, () => Running(section.Type));
+            var live = section.Settings.Any(x => x.Live)
+                ? Instance(section, () => Live(section.Type))
+                : null;
 
             foreach (var setting in section.Settings)
             {
@@ -317,7 +320,10 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
                     continue;
 
                 var value = Json(setting, setting.ReadFrom(configured));
-                var now = running is null ? value : Json(setting, setting.ReadFrom(running));
+                // A live setting runs with what its readers read now; the others with what the
+                // server took as it started.
+                var reads = setting.Live ? live : running;
+                var now = reads is null ? value : Json(setting, setting.ReadFrom(reads));
                 var (source, name) = SourceOf(setting, providers, panel);
 
                 settings.Add(
@@ -330,6 +336,7 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
                         Summary = setting.Summary,
                         Secret = setting.Secret,
                         Startup = setting.Startup,
+                        Live = setting.Live,
                         Default = setting.Secret ? null : Json(setting, setting.ReadFrom(defaults)),
                         Value = setting.Secret ? null : value,
                         Running = setting.Secret ? null : now,
@@ -364,6 +371,17 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
         var options = _services.GetService(typeof(IOptions<>).MakeGenericType(type));
 
         return options?.GetType().GetProperty(nameof(IOptions<object>.Value))?.GetValue(options);
+    }
+
+    /// <summary>The options as a reader that reads them as it uses them gets them now.</summary>
+    private object? Live(Type type)
+    {
+        var monitor = _services.GetService(typeof(IOptionsMonitor<>).MakeGenericType(type));
+
+        return monitor
+            ?.GetType()
+            .GetProperty(nameof(IOptionsMonitor<object>.CurrentValue))
+            ?.GetValue(monitor);
     }
 
     private object? Instance(ServerSettingRegistry.Section section, Func<object?> make)

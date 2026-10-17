@@ -233,6 +233,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
         services.AddSingleton<Turbo.Admin.Plugins.AdminPluginAudit>();
+        services.AddSingleton<Turbo.Admin.Server.AdminRestartAudit>();
 
         // Internal to Turbo.Admin, as the host knows it.
         var serverType = typeof(AdminConfig).Assembly.GetType("Turbo.Admin.Api.AdminApiServer")!;

@@ -55,7 +55,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
    - User: `ploi`
    - Processes: `1`
 
-   Ploi runs daemons under Supervisor with auto-restart. `deploy.sh` depends on that: it stops the process with `SIGTERM` and Supervisor starts the new release. The daemon's log in Ploi shows Turbo's console output.
+   Ploi runs daemons under Supervisor with auto-restart. `deploy.sh` depends on that: it stops the process with `SIGTERM` and Supervisor starts the new release. The admin panel's **Restart** depends on it too: the server stops itself and exits with `Turbo:Operations:RestartExitCode` (75), and Supervisor starts it again. A shutdown (`:shutdown`) exits with 0, which `autorestart=true` restarts as well. The daemon's log in Ploi shows Turbo's console output.
 
 7. **WebSocket over TLS.** Issue a certificate in the site's SSL tab. Then, in Site > Manage > Edit NGINX configuration, replace the `location / { ... }` block with the one in `nginx-websocket.conf`. The client then connects to `wss://ws.example.com/`, so set the socket URL in the Nitro client's `renderer-config.json` to that address.
 
