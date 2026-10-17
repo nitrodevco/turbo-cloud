@@ -89,6 +89,24 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
         return photo;
     }
 
+    /// <summary>
+    /// Writes the photo's extra data (<see cref="CameraPhotoPoster.ExtraDataOf"/>) beside its
+    /// picture, as <c>&lt;id&gt;.extradata.json</c>: what the extra data service answers for its
+    /// posters (<see cref="CameraPhotoFiles.GetExtraDataFile"/>).
+    /// </summary>
+    public async Task SaveExtraDataAsync(CameraPhoto photo, string extraData, CancellationToken ct)
+    {
+        var folder = Path.Combine(_config.StoragePath, "photos");
+
+        Directory.CreateDirectory(folder);
+        await File.WriteAllTextAsync(
+                Path.Combine(folder, $"{photo.Id}{CameraPhotoFiles.EXTRA_DATA_SUFFIX}"),
+                extraData,
+                ct
+            )
+            .ConfigureAwait(false);
+    }
+
     public CameraPhoto? GetLastPhoto(int playerId) =>
         _lastPhotos.TryGetValue(playerId, out var photo) ? photo : null;
 

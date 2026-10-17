@@ -18,8 +18,9 @@ namespace Turbo.PacketHandlers.Camera;
 
 /// <summary>
 /// "Buy photo poster furni": the player's last photo becomes a photo poster in their inventory for
-/// the configured price, then <c>CameraPurchaseOKMessage</c>. The poster's state is the photo as
-/// JSON (<see cref="CameraPhotoPoster"/>), what external image furni read.
+/// the configured price, then <c>CameraPurchaseOKMessage</c>. The poster's state names the photo
+/// (<see cref="CameraPhotoPoster"/>); the photo's extra data, which the client asks the extra data
+/// service for, is kept beside its picture before the poster is made.
 /// </summary>
 public class PurchasePhotoMessageHandler(
     IGrainFactory grainFactory,
@@ -90,7 +91,15 @@ public class PurchasePhotoMessageHandler(
                 return;
         }
 
-        var state = CameraPhotoPoster.StateOf(photo, ctx.PlayerId.Value, creator.Name);
+        await store
+            .SaveExtraDataAsync(
+                photo,
+                CameraPhotoPoster.ExtraDataOf(photo, ctx.PlayerId.Value, creator.Name),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        var state = CameraPhotoPoster.StateOf(photo);
         var extraData = JsonSerializer.Serialize(
             new Dictionary<string, object> { [ExtraDataSectionType.STUFF] = new { Data = state } }
         );

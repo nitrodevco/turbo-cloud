@@ -25,10 +25,11 @@ using Xunit;
 namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
-/// A bought photo is a poster whose state the photo viewer reads (<c>ExternalImageWidget.loadPhoto</c>,
-/// build WIN63-202610151745): the photographer's name <c>n</c>, shown with the date, and the time
-/// <c>t</c> as <c>new Date(Number(t))</c>, milliseconds. The poster had no name, so the viewer showed
-/// neither, and its time in seconds would have read as January 1970.
+/// A bought photo is a poster whose state is only <c>{"t":&lt;ms&gt;,"id":"&lt;photo id&gt;"}</c>
+/// (official client capture, 102 of 102 posters); the photo viewer asks the extra data service for
+/// the rest (<c>ExternalImageWidget.readFurniJson</c> / <c>loadPhoto</c>, build WIN63-202610151745):
+/// the photographer's name <c>n</c>, shown with the date, and the time <c>t</c> as
+/// <c>new Date(Number(t))</c>, milliseconds. The poster carried the whole photo in its own state.
 /// </summary>
 public sealed class CameraPhotoPurchaseTests
 {
@@ -44,7 +45,7 @@ public sealed class CameraPhotoPurchaseTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_bought_photo_names_its_photographer_and_its_time_in_milliseconds()
+    public async Task A_bought_photo_is_a_poster_of_its_id_and_time_whose_extra_data_names_its_photographer()
     {
         var config = Options.Create(new CameraConfig { StoragePath = _storage, CreditPrice = 0 });
         var store = new CameraPhotoStore(config);
@@ -92,14 +93,26 @@ public sealed class CameraPhotoPurchaseTests
             )
             .RootElement;
 
-        state.GetProperty("n").GetString().Should().Be("agent5");
-        state.GetProperty("s").GetInt32().Should().Be(PLAYER);
-        state.GetProperty("w").GetString().Should().Be(photo.Url);
+        var time = new DateTimeOffset(photo.CreatedAt).ToUnixTimeMilliseconds();
+
         state
-            .GetProperty("t")
-            .GetInt64()
+            .EnumerateObject()
+            .Select(x => x.Name)
             .Should()
-            .Be(new DateTimeOffset(photo.CreatedAt).ToUnixTimeMilliseconds());
+            .Equal("t", "id");
+        state.GetProperty("t").GetInt64().Should().Be(time);
+        state.GetProperty("id").GetString().Should().Be(photo.Id);
+
+        var file = new CameraPhotoFiles(config).GetExtraDataFile(photo.Id);
+
+        file.Should().NotBeNull("the extra data service answers for the poster's id");
+        var extraData = JsonDocument.Parse(await File.ReadAllTextAsync(file!, Ct)).RootElement;
+
+        extraData.GetProperty("n").GetString().Should().Be("agent5");
+        extraData.GetProperty("s").GetInt32().Should().Be(PLAYER);
+        extraData.GetProperty("w").GetString().Should().Be(photo.Url);
+        extraData.GetProperty("u").GetString().Should().Be(photo.Id);
+        extraData.GetProperty("t").GetInt64().Should().Be(time);
     }
 
     private static FurnitureDefinitionSnapshot Poster() =>

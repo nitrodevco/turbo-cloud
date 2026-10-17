@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -37,6 +38,12 @@ namespace Turbo.Gamedata.Api;
 /// <c>stories.image_url_base</c> is <c>/gamedata/</c> on this host, as the photo's url is
 /// <c>photos/&lt;id&gt;.png</c>. Under <c>/gamedata/</c>, so the reverse proxy that passes the gamedata on
 /// passes it too. A photo never changes (a new one has a new id), so it is cached for good.</item>
+/// <item><c>/gamedata/photodata/&lt;photo id&gt;</c> is a bought photo's extra data
+/// (<see cref="ICameraPhotoFiles.GetExtraDataFile"/>), which a poster's viewer loads: the client's
+/// <c>extra_data_service_url</c> is this address without the id, as Habbo's is its
+/// <c>.../photodata/public/furni/</c>. A <c>POST</c> of a JSON array of ids to the same address
+/// without an id answers each known photo's <c>{ id, url }</c>, which posters on the wall ask
+/// for together under <c>extra_data_batches_enabled</c> (<c>ExtraDataManager.handleBatch</c>).</item>
 /// <item><c>/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
 /// (<see cref="IStarterRoomDirectory"/>), which the room picker shows; it can be taken again, so it
 /// is cached for a minute only.</item>
@@ -66,6 +73,13 @@ internal sealed class GamedataServer(
     public const string PHOTO_ROUTE = "/gamedata/photos/";
     private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
     private const string ROOM_THUMBNAIL_CACHE = "public, no-cache";
+    private const string PHOTO_DATA_CACHE = "public, max-age=60";
+
+    /// <summary>Where a photo's extra data is served, before <c>&lt;photo id&gt;</c>.</summary>
+    public const string PHOTO_DATA_ROUTE = "/gamedata/photodata/";
+
+    /// <summary>The most ids a batch asks for (<c>ExtraDataManager.BATCH_MAX_QUERY_AMOUNT</c>); more are not answered.</summary>
+    public const int PHOTO_DATA_BATCH_MAX = 50;
 
     /// <summary>Where a room's thumbnail is served, before <c>&lt;room id&gt;.png</c>.</summary>
     public const string ROOM_THUMBNAIL_ROUTE = "/gamedata/navigator-thumbnail/";
@@ -84,7 +98,12 @@ internal sealed class GamedataServer(
         builder.WebHost.UseKestrelCore().UseUrls(options.Url);
         builder.Services.AddRoutingCore();
         builder.Services.AddCors(cors =>
-            cors.AddDefaultPolicy(policy => policy.AllowAnyOrigin().WithMethods("GET"))
+            cors.AddDefaultPolicy(policy =>
+                policy
+                    .AllowAnyOrigin()
+                    .WithMethods("GET", "POST")
+                    .WithHeaders(HeaderNames.ContentType)
+            )
         );
         builder.Services.AddSingleton(loggerFactory);
         builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
@@ -116,6 +135,17 @@ internal sealed class GamedataServer(
                 PHOTO_ROUTE + "{name}.png",
                 (HttpContext http, string name) => Photo(http, photos, name)
             );
+        if (photos is not null)
+        {
+            app.MapGet(
+                PHOTO_DATA_ROUTE + "{id}",
+                (HttpContext http, string id) => PhotoData(http, photos, id)
+            );
+            app.MapPost(
+                PHOTO_DATA_ROUTE,
+                (HttpContext http, CancellationToken ct) => PhotoDataBatchAsync(http, photos, ct)
+            );
+        }
         if (starterRooms is not null)
             app.MapGet(
                 "/starter-rooms/{roomId:int}.png",
@@ -167,6 +197,66 @@ internal sealed class GamedataServer(
         http.Response.Headers.CacheControl = IMMUTABLE;
 
         return Results.File(Path.GetFullPath(file), "image/png");
+    }
+
+    /// <summary>A bought photo's extra data, as it was kept when it was bought; 404 when there is none.</summary>
+    private static IResult PhotoData(HttpContext http, ICameraPhotoFiles photos, string id)
+    {
+        var file = photos.GetExtraDataFile(id);
+
+        if (file is null)
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = PHOTO_DATA_CACHE;
+
+        return Results.File(Path.GetFullPath(file), "application/json");
+    }
+
+    /// <summary>
+    /// The urls of the photos a batch names, <c>[ { id, url } ]</c>, the ones known only: what
+    /// <c>ExtraDataManager.onExtraDataLoaded</c> hands each poster by its id. Not a JSON array of
+    /// strings is a 400.
+    /// </summary>
+    private static async Task<IResult> PhotoDataBatchAsync(
+        HttpContext http,
+        ICameraPhotoFiles photos,
+        CancellationToken ct
+    )
+    {
+        string[]? ids;
+
+        try
+        {
+            ids = await JsonSerializer
+                .DeserializeAsync<string[]>(http.Request.Body, cancellationToken: ct)
+                .ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest();
+        }
+
+        if (ids is null)
+            return Results.BadRequest();
+
+        var answers = new List<object>();
+
+        foreach (var id in ids.Take(PHOTO_DATA_BATCH_MAX).Distinct(StringComparer.Ordinal))
+        {
+            if (id is null || photos.GetExtraDataFile(id) is not { } file)
+                continue;
+
+            using var data = JsonDocument.Parse(
+                await File.ReadAllTextAsync(file, ct).ConfigureAwait(false)
+            );
+
+            if (data.RootElement.TryGetProperty("w", out var url))
+                answers.Add(new { id, url = url.GetString() });
+        }
+
+        http.Response.Headers.CacheControl = "no-store";
+
+        return Results.Json(answers);
     }
 
     /// <summary>A starter room's picture, as the starter room camera last drew it; 404 when there is none.</summary>

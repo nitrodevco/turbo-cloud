@@ -95,7 +95,57 @@ public sealed class CameraPhotoServingTests : IAsyncDisposable
         (await poster.Content.ReadAsByteArrayAsync(Ct)).Should().Equal(small);
     }
 
+    /// <summary>
+    /// A poster's state is only the photo's id; its viewer loads <c>extra_data_service_url</c> + the
+    /// id (<c>ExternalImageWidget.loadExternalData</c>) and posters on the wall POST their ids
+    /// together (<c>ExtraDataManager.handleBatch</c>, a JSON array; the answer's <c>id</c> and
+    /// <c>url</c> per poster), and nothing answered either.
+    /// </summary>
+    [Fact]
+    public async Task A_bought_photos_extra_data_is_served_by_its_id_alone_and_in_a_batch()
+    {
+        var photo = await _store.SavePhotoAsync(1, "{\"planes\":[]}", Ct);
+        var extraData = CameraPhotoPoster.ExtraDataOf(photo, 1, "agent1");
+
+        await _store.SaveExtraDataAsync(photo, extraData, Ct);
+        await _server.StartAsync(Ct);
+
+        using var one = await _http.GetAsync("/gamedata/photodata/" + photo.Id, Ct);
+
+        one.StatusCode.Should().Be(HttpStatusCode.OK);
+        one.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+        one.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        (await one.Content.ReadAsStringAsync(Ct)).Should().Be(extraData);
+
+        using var preflight = new HttpRequestMessage(HttpMethod.Options, "/gamedata/photodata/");
+
+        preflight.Headers.Add("Origin", "https://nitrodev.co");
+        preflight.Headers.Add("Access-Control-Request-Method", "POST");
+        preflight.Headers.Add("Access-Control-Request-Headers", "content-type");
+
+        using var allowed = await _http.SendAsync(preflight, Ct);
+
+        allowed.Headers.GetValues("Access-Control-Allow-Methods").Should().Contain(x => x.Contains("POST"));
+
+        using var batch = await _http.PostAsync(
+            "/gamedata/photodata/",
+            new StringContent(
+                $"[\"{photo.Id}\",\"0123456789abcdef0123456789abcdef\"]",
+                System.Text.Encoding.UTF8,
+                "application/json"
+            ),
+            Ct
+        );
+
+        batch.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await batch.Content.ReadAsStringAsync(Ct))
+            .Should()
+            .Be($"[{{\"id\":\"{photo.Id}\",\"url\":\"{photo.Url}\"}}]");
+    }
+
     [Theory]
+    [InlineData("/gamedata/photodata/0123456789abcdef0123456789abcdef")]
+    [InlineData("/gamedata/photodata/..%2F..%2Fappsettings")]
     [InlineData("/gamedata/photos/0123456789abcdef0123456789abcdef.png")]
     [InlineData("/gamedata/photos/..%2F..%2Fappsettings.png")]
     [InlineData("/gamedata/photos/thumbnails.png")]
