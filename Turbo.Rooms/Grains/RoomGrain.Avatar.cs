@@ -43,7 +43,14 @@ public sealed partial class RoomGrain
                 ct
             );
 
-            return avatar is IRoomPlayer player ? await BuildEntryTailAsync(player, ct) : [];
+            if (avatar is not IRoomPlayer player)
+                return [];
+
+            var tail = await BuildEntryTailAsync(player, ct);
+
+            await SendEntryStatusToOthersAsync(player, ct);
+
+            return tail;
         }
         catch (Exception ex)
         {

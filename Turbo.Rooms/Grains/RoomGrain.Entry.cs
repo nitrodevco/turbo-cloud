@@ -125,7 +125,8 @@ public sealed partial class RoomGrain
     /// ConfigurationItemStates, WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
     /// YouAreOwner, RoomRating, RaidProtectionCapability. A visitor without rights is told
     /// neither YouAreController nor YouAreNotController (6 of 6 such entries). No UserUpdate
-    /// comes before the raid protection (0 of 32), so what the others are doing follows it.
+    /// comes before the raid protection (0 of 32), so the statuses, their own and the others',
+    /// follow it.
     /// Built in the turn that made the avatar, so its level is the avatar's own.
     /// </summary>
     private async Task<ImmutableArray<IComposer>> BuildEntryTailAsync(
@@ -205,9 +206,12 @@ public sealed partial class RoomGrain
             }
         );
 
-        // Habbo sends Users even for an empty room, but no UserUpdate with nothing in it (hhus, 2026-10-13).
-        if (others.Count > 0)
-            tail.Add(new UserUpdateMessageComposer { Avatars = [.. others] });
+        // The player's own status first, then everyone else's, in one UserUpdate after the raid
+        // protection (official client captures, 53 of 54 entries: the own avatar's direction and
+        // flatctrl, 0-466 ms after its Users; 2026-10-13 duo entries: own index first). Without
+        // it the client keeps the Users direction, which it reads as an angle, and the avatar
+        // stands facing the wall until it first moves.
+        tail.Add(new UserUpdateMessageComposer { Avatars = [avatar.GetSnapshot(), .. others] });
 
         // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
         // replayed to the arriving player as their own updates. Any avatar can carry them; one
@@ -239,6 +243,19 @@ public sealed partial class RoomGrain
 
         return [.. tail];
     }
+
+    /// <summary>
+    /// The arriving player's status for everyone already here, after the Users that drew them:
+    /// Habbo's observers get it on the next room tick (official client capture, 2026-10-13 duo
+    /// doorbell re-entry: Users then UserUpdate with direction 2 and flatctrl). The entry's own
+    /// snapshot has taken the avatar's changes, so the tick would not send it.
+    /// </summary>
+    private Task SendEntryStatusToOthersAsync(IRoomPlayer avatar, CancellationToken ct) =>
+        SendComposerToRoomExceptAsync(
+            new UserUpdateMessageComposer { Avatars = [avatar.GetSnapshot()] },
+            [avatar.PlayerId],
+            ct
+        );
 
     public Task RemoveDoorbellRingerAsync(PlayerId playerId, CancellationToken ct)
     {
