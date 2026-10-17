@@ -18,6 +18,8 @@ internal sealed partial class PlayerPermissionGrain
 {
     public Task SendClientStateAsync(CancellationToken ct)
     {
+        // Sent at login: this activation now holds what that client knows.
+        KeepLoadedWhileOnline();
         EnsureResolved();
 
         return SendClientStateCoreAsync(rights: true, nodes: true, ct);

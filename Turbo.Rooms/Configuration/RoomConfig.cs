@@ -283,6 +283,12 @@ public class RoomConfig
     /// <summary>Items one side may offer in a trade.</summary>
     public int TradeMaxItemsPerSide { get; init; } = 50;
 
+    /// <summary>
+    /// How long an open trade keeps the room's trade grain loaded past its last action. A trade is
+    /// memory only, so a grain collected for idleness while two players think would close it.
+    /// </summary>
+    public int TradeKeepAliveMinutes { get; init; } = 30;
+
     public int RoomFilterMaxWords { get; init; } = 50;
     public int RoomFilterWordMaxLength { get; init; } = 30;
 

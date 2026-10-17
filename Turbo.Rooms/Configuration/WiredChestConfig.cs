@@ -84,4 +84,11 @@ public class WiredChestConfig
     /// then replaces it without the window closing.
     /// </summary>
     public int CancelGraceMs { get; init; } = 500;
+
+    /// <summary>
+    /// How long an open trade with wired keeps the player's trade grain loaded past its last
+    /// action (at least to a contract's timeout). It is memory only, so a grain collected for
+    /// idleness while the window is open would forget it.
+    /// </summary>
+    public int TradeKeepAliveMinutes { get; init; } = 30;
 }

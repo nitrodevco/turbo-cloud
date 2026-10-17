@@ -30,7 +30,7 @@ namespace Turbo.Players.Grains.Permissions;
 /// out again whenever the player's rows change, the directory pushes new groups, the registry
 /// changes (a plugin loaded or unloaded; pushed by the directory, and checked on every read
 /// besides), or an assignment runs out.
-/// While active it is subscribed to the directory.
+/// While active it is subscribed to the directory, and it stays active while its player is online.
 /// </summary>
 internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 {
@@ -46,6 +46,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
     private readonly PlayerPermissionLiveState _state;
 
     private IGrainTimer? _expiryTimer;
+    private IGrainTimer? _onlineTimer;
 
     private PlayerId PlayerId => _state.PlayerId;
 
@@ -114,12 +115,76 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         _state.SentClient = _state.Client;
         _state.SentRoom = _state.Resolved;
         _state.Announced = _state.Resolved;
+
+        KeepLoadedWhileOnline();
     }
+
+    /// <summary>
+    /// What the client and the room were told, and the directory subscription, live in this
+    /// activation only. Collected for idleness while its player stays online (nothing calls it
+    /// while they only walk and chat), it unsubscribed, so a group or registry change never
+    /// reached it, and the next activation took the changed groups as what the client knows. A
+    /// check every <see cref="PermissionConfig.OnlineCheckMs"/> pins it for two periods
+    /// (<c>DelayDeactivation</c>, which holds whatever the idle clock says) while the player has a
+    /// session, and stops at the first one that finds none, leaving the grain to idle collection
+    /// once the last pin runs out; login starts it again (<see cref="SendClientStateAsync"/>).
+    /// </summary>
+    private void KeepLoadedWhileOnline()
+    {
+        if (_onlineTimer is not null)
+            return;
+
+        _onlineTimer = this.RegisterGrainTimer<object?>(
+            static async (self, ct) => await ((PlayerPermissionGrain)self!).CheckOnlineAsync(ct),
+            this,
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.Zero,
+                Period = TimeSpan.FromMilliseconds(_permissionConfig.OnlineCheckMs),
+            }
+        );
+    }
+
+    private async Task CheckOnlineAsync(CancellationToken ct)
+    {
+        try
+        {
+            // Interleaved on the presence side, so this never waits on a call into this grain.
+            if (await _grainFactory.GetPlayerPresenceGrain(PlayerId).HasActiveSessionAsync(ct))
+            {
+                PinUntilNextCheck();
+
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to ask whether player {PlayerId} is online for their permissions",
+                PlayerId
+            );
+
+            // Taken as online until a check can tell: losing the activation loses what was sent.
+            PinUntilNextCheck();
+
+            return;
+        }
+
+        _onlineTimer?.Dispose();
+        _onlineTimer = null;
+    }
+
+    /// <summary>Two periods, so one late or failed tick does not let the pin lapse.</summary>
+    private void PinUntilNextCheck() =>
+        DelayDeactivation(TimeSpan.FromMilliseconds(2L * _permissionConfig.OnlineCheckMs));
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         _expiryTimer?.Dispose();
         _expiryTimer = null;
+        _onlineTimer?.Dispose();
+        _onlineTimer = null;
 
         try
         {

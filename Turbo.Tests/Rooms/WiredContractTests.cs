@@ -247,6 +247,54 @@ public class WiredContractTests
             );
     }
 
+    // The trade is memory only and nothing calls the grain while the window is open; Orleans
+    // collects an idle activation while its player stays online, which forgot the trade and left
+    // the window open on offers that went nowhere.
+    [Fact]
+    public async Task An_open_deposit_keeps_the_trade_grain_loaded_past_each_action()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([Item(1, CHAIR_SPRITE)]);
+
+        await trade.StartChestDepositAsync(1, 100, WiredChestKind.Furni, default);
+        await trade.AddItemsAsync([1], default);
+
+        Pins(fakes)
+            .Should()
+            .Equal(
+                // WiredChestConfig.TradeKeepAliveMinutes as shipped, from each action.
+                [TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30)],
+                "idle collection would forget the open trade"
+            );
+    }
+
+    [Fact]
+    public async Task A_contract_keeps_the_trade_grain_loaded_until_it_times_out()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        var hours = (int)TimeSpan.FromHours(2).TotalSeconds;
+
+        await trade.StartContractAsync(
+            Request([Rule(Coins(10))], TradeRequirementRulesType.Single, 1) with
+            {
+                TimeoutSeconds = hours,
+            },
+            default
+        );
+
+        Pins(fakes)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeGreaterThan(TimeSpan.FromSeconds(hours), "its own timer ends it");
+    }
+
+    private static IEnumerable<TimeSpan> Pins(Fakes fakes) =>
+        fakes.Log.Of("DelayDeactivation").Select(call => (TimeSpan)call.Args[1]!);
+
     [Fact]
     public async Task A_trade_wired_cancelled_is_replaced_without_closing_the_window()
     {

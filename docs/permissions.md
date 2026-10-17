@@ -318,7 +318,12 @@ answered from memory as an immutable, versioned `PermissionGroupDirectorySnapsho
 only writer of group data**: create, delete, reweight, rename, set/unset node or meta, add/remove
 parent. Each write is saved with its audit row (§10), the group is read back, and the new snapshot
 is pushed to every **subscribed** player grain. A player permission grain subscribes on activation
-and unsubscribes on deactivation, so the subscribers are exactly the active ones. The push goes
+and unsubscribes on deactivation, so the subscribers are exactly the active ones. It stays active
+while its player is online (a check every `PermissionConfig.OnlineCheckMs` pins it with
+`DelayDeactivation` for two periods; started on activation and again at login, stopped by the first
+check that finds no session): what the client
+and the room were told lives only in the activation, and one collected for idleness would neither
+hear a group change nor know the client had not. The push goes
 straight to the grain, not through the presence: `AGENTS.md` keeps the presence as a transport for
 packets, and the directory needs no presence state to decide anything. Group edits are rare
 operator actions, so every subscriber is told rather than working out who is affected; an older
