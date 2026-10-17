@@ -509,6 +509,22 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
             return false;
         }
+        finally
+        {
+            KeepWhileTrading();
+        }
+    }
+
+    /// <summary>
+    /// Nothing else calls this grain while two players look at their offers, and Orleans collects
+    /// an idle activation while its players stay online, which would close every open trade. An
+    /// open trade keeps it loaded for <see cref="RoomConfig.TradeKeepAliveMinutes"/> past each
+    /// action instead.
+    /// </summary>
+    private void KeepWhileTrading()
+    {
+        if (_state.TradesByPlayerId.Count > 0)
+            DelayDeactivation(TimeSpan.FromMinutes(_roomConfig.TradeKeepAliveMinutes));
     }
 
     private Task SendOpenFailedAsync(

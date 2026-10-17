@@ -44,6 +44,9 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
     /// <summary>The layout the trade window draws a plain deposit with.</summary>
     private const string GENERIC_LAYOUT = "generic";
 
+    /// <summary>Kept past a contract's timeout so its timer, not idle collection, ends it.</summary>
+    private static readonly TimeSpan TIMEOUT_MARGIN = TimeSpan.FromMinutes(1);
+
     private readonly WiredChestConfig _config;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IWiredTradeGrain> _logger;
@@ -88,6 +91,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
             TargetId = chestId,
             Kind = kind,
         };
+
+        KeepWhileTrading();
 
         await SendAsync(
             [
@@ -148,6 +153,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
             Contract = request,
         };
 
+        KeepWhileTrading();
+
         if (request.TimeoutSeconds > 0)
             _timeoutTimer = this.RegisterGrainTimer<object?>(
                 static async (self, ct) => await ((WiredTradeGrain)self!).TimeOutAsync(ct),
@@ -197,6 +204,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
     {
         if (_state.Session is not { } session || itemIds.IsDefaultOrEmpty)
             return;
+
+        KeepWhileTrading();
 
         var offered = session.Offer.Select(x => x.ItemId).ToHashSet();
         var wanted = itemIds.Where(id => !offered.Contains(id)).Distinct().ToImmutableArray();
@@ -251,6 +260,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         if (_state.Session is not { } session || itemIds.IsDefaultOrEmpty)
             return;
 
+        KeepWhileTrading();
+
         var removed = itemIds.ToHashSet();
 
         session.Offer.RemoveAll(x => removed.Contains(x.ItemId));
@@ -265,6 +276,8 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
     {
         if (_state.Session is not { } session || !CanAccept(session))
             return;
+
+        KeepWhileTrading();
 
         if (!isFinalConfirm)
         {
@@ -472,6 +485,28 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         _state.Session = null;
 
         StopTimers();
+    }
+
+    /// <summary>
+    /// Nothing calls this grain while the player looks at the trade window, and Orleans collects
+    /// an idle activation while its player stays online, which would forget the trade and leave
+    /// the window open on offers that go nowhere. An open trade keeps it loaded for
+    /// <see cref="WiredChestConfig.TradeKeepAliveMinutes"/> past each action, and a contract at
+    /// least until it times out.
+    /// </summary>
+    private void KeepWhileTrading()
+    {
+        var keep = TimeSpan.FromMinutes(_config.TradeKeepAliveMinutes);
+
+        if (_state.Session?.Contract is { TimeoutSeconds: > 0 } request)
+        {
+            var timeout = TimeSpan.FromSeconds(request.TimeoutSeconds) + TIMEOUT_MARGIN;
+
+            if (timeout > keep)
+                keep = timeout;
+        }
+
+        DelayDeactivation(keep);
     }
 
     private void StopTimers()
