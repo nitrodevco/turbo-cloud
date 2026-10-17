@@ -18,7 +18,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
-using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -39,7 +39,7 @@ internal sealed partial class ChatStyleService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IAssetBundleStore store,
     IChatStyleProvider chatStyles,
-    HabboGamedataClient download,
+    HabboClientService client,
     TimeProvider time,
     ILogger<ChatStyleService> logger
 ) : IChatStyleService
@@ -396,33 +396,24 @@ internal sealed partial class ChatStyleService(
         }
     }
 
-    public async Task<ChatStyleImportResult> ImportBundleFromAsync(
-        string url,
-        PlayerId player,
-        CancellationToken ct
-    )
-    {
-        if (
-            !Uri.TryCreate(url, UriKind.Absolute, out var address)
-            || (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps)
-        )
-            throw new ArgumentException($"{url} is not a web address.");
-
-        var bundle =
-            await download.GetFileAsync(address.AbsoluteUri, ct).ConfigureAwait(false)
-            ?? throw new ArgumentException($"There is no bundle at {address.AbsoluteUri}.");
-
-        return await ImportBundleAsync(bundle, player, ct).ConfigureAwait(false);
-    }
-
-    public async Task<ChatStyleImportResult> ImportBundleAsync(
+    public Task<ChatStyleImportResult> ImportBundleAsync(
         byte[] bundle,
         PlayerId player,
         CancellationToken ct
+    ) => ApplyImportAsync(ReadBundle(bundle), "a chat style bundle", player, ct);
+
+    /// <summary>
+    /// Styles taken in: each style read gets its look, and one the hotel lacks is added with who may
+    /// use it as the source says; the hotel's own say on the ones it has stays. The library's other
+    /// bitmaps are replaced by the source's.
+    /// </summary>
+    private async Task<ChatStyleImportResult> ApplyImportAsync(
+        ReadBundleResult read,
+        string source,
+        PlayerId player,
+        CancellationToken ct
     )
     {
-        var read = ReadBundle(bundle);
-
         await _writes.WaitAsync(ct).ConfigureAwait(false);
 
         try
@@ -501,8 +492,9 @@ internal sealed partial class ChatStyleService(
             await tx.CommitAsync(ct).ConfigureAwait(false);
 
             logger.LogInformation(
-                "Player {PlayerId} imported a chat style bundle: {Added} styles added, {Updated} updated, {Library} library bitmaps",
+                "Player {PlayerId} took in the chat styles of {Source}: {Added} styles added, {Updated} updated, {Library} library bitmaps",
                 player,
+                source,
                 added,
                 updated,
                 read.Library.Count

@@ -5,6 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -17,6 +19,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -37,6 +40,8 @@ internal sealed class AssetSyncService(
     IOptions<AssetBundleConfig> config,
     IOptions<GamedataConfig> gamedataConfig,
     HabboGamedataClient habbo,
+    HabboClientService client,
+    ClientBundleBuilder builder,
     IAssetBundleStore store,
     IAssetJobs jobs,
     TimeProvider time,
@@ -46,7 +51,12 @@ internal sealed class AssetSyncService(
     // Rows are written in batches: a first sync converts every library Habbo has.
     private const int SAVE_BATCH = 200;
 
+    private const string AVATAR_ACTIONS = "HabboAvatarActions.xml";
+
     private const string NO_FILE = "Habbo has no file at its address.";
+
+    /// <summary>A library's download name for one read from Habbo's HTML client: the path in the release follows.</summary>
+    private const string CLIENT_PREFIX = "client:";
 
     // Numbered files are asked for this many at once, and given up on after this many missing in a row.
     private const int PROBE_BATCH = 6;
@@ -140,7 +150,7 @@ internal sealed class AssetSyncService(
 
         var known = await LoadKnownAsync(ct).ConfigureAwait(false);
         var tally = new Tally();
-        var context = new SyncContext(lists.Domain, lists.Revision, progress, tally);
+        var context = new SyncContext(lists.Domain, lists.Revision, lists.Client, progress, tally);
 
         await SyncAsync("Furniture", lists.Furniture, known, context, ct).ConfigureAwait(false);
         await SyncAsync("Clothing", lists.Figures ?? [], known, context, ct).ConfigureAwait(false);
@@ -153,6 +163,16 @@ internal sealed class AssetSyncService(
         await SyncAsync("Catalog pictures", lists.CatalogImages, known, context, ct)
             .ConfigureAwait(false);
         await SyncAsync("Trax samples", lists.Sounds, known, context, ct).ConfigureAwait(false);
+
+        progress.Step("Client libraries", 0);
+        await builder
+            .BuildAsync(
+                await AvatarActionsAsync(lists.Domain, lists.Revision, progress.Log, ct)
+                    .ConfigureAwait(false),
+                progress.Log,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return tally.ToString();
     }
@@ -315,7 +335,7 @@ internal sealed class AssetSyncService(
             figures,
             effects,
             pets,
-            HabboFileLists.Room(revision),
+            await RoomAsync(revision, log, ct).ConfigureAwait(false),
             texts is null
                 ? null
                 : await BadgesAsync(texts, domain, had[AssetBundleKind.Badge], probe, log, ct)
@@ -323,11 +343,72 @@ internal sealed class AssetSyncService(
             numbered[AssetBundleKind.CatalogIcon],
             await CatalogImagesAsync(ct).ConfigureAwait(false),
             numbered[AssetBundleKind.Sound]
-        );
+        )
+        {
+            Client = _client,
+        };
 
         _lists = lists;
 
         return lists;
+    }
+
+    /// <summary>The release of Habbo's HTML client the last listing opened.</summary>
+    private HabboClientRelease? _client;
+
+    /// <summary>
+    /// The room's own libraries: each from Habbo's HTML client (<c>local_include/&lt;Name&gt;.hab</c>,
+    /// at its file's SHA-256, so a changed one is taken again) when a release is downloaded and has
+    /// it, as nitro-studio prefers it; else Habbo's gordon SWF at the client revision.
+    /// </summary>
+    private async Task<List<HabboLibrary>> RoomAsync(
+        string revision,
+        Action<string> log,
+        CancellationToken ct
+    )
+    {
+        _client = null;
+
+        try
+        {
+            _client = await client.OpenFollowedAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or AssetFormatException or JsonException)
+        {
+            logger.LogWarning(
+                ex,
+                "Habbo's HTML client could not be opened; the room libraries come from gordon"
+            );
+            log(
+                $"Habbo's HTML client could not be opened ({ex.Message}); the room libraries come from gordon."
+            );
+        }
+
+        var libraries = HabboFileLists.Room(revision);
+
+        if (_client is null)
+            return libraries;
+
+        var fromClient = 0;
+
+        for (var i = 0; i < libraries.Count; i++)
+        {
+            var path = $"local_include/{libraries[i].Name}.hab";
+
+            if (_client.FileHashes.TryGetValue(path, out var sha256))
+            {
+                libraries[i] = libraries[i] with
+                {
+                    Revision = sha256,
+                    Download = CLIENT_PREFIX + path,
+                };
+                fromClient++;
+            }
+        }
+
+        log($"{fromClient} room libraries come from Habbo's HTML client {_client.Version}.");
+
+        return libraries;
     }
 
     /// <summary>The files the hotel has of each kind of Habbo's that is found by asking for it, by name.</summary>
@@ -571,6 +652,40 @@ internal sealed class AssetSyncService(
         return null;
     }
 
+    /// <summary>
+    /// Habbo's <c>HabboAvatarActions.xml</c>, which the client downloads from the gordon folder at its
+    /// revision; null when it could not be read.
+    /// </summary>
+    private async Task<byte[]?> AvatarActionsAsync(
+        string domain,
+        string revision,
+        Action<string> log,
+        CancellationToken ct
+    )
+    {
+        var url = GordonUrl(domain, revision, AVATAR_ACTIONS);
+
+        try
+        {
+            var file = await habbo.GetFileAsync(url, ct).ConfigureAwait(false);
+
+            if (
+                file is not null
+                && Encoding.UTF8.GetString(file, 0, Math.Min(file.Length, 512)).Contains("<actions")
+            )
+                return file;
+
+            log($"Habbo has no {AVATAR_ACTIONS} at {url}.");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Habbo's {File} at {Url} could not be read", AVATAR_ACTIONS, url);
+            log($"{AVATAR_ACTIONS} could not be read ({ex.Message}).");
+        }
+
+        return null;
+    }
+
     /// <summary>One kind's libraries: those that need it downloaded, converted and kept.</summary>
     private async Task SyncAsync(
         string phase,
@@ -673,7 +788,19 @@ internal sealed class AssetSyncService(
 
         try
         {
-            data = await habbo.GetFileAsync(url, ct).ConfigureAwait(false);
+            // A library of Habbo's HTML client is read from the release, not downloaded.
+            data =
+                library.Download?.StartsWith(CLIENT_PREFIX, StringComparison.Ordinal) == true
+                    ? context.Client?.Read(library.Download[CLIENT_PREFIX.Length..])
+                    : await habbo.GetFileAsync(url, ct).ConfigureAwait(false);
+        }
+        catch (AssetFormatException ex)
+        {
+            return Outcome.Failed(
+                library,
+                $"Habbo's HTML client could not be read: {ex.Message}",
+                retry: true
+            );
         }
         catch (HttpRequestException ex)
         {
@@ -980,7 +1107,11 @@ internal sealed class AssetSyncService(
         List<HabboLibrary> CatalogIcons,
         List<HabboLibrary> CatalogImages,
         List<HabboLibrary> Sounds
-    );
+    )
+    {
+        /// <summary>The release of Habbo's HTML client the room libraries were listed from, when one is downloaded.</summary>
+        public HabboClientRelease? Client { get; init; }
+    }
 
     /// <summary>What became of a library: its file's hash and size, or why it has none.</summary>
     private sealed record Outcome(
@@ -998,6 +1129,7 @@ internal sealed class AssetSyncService(
     private sealed record SyncContext(
         string Domain,
         string Revision,
+        HabboClientRelease? Client,
         IAssetJobProgress Progress,
         Tally Tally
     );

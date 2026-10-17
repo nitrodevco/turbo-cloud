@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace Turbo.Gamedata.Habbo;
 /// </summary>
 internal sealed class HabboReleaseWatcher(
     IHabboReleaseService releases,
+    IHabboClientService client,
     IAssetSyncService assets,
     IOptions<GamedataConfig> config,
     ILogger<HabboReleaseWatcher> logger
@@ -36,7 +38,28 @@ internal sealed class HabboReleaseWatcher(
         do
         {
             await CheckAsync(stoppingToken).ConfigureAwait(false);
+            await CheckClientAsync(stoppingToken).ConfigureAwait(false);
         } while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false));
+    }
+
+    // Habbo's HTML client: a new release is downloaded in the background, whatever the flash check found.
+    private async Task CheckClientAsync(CancellationToken ct)
+    {
+        try
+        {
+            var status = await client.CheckAsync(wait: false, ct).ConfigureAwait(false);
+
+            foreach (var environment in status.Environments.Where(x => x.Downloading))
+                logger.LogInformation(
+                    "Habbo's {Environment} HTML client {Version} is new; downloading it",
+                    environment.Environment,
+                    environment.LiveVersion
+                );
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Checking Habbo's HTML client failed");
+        }
     }
 
     // One failed check (Habbo down, its filter refusing) must not stop the next.

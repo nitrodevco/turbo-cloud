@@ -396,8 +396,8 @@ internal sealed partial class ContentEndpoints(
         );
         group.MapPost("/chat-styles/import", ImportChatStylesAsync);
         group.MapPost(
-            "/chat-styles/import-url",
-            (ChatStyleImportRequest request, HttpContext http, CancellationToken ct) =>
+            "/chat-styles/import-client",
+            (HttpContext http, CancellationToken ct) =>
                 ManageAsync(
                     http,
                     ct,
@@ -407,22 +407,13 @@ internal sealed partial class ContentEndpoints(
                         {
                             return Results.Ok(
                                 await chatStyles
-                                    .ImportBundleFromAsync(
-                                        request.Url ?? string.Empty,
-                                        AdminIdentity.Of(http).PlayerId,
-                                        ct
-                                    )
+                                    .ImportFromClientAsync(AdminIdentity.Of(http).PlayerId, ct)
                                     .ConfigureAwait(false)
                             );
                         }
-                        catch (HttpRequestException ex)
+                        catch (InvalidOperationException ex)
                         {
-                            logger.LogWarning(ex, "A chat style bundle could not be downloaded");
-
-                            return AdminResults.Error(
-                                StatusCodes.Status502BadGateway,
-                                $"The bundle could not be downloaded: {ex.Message}"
-                            );
+                            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
                         }
                     }
                 )

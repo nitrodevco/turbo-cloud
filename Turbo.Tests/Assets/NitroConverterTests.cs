@@ -100,6 +100,54 @@ public sealed class NitroConverterTests
     }
 
     [Fact]
+    public void the_room_contents_visualization_is_kept_as_the_room_draws_it()
+    {
+        const string ROOM = """
+            <visualizationData>
+              <floorData>
+                <floors>
+                  <floor id="default">
+                    <visualization size="32"><visualizationLayer materialId="floor_32_1"/></visualization>
+                    <visualization size="64" horizontalAngle="45.5">
+                      <visualizationLayer materialId="floor_64_1" color="0xFFFFFF"/>
+                      <animationLayer><animationItem id="1" assetId="cloud" x="0.5" randomX="1" speedX="2.5"/></animationLayer>
+                      <visualizationLayer materialId="floor_64_2" offset="4"/>
+                    </visualization>
+                  </floor>
+                </floors>
+                <materials>
+                  <material id="floor_32_1"/>
+                  <material id="floor_64_1"><materialCellMatrix repeatMode="all" normalMinX="-1"><materialCellColumn width="64"><materialCell textureId="t1"><extraItemData limitMax="2"><extraItemTypes><extraItemType assetName="star"/></extraItemTypes><offsets><offset x="3" y="4"/></offsets></extraItemData></materialCell></materialCellColumn></materialCellMatrix></material>
+                </materials>
+                <textures><texture id="t1"><bitmap assetName="floor_64_a" normalMaxY="0.5"/></texture></textures>
+              </floorData>
+              <maskData><mask id="window"><maskVisualization size="32"/><maskVisualization size="64"><bitmap assetName="mask_64"/></maskVisualization></mask></maskData>
+            </visualizationData>
+            """;
+
+        var bundle = NitroConverter.Convert(
+            Hab(
+                (
+                    "index",
+                    "text/xml",
+                    Encoding.UTF8.GetBytes(
+                        """<index type="room" logic="room" visualization="room"/>"""
+                    )
+                ),
+                ("room_visualization", "text/xml", Encoding.UTF8.GetBytes(ROOM))
+            ),
+            "HabboRoomContent"
+        );
+        var room = JsonNode.Parse(bundle.Files["HabboRoomContent.json"])!["roomVisualization"]!;
+
+        room.ToJsonString()
+            .Should()
+            .Be(
+                """{"floorData":{"planes":[{"id":"default","visualizations":[{"size":64,"horizontalAngle":45.5,"allLayers":[{"materialId":"floor_64_1","color":16777215},{"items":[{"id":1,"assetId":"cloud","x":"0.5","randomX":"1","speedX":2.5}]},{"materialId":"floor_64_2","offset":4}]}]}],"materials":[{"id":"floor_64_1","matrices":[{"repeatMode":"all","normalMinX":-1,"columns":[{"width":64,"cells":[{"textureId":"t1","extraData":{"limitMax":2,"extraItemTypes":["star"],"offsets":[[3,4]]}}]}]}]}],"textures":[{"id":"t1","bitmaps":[{"assetName":"floor_64_a","normalMaxY":0.5}]}]},"maskData":{"masks":[{"id":"window","visualizations":[{"size":64,"bitmaps":[{"assetName":"mask_64"}]}]}]}}"""
+            );
+    }
+
+    [Fact]
     public void a_prebuilt_hab_keeps_its_sheet_and_comes_to_the_current_layout()
     {
         var legacy = new JsonObject
@@ -170,6 +218,20 @@ public sealed class NitroConverterTests
     [InlineData("abc", null)]
     public void numbers_are_read_as_javascript_reads_them(string text, double? expected) =>
         JsValues.ParseInt(text).Should().Be(expected);
+
+    [Theory]
+    [InlineData("-0.9", -0.9d)]
+    [InlineData(" 12 ", 12d)]
+    [InlineData("", 0d)]
+    [InlineData("0x1F", 31d)]
+    [InlineData("0x1G", null)]
+    [InlineData("64a", null)]
+    [InlineData("1,5", null)]
+    [InlineData(null, null)]
+    public void an_attribute_is_read_whole_as_javascripts_number_reads_it(
+        string? text,
+        double? expected
+    ) => JsValues.ToNumber(text).Should().Be(expected);
 
     [Theory]
     [InlineData(0.000001, "0.000001")]
@@ -318,7 +380,7 @@ public sealed class NitroConverterTests
         return data.ToArray();
     }
 
-    private static byte[] Hab(params (string Name, string Mime, byte[] Data)[] files)
+    internal static byte[] Hab(params (string Name, string Mime, byte[] Data)[] files)
     {
         var payload = new MemoryStream();
         var entries = new JsonArray();

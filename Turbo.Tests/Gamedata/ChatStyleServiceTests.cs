@@ -5,11 +5,13 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Players;
 using Turbo.Gamedata.ChatStyles;
-using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -48,7 +50,13 @@ public sealed class ChatStyleServiceTests : IDisposable
             _db,
             _folder.Store,
             _provider,
-            new HabboGamedataClient(_host, NullLogger<HabboGamedataClient>.Instance),
+            new HabboClientService(
+                _host,
+                _folder.Store,
+                Options.Create(new GamedataConfig()),
+                TimeProvider.System,
+                NullLogger<HabboClientService>.Instance
+            ),
             TimeProvider.System,
             NullLogger<ChatStyleService>.Instance
         );
@@ -295,37 +303,108 @@ public sealed class ChatStyleServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task a_bundle_is_taken_from_its_address_and_a_file_that_is_none_is_refused()
+    public async Task the_styles_of_habbos_html_client_are_taken_with_its_librarys_other_bitmaps()
     {
-        _host.Bundle = Bundle();
+        var none = () => _styles.ImportFromClientAsync(STAFF, Ct);
 
-        (
-            await _styles.ImportBundleFromAsync(
-                "https://images.example/bundled/templates/habbo-free-flow-chat-com.nitro",
-                STAFF,
-                Ct
-            )
-        )
-            .Added.Should()
-            .Be(1);
+        (await none.Should().ThrowAsync<InvalidOperationException>())
+            .Which.Message.Should()
+            .Contain("No release");
 
-        var notAddress = () => _styles.ImportBundleFromAsync("file:///etc/passwd", STAFF, Ct);
-        var notBundle = () => _styles.ImportBundleAsync("hello"u8.ToArray(), STAFF, Ct);
-        var otherBundle = () =>
-            _styles.ImportBundleAsync(
-                NitroBundle
-                    .Create(new Dictionary<string, byte[]> { ["chair.json"] = "{}"u8.ToArray() })
-                    .Write(),
-                STAFF,
-                Ct
+        // As the client writes them: CRLF lines, colours in hex.
+        var regPoints = string.Join(
+            "\r\n",
+            "9sliceXY = 29,17",
+            "9sliceWH = 1,1",
+            "faceXY = 13,12",
+            "textFieldMargins = 28,4,12,7",
+            "pointerY = 23",
+            "textColorRGB = 0x0000FF",
+            "fontFace = Ubuntu",
+            "fontSize = 12"
+        );
+        var hab = NitroConverterTests.Hab(
+            (
+                "chatstyles_xml",
+                "text/xml",
+                Encoding.UTF8.GetBytes(
+                    """<chatstyles><!-- <style id="9" assetId="gone"/> --><style id="0" assetId="normal" staffOverrideable="true"/><style id="24" assetId="bats" hcOnly="true" systemStyle="false"/><style id="25" assetId="nolook"/></chatstyles>"""
+                )
+            ),
+            ("style_normal_regpoints", "text/plain", Encoding.UTF8.GetBytes(regPoints)),
+            ("style_normal_chat_bubble_base", "image/png", Png(40, 30, 5)),
+            ("style_normal_chat_bubble_pointer", "image/png", Png(9, 6, 0)),
+            ("style_normal_selector_preview", "image/png", Png(30, 20, 0)),
+            ("style_bats_regpoints", "text/plain", Encoding.UTF8.GetBytes(regPoints)),
+            ("style_bats_chat_bubble_base", "image/png", Png(40, 30, 0)),
+            ("style_bats_chat_bubble_pointer", "image/png", Png(9, 6, 0)),
+            ("style_bats_selector_preview", "image/png", Png(30, 20, 0)),
+            ("style_bats_chat_bubble_color", "image/png", Png(40, 30, 0)),
+            ("tray_bar", "image/png", Png(4, 4, 0))
+        );
+
+        TestClientRelease.Serve(
+            (url, data) => _host.Files[url] = data,
+            (ChatStyleService.CLIENT_LIBRARY, hab)
+        );
+        await Client().CheckAsync(wait: true, Ct);
+
+        var result = await _styles.ImportFromClientAsync(STAFF, Ct);
+
+        // normal (0) and bats (24) the hotel has; the commented one and the one without regpoints are none.
+        result
+            .Should()
+            .Be(
+                new ChatStyleImportResult
+                {
+                    Added = 0,
+                    Updated = 2,
+                    LibraryBitmaps = 1,
+                }
             );
 
-        await notAddress.Should().ThrowAsync<ArgumentException>();
-        await notBundle.Should().ThrowAsync<ArgumentException>();
-        (await otherBundle.Should().ThrowAsync<ArgumentException>())
-            .Which.Message.Should()
-            .Contain("chat-style-definitions");
+        var list = await _styles.ListAsync(Ct);
+        var bats = list.Styles.Single(x => x.AssetId == "bats");
+
+        bats.Bitmaps.Should()
+            .BeEquivalentTo(
+                "chat_bubble_base",
+                "chat_bubble_color",
+                "chat_bubble_pointer",
+                "selector_preview"
+            );
+
+        var points = JsonNode.Parse(bats.RegPoints!)!;
+
+        points["scale9"]!.ToJsonString().Should().Be("""{"x":29,"y":17,"width":1,"height":1}""");
+        points["textColorRGB"]!.GetValue<int>().Should().Be(0xFF);
+        points["fontFace"]!.GetValue<string>().Should().Be("Ubuntu");
+
+        // A bitmap kept whole, its transparent border and all: the nine-slice counts from its edges.
+        var normal = list.Styles.Single(x => x.AssetId == "normal");
+
+        RgbaImage
+            .Decode((await _styles.GetBitmapAsync(normal.Id, "chat_bubble_base", Ct))!)
+            .Width.Should()
+            .Be(40);
+
+        // Built with the library's own bitmap beside the styles.
+        JsonNode.Parse(BuiltBundle().Files[$"{ChatStyleService.LIBRARY}_spritesheet.json"])![
+            "frames"
+        ]!
+            .AsObject()
+            .Should()
+            .ContainKey($"{ChatStyleService.LIBRARY}-tray_bar");
     }
+
+    private HabboClientService Client() =>
+        new(
+            _host,
+            _folder.Store,
+            Options.Create(new GamedataConfig()),
+            TimeProvider.System,
+            NullLogger<HabboClientService>.Instance
+        );
 
     private static int[] Ids(NitroBundle bundle) =>
         [
@@ -423,10 +502,11 @@ public sealed class ChatStyleServiceTests : IDisposable
         return new RgbaImage(width, height, pixels).EncodePng();
     }
 
-    /// <summary>The hotel's asset host, serving its published bundle.</summary>
+    /// <summary>Habbo's hosts: what they serve by address, 404 for the rest.</summary>
     private sealed class Host : HttpMessageHandler, IHttpClientFactory
     {
-        public byte[]? Bundle { get; set; }
+        public System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> Files { get; } =
+            new();
 
         public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 
@@ -435,12 +515,12 @@ public sealed class ChatStyleServiceTests : IDisposable
             CancellationToken cancellationToken
         ) =>
             Task.FromResult(
-                Bundle is null
-                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
-                    : new HttpResponseMessage(HttpStatusCode.OK)
+                Files.TryGetValue(request.RequestUri!.ToString(), out var data)
+                    ? new HttpResponseMessage(HttpStatusCode.OK)
                     {
-                        Content = new ByteArrayContent(Bundle),
+                        Content = new ByteArrayContent(data),
                     }
+                    : new HttpResponseMessage(HttpStatusCode.NotFound)
             );
     }
 }

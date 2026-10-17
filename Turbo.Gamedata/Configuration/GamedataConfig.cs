@@ -31,6 +31,19 @@ public sealed class GamedataConfig
     public int HabboTimeoutSeconds { get; init; } = 120;
 
     /// <summary>
+    /// Which of Habbo's environments' HTML client the hotel's client libraries are built from:
+    /// <c>production</c>, <c>sandbox</c>, or <c>auto</c> - the first of those with a release
+    /// downloaded. The sandbox gets releases first.
+    /// </summary>
+    public string ClientEnvironment { get; init; } = "auto";
+
+    /// <summary>Releases of Habbo's HTML client kept, newest first, besides any an environment is on.</summary>
+    public int ClientKeepReleases { get; init; } = 5;
+
+    /// <summary>How long downloading a release of Habbo's HTML client may take, in minutes (it is 20-150 MB).</summary>
+    public int ClientDownloadMinutes { get; init; } = 30;
+
+    /// <summary>
     /// Where a furniture's asset file is, read when an update is taken in for its states and the
     /// rest the file says: <c>{domain}</c>, <c>{revision}</c> and <c>{name}</c> (the classname
     /// without its <c>*N</c> colour) are filled in.

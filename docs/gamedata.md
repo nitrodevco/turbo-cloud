@@ -403,6 +403,9 @@ loading the old build after a change.
 | `HabboDomain` | `com` | The Habbo hotel updates come from. |
 | `ReleaseCheckMinutes` | `30` | How often Habbo is checked. `0` checks only when staff ask. |
 | `HabboTimeoutSeconds` | `120` | How long a request to Habbo may take. |
+| `ClientEnvironment` | `auto` | Which environment's HTML client the client libraries are built from: `production`, `sandbox`, or `auto` (the first with a release). See `docs/asset-bundles.md`. |
+| `ClientKeepReleases` | `5` | Releases of Habbo's HTML client kept, besides any an environment is on. |
+| `ClientDownloadMinutes` | `30` | How long downloading a release may take. |
 | `FurnitureFileUrl` | `https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}.swf` | Where a furniture's asset file is, read when an update is taken in. |
 | `FurnitureFileConcurrency` | `8` | Furniture files downloaded at once. |
 | `KeepBuilds` | `10` | Builds of each file kept besides the current one. |

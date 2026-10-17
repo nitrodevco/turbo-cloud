@@ -18,7 +18,7 @@ namespace Turbo.Assets.Conversion;
 /// Not mapped: <c>room_visualization</c>, which only the room library has.
 /// </para>
 /// </summary>
-public static class AssetDataMapper
+public static partial class AssetDataMapper
 {
     // Never drawn by the client, so never in a bundle.
     private const int SKIPPED_VISUALIZATION_SIZE = 32;
@@ -64,6 +64,9 @@ public static class AssetDataMapper
 
         if (Parse(library.GetXml($"{type}_visualization")) is { } visualization)
             MapVisualization(visualization, output);
+
+        if (Parse(library.GetXml("room_visualization")) is { } roomVisualization)
+            MapRoomVisualization(roomVisualization, output);
 
         if (output["palettes"] is JsonArray palettes)
             AddPaletteColors(library, type, palettes);

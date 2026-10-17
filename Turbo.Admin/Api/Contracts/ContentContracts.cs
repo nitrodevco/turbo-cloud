@@ -351,6 +351,3 @@ public sealed record ChatStyleRequest(
         }
     }
 }
-
-/// <summary>Where to download a habbo-free-flow-chat-com bundle to import from.</summary>
-public sealed record ChatStyleImportRequest(string? Url);

@@ -30,6 +30,7 @@ namespace Turbo.Admin.Api;
 internal sealed class GamedataEndpoints(
     IGrainFactory grainFactory,
     IHabboReleaseService releases,
+    IHabboClientService client,
     IAssetSyncService assetSync,
     IGamedataFurnitureService furniture,
     IGamedataFileService files,
@@ -61,6 +62,36 @@ internal sealed class GamedataEndpoints(
 
         group.MapGet("/", StatusAsync);
         group.MapPost("/habbo/check", CheckAsync);
+        group.MapGet(
+            "/habbo/client",
+            async (CancellationToken ct) =>
+                Results.Ok(await client.GetStatusAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost(
+            "/habbo/client/check",
+            (HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapDelete(
+            "/habbo/client/releases/{version}",
+            (string version, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        await client.ForgetAsync(version, ct).ConfigureAwait(false)
+                            ? Results.NoContent()
+                            : AdminResults.Error(
+                                StatusCodes.Status404NotFound,
+                                "There is no such release, or it is downloading."
+                            )
+                )
+        );
         group.MapGet("/habbo/import", PreviewAsync);
         group.MapPost("/habbo/import/{releaseId:int}", ImportAsync);
         group.MapGet("/habbo/import/job", () => Results.Ok(new { job = imports.Current }));
@@ -195,6 +226,9 @@ internal sealed class GamedataEndpoints(
                     var result = await releases.CheckAsync(ct).ConfigureAwait(false);
 
                     assetSync.StartAfterCheck(AdminIdentity.Of(http).PlayerId);
+
+                    // The HTML client too: a new release downloads in the background.
+                    await client.CheckAsync(wait: false, ct).ConfigureAwait(false);
 
                     return Results.Ok(result);
                 }

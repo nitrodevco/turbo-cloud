@@ -104,6 +104,83 @@ internal static class JsValues
     }
 
     /// <summary>
+    /// <c>Number(text)</c>: the whole text, trimmed, as a number - empty is 0, <c>0x</c>/<c>0o</c>/<c>0b</c>
+    /// prefixes read in their base - and null (NaN) for no text or anything else.
+    /// </summary>
+    public static double? ToNumber(string? text)
+    {
+        if (text is null)
+            return null;
+
+        var span = text.AsSpan().Trim();
+
+        if (span.Length == 0)
+            return 0;
+
+        if (span.Length > 2 && span[0] == '0' && (span[1] | 0x20) is 'x' or 'o' or 'b')
+        {
+            var radix = (span[1] | 0x20) switch
+            {
+                'x' => 16,
+                'o' => 8,
+                _ => 2,
+            };
+
+            // Every character a digit of the base, as Number has it; parseInt would stop at the first that isn't.
+            return Digits(span[2..], radix) == span.Length - 2
+                ? ParseInt(span[2..].ToString(), radix)
+                : null;
+        }
+
+        var sign = span[0] is '-' or '+' ? 1 : 0;
+
+        if (span[sign..] is "Infinity")
+            return span[0] == '-' ? double.NegativeInfinity : double.PositiveInfinity;
+
+        // Digits, a dot and an exponent only: .NET would take more (a thousands comma, "NaN").
+        foreach (var c in span[sign..])
+        {
+            if (
+                !char.IsAsciiDigit(c)
+                && c is not '.' and not 'e' and not 'E' and not '-' and not '+'
+            )
+                return null;
+        }
+
+        return double.TryParse(
+            span,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var value
+        )
+            ? value
+            : null;
+
+        static int Digits(ReadOnlySpan<char> digits, int radix)
+        {
+            var count = 0;
+
+            foreach (var c in digits)
+            {
+                var digit = c switch
+                {
+                    >= '0' and <= '9' => c - '0',
+                    >= 'a' and <= 'z' => c - 'a' + 10,
+                    >= 'A' and <= 'Z' => c - 'A' + 10,
+                    _ => 99,
+                };
+
+                if (digit >= radix)
+                    break;
+
+                count++;
+            }
+
+            return count;
+        }
+    }
+
+    /// <summary>
     /// A number as JavaScript's <c>JSON.stringify</c> writes it - plain from 1e-7 up to 1e21
     /// (<c>0.000001</c>, not .NET's <c>1E-06</c>), with an exponent past that - and NaN (null) as
     /// <c>null</c>.

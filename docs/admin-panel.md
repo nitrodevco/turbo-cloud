@@ -970,9 +970,12 @@ the bubble. The normal bubble (0) stays everyone's, and a style someone owns can
 Every change builds `habbo-free-flow-chat-com` again (`ChatStyleService`), the drawable styles in
 the hotel's order with the library's own bitmaps, as a **template** bundle in
 `bundled/templates/` (source `built`), which the publish targets send with the rest and the client
-loads from `asset.bundles.templates`. The looks come in from a bundle (**Published bundle**, from the
-client's `asset.bundles.templates`, or **A bundle file**): each style in it is given its look, and one
-the hotel lacks is added, but who may speak with a style the hotel has stays as the hotel set it.
+loads from `asset.bundles.templates`. The looks come in from **Habbo's client** - the chat library
+(`generated/habbo-free-flow-chat-com.hab`) of the release of Habbo's HTML client the hotel builds
+from: `chatstyles_xml`, each style's `style_<assetId>_regpoints` and bitmaps, and the library's own
+bitmaps (its tray and scrollbar) - or from **A bundle file**. Each style taken in is given its look,
+and one the hotel lacks is added, but who may speak with a style the hotel has stays as the hotel set
+it.
 
 The preview pieces (`src/preview`: text, bubbles, avatars, images, the stage) are the panel's own,
 for other previews to draw with too.

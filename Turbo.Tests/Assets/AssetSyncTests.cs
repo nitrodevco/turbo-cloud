@@ -1,17 +1,21 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Assets;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -149,7 +153,7 @@ public sealed class AssetSyncTests : IDisposable
         first.Status.Should().Be(AssetJobStatus.Done, first.Error);
         // The six room libraries this Habbo lacks are among the failed, kept as ones it has not.
         first.Result.Should().Be("8 converted, 11 failed, 0 up to date, 1 uploads kept");
-        first.Phase.Should().Be("Trax samples");
+        first.Phase.Should().Be("Client libraries");
 
         var rows = await RowsAsync();
 
@@ -432,6 +436,394 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_room_library_comes_from_habbos_html_client_and_is_taken_again_when_it_changes()
+    {
+        var hab = NitroConverterTests.Hab(
+            ("TileCursor.json", "application/json", Encoding.UTF8.GetBytes(TileCursor)),
+            ("TileCursor.png", "image/png", [1, 2, 3])
+        );
+
+        TestClientRelease.Serve(_habbo.Serve, ("local_include/TileCursor.hab", hab));
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+        // Read from the release, not gordon; the others the client lacks still come from gordon.
+        _habbo.Requests.Should().NotContain($"{GORDON}/TileCursor.swf");
+        _habbo.Requests.Should().Contain($"{GORDON}/HabboRoomContent.swf");
+
+        var tile = (await RowsAsync())[(AssetBundleKind.Room, "TileCursor")];
+
+        tile.Revision.Should().Be(Convert.ToHexStringLower(SHA256.HashData(hab)));
+        NitroBundle
+            .Read(File.ReadAllBytes(_folder.Store.FullPathOf(AssetBundleKind.Room, "TileCursor")))
+            .Files["TileCursor.png"]
+            .Should()
+            .Equal(1, 2, 3);
+
+        // Up to date while the release is the same.
+        _habbo.ClearRequests();
+        (await RunAsync()).Result.Should().StartWith("0 converted");
+    }
+
+    [Fact]
+    public async Task The_avatar_and_variable_fx_libraries_are_built_from_habbos_html_client()
+    {
+        static (string, string, byte[]) Xml(string name, string xml) =>
+            (name, "text/xml", Encoding.UTF8.GetBytes(xml));
+        static (string, string, byte[]) Png(string name) =>
+            (name, "image/png", new RgbaImage(2, 3, new byte[2 * 3 * 4]).EncodePng());
+
+        var avatar = NitroConverterTests.Hab(
+            Xml(
+                "HabboAvatarGeometry",
+                """<geometry direction="4"><camera><x>0</x><y>0</y><z>10</z></camera><avatarset id="full" main="1"><bodypart id="top"/></avatarset><type id="vertical"><bodypart id="top" x="0" y="0" z="0" radius="0.1"><item id="mco" x="0" y="0" z="0" radius="0.01" nx="0" ny="0" nz="-1" double="1"/></bodypart></type></geometry>"""
+            ),
+            Xml(
+                "HabboAvatarPartSets",
+                """<partSets><partSet><part set-type="ri" flipped-set-type="li"/></partSet><activePartSet id="figure"><activePart set-type="bd"/></activePartSet></partSets>"""
+            ),
+            Xml(
+                "HabboAvatarFigure",
+                """<figuredata><colors><palette id="1"><color id="99999" index="1" club="0" selectable="1">DDDDDD</color></palette></colors><sets><settype type="hd" paletteid="1" mand_m_0="1" mand_f_0="1" mand_m_1="0" mand_f_1="0"><set id="180" gender="U" club="0" colorable="1" selectable="1" preselectable="0" sellable="0"><part id="1" type="hd" colorable="1" index="0" colorindex="1"/></set></settype></sets></figuredata>"""
+            ),
+            Xml(
+                "dance_sixseven_animation",
+                """<animation name="dance.sixseven" desc="67"><frame><bodypart id="head" action="Default" frame="0" dx="0" dy="1" dd="0"/></frame></animation>"""
+            ),
+            Xml(
+                "action_offset_lay",
+                """<offsets><offset size="h" direction="4" x="-17" y="17" z="-0.9"/></offsets>"""
+            ),
+            Xml("action_offset_swim", "<offsets/>"),
+            Xml(
+                "HabboAvatarAnimation",
+                """<animationSet><action id="Move"><part set-type="bd"><frame number="0" assetpartdefinition="wlk"/><frame number="1" assetpartdefinition="wlk" repeats="2"/></part></action></animationSet>"""
+            ),
+            Png("user_typing_png"),
+            // A default figure's part, which the figure libraries carry.
+            Png("h_std_bd_1_0_0")
+        );
+        var visualization = NitroConverterTests.Hab(
+            Png("variablefx_icon_energy"),
+            Png("pet_experience_bubble_png"),
+            Xml(
+                "variablefx_icon_metadata",
+                """<icons><icon name="energy" x="2" y="-1" /><!-- <icon name="gone" x="0" y="0" /> --></icons>"""
+            ),
+            Xml(
+                "variablefx_renderer_mapping",
+                """<variableFxRenderers><renderer id="0" name="classic_progress" rendererClass="ClassicProgressBarRenderer" /></variableFxRenderers>"""
+            )
+        );
+
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ($"generated/{ClientBundleBuilder.AVATAR_LIBRARY}.hab", avatar),
+            ($"generated/{ClientBundleBuilder.VISUALIZATION_LIBRARY}.hab", visualization)
+        );
+        _habbo.Serve(
+            $"{GORDON}/HabboAvatarActions.xml",
+            """<?xml version="1.0"?><actions><!-- Main --><action id="Lay" state="lay" precedence="100" main="1" prevents="fx.1,fx.2"><type id="1" animated="true"/></action><action id="Wave" state="wave" animation="1"><param id="default" value="1"/></action></actions>"""
+        );
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var rows = await RowsAsync();
+        IReadOnlyDictionary<string, byte[]> Files(string library) =>
+            NitroBundle
+                .Read(
+                    File.ReadAllBytes(_folder.Store.FullPathOf(AssetBundleKind.Template, library))
+                )
+                .Files;
+        JsonNode Json(string library, string file) => JsonNode.Parse(Files(library)[file])!;
+
+        rows[(AssetBundleKind.Template, ClientBundleBuilder.AVATAR_LIBRARY)]
+            .Source.Should()
+            .Be(AssetBundleSource.Built);
+
+        // The renderer's tables, and the additions under the names it asks for them by.
+        var library = ClientBundleBuilder.AVATAR_LIBRARY;
+
+        Json(library, $"{library}.json")["assets"]!
+            .AsArray()
+            .Select(x => x!["name"]!.GetValue<string>())
+            .Should()
+            .Equal("avatar_addition_user_typing");
+        Json(library, $"{library}_spritesheet.json")["frames"]!["avatar_addition_user_typing"]![
+            "frame"
+        ]!["w"]!
+            .GetValue<int>()
+            .Should()
+            .Be(2);
+        Json(library, "geometry.json")["types"]![0]!["bodyParts"]![0]!["items"]![0]!["double"]!
+            .GetValue<bool>()
+            .Should()
+            .BeTrue();
+        Json(library, "part-sets.json")["partSet"]![0]!["flippedSetType"]!
+            .GetValue<string>()
+            .Should()
+            .Be("li");
+        Json(library, "figure-data.json")["setTypes"]![0]!["sets"]![0]!["id"]!
+            .GetValue<int>()
+            .Should()
+            .Be(180);
+        Json(library, "built-in-animations.json")[0]!["name"]!
+            .GetValue<string>()
+            .Should()
+            .Be("dance.sixseven");
+        Json(library, "action-offsets.json")[0]!["offsets"]![0]!["z"]!
+            .GetValue<double>()
+            .Should()
+            .Be(-0.9);
+        Json(library, "action-offsets.json")[1]!["action"]!.GetValue<string>().Should().Be("swim");
+        Json(library, "animations.json")[0]!["parts"]![0]!["frames"]![1]!["repeats"]!
+            .GetValue<int>()
+            .Should()
+            .Be(2);
+
+        // Habbo's actions, without which an avatar only stands.
+        var actions = Json(library, "actions.json")["actions"]!;
+
+        actions[0]!
+            .ToJsonString()
+            .Should()
+            .Be(
+                """{"id":"Lay","state":"lay","precedence":100,"main":true,"prevents":["fx.1","fx.2"],"types":[{"id":1,"animated":true}]}"""
+            );
+        actions[1]!["params"]![0]!["value"]!.GetValue<string>().Should().Be("1");
+
+        // The Variable FX bitmaps, and the tables they are drawn by.
+        library = ClientBundleBuilder.VISUALIZATION_LIBRARY;
+        Json(library, $"{library}.json")["assets"]!
+            .AsArray()
+            .Select(x => x!["name"]!.GetValue<string>())
+            .Should()
+            .Equal("variablefx_icon_energy");
+        Json(library, ClientBundleBuilder.VARIABLE_FX_TABLES)
+            .ToJsonString()
+            .Should()
+            .Be(
+                """{"icons":{"energy":{"x":2,"y":-1}},"renderers":[{"id":0,"name":"classic_progress","rendererClass":"ClassicProgressBarRenderer"}]}"""
+            );
+
+        // Built once while the release and the actions are the same; kept when the actions can't be read.
+        var built = rows[(AssetBundleKind.Template, ClientBundleBuilder.AVATAR_LIBRARY)].UpdatedAt;
+
+        _habbo.Serve($"{GORDON}/HabboAvatarActions.xml", "<html>filtered</html>");
+        (await RunAsync()).Status.Should().Be(AssetJobStatus.Done);
+
+        (await RowsAsync())[(AssetBundleKind.Template, ClientBundleBuilder.AVATAR_LIBRARY)]
+            .UpdatedAt.Should()
+            .Be(built);
+        Files(ClientBundleBuilder.AVATAR_LIBRARY).Should().ContainKey("actions.json");
+    }
+
+    [Fact]
+    public async Task Each_library_with_a_layout_gets_its_window_templates_built_from_habbos_html_client()
+    {
+        static (string, string, byte[]) Xml(string name, string xml) =>
+            (name, "text/xml", Encoding.UTF8.GetBytes(xml));
+        static (string, string, byte[]) Png(string name, int width) =>
+            (name, "image/png", new RgbaImage(width, 2, new byte[width * 2 * 4]).EncodePng());
+
+        var windowManager = NitroConverterTests.Hab(
+            Xml(
+                "habbo_element_description_xml",
+                """<elements><window type="frame" style="0" window_layout="habbo_window_layout_frame_xml"/><window type="scrollable_itemlist_vertical" style="0" window_layout="habbo_window_layout_list_xml"/></elements>"""
+            ),
+            Xml(
+                "habbo_window_layout_frame_xml",
+                """<layout name="frame" width="100" height="80"><window><container width="100" height="80"><children><container name="content_area" x="6" y="30" width="88" height="44"/></children></container></window></layout>"""
+            ),
+            Xml(
+                "habbo_window_layout_list_xml",
+                """<layout name="list" width="40" height="40"><window><itemlist_vertical name="_ITEMLIST" width="30" height="40"/></window></layout>"""
+            ),
+            Png("frame_close_png", 3)
+        );
+        var toolbar = NitroConverterTests.Hab(
+            Xml(
+                "purse_xml",
+                """<?xml version="1.0"?><!-- the purse --><layout name="purse" width="120" height="60"><window><frame name="purse_frame" caption="%24%7Bpurse.title%7D" params="1" color="0xff418db0" width="120" height="60"><variables><var key="margin_top" value="20" type="int"/></variables><params><param name="relative_horizontal_scale_strech"/></params><children><bitmap name="coin"><variables><var key="asset_uri" value="coin_icon"/></variables></bitmap><bitmap name="close"><variables><var key="asset_uri" value="frame_close"/></variables></bitmap><bitmap name="gone"><variables><var key="asset_uri" value="no_such_bitmap"/></variables></bitmap><scrollable_itemlist_vertical name="list" width="40" height="40"/></children></frame></window></layout>"""
+            ),
+            Xml(
+                "broken_xml",
+                """<layout name="broken"><window><container><params><param name="no_such_param"/></params></container></window></layout>"""
+            ),
+            Xml("not_a_layout_xml", "<manifest/>"),
+            Png("coin_icon_png", 4),
+            // Drawn by name by the client's views, though no layout names it.
+            Png("loose_art_png", 5)
+        );
+        // A library with no layout has no templates.
+        var plain = NitroConverterTests.Hab(Png("art_png", 2));
+
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ("generated/habbo-window-manager-com.hab", windowManager),
+            ("generated/habbo-toolbar-com.hab", toolbar),
+            ("generated/habbo-plain-com.hab", plain)
+        );
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var rows = await RowsAsync();
+        IReadOnlyDictionary<string, byte[]> Files(string library) =>
+            NitroBundle
+                .Read(
+                    File.ReadAllBytes(_folder.Store.FullPathOf(AssetBundleKind.Template, library))
+                )
+                .Files;
+
+        rows.Keys.Where(x => x.Item1 == AssetBundleKind.Template)
+            .Select(x => x.Item2)
+            .Should()
+            .BeEquivalentTo("habbo-toolbar-com", "habbo-window-manager-com");
+        rows[(AssetBundleKind.Template, "habbo-toolbar-com")]
+            .Source.Should()
+            .Be(AssetBundleSource.Built);
+
+        var toolbarFiles = Files("habbo-toolbar-com");
+        var templates = JsonNode.Parse(toolbarFiles["templates.json"])!;
+
+        templates["library"]!.GetValue<string>().Should().Be("habbo-toolbar-com");
+        templates["version"]!.GetValue<string>().Should().Be(TestClientRelease.VERSION);
+        templates["templates"]!
+            .AsObject()
+            .Select(x => x.Key)
+            .Should()
+            .Equal("habbo-toolbar-com/purse_xml");
+
+        var purse = templates["templates"]!["habbo-toolbar-com/purse_xml"]!;
+        var frame = purse["elements"]![0]!;
+
+        frame["caption"]!.GetValue<string>().Should().Be("${purse.title}");
+        frame["color"]!.GetValue<uint>().Should().Be(0xff418db0);
+        frame["params"]!
+            .ToJsonString()
+            .Should()
+            .Be("""{"events":["input"],"scale":["stretch","fixed"]}""");
+        // The frame's content area is its window layout's, the top under its own margin_top.
+        frame["margins"]!.ToJsonString().Should().Be("[6,20,6,6]");
+
+        var children = frame["children"]!.AsArray();
+
+        // A bitmap is named after the library it is found in: its own, else the window manager's.
+        children[0]!["vars"]!["asset_uri"]!
+            .GetValue<string>()
+            .Should()
+            .Be("habbo-toolbar-com-coin_icon");
+        children[1]!["vars"]!["asset_uri"]!
+            .GetValue<string>()
+            .Should()
+            .Be("habbo-window-manager-com-frame_close");
+        children[2]!["vars"]!["asset_uri"]!.GetValue<string>().Should().Be("no_such_bitmap");
+        // The composite window carries the window layout it is built from.
+        purse["skins"]!["scrollable_itemlist_vertical:0"]!["name"]!
+            .GetValue<string>()
+            .Should()
+            .Be("list");
+
+        toolbarFiles
+            .Keys.Should()
+            .BeEquivalentTo(
+                "habbo-toolbar-com.json",
+                "templates.json",
+                "habbo-toolbar-com-coin_icon.png",
+                "habbo-toolbar-com-loose_art.png"
+            );
+        Files("habbo-window-manager-com")
+            .Should()
+            .ContainKey("habbo-window-manager-com-frame_close.png");
+        job.Log.Should()
+            .Contain("Template problem: habbo-toolbar-com: no_such_bitmap")
+            .And.Contain(x =>
+                x.StartsWith(
+                    "Template problem: habbo-toolbar-com: broken_xml (Unknown window parameter",
+                    StringComparison.Ordinal
+                )
+            );
+
+        // A release without the library takes its bundle away.
+        await Client().ForgetAsync(TestClientRelease.VERSION, Ct);
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ("generated/habbo-window-manager-com.hab", windowManager)
+        );
+        await Client().CheckAsync(wait: true, Ct);
+        (await RunAsync()).Status.Should().Be(AssetJobStatus.Done);
+
+        (await RowsAsync())
+            .Keys.Where(x => x.Item1 == AssetBundleKind.Template)
+            .Select(x => x.Item2)
+            .Should()
+            .Equal("habbo-window-manager-com");
+        File.Exists(_folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-toolbar-com"))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task The_window_managers_bundle_carries_the_ui_theme_beside_its_bitmaps()
+    {
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ("generated/habbo-window-manager-com.hab", Gamedata.ClientThemeTests.WindowManagerHab())
+        );
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var files = NitroBundle
+            .Read(
+                File.ReadAllBytes(
+                    _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-window-manager-com")
+                )
+            )
+            .Files;
+        var assets = JsonNode.Parse(files["habbo-window-manager-com.json"])!["assets"]!
+            .AsArray()
+            .Select(x => x!["name"]!.GetValue<string>())
+            .ToList();
+
+        files
+            .Should()
+            .ContainKeys(
+                "theme.png",
+                "theme_spritesheet.json",
+                "theme-variants.json",
+                "templates.json"
+            );
+        // The library's own bitmaps, and the theme's sprites, each on the sheet under its name.
+        assets.Should().Contain("habbo-window-manager-com-habbo_border");
+        assets.Where(x => x.StartsWith("theme-", StringComparison.Ordinal)).Should().NotBeEmpty();
+
+        var frames = JsonNode.Parse(files["theme_spritesheet.json"])!["frames"]!.AsObject();
+
+        assets
+            .Where(x => x.StartsWith("theme-", StringComparison.Ordinal))
+            .Should()
+            .OnlyContain(x => frames.ContainsKey(x));
+        JsonNode.Parse(files["theme-variants.json"])!["variants"].Should().NotBeNull();
+    }
+
+    private const string TileCursor = """
+        {"name":"TileCursor","type":"tile_cursor","documentClass":"TileCursor","logicType":"tile_cursor",
+         "assets":{"tile_cursor_64_a_0_0":{"x":1,"y":2}},
+         "spritesheet":{"frames":{"TileCursor_tile_cursor_64_a_0_0":{"frame":{"x":0,"y":0,"w":1,"h":1}}},"meta":{"image":"old.png"}}}
+        """;
+
+    [Fact]
     public async Task A_bundle_whose_file_is_gone_is_downloaded_again()
     {
         await RunAsync();
@@ -509,10 +901,27 @@ public sealed class AssetSyncTests : IDisposable
                 _fakes.Create<IHttpClientFactory>(),
                 NullLogger<HabboGamedataClient>.Instance
             ),
+            Client(),
+            new ClientBundleBuilder(
+                _db,
+                _folder.Store,
+                Client(),
+                TimeProvider.System,
+                NullLogger<ClientBundleBuilder>.Instance
+            ),
             _folder.Store,
             _jobs,
             TimeProvider.System,
             NullLogger<IAssetSyncService>.Instance
+        );
+
+    private HabboClientService Client() =>
+        new(
+            _fakes.Create<IHttpClientFactory>(),
+            _folder.Store,
+            Options.Create(new GamedataConfig()),
+            TimeProvider.System,
+            NullLogger<HabboClientService>.Instance
         );
 
     private async Task<AssetJobSnapshot> RunAsync()

@@ -116,6 +116,70 @@ A Habbo check (the timer, or **Check now** on the Gamedata page) starts a sync w
 whole hotel: about 14,000 furniture and 2,000 clothing libraries, which takes a while and several
 GB.
 
+## Habbo's HTML client
+
+Habbo's own client (the Electron one) carries the libraries the UI is drawn from as `.hab` files:
+the window manager's skins and every window's layouts, the chat bubbles, the avatar and room
+renderers' extras, the room content. The hotel takes it as nitro-studio does
+(`Turbo.Gamedata/Habbo/Client/HabboClientService.cs`):
+
+1. Each environment - `production` (`www.habbo.com`), then `sandbox` (`sandbox.habbo.com`, which
+   gets releases first) - is asked `/gamedata/clienturls`: `html-windows-version` is the release,
+   `html-windows` its listing (`native-release.json`) or, for an older release, a `.zip` with
+   `resources/app.asar` in it. An environment with no address serves no client (production's
+   `"0"`), which is no error.
+2. A release the hotel lacks is downloaded in the background, once whichever environment served
+   it: the listing's `app.asar` must be the size and SHA-256 it says (a web page in its place is
+   Habbo's filter refusing this server), and every file the release's own
+   `release-manifest.json` lists must be in it as large and hashed as listed. Only then is it kept,
+   in `.habbo-client/releases/<version>/` under the bundle folder (`app.asar` and a
+   `release.json`); the environments' state is `.habbo-client/environments.json`. The newest
+   `Turbo:Gamedata:ClientKeepReleases` are kept, and any an environment is on.
+3. The release built from is the followed environment's: `Turbo:Gamedata:ClientEnvironment`
+   (`production`, `sandbox`, or `auto`, the first of them with a release).
+
+It is asked on the release watcher's schedule (`ReleaseCheckMinutes`) and with **Check now**, and
+on its own from the Updates tab's **Habbo's HTML client** panel, which shows each environment,
+the releases kept and their libraries.
+
+What the hotel takes from the followed release:
+
+- **Room libraries.** Each one the client has as `local_include/<Name>.hab` is read from it rather
+  than from gordon, at the revision its manifest hash gives.
+- **Chat styles.** **From Habbo's client** on the chat styles tab imports
+  `generated/habbo-free-flow-chat-com.hab`'s styles and the library's other bitmaps.
+- **The renderers' own libraries**, built as nitro-studio builds them
+  (`Turbo.Gamedata/Habbo/Client/ClientBundleBuilder.cs`) at the end of every asset sync and kept as
+  templates with the source *built*:
+  - `habbo-avatar-render-lib`: the avatar additions (the typing and muted bubbles, the idle Zs, the
+    numbers) on one sheet as `avatar_addition_<name>`, and the tables the renderer starts from -
+    `geometry.json`, `part-sets.json`, `figure-data.json` (the placeholder figure),
+    `built-in-animations.json`, `action-offsets.json` and `animations.json`, converted from the
+    library's XML - with `actions.json` from Habbo's `HabboAvatarActions.xml` in the gordon folder.
+    Without the actions an avatar only stands, so when they can't be read a bundle built with them
+    is kept.
+  - `habbo-room-object-visualization-lib`: the Variable FX bitmaps on one sheet, and
+    `variable-fx-tables.json` - each icon's offset and the renderer each id draws with.
+
+  A bundle is stamped with its library's hash (and the actions'), so a sync builds it again only
+  when they change; one uploaded on the Assets tab is left alone.
+- **The window templates** (`ClientTemplates.cs`, nitro-studio's `packTemplateBundles`): a bundle
+  for each library with a `<layout>`, and the window manager's, which every one draws from. Each has
+  `templates.json` - every layout converted as nitro-theme's `layoutToTemplate` converts it, keyed
+  `<library>/<asset>`, a frame's content area from its window layout and a composite window's
+  window layouts (`skins`) from the window manager's element description - the asset data, and
+  every bitmap the library has as `<library>-<asset>.png` (a layout's bitmap is found in its own
+  library, else the window manager's). A layout the client would refuse and a bitmap no library has
+  are listed in the sync's log as template problems. The bundles are stamped with the release's
+  libraries and built again together when one changes; the bundle of a library the release no
+  longer has is taken away, and an uploaded one is left alone.
+- **The UI theme** (`Habbo/Client/Theme/`, nitro-studio's `clientTheme` / `themeVariants` /
+  `skinArt`): built from the window manager library's element description, window layouts and
+  skins, and put into `habbo-window-manager-com.nitro` beside its templates as Studio's `withTheme`
+  puts it - `theme.png` (every sprite on one sheet, each edge extruded into a 1-pixel gutter),
+  `theme_spritesheet.json` and `theme-variants.json` - with its `theme-*` sprites named in the asset
+  data. `ThemeRules.cs` is a copy of Studio's `theme-rules.json`.
+
 ## Publishing
 
 A publish target is kept in `asset_publish_targets`, edited on the Publish tab:

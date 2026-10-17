@@ -13,6 +13,7 @@ using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.HotelView;
 using Turbo.Gamedata.Products;
@@ -56,7 +57,27 @@ public sealed class GamedataModule : IHostPluginModule
                 http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
             }
         );
+        services.AddHttpClient(
+            HabboClientService.HTTP_CLIENT,
+            (sp, http) =>
+            {
+                http.Timeout = TimeSpan.FromMinutes(
+                    Math.Max(
+                        1,
+                        sp.GetRequiredService<
+                            IOptions<GamedataConfig>
+                        >().Value.ClientDownloadMinutes
+                    )
+                );
+                http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
+            }
+        );
         services.AddSingleton<HabboGamedataClient>();
+        services.AddSingleton<HabboClientService>();
+        services.AddSingleton<IHabboClientService>(sp =>
+            sp.GetRequiredService<HabboClientService>()
+        );
+        services.AddSingleton<ClientBundleBuilder>();
         services.AddSingleton<GamedataWriteLock>();
         services.AddSingleton<FurnitureOfferCatalog>();
         services.AddSingleton<HabboReleaseItems>();

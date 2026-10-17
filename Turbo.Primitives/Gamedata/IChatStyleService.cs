@@ -45,13 +45,9 @@ public interface IChatStyleService
     );
 
     /// <summary>
-    /// As <see cref="ImportBundleAsync"/>, the bundle downloaded from a web address (the hotel's own
-    /// published one). Throws <see cref="System.ArgumentException"/> for an address that isn't one
-    /// or has no file, and <see cref="System.Net.Http.HttpRequestException"/> when it can't be read.
+    /// As <see cref="ImportBundleAsync"/>, from Habbo's HTML client (the release the hotel builds
+    /// from, <see cref="IHabboClientService"/>): its chat library's styles and other bitmaps. Throws
+    /// <see cref="System.InvalidOperationException"/> when no release is downloaded.
     /// </summary>
-    Task<ChatStyleImportResult> ImportBundleFromAsync(
-        string url,
-        PlayerId player,
-        CancellationToken ct
-    );
+    Task<ChatStyleImportResult> ImportFromClientAsync(PlayerId player, CancellationToken ct);
 }
