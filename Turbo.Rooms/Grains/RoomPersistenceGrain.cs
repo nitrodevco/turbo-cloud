@@ -796,6 +796,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 row.Nutrition = pet.Nutrition;
                 row.Respect = Math.Max(row.Respect, pet.Respect);
                 row.HasSaddle = pet.HasSaddle;
+                row.SaddleDefinitionId = pet.SaddleDefinitionId;
                 row.AnyoneCanRide = pet.AnyoneCanRide;
                 row.HasBreedingPermission = pet.HasBreedingPermission;
                 row.PaletteId = pet.Figure.PaletteId;

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
@@ -116,7 +117,7 @@ public sealed partial class RoomPetModule
         pet.SetRider(rider.ObjectId);
         MapModule.UpdateHeightForAvatar(rider);
 
-        await AvatarModule.SetAvatarEffectAsync(rider.ObjectId, PetRiding.RIDER_EFFECT_ID, ct);
+        await AvatarModule.SetAvatarEffectAsync(rider.ObjectId, GetRiderEffectId(pet), ct);
         await BroadcastFigureAsync(pet, ct);
         Persist(pet);
     }
@@ -233,19 +234,35 @@ public sealed partial class RoomPetModule
         return $"{x},{y},{floor.ToStatusString()}";
     }
 
+    /// <summary>
+    /// The effect a rider of <paramref name="pet"/> wears: the one its saddle names (Habbo's
+    /// <c>horse_saddle2</c> gives 103, RidingSaddle), else Riding.
+    /// </summary>
+    private int GetRiderEffectId(IRoomPet pet) =>
+        PetProductParams.ParseSaddle(GetSaddleDefinition(pet)?.CustomParams)?.RiderEffectId
+        ?? PetRiding.RIDER_EFFECT_ID;
+
+    /// <summary>
+    /// The saddle <paramref name="pet"/> wears; a pet saddled before it kept which saddle it was
+    /// wears the configured one.
+    /// </summary>
+    private FurnitureDefinitionSnapshot? GetSaddleDefinition(IRoomPet pet) =>
+        pet.SaddleDefinitionId is { } id
+            ? _roomGrain._definitionProvider.TryGetDefinition(id)
+            : _roomGrain._definitionProvider.TryGetDefinitionByName(Config.SaddleDefinitionName);
+
     public async Task<bool> RemovePetSaddleAsync(ActionContext ctx, int petId, CancellationToken ct)
     {
         if (!TryGetPet(petId, out var pet) || pet.OwnerId != ctx.PlayerId || !pet.HasSaddle)
             return false;
 
-        var definition = _roomGrain._definitionProvider.TryGetDefinitionByName(
-            Config.SaddleDefinitionName
-        );
+        var definition = GetSaddleDefinition(pet);
 
         if (definition is null)
         {
             _roomGrain._logger.LogError(
-                "Saddle definition {Name} is missing; the saddle of pet {PetId} stays on",
+                "Saddle definition {Id} ({Name}) is missing; the saddle of pet {PetId} stays on",
+                pet.SaddleDefinitionId,
                 Config.SaddleDefinitionName,
                 petId
             );
@@ -256,7 +273,15 @@ public sealed partial class RoomPetModule
         if (pet.IsRiding)
             await DismountAsync(pet, ct);
 
-        await SetSaddleAsync(pet, false, ct);
+        if (PetProductParams.ParseSaddle(definition.CustomParams) is { } saddle)
+            pet.SetPetFigure(
+                pet.PetFigure with
+                {
+                    CustomParts = PetProductParams.WithoutSaddle(pet.PetFigure.CustomParts, saddle),
+                }
+            );
+
+        await SetSaddleAsync(pet, false, null, ct);
 
         await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
@@ -265,9 +290,36 @@ public sealed partial class RoomPetModule
         return true;
     }
 
-    internal async Task SetSaddleAsync(IRoomPet pet, bool hasSaddle, CancellationToken ct)
+    /// <summary>
+    /// Straps a saddle on: its parts drawn on the pet (<paramref name="saddle"/>, none when its
+    /// definition names none) and the saddle kept to be given back.
+    /// </summary>
+    internal Task PutSaddleOnAsync(
+        IRoomPet pet,
+        int saddleDefinitionId,
+        PetSaddleParams? saddle,
+        CancellationToken ct
+    )
     {
-        pet.SetSaddle(hasSaddle);
+        if (saddle is not null)
+            pet.SetPetFigure(
+                pet.PetFigure with
+                {
+                    CustomParts = PetProductParams.WithSaddle(pet.PetFigure.CustomParts, saddle),
+                }
+            );
+
+        return SetSaddleAsync(pet, true, saddleDefinitionId, ct);
+    }
+
+    private async Task SetSaddleAsync(
+        IRoomPet pet,
+        bool hasSaddle,
+        int? saddleDefinitionId,
+        CancellationToken ct
+    )
+    {
+        pet.SetSaddle(hasSaddle, saddleDefinitionId);
 
         await BroadcastFigureAsync(pet, ct);
         Persist(pet);

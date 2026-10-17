@@ -110,7 +110,8 @@ public sealed class WiredRoom
         Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null,
         FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody,
         bool canSit = false,
-        bool canLay = false
+        bool canLay = false,
+        string? customParams = null
     )
     {
         var item = new RoomFloorItem
@@ -140,6 +141,7 @@ public sealed class WiredRoom
                 CanSell = true,
                 UsagePolicy = usagePolicy,
                 ExtraData = null,
+                CustomParams = customParams,
             },
         };
 

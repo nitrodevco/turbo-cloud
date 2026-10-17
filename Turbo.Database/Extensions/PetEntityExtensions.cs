@@ -44,6 +44,7 @@ public static class PetEntityExtensions
             HarvestedAtUtc = entity.HarvestedAt,
             EnergyDecayDueUtc = entity.EnergyDecayDueAt,
             NutritionDecayDueUtc = entity.NutritionDecayDueAt,
+            SaddleDefinitionId = entity.SaddleDefinitionId,
         };
 
     public static PetBreedSnapshot ToSnapshot(this PetBreedEntity entity) =>

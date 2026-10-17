@@ -24,6 +24,9 @@ public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext
     public int Respect { get; }
     public int RarityLevel { get; }
     public bool HasSaddle { get; }
+
+    /// <summary>The saddle definition the pet wears; null for none or one not recorded.</summary>
+    public int? SaddleDefinitionId { get; }
     public bool AnyoneCanRide { get; }
     public bool HasBreedingPermission { get; }
     public bool IsMonsterplant { get; }
@@ -69,7 +72,7 @@ public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext
     public void SetEnergy(int energy);
     public void SetNutrition(int nutrition);
     public void SetRespect(int respect);
-    public void SetSaddle(bool hasSaddle);
+    public void SetSaddle(bool hasSaddle, int? saddleDefinitionId);
     public void SetAnyoneCanRide(bool anyoneCanRide);
     public void SetBreedingPermission(bool hasPermission);
     public void SetRider(RoomObjectId riderObjectId);

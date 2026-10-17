@@ -11,7 +11,9 @@ namespace Turbo.Primitives.Pets;
 /// (<c>horse_dye_08</c> "15 Gold"), a hair dye <c>&lt;petType&gt; &lt;layers&gt; &lt;palettes&gt;</c>
 /// (<c>horse_hairdye_06</c> "15 2,3 54,54") and a hair style
 /// <c>&lt;petType&gt; &lt;layers&gt; &lt;parts&gt; &lt;palettes&gt;</c> (<c>horse_hairstyle_3</c>
-/// "15 2,3 103,103 1,1"), the lists comma separated and paired by position.
+/// "15 2,3 103,103 1,1"), the lists comma separated and paired by position. A saddle is a hair
+/// style followed by the effect its rider wears (<c>horse_saddle1</c> "15 4 9 0 77",
+/// <c>horse_saddle2</c> "15 4 10 0 103").
 /// </summary>
 public static class PetProductParams
 {
@@ -117,6 +119,103 @@ public static class PetProductParams
         }
 
         return result.ToImmutable();
+    }
+
+    /// <summary>
+    /// A saddle's pet type, parts and rider effect, or null when the params are not one. Its parts
+    /// are drawn on the pet as given, as the client's preview of the saddle draws them
+    /// (<c>UseProductConfirmationView</c>, the saddle page).
+    /// </summary>
+    public static PetSaddleParams? ParseSaddle(string? customParams)
+    {
+        var fields = Split(customParams);
+
+        if (
+            fields.Length != 5
+            || !TryInt(fields[0], out var petType)
+            || !TryInt(fields[4], out var effectId)
+        )
+            return null;
+
+        var layers = SplitList(fields[1]);
+        var parts = SplitList(fields[2]);
+        var palettes = SplitList(fields[3]);
+
+        if (
+            layers is null
+            || parts is null
+            || palettes is null
+            || layers.Length == 0
+            || parts.Length != layers.Length
+            || palettes.Length != layers.Length
+        )
+            return null;
+
+        var customParts = ImmutableArray.CreateBuilder<int>(
+            layers.Length * PetFigure.CUSTOM_PART_FIELDS
+        );
+
+        for (var i = 0; i < layers.Length; i++)
+        {
+            customParts.Add(layers[i]);
+            customParts.Add(parts[i]);
+            customParts.Add(palettes[i]);
+        }
+
+        return new PetSaddleParams(petType, customParts.ToImmutable(), effectId);
+    }
+
+    /// <summary>The pet's custom parts with the saddle's on: its layers replaced, the rest kept.</summary>
+    public static ImmutableArray<int> WithSaddle(
+        ImmutableArray<int> current,
+        PetSaddleParams saddle
+    )
+    {
+        var result = WithoutSaddle(current, saddle).ToBuilder();
+
+        result.AddRange(saddle.CustomParts);
+
+        return result.ToImmutable();
+    }
+
+    /// <summary>The pet's custom parts with the saddle's layers taken off.</summary>
+    public static ImmutableArray<int> WithoutSaddle(
+        ImmutableArray<int> current,
+        PetSaddleParams saddle
+    )
+    {
+        var result = ImmutableArray.CreateBuilder<int>(current.Length);
+
+        for (
+            var i = 0;
+            i + PetFigure.CUSTOM_PART_FIELDS <= current.Length;
+            i += PetFigure.CUSTOM_PART_FIELDS
+        )
+        {
+            if (IsSaddleLayer(saddle, current[i]))
+                continue;
+
+            result.Add(current[i]);
+            result.Add(current[i + 1]);
+            result.Add(current[i + 2]);
+        }
+
+        return result.ToImmutable();
+    }
+
+    private static bool IsSaddleLayer(PetSaddleParams saddle, int layer)
+    {
+        for (
+            var i = 0;
+            i + PetFigure.CUSTOM_PART_FIELDS <= saddle.CustomParts.Length;
+            i += PetFigure.CUSTOM_PART_FIELDS
+        )
+        {
+            if (saddle.CustomParts[i] == layer)
+                return true;
+        }
+
+        return false;
     }
 
     private static int IndexOfLayer(ImmutableArray<int>.Builder parts, int layer)
