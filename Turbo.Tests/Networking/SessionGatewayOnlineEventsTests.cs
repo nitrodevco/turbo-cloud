@@ -29,6 +29,8 @@ public class SessionGatewayOnlineEventsTests
 
     private async Task<bool[]> AnnouncedAsync(int count)
     {
+        // What the gateway told the presence is done once the presence is idle.
+        await _hotel.WhenPresenceIdleAsync();
         await _hotel.Events.WhenPublishedAsync<PlayerOnlineChangedEvent>(count);
 
         return

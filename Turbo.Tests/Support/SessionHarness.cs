@@ -236,6 +236,15 @@ public sealed class SessionHarness
             ).Count == 0;
     }
 
+    /// <summary>Waits (5 s at most) for <see cref="PresenceIdle"/>, letting queued turns run first.</summary>
+    public async Task WhenPresenceIdleAsync()
+    {
+        await Task.Yield();
+
+        for (var i = 0; i < 500 && !PresenceIdle(); i++)
+            await Task.Delay(10);
+    }
+
     public static async Task Settle()
     {
         // Presence flushes run after a Task.Yield on the thread pool.
