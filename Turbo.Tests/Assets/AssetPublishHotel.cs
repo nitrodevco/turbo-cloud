@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Net.Http;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -9,6 +11,7 @@ using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -45,6 +48,11 @@ internal sealed class AssetPublishHotel : IDisposable
         );
 
         Store = new AssetBundleStore(Db, config, new TestEnvironment(_temp));
+
+        Fakes.Handlers["CreateClient"] = _ => new HttpClient(
+            new HabboHost(Habbo),
+            disposeHandler: true
+        );
 
         // A variable saved is kept in the database, as the variable service keeps it.
         Fakes.Handlers[nameof(IGamedataVariableService.SaveAsync)] = call =>
@@ -83,6 +91,17 @@ internal sealed class AssetPublishHotel : IDisposable
                 Fakes.Create<IPetBreedProvider>(),
                 NullLogger<PublishedPets>.Instance
             ),
+            new PublishedFurnitureIcons(
+                Db,
+                Store,
+                new HabboGamedataClient(
+                    Fakes.Create<IHttpClientFactory>(),
+                    NullLogger<HabboGamedataClient>.Instance
+                ),
+                config,
+                Options.Create(new GamedataConfig()),
+                NullLogger<PublishedFurnitureIcons>.Instance
+            ),
             config,
             TimeProvider.System,
             NullLogger<AssetPublishService>.Instance
@@ -93,6 +112,9 @@ internal sealed class AssetPublishHotel : IDisposable
 
     /// <summary>The variable service and pet breed provider the publish tells of its pets.</summary>
     public Fakes Fakes { get; } = new();
+
+    /// <summary>What Habbo's hosts serve, by address; 404 for the rest.</summary>
+    public ConcurrentDictionary<string, byte[]> Habbo { get; } = new();
 
     public AssetBundleStore Store { get; }
 
@@ -106,7 +128,12 @@ internal sealed class AssetPublishHotel : IDisposable
         Path.Combine(TargetFolder, "bundled", "furniture", $"{name}.nitro");
 
     /// <summary>Writes a furniture bundle to the store and saves its row, or replaces both.</summary>
-    public async Task PutBundleAsync(string name, byte[] bundle, CancellationToken ct)
+    public async Task PutBundleAsync(
+        string name,
+        byte[] bundle,
+        CancellationToken ct,
+        string? revision = null
+    )
     {
         var hash = await Store.WriteAsync(AssetBundleKind.Furniture, name, bundle, ct);
 
@@ -129,6 +156,7 @@ internal sealed class AssetPublishHotel : IDisposable
 
         row.Hash = hash;
         row.Size = bundle.Length;
+        row.Revision = revision ?? row.Revision;
         row.UpdatedAt = DateTime.UtcNow;
 
         await dbCtx.SaveChangesAsync(ct);
@@ -231,6 +259,22 @@ internal sealed class AssetPublishHotel : IDisposable
         {
             // A file still held open by the OS for a moment; the temp folder is the OS's to clear.
         }
+    }
+
+    private sealed class HabboHost(ConcurrentDictionary<string, byte[]> files) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            Task.FromResult(
+                files.TryGetValue(request.RequestUri!.ToString(), out var data)
+                    ? new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(data),
+                    }
+                    : new HttpResponseMessage(System.Net.HttpStatusCode.NotFound)
+            );
     }
 
     private sealed class TestEnvironment(string root) : IHostEnvironment

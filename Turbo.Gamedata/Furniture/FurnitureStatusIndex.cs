@@ -137,7 +137,7 @@ internal sealed class FurnitureStatusIndex(
                         )
                             ? JsonNode.Parse(data) as JsonObject
                             : null;
-                    var asset = HabboFurnitureFiles.AssetName(definition.Name);
+                    var asset = FurnitureAssetNames.BundleNameOf(definition.Name);
                     var bundle = bundles.GetValueOrDefault(asset) is { HasFile: true } kept
                         ? kept
                         : null;
@@ -244,7 +244,7 @@ internal sealed class FurnitureStatusIndex(
 
         foreach (var (key, item) in latest.Items)
         {
-            var asset = HabboFurnitureFiles.AssetName(key.ClassName);
+            var asset = FurnitureAssetNames.BundleNameOf(key.ClassName);
 
             revisions[asset] = Math.Max(
                 revisions.GetValueOrDefault(asset),

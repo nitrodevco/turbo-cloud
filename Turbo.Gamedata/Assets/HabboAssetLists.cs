@@ -99,12 +99,18 @@ internal static class HabboAssetLists
         [
             .. revisions
                 .OrderBy(x => x.Key, StringComparer.Ordinal)
-                .Select(x => new HabboLibrary(
-                    AssetBundleKind.Furniture,
-                    x.Key,
-                    x.Value.ToString(CultureInfo.InvariantCulture),
-                    null
-                )),
+                .Select(x =>
+                {
+                    var bundle = FurnitureAssetNames.BundleNameOf(x.Key);
+
+                    return new HabboLibrary(
+                        AssetBundleKind.Furniture,
+                        bundle,
+                        x.Value.ToString(CultureInfo.InvariantCulture),
+                        null,
+                        bundle == x.Key ? null : x.Key
+                    );
+                }),
         ];
     }
 

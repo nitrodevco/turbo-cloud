@@ -536,11 +536,12 @@ internal sealed class AssetBundleService(
         switch (row.Kind)
         {
             case AssetBundleKind.Furniture:
-                var colours = $"{row.Name}*";
+                var className = FurnitureAssetNames.AssetNameOf(row.Name);
+                var colours = $"{className}*";
 
                 return await dbCtx
                     .FurnitureDefinitions.AsNoTracking()
-                    .AnyAsync(x => x.Name == row.Name || x.Name.StartsWith(colours), ct)
+                    .AnyAsync(x => x.Name == className || x.Name.StartsWith(colours), ct)
                     .ConfigureAwait(false);
             case AssetBundleKind.Pet:
                 var types = AssetBundleIds.Parse(row.Ids).ToList();
@@ -560,7 +561,8 @@ internal sealed class AssetBundleService(
     {
         var path = store.FullPathOf(kind, name);
 
-        if (!File.Exists(path))
+        // An image or a sound is one file, not a zip of them.
+        if (!kind.IsBundle() || !File.Exists(path))
             return [];
 
         try

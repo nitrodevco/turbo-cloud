@@ -165,6 +165,66 @@ internal sealed class HabboGamedataClient(
         }
     }
 
+    /// <summary>
+    /// Whether Habbo has a file at the address, asked without downloading it: a HEAD, or - where
+    /// HEAD is refused - the first byte. Null when no answer came, after the retries.
+    /// </summary>
+    public async Task<bool?> ExistsAsync(string url, CancellationToken ct)
+    {
+        var http = httpClients.CreateClient(HTTP_CLIENT);
+        var head = true;
+
+        for (var attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(
+                    head ? HttpMethod.Head : HttpMethod.Get,
+                    url
+                );
+
+                if (!head)
+                    request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+
+                using var response = await http.SendAsync(
+                        request,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+
+                if (response.IsSuccessStatusCode)
+                    return true;
+
+                if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+                    return false;
+
+                if (
+                    head
+                    && response.StatusCode
+                        is HttpStatusCode.Forbidden
+                            or HttpStatusCode.MethodNotAllowed
+                )
+                {
+                    head = false;
+                    attempt--;
+
+                    continue;
+                }
+
+                if (!IsTransient(response.StatusCode))
+                    return response.StatusCode == HttpStatusCode.Forbidden ? false : null;
+            }
+            catch (HttpRequestException) { }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested) { }
+
+            if (attempt < MAX_ATTEMPTS)
+                await Task.Delay(RETRY_DELAY * attempt, ct).ConfigureAwait(false);
+        }
+
+        return null;
+    }
+
     private Task<byte[]> GetAsync(string domain, string file, CancellationToken ct) =>
         GetUrlAsync($"https://www.habbo.{domain}/gamedata/{file}/0", ct);
 

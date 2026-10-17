@@ -26,6 +26,28 @@ public sealed class AssetBundleConfig
     public string GordonFileUrl { get; init; } =
         "https://images.habbo.{domain}/gordon/flash-assets-{revision}/{name}";
 
+    /// <summary>Where a badge's picture is: <c>{domain}</c> and <c>{name}</c> (<c>&lt;code&gt;.gif</c>) are filled in.</summary>
+    public string BadgeFileUrl { get; init; } =
+        "https://images.habbo.{domain}/c_images/album1584/{name}";
+
+    /// <summary>
+    /// Where the catalog's pictures are - its tree's icons (<c>icon_&lt;n&gt;.png</c>) and its pages'
+    /// headers and teasers (<c>&lt;name&gt;.gif</c>): <c>{domain}</c> and <c>{name}</c> are filled in.
+    /// </summary>
+    public string CatalogFileUrl { get; init; } =
+        "https://images.habbo.{domain}/c_images/catalogue/{name}";
+
+    /// <summary>Where a trax sample is: <c>{domain}</c> and <c>{name}</c> (<c>sound_machine_sample_&lt;n&gt;.mp3</c>) are filled in.</summary>
+    public string SoundFileUrl { get; init; } =
+        "https://images.habbo.{domain}/dcr/hof_furni/mp3/{name}";
+
+    /// <summary>
+    /// Where a furniture's icon is at Habbo, taken for a bundle that has no icon to draw one from:
+    /// <c>{domain}</c>, <c>{revision}</c> and <c>{name}</c> (the classname, <c>*</c> as <c>_</c>) are filled in.
+    /// </summary>
+    public string FurnitureIconUrl { get; init; } =
+        "https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}_icon.png";
+
     /// <summary>
     /// Whether a Habbo check that finds a release (the timer or "Check now") goes on to download
     /// and convert every bundle that is missing or has a newer revision. Off, a sync runs only when

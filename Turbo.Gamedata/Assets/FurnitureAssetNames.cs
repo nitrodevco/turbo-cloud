@@ -81,6 +81,33 @@ internal static partial class FurnitureAssetNames
         ("ads_dfrisss", "ads_dfrisss_camp"),
     ];
 
+    /// <summary>
+    /// The two wall items the client loads under another name than their file's
+    /// (<c>RoomContentLoader.processFurnitureData</c>): their bundles are named as it asks, as
+    /// nitro-studio names them, and their files downloaded under Habbo's.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> RENAMED = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["post.it"] = "post_it",
+        ["post.it.vd"] = "post_it_vd",
+    };
+
+    /// <summary>The bundle a classname draws from, as the client asks for it: its asset, renamed where the client renames it.</summary>
+    public static string BundleNameOf(string className)
+    {
+        var star = className.IndexOf('*', StringComparison.Ordinal);
+        var asset = star < 0 ? className : className[..star];
+
+        return RENAMED.GetValueOrDefault(asset, asset);
+    }
+
+    /// <summary>The asset a bundle's file is under at Habbo, and its furniture's classname: the bundle's name, or the one the client renamed.</summary>
+    public static string AssetNameOf(string bundleName) =>
+        RENAMED.FirstOrDefault(x => x.Value == bundleName).Key ?? bundleName;
+
     private static readonly Dictionary<string, string> SourceByAlias = ALIASES.ToDictionary(
         x => x.Alias,
         x => x.Source,

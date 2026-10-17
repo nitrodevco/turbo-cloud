@@ -83,6 +83,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<AssetPasswordSealer>();
         services.AddSingleton<PublishConnections>();
         services.AddSingleton<PublishedPets>();
+        services.AddSingleton<PublishedFurnitureIcons>();
         services.AddSingleton<IAssetPublishService, AssetPublishService>();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<GamedataServer>();

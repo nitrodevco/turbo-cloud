@@ -147,8 +147,9 @@ public sealed class AssetSyncTests : IDisposable
         var first = await RunAsync();
 
         first.Status.Should().Be(AssetJobStatus.Done, first.Error);
-        first.Result.Should().Be("8 converted, 5 failed, 0 up to date, 1 uploads kept");
-        first.Phase.Should().Be("Pets");
+        // The six room libraries this Habbo lacks are among the failed, kept as ones it has not.
+        first.Result.Should().Be("8 converted, 11 failed, 0 up to date, 1 uploads kept");
+        first.Phase.Should().Be("Trax samples");
 
         var rows = await RowsAsync();
 
@@ -235,7 +236,7 @@ public sealed class AssetSyncTests : IDisposable
 
         var second = await RunAsync();
 
-        second.Result.Should().Be("0 converted, 1 failed, 12 up to date, 1 uploads kept");
+        second.Result.Should().Be("0 converted, 1 failed, 18 up to date, 1 uploads kept");
         _habbo
             .Requests.Where(x => x.EndsWith(".swf", StringComparison.Ordinal))
             .Should()
@@ -257,11 +258,24 @@ public sealed class AssetSyncTests : IDisposable
                 AssetBundleKind.Furniture,
                 AssetBundleKind.Figure,
                 AssetBundleKind.Effect,
-                AssetBundleKind.Pet
+                AssetBundleKind.Pet,
+                AssetBundleKind.Room,
+                AssetBundleKind.Badge,
+                AssetBundleKind.CatalogIcon,
+                AssetBundleKind.CatalogImage,
+                AssetBundleKind.Sound
+            );
+        // The preview asks Habbo for no numbered file: it lists what the last sync found.
+        _habbo
+            .Requests.Should()
+            .NotContain(x =>
+                x.Contains("icon_", StringComparison.Ordinal)
+                || x.Contains("sound_machine", StringComparison.Ordinal)
             );
         before.Kinds.Should().OnlyContain(x => x.Listed && x.Updated == 0);
         // Everything the first sync goes on to try, and only that.
-        before.Kinds.Sum(x => x.New).Should().Be(13);
+        // The six room libraries are new too.
+        before.Kinds.Sum(x => x.New).Should().Be(19);
 
         var furniture = before.Kinds[0];
 
@@ -292,7 +306,7 @@ public sealed class AssetSyncTests : IDisposable
         var after = await _sync.PreviewAsync(relist: false, Ct);
 
         _habbo.Requests.Should().BeEmpty("the sync read Habbo's lists just now");
-        after.Kinds.Sum(x => x.UpToDate).Should().Be(12);
+        after.Kinds.Sum(x => x.UpToDate).Should().Be(18);
         after
             .Kinds.SelectMany(x => x.Items)
             .Should()
@@ -323,6 +337,98 @@ public sealed class AssetSyncTests : IDisposable
             .Match<AssetSyncPendingItem>(x =>
                 x.Name == "chair" && x.HotelRevision == "7" && x.HabboRevision == "8"
             );
+    }
+
+    [Fact]
+    public async Task The_room_libraries_badges_catalog_pictures_and_trax_samples_come_laid_out_as_nitro_studio_has_them()
+    {
+        const string IMAGES = "https://images.habbo.com/c_images";
+        var gif = "GIF89a"u8.ToArray();
+
+        await using (var dbCtx = _db.CreateDbContext())
+        {
+            dbCtx.CatalogPages.Add(
+                new Turbo.Database.Entities.Catalog.CatalogPageEntity
+                {
+                    Id = 1,
+                    Localization = "Front",
+                    Icon = 1,
+                    Layout = "frontpage",
+                    SortOrder = 0,
+                    Display = Turbo.Primitives.Catalog.Enums.CatalogPageDisplay.Regular,
+                    ImageData = ["catalog_frontpage_headline", ""],
+                }
+            );
+            await dbCtx.SaveChangesAsync(Ct);
+        }
+
+        _habbo.Serve($"{GORDON}/HabboRoomContent.swf", NitroConverterTests.Swf());
+        // Texts name ACH_Test1 and a badge of their own; ACH_Test2 Habbo has but no text names.
+        _habbo.Serve(
+            TEXTS,
+            "badge_name_ACH_Test1=Tester\nTEAM_badge_name=Team\nposter_5_name=Five\n"
+        );
+        _habbo.Serve($"{IMAGES}/album1584/ACH_Test1.gif", gif);
+        _habbo.Serve($"{IMAGES}/album1584/ACH_Test2.gif", gif);
+        _habbo.Serve($"{IMAGES}/album1584/TEAM.gif", gif);
+        _habbo.Serve($"{IMAGES}/catalogue/icon_1.png", "png1");
+        _habbo.Serve($"{IMAGES}/catalogue/icon_3.png", "png3");
+        _habbo.Serve($"{IMAGES}/catalogue/catalog_frontpage_headline.gif", gif);
+        _habbo.Serve(
+            "https://images.habbo.com/dcr/hof_furni/mp3/sound_machine_sample_0.mp3",
+            "mp3"
+        );
+        // The client loads post.it as post_it; Habbo's file keeps its own name.
+        _habbo.Serve(
+            FURNIDATA,
+            """{ "roomitemtypes": { "furnitype": [] }, "wallitemtypes": { "furnitype": [ { "classname": "post.it", "revision": 6 } ] } }"""
+        );
+        _habbo.Serve($"{FURNI}/6/post.it.swf", NitroConverterTests.Swf());
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        string[] files =
+        [
+            "bundled/room/HabboRoomContent.nitro",
+            "bundled/furniture/post_it.nitro",
+            "images/badges/ACH_Test1.gif",
+            "images/badges/ACH_Test2.gif",
+            "images/badges/TEAM.gif",
+            "images/catalog-icons/icon_1.png",
+            "images/catalog-icons/icon_3.png",
+            "images/catalog/catalog_frontpage_headline.gif",
+            "sounds/sound_machine_sample_0.mp3",
+        ];
+
+        foreach (var file in files)
+            File.Exists(Path.Combine(_folder.Store.Root, file)).Should().BeTrue(file);
+
+        File.ReadAllBytes(Path.Combine(_folder.Store.Root, "images/badges/TEAM.gif"))
+            .Should()
+            .Equal(gif);
+
+        var rows = await RowsAsync();
+
+        // A room library Habbo has not is kept as one it lacks, and not asked for again.
+        rows[(AssetBundleKind.Room, "TileCursor")]
+            .Should()
+            .Match<AssetBundleEntity>(x => x.Hash == null && x.Error != null && !x.Retry);
+        rows.Should().NotContainKey((AssetBundleKind.Furniture, "post.it"));
+
+        // What was found by asking is kept: the next sync asks above it, and takes nothing again.
+        _habbo.ClearRequests();
+        _habbo.Serve($"{IMAGES}/catalogue/icon_4.png", "png4");
+
+        var again = await RunAsync();
+
+        again.Status.Should().Be(AssetJobStatus.Done, again.Error);
+        File.Exists(Path.Combine(_folder.Store.Root, "images/catalog-icons/icon_4.png"))
+            .Should()
+            .BeTrue();
+        _habbo.Requests.Should().NotContain($"{IMAGES}/catalogue/icon_1.png");
+        _habbo.Requests.Should().NotContain($"{IMAGES}/album1584/TEAM.gif");
     }
 
     [Fact]

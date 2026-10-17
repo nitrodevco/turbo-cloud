@@ -30,6 +30,7 @@ internal sealed class AssetPublishService(
     AssetPasswordSealer sealer,
     PublishConnections connections,
     PublishedPets pets,
+    PublishedFurnitureIcons icons,
     IOptions<AssetBundleConfig> config,
     TimeProvider time,
     ILogger<AssetPublishService> logger
@@ -236,9 +237,13 @@ internal sealed class AssetPublishService(
 
                 try
                 {
-                    // The pets it sends are known to the client and the server before it sends them.
+                    // What it sends is made first: the furniture's icons, drawn from their bundles;
+                    // and its pets are known to the client and the server before it sends them.
                     if (!dryRun)
+                    {
+                        progress.Log(await icons.BuildAsync(progress, jobCt).ConfigureAwait(false));
                         progress.Log(await pets.ApplyAsync(player, jobCt).ConfigureAwait(false));
+                    }
 
                     return await run.RunAsync(dryRun, deleteRemoved, progress, jobCt)
                         .ConfigureAwait(false);

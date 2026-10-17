@@ -40,6 +40,18 @@ serves it, so it can itself be served, or published as it is:
 | Pet | `bundled/pet/<name>.nitro` | the name `pet.configuration` lists | `pet.asset.url` |
 | Figure (clothing) | `bundled/figures/<lib>.nitro` | the figure map's `lib` (`hh_human_body`, `shirt_U_...`) | `avatar.asset.url` |
 | Template | `bundled/templates/<library>.nitro` | the client library (`habbo-free-flow-chat-com`) | `asset.bundles.templates` |
+| Room | `bundled/room/<Name>.nitro` | the room's own library (`HabboRoomContent`, `TileCursor`, `SelectionArrow`, `PlaceHolderFurniture`, `PlaceHolderWallItem`, `PlaceHolderPet`) | `asset.bundles.room` |
+| Furniture icon | `images/furni-icons/<asset>_icon.png`, `<asset>_<N>_icon.png` | the furniture's bundle, and its colour `*N` | `asset.urls.icons.furni` (`%libname%%param%_icon.png`) |
+| Catalog icon | `images/catalog-icons/icon_<n>.png` | the icon's number | `catalog.icons.url` |
+| Badge | `images/badges/<code>.gif` | the badge code | `badge.asset.url` |
+| Catalog picture | `images/catalog/<name>.gif` | a page's `image_data` name | `asset.urls.catalog` |
+| Trax sample | `sounds/sound_machine_sample_<n>.mp3` | the sample's number | `flash.dynamic.download.url` (the folder's root) and `flash.dynamic.download.samples.template` (`sounds/sound_machine_sample_%typeid%.mp3`) |
+
+This is the layout nitro-studio publishes a hotel's assets in, so a folder published from either is the
+same: point each client variable above at the target's public address with the path after it. The two
+wall items the client loads under another name (`RoomContentLoader`: `post.it` as `post_it`,
+`post.it.vd` as `post_it_vd`) have their bundles and icons under the client's name; their files are
+downloaded under Habbo's.
 
 Each bundle has a row in `asset_bundles`: its kind and name, the revision it was taken at, where it
 came from (`habbo`, `upload`, or `built` for a template the server builds from the hotel's own data: the chat styles, see `docs/admin-panel.md`), its SHA-1 and size, the ids that load it (the effects sharing an
@@ -72,6 +84,22 @@ A sync (`Turbo.Gamedata/Assets`):
      client revision.
    - **Clothing**, from `figuremap.xml` (`GordonFileUrl` too): each `<lib id revision>`, but
      `hh_pets` and `hh_human_fx`, which are drawn from elsewhere, as nitro-studio skips them.
+   - **Room libraries**, the six the client converts of its own (`GordonFileUrl`, `<Name>.swf`), at
+     the client revision; a generic library, named as its file.
+   - **Badges** (`BadgeFileUrl`): each code Habbo's external texts name (`badge_name_<code>` or
+     `<code>_badge_name`), each the hotel has, and an achievement's levels no text names: for each
+     `ACH_` badge, the levels above its highest are asked for until two in a row are missing (fifty at
+     most), as nitro-studio finds them.
+   - **Catalog icons** (`CatalogFileUrl`, `icon_<n>.png`, from 1) and **trax samples**
+     (`SoundFileUrl`, `sound_machine_sample_<n>.mp3`, from 0), which Habbo lists nowhere: a sync asks
+     for each number above the highest the hotel has (six at once) until 25 in a row are missing (100
+     on the first), and stops where Habbo stops answering, going on from there next time. The preview
+     asks for none and lists what the last sync found.
+   - **Catalog pictures** (`CatalogFileUrl`): each name the hotel's catalog pages give in their
+     `image_data`, as `<name>.gif`.
+
+   Pictures and sounds are kept as Habbo serves them, and have no revision: once had, one is not
+   taken again.
 3. Skips what is up to date: a library whose row has the same revision and a file, or failed at that
    revision in a way that won't pass (Habbo has no file, the file doesn't convert). An **upload is
    never replaced** by a sync.
@@ -113,7 +141,20 @@ place and renamed over it. What is sent is recorded as it goes, so a publish tha
 it was. A **dry run** only counts. **Delete removed** also deletes from the target what the hotel no
 longer has. Each publish is kept in `asset_publishes`, the target's history.
 
-Before it sends anything (not on a dry run), a publish makes its pets known (`PublishedPets`):
+Before it sends anything (not on a dry run), a publish draws the furniture's icons
+(`PublishedFurnitureIcons`) and makes its pets known (`PublishedPets`).
+
+**Furniture icons** are drawn from each furniture bundle as nitro-studio draws them
+(`Turbo.Assets/Conversion/FurnitureIcon.cs`, a port of its `shared/furni-icon.ts`; on a sample of
+Habbo's furniture every icon, each colour too, is the Studio's to the pixel): the size-1
+visualization's layers, each its `<type>_icon_<letter>` asset at its offset, alpha and ink, tinted by
+the colour, back to front by `z + id`, a group furniture's colour layers in a group's default colours.
+One is drawn for the bundle and one for each colour `classname*N` the hotel's furniture has. Its row
+keeps the bundle's hash as its revision, so it is drawn again only when the bundle changes; one no
+bundle or colour wants any more is removed (and, with **Delete removed**, from the target). A bundle
+with no icon to draw from has Habbo's (`FurnitureIconUrl`, at its revision), as the Studio takes it.
+
+Then the pets:
 
 - **`renderer.petTypes`**, the client's pet types, where a type's id is its place in the list. Its
   order is kept, since pets in the database are numbered by it. A pet bundle from Habbo fills the
@@ -158,12 +199,17 @@ Each lists how many, and up to `CheckSampleLimit` of them.
 | `CheckSampleLimit` | `25` | Examples each check lists. |
 | `SyncPreviewMinutes` | `15` | How long Habbo's lists are kept for the view of what a sync would download; read again when asked, and by every sync. |
 | `SyncPreviewItemLimit` | `500` | Libraries each kind of that view lists; its counts cover them all. |
+| `BadgeFileUrl` | `https://images.habbo.{domain}/c_images/album1584/{name}` | Where Habbo's badges are; `{name}` is `<code>.gif`. |
+| `CatalogFileUrl` | `https://images.habbo.{domain}/c_images/catalogue/{name}` | Where Habbo's catalog icons and pictures are. |
+| `SoundFileUrl` | `https://images.habbo.{domain}/dcr/hof_furni/mp3/{name}` | Where Habbo's trax samples are. |
+| `FurnitureIconUrl` | `https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}_icon.png` | Habbo's icon of a furniture, for a bundle with none to draw (`{name}` is the classname, `*` as `_`). |
 | `SecretKey` | empty | The key passwords are sealed with (secret). |
 
 ## Admin API
 
 Under `/api/assets`. Reading needs `admin.gamedata.view`; changing needs `gamedata.manage` as well.
-Kinds are `furniture`, `effect`, `pet` and `figure`; protocols `folder`, `ftp`, `ftps`, `sftp`. Times are UTC.
+Kinds are `furniture`, `effect`, `pet`, `figure`, `template`, `room`, `furni-icon`, `catalog-icon`,
+`badge`, `catalog-image` and `sound`; protocols `folder`, `ftp`, `ftps`, `sftp`. Times are UTC.
 A refusal is the panel's usual `{ "message": "..." }` (`AdminResults.Error`) with 400, 404 or 409.
 
 **Job** (`AssetJob`): `{ id, kind: "sync"|"publish", title, status: "running"|"done"|"failed"|"canceled",
@@ -178,7 +224,7 @@ runs at a time; starting another while one runs is 409.
 | `GET /assets/bundles/{kind}/{name}/file` | The `.nitro` file. |
 | `POST /assets/bundles` | Multipart `file` (a `.swf`, `.hab` or `.nitro`), `kind`, and `name` (default: the file's). Converts and keeps it as an upload; answers the `AssetBundle`. |
 | `POST /assets/upload` | Multipart `file` and `name` (default: the file's), any file, found by its content (see Uploading). `{ type: "bundle", bundle: AssetBundle }` or `{ type: "gamedata", gamedata: "furnidata"\|"productdata"\|"figuredata"\|"figuremap"\|"effectmap"\|"texts"\|"variables" }`; 422 with why when it can't be told what it is, 400 for a file it can't take. |
-| `GET /assets/pending?relist=` | What a sync would download, without downloading it: `{ domain, revision, listedAt, kinds: [ { kind, listed, habboLibraries, upToDate, uploads, new, updated, items: [ { name, reason: "new"\|"updated", habboRevision, hotelRevision, error } ], truncated } ] }`, furniture, clothing, effects and pets. Habbo's lists are read again after `SyncPreviewMinutes`, or now with `relist=true`; 502 when Habbo can't be read. |
+| `GET /assets/pending?relist=` | What a sync would download, without downloading it: `{ domain, revision, listedAt, kinds: [ { kind, listed, habboLibraries, upToDate, uploads, new, updated, items: [ { name, reason: "new"\|"updated", habboRevision, hotelRevision, error } ], truncated } ] }`, furniture, clothing, effects, pets, room libraries, badges, catalog icons and pictures, and trax samples. Habbo's lists are read again after `SyncPreviewMinutes`, or now with `relist=true`; 502 when Habbo can't be read. |
 | `DELETE /assets/bundles/{kind}/{name}` | 204. A Habbo library is downloaded again by the next sync. |
 | `POST /assets/sync` | Starts a sync; answers the `AssetJob`. |
 | `GET /assets/job` | The job running or last run; 204 before the first. |

@@ -38,6 +38,12 @@ internal sealed partial class AssetBundleStore(
             AssetBundleKind.Pet => "bundled/pet",
             AssetBundleKind.Figure => "bundled/figures",
             AssetBundleKind.Template => "bundled/templates",
+            AssetBundleKind.Room => "bundled/room",
+            AssetBundleKind.FurniIcon => "images/furni-icons",
+            AssetBundleKind.CatalogIcon => "images/catalog-icons",
+            AssetBundleKind.Badge => "images/badges",
+            AssetBundleKind.CatalogImage => "images/catalog",
+            AssetBundleKind.Sound => "sounds",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -45,7 +51,7 @@ internal sealed partial class AssetBundleStore(
         Path.GetFullPath(config.Value.Directory, environment.ContentRootPath);
 
     public string PathOf(AssetBundleKind kind, string name) =>
-        $"{FolderOf(kind)}/{name}{EXTENSION}";
+        $"{FolderOf(kind)}/{name}{(kind.IsBundle() ? EXTENSION : "")}";
 
     public string FullPathOf(AssetBundleKind kind, string name)
     {

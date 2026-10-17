@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
-using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 
@@ -48,7 +47,7 @@ internal sealed class AssetBundleUsage
             .ConfigureAwait(false);
 
         return new AssetBundleUsage(
-            names.Select(HabboFurnitureFiles.AssetName).ToHashSet(StringComparer.Ordinal),
+            names.Select(FurnitureAssetNames.BundleNameOf).ToHashSet(StringComparer.Ordinal),
             [.. petTypes]
         );
     }

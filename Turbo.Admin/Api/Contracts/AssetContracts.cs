@@ -21,6 +21,12 @@ public static class AssetContractNames
             AssetBundleKind.Pet => "pet",
             AssetBundleKind.Figure => "figure",
             AssetBundleKind.Template => "template",
+            AssetBundleKind.Room => "room",
+            AssetBundleKind.FurniIcon => "furni-icon",
+            AssetBundleKind.CatalogIcon => "catalog-icon",
+            AssetBundleKind.Badge => "badge",
+            AssetBundleKind.CatalogImage => "catalog-image",
+            AssetBundleKind.Sound => "sound",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -79,6 +85,12 @@ public static class AssetContractNames
             "pet" => AssetBundleKind.Pet,
             "figure" => AssetBundleKind.Figure,
             "template" => AssetBundleKind.Template,
+            "room" => AssetBundleKind.Room,
+            "furni-icon" => AssetBundleKind.FurniIcon,
+            "catalog-icon" => AssetBundleKind.CatalogIcon,
+            "badge" => AssetBundleKind.Badge,
+            "catalog-image" => AssetBundleKind.CatalogImage,
+            "sound" => AssetBundleKind.Sound,
             _ => null,
         };
 
