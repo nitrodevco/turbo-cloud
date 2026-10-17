@@ -34,6 +34,13 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     protected virtual StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Persistent;
     protected virtual StuffDataType _stuffDataType => StuffDataType.LegacyKey;
 
+    /// <summary>
+    /// Whether an item that never stored any data sends empty data rather than state "0": a
+    /// stateless one does (hhus, 2026-10-12: floors, modules, chairs), and so does a logic whose
+    /// data is not a state at all.
+    /// </summary>
+    protected virtual bool _emptyUntilStored => _ctx.Definition.TotalStates == 0;
+
     public IStuffData StuffData { get; private set; }
 
     IRoomItemContext IFurnitureLogic.Context => Context;
@@ -45,17 +52,16 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
         // A stateless item (no states in its definition) that never stored any data sends empty
         // data, as Habbo does (hhus, 2026-10-12: floors, modules, chairs); anything else "0".
-        StuffData =
-            ctx.Definition.TotalStates == 0
-                ? _stuffDataFactory.CreateStuffDataFromExtraData(
-                    _stuffDataType,
-                    ctx.RoomObject.ExtraData,
-                    string.Empty
-                )
-                : _stuffDataFactory.CreateStuffDataFromExtraData(
-                    _stuffDataType,
-                    ctx.RoomObject.ExtraData
-                );
+        StuffData = _emptyUntilStored
+            ? _stuffDataFactory.CreateStuffDataFromExtraData(
+                _stuffDataType,
+                ctx.RoomObject.ExtraData,
+                string.Empty
+            )
+            : _stuffDataFactory.CreateStuffDataFromExtraData(
+                _stuffDataType,
+                ctx.RoomObject.ExtraData
+            );
     }
 
     public virtual FurnitureUsageType GetUsagePolicy() =>
