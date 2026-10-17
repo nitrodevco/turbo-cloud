@@ -54,6 +54,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
                     await ProcessAvatarAsync(avatar, now, ct);
                 }
 
+                RevertHead(avatar, now);
                 CheckIdle(avatar, now);
                 await CheckIdleKickAsync(avatar, now, ct);
             }
@@ -88,6 +89,21 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         _roomGrain.SendComposerToRoomAndForget(
             new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] }
         );
+    }
+
+    /// <summary>
+    /// Turns a head that looked at someone talking back to the body once its time is up. The room
+    /// gets the update even when the head never turned, as Habbo sends it for a listener held by a
+    /// seat (official client capture, hhus 2026-10-17, 1/1).
+    /// </summary>
+    private static void RevertHead(IRoomAvatar avatar, long now)
+    {
+        if (avatar.HeadRevertAtMs <= 0 || now < avatar.HeadRevertAtMs)
+            return;
+
+        avatar.HeadRevertAtMs = 0;
+        avatar.SetHeadRotation(avatar.Rotation);
+        avatar.MarkDirty();
     }
 
     /// <summary>

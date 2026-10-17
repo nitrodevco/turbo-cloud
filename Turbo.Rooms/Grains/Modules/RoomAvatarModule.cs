@@ -1168,7 +1168,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>Whether the avatar sits or lies on a seat or bed, which holds it still.</summary>
-    private bool IsHeldByFurni(IRoomAvatar avatar)
+    internal bool IsHeldByFurni(IRoomAvatar avatar)
     {
         if (!avatar.HasStatus(AvatarStatusType.Sit) && !avatar.HasStatus(AvatarStatusType.Lay))
             return false;

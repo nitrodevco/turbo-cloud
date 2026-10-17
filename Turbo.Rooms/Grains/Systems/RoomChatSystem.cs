@@ -173,8 +173,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         else
             await BroadcastAsync(evt, speaker, recipient, ct);
 
-        if (chatType != RoomChatType.Whisper)
-            TurnHeadsTowards(speaker, chatType);
+        TurnHeadsTowards(speaker, chatType, recipient);
 
         await PetModule.HandleChatAsync(evt, ct);
 
@@ -465,49 +464,101 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             },
         };
 
-    private void TurnHeadsTowards(IRoomPlayer speaker, RoomChatType chatType)
+    /// <summary>
+    /// Listeners look at whoever talks and back to their body a while later, as Habbo does it
+    /// (official client capture, hhus 2026-10-17, 30 lines): the head turns on the next update,
+    /// body and posture kept, a floor sitter's too, and looks back 10 ticks (~5.0 s) after it,
+    /// counted again from a later line. Chat, shout and a whisper's recipient alike, at any
+    /// distance seen (Chebyshev 12). A listener on its last step turns as it arrives; the talker
+    /// never turns. A listener held by a seat keeps its head, yet the room still gets its
+    /// unchanged update when the time is up (1/1).
+    /// </summary>
+    private void TurnHeadsTowards(
+        IRoomPlayer speaker,
+        RoomChatType chatType,
+        IRoomPlayer? recipient
+    )
     {
         var range = _roomGrain._roomConfig.ChatLookAtRange;
+        var revertAtMs = _roomGrain.NowMs() + _roomGrain._roomConfig.ChatLookAtRevertMs;
 
         foreach (var avatar in AvatarModule.Avatars)
         {
-            if (avatar.ObjectId == speaker.ObjectId || avatar.IsWalking)
+            if (avatar.ObjectId == speaker.ObjectId)
                 continue;
 
-            if (avatar.X == speaker.X && avatar.Y == speaker.Y)
+            if (chatType == RoomChatType.Whisper && avatar.ObjectId != recipient?.ObjectId)
                 continue;
 
-            if (chatType == RoomChatType.Chat)
+            var (x, y) = (avatar.X, avatar.Y);
+
+            // A walk faces its path; only the step onto its goal, already facing its last
+            // direction, takes the look (1/1).
+            if (avatar.IsWalking)
             {
-                var distance = Math.Max(
-                    Math.Abs(avatar.X - speaker.X),
-                    Math.Abs(avatar.Y - speaker.Y)
-                );
-
-                if (distance > range)
+                if (avatar.TilePath.Count > 0 || avatar.NextTileId < 0)
                     continue;
+
+                (x, y) = MapModule.GetTileXY(avatar.NextTileId);
             }
 
-            var targetRotation = RotationExtensions.FromPoints(
-                avatar.X,
-                avatar.Y,
-                speaker.X,
-                speaker.Y
-            );
+            if (x == speaker.X && y == speaker.Y)
+                continue;
 
-            // AS3 AvatarVisualization.updateObject and AvatarImage.setDirection trust the
-            // server's head direction. An automatic chat reaction, a person's or a pet's, may
-            // look ahead or one octant either side of the body, never over the shoulder;
-            // explicit directions are separate.
+            // A limit of zero means none, as on Habbo.
             if (
-                targetRotation != avatar.Rotation
-                && targetRotation != avatar.Rotation.Rotate(-1)
-                && targetRotation != avatar.Rotation.Rotate(1)
+                chatType == RoomChatType.Chat
+                && range > 0
+                && Math.Max(Math.Abs(x - speaker.X), Math.Abs(y - speaker.Y)) > range
             )
                 continue;
 
-            avatar.SetHeadRotation(targetRotation);
+            if (GetChatHeadRotation(x, y, avatar.Rotation, speaker.X, speaker.Y) is not { } head)
+                continue;
+
+            // Straight ahead with the head there already: nothing to look at, nothing sent.
+            if (head == avatar.Rotation && avatar.HeadRotation == head)
+                continue;
+
+            if (!AvatarModule.IsHeldByFurni(avatar))
+                avatar.SetHeadRotation(head);
+
+            avatar.HeadRevertAtMs = revertAtMs;
         }
+    }
+
+    /// <summary>
+    /// Where a listener facing <paramref name="body"/> looks for a speaker, or null when the
+    /// speaker is behind it. The client draws whatever head the server sends (AS3
+    /// AvatarImage.setDirectionWithOffset), so the rule is the server's. Fitted to 14 official
+    /// samples (hhus 2026-10-17, inference where they leave room): the speaker's octant is the
+    /// one whose 45 degree sector ends at its bearing (ahead within 33.7 degrees anticlockwise is
+    /// still ahead, 26.6 degrees clockwise is not); the head moves at most one octant from the
+    /// body, so a speaker 90 degrees aside gets the octant toward it; past that, nothing.
+    /// </summary>
+    internal static Rotation? GetChatHeadRotation(
+        int x,
+        int y,
+        Rotation body,
+        int speakerX,
+        int speakerY
+    )
+    {
+        var bearing = Math.Atan2(speakerX - x, y - speakerY) * 180 / Math.PI;
+
+        if (bearing < 0)
+            bearing += 360;
+
+        // The epsilon keeps an exact diagonal or straight line in its own octant.
+        var toward = (int)Math.Ceiling(bearing / 45 - 1e-9) % 8;
+
+        return ((toward - (int)body + 8) % 8) switch
+        {
+            0 => body,
+            1 or 2 => body.Rotate(1),
+            6 or 7 => body.Rotate(-1),
+            _ => null,
+        };
     }
 
     private async Task<bool> IsMutedAsync(PlayerId playerId, CancellationToken ct)
