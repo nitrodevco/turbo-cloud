@@ -22,6 +22,14 @@ namespace Turbo.Networking.Session;
 /// their room and offline. A connection that never logged in is not pinged, so it is closed once
 /// it has been silent that long too.
 ///
+/// A connection whose packet handler never returns cannot finish closing: SuperSocket stops
+/// reading it once the packets queued behind the handler fill its buffer, and then neither the
+/// client leaving nor the server's close ends it, so it never reports the close. Such a session
+/// was closed again on every tick and its player stayed online for good. One still open a tick
+/// after the server closed it is now removed from the gateway, which takes its player offline
+/// like an ordinary close; the close SuperSocket reports if the handler ever returns finds
+/// nothing left to remove.
+///
 /// A logged-in player who has done nothing for <see cref="NetworkingConfig.IdleDisconnectMilliseconds"/>
 /// (when set) is sent DisconnectReason 112, which the client shows as "Idle disconnection!"
 /// (<c>disconnected.idle</c>), and their connection is closed. Pongs and the client's other
@@ -155,6 +163,24 @@ internal sealed class SessionHeartbeat(
     {
         if (session.LastReceivedUtc < silentSince)
         {
+            // Closed by the server at least a tick ago and still open: its connection cannot
+            // finish closing, so it never reports the close that removes the session.
+            if (session.ServerCloseReason is { } reason)
+            {
+                _logger.LogWarning(
+                    "Session {SessionKey} of player {PlayerId} is still open after it was closed ({Reason}); removing it",
+                    session.SessionKey,
+                    _sessionGateway.GetPlayerId(session.SessionKey),
+                    reason
+                );
+
+                await _sessionGateway
+                    .RemoveSessionAsync(session.SessionKey, ct)
+                    .ConfigureAwait(false);
+
+                return;
+            }
+
             _logger.LogInformation(
                 "Closing session {SessionKey}: nothing received since {LastReceived}",
                 session.SessionKey,

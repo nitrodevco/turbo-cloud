@@ -10,6 +10,7 @@ using SuperSocket.Server;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
 using SuperSocket.WebSocket.Server;
+using Turbo.Networking.Configuration;
 using Turbo.Networking.Extensions;
 using Turbo.Networking.Package;
 using Turbo.Networking.Session;
@@ -179,6 +180,63 @@ public sealed class SessionLivenessTests : IAsyncDisposable
             .Contain(m =>
                 m.Contains("of player 1 closed: LocalClosing, server reason: heartbeat timeout")
             );
+    }
+
+    [Fact]
+    public async Task AConnectionStuckBehindAHandler_IsTakenOffline_ByTheHeartbeat()
+    {
+        var session = await ConnectAsync();
+        await _slowHandlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+        await _hotel.Gateway.AddSessionToPlayerAsync(session.SessionKey, SessionHarness.PlayerId);
+
+        // The client goes on sending behind the stuck handler until the server stops reading it,
+        // then goes away. SuperSocket cannot finish closing such a connection, by the client or
+        // by the server, until the handler returns.
+        using (var flooding = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+        {
+            try
+            {
+                for (var i = 0; i < 200; i++)
+                    await _client.SendAsync(
+                        new ArraySegment<byte>(new byte[1000]),
+                        WebSocketMessageType.Binary,
+                        true,
+                        flooding.Token
+                    );
+            }
+            catch (OperationCanceledException) { }
+        }
+        _client.Abort();
+
+        var heartbeat = new SessionHeartbeat(
+            new NetworkingConfig
+            {
+                PingIntervalMilliseconds = 200,
+                SessionTimeoutMilliseconds = 500,
+            },
+            _hotel.Gateway,
+            NullLogger<SessionHeartbeat>.Instance
+        );
+        heartbeat.Start();
+
+        try
+        {
+            var gone = await WaitUntilAsync(
+                () =>
+                    _hotel.Gateway.GetSession(session.SessionKey) is null
+                    && !_hotel.Gateway.GetOnlinePlayerIds().Any(),
+                TimeSpan.FromSeconds(5)
+            );
+
+            gone.Should()
+                .BeTrue("a session the server closed is let go, with its player, if it stays open");
+            SessionAsserts.PresenceObserver(_hotel.Presence).Should().BeNull();
+            session.ServerCloseReason.Should().StartWith("heartbeat timeout");
+        }
+        finally
+        {
+            await heartbeat.DisposeAsync();
+        }
     }
 
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
