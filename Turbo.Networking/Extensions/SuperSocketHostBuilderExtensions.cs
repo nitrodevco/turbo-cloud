@@ -4,9 +4,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SuperSocket.Server;
+using SuperSocket.Server.Abstractions.Connections;
 using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Server.Host;
 using SuperSocket.WebSocket;
+using Turbo.Networking.Connection;
 using Turbo.Networking.Package;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
@@ -67,6 +69,22 @@ public static class SuperSocketHostBuilderExtensions
                     };
                 });
             }
+        );
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Makes every plain TCP or WebSocket connection a <see cref="ClosingTcpPipeConnection"/>, whose
+    /// close is reported even when the client reset the connection first.
+    /// </summary>
+    public static ISuperSocketHostBuilder<TPackage> UseClosingConnections<TPackage>(
+        this ISuperSocketHostBuilder<TPackage> builder
+    )
+    {
+        builder.ConfigureServices(
+            (_, services) =>
+                services.AddSingleton<IConnectionFactoryBuilder, ClosingConnectionFactoryBuilder>()
         );
 
         return builder;
