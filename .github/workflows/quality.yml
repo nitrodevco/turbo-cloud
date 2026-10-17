@@ -19,6 +19,10 @@ jobs:
     name: quality-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    env:
+      # Analyzers and code style are platform-independent: the Linux build and the lint job check
+      # them, so Windows and macOS compile and test without them.
+      ANALYZERS: ${{ matrix.os != 'ubuntu-latest' && '-p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -65,18 +69,6 @@ jobs:
           restore-keys: |
             nuget-v1-${{ runner.os }}-${{ runner.arch }}-
 
-      # Formatting and governance are independent of the build platform.
-      - name: Restore formatting tools
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
-        run: dotnet tool restore
-
-      - name: Check formatting
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
-        run: dotnet csharpier check .
-
-      - name: Check governance files
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
-        run: dotnet msbuild Turbo.Main/Turbo.Main.csproj -t:TurboCloudAiGovernanceCheck -p:TurboAIPolicyPhase=1
 
       - name: Prepare build diagnostics
         if: steps.scope.outputs.docs_only != 'true'
@@ -92,15 +84,15 @@ jobs:
         # Package downloads are cached; dependency resolution still runs on every build.
         run: dotnet restore Turbo.Main/Turbo.Main.csproj "-bl:${{ runner.temp }}/turbo-build-logs/restore.binlog;ProjectImports=None"
 
-      # Keep compilation, Orleans generators and build analyzers on every platform.
+      # Compilation and Orleans generators on every platform; analyzers on Linux (see ANALYZERS).
       - name: Build
         id: build
         if: steps.scope.outputs.docs_only != 'true'
-        run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
+        run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 ${{ env.ANALYZERS }} "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
 
       - name: Test
         if: steps.scope.outputs.docs_only != 'true'
-        run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1
+        run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1 ${{ env.ANALYZERS }}
 
       - name: Upload failed build diagnostics
         if: failure() && (steps.restore.outcome == 'failure' || steps.build.outcome == 'failure')
@@ -111,10 +103,56 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
 
+  # Platform-independent checks, beside the build matrix instead of after the Linux tests.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Classify changes and check documentation
+        id: scope
+        run: python scripts/ci_scope.py
+
+      - name: Setup .NET
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '.config/dotnet-tools.json', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config') }}
+          restore-keys: |
+            nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Restore formatting tools
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet tool restore
+
+      - name: Check formatting
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet csharpier check .
+
+      - name: Check governance files
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet msbuild Turbo.Main/Turbo.Main.csproj -t:TurboCloudAiGovernanceCheck -p:TurboAIPolicyPhase=1
+
+      - name: Restore dependencies
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet restore Turbo.Main/Turbo.Main.csproj
+
       - name: Check code style
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        if: steps.scope.outputs.docs_only != 'true'
         run: dotnet format Turbo.Main/Turbo.Main.csproj style --verify-no-changes --no-restore
 
       - name: Check analyzer fixes
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        if: steps.scope.outputs.docs_only != 'true'
         run: dotnet format Turbo.Main/Turbo.Main.csproj analyzers --verify-no-changes --no-restore
