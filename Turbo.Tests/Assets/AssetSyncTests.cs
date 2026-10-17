@@ -903,13 +903,66 @@ public sealed class AssetSyncTests : IDisposable
         (await RunAsync())
             .Log.Should()
             .NotContain(x => x.StartsWith("Built habbo-localization-com"));
-        _sync.StartClientBuild(PlayerId.Parse(1));
+        _sync.StartClientBuild(PlayerId.Parse(1), force: true);
 
         var job = await WaitAsync();
 
         job.Kind.Should().Be(AssetJobKind.ClientBuild);
         job.Status.Should().Be(AssetJobStatus.Done, job.Error);
         job.Log.Should().Contain(x => x.StartsWith("Built habbo-localization-com"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_release_is_built_from_as_soon_as_it_downloads_when_that_is_on(bool on)
+    {
+        var localization = NitroConverterTests.Hab(
+            ("default_localizations", "text/plain", Encoding.UTF8.GetBytes("hello=Hello\n")),
+            ("default_localizations_en", "text/plain", Encoding.UTF8.GetBytes("bye=Bye\n"))
+        );
+        var client = Client();
+        using var after = new ClientBuildAfterDownload(
+            client,
+            _sync,
+            _jobs,
+            Options.Create(new GamedataConfig { ClientBuildAfterDownload = on }),
+            TimeProvider.System,
+            NullLogger<ClientBuildAfterDownload>.Instance
+        );
+
+        await after.StartAsync(Ct);
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ($"generated/{ClientBundleBuilder.LOCALIZATION_LIBRARY}.hab", localization)
+        );
+        await client.CheckAsync(wait: true, Ct);
+
+        // The build starts in the background once the download is kept.
+        var deadline = DateTime.UtcNow.AddSeconds(on ? 10 : 1);
+
+        while (_jobs.Current is null && DateTime.UtcNow < deadline)
+            await Task.Delay(10, Ct);
+
+        if (on)
+        {
+            var job = await WaitAsync();
+
+            job.Kind.Should().Be(AssetJobKind.ClientBuild);
+            job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+            File.Exists(
+                    _folder.Store.FullPathOf(
+                        AssetBundleKind.Template,
+                        ClientBundleBuilder.LOCALIZATION_LIBRARY
+                    )
+                )
+                .Should()
+                .BeTrue();
+        }
+        else
+            _jobs.Current.Should().BeNull();
+
+        await after.StopAsync(Ct);
     }
 
     private const string TileCursor = """

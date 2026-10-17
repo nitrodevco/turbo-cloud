@@ -48,6 +48,13 @@ public sealed class GamedataConfig
     /// </summary>
     public string ClientChatStyles { get; init; } = "follow";
 
+    /// <summary>
+    /// A release of Habbo's HTML client the hotel follows is built from as soon as it is downloaded,
+    /// once no other asset job runs - what changed in it. Off, it is built at the next asset sync, or
+    /// with Build now.
+    /// </summary>
+    public bool ClientBuildAfterDownload { get; init; } = true;
+
     /// <summary>How long downloading a release of Habbo's HTML client may take, in minutes (it is 20-150 MB).</summary>
     public int ClientDownloadMinutes { get; init; } = 30;
 

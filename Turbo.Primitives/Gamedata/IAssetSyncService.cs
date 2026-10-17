@@ -26,10 +26,10 @@ public interface IAssetSyncService
 
     /// <summary>
     /// Starts building the client's libraries from the release of Habbo's HTML client followed -
-    /// every one again, whether its library changed or not - and returns its job at once. Throws
-    /// <see cref="System.InvalidOperationException"/> while another asset job runs.
+    /// with <paramref name="force"/> every one again, else those whose library changed - and returns
+    /// its job at once. Throws <see cref="System.InvalidOperationException"/> while another asset job runs.
     /// </summary>
-    AssetJobSnapshot StartClientBuild(PlayerId player);
+    AssetJobSnapshot StartClientBuild(PlayerId player, bool force);
 
     /// <summary>
     /// What a sync would download now, without downloading it: Habbo's lists, read again when

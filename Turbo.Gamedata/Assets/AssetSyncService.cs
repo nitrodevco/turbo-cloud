@@ -80,7 +80,7 @@ internal sealed class AssetSyncService(
             (progress, ct) => RunAsync(player, progress, ct)
         );
 
-    public AssetJobSnapshot StartClientBuild(PlayerId player) =>
+    public AssetJobSnapshot StartClientBuild(PlayerId player, bool force) =>
         jobs.Start(
             AssetJobKind.ClientBuild,
             "Build from Habbo's HTML client",
@@ -110,7 +110,7 @@ internal sealed class AssetSyncService(
                     : await AvatarActionsAsync(domain, revision, progress.Log, ct)
                         .ConfigureAwait(false);
                 var built = await builder
-                    .BuildAsync(actions, player, force: true, progress.Log, ct)
+                    .BuildAsync(actions, player, force, progress.Log, ct)
                     .ConfigureAwait(false);
 
                 return $"{built} bundles built";
