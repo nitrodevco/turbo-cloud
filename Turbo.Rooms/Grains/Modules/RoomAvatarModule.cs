@@ -1137,9 +1137,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         var rotation = RotationExtensions.FromPoints(avatar.X, avatar.Y, targetX, targetY);
 
-        avatar.SetBodyRotation(rotation);
-        avatar.SetHeadRotation(rotation);
-        avatar.MarkDirty();
+        // Official client capture: a target ahead or one octant either side turns the head only,
+        // the body stays. A seat or bed holds the body, so a sitting or lying avatar never turns
+        // it; past the head's reach a standing avatar turns whole.
+        if (
+            rotation == avatar.Rotation
+            || rotation == avatar.Rotation.Rotate(-1)
+            || rotation == avatar.Rotation.Rotate(1)
+        )
+            avatar.SetHeadRotation(rotation);
+        else if (!avatar.HasStatus(AvatarStatusType.Sit) && !avatar.HasStatus(AvatarStatusType.Lay))
+            avatar.SetRotation(rotation);
 
         return Task.FromResult(true);
     }
