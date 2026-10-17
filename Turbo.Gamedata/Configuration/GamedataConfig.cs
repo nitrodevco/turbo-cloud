@@ -40,6 +40,14 @@ public sealed class GamedataConfig
     /// <summary>Releases of Habbo's HTML client kept, newest first, besides any an environment is on.</summary>
     public int ClientKeepReleases { get; init; } = 5;
 
+    /// <summary>
+    /// What a release of Habbo's HTML client with a new chat library does to the chat styles:
+    /// <c>follow</c> takes its styles and updates each the hotel has not changed since it took it,
+    /// <c>replace</c> replaces the hotel's changes too, <c>off</c> takes nothing (the chat styles tab
+    /// still can).
+    /// </summary>
+    public string ClientChatStyles { get; init; } = "follow";
+
     /// <summary>How long downloading a release of Habbo's HTML client may take, in minutes (it is 20-150 MB).</summary>
     public int ClientDownloadMinutes { get; init; } = 30;
 

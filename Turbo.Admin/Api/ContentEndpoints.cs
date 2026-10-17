@@ -397,7 +397,7 @@ internal sealed partial class ContentEndpoints(
         group.MapPost("/chat-styles/import", ImportChatStylesAsync);
         group.MapPost(
             "/chat-styles/import-client",
-            (HttpContext http, CancellationToken ct) =>
+            (HttpContext http, CancellationToken ct, bool replace = false) =>
                 ManageAsync(
                     http,
                     ct,
@@ -407,7 +407,11 @@ internal sealed partial class ContentEndpoints(
                         {
                             return Results.Ok(
                                 await chatStyles
-                                    .ImportFromClientAsync(AdminIdentity.Of(http).PlayerId, ct)
+                                    .ImportFromClientAsync(
+                                        AdminIdentity.Of(http).PlayerId,
+                                        replace,
+                                        ct
+                                    )
                                     .ConfigureAwait(false)
                             );
                         }

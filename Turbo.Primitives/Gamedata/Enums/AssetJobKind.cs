@@ -8,4 +8,7 @@ public enum AssetJobKind
 
     /// <summary>Sends the bundles a publish target lacks, or holds an older copy of.</summary>
     Publish = 1,
+
+    /// <summary>Builds the client's libraries from the release of Habbo's HTML client followed, every one again.</summary>
+    ClientBuild = 2,
 }

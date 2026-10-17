@@ -46,8 +46,22 @@ public interface IChatStyleService
 
     /// <summary>
     /// As <see cref="ImportBundleAsync"/>, from Habbo's HTML client (the release the hotel builds
-    /// from, <see cref="IHabboClientService"/>): its chat library's styles and other bitmaps. Throws
-    /// <see cref="System.InvalidOperationException"/> when no release is downloaded.
+    /// from, <see cref="IHabboClientService"/>): its chat library's styles and other bitmaps. A
+    /// style the hotel changed since it took it from the client keeps the hotel's look unless
+    /// <paramref name="replaceChanged"/>. Throws <see cref="System.InvalidOperationException"/>
+    /// when no release is downloaded.
     /// </summary>
-    Task<ChatStyleImportResult> ImportFromClientAsync(PlayerId player, CancellationToken ct);
+    Task<ChatStyleImportResult> ImportFromClientAsync(
+        PlayerId player,
+        bool replaceChanged,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The client's chat styles taken again when the release followed has a chat library the hotel
+    /// has not taken yet, as <c>Turbo:Gamedata:ClientChatStyles</c> says (<c>follow</c> keeps the
+    /// hotel's changes, <c>replace</c> replaces them, <c>off</c> takes nothing); null when nothing
+    /// was taken.
+    /// </summary>
+    Task<ChatStyleImportResult?> FollowClientAsync(PlayerId player, CancellationToken ct);
 }

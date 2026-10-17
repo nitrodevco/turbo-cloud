@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Assets;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
@@ -18,6 +19,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
+using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo.Client;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
@@ -40,6 +42,7 @@ internal sealed partial class ChatStyleService(
     IAssetBundleStore store,
     IChatStyleProvider chatStyles,
     HabboClientService client,
+    IOptions<GamedataConfig> gamedataConfig,
     TimeProvider time,
     ILogger<ChatStyleService> logger
 ) : IChatStyleService
@@ -122,6 +125,7 @@ internal sealed partial class ChatStyleService(
             .CountAsync(ct)
             .ConfigureAwait(false);
         var taken = rows.Select(x => x.ClientStyleId).ToHashSet();
+        var looks = await ClientLookStatesAsync(dbCtx, rows, ct).ConfigureAwait(false);
 
         return new ChatStyleList
         {
@@ -150,6 +154,8 @@ internal sealed partial class ChatStyleService(
                         Owners = owners.GetValueOrDefault(x.Id),
                         Preferring = preferring.GetValueOrDefault(x.ClientStyleId),
                         Drawable = IsDrawable(x, files),
+                        FromClient = looks.GetValueOrDefault(x.Id).FromClient,
+                        ChangedHere = looks.GetValueOrDefault(x.Id).Changed,
                     };
                 }),
             ],
@@ -400,16 +406,20 @@ internal sealed partial class ChatStyleService(
         byte[] bundle,
         PlayerId player,
         CancellationToken ct
-    ) => ApplyImportAsync(ReadBundle(bundle), "a chat style bundle", player, ct);
+    ) => ApplyImportAsync(ReadBundle(bundle), "a chat style bundle", null, false, player, ct);
 
     /// <summary>
     /// Styles taken in: each style read gets its look, and one the hotel lacks is added with who may
     /// use it as the source says; the hotel's own say on the ones it has stays. The library's other
-    /// bitmaps are replaced by the source's.
+    /// bitmaps are replaced by the source's. With <paramref name="looks"/> - the looks last taken from
+    /// Habbo's client, by client id - a style whose look the hotel changed since is left as it is
+    /// unless <paramref name="replaceChanged"/>, and the looks taken now are written into it.
     /// </summary>
     private async Task<ChatStyleImportResult> ApplyImportAsync(
         ReadBundleResult read,
         string source,
+        Dictionary<int, string>? looks,
+        bool replaceChanged,
         PlayerId player,
         CancellationToken ct
     )
@@ -431,9 +441,34 @@ internal sealed partial class ChatStyleService(
             ).ToDictionary(x => x.ClientStyleId);
             var added = 0;
             var updated = 0;
+            var kept = 0;
 
             foreach (var (style, order) in read.Styles.Select((x, i) => (x, i)))
             {
+                var incoming = LookOf(style);
+
+                if (rows.TryGetValue(style.Id, out var existing) && looks is not null)
+                {
+                    var current = LookOf(existing);
+
+                    // Changed here since it was last taken from the client.
+                    if (
+                        current != incoming
+                        && !replaceChanged
+                        && looks.TryGetValue(style.Id, out var taken)
+                        && taken != current
+                    )
+                    {
+                        existing.SortOrder = order;
+                        kept++;
+
+                        continue;
+                    }
+                }
+
+                if (looks is not null)
+                    looks[style.Id] = incoming;
+
                 if (!rows.TryGetValue(style.Id, out var row))
                 {
                     // A style the hotel hasn't had: who may speak with it is what the client says.
@@ -492,11 +527,12 @@ internal sealed partial class ChatStyleService(
             await tx.CommitAsync(ct).ConfigureAwait(false);
 
             logger.LogInformation(
-                "Player {PlayerId} took in the chat styles of {Source}: {Added} styles added, {Updated} updated, {Library} library bitmaps",
+                "Player {PlayerId} took in the chat styles of {Source}: {Added} styles added, {Updated} updated, {Kept} kept as changed here, {Library} library bitmaps",
                 player,
                 source,
                 added,
                 updated,
+                kept,
                 read.Library.Count
             );
 
@@ -507,6 +543,7 @@ internal sealed partial class ChatStyleService(
                 Added = added,
                 Updated = updated,
                 LibraryBitmaps = read.Library.Count,
+                Kept = kept,
             };
         }
         finally

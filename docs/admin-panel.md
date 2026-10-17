@@ -975,7 +975,10 @@ loads from `asset.bundles.templates`. The looks come in from **Habbo's client** 
 from: `chatstyles_xml`, each style's `style_<assetId>_regpoints` and bitmaps, and the library's own
 bitmaps (its tray and scrollbar) - or from **A bundle file**. Each style taken in is given its look,
 and one the hotel lacks is added, but who may speak with a style the hotel has stays as the hotel set
-it.
+it. A style taken from the client and changed here since is marked *changed* (and has its own
+filter): a new release leaves it as it is (`Turbo:Gamedata:ClientChatStyles` = `follow`), and
+**Habbo's client** asks whether to replace it with the client's look again. A release with a new
+chat library is taken at the end of each asset sync on its own (see `docs/asset-bundles.md`).
 
 The preview pieces (`src/preview`: text, bubbles, avatars, images, the stage) are the panel's own,
 for other previews to draw with too.

@@ -140,14 +140,25 @@ renderers' extras, the room content. The hotel takes it as nitro-studio does
 
 It is asked on the release watcher's schedule (`ReleaseCheckMinutes`) and with **Check now**, and
 on its own from the Updates tab's **Habbo's HTML client** panel, which shows each environment,
-the releases kept and their libraries.
+the releases kept and their libraries, and under **Built from the client** each bundle built from
+the release followed (marked when an upload stands in its place and is left alone), what the last
+build left out and the templates' problems. **Build now** builds every one again as an asset job,
+whether its library changed or not.
 
 What the hotel takes from the followed release:
 
 - **Room libraries.** Each one the client has as `local_include/<Name>.hab` is read from it rather
   than from gordon, at the revision its manifest hash gives.
-- **Chat styles.** **From Habbo's client** on the chat styles tab imports
-  `generated/habbo-free-flow-chat-com.hab`'s styles and the library's other bitmaps.
+- **Chat styles.** `generated/habbo-free-flow-chat-com.hab`'s styles and the library's other
+  bitmaps. Each style's look as taken is kept (`.habbo-client/chat-styles.json`), so a style
+  changed here since is known - marked *changed* on the chat styles tab. A release with a new chat
+  library is taken at the end of the sync as `Turbo:Gamedata:ClientChatStyles` says: `follow`
+  (the default) adds its new styles and updates every one not changed here, `replace` replaces the
+  changed ones too, `off` takes nothing. **From Habbo's client** on the chat styles tab takes them
+  at any time, and asks whether to replace the ones changed here.
+- **Texts.** `habbo-localization-com`: the client's embedded texts, `default_localizations` with
+  each language's `default_localizations_<lang>` over it, as `DefaultLocalizations_<lang>.json`
+  (13 languages in a current release).
 - **The renderers' own libraries**, built as nitro-studio builds them
   (`Turbo.Gamedata/Habbo/Client/ClientBundleBuilder.cs`) at the end of every asset sync and kept as
   templates with the source *built*:

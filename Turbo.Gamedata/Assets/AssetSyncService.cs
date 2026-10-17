@@ -77,7 +77,44 @@ internal sealed class AssetSyncService(
             AssetJobKind.Sync,
             $"Sync from habbo.{gamedataConfig.Value.HabboDomain}",
             player,
-            RunAsync
+            (progress, ct) => RunAsync(player, progress, ct)
+        );
+
+    public AssetJobSnapshot StartClientBuild(PlayerId player) =>
+        jobs.Start(
+            AssetJobKind.ClientBuild,
+            "Build from Habbo's HTML client",
+            player,
+            async (progress, ct) =>
+            {
+                progress.Step("Client libraries", 0);
+
+                var domain = gamedataConfig.Value.HabboDomain;
+                string? revision = null;
+
+                try
+                {
+                    revision = HabboReleaseService.RevisionOf(
+                        await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false)
+                    );
+                }
+                catch (HttpRequestException ex)
+                {
+                    progress.Log(
+                        $"habbo.{domain}'s external variables could not be read ({ex.Message})."
+                    );
+                }
+
+                var actions = revision is null
+                    ? null
+                    : await AvatarActionsAsync(domain, revision, progress.Log, ct)
+                        .ConfigureAwait(false);
+                var built = await builder
+                    .BuildAsync(actions, player, force: true, progress.Log, ct)
+                    .ConfigureAwait(false);
+
+                return $"{built} bundles built";
+            }
         );
 
     public AssetJobSnapshot? StartAfterCheck(PlayerId player)
@@ -137,7 +174,11 @@ internal sealed class AssetSyncService(
         }
     }
 
-    private async Task<string> RunAsync(IAssetJobProgress progress, CancellationToken ct)
+    private async Task<string> RunAsync(
+        PlayerId player,
+        IAssetJobProgress progress,
+        CancellationToken ct
+    )
     {
         progress.Step("Listing", 0);
 
@@ -169,6 +210,8 @@ internal sealed class AssetSyncService(
             .BuildAsync(
                 await AvatarActionsAsync(lists.Domain, lists.Revision, progress.Log, ct)
                     .ConfigureAwait(false),
+                player,
+                force: false,
                 progress.Log,
                 ct
             )

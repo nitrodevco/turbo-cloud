@@ -1,12 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Assets.Hab;
+using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
+using Turbo.Gamedata.Habbo.Client;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -34,8 +41,12 @@ internal sealed partial class ChatStyleService
         "notification",
     ];
 
+    /// <summary>The looks last taken from the client, beside its releases: the chat library's hash, and each style's look by client id.</summary>
+    private const string CLIENT_LOOKS_FILE = "chat-styles.json";
+
     public async Task<ChatStyleImportResult> ImportFromClientAsync(
         PlayerId player,
+        bool replaceChanged,
         CancellationToken ct
     )
     {
@@ -44,19 +55,198 @@ internal sealed partial class ChatStyleService
             ?? throw new InvalidOperationException(
                 "No release of Habbo's HTML client is downloaded: check the client on the Updates tab first."
             );
+
+        return await ImportFromAsync(release, replaceChanged, player, ct).ConfigureAwait(false);
+    }
+
+    public async Task<ChatStyleImportResult?> FollowClientAsync(
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var mode = gamedataConfig.Value.ClientChatStyles.Trim().ToLowerInvariant();
+
+        if (
+            mode == "off"
+            || await client.OpenFollowedAsync(ct).ConfigureAwait(false) is not { } release
+        )
+            return null;
+
+        var taken = await ReadClientLooksAsync(ct).ConfigureAwait(false);
+
+        // Taken from this library already: a release that left the chat as it was changes nothing.
+        if (
+            !release.FileHashes.TryGetValue(CLIENT_LIBRARY, out var sha256)
+            || taken.Library == sha256
+        )
+            return null;
+
+        return await ImportFromAsync(release, mode == "replace", player, ct).ConfigureAwait(false);
+    }
+
+    private async Task<ChatStyleImportResult> ImportFromAsync(
+        HabboClientRelease release,
+        bool replaceChanged,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
         var data =
             release.Read(CLIENT_LIBRARY)
             ?? throw new InvalidOperationException(
                 $"Habbo's HTML client {release.Version} has no {CLIENT_LIBRARY}."
             );
-
-        return await ApplyImportAsync(
+        var taken = await ReadClientLooksAsync(ct).ConfigureAwait(false);
+        var looks = new Dictionary<int, string>(taken.Looks);
+        var result = await ApplyImportAsync(
                 ReadClient(HabLibrary.Read(data, LIBRARY)),
                 $"Habbo's HTML client {release.Version}",
+                looks,
+                replaceChanged,
                 player,
                 ct
             )
             .ConfigureAwait(false);
+
+        await WriteClientLooksAsync(
+                new ClientLooks
+                {
+                    Library = release.FileHashes.GetValueOrDefault(CLIENT_LIBRARY),
+                    Version = release.Version,
+                    Looks = looks,
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Whether each style's look is the one last taken from the client (<c>FromClient</c>), or was
+    /// taken from it and changed here since (<c>Changed</c>).
+    /// </summary>
+    private async Task<Dictionary<int, (bool FromClient, bool Changed)>> ClientLookStatesAsync(
+        TurboDbContext dbCtx,
+        List<PlayerChatStyleEntity> rows,
+        CancellationToken ct
+    )
+    {
+        var taken = await ReadClientLooksAsync(ct).ConfigureAwait(false);
+        var states = new Dictionary<int, (bool, bool)>();
+
+        if (taken.Looks.Count == 0)
+            return states;
+
+        var bitmaps = (
+            await dbCtx.PlayerChatStyleBitmaps.AsNoTracking().ToListAsync(ct).ConfigureAwait(false)
+        ).ToLookup(x => x.ChatStyleId);
+
+        foreach (var row in rows)
+        {
+            if (!taken.Looks.TryGetValue(row.ClientStyleId, out var look))
+                continue;
+
+            var current = LookOf(
+                row.Name,
+                row.StaffOverrideable,
+                row.AllowHtml,
+                row.Notification,
+                row.RegPoints,
+                bitmaps[row.Id].Select(x => (x.File, x.Data))
+            );
+
+            states[row.Id] = (true, current != look);
+        }
+
+        return states;
+    }
+
+    /// <summary>A style's look - its asset id, how it is drawn and its bitmaps - as one hash.</summary>
+    private static string LookOf(
+        string? name,
+        bool staffOverrideable,
+        bool allowHtml,
+        bool notification,
+        string? regPoints,
+        IEnumerable<(string File, byte[] Data)> bitmaps
+    )
+    {
+        var text = new StringBuilder()
+            .Append(name)
+            .Append('\n')
+            .Append(staffOverrideable)
+            .Append(allowHtml)
+            .Append(notification)
+            .Append('\n')
+            .Append(regPoints)
+            .Append('\n');
+
+        foreach (var (file, data) in bitmaps.OrderBy(x => x.File, StringComparer.Ordinal))
+            text.Append(file)
+                .Append(':')
+                .Append(Convert.ToHexStringLower(SHA256.HashData(data)))
+                .Append('\n');
+
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
+    }
+
+    private static string LookOf(PlayerChatStyleEntity row) =>
+        LookOf(
+            row.Name,
+            row.StaffOverrideable,
+            row.AllowHtml,
+            row.Notification,
+            row.RegPoints,
+            (row.Bitmaps ?? []).Select(x => (x.File, x.Data))
+        );
+
+    private static string LookOf(ImportedStyle style) =>
+        LookOf(
+            style.AssetId,
+            style.Flag("staffOverrideable"),
+            style.Flag("allowHTML"),
+            style.Flag("notification"),
+            style.RegPoints,
+            style.Bitmaps.Select(x => (x.Key, x.Value))
+        );
+
+    private string ClientLooksPath => Path.Combine(store.Root, ".habbo-client", CLIENT_LOOKS_FILE);
+
+    private async Task<ClientLooks> ReadClientLooksAsync(CancellationToken ct)
+    {
+        try
+        {
+            return File.Exists(ClientLooksPath)
+                ? JsonSerializer.Deserialize<ClientLooks>(
+                    await File.ReadAllTextAsync(ClientLooksPath, ct).ConfigureAwait(false)
+                ) ?? new ClientLooks()
+                : new ClientLooks();
+        }
+        catch (JsonException)
+        {
+            return new ClientLooks();
+        }
+    }
+
+    private async Task WriteClientLooksAsync(ClientLooks looks, CancellationToken ct)
+    {
+        var temp = $"{ClientLooksPath}.{Guid.NewGuid():N}.part";
+
+        Directory.CreateDirectory(Path.GetDirectoryName(ClientLooksPath)!);
+        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(looks), ct)
+            .ConfigureAwait(false);
+        File.Move(temp, ClientLooksPath, overwrite: true);
+    }
+
+    private sealed record ClientLooks
+    {
+        /// <summary>The SHA-256 of the chat library they were taken from, as the release lists it.</summary>
+        public string? Library { get; init; }
+
+        public string? Version { get; init; }
+
+        public Dictionary<int, string> Looks { get; init; } = [];
     }
 
     /// <summary>The client's chat styles, in <c>chatstyles_xml</c> order, and the library's other bitmaps.</summary>

@@ -66,4 +66,12 @@ public sealed record ChatStyleDefinitionSnapshot
     /// <summary>Whether the bundle carries it: it needs reg points and its three bitmaps.</summary>
     [Id(16)]
     public required bool Drawable { get; init; }
+
+    /// <summary>Its look came from Habbo's HTML client; false for one of the hotel's own, or one not yet taken from it.</summary>
+    [Id(17)]
+    public bool FromClient { get; init; }
+
+    /// <summary>Taken from the client, then changed here: a new release leaves it as it is unless told to replace it.</summary>
+    [Id(18)]
+    public bool ChangedHere { get; init; }
 }

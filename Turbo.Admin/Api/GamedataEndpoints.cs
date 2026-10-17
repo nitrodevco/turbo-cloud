@@ -31,6 +31,7 @@ internal sealed class GamedataEndpoints(
     IGrainFactory grainFactory,
     IHabboReleaseService releases,
     IHabboClientService client,
+    IHabboClientBuilds clientBuilds,
     IAssetSyncService assetSync,
     IGamedataFurnitureService furniture,
     IGamedataFileService files,
@@ -75,6 +76,38 @@ internal sealed class GamedataEndpoints(
                     ct,
                     async () =>
                         Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapGet(
+            "/habbo/client/build",
+            async (CancellationToken ct) =>
+                Results.Ok(await clientBuilds.GetAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost(
+            "/habbo/client/build",
+            (HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    () =>
+                    {
+                        try
+                        {
+                            return Task.FromResult(
+                                Results.Ok(
+                                    AssetJobResponse.From(
+                                        assetSync.StartClientBuild(AdminIdentity.Of(http).PlayerId)
+                                    )
+                                )
+                            );
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            return Task.FromResult(
+                                AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
+                            );
+                        }
+                    }
                 )
         );
         group.MapDelete(
