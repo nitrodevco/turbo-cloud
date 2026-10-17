@@ -62,12 +62,20 @@ public class CommandTreeDeliveryTests
             .Select(x => x.Args[0])
             .OfType<TurboCommandTreeMessage>();
 
+    /// <summary>
+    /// A registry change sends its trees without awaiting them: waits until each player was sent
+    /// <paramref name="count"/> and no more came (<see cref="CountWait"/>), so a test may assert
+    /// exactly that many.
+    /// </summary>
+    private Task TreesSentAsync(int count, params int[] players) =>
+        CountWait.ForAsync(() => players.Sum(p => TreesTo(p).Count()), count * players.Length);
+
     [Fact]
     public async Task SendAsync_SendsThePlayerTheirTree_FromWhatTheyHold()
     {
         _registry.Register([new HelloCommand(), new BootCommand()]);
 
-        await SessionHarness.Settle(); // the registration's own broadcast
+        await TreesSentAsync(1, 10); // the registration's own broadcast
         await _service.SendAsync(10, CancellationToken.None);
 
         TreesTo(10).Last().Tree.Commands.Select(x => x.Name).Should().Equal("hello");
@@ -77,13 +85,13 @@ public class CommandTreeDeliveryTests
     public async Task ACommandLoadingOrUnloading_SendsEveryoneOnlineANewTree()
     {
         var registration = _registry.Register([new HelloCommand()]);
-        await SessionHarness.Settle();
+        await TreesSentAsync(1, 10, 11);
 
         TreesTo(10).Should().ContainSingle();
         TreesTo(11).Should().ContainSingle();
 
         registration.Dispose();
-        await SessionHarness.Settle();
+        await TreesSentAsync(2, 10);
 
         TreesTo(10).Should().HaveCount(2);
         TreesTo(10).Last().Tree.Commands.Should().BeEmpty();
@@ -93,7 +101,7 @@ public class CommandTreeDeliveryTests
     public async Task APermissionChange_SendsANewTree_OnlyWhenTheCommandsChanged()
     {
         _registry.Register([new HelloCommand(), new BootCommand()]);
-        await SessionHarness.Settle();
+        await TreesSentAsync(1, 10);
         var before = TreesTo(10).Count();
         var handler = new CommandTreePermissionsHandler(_registry, _service);
 

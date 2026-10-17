@@ -43,9 +43,9 @@ public class SanctionServiceTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     /// <summary>The players a ban or its lifting was announced for, in order.</summary>
-    private async Task<int[]> AnnouncedAsync()
+    private async Task<int[]> AnnouncedAsync(int count)
     {
-        await SessionHarness.Settle();
+        await _events.WhenPublishedAsync<PlayerSanctionChangedEvent>(count);
 
         return [.. _events.Of<PlayerSanctionChangedEvent>().Select(x => x.PlayerId.Value)];
     }
@@ -56,7 +56,7 @@ public class SanctionServiceTests : IDisposable
         await _service.BanAsync(5, null, "spam", 2, CancellationToken.None);
         await _service.UnbanAsync(5, 2, CancellationToken.None);
 
-        (await AnnouncedAsync()).Should().Equal(5, 5);
+        (await AnnouncedAsync(2)).Should().Equal(5, 5);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class SanctionServiceTests : IDisposable
     {
         (await _service.UnbanAsync(5, 2, CancellationToken.None)).Should().BeFalse();
 
-        (await AnnouncedAsync()).Should().BeEmpty();
+        (await AnnouncedAsync(0)).Should().BeEmpty();
     }
 
     [Fact]

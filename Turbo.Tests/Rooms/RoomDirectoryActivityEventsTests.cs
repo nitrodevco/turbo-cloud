@@ -34,9 +34,9 @@ public class RoomDirectoryActivityEventsTests
         _directory = (IRoomDirectoryGrain)grain;
     }
 
-    private async Task<(int Room, int? Player)[]> AnnouncedAsync()
+    private async Task<(int Room, int? Player)[]> AnnouncedAsync(int count)
     {
-        await SessionHarness.Settle();
+        await _events.WhenPublishedAsync<RoomActivityChangedEvent>(count);
 
         return
         [
@@ -52,7 +52,7 @@ public class RoomDirectoryActivityEventsTests
         await _directory.AddPlayerToRoomAsync(7, 42, CancellationToken.None);
         await _directory.RemovePlayerFromRoomAsync(7, 42, CancellationToken.None);
 
-        (await AnnouncedAsync()).Should().Equal((42, 7), (42, 7));
+        (await AnnouncedAsync(2)).Should().Equal((42, 7), (42, 7));
     }
 
     [Fact]
@@ -63,6 +63,8 @@ public class RoomDirectoryActivityEventsTests
         await _directory.RemovePlayerFromRoomAsync(8, 42, CancellationToken.None);
         await _directory.RemovePlayerFromRoomAsync(7, 43, CancellationToken.None);
 
-        (await AnnouncedAsync()).Should().Equal([(42, 7)], "only the first enter changed anything");
+        (await AnnouncedAsync(1))
+            .Should()
+            .Equal([(42, 7)], "only the first enter changed anything");
     }
 }
