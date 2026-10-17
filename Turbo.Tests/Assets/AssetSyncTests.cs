@@ -436,6 +436,33 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_badge_its_texts_name_in_two_casings_is_kept_once_as_the_one_Habbo_serves()
+    {
+        // Habbo's texts name ACH_TetraBlokDailyWinner and ACH_TetrablokDailyWinner; its host,
+        // which minds case, serves one, and the hotel's names are one row whatever their case.
+        _habbo.Serve(
+            TEXTS,
+            "badge_name_ACH_TetraBlokWin=Win\nbadge_name_ACH_TetrablokWin=Win\nposter_5_name=Five\n"
+        );
+        _habbo.Serve(
+            "https://images.habbo.com/c_images/album1584/ACH_TetrablokWin.gif",
+            "GIF89a"u8.ToArray()
+        );
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var badges = (await RowsAsync()).Values.Where(x => x.Kind == AssetBundleKind.Badge);
+
+        badges
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<AssetBundleEntity>(x => x.Name == "ACH_TetrablokWin.gif" && x.Hash != null);
+    }
+
+    [Fact]
     public async Task A_room_library_comes_from_habbos_html_client_and_is_taken_again_when_it_changes()
     {
         var hab = NitroConverterTests.Hab(

@@ -598,7 +598,47 @@ internal sealed class AssetSyncService(
             log($"Badges: {found.Count} achievement levels no text names found by asking Habbo.");
         }
 
-        return [.. codes.Select(HabboFileLists.Badge).Where(x => store.IsValidName(x.Name))];
+        var kept = new List<string>(codes.Count);
+
+        foreach (var casings in codes.GroupBy(x => x, StringComparer.OrdinalIgnoreCase))
+            kept.Add(
+                await OneCasingAsync([.. casings], domain, had, probe, ct).ConfigureAwait(false)
+            );
+
+        return [.. kept.Select(HabboFileLists.Badge).Where(x => store.IsValidName(x.Name))];
+    }
+
+    /// <summary>
+    /// Habbo's texts name some badges twice, in casings that differ
+    /// (<c>ACH_TetraBlokDailyWinner</c> and <c>ACH_TetrablokDailyWinner</c>), and its host serves
+    /// only one of them; the hotel keeps a name once whatever its case. The one kept is the one the
+    /// hotel has, else the first Habbo has, else - or when not asking - the first.
+    /// </summary>
+    private async Task<string> OneCasingAsync(
+        List<string> casings,
+        string domain,
+        HashSet<string> had,
+        bool probe,
+        CancellationToken ct
+    )
+    {
+        if (casings.Count == 1)
+            return casings[0];
+
+        var hotels = casings.FirstOrDefault(x => had.Contains(HabboFileLists.BadgeFile(x)));
+
+        if (hotels is not null || !probe)
+            return hotels ?? casings[0];
+
+        foreach (var casing in casings)
+        {
+            var url = FileUrl(AssetBundleKind.Badge, domain, HabboFileLists.BadgeFile(casing));
+
+            if (await habbo.ExistsAsync(url, ct).ConfigureAwait(false) == true)
+                return casing;
+        }
+
+        return casings[0];
     }
 
     /// <summary>The headers and teasers the hotel's catalog pages name.</summary>
@@ -942,7 +982,7 @@ internal sealed class AssetSyncService(
             .AssetBundles.Where(x => kinds.Contains(x.Kind) && names.Contains(x.Name))
             .ToListAsync(CancellationToken.None)
             .ConfigureAwait(false);
-        var byKey = existing.ToDictionary(x => (x.Kind, x.Name));
+        var byKey = existing.ToDictionary(x => (x.Kind, x.Name), AssetSyncPlan.KEYS);
 
         foreach (var outcome in outcomes)
         {
@@ -990,7 +1030,7 @@ internal sealed class AssetSyncService(
             await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
             var kind = chunk[0].Kind;
-            var ids = chunk.ToDictionary(x => x.Name, x => x.Ids, StringComparer.Ordinal);
+            var ids = chunk.ToDictionary(x => x.Name, x => x.Ids, StringComparer.OrdinalIgnoreCase);
             var names = ids.Keys.ToList();
             var rows = await dbCtx
                 .AssetBundles.Where(x => x.Kind == kind && names.Contains(x.Name))
@@ -1040,7 +1080,8 @@ internal sealed class AssetSyncService(
                 x.Error,
                 x.Retry,
                 x.Ids
-            )
+            ),
+            AssetSyncPlan.KEYS
         );
     }
 

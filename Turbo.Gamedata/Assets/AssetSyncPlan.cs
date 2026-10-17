@@ -19,10 +19,11 @@ internal static class AssetSyncPlan
     )
     {
         var plan = new Plan();
+        var seen = new HashSet<(AssetBundleKind, string)>(KEYS);
 
         foreach (var library in libraries)
         {
-            if (!isValidName(library.Name))
+            if (!isValidName(library.Name) || !seen.Add((library.Kind, library.Name)))
             {
                 plan.Invalid++;
 
@@ -90,7 +91,29 @@ internal static class AssetSyncPlan
         /// <summary>Libraries staff uploaded, which a sync never replaces.</summary>
         public int Uploads { get; set; }
 
-        /// <summary>Names a bundle can't have; skipped.</summary>
+        /// <summary>
+        /// Names a bundle can't have, or one another library of the list has but for its case;
+        /// skipped.
+        /// </summary>
         public int Invalid { get; set; }
+    }
+
+    /// <summary>
+    /// A bundle's kind and name as the database tells them apart: its name's collation ignores
+    /// case, and a name is ASCII (<see cref="AssetBundleStore.IsValidName"/>), so two names that
+    /// differ only in case are one row.
+    /// </summary>
+    public static readonly IEqualityComparer<(AssetBundleKind Kind, string Name)> KEYS =
+        new KeyComparer();
+
+    private sealed class KeyComparer : IEqualityComparer<(AssetBundleKind Kind, string Name)>
+    {
+        public bool Equals(
+            (AssetBundleKind Kind, string Name) x,
+            (AssetBundleKind Kind, string Name) y
+        ) => x.Kind == y.Kind && string.Equals(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((AssetBundleKind Kind, string Name) key) =>
+            HashCode.Combine(key.Kind, StringComparer.OrdinalIgnoreCase.GetHashCode(key.Name));
     }
 }
