@@ -144,12 +144,11 @@ public sealed class AchievementCatalog : IAchievementCatalog
             .ToList();
         var keys = stored.Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var ids = stored.Select(x => x.Id).ToHashSet();
-        var missing = pack
-            .Definitions.Where(x => !keys.Contains(x.Key) && !ids.Contains(x.Id))
+        var definitions = Payable(pack);
+        var missing = definitions
+            .Where(x => !keys.Contains(x.Key) && !ids.Contains(x.Id))
             .ToImmutableArray();
-        foreach (
-            var clash in pack.Definitions.Where(x => !keys.Contains(x.Key) && ids.Contains(x.Id))
-        )
+        foreach (var clash in definitions.Where(x => !keys.Contains(x.Key) && ids.Contains(x.Id)))
             _logger?.LogWarning(
                 "Pack {Pack} was not given achievement {Key}: id {Id} is already used by another achievement",
                 pack.Key,
@@ -176,8 +175,128 @@ public sealed class AchievementCatalog : IAchievementCatalog
             );
         }
 
-        await HookInstalledAsync(pack, stored, ct).ConfigureAwait(false);
+        await HookInstalledAsync(pack, definitions, stored, ct).ConfigureAwait(false);
+        await RewardInstalledAsync(pack, definitions, stored, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// The pack's definitions without the level rewards in a currency the hotel has no
+    /// <c>currency_types</c> row for (a hotel whose duckets are not activity point type 0), which
+    /// would refuse the whole pack. Logged, so the hotel can add the currency; the next start
+    /// then gives the rewards to the achievements still as the pack installed them.
+    /// </summary>
+    private ImmutableArray<AchievementDefinition> Payable(IAchievementPack pack)
+    {
+        var dropped = 0;
+        var definitions = pack
+            .Definitions.Select(definition =>
+                definition with
+                {
+                    Levels =
+                    [
+                        .. definition.Levels.Select(level =>
+                        {
+                            var payable = level
+                                .Rewards.Where(x =>
+                                    x.Handler != "wallet"
+                                    || x.Currency is not { } kind
+                                    || _currencies.TryGetCurrencyTypeId(kind, out _)
+                                )
+                                .ToImmutableArray();
+                            dropped += level.Rewards.Length - payable.Length;
+
+                            return payable.Length == level.Rewards.Length
+                                ? level
+                                : level with
+                                {
+                                    Rewards = payable,
+                                };
+                        }),
+                    ],
+                }
+            )
+            .ToImmutableArray();
+
+        if (dropped > 0)
+            _logger?.LogWarning(
+                "{Count} level rewards of the {Pack} achievement pack are in a currency this hotel has no currency_types row for, so those levels pay nothing. Add the currency, then restart.",
+                dropped,
+                pack.Key
+            );
+
+        return definitions;
+    }
+
+    /// <summary>
+    /// Gives achievements a pack installed without level rewards the rewards a later version of
+    /// the pack has for them (the Habbo pack's recorded duckets). As with
+    /// <see cref="HookInstalledAsync"/>, only a row the hotel never touched changes: its latest
+    /// revision pays nothing at any level and is otherwise the pack's definition. A row on the
+    /// placeholder source is left for the hook, which moves it with the pack's rewards. Its own
+    /// import, so a refusal is logged without holding back the rest of the pack.
+    /// </summary>
+    private async Task RewardInstalledAsync(
+        IAchievementPack pack,
+        ImmutableArray<AchievementDefinition> definitions,
+        List<AchievementDefinition> stored,
+        CancellationToken ct
+    )
+    {
+        var latest = stored
+            .GroupBy(x => x.Id)
+            .Select(x => x.MaxBy(d => d.Revision)!)
+            .ToDictionary(x => x.Id);
+        var rewarded = definitions
+            .Where(x =>
+                x.Source != AchievementSources.UNHOOKED
+                && x.Levels.Any(level => !level.Rewards.IsEmpty)
+                && latest.TryGetValue(x.Id, out var current)
+                && current.Levels.All(level => level.Rewards.IsEmpty)
+                && SameApartFromRevision(current, WithoutRewards(x))
+            )
+            .Select(x => x with { Revision = latest[x.Id].Revision + 1 })
+            .ToImmutableArray();
+
+        if (rewarded.IsEmpty)
+            return;
+
+        try
+        {
+            await ImportAsync(
+                    rewarded,
+                    apply: true,
+                    actor: "turbo",
+                    reason: $"Give achievements of the {pack.Key} achievement pack their level rewards",
+                    operationId: $"pack-rewards:{pack.Key}:{pack.Version}:{Fingerprint(rewarded)}",
+                    ct
+                )
+                .ConfigureAwait(false);
+            _logger?.LogInformation(
+                "Gave {Count} achievements of the {Pack} pack their level rewards.",
+                rewarded.Length,
+                pack.Key
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Achievements of the {Pack} pack were not given their level rewards; they pay nothing. Fix what the error names, then run: achievement reload",
+                pack.Key
+            );
+        }
+    }
+
+    private static AchievementDefinition WithoutRewards(AchievementDefinition definition) =>
+        definition with
+        {
+            Levels = [.. definition.Levels.Select(x => x with { Rewards = [] })],
+        };
+
+    /// <summary>Compared as JSON, because the level lists are immutable arrays whose record equality compares references.</summary>
+    private static bool SameApartFromRevision(AchievementDefinition a, AchievementDefinition b) =>
+        JsonSerializer.Serialize(a with { Revision = 0 })
+        == JsonSerializer.Serialize(b with { Revision = 0 });
 
     /// <summary>
     /// Moves achievements a pack installed on the placeholder source onto the real source a later
@@ -189,6 +308,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
     /// </summary>
     private async Task HookInstalledAsync(
         IAchievementPack pack,
+        ImmutableArray<AchievementDefinition> definitions,
         List<AchievementDefinition> stored,
         CancellationToken ct
     )
@@ -197,8 +317,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
             .GroupBy(x => x.Id)
             .Select(x => x.MaxBy(d => d.Revision)!)
             .ToDictionary(x => x.Id);
-        var hooked = pack
-            .Definitions.Where(x =>
+        var hooked = definitions
+            .Where(x =>
                 x.Source != AchievementSources.UNHOOKED
                 && latest.TryGetValue(x.Id, out var current)
                 && string.Equals(current.Key, x.Key, StringComparison.OrdinalIgnoreCase)
