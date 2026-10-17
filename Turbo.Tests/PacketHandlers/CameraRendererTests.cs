@@ -297,6 +297,20 @@ public sealed class CameraRendererTests : IDisposable
         int height,
         Func<int, int, uint> pixel,
         params (string Name, string? Source, bool FlipH)[] assets
+    ) => TrimmedLibrary(name, width, height, pixel, 0, assets);
+
+    /// <summary>
+    /// <see cref="Library(string, int, int, Func{int, int, uint}, ValueTuple{string, string, bool}[])"/>
+    /// with every frame trimmed: its picture lay <paramref name="trim"/> pixels in from the top left
+    /// of a whole picture that much larger, as the bundles pack figure parts.
+    /// </summary>
+    private static byte[] TrimmedLibrary(
+        string name,
+        int width,
+        int height,
+        Func<int, int, uint> pixel,
+        int trim,
+        params (string Name, string? Source, bool FlipH)[] assets
     )
     {
         var drawn = assets
@@ -321,7 +335,13 @@ public sealed class CameraRendererTests : IDisposable
             );
             var frames = drawn.Select(
                 (asset, i) =>
-                    $"\"{asset}\":{{\"frame\":{{\"x\":{i * width},\"y\":0,\"w\":{width},\"h\":{height}}}}}"
+                    $"\"{asset}\":{{\"frame\":{{\"x\":{i * width},\"y\":0,\"w\":{width},\"h\":{height}}}"
+                    + (
+                        trim > 0
+                            ? $",\"trimmed\":true,\"spriteSourceSize\":{{\"x\":{trim},\"y\":{trim},\"w\":{width},\"h\":{height}}},\"sourceSize\":{{\"w\":{width + trim},\"h\":{height + trim}}}"
+                            : ""
+                    )
+                    + "}"
             );
 
             Add(
@@ -653,6 +673,64 @@ public sealed class CameraRendererTests : IDisposable
             .Should()
             .Be(0xFF0000FF, "the chair is drawn from the library downloaded again");
         File.ReadAllBytes(Path.Combine(cache, "chair.nitro")).Should().Equal(library);
+    }
+
+    [Fact]
+    public async Task ASpriteIsPlacedAtItsPositionCutTowardZero()
+    {
+        _server.Serve(
+            "/furni/chair.nitro",
+            Library("chair", 1, 1, (_, _) => 0xFF0000FF, ("chair_64_a_2_0", null, false))
+        );
+
+        // An official room thumbnail's payload drawn this way matched Habbo's own picture pixel for pixel.
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1.7,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0xFF0000FF, "y 1.7 is row 1");
+        PixelAt(png, 1, 2).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ATrimmedFrameIsDrawnWhereItLayInTheWholePicture()
+    {
+        _server.Serve(
+            "/furni/chair.nitro",
+            TrimmedLibrary("chair", 1, 1, (_, _) => 0xFF0000FF, 2, ("chair_64_a_2_0", null, false))
+        );
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":0,"y":0,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 2).Should().Be(0xFF0000FF, "the opaque part lay 2 pixels in");
+        PixelAt(png, 0, 0).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task AHairsBackIsDrawnFromItsHairsLibrary()
+    {
+        // The figure map lists the hair, not its back (hrb), which rides in the same library.
+        _server.Serve(
+            "/figuremap.json",
+            Encoding.UTF8.GetBytes(
+                """{"libraries":[{"id":"hh_human_hair","parts":[{"id":24,"type":"hr"}]}]}"""
+            )
+        );
+        _server.Serve(
+            "/figures/hh_human_hair.nitro",
+            Library("hh_human_hair", "h_std_hrb_24_0_0", 0x00FF00FF)
+        );
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"h_std_hrb_24_0_0","x":2,"y":2,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 2).Should().Be(0x00FF00FF);
     }
 
     [Fact]

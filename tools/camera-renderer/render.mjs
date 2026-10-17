@@ -400,6 +400,9 @@ const loadMap = async (url, cacheName) => {
     }
 };
 
+/** The part a figure part is drawn with, for one the figure map may leave out. */
+const PART_OWNERS = { hrb: 'hr' };
+
 /** The figure map as `<part type>:<part id>` -> library. */
 const getFigureLibraries = async () => {
     if (figureLibraries) return figureLibraries;
@@ -447,7 +450,10 @@ const getAvatarBundle = async (name) => {
 
     if (!part) return null;
 
-    const lib = (await getFigureLibraries()).get(`${part[1]}:${part[2]}`);
+    const libraries = await getFigureLibraries();
+    // A part the figure map does not list (a hair's back, `hrb`, rides in its hair's library) is
+    // looked up in the library of the part it belongs to, as the client finds it among those loaded.
+    const lib = libraries.get(`${part[1]}:${part[2]}`) ?? (PART_OWNERS[part[1]] ? libraries.get(`${PART_OWNERS[part[1]]}:${part[2]}`) : undefined);
 
     return (lib && LIBRARY_NAME.test(lib)) ? loadBundle(lib, figureUrl, 'figure_') : null;
 };
@@ -462,23 +468,34 @@ const getAssetImage = (bundle, assetName, assetFlip = true) => {
     if (!asset) return null;
 
     const source = asset.source ?? assetName;
-    const frame = bundle.frames[source]?.frame ?? bundle.frames[`${source}.png`]?.frame;
+    const entry = bundle.frames[source] ?? bundle.frames[`${source}.png`];
+    const frame = entry?.frame;
 
     if (!frame) return null;
 
-    const { width, height, data } = bundle.image;
-    const out = new Uint8Array(frame.w * frame.h * 4);
+    // A trimmed frame is the picture's opaque part: it goes back where it lay in the whole picture
+    // (spriteSourceSize within sourceSize), as the client's texture draws it.
+    const trimmed = entry.trimmed && entry.sourceSize && entry.spriteSourceSize
+        && (entry.sourceSize.w * entry.sourceSize.h <= MAX_IMAGE_PIXELS);
+    const w = trimmed ? entry.sourceSize.w : frame.w, h = trimmed ? entry.sourceSize.h : frame.h;
+    const ox = trimmed ? entry.spriteSourceSize.x : 0, oy = trimmed ? entry.spriteSourceSize.y : 0;
+    const { width, data } = bundle.image;
+    const out = new Uint8Array(w * h * 4);
 
     for (let y = 0; y < frame.h; y++) {
+        if (oy + y >= h) break;
+
         for (let x = 0; x < frame.w; x++) {
+            if (ox + x >= w) break;
+
             const s = ((frame.y + y) * width + frame.x + x) * 4;
-            const dx = (asset.flipH && assetFlip) ? (frame.w - 1 - x) : x;
-            const d = (y * frame.w + dx) * 4;
+            const dx = (asset.flipH && assetFlip) ? (w - 1 - (ox + x)) : (ox + x);
+            const d = ((oy + y) * w + dx) * 4;
             out[d] = data[s]; out[d + 1] = data[s + 1]; out[d + 2] = data[s + 2]; out[d + 3] = data[s + 3];
         }
     }
 
-    return { width: frame.w, height: frame.h, data: out };
+    return { width: w, height: h, data: out };
 };
 
 /** The url of an external image when it lies under one of the --external-url prefixes, else null. */
@@ -1092,8 +1109,12 @@ const render = async () => {
 
         // A flipped sprite is its asset's picture mirrored once, from its x on (Flash's canvas draws a
         // mirrored copy of the bitmap at the sprite's place); the asset's own flip is not added to it.
-        blit(canvas, image, Math.round(sprite.x), Math.round(sprite.y), options);
-        drawnSprites.push({ image, x: Math.round(sprite.x), y: Math.round(sprite.y), options });
+        // Whole pixels toward zero, as the official renders place a sprite (an official room thumbnail's
+        // own payload drawn this way matched Habbo's picture of it pixel for pixel).
+        const x = Math.trunc(Number(sprite.x)), y = Math.trunc(Number(sprite.y));
+
+        blit(canvas, image, x, y, options);
+        drawnSprites.push({ image, x, y, options });
         drawn++;
     }
 
