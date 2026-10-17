@@ -24,6 +24,11 @@ public class FurnitureClothingChangeLogic(
     IRoomFloorItemContext ctx
 ) : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
+    // Its data is the two looks, never a state, whatever states the furni has: an undressed booth
+    // sends empty looks, so the client dresses it in its default (FurnitureClothingChangeLogic +
+    // FurnitureClothingChangeWidgetHandler: only an empty look is defaulted, "0" would be a look).
+    protected override bool _emptyUntilStored => true;
+
     public override async Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct)
     {
         await base.OnWalkOnAsync(ctx, ct);
