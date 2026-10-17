@@ -557,7 +557,7 @@ chooses (a page index, a page size it hopes for) are clamped against these.
 | `ForumsEnabled` | true | `forum_disabled` |
 | `ForumPageSize` | 20 | the size the client asks for |
 | `ForumThreadHeaderMaxLength`, `ForumMessageMaxLength` | | |
-| `CreationRequiresClub` | false | join failure 4 / edit failure 2 |
+| `CreationRequiresClub` | true | edit failure 2 (Habbo refuses a group without HC) |
 
 One refusal has no client text at all: failing to afford a group. The hotel publishes no
 `group.edit.fail.*` entry and no notification variable for it, so `GuildCreationFailureType`

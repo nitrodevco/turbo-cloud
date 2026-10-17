@@ -47,8 +47,12 @@ public class GuildConfig
     /// </summary>
     public int DetailsMemberLimit { get; init; } = 50000;
 
-    /// <summary>Whether creating a group needs a Habbo Club membership.</summary>
-    public bool CreationRequiresClub { get; init; }
+    /// <summary>
+    /// Whether creating a group needs a Habbo Club membership. Habbo refuses one to a player
+    /// without it (official client capture 2026-10-17: GuildEditFailed reason 2, nothing created
+    /// or spent); a hotel can turn it off.
+    /// </summary>
+    public bool CreationRequiresClub { get; init; } = true;
 
     /// <summary>
     /// Rows per page of the member window. The server tells the client its own page size, so
