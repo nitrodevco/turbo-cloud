@@ -1152,6 +1152,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             || rotation == avatar.Rotation.Rotate(1)
         )
             avatar.SetHeadRotation(rotation);
+        // A floor sitter's body only faces a straight direction: past the head's reach to a
+        // diagonal the head takes the diagonal and the body the straight one clockwise of it
+        // (SW -> W, NW -> N, 2/2 each from facing east). Clockwise as the rule is inferred: it fits
+        // both samples, the straight direction nearer the old body does not (SW would give S).
+        else if (avatar.HasStatus(AvatarStatusType.Sit) && (int)rotation % 2 == 1)
+        {
+            avatar.SetBodyRotation(rotation.Rotate(1));
+            avatar.SetHeadRotation(rotation);
+        }
         else
             avatar.SetRotation(rotation);
 

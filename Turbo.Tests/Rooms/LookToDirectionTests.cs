@@ -61,7 +61,9 @@ public class LookToDirectionTests
         var inReach =
             target == Rotation.East || target == Rotation.NorthEast || target == Rotation.SouthEast;
         var held = posture is "chair" or "bed";
-        Assert.Equal(inReach || held ? Rotation.East : target, avatar.Rotation);
+        // A floor sitter's body snaps a diagonal clockwise to a straight direction (SW -> W, NW -> N).
+        var body = posture == "floor-sit" && (int)target % 2 == 1 ? target.Rotate(1) : target;
+        Assert.Equal(inReach || held ? Rotation.East : body, avatar.Rotation);
         Assert.Equal(held ? Rotation.East : target, avatar.HeadRotation);
         Assert.Equal(target != Rotation.East, avatar.IsDirty);
         Assert.Equal(posture is "floor-sit" or "chair", avatar.HasStatus(AvatarStatusType.Sit));
