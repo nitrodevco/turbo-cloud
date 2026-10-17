@@ -5,9 +5,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.PacketHandlers.Camera;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.PacketHandlers;
@@ -31,6 +32,7 @@ public sealed class CameraRendererTests : IDisposable
         Path.GetRandomFileName()
     );
     private readonly LocalHttpServer _server = new();
+    private readonly CapturingLogger<CameraRenderer> _log = new();
 
     public CameraRendererTests() => Directory.CreateDirectory(_folder);
 
@@ -75,15 +77,22 @@ public sealed class CameraRendererTests : IDisposable
                     RendererCacheDirectory = Path.Combine(_folder, "cache"),
                     RendererFurniUrl = $"{_server.Url}furni/%libname%.nitro",
                     RendererExternalImageUrls = externalUrls,
+                    // A photo's 15 s budget is not what these tests are about, and a loaded CI
+                    // runner has gone past it (17 s); a render that ends still ends at once.
+                    RendererTimeoutMilliseconds = 60000,
                 }
             ),
-            NullLogger<CameraRenderer>.Instance
+            _log
         );
 
         var drawn = await renderer.RenderAsync(jsonPath, pngPath, CancellationToken.None);
 
         return (drawn, pngPath);
     }
+
+    /// <summary>Why a render was not drawn, as the renderer logged it.</summary>
+    private string RendererSaid =>
+        string.Join("; ", _log.AtLeast(LogLevel.Warning).Select(e => e.Message));
 
     private static string Render(int side, params string[] spriteNames) =>
         $$"""
@@ -101,7 +110,7 @@ public sealed class CameraRendererTests : IDisposable
 
         var (drawn, png) = await RenderAsync(Render(10, $"{_server.Url}secret.png"));
 
-        drawn.Should().BeTrue("the picture still comes out, without the image");
+        drawn.Should().BeTrue("the picture still comes out, without the image ({0})", RendererSaid);
         File.Exists(png).Should().BeTrue();
         _server.Requests.Should().BeEmpty();
     }
@@ -116,7 +125,7 @@ public sealed class CameraRendererTests : IDisposable
             $"{_server.Url}images/"
         );
 
-        drawn.Should().BeTrue();
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
         _server.Requests.Should().Equal("/images/pixel.png");
     }
 
@@ -131,7 +140,7 @@ public sealed class CameraRendererTests : IDisposable
             $"{_server.Url}images/"
         );
 
-        drawn.Should().BeTrue();
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
         _server.Requests.Should().Equal("/images/moved.png");
     }
 
@@ -142,7 +151,7 @@ public sealed class CameraRendererTests : IDisposable
             Render(10, "../../../outside_64_a_0_0", "chair_64_a_0_0")
         );
 
-        drawn.Should().BeTrue();
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
         _server.Requests.Should().Equal("/furni/chair.nitro");
     }
 
@@ -153,6 +162,8 @@ public sealed class CameraRendererTests : IDisposable
 
         drawn.Should().BeFalse();
         File.Exists(png).Should().BeFalse();
+        // Refused for its size, not just not drawn: a render that ran out of time draws nothing too.
+        RendererSaid.Should().Contain("canvas out of range: 3000x3000");
     }
 
     /// <summary>
