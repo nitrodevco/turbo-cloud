@@ -508,6 +508,47 @@ public sealed class CameraRendererTests : IDisposable
     }
 
     [Fact]
+    public async Task AFloorIsReadAtEachPixelsCentreAsTheOfficialPhotoIs()
+    {
+        // A 2x2 texture: red, green / blue, white.
+        _server.Serve(
+            "/room/HabboRoomContent.nitro",
+            Library(
+                "HabboRoomContent",
+                2,
+                2,
+                (x, y) =>
+                    (x, y) switch
+                    {
+                        (0, 0) => 0xFF0000FF,
+                        (1, 0) => 0x00FF00FF,
+                        (0, 1) => 0x0000FFFF,
+                        _ => 0xFFFFFFFF,
+                    },
+                ("floor_tex", null, false)
+            )
+        );
+
+        // A 2:1 floor diamond, its top corner at 4,0: the pixel at 3,1 has its centre over texture pixel 1,1.
+        var (drawn, png) = await RenderAsync(
+            """
+            {"planes":[{"z":2,"color":0,"cornerPoints":[{"x":8,"y":4},{"x":0,"y":4},{"x":8,"y":0},{"x":0,"y":0}]},
+              {"z":1,"color":16777215,"bottomAligned":false,"texCols":[{"assetNames":["floor_tex"]}],
+               "cornerPoints":[{"x":4,"y":4},{"x":0,"y":2},{"x":8,"y":2},{"x":4,"y":0}]}],
+             "sprites":[]}
+            """
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 4, 0)
+            .Should()
+            .Be(0xFF0000FF, "the top corner shows the texture's first pixel");
+        PixelAt(png, 3, 1)
+            .Should()
+            .Be(0xFFFFFFFF, "read at the pixel's centre, one pixel along each side");
+    }
+
+    [Fact]
     public async Task APlanesMaskCutsItsShapeOutOfThePlane()
     {
         // A door mask as the room content has it: black where the hole is, white around it.

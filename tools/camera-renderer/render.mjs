@@ -648,14 +648,13 @@ const texelStep = (from, to) => {
     return { x: Math.sign(dx), y: (Math.abs(slope - half) < 0.05) ? half : slope };
 };
 
-// Where in a screen pixel the texture is read, as measured against the client's own picture of the
-// same photo (r32 planes, room 8): walls and landscapes (a plane with an upright side) at the
-// pixel's centre, as RoomPlane moves their matrix half a pixel down; a textured floor and a flat
-// sloped plane (a wall's top) where they matched it (0 of 25600 floor and 0 of 6000 wall top
-// pixels off), as RoomPlane leaves those matrices where Flash has them.
-const SAMPLE_UPRIGHT = { x: 0.5, y: 0.5 };
-const SAMPLE_FLOOR = { x: -0.5, y: 0.25 };
-const SAMPLE_FLAT = { x: 0, y: 0 };
+// Where in a screen pixel the texture is read, as measured against an official camera photo and the
+// RenderRoom data it was made from (official recording 2026-10-17, preview 68980709-1792254296208:
+// floors at the pixel's centre, walls and flat sloped planes (a wall's top) just inside its top middle;
+// the planes then differ from the official picture by a mean of 0.13 and 0.30 per channel).
+const SAMPLE_UPRIGHT = { x: 0.5, y: 0.1 };
+const SAMPLE_FLOOR = { x: 0.5, y: 0.5 };
+const SAMPLE_FLAT = { x: 0.5, y: 0.1 };
 
 /**
  * Draws a plane: its texture laid on its corners in the collector's order (3 the texture's top
