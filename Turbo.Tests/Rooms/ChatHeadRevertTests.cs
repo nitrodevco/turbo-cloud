@@ -16,9 +16,10 @@ namespace Turbo.Tests.Rooms;
 /// A listener's head turned toward someone talking, as Habbo does it (official client capture,
 /// hhus 2026-10-17, room 80463631): on the next update the listener's head faces the speaker and
 /// its body stays; exactly ~5.0 s after that the head looks back to the body (3/3: talk, talk,
-/// whisper to it). A listener held by a seat keeps its head, yet still gets the update 5 s later
-/// (1/1); one behind the speaker gets neither (3/3). Turbo turned the head and left it there, and
-/// a whisper turned nobody.
+/// whisper to it), counted again from a later line. A listener held by a seat keeps its head, yet
+/// still gets the update 5 s later (1/1); one behind the speaker gets neither (3/3). Turbo turned
+/// the head and left it there, a whisper turned nobody, and its quadrant rule turned heads Habbo
+/// keeps ahead and kept heads Habbo turns (a speaker 90 degrees aside, 6+ tiles away).
 /// </summary>
 public sealed class ChatHeadRevertTests
 {
@@ -27,8 +28,8 @@ public sealed class ChatHeadRevertTests
     private const int BYSTANDER = 3;
 
     private readonly WiredRoom _room = new(
-        16,
-        16,
+        20,
+        20,
         new RoomConfig { ChatFloodWindowMs = 0, ChatlogEnabled = false }
     );
 
@@ -121,6 +122,134 @@ public sealed class ChatHeadRevertTests
 
         listener.HeadRotation.Should().Be(Rotation.East);
         Updates().Should().HaveCount(before);
+    }
+
+    /// <summary>
+    /// Every official sample (hhus 2026-10-17, lab33 + lab34): the listener's body, where the
+    /// speaker stood from it, and the head it got (null: no update at all).
+    /// </summary>
+    [Theory]
+    [InlineData(Rotation.East, 4, 2, Rotation.SouthEast)]
+    [InlineData(Rotation.East, 7, 8, Rotation.SouthEast)]
+    [InlineData(Rotation.East, 6, 12, Rotation.SouthEast)]
+    [InlineData(Rotation.East, 0, -4, Rotation.NorthEast)]
+    [InlineData(Rotation.East, 0, 1, Rotation.SouthEast)]
+    [InlineData(Rotation.East, -3, -3, null)]
+    [InlineData(Rotation.East, -5, -2, null)]
+    [InlineData(Rotation.South, 7, 11, null)]
+    [InlineData(Rotation.South, 2, 3, null)]
+    [InlineData(Rotation.South, 3, 3, Rotation.SouthEast)]
+    [InlineData(Rotation.South, 4, 3, Rotation.SouthEast)]
+    [InlineData(Rotation.West, 1, -5, null)]
+    public async Task A_listener_turns_as_Habbo_turned_it_for_each_recorded_speaker_position(
+        Rotation body,
+        int dx,
+        int dy,
+        Rotation? expected
+    )
+    {
+        var listener = Enter(LISTENER, "listener", 6, 6, body);
+        Enter(SPEAKER, "speaker", 6 + dx, 6 + dy, Rotation.North);
+        var start = Now();
+        await TickAsync(start);
+        var before = Updates().Count;
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+
+        listener.HeadRotation.Should().Be(expected ?? body);
+        listener.Rotation.Should().Be(body);
+        Updates().Should().HaveCount(expected is null ? before : before + 1);
+    }
+
+    [Fact]
+    public async Task A_floor_sitter_turns_its_head_and_keeps_its_sit()
+    {
+        Enter(SPEAKER, "speaker", 6, 7, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 6, 6, Rotation.East);
+        listener.Sit(true, rot: Rotation.East);
+
+        await SayAsync(RoomChatType.Chat);
+
+        listener.HeadRotation.Should().Be(Rotation.SouthEast);
+        listener.Rotation.Should().Be(Rotation.East);
+        listener.HasStatus(AvatarStatusType.Sit).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_listener_on_its_last_step_turns_as_it_arrives()
+    {
+        // The recorded walk: the listener steps east onto 11,12 while the speaker at 11,8 talks.
+        Enter(SPEAKER, "speaker", 11, 8, Rotation.South);
+        var listener = Enter(LISTENER, "listener", 10, 12, Rotation.East);
+        listener.IsWalking = true;
+        listener.NextTileId = _room.Map.ToIdx(11, 12);
+        var start = Now();
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+
+        var update = Updates().Last().Should().ContainSingle(a => a.ObjectId == LISTENER).Subject;
+        (update.X, update.Y, update.HeadRotation, update.BodyRotation)
+            .Should()
+            .Be((11, 12, Rotation.NorthEast, Rotation.East));
+    }
+
+    [Fact]
+    public async Task A_later_line_starts_the_5_s_again()
+    {
+        Enter(SPEAKER, "speaker", 7, 7, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
+        var start = Now();
+
+        await SayAsync(RoomChatType.Chat);
+        await Task.Delay(1_500);
+        var second = Now();
+        await SayAsync(RoomChatType.Chat);
+
+        await TickAsync(start + 5_600);
+        listener.HeadRotation.Should().Be(Rotation.SouthEast);
+
+        await TickAsync(second + 5_600);
+        listener.HeadRotation.Should().Be(Rotation.East);
+    }
+
+    [Fact]
+    public async Task A_configured_range_keeps_listeners_further_away_still()
+    {
+        var room = new WiredRoom(
+            20,
+            20,
+            new RoomConfig
+            {
+                ChatFloodWindowMs = 0,
+                ChatlogEnabled = false,
+                ChatLookAtRange = 6,
+            }
+        );
+        RoomHarness.SetField(room.Harness.Room, "_eventSystem", new TestEventBus().System);
+        RoomHarness.SetField(
+            room.Harness.Room,
+            "_commandRegistryProvider",
+            new Turbo.Commands.CommandRegistryProvider(
+                new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
+            )
+        );
+        RoomHarness.SetMember(room.Enter(SPEAKER, 13, 7), "Name", "speaker");
+        var listener = room.Enter(LISTENER, 6, 6);
+        listener.SetRotation(Rotation.East);
+
+        await room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
+            ActionContext.CreateForPlayer(100 + SPEAKER, room.Harness.Room.RoomId),
+            RoomChatType.Chat,
+            "hello",
+            0,
+            -1,
+            null,
+            CancellationToken.None
+        );
+
+        listener.HeadRotation.Should().Be(Rotation.East);
     }
 
     private RoomPlayerAvatar Enter(int id, string name, int x, int y, Rotation body)

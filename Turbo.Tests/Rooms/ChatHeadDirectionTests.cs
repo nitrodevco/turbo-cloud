@@ -38,7 +38,7 @@ public class ChatHeadDirectionTests
 
     [Theory]
     [MemberData(nameof(Directions))]
-    public async Task Chat_turns_head_only_to_body_or_adjacent_directions(
+    public async Task Chat_turns_the_head_at_most_one_octant_and_not_for_a_speaker_behind(
         Rotation body,
         Rotation target
     )
@@ -51,10 +51,15 @@ public class ChatHeadDirectionTests
 
         Assert.True(await fixture.ChatAsync());
 
-        var expected =
-            target == body || target == body.Rotate(-1) || target == body.Rotate(1)
-                ? target
-                : body.Rotate(-1);
+        // Official client capture (hhus 2026-10-17): a speaker 90 degrees aside gets the octant
+        // toward it, one behind nothing.
+        var expected = (((int)target - (int)body + 8) % 8) switch
+        {
+            0 or 1 or 7 => target,
+            2 => body.Rotate(1),
+            6 => body.Rotate(-1),
+            _ => body.Rotate(-1),
+        };
         Assert.Equal(expected, listener.HeadRotation);
         Assert.Equal(body, listener.Rotation);
     }
@@ -62,7 +67,7 @@ public class ChatHeadDirectionTests
     [Theory]
     [InlineData(0, 0, RoomChatType.Chat, false, Rotation.NorthWest)]
     [InlineData(1, -1, RoomChatType.Chat, true, Rotation.NorthWest)]
-    [InlineData(0, -7, RoomChatType.Chat, false, Rotation.NorthWest)]
+    [InlineData(0, -7, RoomChatType.Chat, false, Rotation.North)]
     [InlineData(0, -7, RoomChatType.Shout, false, Rotation.North)]
     [InlineData(0, 1, RoomChatType.Shout, false, Rotation.NorthWest)]
     [InlineData(1, -1, RoomChatType.Whisper, false, Rotation.NorthEast)]
