@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +11,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
@@ -91,10 +89,16 @@ public sealed partial class RoomGrain
                 return null;
             }
 
-            return
-            [
-                .. _state.AvatarsByObjectId.Values.OfType<IRoomPlayer>().Select(x => x.PlayerId),
-            ];
+            // Habbo reloads the room on a save (official client capture, 2026-10-17: everyone in
+            // it sent out and forwarded back into a fresh room, object ids restarted). Everybody
+            // leaves and the room unloads, as a wired menu reload does, so the next entry builds it
+            // afresh from what was just saved and nothing held from the old plan (map, door and
+            // its direction, wall and floor settings) can outlive the save. The furni are written
+            // first: the room they come back to is read from the database.
+            await HandOverToPersistenceAsync(ct);
+            await _grainFactory.GetRoomPersistenceGrain(_state.RoomId).FlushNowAsync(ct);
+
+            return await ModerationModule.RemoveEveryoneAndUnloadAsync(ct);
         }
         catch (Exception ex)
         {

@@ -24,24 +24,38 @@ internal sealed partial class RoomService
         {
             var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-            var occupants = await room.SaveFloorPlanAsync(ctx, modelData, properties, ct)
+            var evicted = await room.SaveFloorPlanAsync(ctx, modelData, properties, ct)
                 .ConfigureAwait(false);
 
-            if (occupants is null)
+            if (evicted is null)
                 return;
 
-            // The room is streamed again rather than patched: the tile arrays are a different
-            // size, the furni may have moved and the avatars have all been put at the door, so
-            // there is nothing left of what the client was told that still holds.
-            foreach (var playerId in occupants.Value)
+            // Habbo reloads the room for everyone in it: each client is told the room closed,
+            // with no notification, and about two seconds later is forwarded back into the same
+            // room, which comes up afresh on the new plan (official client capture, 2026-10-17,
+            // six saves with a second player in the room: UserRemove + CloseConnection ~100 ms
+            // after UpdateFloorProperties, RoomForward to the same room ~2.0 s later, both players
+            // then on the door tile facing the new direction, object ids restarted).
+            foreach (var playerId in evicted.Value)
             {
-                await EnterRoomAsync(
-                        ActionContext.CreateForPlayer(playerId, ctx.RoomId),
-                        _grainFactory.GetPlayerPresenceGrain(playerId),
-                        room,
-                        ctx.RoomId,
+                await _grainFactory
+                    .GetPlayerPresenceGrain(playerId)
+                    .OnRemovedFromRoomAsync(ctx.RoomId, false, ct)
+                    .ConfigureAwait(false);
+            }
+
+            if (_roomConfig.FloorPlanSaveReturnDelayMs > 0)
+                await Task.Delay(
+                        TimeSpan.FromMilliseconds(_roomConfig.FloorPlanSaveReturnDelayMs),
+                        _time,
                         ct
                     )
+                    .ConfigureAwait(false);
+
+            foreach (var playerId in evicted.Value)
+            {
+                await _grainFactory
+                    .ForwardPlayerToRoomAsync(playerId, ctx.RoomId, ct)
                     .ConfigureAwait(false);
             }
         }

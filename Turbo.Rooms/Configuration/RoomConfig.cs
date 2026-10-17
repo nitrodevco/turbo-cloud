@@ -253,6 +253,13 @@ public class RoomConfig
     /// </summary>
     public int FloorPlanMaxWallHeight { get; init; } = 15;
 
+    /// <summary>
+    /// How long after a saved floor plan sends everyone in the room out they are forwarded back
+    /// in. Habbo forwards about two seconds after the close (official client capture, 2026-10-17:
+    /// six saves, ~2.0 s each).
+    /// </summary>
+    public int FloorPlanSaveReturnDelayMs { get; init; } = 2000;
+
     /// <summary>What renting a rentable space costs, in credits. Zero makes them free.</summary>
     public int RentableSpacePriceCredits { get; init; } = 10;
 

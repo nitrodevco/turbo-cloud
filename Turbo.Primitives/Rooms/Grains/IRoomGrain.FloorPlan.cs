@@ -10,10 +10,10 @@ namespace Turbo.Primitives.Rooms.Grains;
 public partial interface IRoomGrain
 {
     /// <summary>
-    /// Saves a floor plan drawn in the editor over this room's, and puts the room back together
-    /// on it. Returns the players who were in the room, so the caller can stream it to them
-    /// again: everything they were sent about the old plan is now wrong. Null when the save was
-    /// refused, in which case nothing changed.
+    /// Saves a floor plan drawn in the editor over this room's, then removes everybody in the
+    /// room and unloads it, so the next entry builds it afresh from what was saved. Returns the
+    /// players who were removed: their sessions are still to be closed and sent back in. Null when
+    /// the save was refused, in which case nothing changed.
     /// </summary>
     /// <param name="properties">
     /// The door and the wall and floor settings, when the editor sent them. Null for a save that
