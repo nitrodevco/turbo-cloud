@@ -208,6 +208,34 @@ public sealed class SessionHarness
             Equals(c.Key, key) && c.Method is "CloseSessionAsync" or "CloseAsync"
         );
 
+    /// <summary>
+    /// Runs <paramref name="body"/> the way a silo runs a grain: one piece at a time, never two
+    /// at once. Without a silo the presence's flush resumes on the thread pool beside the test,
+    /// so a send made while a flush is ending finds it still marked running and stays queued
+    /// with nothing left to send it (0 or 1 of 4 composers, 1 in 200 runs under load). In a silo
+    /// the flush and every call share the activation's scheduler and cannot overlap like that.
+    /// </summary>
+    public static Task InTurns(Func<Task> body) =>
+        Task
+            .Factory.StartNew(
+                body,
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                new ConcurrentExclusiveSchedulerPair().ExclusiveScheduler
+            )
+            .Unwrap();
+
+    /// <summary>The presence has nothing queued and no flush in flight.</summary>
+    public bool PresenceIdle()
+    {
+        var state = RoomHarness.GetField(Presence, "_state")!;
+
+        return !(bool)RoomHarness.GetMember(state, "IsProcessingQueue")!
+            && (
+                (System.Collections.ICollection)RoomHarness.GetMember(state, "OutgoingQueue")!
+            ).Count == 0;
+    }
+
     public static async Task Settle()
     {
         // Presence flushes run after a Task.Yield on the thread pool.
