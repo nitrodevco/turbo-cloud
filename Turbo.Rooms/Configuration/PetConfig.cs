@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Rooms.Configuration;
 
@@ -101,6 +102,14 @@ public class PetConfig
 
     /// <summary>Definition (class) name of the saddle returned when it is taken off a horse.</summary>
     public string SaddleDefinitionName { get; init; } = "horse_saddle1";
+
+    /// <summary>
+    /// How far above its horse a rider stands. The client draws the rider wherever the room says
+    /// (its riding effect only swaps the legs and adds a saddle at standing height), so the server
+    /// alone lifts the rider onto the horse's back. One height unit is inferred from where the
+    /// riding effect draws its saddle against the horse's own; no official recording of a rider yet.
+    /// </summary>
+    public Altitude RiderHeight { get; init; } = Altitude.FromValue(1.0);
 
     /// <summary>Chance in percent per rarity level (index) when a nest breeding picks a breed.</summary>
     public int[] BreedingRarityChances { get; init; } = [70, 20, 7, 3];

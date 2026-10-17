@@ -213,7 +213,9 @@ public sealed partial class RoomMapModule
         var postureOffset = GetPostureOffset(tileIdx);
 
         avatar.PostureOffset = postureOffset;
-        avatar.SetPositionZ(_roomGrain._state.TileHeights[tileIdx] - postureOffset);
+        avatar.SetPositionZ(
+            _roomGrain._state.TileHeights[tileIdx] - postureOffset + PetModule.GetRiderLift(avatar)
+        );
     }
 
     /// <summary>The height an avatar on this tile is drawn at; zero off the map.</summary>

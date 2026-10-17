@@ -9,6 +9,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
@@ -239,7 +240,9 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             var isGoal = avatar.TilePath.Count == 0;
             var prevTileId = MapModule.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = MapModule.GetTileXY(nextTileId);
-            var nextHeight = MapModule.GetTileHeightForAvatar(nextTileId);
+            var nextHeight = Altitude.FromValue(
+                MapModule.GetTileHeightForAvatar(nextTileId) + PetModule.GetRiderLift(avatar)
+            );
 
             // A step the map refuses (the tile was taken, or raised too high, while the avatar
             // was on its way) is the normal end of a walk, not a failure: re-route or stop and

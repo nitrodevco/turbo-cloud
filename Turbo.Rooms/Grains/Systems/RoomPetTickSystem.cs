@@ -61,6 +61,10 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         await module.TryCompletePendingMountAsync(pet, ct);
 
+        // Someone is walking over to ride it: it waits for them where it stands.
+        if (pet.PendingRiderObjectId > 0)
+            return;
+
         if (pet.ActionExpiresAtMs > 0 && now >= pet.ActionExpiresAtMs)
             module.ClearActionStatuses(pet);
 

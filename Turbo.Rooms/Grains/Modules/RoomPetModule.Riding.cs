@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -56,6 +58,8 @@ public sealed partial class RoomPetModule
             return true;
         }
 
+        // The pet stops for its rider, else it roams off the tile the rider walks to.
+        await AvatarModule.StopWalkingAsync(pet, ct);
         pet.PendingRiderObjectId = rider.ObjectId;
 
         if (await WalkNextToAsync(rider, pet, ct))
@@ -110,6 +114,7 @@ public sealed partial class RoomPetModule
         rider.MarkDirty();
 
         pet.SetRider(rider.ObjectId);
+        MapModule.UpdateHeightForAvatar(rider);
 
         await AvatarModule.SetAvatarEffectAsync(rider.ObjectId, PetRiding.RIDER_EFFECT_ID, ct);
         await BroadcastFigureAsync(pet, ct);
@@ -139,13 +144,33 @@ public sealed partial class RoomPetModule
 
                 break;
             }
+
+            // Down to the floor, also when no tile around was free to step onto.
+            MapModule.UpdateHeightForAvatar(rider);
+            rider.MarkDirty();
         }
 
         await BroadcastFigureAsync(pet, ct);
         Persist(pet);
     }
 
-    /// <summary>A ridden pet shadows its rider: same tile, height, facing and movement.</summary>
+    /// <summary>How far <paramref name="avatar"/> stands above the floor for riding a pet: zero when not riding.</summary>
+    internal Altitude GetRiderLift(IRoomAvatar avatar)
+    {
+        // Asked on every step of every avatar, so no allocation.
+        for (var i = 0; i < Pets.Count; i++)
+        {
+            if (Pets[i].RiderObjectId == avatar.ObjectId)
+                return Config.RiderHeight;
+        }
+
+        return Altitude.Zero;
+    }
+
+    /// <summary>
+    /// A ridden pet shadows its rider: same tile, facing and movement, on the floor its rider is
+    /// lifted above.
+    /// </summary>
     internal async Task SyncRidingPetsAsync(CancellationToken ct)
     {
         // Runs on every avatar boundary, mostly with nobody riding, so it walks the list by index
@@ -171,15 +196,41 @@ public sealed partial class RoomPetModule
                 notifyFurni: false
             );
 
-            // Its rider's height, not the tile's: the two are drawn as one.
-            pet.SetPositionZ(rider.Z);
+            pet.SetPositionZ(MapModule.GetTileHeightForAvatar(MapModule.ToIdx(rider.X, rider.Y)));
             pet.SetRotation(rider.Rotation);
 
             if (rider.Statuses.TryGetValue(AvatarStatusType.Move, out var move))
-                pet.AddStatus(AvatarStatusType.Move, move);
+                pet.AddStatus(AvatarStatusType.Move, ToFloorMove(move));
             else
                 pet.RemoveStatus(AvatarStatusType.Move);
         }
+    }
+
+    /// <summary>The rider's step (<c>x,y,z</c>) as its pet takes it: to the same tile, on the floor.</summary>
+    private string ToFloorMove(string riderMove)
+    {
+        var parts = riderMove.Split(',');
+
+        if (
+            parts.Length < 2
+            || !int.TryParse(
+                parts[0],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var x
+            )
+            || !int.TryParse(
+                parts[1],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var y
+            )
+        )
+            return riderMove;
+
+        var floor = MapModule.GetTileHeightForAvatar(MapModule.ToIdx(x, y));
+
+        return $"{x},{y},{floor.ToStatusString()}";
     }
 
     public async Task<bool> RemovePetSaddleAsync(ActionContext ctx, int petId, CancellationToken ct)
