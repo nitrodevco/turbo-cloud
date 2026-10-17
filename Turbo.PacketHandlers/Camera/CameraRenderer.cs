@@ -73,10 +73,23 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
             Path.GetFullPath(_config.RendererCacheDirectory, AppContext.BaseDirectory)
         );
 
-        if (!string.IsNullOrWhiteSpace(_config.RendererFurniUrl))
+        foreach (
+            var (option, value) in new[]
+            {
+                ("--furni-url", _config.RendererFurniUrl),
+                ("--figure-url", _config.RendererFigureUrl),
+                ("--figuremap-url", _config.RendererFigureMapUrl),
+                ("--effect-url", _config.RendererEffectUrl),
+                ("--effectmap-url", _config.RendererEffectMapUrl),
+                ("--effect-image-url", _config.RendererEffectImageUrl),
+            }
+        )
         {
-            info.ArgumentList.Add("--furni-url");
-            info.ArgumentList.Add(_config.RendererFurniUrl);
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            info.ArgumentList.Add(option);
+            info.ArgumentList.Add(value);
         }
 
         if (withSmall)

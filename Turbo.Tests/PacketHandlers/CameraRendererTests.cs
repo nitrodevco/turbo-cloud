@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -18,6 +19,9 @@ namespace Turbo.Tests.PacketHandlers;
 /// <see cref="CameraRenderer"/>) must not let it steer the server: an external image is fetched only
 /// from a url the hotel allowed (never redirected elsewhere), a furniture library name cannot climb
 /// out of the bundle url, and a canvas larger than a photo is refused instead of allocated.
+/// It draws what the client's camera shows: the avatars' parts (Flash
+/// <c>AvatarVisualization.getSpriteList</c>) from the figure library the figure map names, and the
+/// photo lab's zoom and effects (<c>CameraPhotoLab.renderAllEffects</c>).
 /// </summary>
 public sealed class CameraRendererTests : IDisposable
 {
@@ -76,6 +80,11 @@ public sealed class CameraRendererTests : IDisposable
                 {
                     RendererCacheDirectory = Path.Combine(_folder, "cache"),
                     RendererFurniUrl = $"{_server.Url}furni/%libname%.nitro",
+                    RendererFigureUrl = $"{_server.Url}figures/%libname%.nitro",
+                    RendererFigureMapUrl = $"{_server.Url}figuremap.json",
+                    RendererEffectUrl = $"{_server.Url}effects/%libname%.nitro",
+                    RendererEffectMapUrl = $"{_server.Url}effectmap.json",
+                    RendererEffectImageUrl = $"{_server.Url}stories/",
                     RendererExternalImageUrls = externalUrls,
                     // A photo's 15 s budget is not what these tests are about, and a loaded CI
                     // runner has gone past it (17 s); a render that ends still ends at once.
@@ -164,6 +173,261 @@ public sealed class CameraRendererTests : IDisposable
         File.Exists(png).Should().BeFalse();
         // Refused for its size, not just not drawn: a render that ran out of time draws nothing too.
         RendererSaid.Should().Contain("canvas out of range: 3000x3000");
+    }
+
+    /// <summary>A 4x4 render on a grey background (0x808080, z 0: a sprite in front of it has a lower z) with the given sprites and lab choices.</summary>
+    private static string LabRender(string sprites, string filters, int zoom = 1) =>
+        $$"""
+            {"planes":[{"z":0,"color":8421504,"cornerPoints":[{"x":0,"y":0},{"x":4,"y":0},{"x":0,"y":4},{"x":4,"y":4}]}],
+             "sprites":[{{sprites}}],"modifiers":{},"filters":{{filters}},"roomid":1{{(
+                zoom != 1 ? $",\"zoom\":{zoom}" : ""
+            )}}}
+            """;
+
+    /// <summary>A PNG of one colour, <paramref name="side"/> pixels square (8-bit RGBA, unfiltered).</summary>
+    private static byte[] Png(int side, uint rgba)
+    {
+        var raw = new MemoryStream();
+
+        for (var y = 0; y < side; y++)
+        {
+            raw.WriteByte(0);
+
+            for (var x = 0; x < side; x++)
+            {
+                raw.WriteByte((byte)(rgba >> 24));
+                raw.WriteByte((byte)(rgba >> 16));
+                raw.WriteByte((byte)(rgba >> 8));
+                raw.WriteByte((byte)rgba);
+            }
+        }
+
+        var idat = new MemoryStream();
+
+        using (var zlib = new ZLibStream(idat, CompressionLevel.Optimal, true))
+            zlib.Write(raw.ToArray());
+
+        var ihdr = new byte[13];
+
+        ihdr[3] = (byte)side;
+        ihdr[7] = (byte)side;
+        ihdr[8] = 8;
+        ihdr[9] = 6;
+
+        var png = new MemoryStream();
+
+        png.Write([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+        foreach (
+            var (type, data) in new[]
+            {
+                ("IHDR", ihdr),
+                ("IDAT", idat.ToArray()),
+                ("IEND", Array.Empty<byte>()),
+            }
+        )
+        {
+            png.Write([
+                (byte)(data.Length >> 24),
+                (byte)(data.Length >> 16),
+                (byte)(data.Length >> 8),
+                (byte)data.Length,
+            ]);
+            png.Write(Encoding.ASCII.GetBytes(type));
+            png.Write(data);
+            // The renderer reads the chunks, not their checksums.
+            png.Write([0, 0, 0, 0]);
+        }
+
+        return png.ToArray();
+    }
+
+    /// <summary>A .nitro library holding one asset, <paramref name="assetName"/>, a 1x1 picture of the colour.</summary>
+    private static byte[] Library(string name, string assetName, uint rgba)
+    {
+        var zip = new MemoryStream();
+
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, true))
+        {
+            void Add(string file, byte[] bytes)
+            {
+                using var entry = archive.CreateEntry(file).Open();
+
+                entry.Write(bytes);
+            }
+
+            Add(
+                $"{name}.json",
+                Encoding.UTF8.GetBytes(
+                    $$"""{"name":"{{name}}","assets":[{"name":"{{assetName}}","x":0,"y":0}]}"""
+                )
+            );
+            Add(
+                $"{name}_spritesheet.json",
+                Encoding.UTF8.GetBytes(
+                    "{\"frames\":{\""
+                        + assetName
+                        + "\":{\"frame\":{\"x\":0,\"y\":0,\"w\":1,\"h\":1}}},\"meta\":{\"image\":\""
+                        + name
+                        + ".png\"}}"
+                )
+            );
+            Add($"{name}.png", Png(1, rgba));
+        }
+
+        return zip.ToArray();
+    }
+
+    /// <summary>The RGBA of a pixel of a PNG the renderer wrote (8-bit RGBA, every row unfiltered).</summary>
+    private static uint PixelAt(string png, int x, int y)
+    {
+        var bytes = File.ReadAllBytes(png);
+        var width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+        var idat = new MemoryStream();
+
+        for (var pos = 8; pos < bytes.Length; )
+        {
+            var length =
+                (bytes[pos] << 24)
+                | (bytes[pos + 1] << 16)
+                | (bytes[pos + 2] << 8)
+                | bytes[pos + 3];
+
+            if (Encoding.ASCII.GetString(bytes, pos + 4, 4) == "IDAT")
+                idat.Write(bytes, pos + 8, length);
+
+            pos += 12 + length;
+        }
+
+        idat.Position = 0;
+
+        using var zlib = new ZLibStream(idat, CompressionMode.Decompress);
+        var raw = new MemoryStream();
+
+        zlib.CopyTo(raw);
+
+        var o = (y * ((width * 4) + 1)) + 1 + (x * 4);
+        var data = raw.ToArray();
+
+        return (uint)((data[o] << 24) | (data[o + 1] << 16) | (data[o + 2] << 8) | data[o + 3]);
+    }
+
+    [Fact]
+    public async Task AnAvatarsPartIsDrawnFromTheLibraryTheFigureMapNames()
+    {
+        _server.Serve(
+            "/figuremap.json",
+            Encoding.UTF8.GetBytes(
+                """{"libraries":[{"id":"hh_human_shirt","parts":[{"id":215,"type":"ch"}]}]}"""
+            )
+        );
+        _server.Serve(
+            "/figures/hh_human_shirt.nitro",
+            Library("hh_human_shirt", "h_std_ch_215_2_0", 0xFFFFFFFF)
+        );
+
+        // The part as AvatarImageCache sends it: its asset's name, where it lies and its colour.
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"h_std_ch_215_2_0","x":1,"y":2,"z":-1,"color":16711680}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain(["/figuremap.json", "/figures/hh_human_shirt.nitro"]);
+        PixelAt(png, 1, 2).Should().Be(0xFF0000FF, "the part is drawn there, tinted red");
+        PixelAt(png, 0, 0).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task AnAvatarEffectsSpriteIsDrawnFromTheLibraryTheEffectMapNames()
+    {
+        _server.Serve(
+            "/effectmap.json",
+            Encoding.UTF8.GetBytes("""{"effects":[{"id":"1","lib":"Spotlight","type":"fx"}]}""")
+        );
+        _server.Serve(
+            "/effects/Spotlight.nitro",
+            Library("Spotlight", "h_std_fx1_1_1_0_0", 0x00FF00FF)
+        );
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"h_std_fx1_1_1_0_0","x":3,"y":3,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain(["/effectmap.json", "/effects/Spotlight.nitro"]);
+        PixelAt(png, 3, 3).Should().Be(0x00FF00FF);
+    }
+
+    [Fact]
+    public async Task ThePhotoLabsColourMatrixIsAppliedAtItsStrength()
+    {
+        // Yellow (CameraEffect.as) takes the blue out; at alpha 255 all of it, at 0 none.
+        var (drawn, png) = await RenderAsync(LabRender("", """[{"name":"Yellow","alpha":255}]"""));
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 2).Should().Be(0x808000FF);
+
+        var (_, none) = await RenderAsync(LabRender("", """[{"name":"Yellow","alpha":0}]"""));
+
+        PixelAt(none, 2, 2).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ThePhotoLabsZoomShowsTheMiddleHalfAtTwiceTheSize()
+    {
+        _server.Serve(
+            "/figuremap.json",
+            Encoding.UTF8.GetBytes(
+                """{"libraries":[{"id":"hh_human_body","parts":[{"id":1,"type":"bd"}]}]}"""
+            )
+        );
+        _server.Serve(
+            "/figures/hh_human_body.nitro",
+            Library("hh_human_body", "h_std_bd_1_2_0", 0xFFFFFFFF)
+        );
+
+        var part = """{"name":"h_std_bd_1_2_0","x":2,"y":2,"z":-1}""";
+        var (_, flat) = await RenderAsync(LabRender(part, "[]"));
+
+        PixelAt(flat, 3, 3).Should().Be(0x808080FF, "unzoomed, the part is the one pixel at 2,2");
+
+        var (drawn, zoomed) = await RenderAsync(LabRender(part, "[]", 2));
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(zoomed, 2, 2).Should().Be(0xFFFFFFFF);
+        PixelAt(zoomed, 3, 3).Should().Be(0xFFFFFFFF, "zoomed, the pixel at 2,2 covers 2,2 to 3,3");
+        PixelAt(zoomed, 1, 1).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ThePhotoLabsCompositeAndFrameAreDrawnFromTheEffectPictures()
+    {
+        _server.Serve("/stories/pinky_nrm.png", Png(4, 0xFF000080));
+        _server.Serve("/stories/frame_gold.png", Png(4, 0x0000FFFF));
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("", """[{"name":"pinky_nrm","alpha":255}]""")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        // pinky_nrm is drawn normally at its own half alpha over the grey.
+        PixelAt(png, 0, 0).Should().Be(0xC04040FF);
+
+        var (_, framed) = await RenderAsync(LabRender("", """[{"name":"frame_gold"}]"""));
+
+        PixelAt(framed, 0, 0).Should().Be(0x0000FFFF);
+    }
+
+    [Fact]
+    public async Task ALabEffectTheRendererDoesNotKnowFetchesNothing()
+    {
+        var (drawn, png) = await RenderAsync(
+            LabRender("", """[{"name":"../../secret","alpha":255}]""")
+        );
+
+        drawn.Should().BeTrue("the picture still comes out ({0})", RendererSaid);
+        _server.Requests.Should().BeEmpty();
+        PixelAt(png, 0, 0).Should().Be(0x808080FF);
     }
 
     /// <summary>
