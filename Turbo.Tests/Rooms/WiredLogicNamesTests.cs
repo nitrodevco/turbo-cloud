@@ -154,6 +154,7 @@ public sealed class WiredLogicNamesTests
         "wf_trg_period_short",
         "wf_trg_periodically",
         "wf_trg_recv_signal",
+        "wf_trg_room_initializes",
         "wf_trg_says_something",
         "wf_trg_score_achieved",
         "wf_trg_state_changed",

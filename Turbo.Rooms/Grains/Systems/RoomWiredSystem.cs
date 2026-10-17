@@ -77,6 +77,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     private int _tickMs => _roomGrain._wiredConfig.TickMs;
     private bool _firstRun = true;
+    private bool _initialized;
     private long _nextStackExecutionId = 0;
 
     // The execution running now; its signals and stack calls run inside it.
@@ -154,6 +155,30 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             _eventQueue.Clear();
 
             return;
+        }
+
+        // The room's first tick is its initialization: Room Initialized fires before anything
+        // queued meanwhile, such as the entry of whoever loaded the room. Only a room with a Room
+        // Initialized trigger runs that execution; one without it spends no wired time on it.
+        if (!_initialized)
+        {
+            _initialized = true;
+
+            if (_stackIdsByEventType.ContainsKey(typeof(WiredRoomInitializedEvent)))
+                await RunExecutionAsync(
+                    () =>
+                        ProcessRoomEventAsync(
+                            new WiredRoomInitializedEvent
+                            {
+                                RoomId = _roomGrain.RoomId,
+                                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                            },
+                            now,
+                            ct
+                        ),
+                    now,
+                    ct
+                );
         }
 
         await RunDueScheduledStackExecutionsAsync(now, ct);
