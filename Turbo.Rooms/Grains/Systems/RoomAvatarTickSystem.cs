@@ -93,9 +93,9 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
     }
 
     /// <summary>
-    /// Turns a head that looked at someone talking back to the body once its time is up. The room
-    /// gets the update even when the head never turned, as Habbo sends it for a listener held by a
-    /// seat (official client capture, hhus 2026-10-17, 1/1).
+    /// Turns a head that looked at someone talking back to the body once its time is up, asleep
+    /// or not (1/1). A head already back on the body, as a look straight ahead leaves it, sends
+    /// nothing (official client capture, hhus 2026-10-17, 1/1).
     /// </summary>
     private static void RevertHead(IRoomAvatar avatar, long now)
     {
@@ -104,7 +104,6 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
 
         avatar.HeadRevertAtMs = 0;
         avatar.SetHeadRotation(avatar.Rotation);
-        avatar.MarkDirty();
     }
 
     /// <summary>
