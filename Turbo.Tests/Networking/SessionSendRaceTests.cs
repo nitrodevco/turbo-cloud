@@ -85,7 +85,9 @@ public class SessionSendRaceTests
                 .GetMethod("CloseAsync", BindingFlags.Public | BindingFlags.Instance)!
                 .Invoke(_state, [_session, "heartbeat timeout", close, Drop])!;
 
+#pragma warning disable VSTHRD003 // The close was started just above, through reflection.
         await closing.Invoking(t => t).Should().NotThrowAsync();
+#pragma warning restore VSTHRD003
         _logger.AtLeast(LogLevel.Warning).Should().BeEmpty();
         _logger.Entries.Should().ContainSingle().Which.Exception.Should().BeNull();
     }

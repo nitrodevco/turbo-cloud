@@ -168,7 +168,7 @@ public sealed class FurniListUpdateTests : IDisposable
             )
             .SelectMany(x => x.Args)
             .SelectMany(arg =>
-                arg is IEnumerable<IComposer> many ? many : new[] { arg as IComposer }
+                arg is IEnumerable<IComposer?> many ? many : new[] { arg as IComposer }
             )
             .Where(arg =>
                 arg

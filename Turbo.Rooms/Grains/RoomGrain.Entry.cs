@@ -121,7 +121,7 @@ public sealed partial class RoomGrain
     /// The end of a player's entry, after the room itself (RoomReady through Items), for them
     /// alone and in Habbo's order (official client captures, 32 of 32 entries on builds 1709,
     /// 1318 and 1745): their own avatar, RoomEntryInfo, the wired text notice when the room has
-    /// one (<see cref="Systems.RoomWiredSystem.GetTriggerTextNotice"/>), RoomEvent,
+    /// one (<see cref="Systems.RoomWiredSystem.GetTriggerTextNoticeAsync"/>), RoomEvent,
     /// ConfigurationItemStates, WiredEnvironment, FurnitureLabelsAndRegions, YouAreController, WiredPermissions,
     /// YouAreOwner, RoomRating, RaidProtectionCapability. A visitor without rights is told
     /// neither YouAreController nor YouAreNotController (6 of 6 such entries). No UserUpdate

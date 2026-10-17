@@ -174,7 +174,7 @@ public sealed class PlayerTargetedOfferTests : IDisposable
 
         (await grain.PurchaseAsync(OFFER, 2, Ct)).Should().BeTrue();
 
-        var debit = (List<WalletDebitRequest>)_fakes.Log.Of("TryDebitAsync").Single().Args[0];
+        var debit = (List<WalletDebitRequest>)_fakes.Log.Of("TryDebitAsync").Single().Args[0]!;
 
         debit
             .Select(x => (x.CurrencyKind, x.Amount))
@@ -183,7 +183,7 @@ public sealed class PlayerTargetedOfferTests : IDisposable
 
         var grant = _fakes.Log.Of("GrantCatalogOfferAsync").Single();
 
-        ((CatalogOfferSnapshot)grant.Args[0]).Id.Should().Be(CATALOG_OFFER);
+        ((CatalogOfferSnapshot)grant.Args[0]!).Id.Should().Be(CATALOG_OFFER);
         grant.Args[2].Should().Be(2);
 
         // One left of three: the next login offers it with a limit of 1.

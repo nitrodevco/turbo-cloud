@@ -135,7 +135,9 @@ public sealed class AchievementFactsTests : IDisposable
     public async Task TheCallerIsNeverMadeToWaitForTheUpdate()
     {
         var release = new TaskCompletionSource();
+#pragma warning disable VSTHRD003 // The update deliberately never finishes until the test releases it.
         _fakes.Handlers[nameof(IPlayerAchievementGrain.ProcessAsync)] = _ => release.Task;
+#pragma warning restore VSTHRD003
 
         await NewFacts().RecordAsync(1, Fact("plugin-slow"), Ct);
 

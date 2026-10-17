@@ -81,7 +81,9 @@ public sealed class SessionLivenessTests : IAsyncDisposable
                 if (_connected.TrySetResult((ISessionContext)session))
                 {
                     _slowHandlerStarted.SetResult();
+#pragma warning disable VSTHRD003 // The handler is held open until the test releases it.
                     await _releaseSlowHandler.Task;
+#pragma warning restore VSTHRD003
                 }
             }
         );

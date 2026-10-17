@@ -644,7 +644,7 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
 
         await Task.WhenAll(rank, staff);
 
-        return new GuildForumAccess(rank.Result, staff.Result);
+        return new GuildForumAccess(await rank, await staff);
     }
 
     public Task OnGuildDeletedAsync(CancellationToken ct)

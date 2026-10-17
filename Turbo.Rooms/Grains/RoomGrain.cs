@@ -523,7 +523,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
     /// <summary>
-    /// <see cref="SendComposerToRoomAsync"/> for everyone in the room but these players, who are
+    /// <see cref="SendComposerToRoomAsync(IComposer, CancellationToken)"/> for everyone in the room but these players, who are
     /// sent their own version of it (a chat line their word filter masks).
     /// </summary>
     public Task SendComposerToRoomExceptAsync(
@@ -542,7 +542,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
     /// <summary>
-    /// <see cref="SendComposerToRoomAsync"/> for several composers that go out together, such as
+    /// <see cref="SendComposerToRoomAsync(IComposer, CancellationToken)"/> for several composers that go out together, such as
     /// everything one tick of rollers or wired produced. They are one stream item, so every
     /// player's presence receives them in one call and flushes them to the session in one send,
     /// in this order. An empty batch publishes nothing.
@@ -587,7 +587,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     }
 
     /// <summary>
-    /// <see cref="SendComposerToRoomAsync"/> for code that must not wait on it: the tick, and a
+    /// <see cref="SendComposerToRoomAsync(IComposer, CancellationToken)"/> for code that must not wait on it: the tick, and a
     /// broadcast made once the answer is already known. The send goes out and a failure is
     /// logged. The same way to reach the room, not a second one; it exists so the fifteen
     /// callers stop spelling the log line out.

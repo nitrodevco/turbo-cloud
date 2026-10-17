@@ -27,19 +27,19 @@ public sealed record GuildForumDetailSnapshot : GuildForumSnapshot
     public required GuildForumPermission ModeratePermission { get; init; }
 
     [Id(4)]
-    public required string ReadError { get; init; }
+    public required string ReadError { get; init; } = string.Empty;
 
     [Id(5)]
-    public required string PostMessageError { get; init; }
+    public required string PostMessageError { get; init; } = string.Empty;
 
     [Id(6)]
-    public required string PostThreadError { get; init; }
+    public required string PostThreadError { get; init; } = string.Empty;
 
     [Id(7)]
-    public required string ModerateError { get; init; }
+    public required string ModerateError { get; init; } = string.Empty;
 
     [Id(8)]
-    public required string ReportError { get; init; }
+    public required string ReportError { get; init; } = string.Empty;
 
     [Id(9)]
     public required bool CanChangeSettings { get; init; }

@@ -69,9 +69,9 @@ public sealed class ModerationToolService(
 
     public async Task<ModeratorInitSnapshot?> GetInitAsync(PlayerId moderator, CancellationToken ct)
     {
-        Task<bool> Holds(string node) => grainFactory.HasPermissionAsync(moderator, node, ct);
+        Task<bool> HoldsAsync(string node) => grainFactory.HasPermissionAsync(moderator, node, ct);
 
-        if (!await Holds(PermissionNodes.Moderation.TOOL))
+        if (!await HoldsAsync(PermissionNodes.Moderation.TOOL))
             return null;
 
         return new ModeratorInitSnapshot
@@ -80,11 +80,11 @@ public sealed class ModerationToolService(
             RoomMessageTemplates = [.. config.Value.ModerationRoomMessageTemplates],
             CfhPermission = true,
             ChatlogsPermission = true,
-            AlertPermission = await Holds(PermissionNodes.Command.WARN),
-            KickPermission = await Holds(PermissionNodes.Room.MODERATE_ANY),
-            BanPermission = await Holds(PermissionNodes.Command.BAN),
-            RoomAlertPermission = await Holds(PermissionNodes.Command.ROOMALERT),
-            RoomKickPermission = await Holds(PermissionNodes.Command.ROOMKICKALL),
+            AlertPermission = await HoldsAsync(PermissionNodes.Command.WARN),
+            KickPermission = await HoldsAsync(PermissionNodes.Room.MODERATE_ANY),
+            BanPermission = await HoldsAsync(PermissionNodes.Command.BAN),
+            RoomAlertPermission = await HoldsAsync(PermissionNodes.Command.ROOMALERT),
+            RoomKickPermission = await HoldsAsync(PermissionNodes.Command.ROOMKICKALL),
         };
     }
 

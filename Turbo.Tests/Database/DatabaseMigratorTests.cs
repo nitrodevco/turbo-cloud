@@ -398,12 +398,7 @@ public sealed class DatabaseMigratorTests : IDisposable
     {
         await using var db = _h.Context<ThingsContext>();
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-        _h.Lock.WhileWaiting = () =>
-        {
-            cancel.Cancel();
-
-            return Task.CompletedTask;
-        };
+        _h.Lock.WhileWaiting = () => cancel.CancelAsync();
 
         var act = () => _h.Migrator().MigrateAsync(db, "things", null, cancel.Token);
 

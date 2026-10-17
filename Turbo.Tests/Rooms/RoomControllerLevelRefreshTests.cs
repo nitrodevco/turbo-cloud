@@ -94,6 +94,6 @@ public sealed class RoomControllerLevelRefreshTests
             .BeTrue();
     }
 
-    private List<object?> Sent() =>
-        [.. _room.Harness.Fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0])];
+    private List<object> Sent() =>
+        [.. _room.Harness.Fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]!)];
 }
