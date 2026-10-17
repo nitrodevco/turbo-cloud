@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Turbo.Gamedata.Configuration;
+using Turbo.Primitives.Camera;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Navigator;
@@ -31,6 +32,11 @@ namespace Turbo.Gamedata.Api;
 /// <item><c>/gamedata/&lt;file&gt;/&lt;sha1&gt;</c> is a build by the hash of its content. It
 /// never changes, so it is cached for good, and kept a while after a newer build.</item>
 /// <item><c>/gamedata/hashes</c> lists each file's current hash, in Habbo's shape.</item>
+/// <item><c>/gamedata/photos/&lt;photo id&gt;.png</c> (and <c>_small.png</c>) is a camera photo
+/// (<see cref="ICameraPhotoFiles"/>), which the photo dialog and a photo poster load: the client's
+/// <c>stories.image_url_base</c> is <c>/gamedata/</c> on this host, as the photo's url is
+/// <c>photos/&lt;id&gt;.png</c>. Under <c>/gamedata/</c>, so the reverse proxy that passes the gamedata on
+/// passes it too. A photo never changes (a new one has a new id), so it is cached for good.</item>
 /// <item><c>/starter-rooms/&lt;room id&gt;.png</c> is a starter room's picture
 /// (<see cref="IStarterRoomDirectory"/>), which the room picker shows; it can be taken again, so it
 /// is cached for a minute only.</item>
@@ -55,6 +61,9 @@ internal sealed class GamedataServer(
     private const string GZIP = "gzip";
     private const string IMMUTABLE = "public, max-age=31536000, immutable";
     private const int HASH_LENGTH = 40;
+
+    /// <summary>Where a camera photo is served, before <c>&lt;photo id&gt;.png</c>.</summary>
+    public const string PHOTO_ROUTE = "/gamedata/photos/";
     private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
     private const string ROOM_THUMBNAIL_CACHE = "public, no-cache";
 
@@ -82,6 +91,7 @@ internal sealed class GamedataServer(
 
         var app = builder.Build();
         var files = services.GetRequiredService<IGamedataFileService>();
+        var photos = services.GetService<ICameraPhotoFiles>();
         var starterRooms = services.GetService<IStarterRoomDirectory>();
         var thumbnails = services.GetService<IRoomThumbnailFiles>();
 
@@ -101,6 +111,11 @@ internal sealed class GamedataServer(
             "/gamedata/hashes",
             (HttpContext http, CancellationToken ct) => HashesAsync(http, files, ct)
         );
+        if (photos is not null)
+            app.MapGet(
+                PHOTO_ROUTE + "{name}.png",
+                (HttpContext http, string name) => Photo(http, photos, name)
+            );
         if (starterRooms is not null)
             app.MapGet(
                 "/starter-rooms/{roomId:int}.png",
@@ -139,6 +154,19 @@ internal sealed class GamedataServer(
         _app = app;
 
         logger.LogInformation("Gamedata host listening on {Url}", options.Url);
+    }
+
+    /// <summary>A camera photo, as the renderer drew it; 404 when there is none.</summary>
+    private static IResult Photo(HttpContext http, ICameraPhotoFiles photos, string name)
+    {
+        var file = photos.GetPhotoFile(name);
+
+        if (file is null)
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = IMMUTABLE;
+
+        return Results.File(Path.GetFullPath(file), "image/png");
     }
 
     /// <summary>A starter room's picture, as the starter room camera last drew it; 404 when there is none.</summary>

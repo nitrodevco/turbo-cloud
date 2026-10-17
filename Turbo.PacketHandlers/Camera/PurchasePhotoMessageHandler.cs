@@ -19,7 +19,7 @@ namespace Turbo.PacketHandlers.Camera;
 /// <summary>
 /// "Buy photo poster furni": the player's last photo becomes a photo poster in their inventory for
 /// the configured price, then <c>CameraPurchaseOKMessage</c>. The poster's state is the photo as
-/// JSON (its url <c>w</c>, owner <c>s</c>, id <c>u</c>, time <c>t</c>), what external image furni read.
+/// JSON (<see cref="CameraPhotoPoster"/>), what external image furni read.
 /// </summary>
 public class PurchasePhotoMessageHandler(
     IGrainFactory grainFactory,
@@ -54,6 +54,11 @@ public class PurchasePhotoMessageHandler(
             return;
         }
 
+        var creator = await grainFactory
+            .GetPlayerGrain(ctx.PlayerId)
+            .GetSummaryAsync(ct)
+            .ConfigureAwait(false);
+
         var debits = new List<WalletDebitRequest>();
 
         if (_config.CreditPrice > 0)
@@ -85,15 +90,7 @@ public class PurchasePhotoMessageHandler(
                 return;
         }
 
-        var state = JsonSerializer.Serialize(
-            new Dictionary<string, object>
-            {
-                ["t"] = new DateTimeOffset(photo.CreatedAt).ToUnixTimeSeconds(),
-                ["u"] = photo.Id,
-                ["s"] = ctx.PlayerId.Value,
-                ["w"] = photo.Url,
-            }
-        );
+        var state = CameraPhotoPoster.StateOf(photo, ctx.PlayerId.Value, creator.Name);
         var extraData = JsonSerializer.Serialize(
             new Dictionary<string, object> { [ExtraDataSectionType.STUFF] = new { Data = state } }
         );
