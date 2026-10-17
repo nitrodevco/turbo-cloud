@@ -25,6 +25,13 @@ public interface IAssetSyncService
     AssetJobSnapshot? StartAfterCheck(PlayerId player);
 
     /// <summary>
+    /// Starts building the client's libraries from the release of Habbo's HTML client followed -
+    /// every one again, whether its library changed or not - and returns its job at once. Throws
+    /// <see cref="System.InvalidOperationException"/> while another asset job runs.
+    /// </summary>
+    AssetJobSnapshot StartClientBuild(PlayerId player);
+
+    /// <summary>
     /// What a sync would download now, without downloading it: Habbo's lists, read again when
     /// <paramref name="relist"/> or when the last read is older than
     /// <c>Turbo:Assets:SyncPreviewMinutes</c>, against the hotel's bundles as they are. Throws

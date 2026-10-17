@@ -42,11 +42,9 @@ public sealed class ChatStyleServiceTests : IDisposable
     private readonly Host _host = new();
     private readonly ChatStyleService _styles;
 
-    public ChatStyleServiceTests()
-    {
-        _folder = new AssetFolder(_db);
-        _provider = new ChatStyleProvider(_db, NullLogger<IChatStyleProvider>.Instance);
-        _styles = new ChatStyleService(
+    /// <summary>The service, with <c>Turbo:Gamedata:ClientChatStyles</c> as given.</summary>
+    private ChatStyleService Styles(string clientChatStyles) =>
+        new(
             _db,
             _folder.Store,
             _provider,
@@ -57,9 +55,16 @@ public sealed class ChatStyleServiceTests : IDisposable
                 TimeProvider.System,
                 NullLogger<HabboClientService>.Instance
             ),
+            Options.Create(new GamedataConfig { ClientChatStyles = clientChatStyles }),
             TimeProvider.System,
             NullLogger<ChatStyleService>.Instance
         );
+
+    public ChatStyleServiceTests()
+    {
+        _folder = new AssetFolder(_db);
+        _provider = new ChatStyleProvider(_db, NullLogger<IChatStyleProvider>.Instance);
+        _styles = Styles("follow");
 
         // The hotel's rows before any look: who may speak with each, as it set it.
         _db.Insert(
@@ -305,7 +310,7 @@ public sealed class ChatStyleServiceTests : IDisposable
     [Fact]
     public async Task the_styles_of_habbos_html_client_are_taken_with_its_librarys_other_bitmaps()
     {
-        var none = () => _styles.ImportFromClientAsync(STAFF, Ct);
+        var none = () => _styles.ImportFromClientAsync(STAFF, false, Ct);
 
         (await none.Should().ThrowAsync<InvalidOperationException>())
             .Which.Message.Should()
@@ -349,7 +354,7 @@ public sealed class ChatStyleServiceTests : IDisposable
         );
         await Client().CheckAsync(wait: true, Ct);
 
-        var result = await _styles.ImportFromClientAsync(STAFF, Ct);
+        var result = await _styles.ImportFromClientAsync(STAFF, false, Ct);
 
         // normal (0) and bats (24) the hotel has; the commented one and the one without regpoints are none.
         result
@@ -395,6 +400,112 @@ public sealed class ChatStyleServiceTests : IDisposable
             .AsObject()
             .Should()
             .ContainKey($"{ChatStyleService.LIBRARY}-tray_bar");
+    }
+
+    [Fact]
+    public async Task The_styles_follow_a_new_release_and_keep_what_was_changed_here_unless_told_to_replace_it()
+    {
+        // The chat library of a release: normal and bats, and with `newer` a pointer drawn otherwise and a new style.
+        byte[] ChatLibrary(bool newer)
+        {
+            var regPoints = Encoding.UTF8.GetBytes(
+                "9sliceXY = 29,17\r\n9sliceWH = 1,1\r\ntextFieldMargins = 28,4,12,7\r\nfontSize = 12"
+            );
+            var styles =
+                """<style id="0" assetId="normal"/><style id="24" assetId="bats"/>"""
+                + (newer ? """<style id="40" assetId="fresh"/>""" : "");
+            var files = new List<(string, string, byte[])>
+            {
+                (
+                    "chatstyles_xml",
+                    "text/xml",
+                    Encoding.UTF8.GetBytes($"<chatstyles>{styles}</chatstyles>")
+                ),
+            };
+
+            foreach (var style in newer ? new[] { "normal", "bats", "fresh" } : ["normal", "bats"])
+            {
+                files.Add(($"style_{style}_regpoints", "text/plain", regPoints));
+                files.Add(($"style_{style}_chat_bubble_base", "image/png", Png(40, 30, 5)));
+                files.Add(
+                    ($"style_{style}_chat_bubble_pointer", "image/png", Png(9, 6, newer ? 1 : 0))
+                );
+                files.Add(($"style_{style}_selector_preview", "image/png", Png(30, 20, 0)));
+            }
+
+            return NitroConverterTests.Hab([.. files]);
+        }
+
+        async Task ReleaseAsync(bool newer)
+        {
+            await Client().ForgetAsync(TestClientRelease.VERSION, Ct);
+            TestClientRelease.Serve(
+                (url, data) => _host.Files[url] = data,
+                (ChatStyleService.CLIENT_LIBRARY, ChatLibrary(newer))
+            );
+            await Client().CheckAsync(wait: true, Ct);
+        }
+
+        async Task<byte[]> PointerAsync(string assetId) =>
+            (
+                await _styles.GetBitmapAsync(
+                    (await _styles.ListAsync(Ct)).Styles.Single(x => x.AssetId == assetId).Id,
+                    "chat_bubble_pointer",
+                    Ct
+                )
+            )!;
+
+        await ReleaseAsync(newer: false);
+
+        // A release whose chat the hotel hasn't taken: its styles are taken, once.
+        (await _styles.FollowClientAsync(STAFF, Ct))!
+            .Updated.Should()
+            .Be(2);
+        (await _styles.FollowClientAsync(STAFF, Ct)).Should().BeNull();
+        (await Styles("off").FollowClientAsync(STAFF, Ct)).Should().BeNull();
+
+        // normal is changed here.
+        var normal = (await _styles.ListAsync(Ct)).Styles.Single(x => x.AssetId == "normal");
+        var points = JsonNode.Parse(normal.RegPoints!)!.AsObject();
+
+        normal.FromClient.Should().BeTrue();
+        normal.ChangedHere.Should().BeFalse();
+        points["fontSize"] = 20;
+        await _styles.SaveAsync(
+            normal.Id,
+            new ChatStyleEdit { RegPoints = points.ToJsonString() },
+            STAFF,
+            Ct
+        );
+        (await _styles.ListAsync(Ct))
+            .Styles.Single(x => x.AssetId == "normal")
+            .ChangedHere.Should()
+            .BeTrue();
+
+        var before = await PointerAsync("normal");
+
+        // A new release: bats takes the client's new pointer, fresh is added, normal stays the hotel's.
+        await ReleaseAsync(newer: true);
+
+        var followed = (await _styles.FollowClientAsync(STAFF, Ct))!;
+
+        followed.Added.Should().Be(1);
+        followed.Updated.Should().Be(1);
+        followed.Kept.Should().Be(1);
+        (await PointerAsync("normal")).Should().Equal(before);
+        (await PointerAsync("bats")).Should().Equal(Png(9, 6, 1));
+        (await _styles.ListAsync(Ct)).Styles.Select(x => x.AssetId).Should().Contain("fresh");
+
+        // Told to replace what was changed here, the hotel's normal goes too.
+        var replaced = await _styles.ImportFromClientAsync(STAFF, replaceChanged: true, Ct);
+
+        replaced.Kept.Should().Be(0);
+        (await PointerAsync("normal")).Should().Equal(Png(9, 6, 1));
+
+        var list = (await _styles.ListAsync(Ct)).Styles.Single(x => x.AssetId == "normal");
+
+        list.ChangedHere.Should().BeFalse();
+        JsonNode.Parse(list.RegPoints!)!["fontSize"]!.GetValue<int>().Should().Be(12);
     }
 
     private HabboClientService Client() =>

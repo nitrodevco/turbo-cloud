@@ -844,6 +844,74 @@ public sealed class AssetSyncTests : IDisposable
         JsonNode.Parse(files["theme-variants.json"])!["variants"].Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task The_clients_texts_are_bundled_and_build_now_builds_every_library_again()
+    {
+        static (string, string, byte[]) Text(string name, string text) =>
+            (name, "text/plain", Encoding.UTF8.GetBytes(text));
+
+        var localization = NitroConverterTests.Hab(
+            Text("default_localizations", "# a comment\nhello=Hello\nbye = Bye\\nnow\nempty=\n"),
+            Text("default_localizations_de", "hello=Hallo\n"),
+            // There too, but Flash never loads it.
+            Text("development_localizations", "debug=yes\n")
+        );
+
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ($"generated/{ClientBundleBuilder.LOCALIZATION_LIBRARY}.hab", localization),
+            ("generated/habbo-window-manager-com.hab", Gamedata.ClientThemeTests.WindowManagerHab())
+        );
+        await Client().CheckAsync(wait: true, Ct);
+        (await RunAsync()).Status.Should().Be(AssetJobStatus.Done);
+
+        var files = NitroBundle
+            .Read(
+                File.ReadAllBytes(
+                    _folder.Store.FullPathOf(
+                        AssetBundleKind.Template,
+                        ClientBundleBuilder.LOCALIZATION_LIBRARY
+                    )
+                )
+            )
+            .Files;
+
+        files
+            .Keys.Should()
+            .BeEquivalentTo("habbo-localization-com.json", "DefaultLocalizations_de.json");
+        // The base texts with the language's over them; an empty one is not kept.
+        Encoding
+            .UTF8.GetString(files["DefaultLocalizations_de.json"])
+            .Should()
+            .Be("""{"hello":"Hallo","bye":"Bye\nnow"}""");
+
+        // What was built, for the panel.
+        var built = await Builder().GetAsync(Ct);
+
+        built.Version.Should().Be(TestClientRelease.VERSION);
+        built.BuiltAt.Should().NotBeNull();
+        built
+            .Libraries.Select(x => (x.Library, x.Kind))
+            .Should()
+            .Contain(("habbo-localization-com", "texts"))
+            .And.Contain(("habbo-window-manager-com", "window-manager"));
+        built
+            .Notes.Should()
+            .Contain(x => x.Contains("has no generated/habbo-avatar-render-lib.hab"));
+
+        // Up to date, a sync builds nothing; Build now builds every one again.
+        (await RunAsync())
+            .Log.Should()
+            .NotContain(x => x.StartsWith("Built habbo-localization-com"));
+        _sync.StartClientBuild(PlayerId.Parse(1));
+
+        var job = await WaitAsync();
+
+        job.Kind.Should().Be(AssetJobKind.ClientBuild);
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+        job.Log.Should().Contain(x => x.StartsWith("Built habbo-localization-com"));
+    }
+
     private const string TileCursor = """
         {"name":"TileCursor","type":"tile_cursor","documentClass":"TileCursor","logicType":"tile_cursor",
          "assets":{"tile_cursor_64_a_0_0":{"x":1,"y":2}},
@@ -929,17 +997,21 @@ public sealed class AssetSyncTests : IDisposable
                 NullLogger<HabboGamedataClient>.Instance
             ),
             Client(),
-            new ClientBundleBuilder(
-                _db,
-                _folder.Store,
-                Client(),
-                TimeProvider.System,
-                NullLogger<ClientBundleBuilder>.Instance
-            ),
+            Builder(),
             _folder.Store,
             _jobs,
             TimeProvider.System,
             NullLogger<IAssetSyncService>.Instance
+        );
+
+    private ClientBundleBuilder Builder() =>
+        new(
+            _db,
+            _folder.Store,
+            Client(),
+            _fakes.Create<IChatStyleService>(),
+            TimeProvider.System,
+            NullLogger<ClientBundleBuilder>.Instance
         );
 
     private HabboClientService Client() =>

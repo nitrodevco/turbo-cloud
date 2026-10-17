@@ -44,6 +44,7 @@ public static class AssetContractNames
         {
             AssetJobKind.Sync => "sync",
             AssetJobKind.Publish => "publish",
+            AssetJobKind.ClientBuild => "client-build",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 

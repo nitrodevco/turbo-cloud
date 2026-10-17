@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,6 +21,8 @@ using Turbo.Database.Entities.Assets;
 using Turbo.Gamedata.Figures;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
+using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Gamedata.Habbo.Client;
 
@@ -35,21 +38,30 @@ namespace Turbo.Gamedata.Habbo.Client;
 /// <item><c>habbo-room-object-visualization-lib</c> (<c>server/renderer-assets.ts</c>): the Variable
 /// FX bitmaps on one sheet, with <c>variable-fx-tables.json</c> - each icon's offset and the renderer
 /// each id draws with.</item>
+/// <item><c>habbo-localization-com</c>: the client's embedded texts, a
+/// <c>DefaultLocalizations_&lt;lang&gt;.json</c> per language;</item>
+/// <item>a window template bundle for each library with a layout, the UI theme in the window
+/// manager's (<see cref="ClientTemplates"/>, <see cref="Theme.ClientTheme"/>).</item>
 /// </list>
 /// A bundle is stamped with the library's hash, so a release that leaves a library as it was builds
-/// nothing again; one the hotel uploaded itself is left alone.
+/// nothing again; one the hotel uploaded itself is left alone. Then the chat styles follow the
+/// release (<see cref="IChatStyleService.FollowClientAsync"/>). What the last build read, left out
+/// and could not pack is kept beside the releases (<c>.habbo-client/build.json</c>).
 /// </summary>
 internal sealed partial class ClientBundleBuilder(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IAssetBundleStore store,
     HabboClientService client,
+    IChatStyleService chatStyles,
     TimeProvider time,
     ILogger<ClientBundleBuilder> logger
-)
+) : IHabboClientBuilds
 {
+    private const string BUILD_FILE = "build.json";
     public const string AVATAR_LIBRARY = "habbo-avatar-render-lib";
     public const string VISUALIZATION_LIBRARY = "habbo-room-object-visualization-lib";
     public const string VARIABLE_FX_TABLES = "variable-fx-tables.json";
+    public const string LOCALIZATION_LIBRARY = "habbo-localization-com";
 
     /// <summary>Changed when a bundle is built differently, so every one is built again.</summary>
     private const string BUILD = "1";
@@ -65,6 +77,7 @@ internal sealed partial class ClientBundleBuilder(
     {
         AVATAR_LIBRARY,
         VISUALIZATION_LIBRARY,
+        LOCALIZATION_LIBRARY,
         ChatStyles.ChatStyleService.LIBRARY,
     };
 
@@ -89,17 +102,28 @@ internal sealed partial class ClientBundleBuilder(
     };
 
     /// <summary>
-    /// Builds every bundle whose library changed in the followed release; how many were built.
-    /// <paramref name="avatarActions"/> is Habbo's <c>HabboAvatarActions.xml</c>, which the avatar
-    /// render library's bundle carries as <c>actions.json</c>; without it (Habbo could not be asked) a
-    /// bundle built with it before is kept, as the avatars would only stand without one.
+    /// Builds every bundle whose library changed in the followed release - with
+    /// <paramref name="force"/>, every one - then lets the chat styles follow it; how many bundles
+    /// were built. <paramref name="avatarActions"/> is Habbo's <c>HabboAvatarActions.xml</c>, which
+    /// the avatar render library's bundle carries as <c>actions.json</c>; without it (Habbo could not
+    /// be asked) a bundle built with it before is kept, as the avatars would only stand without one.
     /// </summary>
     public async Task<int> BuildAsync(
         byte[]? avatarActions,
+        PlayerId player,
+        bool force,
         Action<string> log,
         CancellationToken ct
     )
     {
+        var notes = new List<string>();
+
+        void Note(string message)
+        {
+            notes.Add(message);
+            log(message);
+        }
+
         var actions = avatarActions is null ? null : Encoding.UTF8.GetString(avatarActions);
         var actionsStamp = avatarActions is null
             ? NO_ACTIONS
@@ -112,6 +136,7 @@ internal sealed partial class ClientBundleBuilder(
         {
             (AVATAR_LIBRARY, actionsStamp, hab => AvatarRender(hab, actions)),
             (VISUALIZATION_LIBRARY, string.Empty, Visualization),
+            (LOCALIZATION_LIBRARY, string.Empty, Localization),
         };
 
         var release = await client.OpenFollowedAsync(ct).ConfigureAwait(false);
@@ -141,7 +166,7 @@ internal sealed partial class ClientBundleBuilder(
 
             if (row?.Source == AssetBundleSource.Upload)
             {
-                log($"{library} is the hotel's own upload: left as it is.");
+                Note($"{library} is the hotel's own upload: left as it is.");
 
                 continue;
             }
@@ -151,7 +176,7 @@ internal sealed partial class ClientBundleBuilder(
                 || release.Read(path) is not { } data
             )
             {
-                log($"Habbo's HTML client {release.Version} has no {path}.");
+                Note($"Habbo's HTML client {release.Version} has no {path}.");
 
                 continue;
             }
@@ -160,7 +185,7 @@ internal sealed partial class ClientBundleBuilder(
             var revision =
                 $"client:{BUILD}:{sha256[..Math.Min(sha256.Length, 32)]}{(stamp.Length > 0 ? ":" + stamp : "")}";
 
-            if (row?.Revision == revision && row.Error is null)
+            if (!force && row?.Revision == revision && row.Error is null)
                 continue;
 
             if (
@@ -169,7 +194,7 @@ internal sealed partial class ClientBundleBuilder(
                 && row.Revision?.EndsWith(":" + NO_ACTIONS, StringComparison.Ordinal) == false
             )
             {
-                log($"{library} kept as it is: Habbo's avatar actions could not be read.");
+                Note($"{library} kept as it is: Habbo's avatar actions could not be read.");
 
                 continue;
             }
@@ -188,7 +213,7 @@ internal sealed partial class ClientBundleBuilder(
                     library,
                     release.Version
                 );
-                log(
+                Note(
                     $"{library} could not be built from Habbo's HTML client {release.Version}: {ex.Message}"
                 );
 
@@ -201,10 +226,141 @@ internal sealed partial class ClientBundleBuilder(
             log($"Built {library} from Habbo's HTML client {release.Version}.");
         }
 
-        built += await TemplatesAsync(dbCtx, release, log, ct).ConfigureAwait(false);
+        var templates = await TemplatesAsync(dbCtx, release, force, log, Note, ct)
+            .ConfigureAwait(false);
+
+        built += templates?.Built ?? 0;
+
+        try
+        {
+            if (await chatStyles.FollowClientAsync(player, ct).ConfigureAwait(false) is { } taken)
+                log(
+                    $"Chat styles taken from Habbo's HTML client {release.Version}: {taken.Added} added, {taken.Updated} updated, {taken.Kept} kept as the hotel changed them."
+                );
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            Note($"The chat styles could not be taken from the client: {ex.Message}");
+        }
+
+        if (built > 0 || force)
+            await WriteBuildAsync(release.Version, templates, notes, ct).ConfigureAwait(false);
 
         return built;
     }
+
+    public async Task<HabboClientBuildSnapshot> GetAsync(CancellationToken ct)
+    {
+        var last = await ReadBuildAsync(ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+        var rows = await dbCtx
+            .AssetBundles.AsNoTracking()
+            .Where(x => x.Kind == AssetBundleKind.Template)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var names = new HashSet<string>(OWN_BUILDS, StringComparer.Ordinal);
+
+        names.UnionWith(last?.Templates ?? []);
+        names.UnionWith(
+            rows.Where(x =>
+                    x.Source == AssetBundleSource.Built
+                    && x.Revision?.StartsWith(TEMPLATES_PREFIX, StringComparison.Ordinal) == true
+                )
+                .Select(x => x.Name)
+        );
+
+        return new HabboClientBuildSnapshot
+        {
+            Libraries =
+            [
+                .. rows.Where(x => names.Contains(x.Name))
+                    .OrderBy(x => KindOf(x.Name) == "template")
+                    .ThenBy(x => x.Name, StringComparer.Ordinal)
+                    .Select(x => new HabboClientBuiltLibrary
+                    {
+                        Library = x.Name,
+                        Kind = KindOf(x.Name),
+                        Uploaded = x.Source == AssetBundleSource.Upload,
+                        Size = x.Size,
+                        UpdatedAt = x.UpdatedAt,
+                    }),
+            ],
+            Version = last?.Version,
+            BuiltAt = last?.BuiltAt,
+            Problems = [.. last?.Problems ?? []],
+            Notes = [.. last?.Notes ?? []],
+        };
+    }
+
+    private static string KindOf(string library) =>
+        library switch
+        {
+            AVATAR_LIBRARY => "avatar",
+            VISUALIZATION_LIBRARY => "variable-fx",
+            LOCALIZATION_LIBRARY => "texts",
+            ChatStyles.ChatStyleService.LIBRARY => "chat",
+            ClientTemplates.WINDOW_MANAGER => "window-manager",
+            _ => "template",
+        };
+
+    private string BuildPath => Path.Combine(store.Root, ".habbo-client", BUILD_FILE);
+
+    private async Task<BuildFile?> ReadBuildAsync(CancellationToken ct)
+    {
+        try
+        {
+            return File.Exists(BuildPath)
+                ? JsonSerializer.Deserialize<BuildFile>(
+                    await File.ReadAllTextAsync(BuildPath, ct).ConfigureAwait(false)
+                )
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The last build kept: the release, when, what it left out, and the templates' problems - the
+    /// ones of the build before when the templates were up to date and not packed again.
+    /// </summary>
+    private async Task WriteBuildAsync(
+        string version,
+        TemplatesBuilt? templates,
+        List<string> notes,
+        CancellationToken ct
+    )
+    {
+        var before = templates is null ? await ReadBuildAsync(ct).ConfigureAwait(false) : null;
+        var file = new BuildFile
+        {
+            Version = version,
+            BuiltAt = time.GetUtcNow().UtcDateTime,
+            Templates = templates?.Libraries ?? before?.Templates ?? [],
+            Problems = templates?.Problems ?? before?.Problems ?? [],
+            Notes = notes,
+        };
+        var temp = $"{BuildPath}.{Guid.NewGuid():N}.part";
+
+        Directory.CreateDirectory(Path.GetDirectoryName(BuildPath)!);
+        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(file), ct)
+            .ConfigureAwait(false);
+        File.Move(temp, BuildPath, overwrite: true);
+    }
+
+    private sealed record BuildFile
+    {
+        public string? Version { get; init; }
+        public DateTime? BuiltAt { get; init; }
+        public List<string> Templates { get; init; } = [];
+        public List<string> Problems { get; init; } = [];
+        public List<string> Notes { get; init; } = [];
+    }
+
+    /// <summary>The templates packed: how many bundles were written, every library packed, and the problems.</summary>
+    private sealed record TemplatesBuilt(int Built, List<string> Libraries, List<string> Problems);
 
     /// <summary>
     /// The window template bundles (<see cref="ClientTemplates"/>): one for each library of the
@@ -212,10 +368,12 @@ internal sealed partial class ClientBundleBuilder(
     /// are stamped with the release's libraries, so they are built again, together, when one changes;
     /// a bundle of a library the release no longer has is taken away, and an uploaded one left alone.
     /// </summary>
-    private async Task<int> TemplatesAsync(
+    private async Task<TemplatesBuilt?> TemplatesAsync(
         TurboDbContext dbCtx,
         HabboClientRelease release,
+        bool force,
         Action<string> log,
+        Action<string> note,
         CancellationToken ct
     )
     {
@@ -243,8 +401,8 @@ internal sealed partial class ClientBundleBuilder(
             )
             .ToList();
 
-        if (ours.Count > 0 && ours.All(x => x.Revision == revision && x.Error is null))
-            return 0;
+        if (!force && ours.Count > 0 && ours.All(x => x.Revision == revision && x.Error is null))
+            return null;
 
         var libraries = new List<(string Name, HabLibrary Hab)>();
         HabLibrary? windowManager = null;
@@ -264,7 +422,7 @@ internal sealed partial class ClientBundleBuilder(
             }
             catch (AssetFormatException ex)
             {
-                log($"{path} could not be read: {ex.Message}");
+                note($"{path} could not be read: {ex.Message}");
 
                 continue;
             }
@@ -278,11 +436,11 @@ internal sealed partial class ClientBundleBuilder(
 
         if (windowManager is null)
         {
-            log(
+            note(
                 $"Habbo's HTML client {release.Version} has no window manager library: the templates are not built."
             );
 
-            return 0;
+            return new TemplatesBuilt(0, [], []);
         }
 
         var packed = ClientTemplates.Pack(release.Version, libraries, windowManager);
@@ -292,13 +450,20 @@ internal sealed partial class ClientBundleBuilder(
             packed.Bundles.GetValueOrDefault(ClientTemplates.WINDOW_MANAGER) is
             { } windowManagerFiles
         )
-            WithTheme(windowManagerFiles, windowManager, log);
+            WithTheme(windowManagerFiles, windowManager, note);
 
         foreach (var (library, files) in packed.Bundles)
         {
             var row = rows.GetValueOrDefault(library);
 
-            if (row?.Source == AssetBundleSource.Upload || !store.IsValidName(library))
+            if (row?.Source == AssetBundleSource.Upload)
+            {
+                note($"{library} is the hotel's own upload: left as it is.");
+
+                continue;
+            }
+
+            if (!store.IsValidName(library))
                 continue;
 
             await SaveAsync(dbCtx, row, library, files, revision, release.Version, ct)
@@ -321,7 +486,11 @@ internal sealed partial class ClientBundleBuilder(
             $"Built {built} template bundles from Habbo's HTML client {release.Version}; {packed.Problems.Count} problems."
         );
 
-        return built;
+        return new TemplatesBuilt(
+            built,
+            [.. packed.Bundles.Keys.Order(StringComparer.Ordinal)],
+            packed.Problems
+        );
     }
 
     /// <summary>
@@ -473,6 +642,87 @@ internal sealed partial class ClientBundleBuilder(
         return files;
     }
 
+    /// <summary>
+    /// The localization library's bundle: the client's embedded texts as nitro-studio reads them
+    /// (<c>clientLocalizations</c>) - <c>default_localizations</c> with each language's
+    /// <c>default_localizations_&lt;lang&gt;</c> over it - one <c>DefaultLocalizations_&lt;lang&gt;.json</c>
+    /// per language. <c>development_localizations</c> is there too, but Flash never loads it.
+    /// </summary>
+    internal static Dictionary<string, byte[]> Localization(HabLibrary hab)
+    {
+        var texts = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+
+        foreach (var entry in hab.Entries)
+        {
+            var match = LocalizationEntryPattern().Match(entry.Name);
+
+            if (match.Success)
+                texts[match.Groups[1].Value] = LocalizationTexts(
+                    Encoding.UTF8.GetString(hab.Get(entry))
+                );
+        }
+
+        if (!texts.TryGetValue(string.Empty, out var @base))
+            throw new FormatException("The localization library has no default_localizations.");
+
+        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        {
+            [$"{LOCALIZATION_LIBRARY}.json"] = Json(
+                new JsonObject { ["type"] = LOCALIZATION_LIBRARY, ["assets"] = new JsonArray() }
+            ),
+        };
+
+        foreach (
+            var (language, own) in texts
+                .Where(x => x.Key.Length > 0)
+                .OrderBy(x => x.Key, StringComparer.Ordinal)
+        )
+        {
+            var merged = new JsonObject();
+
+            foreach (var (key, value) in @base)
+                merged[key] = value;
+
+            foreach (var (key, value) in own)
+                merged[key] = value;
+
+            files[$"DefaultLocalizations_{language}.json"] = Json(merged);
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Flash's <c>CoreLocalizationManager.parseLocalizationData</c>: one <c>key=value</c> a line, a
+    /// <c>#</c> line a comment, the key ending at the first <c>=</c>, both sides trimmed, a literal
+    /// <c>\n</c> a line break, and an empty value not kept.
+    /// </summary>
+    internal static Dictionary<string, string> LocalizationTexts(string data)
+    {
+        var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var line in LineSeparatorPattern().Split(data))
+        {
+            if (line.StartsWith('#'))
+                continue;
+
+            var separator = line.IndexOf('=');
+
+            if (separator <= 0)
+                continue;
+
+            var key = line[..separator].Trim();
+            var value = line[(separator + 1)..]
+                .Trim()
+                .Replace("\\n", "\n", StringComparison.Ordinal);
+
+            if (key.Length > 0 && value.Length > 0)
+                texts[key] = value;
+        }
+
+        return texts;
+    }
+
     /// <summary>The room object visualization library's bundle: its Variable FX bitmaps and their tables.</summary>
     internal static Dictionary<string, byte[]> Visualization(HabLibrary hab)
     {
@@ -576,6 +826,12 @@ internal sealed partial class ClientBundleBuilder(
 
     [GeneratedRegex("<!--[\\s\\S]*?-->")]
     private static partial Regex CommentPattern();
+
+    [GeneratedRegex("^default_localizations(?:_([a-z]{2}))?$")]
+    private static partial Regex LocalizationEntryPattern();
+
+    [GeneratedRegex(@"\n\r+|\n+|\r+")]
+    private static partial Regex LineSeparatorPattern();
 
     [GeneratedRegex(@"^.*/|\.hab$")]
     private static partial Regex LibraryNamePattern();

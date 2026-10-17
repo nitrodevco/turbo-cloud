@@ -169,6 +169,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IGivableEffects),
                 typeof(IHabboReleaseService),
                 typeof(IHabboClientService),
+                typeof(IHabboClientBuilds),
                 typeof(IGamedataFurnitureService),
                 typeof(Turbo.Primitives.Rooms.Providers.IRoomObjectLogicProvider),
                 typeof(IGamedataFileService),
