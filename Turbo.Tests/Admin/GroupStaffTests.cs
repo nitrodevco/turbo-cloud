@@ -336,6 +336,21 @@ public sealed class GroupStaffTests : IDisposable
             .Be(3);
     }
 
+    [Fact]
+    public async Task A_found_group_names_its_home_room_and_kind_for_the_list()
+    {
+        var queries = new AdminGroupQueries(
+            _db,
+            _fakes.Create<IGrainFactory>(),
+            _fakes.Create<IGamedataFileService>()
+        );
+
+        var found = (await queries.SearchAsync("9", 0, Ct)).Groups.Should().ContainSingle().Which;
+
+        found.RoomName.Should().Be("homeroom");
+        found.Type.Should().Be(GuildType.Regular);
+    }
+
     /// <summary>The group's grain, built without a silo and activated, so it has read the group and its roster.</summary>
     private async Task<IGuildGrain> GroupAsync(GuildConfig? config = null)
     {

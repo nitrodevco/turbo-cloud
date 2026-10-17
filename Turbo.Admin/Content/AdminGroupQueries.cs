@@ -60,6 +60,8 @@ public sealed partial class AdminGroupQueries(
                 x.PlayerEntityId,
                 x.PlayerEntity!.Name,
                 x.RoomEntityId,
+                x.RoomEntity!.Name,
+                x.GuildType,
                 dbCtx.GuildMembers.Count(m =>
                     m.GuildEntityId == x.Id && m.Rank <= GuildMemberRank.Member
                 ),

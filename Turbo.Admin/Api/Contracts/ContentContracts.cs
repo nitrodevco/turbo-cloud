@@ -97,6 +97,8 @@ public sealed record GroupItem(
     int OwnerId,
     string OwnerName,
     int RoomId,
+    string RoomName,
+    GuildType Type,
     int Members,
     DateTime CreatedAt
 );
