@@ -124,8 +124,10 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
     /// activation only. Collected for idleness while its player stays online (nothing calls it
     /// while they only walk and chat), it unsubscribed, so a group or registry change never
     /// reached it, and the next activation took the changed groups as what the client knows. A
-    /// <c>KeepAlive</c> check keeps it loaded while the player has a session and stops at the
-    /// first one that finds none; login starts it again (<see cref="SendClientStateAsync"/>).
+    /// check every <see cref="PermissionConfig.OnlineCheckMs"/> pins it for two periods
+    /// (<c>DelayDeactivation</c>, which holds whatever the idle clock says) while the player has a
+    /// session, and stops at the first one that finds none, leaving the grain to idle collection
+    /// once the last pin runs out; login starts it again (<see cref="SendClientStateAsync"/>).
     /// </summary>
     private void KeepLoadedWhileOnline()
     {
@@ -139,7 +141,6 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
             {
                 DueTime = TimeSpan.Zero,
                 Period = TimeSpan.FromMilliseconds(_permissionConfig.OnlineCheckMs),
-                KeepAlive = true,
             }
         );
     }
@@ -150,7 +151,11 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         {
             // Interleaved on the presence side, so this never waits on a call into this grain.
             if (await _grainFactory.GetPlayerPresenceGrain(PlayerId).HasActiveSessionAsync(ct))
+            {
+                PinUntilNextCheck();
+
                 return;
+            }
         }
         catch (Exception ex)
         {
@@ -160,12 +165,19 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
                 PlayerId
             );
 
+            // Taken as online until a check can tell: losing the activation loses what was sent.
+            PinUntilNextCheck();
+
             return;
         }
 
         _onlineTimer?.Dispose();
         _onlineTimer = null;
     }
+
+    /// <summary>Two periods, so one late or failed tick does not let the pin lapse.</summary>
+    private void PinUntilNextCheck() =>
+        DelayDeactivation(TimeSpan.FromMilliseconds(2L * _permissionConfig.OnlineCheckMs));
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {

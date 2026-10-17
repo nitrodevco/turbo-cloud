@@ -14,12 +14,17 @@ namespace Turbo.Tests.Players.Permissions;
 /// What a client was told of its permissions, and the directory subscription that brings group
 /// changes, live only in the player's permission grain. Orleans collected it for idleness while
 /// the player stayed online, so a group edited after that never reached them until they logged
-/// in again. It now stays loaded while its player has a session.
+/// in again. Each online check now pins it (<c>DelayDeactivation</c>, which holds whatever the idle
+/// clock says) for two check periods while its player has a session.
 /// </summary>
 public sealed class PermissionOnlineKeepAliveTests
 {
+    /// <summary>Two of PermissionConfig.OnlineCheckMs as shipped (60 s).</summary>
+    private static readonly TimeSpan SHIPPED_PIN = TimeSpan.FromMinutes(2);
+
     private readonly Fakes _fakes = new();
     private bool _online = true;
+    private bool _presenceFails;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -29,7 +34,10 @@ public sealed class PermissionOnlineKeepAliveTests
         _fakes.Handlers["get_Current"] = _ => registry;
         _fakes.Handlers["GetSnapshotAsync"] = _ =>
             Task.FromResult(PermissionGroupDirectorySnapshot.EMPTY);
-        _fakes.Handlers["HasActiveSessionAsync"] = _ => Task.FromResult(_online);
+        _fakes.Handlers["HasActiveSessionAsync"] = _ =>
+            _presenceFails
+                ? Task.FromException<bool>(new TimeoutException())
+                : Task.FromResult(_online);
     }
 
     [Fact]
@@ -41,7 +49,20 @@ public sealed class PermissionOnlineKeepAliveTests
         check.Should().NotBeNull("idle collection would drop what the client was told");
         await check!.TickAsync(Ct);
 
+        Pins().Should().Equal([SHIPPED_PIN], "idle collection would drop what the client was told");
         Disposed().Should().Be(0, "the player is still online");
+    }
+
+    [Fact]
+    public async Task ACheckThatCannotAskThePresence_KeepsThePin()
+    {
+        await ActivateAsync();
+        _presenceFails = true;
+
+        await OnlineCheck()!.TickAsync(Ct);
+
+        Pins().Should().Equal(SHIPPED_PIN);
+        Disposed().Should().Be(0);
     }
 
     [Fact]
@@ -52,6 +73,7 @@ public sealed class PermissionOnlineKeepAliveTests
 
         await OnlineCheck()!.TickAsync(Ct);
 
+        Pins().Should().BeEmpty();
         Disposed().Should().Be(1);
     }
 
@@ -66,6 +88,8 @@ public sealed class PermissionOnlineKeepAliveTests
         await grain.SendClientStateAsync(Ct);
 
         Checks().Should().HaveCount(2, "the client now holds what this activation sent");
+        await OnlineCheck()!.TickAsync(Ct);
+        Pins().Should().Equal(SHIPPED_PIN);
     }
 
     private async Task<IPlayerPermissionGrain> ActivateAsync()
@@ -94,12 +118,15 @@ public sealed class PermissionOnlineKeepAliveTests
         public Task TickAsync(CancellationToken ct) => Callback(State, ct);
     }
 
-    /// <summary>The <c>KeepAlive</c> timers registered, in order.</summary>
+    /// <summary>The periodic timers registered (the online checks), in order.</summary>
     private List<Check> Checks() =>
         [
             .. _fakes
                 .Log.Of("RegisterGrainTimer")
-                .Where(call => call.Args[3] is GrainTimerCreationOptions { KeepAlive: true })
+                .Where(call =>
+                    call.Args[3] is GrainTimerCreationOptions { Period: var period }
+                    && period != Timeout.InfiniteTimeSpan
+                )
                 .Select(call => new Check(
                     (Func<object?, CancellationToken, Task>)call.Args[1]!,
                     call.Args[2]
@@ -109,4 +136,7 @@ public sealed class PermissionOnlineKeepAliveTests
     private Check? OnlineCheck() => Checks().LastOrDefault();
 
     private int Disposed() => _fakes.Log.Of("Dispose").Count();
+
+    private List<TimeSpan> Pins() =>
+        [.. _fakes.Log.Of("DelayDeactivation").Select(call => (TimeSpan)call.Args[1]!)];
 }

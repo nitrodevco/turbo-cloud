@@ -19,9 +19,9 @@ public class PermissionConfig
     public int ExpiryRetryMs { get; init; } = 60_000;
 
     /// <summary>
-    /// How often a player's permission grain asks whether its player is still online. It stays
-    /// loaded while they are (what their client was told lives only in that activation), and is
-    /// left to idle collection from the first check that finds no session.
+    /// How often a player's permission grain asks whether its player is still online. Each check
+    /// that finds them online pins it for two of these (what their client was told lives only in
+    /// that activation); from the first that finds no session it is left to idle collection.
     /// </summary>
     public int OnlineCheckMs { get; init; } = 60_000;
 }
