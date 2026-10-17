@@ -29,12 +29,15 @@
 // from a prefix the hotel named (none by default), a library name is a plain file name, and the
 // canvas, the images decoded and the bytes downloaded are capped, so a crafted render can neither
 // reach other hosts nor run the server out of memory.
+// A library or map that cannot be downloaded for now (unreachable, cut off, 429 or 5xx) fails the
+// render - no picture rather than one missing what the player saw; one that is not there (404) is
+// left out as below.
 // Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): a plane
 // texture or mask asset the room content does not have (the plane keeps its colour), an avatar
 // effect sprite outside the `fx<id>` naming, a lab effect this renderer does not know.
 // Zero dependencies: a small zip reader, PNG decoder and PNG encoder over node:zlib.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, renameSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { inflateRawSync, deflateSync, inflateSync } from 'node:zlib';
 
@@ -274,31 +277,58 @@ const readZip = (buf) => {
 
 const bundles = new Map();
 
-/** The body of a GET, refused past maxBytes; redirects are refused, so an allowed host cannot point elsewhere. */
+/**
+ * A download that failed for now (the host unreachable, cut off, busy or erroring) rather than a file
+ * that is not there: a picture drawn without it would be wrong, so the render fails instead.
+ */
+const transient = (err) => Object.assign(err, { transient: true });
+
+/**
+ * The body of a GET, refused past maxBytes; redirects are refused, so an allowed host cannot point
+ * elsewhere. The cached copy is written whole or not at all (a temporary file renamed into place), so
+ * a render running beside the one downloading never reads half a file.
+ */
 const fetchBytes = async (url, maxBytes, cacheName, maxAgeMs = Infinity) => {
     const cachePath = cacheName ? join(cacheDir, cacheName) : null;
 
     if (cachePath && existsSync(cachePath) && ((Date.now() - statSync(cachePath).mtimeMs) < maxAgeMs)) return readFileSync(cachePath);
 
-    const response = await fetch(url, { redirect: 'error' });
+    let response;
 
-    if (!response.ok) throw new Error(`${response.status} ${url}`);
+    try {
+        response = await fetch(url, { redirect: 'error' });
+    } catch (err) {
+        throw transient(new Error(`${url}: ${err.cause?.code ?? err.message}`));
+    }
+
+    if (!response.ok) {
+        const err = new Error(`${response.status} ${url}`);
+
+        throw ((response.status >= 500) || (response.status === 429)) ? transient(err) : err;
+    }
     if (Number(response.headers.get('content-length') ?? 0) > maxBytes) throw new Error(`too large: ${url}`);
 
     const chunks = [];
     let total = 0;
 
-    for await (const chunk of response.body) {
-        total += chunk.length;
-        if (total > maxBytes) throw new Error(`too large: ${url}`);
-        chunks.push(chunk);
+    try {
+        for await (const chunk of response.body) {
+            total += chunk.length;
+            if (total > maxBytes) throw new Error(`too large: ${url}`);
+            chunks.push(chunk);
+        }
+    } catch (err) {
+        throw (total > maxBytes) ? err : transient(new Error(`${url}: ${err.message}`));
     }
 
     const bytes = Buffer.concat(chunks);
 
     if (cachePath) {
+        const partPath = `${cachePath}.${process.pid}.part`;
+
         mkdirSync(cacheDir, { recursive: true });
-        writeFileSync(cachePath, bytes);
+        writeFileSync(partPath, bytes);
+        renameSync(partPath, cachePath);
     }
 
     return bytes;
@@ -311,9 +341,21 @@ const loadBundle = async (lib, url = furniUrl, kind = '') => {
     if (bundles.has(key)) return bundles.get(key);
 
     let bundle = null;
+    const cacheName = `${key}.nitro`;
 
     try {
-        const entries = readZip(await fetchBytes(url.replace('%libname%', lib), MAX_BUNDLE_BYTES, `${key}.nitro`));
+        let entries;
+
+        try {
+            entries = readZip(await fetchBytes(url.replace('%libname%', lib), MAX_BUNDLE_BYTES, cacheName));
+        } catch (err) {
+            if (err.transient || !existsSync(join(cacheDir, cacheName))) throw err;
+
+            // A cached copy that does not open (cut short before copies were written whole): fetched again.
+            rmSync(join(cacheDir, cacheName), { force: true });
+            entries = readZip(await fetchBytes(url.replace('%libname%', lib), MAX_BUNDLE_BYTES, cacheName));
+        }
+
         let assets = {}, frames = {}, image = null;
 
         for (const [ name, bytes ] of Object.entries(entries)) {
@@ -330,6 +372,8 @@ const loadBundle = async (lib, url = furniUrl, kind = '') => {
 
         bundle = image ? { assets, frames, image } : null;
     } catch (err) {
+        if (err.transient) throw err;
+
         console.error(`bundle ${lib}: ${err.message}`);
     }
 
@@ -348,6 +392,8 @@ const loadMap = async (url, cacheName) => {
     try {
         return JSON.parse((await fetchBytes(url, MAX_MAP_BYTES, cacheName, MAP_CACHE_MS)).toString('utf8'));
     } catch (err) {
+        if (err.transient) throw err;
+
         console.error(`map ${url}: ${err.message}`);
 
         return null;

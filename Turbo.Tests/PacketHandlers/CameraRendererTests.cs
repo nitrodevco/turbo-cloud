@@ -608,6 +608,54 @@ public sealed class CameraRendererTests : IDisposable
     }
 
     [Fact]
+    public async Task ALibraryThatCannotBeDownloadedNowFailsTheRenderInsteadOfLeavingItOut()
+    {
+        _server.Fail("/furni/chair.nitro");
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeFalse("a picture without the chair the player saw is wrong");
+        File.Exists(png).Should().BeFalse();
+        _server.Requests.Should().Contain("/furni/chair.nitro");
+    }
+
+    [Fact]
+    public async Task ALibraryMissingFromTheHotelIsLeftOutOfThePicture()
+    {
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("a 404 is a library the hotel does not have ({0})", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ACachedLibraryCutShortIsDownloadedAgain()
+    {
+        var library = Library("chair", 1, 1, (_, _) => 0xFF0000FF, ("chair_64_a_2_0", null, false));
+        var cache = Path.Combine(_folder, "cache");
+
+        // What a render that was stopped while it downloaded used to leave in the cache.
+        Directory.CreateDirectory(cache);
+        File.WriteAllBytes(Path.Combine(cache, "chair.nitro"), library[..(library.Length / 2)]);
+        _server.Serve("/furni/chair.nitro", library);
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain("/furni/chair.nitro");
+        PixelAt(png, 1, 1)
+            .Should()
+            .Be(0xFF0000FF, "the chair is drawn from the library downloaded again");
+        File.ReadAllBytes(Path.Combine(cache, "chair.nitro")).Should().Equal(library);
+    }
+
+    [Fact]
     public async Task ALabEffectTheRendererDoesNotKnowFetchesNothing()
     {
         var (drawn, png) = await RenderAsync(
@@ -628,6 +676,7 @@ public sealed class CameraRendererTests : IDisposable
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
         private readonly ConcurrentDictionary<string, byte[]> _files = new();
         private readonly ConcurrentDictionary<string, string> _redirects = new();
+        private readonly ConcurrentDictionary<string, bool> _failures = new();
         private readonly ConcurrentQueue<string> _requests = new();
         private readonly CancellationTokenSource _stop = new();
 
@@ -644,6 +693,9 @@ public sealed class CameraRendererTests : IDisposable
         public void Serve(string path, byte[] body) => _files[path] = body;
 
         public void Redirect(string path, string to) => _redirects[path] = to;
+
+        /// <summary>Answers <paramref name="path"/> with a server error, as a CDN does while it cannot serve.</summary>
+        public void Fail(string path) => _failures[path] = true;
 
         private async Task AcceptAsync()
         {
@@ -688,7 +740,11 @@ public sealed class CameraRendererTests : IDisposable
             byte[] head;
             var body = Array.Empty<byte>();
 
-            if (_redirects.TryGetValue(path, out var to))
+            if (_failures.ContainsKey(path))
+                head = Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                );
+            else if (_redirects.TryGetValue(path, out var to))
                 head = Encoding.ASCII.GetBytes(
                     $"HTTP/1.1 302 Found\r\nLocation: {to}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                 );
