@@ -238,6 +238,68 @@ public sealed class ChatHeadRevertTests
         listener.HasStatus(AvatarStatusType.Sit).Should().BeTrue();
     }
 
+    [Theory]
+    // The recorded positions: a chair at 5,6 facing east, the speaker 2 east 1 south (2/2) and
+    // 1 east 2 north (1/1), where a standing listener would turn its head.
+    [InlineData("chair", 7, 7)]
+    [InlineData("chair", 6, 4)]
+    // A bed holds its listener as a chair does (inferred, not recorded).
+    [InlineData("bed", 7, 7)]
+    public async Task A_listener_held_by_a_seat_gets_one_unchanged_update_and_no_look_back(
+        string seat,
+        int speakerX,
+        int speakerY
+    )
+    {
+        _room
+            .AddFloorItem(50, 5, 6, canSit: seat == "chair", canLay: seat == "bed")
+            .SetRotation(Rotation.East);
+        Enter(SPEAKER, "speaker", speakerX, speakerY, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 5, 6, Rotation.East);
+        if (seat == "chair")
+            listener.Sit(true, rot: Rotation.East);
+        else
+            listener.Lay(true, rot: Rotation.East);
+        var start = Now();
+        await TickAsync(start);
+        var before = Updates().Count;
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+
+        Updates().Should().HaveCount(before + 1);
+        LastUpdateOf(LISTENER).Should().Be((Rotation.East, Rotation.East));
+        listener
+            .HasStatus(seat == "chair" ? AvatarStatusType.Sit : AvatarStatusType.Lay)
+            .Should()
+            .BeTrue();
+
+        await TickAsync(start + 5_600);
+        await TickAsync(start + 7_000);
+
+        Updates().Should().HaveCount(before + 1);
+    }
+
+    [Fact]
+    public async Task A_listener_held_by_a_seat_gets_nothing_where_it_would_not_turn()
+    {
+        // The recorded positions: the speaker 2 east 1 north of the chair, ahead of it (2/2).
+        _room.AddFloorItem(50, 5, 6, canSit: true).SetRotation(Rotation.East);
+        Enter(SPEAKER, "speaker", 7, 5, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 5, 6, Rotation.East);
+        listener.Sit(true, rot: Rotation.East);
+        var start = Now();
+        await TickAsync(start);
+        var before = Updates().Count;
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+        await TickAsync(start + 5_600);
+        await TickAsync(start + 7_000);
+
+        Updates().Should().HaveCount(before);
+    }
+
     [Fact]
     public async Task A_listener_on_its_last_step_turns_as_it_arrives()
     {
