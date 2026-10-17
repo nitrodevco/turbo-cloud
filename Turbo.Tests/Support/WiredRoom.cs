@@ -108,7 +108,9 @@ public sealed class WiredRoom
         int? definitionId = null,
         bool canWalk = true,
         Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null,
-        FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody
+        FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody,
+        bool canSit = false,
+        bool canLay = false
     )
     {
         var item = new RoomFloorItem
@@ -130,8 +132,8 @@ public sealed class WiredRoom
                 StackHeight = Altitude.FromInt(100),
                 CanStack = true,
                 CanWalk = canWalk,
-                CanSit = false,
-                CanLay = false,
+                CanSit = canSit,
+                CanLay = canLay,
                 CanRecycle = true,
                 CanTrade = true,
                 CanGroup = true,

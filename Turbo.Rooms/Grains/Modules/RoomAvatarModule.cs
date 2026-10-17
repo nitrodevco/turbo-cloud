@@ -1138,18 +1138,29 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         var rotation = RotationExtensions.FromPoints(avatar.X, avatar.Y, targetX, targetY);
 
         // Official client capture: a target ahead or one octant either side turns the head only,
-        // the body stays. A seat or bed holds the body, so a sitting or lying avatar never turns
-        // it; past the head's reach a standing avatar turns whole.
+        // the body stays. A seat or bed holds the body, so an avatar sitting or lying on one never
+        // turns it; past the head's reach any other avatar turns whole, one sitting on the floor
+        // too (its sit is kept).
         if (
             rotation == avatar.Rotation
             || rotation == avatar.Rotation.Rotate(-1)
             || rotation == avatar.Rotation.Rotate(1)
         )
             avatar.SetHeadRotation(rotation);
-        else if (!avatar.HasStatus(AvatarStatusType.Sit) && !avatar.HasStatus(AvatarStatusType.Lay))
+        else if (!IsHeldByFurni(avatar))
             avatar.SetRotation(rotation);
 
         return Task.FromResult(true);
+    }
+
+    /// <summary>Whether the avatar sits or lies on a seat or bed, which holds its body still.</summary>
+    private bool IsHeldByFurni(IRoomAvatar avatar)
+    {
+        if (!avatar.HasStatus(AvatarStatusType.Sit) && !avatar.HasStatus(AvatarStatusType.Lay))
+            return false;
+
+        return MapModule.TryGetHighestFloorItem(MapModule.ToIdx(avatar.X, avatar.Y), out var item)
+            && (item.Logic.CanSit() || item.Logic.CanLay());
     }
 
     /// <summary>
