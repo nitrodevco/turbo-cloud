@@ -110,6 +110,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<PublishedFurnitureIcons>();
         services.AddSingleton<IAssetPublishService, AssetPublishService>();
         services.AddHostedService<HabboReleaseWatcher>();
+        services.AddHostedService<ClientBuildAfterDownload>();
         services.AddHostedService<GamedataServer>();
     }
 }

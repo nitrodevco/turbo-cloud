@@ -96,7 +96,10 @@ internal sealed class GamedataEndpoints(
                             return Task.FromResult(
                                 Results.Ok(
                                     AssetJobResponse.From(
-                                        assetSync.StartClientBuild(AdminIdentity.Of(http).PlayerId)
+                                        assetSync.StartClientBuild(
+                                            AdminIdentity.Of(http).PlayerId,
+                                            force: true
+                                        )
                                     )
                                 )
                             );

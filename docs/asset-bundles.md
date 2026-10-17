@@ -143,7 +143,9 @@ on its own from the Updates tab's **Habbo's HTML client** panel, which shows eac
 the releases kept and their libraries, and under **Built from the client** each bundle built from
 the release followed (marked when an upload stands in its place and is left alone), what the last
 build left out and the templates' problems. **Build now** builds every one again as an asset job,
-whether its library changed or not.
+whether its library changed or not. A release the hotel follows is built from as soon as it is
+downloaded, once no other asset job runs (`Turbo:Gamedata:ClientBuildAfterDownload`, on by
+default; off, it is built at the next asset sync).
 
 What the hotel takes from the followed release:
 

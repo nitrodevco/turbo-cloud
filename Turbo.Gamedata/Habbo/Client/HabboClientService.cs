@@ -67,6 +67,9 @@ internal sealed partial class HabboClientService(
     );
     private readonly SemaphoreSlim _state = new(1, 1);
 
+    /// <summary>A release downloaded, checked and kept, by version: raised once its environments are on it.</summary>
+    public event Action<string>? ReleaseDownloaded;
+
     private string Root => Path.Combine(store.Root, FOLDER);
 
     private string ReleasesRoot => Path.Combine(Root, "releases");
@@ -302,6 +305,7 @@ internal sealed partial class HabboClientService(
                         }
 
                         await PruneAsync(CancellationToken.None).ConfigureAwait(false);
+                        ReleaseDownloaded?.Invoke(v);
                     }
                     catch (Exception ex)
                     {

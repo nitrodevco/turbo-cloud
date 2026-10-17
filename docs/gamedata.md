@@ -405,6 +405,7 @@ loading the old build after a change.
 | `HabboTimeoutSeconds` | `120` | How long a request to Habbo may take. |
 | `ClientEnvironment` | `auto` | Which environment's HTML client the client libraries are built from: `production`, `sandbox`, or `auto` (the first with a release). See `docs/asset-bundles.md`. |
 | `ClientKeepReleases` | `5` | Releases of Habbo's HTML client kept, besides any an environment is on. |
+| `ClientBuildAfterDownload` | `true` | A release of Habbo's HTML client the hotel follows is built from as soon as it is downloaded, once no other asset job runs. Off, it is built at the next asset sync, or with Build now. |
 | `ClientChatStyles` | `follow` | What a release with a new chat library does to the chat styles: `follow` takes its styles and updates those not changed here since, `replace` replaces changes made here too, `off` takes nothing. |
 | `ClientDownloadMinutes` | `30` | How long downloading a release may take. |
 | `FurnitureFileUrl` | `https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}.swf` | Where a furniture's asset file is, read when an update is taken in. |
