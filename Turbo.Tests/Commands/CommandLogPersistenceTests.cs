@@ -15,6 +15,8 @@ namespace Turbo.Tests.Commands;
 
 public class CommandLogPersistenceTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const string GRAIN = "Turbo.Rooms.Grains.RoomPersistenceGrain";
 
     private static CommandLogSnapshot Use(string arguments, int player = 2) =>
@@ -56,7 +58,7 @@ public class CommandLogPersistenceTests
         (await Flush(grain)).Should().BeTrue();
 
         await using var ctx = db.CreateDbContext();
-        var rows = await ctx.CommandLogs.OrderBy(x => x.Arguments).ToListAsync();
+        var rows = await ctx.CommandLogs.OrderBy(x => x.Arguments).ToListAsync(Ct);
         rows.Select(x => (x.RoomEntityId, x.PlayerEntityId, x.Command, x.Arguments, x.Outcome))
             .Should()
             .Equal((7, 2, "kick", "alice", "completed"), (7, 3, "kick", "bob", "completed"));
@@ -78,7 +80,7 @@ public class CommandLogPersistenceTests
         (await Flush(grain)).Should().BeTrue();
 
         await using var ctx = db.CreateDbContext();
-        (await ctx.CommandLogs.SingleAsync())
+        (await ctx.CommandLogs.SingleAsync(Ct))
             .Arguments.Should()
             .HaveLength(CommandLogEntity.ARGUMENTS_MAX_LENGTH);
     }

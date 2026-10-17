@@ -17,6 +17,8 @@ namespace Turbo.Tests.Networking;
 /// </summary>
 public sealed class SessionHeartbeatTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly Fakes _fakes = new();
     private readonly TaskCompletionSource _livePinged = new(
         TaskCreationOptions.RunContinuationsAsynchronously
@@ -70,8 +72,8 @@ public sealed class SessionHeartbeatTests
 
         try
         {
-            await _livePinged.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            await _stuckClosed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await _livePinged.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+            await _stuckClosed.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
         }
         finally
         {

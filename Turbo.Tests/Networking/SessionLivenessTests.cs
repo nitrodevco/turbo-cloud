@@ -28,6 +28,8 @@ namespace Turbo.Tests.Networking;
 /// </summary>
 public sealed class SessionLivenessTests : IAsyncDisposable
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly SessionHarness _hotel = new();
     private readonly TaskCompletionSource<ISessionContext> _connected = new(
         TaskCreationOptions.RunContinuationsAsynchronously
@@ -118,9 +120,9 @@ public sealed class SessionLivenessTests : IAsyncDisposable
     public async Task APacketArrivingWhileAHandlerIsSlow_CountsAsHeardFrom()
     {
         var session = await ConnectAsync();
-        await _slowHandlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await _slowHandlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
 
-        await Task.Delay(100);
+        await Task.Delay(100, Ct);
         var pongSent = DateTime.UtcNow;
         await SendAsync();
 
@@ -150,7 +152,7 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         var handshakeStarted = ((WebSocketSession)session).CloseHandshakeStartTime;
         for (var i = 0; i < 3; i++)
         {
-            await Task.Delay(200);
+            await Task.Delay(200, Ct);
             await session.CloseSessionAsync();
         }
 

@@ -34,6 +34,8 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public class WiredChestRoomTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const int CHEST = 7;
     private const int OWNER = 1;
     private const int GUEST = 5;
@@ -43,7 +45,7 @@ public class WiredChestRoomTests
     {
         var (room, chest) = CreateRoomWithChest();
 
-        await chest.OnPlaceAsync(ActionContext.CreateForPlayer(OWNER, 1), default);
+        await chest.OnPlaceAsync(ActionContext.CreateForPlayer(OWNER, 1), Ct);
 
         chest.IsLocked.Should().BeTrue();
     }
@@ -61,7 +63,7 @@ public class WiredChestRoomTests
             ActionContext.CreateForPlayer(OWNER, 1),
             CHEST,
             Preferences(previewMode: (WiredChestPreviewMode)(-1), previewAmount: -1, wired: true),
-            default
+            Ct
         );
 
         done.Should().BeTrue();
@@ -83,7 +85,7 @@ public class WiredChestRoomTests
             ActionContext.CreateForPlayer(OWNER, 1),
             CHEST,
             Preferences(previewMode: WiredChestPreviewMode.None, previewAmount: 0, wired: false),
-            default
+            Ct
         );
 
         done.Should().BeTrue();
@@ -104,7 +106,7 @@ public class WiredChestRoomTests
             ActionContext.CreateForPlayer(GUEST, 1),
             CHEST,
             new WithdrawFromChestInteraction { Amount = null, ItemType = null },
-            default
+            Ct
         );
 
         done.Should().BeFalse();
@@ -128,7 +130,7 @@ public class WiredChestRoomTests
             ActionContext.CreateForPlayer(OWNER, 1),
             CHEST,
             new WithdrawFromChestInteraction { Amount = null, ItemType = null },
-            default
+            Ct
         );
 
         room.Fakes.Log.Of(nameof(IWiredChestGrain.WithdrawAsync)).Should().ContainSingle();
@@ -152,13 +154,13 @@ public class WiredChestRoomTests
             ActionContext.CreateForPlayer(OWNER, 1),
             CHEST,
             new OpenChestInteraction(),
-            default
+            Ct
         );
         await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
             OTHER_CHEST,
             new OpenChestInteraction(),
-            default
+            Ct
         );
 
         room.Fakes.Log.Of(nameof(IWiredChestGrain.CloseAsync))
@@ -174,8 +176,8 @@ public class WiredChestRoomTests
         var trade = TradeGrain(fakes);
         fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("rare_dragonlamp"));
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, default);
-        await trade.AddItemsAsync([20], default);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([20], Ct);
 
         Sent(fakes).OfType<WiredTradeTransactionNotificationMessageComposer>().Should().BeEmpty();
         Sent(fakes)
@@ -192,8 +194,8 @@ public class WiredChestRoomTests
         var trade = TradeGrain(fakes);
         fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("CF_10_goldbar"));
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, default);
-        await trade.AddItemsAsync([20], default);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([20], Ct);
 
         Sent(fakes)
             .OfType<WiredTradeTransactionNotificationMessageComposer>()
@@ -224,14 +226,14 @@ public class WiredChestRoomTests
                 }
             );
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, default);
-        await trade.AddItemsAsync([20], default);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([20], Ct);
 
-        await trade.ConfirmAsync(isFinalConfirm: true, default);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
         fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Should().BeEmpty();
 
-        await trade.ConfirmAsync(isFinalConfirm: false, default);
-        await trade.ConfirmAsync(isFinalConfirm: true, default);
+        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
 
         var deposit = fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Single();
         ((ImmutableArray<RoomObjectId>)deposit.Args[2]!).Should().Equal((RoomObjectId)20);

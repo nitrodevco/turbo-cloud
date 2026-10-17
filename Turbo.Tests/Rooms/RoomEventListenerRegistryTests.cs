@@ -15,6 +15,8 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class RoomEventListenerRegistryTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly RoomEventListenerRegistry _registry = new();
 
     private static IServiceProvider Services() =>
@@ -35,7 +37,7 @@ public sealed class RoomEventListenerRegistryTests
     public async Task TheScanRegistersAPublicListenerAndUnloadingRemovesIt()
     {
         var registration = await Processor()
-            .ProcessAsync(typeof(ScannedListener).Assembly, Services());
+            .ProcessAsync(typeof(ScannedListener).Assembly, Services(), Ct);
 
         _registry
             .Listeners.OfType<ScannedListener>()
@@ -53,7 +55,7 @@ public sealed class RoomEventListenerRegistryTests
     public async Task ADisposableListenerIsDisposedWhenTheRegistrationIs()
     {
         var registration = await Processor()
-            .ProcessAsync(typeof(ScannedListener).Assembly, Services());
+            .ProcessAsync(typeof(ScannedListener).Assembly, Services(), Ct);
         var listener = _registry.Listeners.OfType<ScannedListener>().Single();
 
         registration.Dispose();
@@ -65,7 +67,7 @@ public sealed class RoomEventListenerRegistryTests
     public async Task TheScanLeavesTheRoomsOwnSystemsAlone()
     {
         using var registration = await Processor()
-            .ProcessAsync(typeof(RoomEventListenerRegistry).Assembly, Services());
+            .ProcessAsync(typeof(RoomEventListenerRegistry).Assembly, Services(), Ct);
 
         _registry.Listeners.Should().BeEmpty();
         typeof(RoomWaterAreaSystem).Should().Implement<IRoomEventListener>();

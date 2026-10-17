@@ -20,6 +20,8 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public class CreditFurniRedeemTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const int ITEM = 7;
     private const int OWNER = 1;
     private const int GUEST = 5;
@@ -40,7 +42,7 @@ public class CreditFurniRedeemTests
             ActionContext.CreateForPlayer(OWNER, 1),
             ITEM,
             new RedeemCreditsInteraction(),
-            default
+            Ct
         );
 
         done.Should().BeTrue();
@@ -60,7 +62,7 @@ public class CreditFurniRedeemTests
             ActionContext.CreateForPlayer(GUEST, 1),
             ITEM,
             new RedeemCreditsInteraction(),
-            default
+            Ct
         );
 
         done.Should().BeFalse();
@@ -78,7 +80,7 @@ public class CreditFurniRedeemTests
             ActionContext.CreateForPlayer(OWNER, 1),
             ITEM,
             new RedeemCreditsInteraction(),
-            default
+            Ct
         );
 
         done.Should().BeFalse();
@@ -102,7 +104,7 @@ public class CreditFurniRedeemTests
             ActionContext.CreateForPlayer(OWNER, 1),
             id,
             new RedeemCreditsInteraction(),
-            default
+            Ct
         );
 
         done.Should().BeFalse();

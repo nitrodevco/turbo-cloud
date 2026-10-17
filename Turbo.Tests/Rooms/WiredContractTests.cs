@@ -36,6 +36,8 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public class WiredContractTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const int CHAIR_SPRITE = 30;
     private const int LAMP_SPRITE = 31;
     private const int CONTRACT = 7;
@@ -108,7 +110,7 @@ public class WiredContractTests
             ActionContext.CreateForPlayer(1, 1),
             CONTRACT,
             new UpdateContractInteraction { Contract = tooMany },
-            default
+            Ct
         );
 
         saved.Should().BeFalse();
@@ -128,7 +130,7 @@ public class WiredContractTests
             ActionContext.CreateForPlayer(1, 1),
             CONTRACT,
             new UpdateContractInteraction { Contract = Contract([Rule(Coins(25))]) },
-            default
+            Ct
         );
 
         saved.Should().BeTrue();
@@ -150,13 +152,13 @@ public class WiredContractTests
 
         await trade.StartContractAsync(
             Request([Rule(Furni(Chair, 2))], TradeRequirementRulesType.Single, 1),
-            default
+            Ct
         );
-        await trade.AddItemsAsync([1], default);
+        await trade.AddItemsAsync([1], Ct);
 
         // One chair of two: the trade cannot be accepted yet.
-        await trade.ConfirmAsync(false, default);
-        await trade.ConfirmAsync(true, default);
+        await trade.ConfirmAsync(false, Ct);
+        await trade.ConfirmAsync(true, Ct);
         fakes.Log.Of("CompleteWiredContractTradeAsync").Should().BeEmpty();
         Sent(fakes)
             .OfType<WiredTradeItemsUpdateMessageComposer>()
@@ -164,9 +166,9 @@ public class WiredContractTests
             .CanAccept.Should()
             .BeFalse();
 
-        await trade.AddItemsAsync([2], default);
-        await trade.ConfirmAsync(false, default);
-        await trade.ConfirmAsync(true, default);
+        await trade.AddItemsAsync([2], Ct);
+        await trade.ConfirmAsync(false, Ct);
+        await trade.ConfirmAsync(true, Ct);
 
         var completed = fakes.Log.Of("CompleteWiredContractTradeAsync").Single();
         ((ImmutableArray<FurnitureItemSnapshot>)completed.Args[2]!)
@@ -194,12 +196,12 @@ public class WiredContractTests
 
         await trade.StartContractAsync(
             Request([Rule(Furni(Chair, 2))], TradeRequirementRulesType.Single, 1),
-            default
+            Ct
         );
-        await trade.AddItemsAsync([1], default);
-        await trade.AddItemsAsync([2], default);
-        await trade.ConfirmAsync(false, default);
-        await trade.ConfirmAsync(true, default);
+        await trade.AddItemsAsync([1], Ct);
+        await trade.AddItemsAsync([2], Ct);
+        await trade.ConfirmAsync(false, Ct);
+        await trade.ConfirmAsync(true, Ct);
 
         var reported = fakes
             .Log.Of("ReportWiredTransactionProgressAsync")
@@ -234,8 +236,8 @@ public class WiredContractTests
         var trade = TradeGrain(fakes);
         var request = Request([Rule(Coins(10))], TradeRequirementRulesType.Single, 1);
 
-        await trade.StartContractAsync(request, default);
-        await trade.StartContractAsync(request, default);
+        await trade.StartContractAsync(request, Ct);
+        await trade.StartContractAsync(request, Ct);
 
         Sent(fakes).OfType<WiredTradeInitiateMessageComposer>().Should().ContainSingle();
         fakes
@@ -258,8 +260,8 @@ public class WiredContractTests
         fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
             Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([Item(1, CHAIR_SPRITE)]);
 
-        await trade.StartChestDepositAsync(1, 100, WiredChestKind.Furni, default);
-        await trade.AddItemsAsync([1], default);
+        await trade.StartChestDepositAsync(1, 100, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([1], Ct);
 
         Pins(fakes)
             .Should()
@@ -282,7 +284,7 @@ public class WiredContractTests
             {
                 TimeoutSeconds = hours,
             },
-            default
+            Ct
         );
 
         Pins(fakes)
@@ -302,9 +304,9 @@ public class WiredContractTests
         var trade = TradeGrain(fakes);
         var request = Request([Rule(Coins(10))], TradeRequirementRulesType.Single, 1);
 
-        await trade.StartContractAsync(request, default);
-        await trade.CancelByWiredAsync([], default);
-        await trade.StartContractAsync(request, default);
+        await trade.StartContractAsync(request, Ct);
+        await trade.CancelByWiredAsync([], Ct);
+        await trade.StartContractAsync(request, Ct);
 
         Sent(fakes).OfType<WiredTradeCancelledMessageComposer>().Should().BeEmpty();
         Sent(fakes)
@@ -380,7 +382,7 @@ public class WiredContractTests
             reward,
             CONTRACT,
             times: 2,
-            default
+            Ct
         );
 
         failure.Should().BeNull();

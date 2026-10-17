@@ -81,6 +81,8 @@ public sealed class OperatorThrowingCommand : IOperatorCommand<NoArguments>
 
 public class OperatorCommandRunnerTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly OperatorFixture _hotel = new();
 
     public OperatorCommandRunnerTests()
@@ -269,7 +271,7 @@ public class OperatorCommandRunnerTests
         );
 
         await using var ctx = _hotel.Db.CreateDbContext();
-        var rows = await ctx.CommandLogs.ToListAsync();
+        var rows = await ctx.CommandLogs.ToListAsync(Ct);
 
         rows.Should()
             .ContainSingle()
@@ -298,7 +300,7 @@ public class OperatorCommandRunnerTests
 
         await using var ctx = _hotel.Db.CreateDbContext();
 
-        (await ctx.CommandLogs.OrderBy(x => x.Id).Select(x => x.Source).ToListAsync())
+        (await ctx.CommandLogs.OrderBy(x => x.Id).Select(x => x.Source).ToListAsync(Ct))
             .Should()
             .Equal("player", "panel");
     }
@@ -311,7 +313,7 @@ public class OperatorCommandRunnerTests
         await _hotel.RunAsync("opmass", staff, "@online");
 
         await using var ctx = _hotel.Db.CreateDbContext();
-        (await ctx.CommandLogs.ToListAsync())
+        (await ctx.CommandLogs.ToListAsync(Ct))
             .Should()
             .ContainSingle()
             .Which.Arguments.Should()
@@ -327,7 +329,7 @@ public class OperatorCommandRunnerTests
 
         staff.Replies.Should().Equal("You can't use @room with that command.");
         await using var ctx = _hotel.Db.CreateDbContext();
-        (await ctx.CommandLogs.ToListAsync()).Should().BeEmpty();
+        (await ctx.CommandLogs.ToListAsync(Ct)).Should().BeEmpty();
     }
 
     [Fact]

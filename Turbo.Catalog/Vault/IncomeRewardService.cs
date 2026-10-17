@@ -42,7 +42,8 @@ public sealed class IncomeRewardService(
         foreach (var source in _sources)
             rewards.AddRange(await source.GetRewardsAsync(player, ct).ConfigureAwait(false));
 
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = dbCtx.ConfigureAwait(false);
 
         rewards.AddRange(
             (
@@ -104,7 +105,8 @@ public sealed class IncomeRewardService(
         if (amount <= 0 || CurrencyOf(type) is null || category == VaultRewardCategoryType.All)
             return false;
 
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = dbCtx.ConfigureAwait(false);
 
         if (await HeldAsync(dbCtx, player, reference, ct).ConfigureAwait(false))
             return true;
@@ -126,9 +128,8 @@ public sealed class IncomeRewardService(
         }
         catch (DbUpdateException)
         {
-            await using var check = await dbCtxFactory
-                .CreateDbContextAsync(ct)
-                .ConfigureAwait(false);
+            var check = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var checkScope = check.ConfigureAwait(false);
 
             // Another payer's retry deposited it first.
             if (await HeldAsync(check, player, reference, ct).ConfigureAwait(false))
@@ -162,7 +163,8 @@ public sealed class IncomeRewardService(
         CancellationToken ct
     )
     {
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = dbCtx.ConfigureAwait(false);
 
         var waiting = dbCtx.PlayerIncomeRewards.Where(x =>
             x.PlayerEntityId == player.Value && x.ClaimedAt == null

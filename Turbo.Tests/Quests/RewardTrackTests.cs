@@ -682,11 +682,11 @@ public sealed class RewardTrackTests : IDisposable
 
         await listener.OnRoomEventAsync(
             Act(player, AvatarActionType.Expression, (int)AvatarExpressionType.Wave),
-            default
+            Ct
         );
         await listener.OnRoomEventAsync(
             Act(player, AvatarActionType.Expression, (int)AvatarExpressionType.Laugh),
-            default
+            Ct
         );
         await listener.OnRoomEventAsync(
             Act(
@@ -694,10 +694,10 @@ public sealed class RewardTrackTests : IDisposable
                 AvatarActionType.Expression,
                 (int)AvatarExpressionType.Wave
             ),
-            default
+            Ct
         );
         // A dance counts as "dance", which no task of this track counts.
-        await listener.OnRoomEventAsync(Act(player, AvatarActionType.Dance, 1), default);
+        await listener.OnRoomEventAsync(Act(player, AvatarActionType.Dance, 1), Ct);
 
         _fakes
             .Log.Of("RecordActionAsync")

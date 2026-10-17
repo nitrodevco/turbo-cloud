@@ -105,30 +105,33 @@ internal sealed class WiredVariablesEndpoints(
         if (!_limits.TryAcquire(roomId, operation))
         {
             await WriteAsync(
-                http,
-                WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS),
-                Error(WiredWebApiErrors.TOO_MANY_REQUESTS)
-            );
+                    http,
+                    WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS),
+                    Error(WiredWebApiErrors.TOO_MANY_REQUESTS)
+                )
+                .ConfigureAwait(false);
 
             return;
         }
 
-        if (!await RoomExistsAsync(roomId, ct))
+        if (!await RoomExistsAsync(roomId, ct).ConfigureAwait(false))
         {
-            await WriteAsync(http, 404, Error(WiredWebApiErrors.ROOM_NOT_FOUND));
+            await WriteAsync(http, 404, Error(WiredWebApiErrors.ROOM_NOT_FOUND))
+                .ConfigureAwait(false);
 
             return;
         }
 
         var query = http.Request.Query;
         var (playerId, playerName) = await FindPlayerAsync(
-            operation,
-            route["targetKind"] as string,
-            route["entityId"] as string,
-            query["name"],
-            query["unique_id"],
-            ct
-        );
+                operation,
+                route["targetKind"] as string,
+                route["entityId"] as string,
+                query["name"],
+                query["unique_id"],
+                ct
+            )
+            .ConfigureAwait(false);
         var request = new WiredWebApiRequest
         {
             Operation = operation,
@@ -138,7 +141,7 @@ internal sealed class WiredVariablesEndpoints(
             VariableName = route["variableName"] as string ?? string.Empty,
             TargetKind = route["targetKind"] as string ?? string.Empty,
             EntityId = route["entityId"] as string ?? string.Empty,
-            Body = await ReadBodyAsync(http, ct),
+            Body = await ReadBodyAsync(http, ct).ConfigureAwait(false),
             Page = int.TryParse(query["page"], out var page) ? page : null,
             Size = int.TryParse(query["size"], out var size) ? size : null,
             OrderBy = query["order_by"],
@@ -154,7 +157,7 @@ internal sealed class WiredVariablesEndpoints(
             .HandleWiredWebApiAsync(request, ct)
             .ConfigureAwait(false);
 
-        await WriteAsync(http, response.Status, response.Json);
+        await WriteAsync(http, response.Status, response.Json).ConfigureAwait(false);
     }
 
     private async Task<bool> RoomExistsAsync(int roomId, CancellationToken ct)
@@ -162,7 +165,8 @@ internal sealed class WiredVariablesEndpoints(
         if (roomId <= 0)
             return false;
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         return await db.Rooms.AnyAsync(room => room.Id == roomId, ct).ConfigureAwait(false);
     }
@@ -202,7 +206,8 @@ internal sealed class WiredVariablesEndpoints(
                 return (null, null);
         }
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         var players = db.Players.AsNoTracking();
         var player = await (

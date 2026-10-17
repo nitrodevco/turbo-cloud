@@ -40,7 +40,8 @@ internal static class GuildForumQueries
                 g => g.Id,
                 (f, g) => new { f, g }
             )
-            .ToListAsync(ct);
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
         var authorIds = rows.Select(x => x.f.LastMessagePlayerEntityId ?? 0)
             .Where(x => x > 0)
             .Distinct()
@@ -49,17 +50,20 @@ internal static class GuildForumQueries
             .Players.AsNoTracking()
             .Where(x => authorIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Name })
-            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct)
+            .ConfigureAwait(false);
         var markers = await dbCtx
             .GuildForumReadMarkers.AsNoTracking()
             .Where(x => x.PlayerEntityId == viewerId && guildIds.Contains(x.GuildEntityId))
-            .ToDictionaryAsync(x => x.GuildEntityId, x => x.LastReadMessageId, ct);
+            .ToDictionaryAsync(x => x.GuildEntityId, x => x.LastReadMessageId, ct)
+            .ConfigureAwait(false);
         var recent = await dbCtx
             .GuildForumMessages.AsNoTracking()
             .Where(x => guildIds.Contains(x.GuildEntityId) && x.CreatedAt >= since)
             .GroupBy(x => x.GuildEntityId)
             .Select(x => new { GuildId = x.Key, Count = x.Count() })
-            .ToDictionaryAsync(x => x.GuildId, x => x.Count, ct);
+            .ToDictionaryAsync(x => x.GuildId, x => x.Count, ct)
+            .ConfigureAwait(false);
         var byGuild = rows.ToDictionary(x => x.g.Id);
 
         return

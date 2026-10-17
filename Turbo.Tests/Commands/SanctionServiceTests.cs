@@ -22,6 +22,8 @@ public sealed class ManualTimeProvider(DateTime startUtc) : TimeProvider
 
 public class SanctionServiceTests : IDisposable
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private static readonly DateTime START = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly SqliteDb _db = new();
@@ -127,7 +129,7 @@ public class SanctionServiceTests : IDisposable
 
         ban!.Reason.Should().Be("second");
         await using var ctx = _db.CreateDbContext();
-        var rows = await ctx.PlayerSanctions.OrderBy(x => x.Id).ToListAsync();
+        var rows = await ctx.PlayerSanctions.OrderBy(x => x.Id).ToListAsync(Ct);
         rows.Should().HaveCount(2);
         rows[0].RevokedAt.Should().Be(START);
         rows[0].RevokedByEntityId.Should().Be(3);
@@ -143,7 +145,7 @@ public class SanctionServiceTests : IDisposable
 
         (await _service.GetActiveBanAsync(5, CancellationToken.None)).Should().BeNull();
         await using var ctx = _db.CreateDbContext();
-        var row = await ctx.PlayerSanctions.SingleAsync();
+        var row = await ctx.PlayerSanctions.SingleAsync(Ct);
         row.RevokedAt.Should().Be(START);
         row.RevokedByEntityId.Should().Be(3);
     }

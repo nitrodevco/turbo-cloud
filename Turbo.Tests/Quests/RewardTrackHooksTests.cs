@@ -23,6 +23,8 @@ namespace Turbo.Tests.Quests;
 /// </summary>
 public sealed class RewardTrackHooksTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly Fakes _fakes = new();
 
     private static ActionContext Player => ActionContext.CreateForPlayer(1, 7);
@@ -77,9 +79,9 @@ public sealed class RewardTrackHooksTests
             NullLogger<RewardTrackRoomListener>.Instance
         );
 
-        await listener.OnRoomEventAsync(Moved(tileChanged: true), default);
-        await listener.OnRoomEventAsync(Moved(tileChanged: false), default);
-        await listener.OnRoomEventAsync(Chat(), default);
+        await listener.OnRoomEventAsync(Moved(tileChanged: true), Ct);
+        await listener.OnRoomEventAsync(Moved(tileChanged: false), Ct);
+        await listener.OnRoomEventAsync(Chat(), Ct);
 
         _fakes
             .Log.Of("RecordActionAsync")

@@ -35,6 +35,8 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class WiredChestTests : IDisposable
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const int OWNER = 1;
     private const int ALICE = 2;
     private const int CHEST = 100;
@@ -99,7 +101,7 @@ public sealed class WiredChestTests : IDisposable
         _db.Insert(Furni(11, CHAIR_DEFINITION, ALICE));
         var chest = await ChestAsync();
 
-        var result = await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10, 11), default);
+        var result = await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10, 11), Ct);
 
         result.Failure.Should().BeNull();
         result.Summary.ItemCount.Should().Be(2);
@@ -112,7 +114,7 @@ public sealed class WiredChestTests : IDisposable
             });
         Released().Should().BeEquivalentTo([(RoomObjectId)10, (RoomObjectId)11]);
         // The owner's inventory holds the chest itself, not what is in it.
-        (await _loader.LoadByPlayerIdAsync(OWNER, "owner", default))
+        (await _loader.LoadByPlayerIdAsync(OWNER, "owner", Ct))
             .Select(x => x.ItemId.Value)
             .Should()
             .Equal(CHEST);
@@ -130,7 +132,7 @@ public sealed class WiredChestTests : IDisposable
             {
                 Capacity = 1,
             },
-            default
+            Ct
         );
 
         result.Failure.Should().Be(WiredTransactionFailureType.ExceedsCapacity);
@@ -144,7 +146,7 @@ public sealed class WiredChestTests : IDisposable
         _db.Insert(Furni(20, GOLD_DEFINITION, ALICE));
         var chest = await ChestAsync();
 
-        var result = await chest.DepositAsync(Deposit(WiredChestKind.Furni, 20), default);
+        var result = await chest.DepositAsync(Deposit(WiredChestKind.Furni, 20), Ct);
 
         result.Failure.Should().Be(WiredTransactionFailureType.Invalid);
         Rows(20).Single().ChestItemEntityId.Should().BeNull();
@@ -156,12 +158,12 @@ public sealed class WiredChestTests : IDisposable
         _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
         _db.Insert(Furni(11, CHAIR_DEFINITION, ALICE));
         var chest = await ChestAsync();
-        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10), default);
-        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 11), default);
+        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 10), Ct);
+        await chest.DepositAsync(Deposit(WiredChestKind.Furni, 11), Ct);
 
         var result = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Furni, 1, WiredChestIterationMode.FirstInFirstOut),
-            default
+            Ct
         );
 
         result.Failure.Should().BeNull();
@@ -179,7 +181,7 @@ public sealed class WiredChestTests : IDisposable
         _db.Insert(Furni(20, GOLD_DEFINITION, ALICE));
         var chest = await ChestAsync();
 
-        var deposit = await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), default);
+        var deposit = await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), Ct);
 
         deposit.Failure.Should().BeNull();
         deposit.Summary.Coins.Should().Be(10);
@@ -190,7 +192,7 @@ public sealed class WiredChestTests : IDisposable
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),
-            default
+            Ct
         );
 
         withdrawal.Failure.Should().BeNull();
@@ -200,7 +202,7 @@ public sealed class WiredChestTests : IDisposable
         credit.Args[2].Should().Be($"wiredchest:{withdrawal.TransactionId}");
 
         // A fresh grain reads the balance the database kept.
-        (await (await ChestAsync()).GetSummaryAsync(Settings(WiredChestKind.Coins), default))
+        (await (await ChestAsync()).GetSummaryAsync(Settings(WiredChestKind.Coins), Ct))
             .Coins.Should()
             .Be(6);
     }
@@ -210,14 +212,14 @@ public sealed class WiredChestTests : IDisposable
     {
         _db.Insert(Furni(20, GOLD_DEFINITION, ALICE));
         var chest = await ChestAsync();
-        await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), default);
+        await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), Ct);
 
         _fakes.Handlers["CreditAsync"] = call =>
             call.Args.Length == 4 ? Task.FromResult(WalletCreditResult.Rejected) : Fakes.NotHandled;
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),
-            default
+            Ct
         );
 
         withdrawal.Failure.Should().Be(WiredTransactionFailureType.InternalError);

@@ -71,7 +71,9 @@ internal sealed class PublicRoomsEndpoints(
                 statusCode: 404
             );
 
-        await using (var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
+        var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        await using (db.ConfigureAwait(false))
         {
             var visible =
                 await db.Players.AnyAsync(x => x.Id == playerId, ct).ConfigureAwait(false)
@@ -97,7 +99,8 @@ internal sealed class PublicRoomsEndpoints(
         CancellationToken ct
     )
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         var rows = await db
             .Rooms.AsNoTracking()

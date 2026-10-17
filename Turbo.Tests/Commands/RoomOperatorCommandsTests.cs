@@ -17,6 +17,8 @@ namespace Turbo.Tests.Commands;
 /// </summary>
 public class RoomOperatorCommandsTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private const int OWNER = 1;
 
     private readonly CommandRoomFixture _room = new();
@@ -117,7 +119,7 @@ public class RoomOperatorCommandsTests
                     RoomModelEntity = null!,
                 }
             );
-            await ctx.SaveChangesAsync();
+            await ctx.SaveChangesAsync(Ct);
         }
 
         // The harness builds its snapshot without a row behind it; a loaded room has a password
