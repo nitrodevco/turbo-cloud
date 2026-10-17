@@ -306,7 +306,9 @@ public sealed class PermissionViews(
                 x.Action.ToString(),
                 x.Subject,
                 x.Value,
-                x.ExpiresAt
+                x.ExpiresAt,
+                x.TargetType == PermissionAuditTargetType.Player
+                    && x.ActorPlayerId?.Value == x.TargetId
             )),
         ];
     }

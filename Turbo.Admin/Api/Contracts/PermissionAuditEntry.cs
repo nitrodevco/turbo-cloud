@@ -2,7 +2,11 @@ using System;
 
 namespace Turbo.Admin.Api.Contracts;
 
-/// <summary>One row of the permission log, with names for whom it is about and who made it (none for the console).</summary>
+/// <summary>
+/// One row of the permission log, with names for whom it is about and who made it (none for the
+/// console). <paramref name="Self"/>: a player changed their own permissions, which only a
+/// superuser may.
+/// </summary>
 public sealed record PermissionAuditEntry(
     DateTime AtUtc,
     int? ActorId,
@@ -13,5 +17,6 @@ public sealed record PermissionAuditEntry(
     string Action,
     string Subject,
     string? Value,
-    DateTime? ExpiresAtUtc
+    DateTime? ExpiresAtUtc,
+    bool Self
 );
