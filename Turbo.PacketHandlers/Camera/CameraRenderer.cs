@@ -77,6 +77,7 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
             var (option, value) in new[]
             {
                 ("--furni-url", _config.RendererFurniUrl),
+                ("--room-url", _config.RendererRoomUrl),
                 ("--figure-url", _config.RendererFigureUrl),
                 ("--figuremap-url", _config.RendererFigureMapUrl),
                 ("--effect-url", _config.RendererEffectUrl),

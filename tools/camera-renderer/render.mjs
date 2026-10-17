@@ -2,7 +2,7 @@
 // (Flash's SpriteDataCollector output, stored by CameraPhotoStore as photos/<id>.json or
 // thumbnails/<roomId>.json) into the PNG the client loads (stories.image_url_base + photos/<id>.png).
 //
-//   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>]
+//   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>] [--room-url <url with %libname%>]
 //                   [--figure-url <url with %libname%>] [--figuremap-url <url>]
 //                   [--effect-url <url with %libname%>] [--effectmap-url <url>]
 //                   [--effect-image-url <url prefix>] [--external-url <url prefix>]... [--small]
@@ -11,7 +11,10 @@
 // (FurnitureExternalImageVisualization.buildThumbnailUrl), and without it the poster is blank.
 //
 // What is drawn, far to near (the highest z first, as the client sorts them):
-//   - the planes: each a flat quad in its colour (the first is the background over the whole viewport);
+//   - the planes (the first is the background over the whole viewport): each layer's texture, its
+//     columns of room content assets (HabboRoomContent, the client's asset.bundles.room) laid side by
+//     side and its cells down each column, or its colour alone, multiplied by the layer's colour, with
+//     its masks (a door, a window) cut out, then mapped onto the plane's corners;
 //   - the sprites: furniture assets looked up in the hotel's .nitro bundles (the CDN url the client's
 //     asset.urls.furni gives, cached under --cache), the avatars' parts (`h_std_ch_215_2_0`: the
 //     figure library the figure map names for the part, or an effect's `..._fx<id>_...` the effect
@@ -26,9 +29,9 @@
 // from a prefix the hotel named (none by default), a library name is a plain file name, and the
 // canvas, the images decoded and the bytes downloaded are capped, so a crafted render can neither
 // reach other hosts nor run the server out of memory.
-// Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): plane
-// textures and masks (the client sends none), an avatar effect sprite outside the `fx<id>` naming,
-// a lab effect this renderer does not know.
+// Not drawn (a sprite whose asset is not found is skipped, the picture still comes out): a plane
+// texture or mask asset the room content does not have (the plane keeps its colour), an avatar
+// effect sprite outside the `fx<id>` naming, a lab effect this renderer does not know.
 // Zero dependencies: a small zip reader, PNG decoder and PNG encoder over node:zlib.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
@@ -39,6 +42,7 @@ const args = process.argv.slice(2);
 const positional = [];
 let cacheDir = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.cache');
 let furniUrl = 'https://images.nitrodev.co/bundled/furniture/%libname%.nitro';
+let roomUrl = 'https://images.nitrodev.co/bundled/room/%libname%.nitro';
 let figureUrl = 'https://images.nitrodev.co/bundled/figures/%libname%.nitro';
 let figureMapUrl = 'https://images.nitrodev.co/gamedata/FigureMap.json';
 let effectUrl = 'https://images.nitrodev.co/bundled/effects/%libname%.nitro';
@@ -52,6 +56,7 @@ let scenePath = '';
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--cache') cacheDir = args[++i];
     else if (args[i] === '--furni-url') furniUrl = args[++i];
+    else if (args[i] === '--room-url') roomUrl = args[++i];
     else if (args[i] === '--figure-url') figureUrl = args[++i];
     else if (args[i] === '--figuremap-url') figureMapUrl = args[++i];
     else if (args[i] === '--effect-url') effectUrl = args[++i];
@@ -401,8 +406,11 @@ const getAvatarBundle = async (name) => {
     return (lib && LIBRARY_NAME.test(lib)) ? loadBundle(lib, figureUrl, 'figure_') : null;
 };
 
-/** The cut-out of one asset as RGBA (already flipped when the asset says so), or null. */
-const getAssetImage = (bundle, assetName) => {
+/**
+ * The cut-out of one asset as RGBA, or null: flipped when the asset says so, unless `assetFlip` is
+ * false (a sprite says itself whether it is drawn flipped).
+ */
+const getAssetImage = (bundle, assetName, assetFlip = true) => {
     const asset = bundle.assets[assetName];
 
     if (!asset) return null;
@@ -418,7 +426,7 @@ const getAssetImage = (bundle, assetName) => {
     for (let y = 0; y < frame.h; y++) {
         for (let x = 0; x < frame.w; x++) {
             const s = ((frame.y + y) * width + frame.x + x) * 4;
-            const dx = asset.flipH ? (frame.w - 1 - x) : x;
+            const dx = (asset.flipH && assetFlip) ? (frame.w - 1 - x) : x;
             const d = (y * frame.w + dx) * 4;
             out[d] = data[s]; out[d + 1] = data[s + 1]; out[d + 2] = data[s + 2]; out[d + 3] = data[s + 3];
         }
@@ -507,6 +515,206 @@ const fillQuad = (canvas, points, color) => {
     }
 };
 
+// ---------- planes ----------
+
+// RoomContentLoader's room content library: the planes' textures and masks.
+const ROOM_CONTENT_LIBRARY = 'HabboRoomContent';
+// A plane is never more texture columns or cells than the viewport is pixels across.
+const MAX_PLANE_CELLS = MAX_CANVAS_SIDE;
+
+/**
+ * The size of a plane's texture in pixels, from its corners: RoomPlane's texture is as many pixels
+ * along each side as the side is screen pixels across (a tile's edge 32 at scale 64), or down for
+ * an upright side.
+ */
+const getPlaneTextureSize = (points) => {
+    const side = (a, b) => (a.x === b.x) ? Math.abs(b.y - a.y) : Math.abs(b.x - a.x);
+
+    return { width: Math.round(side(points[3], points[2])), height: Math.round(side(points[3], points[1])) };
+};
+
+/**
+ * One plane layer's texture (RoomPlane.getDrawingDatas): its columns (`texCols`, each the asset
+ * names of its cells; a column whose cells do not repeat ends in "") laid left to right until the
+ * plane is full, the cells stacked from the top (from the bottom when `bottomAligned`); or the
+ * plane's colour when it has no columns. Multiplied by the colour, as PlaneVisualizationLayer and
+ * RoomPlane tint it. Null when no cell's asset is found.
+ */
+const getPlaneTexture = (plane, room, width, height) => {
+    const color = Number(plane.color ?? 0);
+    const tr = ((color >> 16) & 0xff) / 255, tg = ((color >> 8) & 0xff) / 255, tb = (color & 0xff) / 255;
+    const texture = { width, height, data: new Uint8Array(width * height * 4) };
+    const columns = (Array.isArray(plane.texCols) ? plane.texCols : []).slice(0, MAX_PLANE_CELLS).map(column => {
+        const names = (Array.isArray(column?.assetNames) ? column.assetNames : []).slice(0, MAX_PLANE_CELLS).map(String);
+        const repeated = names[names.length - 1] !== '';
+        const cells = names.filter(name => name).map(name => (room ? getAssetImage(room, name) : null)).filter(image => image);
+
+        return cells.length ? { cells, repeated, width: cells[0].width } : null;
+    }).filter(column => column);
+
+    if (!columns.length) {
+        if (plane.texCols?.length) return null;
+
+        for (let i = 0; i < texture.data.length; i += 4) {
+            texture.data[i] = (color >> 16) & 0xff; texture.data[i + 1] = (color >> 8) & 0xff; texture.data[i + 2] = color & 0xff; texture.data[i + 3] = 255;
+        }
+
+        return texture;
+    }
+
+    const put = (image, x, y) => {
+        for (let sy = 0; sy < image.height; sy++) {
+            const dy = y + sy;
+            if (dy < 0 || dy >= height) continue;
+
+            for (let sx = 0; sx < image.width; sx++) {
+                const dx = x + sx;
+                if (dx < 0 || dx >= width) continue;
+
+                const s = (sy * image.width + sx) * 4, d = (dy * width + dx) * 4;
+                texture.data[d] = image.data[s] * tr; texture.data[d + 1] = image.data[s + 1] * tg;
+                texture.data[d + 2] = image.data[s + 2] * tb; texture.data[d + 3] = image.data[s + 3];
+            }
+        }
+    };
+
+    for (let x = 0, index = 0; x < width; index++) {
+        const column = columns[index % columns.length];
+
+        if (plane.bottomAligned) {
+            for (let y = height, cell = 0; y > 0 && (column.repeated || cell < column.cells.length); cell++) {
+                const image = column.cells[column.cells.length - 1 - (cell % column.cells.length)];
+                y -= image.height;
+                put(image, x, y);
+            }
+        } else {
+            for (let y = 0, cell = 0; y < height && (column.repeated || cell < column.cells.length); cell++) {
+                const image = column.cells[cell % column.cells.length];
+                put(image, x, y);
+                y += image.height;
+            }
+        }
+
+        x += Math.max(1, column.width);
+    }
+
+    return texture;
+};
+
+/**
+ * Cuts a plane's masks out of its texture, as RoomPlane draws the plane under its merged masks:
+ * each mask asset at its location (flipped about it), its darkness the share cut away
+ * (TextureUtils.makeWhiteTransparent: alpha = 255 - the mean of the channels).
+ */
+const cutPlaneMasks = (texture, masks, room) => {
+    for (const mask of (Array.isArray(masks) ? masks : []).slice(0, MAX_PLANE_CELLS)) {
+        const image = room ? getAssetImage(room, String(mask?.name ?? '')) : null;
+
+        if (!image) continue;
+
+        const left = Math.round(Number(mask.location?.x ?? 0)) - (mask.flipH ? image.width : 0);
+        const top = Math.round(Number(mask.location?.y ?? 0)) - (mask.flipV ? image.height : 0);
+
+        for (let sy = 0; sy < image.height; sy++) {
+            const dy = top + sy;
+            if (dy < 0 || dy >= texture.height) continue;
+
+            for (let sx = 0; sx < image.width; sx++) {
+                const dx = left + sx;
+                if (dx < 0 || dx >= texture.width) continue;
+
+                const s = (((mask.flipV ? image.height - 1 - sy : sy) * image.width) + (mask.flipH ? image.width - 1 - sx : sx)) * 4;
+                const luminance = image.data[s + 3] ? (image.data[s] + image.data[s + 1] + image.data[s + 2]) / 3 : 0;
+                const d = (dy * texture.width + dx) * 4 + 3;
+
+                texture.data[d] = Math.round(texture.data[d] * luminance / 255);
+            }
+        }
+    }
+};
+
+/**
+ * One texture pixel's step on screen along a plane's side: RoomPlane draws the texture unscaled,
+ * a pixel across per pixel (down, on an upright side) on its 2:1 slope. The corners come in whole
+ * pixels, so a slope that close to a half is taken as the half.
+ */
+const texelStep = (from, to) => {
+    const dx = to.x - from.x, dy = to.y - from.y;
+
+    if (!dx) return { x: 0, y: Math.sign(dy) };
+
+    const slope = dy / Math.abs(dx), half = Math.round(slope * 2) / 2;
+
+    return { x: Math.sign(dx), y: (Math.abs(slope - half) < 0.05) ? half : slope };
+};
+
+// Where in a screen pixel the texture is read, as measured against the client's own picture of the
+// same photo (r32 planes, room 8): walls and landscapes (a plane with an upright side) at the
+// pixel's centre, as RoomPlane moves their matrix half a pixel down; a textured floor and a flat
+// sloped plane (a wall's top) where they matched it (0 of 25600 floor and 0 of 6000 wall top
+// pixels off), as RoomPlane leaves those matrices where Flash has them.
+const SAMPLE_UPRIGHT = { x: 0.5, y: 0.5 };
+const SAMPLE_FLOOR = { x: -0.5, y: 0.25 };
+const SAMPLE_FLAT = { x: 0, y: 0 };
+
+/**
+ * Draws a plane: its texture laid on its corners in the collector's order (3 the texture's top
+ * left, 2 along its top, 1 along its left side), each screen pixel taking the texture pixel under it.
+ */
+const drawPlane = async (canvas, plane) => {
+    const points = plane.cornerPoints.map(point => ({ x: Number(point.x), y: Number(point.y) }));
+    const { width, height } = getPlaneTextureSize(points);
+    const textured = Array.isArray(plane.texCols) && plane.texCols.length;
+    const masked = Array.isArray(plane.masks) && plane.masks.length;
+
+    if (!(width > 0 && height > 0) || (width * height > MAX_IMAGE_PIXELS)) {
+        fillQuad(canvas, points, Number(plane.color ?? 0));
+
+        return;
+    }
+
+    const room = (textured || masked) ? await loadBundle(ROOM_CONTENT_LIBRARY, roomUrl, 'room_') : null;
+    const texture = getPlaneTexture(plane, room, width, height);
+
+    if (!texture) { fillQuad(canvas, points, Number(plane.color ?? 0)); return; }
+
+    cutPlaneMasks(texture, plane.masks, room);
+
+    const origin = points[3];
+    const { x: ux, y: uy } = texelStep(origin, points[2]);
+    const { x: vx, y: vy } = texelStep(origin, points[1]);
+    const det = ux * vy - uy * vx;
+    const sample = (!ux || !vx) ? SAMPLE_UPRIGHT : (textured ? SAMPLE_FLOOR : SAMPLE_FLAT);
+
+    if (!det) return;
+
+    const minX = Math.max(0, Math.floor(Math.min(...points.map(p => p.x))));
+    const maxX = Math.min(canvas.width - 1, Math.ceil(Math.max(...points.map(p => p.x))));
+    const minY = Math.max(0, Math.floor(Math.min(...points.map(p => p.y))));
+    const maxY = Math.min(canvas.height - 1, Math.ceil(Math.max(...points.map(p => p.y))));
+
+    for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+            const px = x + sample.x - origin.x, py = y + sample.y - origin.y;
+            const u = Math.floor((px * vy - py * vx) / det);
+            const v = Math.floor((py * ux - px * uy) / det);
+
+            if (u < 0 || u >= width || v < 0 || v >= height) continue;
+
+            const s = (v * width + u) * 4;
+            const a = texture.data[s + 3] / 255;
+
+            if (a <= 0) continue;
+
+            const d = (y * canvas.width + x) * 4;
+
+            canvas.data[d] = texture.data[s] * a + canvas.data[d] * (1 - a);
+            canvas.data[d + 1] = texture.data[s + 1] * a + canvas.data[d + 1] * (1 - a);
+            canvas.data[d + 2] = texture.data[s + 2] * a + canvas.data[d + 2] * (1 - a);
+            canvas.data[d + 3] = Math.min(255, canvas.data[d + 3] + 255 * a);
+        }
+    }
+};
 
 // ---------- photo lab ----------
 
@@ -799,7 +1007,7 @@ const render = async () => {
     if (frame && !FRAMES[frame]) throw new Error(`unknown frame: ${frame}`);
 
     for (const item of items) {
-        if (item.plane) { fillQuad(canvas, item.plane.cornerPoints, item.plane.color ?? 0); continue; }
+        if (item.plane) { await drawPlane(canvas, item.plane); continue; }
 
         const sprite = item.sprite;
         const name = String(sprite.name ?? '');
@@ -817,14 +1025,14 @@ const render = async () => {
             // An avatar's part first; a furni whose library starts with h_ is looked up as furni after it.
             const avatarBundle = /^s?h_/.test(name) ? await getAvatarBundle(name) : null;
 
-            if (avatarBundle) image = getAssetImage(avatarBundle, name);
+            if (avatarBundle) image = getAssetImage(avatarBundle, name, false);
 
             const match = image ? null : name.match(/^(.+?)_(64|32)_/);
 
             if (match && LIBRARY_NAME.test(match[1])) {
                 const bundle = await loadBundle(match[1]);
 
-                if (bundle) image = getAssetImage(bundle, name);
+                if (bundle) image = getAssetImage(bundle, name, false);
             }
         }
 
@@ -837,6 +1045,8 @@ const render = async () => {
             blendMode: sprite.blendMode ?? 'normal',
         };
 
+        // A flipped sprite is its asset's picture mirrored once, from its x on (Flash's canvas draws a
+        // mirrored copy of the bitmap at the sprite's place); the asset's own flip is not added to it.
         blit(canvas, image, Math.round(sprite.x), Math.round(sprite.y), options);
         drawnSprites.push({ image, x: Math.round(sprite.x), y: Math.round(sprite.y), options });
         drawn++;
