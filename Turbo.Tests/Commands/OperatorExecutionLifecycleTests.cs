@@ -1,5 +1,6 @@
 // Test signals deliberately coordinate concurrently executing commands; they do not use the UI joinable-task context.
 #pragma warning disable VSTHRD003
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
@@ -240,11 +241,16 @@ public class OperatorExecutionLifecycleTests
         var other = new FakeExecutor(2, "staff", nodes: "command.executionprobe");
         (await hotel.RunAsync("executionprobe", other, "")).Should().Be(CommandOutcome.Refused);
         hotel.Clock.Advance(TimeSpan.FromSeconds(2));
-        await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
         var pending = typeof(OperatorCommandRunner)
             .GetField("_pending", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(runner)!;
-        ((int)pending.GetType().GetProperty("Count")!.GetValue(pending)!).Should().Be(0);
+        int Pending() => (int)pending.GetType().GetProperty("Count")!.GetValue(pending)!;
+        // The cleanup runs on a real 1 s timer: waited for, not a fixed 1.2 s that a loaded
+        // machine overran (r33 full suite under load).
+        var waited = Stopwatch.StartNew();
+        while (Pending() > 0 && waited.Elapsed < TimeSpan.FromSeconds(15))
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        Pending().Should().Be(0);
         (await hotel.RunAsync("executionprobe", other, ""))
             .Should()
             .Be(CommandOutcome.AwaitingConfirmation);
