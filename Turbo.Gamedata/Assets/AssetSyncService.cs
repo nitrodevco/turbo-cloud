@@ -195,7 +195,9 @@ internal sealed class AssetSyncService(
 
         await SyncAsync("Furniture", lists.Furniture, known, context, ct).ConfigureAwait(false);
         await SyncAsync("Clothing", lists.Figures ?? [], known, context, ct).ConfigureAwait(false);
+        await SaveMapEntriesAsync(lists.Figures ?? [], ct).ConfigureAwait(false);
         await SyncAsync("Effects", lists.Effects ?? [], known, context, ct).ConfigureAwait(false);
+        await SaveMapEntriesAsync(lists.Effects ?? [], ct).ConfigureAwait(false);
         await SyncAsync("Pets", lists.Pets, known, context, ct).ConfigureAwait(false);
         await SyncAsync("Room", lists.Room, known, context, ct).ConfigureAwait(false);
         await SyncAsync("Badges", lists.Badges ?? [], known, context, ct).ConfigureAwait(false);
@@ -1065,6 +1067,43 @@ internal sealed class AssetSyncService(
     }
 
     /// <summary>Brings up-to-date libraries' ids to what Habbo lists now, a batch at a time.</summary>
+    /// <summary>
+    /// Each library's entries in Habbo's figure or effect map kept with its row, which the
+    /// hotel's maps are built from (<see cref="ClientMaps"/>): a row whose entries changed is
+    /// touched, so the map is built again. An upload keeps its own.
+    /// </summary>
+    private async Task SaveMapEntriesAsync(List<HabboLibrary> libraries, CancellationToken ct)
+    {
+        foreach (var chunk in libraries.Where(x => x.MapEntries is not null).Chunk(SAVE_BATCH))
+        {
+            var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+            var kind = chunk[0].Kind;
+            var entries = chunk.ToDictionary(
+                x => x.Name,
+                x => x.MapEntries,
+                StringComparer.OrdinalIgnoreCase
+            );
+            var names = entries.Keys.ToList();
+            var rows = await dbCtx
+                .AssetBundles.Where(x =>
+                    x.Kind == kind && x.Source != AssetBundleSource.Upload && names.Contains(x.Name)
+                )
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            var now = time.GetUtcNow().UtcDateTime;
+
+            foreach (var row in rows.Where(x => x.MapEntries != entries[x.Name]))
+            {
+                row.MapEntries = entries[row.Name];
+                row.UpdatedAt = now;
+            }
+
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+    }
+
     private async Task SaveIdsAsync(List<HabboLibrary> libraries, CancellationToken ct)
     {
         foreach (var chunk in libraries.Chunk(SAVE_BATCH))

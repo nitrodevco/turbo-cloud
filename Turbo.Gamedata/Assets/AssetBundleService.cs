@@ -423,7 +423,12 @@ internal sealed class AssetBundleService(
             dbCtx.AssetBundles.Add(row);
         }
 
-        // An upload keeps the ids a Habbo library of the name had: they still load it.
+        // An upload keeps the ids a Habbo library of the name had, and its place in Habbo's maps:
+        // they still load it. One of the hotel's own has the parts its file holds, read when the
+        // figure map is built.
+        if (row.Source == AssetBundleSource.Upload)
+            row.MapEntries = null;
+
         row.Source = AssetBundleSource.Upload;
         row.Revision = null;
         row.Hash = hash;

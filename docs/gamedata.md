@@ -160,6 +160,26 @@ Each check of Habbo also downloads its `figuredata` (XML), and keeps a new versi
   client's `figuredata.url` there. It was checked against the studio's converter on
   Habbo's own file: the same 3,311 pieces and every colour, field for field.
 
+### The figure and effect maps
+
+The client finds the library a clothing part or an avatar effect is drawn from in its figure map
+(`figuremap.url`) and effect map (`effectmap.url`). Both are the hotel's own, built from its
+bundles (`Turbo.Gamedata/Assets/ClientMaps.cs`) rather than Habbo's files:
+
+- **FigureMap.json:** every clothing bundle with a file, with its revision and its parts. A library
+  Habbo's `figuremap.xml` lists has the parts it lists there, kept with its row
+  (`asset_bundles.map_entries`) by each asset sync. A library of the hotel's own has the parts its
+  file holds (each `<size>_<action>_<type>_<id>_...` asset), read once per build of it. A file
+  holds more than Habbo's map lists for about a quarter of Habbo's libraries, and the client would
+  then load the wrong library for a part, so Habbo's own list is kept.
+- **EffectMap.json:** every effect bundle with a file, an entry for each effect it draws - its id,
+  type (`fx`, or `dance` for the dances, whose ids are `dance.1` to `dance.4`) and revision - as
+  `effectmap.xml` lists them; one of the hotel's own has an `fx` entry for each id that loads it.
+
+A bundle kept, changed or removed - by a sync, an upload or a delete - builds the map again at the
+next request, and the external variables with its new address. The migration `AddClientMaps`
+points `figuremap.url` and `effectmap.url` at the maps; **Gamedata → Client files** lists them.
+
 ### What a player may wear
 
 Every figure a player puts on is fitted to the figure data: in the avatar editor, from a mannequin,
@@ -236,6 +256,8 @@ the files the way Habbo serves its own:
 | `/gamedata/external_flash_texts/0` and `/<sha1>` | The external texts, the same way: `key=value` lines, as Habbo serves them. |
 | `/gamedata/productdata_json/0` and `/<sha1>` | The product data, the same way. |
 | `/gamedata/figuredata_json/0` and `/<sha1>` | The figure data, as the client's FigureData.json. |
+| `/gamedata/figuremap_json/0` and `/<sha1>` | The figure map, as the client's FigureMap.json (see [The figure and effect maps](#the-figure-and-effect-maps)). |
+| `/gamedata/effectmap_json/0` and `/<sha1>` | The effect map, as the client's EffectMap.json. |
 | `/gamedata/external_variables/0` and `/<sha1>` | The client's configuration, the JSON object Nitro loads (see [External variables](#external-variables)). |
 | `/gamedata/hashes` | Each file's current hash, in Habbo's shape: `{"hashes":[{"name":"furnidata","url":".../gamedata/furnidata_json","hash":"..."}, {"name":"external_texts", ...}]}`. The url is the file's address without its hash, built on `PublicUrl` (or the address the request came to). |
 

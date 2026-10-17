@@ -40,6 +40,7 @@ public sealed class GamedataBadgePartsTests : IDisposable
                 _fakes.Create<ICatalogSnapshotProvider<BuildersClubCatalog>>()
             ),
             _fakes.Create<IServerSettings>(),
+            new Fakes().Create<IAssetBundleStore>(),
             NullLogger<GamedataFileService>.Instance
         );
 

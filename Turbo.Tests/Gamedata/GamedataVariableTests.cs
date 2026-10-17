@@ -648,6 +648,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             config,
             new FurnitureOfferCatalog(_catalog.NormalProvider(), _catalog.BuildersClubProvider()),
             _settings.Settings,
+            new Fakes().Create<IAssetBundleStore>(),
             NullLogger<GamedataFileService>.Instance
         );
         var hotelTexts = new HotelTextProvider(_catalog.Db, config, TimeProvider.System);

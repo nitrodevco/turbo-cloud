@@ -18,6 +18,8 @@ public sealed record GamedataStatusResponse(
     GamedataFileSnapshot ProductData,
     GamedataFileSnapshot FigureData,
     GamedataFileSnapshot ExternalVariables,
+    GamedataFileSnapshot FigureMap,
+    GamedataFileSnapshot EffectMap,
     IReadOnlyDictionary<string, IReadOnlyList<string>> FileKeys,
     bool CanManage
 );

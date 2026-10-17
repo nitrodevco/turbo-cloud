@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -9,9 +10,11 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Assets.Nitro;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
+using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Furniture;
@@ -31,7 +34,8 @@ namespace Turbo.Gamedata.Files;
 /// The gamedata files built from the database (<see cref="IGamedataFileService"/>): FurnitureData
 /// from the definitions and the catalogs, the external texts from <c>gamedata_texts</c>, the
 /// external variables from <c>gamedata_variables</c>, each that follows a server setting or another
-/// file's address written with it.
+/// file's address written with it, and the figure and effect maps from the clothing and effect
+/// bundles (<see cref="ClientMaps"/>), built again whenever one of those is kept, changed or removed.
 /// Each file's current build is held in memory and built again when what it is made from
 /// changes - a catalog snapshot replaced (a catalog published), another file's hash (for the
 /// variables), or its rows said to have changed (<see cref="Invalidate"/>). Each build is kept in <c>gamedata_builds</c> by its hash, the
@@ -44,9 +48,13 @@ internal sealed class GamedataFileService(
     IOptions<GamedataConfig> config,
     FurnitureOfferCatalog offers,
     IServerSettings settings,
+    IAssetBundleStore store,
     ILogger<GamedataFileService> logger
 ) : IGamedataFileService
 {
+    /// <summary>The parts read from a clothing bundle's file, by its name and hash, for one no map lists yet.</summary>
+    private readonly ConcurrentDictionary<(string Name, string Hash), string> _fileParts = new();
+
     private readonly GamedataConfig _config = config.Value;
     private readonly SemaphoreSlim _building = new(1, 1);
     private readonly ConcurrentDictionary<string, Build> _current = new(StringComparer.Ordinal);
@@ -113,8 +121,33 @@ internal sealed class GamedataFileService(
                     .ConfigureAwait(false),
                 settings.Version
             ),
+            GamedataFiles.FIGURE_MAP => await BundlesStampAsync(AssetBundleKind.Figure, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.EFFECT_MAP => await BundlesStampAsync(AssetBundleKind.Effect, ct)
+                .ConfigureAwait(false),
             _ => null,
         };
+
+    /// <summary>
+    /// What a map is built from, cheaply: how many bundles of the kind have a file and when one
+    /// was last kept. A bundle kept, changed (its map entries too) or removed changes it.
+    /// </summary>
+    private async Task<BundlesStamp> BundlesStampAsync(AssetBundleKind kind, CancellationToken ct)
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var bundles = dbCtx
+            .AssetBundles.AsNoTracking()
+            .Where(x => x.Kind == kind && x.Hash != null);
+
+        return new BundlesStamp(
+            await bundles.CountAsync(ct).ConfigureAwait(false),
+            await bundles.MaxAsync(x => (DateTime?)x.UpdatedAt, ct).ConfigureAwait(false)
+        );
+    }
+
+    private sealed record BundlesStamp(int Count, DateTime? Latest);
 
     private async Task<GamedataFileContent> BuildAsync(
         string file,
@@ -149,6 +182,8 @@ internal sealed class GamedataFileService(
                     .ConfigureAwait(false),
                 GamedataFiles.FIGURE_DATA => await FigureDataAsync(dbCtx, ct).ConfigureAwait(false),
                 GamedataFiles.BADGE_PARTS => await BadgePartsAsync(dbCtx, ct).ConfigureAwait(false),
+                GamedataFiles.FIGURE_MAP => await FigureMapAsync(dbCtx, ct).ConfigureAwait(false),
+                GamedataFiles.EFFECT_MAP => await EffectMapAsync(dbCtx, ct).ConfigureAwait(false),
                 GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesAsync(
                         dbCtx,
                         ((ExternalVariablesFile.Inputs)inputs!).Addresses,
@@ -297,6 +332,108 @@ internal sealed class GamedataFileService(
         var colors = await dbCtx.GuildColors.AsNoTracking().ToListAsync(ct).ConfigureAwait(false);
 
         return (BadgePartsFile.Write(parts, colors), parts.Count);
+    }
+
+    /// <summary>
+    /// FigureMap.json from every clothing bundle with a file: its parts as Habbo's figure map lists
+    /// them, or - for one no map has listed yet - as its file holds them.
+    /// </summary>
+    private async Task<(byte[] Content, int Count)> FigureMapAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    )
+    {
+        var rows = await BundleRowsAsync(dbCtx, AssetBundleKind.Figure, ct).ConfigureAwait(false);
+        var libraries = new List<(string, string?, string)>();
+
+        foreach (var row in rows)
+            libraries.Add(
+                (
+                    row.Name,
+                    row.Revision,
+                    row.MapEntries
+                        ?? await FilePartsAsync(row.Name, row.Hash!, ct).ConfigureAwait(false)
+                )
+            );
+
+        return (ClientMaps.WriteFigureMap(libraries), libraries.Count);
+    }
+
+    /// <summary>
+    /// EffectMap.json from every effect bundle with a file: its effects as Habbo's effect map lists
+    /// them, or - for one no map has listed - each id that loads it, worn as an effect.
+    /// </summary>
+    private static async Task<(byte[] Content, int Count)> EffectMapAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    )
+    {
+        var rows = await BundleRowsAsync(dbCtx, AssetBundleKind.Effect, ct).ConfigureAwait(false);
+        var libraries = rows.Select(x =>
+                (
+                    x.Name,
+                    x.Revision,
+                    x.MapEntries ?? ClientMaps.EffectEntriesOf(AssetBundleIds.Parse(x.Ids))
+                )
+            )
+            .ToList();
+
+        return (
+            ClientMaps.WriteEffectMap(libraries),
+            libraries.Sum(x => ClientMaps.Count(x.Item3))
+        );
+    }
+
+    private static Task<List<BundleRow>> BundleRowsAsync(
+        TurboDbContext dbCtx,
+        AssetBundleKind kind,
+        CancellationToken ct
+    ) =>
+        dbCtx
+            .AssetBundles.AsNoTracking()
+            .Where(x => x.Kind == kind && x.Hash != null)
+            .OrderBy(x => x.Name)
+            .Select(x => new BundleRow(x.Name, x.Revision, x.Hash, x.Ids, x.MapEntries))
+            .ToListAsync(ct);
+
+    private sealed record BundleRow(
+        string Name,
+        string? Revision,
+        string? Hash,
+        string? Ids,
+        string? MapEntries
+    );
+
+    /// <summary>A clothing bundle's parts read from its file, once per hash; none when it does not read.</summary>
+    private async Task<string> FilePartsAsync(string name, string hash, CancellationToken ct)
+    {
+        if (_fileParts.TryGetValue((name, hash), out var known))
+            return known;
+
+        var parts = "[]";
+
+        try
+        {
+            var path = store.FullPathOf(AssetBundleKind.Figure, name);
+
+            if (File.Exists(path))
+                parts = ClientMaps.FigureEntriesOf(
+                    NitroBundle.Read(await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false)),
+                    name
+                );
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or IOException)
+        {
+            logger.LogWarning(
+                ex,
+                "The clothing bundle {Name} gives no parts: it does not read",
+                name
+            );
+        }
+
+        _fileParts[(name, hash)] = parts;
+
+        return parts;
     }
 
     private static async Task<(byte[] Content, int Count)> ExternalTextsAsync(

@@ -233,6 +233,12 @@ internal sealed class GamedataEndpoints(
         var externalVariables = await files
             .GetCurrentAsync(GamedataFiles.EXTERNAL_VARIABLES, ct)
             .ConfigureAwait(false);
+        var figureMap = await files
+            .GetCurrentAsync(GamedataFiles.FIGURE_MAP, ct)
+            .ConfigureAwait(false);
+        var effectMap = await files
+            .GetCurrentAsync(GamedataFiles.EFFECT_MAP, ct)
+            .ConfigureAwait(false);
 
         return Results.Ok(
             new GamedataStatusResponse(
@@ -245,6 +251,8 @@ internal sealed class GamedataEndpoints(
                 productData.File,
                 figureData.File,
                 externalVariables.File,
+                figureMap.File,
+                effectMap.File,
                 await variables.GetFileKeysAsync(ct).ConfigureAwait(false),
                 await CanManageAsync(http, ct).ConfigureAwait(false)
             )

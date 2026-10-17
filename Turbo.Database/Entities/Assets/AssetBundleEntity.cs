@@ -21,6 +21,9 @@ public class AssetBundleEntity : TurboEntity
     public const int ERROR_MAX_LENGTH = 512;
     public const int IDS_MAX_LENGTH = 1024;
 
+    /// <summary>A body library lists hundreds of parts: a longtext's worth is kept.</summary>
+    public const int MAP_ENTRIES_MAX_LENGTH = 1024 * 1024;
+
     [Column("kind")]
     public required AssetBundleKind Kind { get; set; }
 
@@ -54,6 +57,16 @@ public class AssetBundleEntity : TurboEntity
     [Column("ids")]
     [MaxLength(IDS_MAX_LENGTH)]
     public string? Ids { get; set; }
+
+    /// <summary>
+    /// What the client's maps list it with, as a JSON array: a clothing library's parts
+    /// (<c>{"id":6360,"type":"ch"}</c>, the figure map's) or an effect library's effects
+    /// (<c>{"id":"dance.1","type":"dance"}</c>, the effect map's). Habbo's maps give them; an
+    /// upload's are read from its file when the map is built. Null when no map lists it.
+    /// </summary>
+    [Column("map_entries", TypeName = "longtext")]
+    [MaxLength(MAP_ENTRIES_MAX_LENGTH)]
+    public string? MapEntries { get; set; }
 
     [Column("error")]
     [MaxLength(ERROR_MAX_LENGTH)]

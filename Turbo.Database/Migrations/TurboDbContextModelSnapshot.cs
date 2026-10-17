@@ -350,6 +350,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("kind");
 
+                    b.Property<string>("MapEntries")
+                        .HasMaxLength(1048576)
+                        .HasColumnType("longtext")
+                        .HasColumnName("map_entries");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)

@@ -12,5 +12,6 @@ internal sealed record HabboLibrary(
     string Name,
     string Revision,
     string? Ids,
-    string? Download = null
+    string? Download = null,
+    string? MapEntries = null
 );

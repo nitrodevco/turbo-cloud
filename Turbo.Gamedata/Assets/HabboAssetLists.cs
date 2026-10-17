@@ -128,7 +128,8 @@ internal static class HabboAssetLists
                     (
                         Lib: ((string?)x.Attribute("lib"))?.Trim() ?? string.Empty,
                         Id: IntOf((string?)x.Attribute("id")),
-                        Revision: IntOf((string?)x.Attribute("revision"))
+                        Revision: IntOf((string?)x.Attribute("revision")),
+                        Element: x
                     )
                 )
                 .Where(x => x.Lib.Length > 0)
@@ -138,7 +139,8 @@ internal static class HabboAssetLists
                     AssetBundleKind.Effect,
                     x.Key,
                     x.Max(y => y.Revision).ToString(CultureInfo.InvariantCulture),
-                    AssetBundleIds.Format(x.Select(y => y.Id).Where(y => y > 0))
+                    AssetBundleIds.Format(x.Select(y => y.Id).Where(y => y > 0)),
+                    MapEntries: ClientMaps.EffectEntries(x.Select(y => y.Element))
                 )),
         ];
 
@@ -154,7 +156,8 @@ internal static class HabboAssetLists
                 .Select(x =>
                     (
                         Lib: ((string?)x.Attribute("id"))?.Trim() ?? string.Empty,
-                        Revision: IntOf((string?)x.Attribute("revision"))
+                        Revision: IntOf((string?)x.Attribute("revision")),
+                        Element: x
                     )
                 )
                 .Where(x => x.Lib.Length > 0 && !FIGURE_LIBRARIES_SKIPPED.Contains(x.Lib))
@@ -164,7 +167,8 @@ internal static class HabboAssetLists
                     AssetBundleKind.Figure,
                     x.Key,
                     x.Max(y => y.Revision).ToString(CultureInfo.InvariantCulture),
-                    null
+                    null,
+                    MapEntries: ClientMaps.FigureEntries(x.Select(y => y.Element))
                 )),
         ];
 

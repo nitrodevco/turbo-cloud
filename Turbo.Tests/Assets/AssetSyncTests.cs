@@ -12,14 +12,20 @@ using Microsoft.Extensions.Options;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Assets;
+using Turbo.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Files;
+using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Habbo.Client;
+using Turbo.Primitives.Catalog.Providers;
+using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Settings;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -963,6 +969,89 @@ public sealed class AssetSyncTests : IDisposable
             _jobs.Current.Should().BeNull();
 
         await after.StopAsync(Ct);
+    }
+
+    [Fact]
+    public async Task The_figure_and_effect_maps_are_built_from_the_bundles_and_follow_them()
+    {
+        // Habbo's maps: a dance by its own id, a part listed twice, a library with no file.
+        _habbo.Serve(
+            $"{GORDON}/effectmap.xml",
+            """<map><effect id="dance.1" lib="Dance1" type="dance" revision="2"/><effect id="5" lib="Dance1" type="fx" revision="3"/><effect id="9" lib="fx_9" type="fx" revision="1"/></map>"""
+        );
+        _habbo.Serve(
+            $"{GORDON}/figuremap.xml",
+            """<map><lib id="hh_human_body" revision="4"><part id="1" type="bd"/><part id="1" type="lh"/></lib><lib id="hh_human_body" revision="4"><part id="1" type="bd"/></lib><lib id="shirt_U_gone" revision="2"><part id="9" type="ch"/></lib></map>"""
+        );
+        (await RunAsync()).Status.Should().Be(AssetJobStatus.Done);
+
+        var files = new GamedataFileService(
+            _db,
+            Options.Create(new GamedataConfig()),
+            new FurnitureOfferCatalog(
+                _fakes.Create<ICatalogSnapshotProvider<NormalCatalog>>(),
+                _fakes.Create<ICatalogSnapshotProvider<BuildersClubCatalog>>()
+            ),
+            _fakes.Create<IServerSettings>(),
+            _folder.Store,
+            NullLogger<GamedataFileService>.Instance
+        );
+
+        async Task<string> MapAsync(string file) =>
+            Encoding.UTF8.GetString(
+                GamedataBytes.Decompress((await files.GetCurrentAsync(file, Ct)).Gzipped)
+            );
+
+        // Only the bundles the hotel has, with their entries as Habbo's maps list them.
+        (await MapAsync(GamedataFiles.FIGURE_MAP))
+            .Should()
+            .Be(
+                """{"libraries":[{"id":"hh_human_body","revision":4,"parts":[{"id":1,"type":"bd"},{"id":1,"type":"lh"}]}]}"""
+            );
+        (await MapAsync(GamedataFiles.EFFECT_MAP))
+            .Should()
+            .Be(
+                """{"effects":[{"id":"dance.1","lib":"Dance1","type":"dance","revision":3},{"id":"5","lib":"Dance1","type":"fx","revision":3}]}"""
+            );
+
+        // A clothing library of the hotel's own, which no map lists: the parts its file holds.
+        var assets = new AssetBundleService(
+            _db,
+            Options.Create(_folder.Config),
+            _folder.Store,
+            new AssetBundleChecks(_db, Options.Create(_folder.Config), _folder.Store),
+            TimeProvider.System,
+            NullLogger<IAssetBundleService>.Instance
+        );
+        var shirt = NitroBundle
+            .Create(
+                new Dictionary<string, byte[]>
+                {
+                    ["shirt_U_mine.json"] = Encoding.UTF8.GetBytes(
+                        """{"type":"shirt_U_mine","assets":[{"name":"h_std_ch_77_0_0"},{"name":"h_std_ls_77_0_0"},{"name":"sh_std_ch_77_2_0"},{"name":"h_std_ch_77_1_0"}]}"""
+                    ),
+                }
+            )
+            .Write();
+
+        await assets.UploadAsync(
+            AssetBundleKind.Figure,
+            null,
+            "shirt_U_mine.nitro",
+            shirt,
+            PlayerId.Parse(1),
+            Ct
+        );
+
+        (await MapAsync(GamedataFiles.FIGURE_MAP))
+            .Should()
+            .Contain(
+                """{"id":"shirt_U_mine","parts":[{"id":77,"type":"ch"},{"id":77,"type":"ls"}]}"""
+            );
+
+        // A bundle taken away leaves the map.
+        await assets.DeleteAsync(AssetBundleKind.Figure, "shirt_U_mine", PlayerId.Parse(1), Ct);
+        (await MapAsync(GamedataFiles.FIGURE_MAP)).Should().NotContain("shirt_U_mine");
     }
 
     private const string TileCursor = """

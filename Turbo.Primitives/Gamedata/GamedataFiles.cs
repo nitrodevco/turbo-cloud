@@ -36,6 +36,20 @@ public static class GamedataFiles
     /// </summary>
     public const string BADGE_PARTS = "badgeparts_json";
 
+    /// <summary>
+    /// Which clothing library holds each part, as the client loads it (FigureMap.json,
+    /// <c>figuremap.url</c>): built from the hotel's clothing bundles. Habbo serves its own as XML
+    /// (<c>figuremap.xml</c>).
+    /// </summary>
+    public const string FIGURE_MAP = "figuremap_json";
+
+    /// <summary>
+    /// Which library each avatar effect is drawn from, as the client loads it (EffectMap.json,
+    /// <c>effectmap.url</c>): built from the hotel's effect bundles. Habbo serves its own as XML
+    /// (<c>effectmap.xml</c>).
+    /// </summary>
+    public const string EFFECT_MAP = "effectmap_json";
+
     public static readonly IReadOnlyList<string> ALL =
     [
         FURNITURE_DATA,
@@ -44,6 +58,8 @@ public static class GamedataFiles
         FIGURE_DATA,
         EXTERNAL_VARIABLES,
         BADGE_PARTS,
+        FIGURE_MAP,
+        EFFECT_MAP,
     ];
 
     public static bool IsKnown(string file) =>
@@ -53,7 +69,9 @@ public static class GamedataFiles
                 or EXTERNAL_TEXTS
                 or FIGURE_DATA
                 or EXTERNAL_VARIABLES
-                or BADGE_PARTS;
+                or BADGE_PARTS
+                or FIGURE_MAP
+                or EFFECT_MAP;
 
     /// <summary>The name Habbo's <c>hashes</c> gives the file.</summary>
     public static string HashesName(string file) =>
