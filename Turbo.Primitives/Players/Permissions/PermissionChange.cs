@@ -6,7 +6,7 @@ using Turbo.Primitives.Players.Snapshots.Permissions;
 namespace Turbo.Primitives.Players.Permissions;
 
 /// <summary>
-/// An edit of groups or of one player's groups, described well enough to work out what it does to
+/// An edit of groups or of one player's groups or nodes, described well enough to work out what it does to
 /// somebody's permissions before it is made: <see cref="PermissionEditor.CheckKeepsAccessAsync"/>
 /// applies it to the editor's own groups and assignments and resolves them again, to refuse the
 /// change that would take their own <c>permissions.superuser</c> away. Mirrors what the grains do
@@ -60,6 +60,16 @@ public abstract record PermissionChange
         string group,
         bool? temporary
     ) => new MembershipRemovedChange(player, group, temporary);
+
+    public static PermissionChange PlayerNodeSet(
+        PlayerId player,
+        string node,
+        bool value,
+        DateTime? expiresAt
+    ) => new PlayerNodeSetChange(player, node, value, expiresAt);
+
+    public static PermissionChange PlayerNodeUnset(PlayerId player, string node, bool temporary) =>
+        new PlayerNodeUnsetChange(player, node, temporary);
 
     private static bool IsTemporary(DateTime? expiresAt) => expiresAt is not null;
 
@@ -195,6 +205,58 @@ public abstract record PermissionChange
                             GroupId = found.Id,
                             ExpiresAt = ExpiresAt,
                         },
+                    ],
+                };
+    }
+
+    private sealed record PlayerNodeSetChange(
+        PlayerId Player,
+        string Node,
+        bool Value,
+        DateTime? ExpiresAt
+    ) : PermissionChange
+    {
+        public override PlayerPermissionAssignmentsSnapshot Apply(
+            PlayerId player,
+            PermissionGroupDirectorySnapshot groups,
+            PlayerPermissionAssignmentsSnapshot assignments
+        ) =>
+            player != Player
+                ? assignments
+                : assignments with
+                {
+                    Nodes =
+                    [
+                        .. assignments.Nodes.Where(x =>
+                            x.Node != Node || IsTemporary(x.ExpiresAt) != IsTemporary(ExpiresAt)
+                        ),
+                        new PermissionNodeAssignmentSnapshot
+                        {
+                            Node = Node,
+                            Value = Value,
+                            ExpiresAt = ExpiresAt,
+                        },
+                    ],
+                };
+    }
+
+    private sealed record PlayerNodeUnsetChange(PlayerId Player, string Node, bool Temporary)
+        : PermissionChange
+    {
+        public override PlayerPermissionAssignmentsSnapshot Apply(
+            PlayerId player,
+            PermissionGroupDirectorySnapshot groups,
+            PlayerPermissionAssignmentsSnapshot assignments
+        ) =>
+            player != Player
+                ? assignments
+                : assignments with
+                {
+                    Nodes =
+                    [
+                        .. assignments.Nodes.Where(x =>
+                            x.Node != Node || IsTemporary(x.ExpiresAt) != Temporary
+                        ),
                     ],
                 };
     }

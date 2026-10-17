@@ -18,7 +18,7 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// One player's permissions: what is set on them, what it resolves to and why, and changing it
 /// (<c>permissions.manage</c>, within <see cref="PermissionEditor"/>'s rule: only a player lighter
-/// than the editor). Changes go through the player's permission grain as the signed-in player,
+/// than the editor, and only a superuser themselves). Changes go through the player's permission grain as the signed-in player,
 /// which audits them and tells the client and room at once.
 /// </summary>
 internal sealed class PermissionPlayerEndpoints(
@@ -206,11 +206,27 @@ internal sealed class PermissionPlayerEndpoints(
     {
         var node = request.Node?.Trim() ?? string.Empty;
 
-        if (await CheckAsync(http, id, null, node, ct).ConfigureAwait(false) is { } refused)
-            return refused;
-
         if (!PermissionResults.TryExpiry(request.Duration, UtcNow, out var expiresAt))
             return PermissionResults.BadDuration(request.Duration);
+
+        if (
+            await CheckAsync(
+                    http,
+                    id,
+                    null,
+                    node,
+                    ct,
+                    PermissionChange.PlayerNodeSet(
+                        PlayerId.Parse(id),
+                        node,
+                        request.Value,
+                        expiresAt
+                    )
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
 
         return PermissionResults.Changed(
             await Grain(id)
@@ -236,7 +252,18 @@ internal sealed class PermissionPlayerEndpoints(
     {
         node = node?.Trim() ?? string.Empty;
 
-        if (await CheckAsync(http, id, null, node, ct).ConfigureAwait(false) is { } refused)
+        if (
+            await CheckAsync(
+                    http,
+                    id,
+                    null,
+                    node,
+                    ct,
+                    PermissionChange.PlayerNodeUnset(PlayerId.Parse(id), node, temporary ?? false)
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
             return refused;
 
         return PermissionResults.Changed(
@@ -293,27 +320,32 @@ internal sealed class PermissionPlayerEndpoints(
 
     /// <summary>
     /// The player exists and is the editor's to change; and, when given, the group is theirs to
-    /// hand out or take away and the node theirs to grant or deny. Null when all of it holds.
+    /// hand out or take away, the node theirs to grant or deny, and the change leaves an editor
+    /// who is a superuser one. Null when all of it holds. Only a superuser may change their own
+    /// permissions (audited like any change, with themselves as the actor), and never so that
+    /// they lose <c>permissions.superuser</c>: group changes are held to that by
+    /// <see cref="IPermissionEditService"/>, node changes by <paramref name="change"/>.
     /// </summary>
     private async Task<IResult?> CheckAsync(
         HttpContext http,
         int id,
         string? group,
         string? node,
-        CancellationToken ct
+        CancellationToken ct,
+        PermissionChange? change = null
     )
     {
         if (await NameOfAsync(id, ct).ConfigureAwait(false) is not { } name)
             return NoSuchPlayer(id);
 
+        var editor = await EditorAsync(http, ct).ConfigureAwait(false);
+
         // The rule refuses it too (nobody is lighter than themselves); this says it plainly.
-        if (AdminIdentity.Of(http).PlayerId.Value == id)
+        if (Actor(http).Value == id && !editor.IsSuperuser)
             return AdminResults.Error(
                 StatusCodes.Status403Forbidden,
                 "You can't change your own permissions."
             );
-
-        var editor = await EditorAsync(http, ct).ConfigureAwait(false);
 
         if (
             await editor.CheckPlayerAsync(id, ct).ConfigureAwait(false)
@@ -333,6 +365,14 @@ internal sealed class PermissionPlayerEndpoints(
             && editor.CheckAssignment(node) is not PermissionEditRefusal.None and var notHeld
         )
             return PermissionResults.Refused(notHeld, editor, node);
+
+        if (
+            change is not null
+            && await editor.CheckKeepsAccessAsync(change, ct).ConfigureAwait(false)
+                is not PermissionEditRefusal.None
+                    and var loses
+        )
+            return PermissionResults.Refused(loses, editor, name);
 
         return null;
     }
