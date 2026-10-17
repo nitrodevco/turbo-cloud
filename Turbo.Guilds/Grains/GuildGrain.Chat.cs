@@ -28,6 +28,7 @@ internal sealed partial class GuildGrain
         _state.ChatListenerIds.Add(playerId.Value);
 
         EnsureChatListenerTimer();
+        PinWhileListened();
 
         return Task.FromResult(true);
     }
@@ -95,12 +96,18 @@ internal sealed partial class GuildGrain
 
         _chatListenerTimer?.Dispose();
         _chatListenerTimer = null;
+
+        // Nobody to deliver to: back to regular idle collection.
+        DelayDeactivation(TimeSpan.Zero);
     }
 
     /// <summary>
-    /// Starts the listener check with the first listener. Its ticks keep the grain loaded
-    /// (<c>KeepAlive</c>) while anyone listens: the listener set is memory only, and a group
-    /// collected for idleness would silently stop delivering its chat.
+    /// Starts the listener check with the first listener. The listener set is memory only, and a
+    /// group collected for idleness silently stopped delivering its chat until each messenger
+    /// joined again; a <c>KeepAlive</c> tick only resets the idle clock, and one every
+    /// <see cref="GuildConfig.ChatListenerCheckMs"/> (5 min) came after the collection age
+    /// (2 min). Each join and each check that leaves someone listening pins the group instead
+    /// (<see cref="PinWhileListened"/>).
     /// </summary>
     private void EnsureChatListenerTimer()
     {
@@ -114,15 +121,21 @@ internal sealed partial class GuildGrain
             {
                 DueTime = TimeSpan.FromMilliseconds(_guildConfig.ChatListenerCheckMs),
                 Period = TimeSpan.FromMilliseconds(_guildConfig.ChatListenerCheckMs),
-                KeepAlive = true,
             }
         );
     }
 
     /// <summary>
+    /// Two check periods (<c>DelayDeactivation</c>, which holds whatever the idle clock says), so
+    /// one late or failed check does not let the pin lapse.
+    /// </summary>
+    private void PinWhileListened() =>
+        DelayDeactivation(TimeSpan.FromMilliseconds(2L * _guildConfig.ChatListenerCheckMs));
+
+    /// <summary>
     /// Drops listeners with no session: a messenger leaves on its owner going offline, but a
-    /// silo that stopped abruptly never told anyone. A failed check is logged and the schedule
-    /// goes on.
+    /// silo that stopped abruptly never told anyone. A failed check is logged, keeps the pin and
+    /// the schedule goes on.
     /// </summary>
     private async Task CheckChatListenersAsync(CancellationToken ct)
     {
@@ -140,6 +153,9 @@ internal sealed partial class GuildGrain
                 if (!online[i])
                     StopListening(listenerIds[i]);
             }
+
+            if (_state.ChatListenerIds.Count > 0)
+                PinWhileListened();
         }
         catch (Exception ex)
         {
@@ -148,6 +164,9 @@ internal sealed partial class GuildGrain
                 "Failed to check the chat listeners of guild {GuildId}",
                 GuildId.Value
             );
+
+            // Taken as still listening until a check can tell.
+            PinWhileListened();
         }
     }
 }
