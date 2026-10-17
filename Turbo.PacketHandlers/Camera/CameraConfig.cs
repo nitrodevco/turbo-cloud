@@ -46,6 +46,9 @@ public sealed class CameraConfig
     /// <summary>The furniture bundles (the client's <c>asset.urls.furni</c>, <c>%libname%</c> for the library); empty uses the script's default.</summary>
     public string RendererFurniUrl { get; init; } = "";
 
+    /// <summary>The room content bundle the planes' textures and masks are drawn from (the client's <c>asset.bundles.room</c>); empty uses the script's default.</summary>
+    public string RendererRoomUrl { get; init; } = "";
+
     /// <summary>The figure libraries an avatar's parts are drawn from (the client's <c>asset.bundles.avatar</c>); empty uses the script's default.</summary>
     public string RendererFigureUrl { get; init; } = "";
 

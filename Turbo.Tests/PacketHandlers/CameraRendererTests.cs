@@ -21,7 +21,9 @@ namespace Turbo.Tests.PacketHandlers;
 /// out of the bundle url, and a canvas larger than a photo is refused instead of allocated.
 /// It draws what the client's camera shows: the avatars' parts (Flash
 /// <c>AvatarVisualization.getSpriteList</c>) from the figure library the figure map names, and the
-/// photo lab's zoom and effects (<c>CameraPhotoLab.renderAllEffects</c>).
+/// photo lab's zoom and effects (<c>CameraPhotoLab.renderAllEffects</c>), each room plane's texture
+/// columns and masks (Flash <c>RoomPlane.getDrawingDatas</c>) from the room content library, and a
+/// flipped sprite as its asset mirrored once.
 /// </summary>
 public sealed class CameraRendererTests : IDisposable
 {
@@ -80,6 +82,7 @@ public sealed class CameraRendererTests : IDisposable
                 {
                     RendererCacheDirectory = Path.Combine(_folder, "cache"),
                     RendererFurniUrl = $"{_server.Url}furni/%libname%.nitro",
+                    RendererRoomUrl = $"{_server.Url}room/%libname%.nitro",
                     RendererFigureUrl = $"{_server.Url}figures/%libname%.nitro",
                     RendererFigureMapUrl = $"{_server.Url}figuremap.json",
                     RendererEffectUrl = $"{_server.Url}effects/%libname%.nitro",
@@ -185,16 +188,21 @@ public sealed class CameraRendererTests : IDisposable
             """;
 
     /// <summary>A PNG of one colour, <paramref name="side"/> pixels square (8-bit RGBA, unfiltered).</summary>
-    private static byte[] Png(int side, uint rgba)
+    private static byte[] Png(int side, uint rgba) => Png(side, side, (_, _) => rgba);
+
+    /// <summary>A PNG <paramref name="width"/> x <paramref name="height"/>, each pixel's RGBA from <paramref name="pixel"/>.</summary>
+    private static byte[] Png(int width, int height, Func<int, int, uint> pixel)
     {
         var raw = new MemoryStream();
 
-        for (var y = 0; y < side; y++)
+        for (var y = 0; y < height; y++)
         {
             raw.WriteByte(0);
 
-            for (var x = 0; x < side; x++)
+            for (var x = 0; x < width; x++)
             {
+                var rgba = pixel(x, y);
+
                 raw.WriteByte((byte)(rgba >> 24));
                 raw.WriteByte((byte)(rgba >> 16));
                 raw.WriteByte((byte)(rgba >> 8));
@@ -209,8 +217,8 @@ public sealed class CameraRendererTests : IDisposable
 
         var ihdr = new byte[13];
 
-        ihdr[3] = (byte)side;
-        ihdr[7] = (byte)side;
+        ihdr[3] = (byte)width;
+        ihdr[7] = (byte)height;
         ihdr[8] = 8;
         ihdr[9] = 6;
 
@@ -273,6 +281,81 @@ public sealed class CameraRendererTests : IDisposable
                 )
             );
             Add($"{name}.png", Png(1, rgba));
+        }
+
+        return zip.ToArray();
+    }
+
+    /// <summary>
+    /// A .nitro library of <paramref name="width"/> x <paramref name="height"/> assets drawn by
+    /// <paramref name="pixel"/>, each with its own frame of the sheet, side by side; an asset with a
+    /// source is that asset's picture, flipped when it says so (as the bundles name a mirrored direction).
+    /// </summary>
+    private static byte[] Library(
+        string name,
+        int width,
+        int height,
+        Func<int, int, uint> pixel,
+        params (string Name, string? Source, bool FlipH)[] assets
+    ) => TrimmedLibrary(name, width, height, pixel, 0, assets);
+
+    /// <summary>
+    /// <see cref="Library(string, int, int, Func{int, int, uint}, ValueTuple{string, string, bool}[])"/>
+    /// with every frame trimmed: its picture lay <paramref name="trim"/> pixels in from the top left
+    /// of a whole picture that much larger, as the bundles pack figure parts.
+    /// </summary>
+    private static byte[] TrimmedLibrary(
+        string name,
+        int width,
+        int height,
+        Func<int, int, uint> pixel,
+        int trim,
+        params (string Name, string? Source, bool FlipH)[] assets
+    )
+    {
+        var drawn = assets
+            .Where(asset => asset.Source == null)
+            .Select(asset => asset.Name)
+            .ToArray();
+        var zip = new MemoryStream();
+
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, true))
+        {
+            void Add(string file, string text)
+            {
+                using var entry = archive.CreateEntry(file).Open();
+
+                entry.Write(Encoding.UTF8.GetBytes(text));
+            }
+
+            var assetList = assets.Select(asset =>
+                asset.Source == null
+                    ? $"{{\"name\":\"{asset.Name}\",\"x\":0,\"y\":0}}"
+                    : $"{{\"name\":\"{asset.Name}\",\"source\":\"{asset.Source}\",\"x\":0,\"y\":0,\"flipH\":{(asset.FlipH ? "true" : "false")}}}"
+            );
+            var frames = drawn.Select(
+                (asset, i) =>
+                    $"\"{asset}\":{{\"frame\":{{\"x\":{i * width},\"y\":0,\"w\":{width},\"h\":{height}}}"
+                    + (
+                        trim > 0
+                            ? $",\"trimmed\":true,\"spriteSourceSize\":{{\"x\":{trim},\"y\":{trim},\"w\":{width},\"h\":{height}}},\"sourceSize\":{{\"w\":{width + trim},\"h\":{height + trim}}}"
+                            : ""
+                    )
+                    + "}"
+            );
+
+            Add(
+                $"{name}.json",
+                $"{{\"name\":\"{name}\",\"assets\":[{string.Join(",", assetList)}]}}"
+            );
+            Add(
+                $"{name}_spritesheet.json",
+                $"{{\"frames\":{{{string.Join(",", frames)}}},\"meta\":{{\"image\":\"{name}.png\"}}}}"
+            );
+
+            using var image = archive.CreateEntry($"{name}.png").Open();
+
+            image.Write(Png(width * drawn.Length, height, (x, y) => pixel(x % width, y)));
         }
 
         return zip.ToArray();
@@ -419,6 +502,238 @@ public sealed class CameraRendererTests : IDisposable
     }
 
     [Fact]
+    public async Task APlanesTextureColumnsAreDrawnFromTheRoomContentTintedByTheirColour()
+    {
+        _server.Serve(
+            "/room/HabboRoomContent.nitro",
+            Library("HabboRoomContent", 2, 2, (_, _) => 0x808080FF, ("wall_tex", null, false))
+        );
+
+        // A 4x4 upright plane (RoomPlane.getDrawingDatas): one column of the 2x2 texture, tinted red.
+        var (drawn, png) = await RenderAsync(
+            """
+            {"planes":[{"z":2,"color":0,"cornerPoints":[{"x":4,"y":4},{"x":0,"y":4},{"x":4,"y":0},{"x":0,"y":0}]},
+              {"z":1,"color":16711680,"bottomAligned":false,"texCols":[{"assetNames":["wall_tex"]}],
+               "cornerPoints":[{"x":4,"y":4},{"x":0,"y":4},{"x":4,"y":0},{"x":0,"y":0}]}],
+             "sprites":[]}
+            """
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain("/room/HabboRoomContent.nitro");
+        PixelAt(png, 0, 0).Should().Be(0x800000FF, "the texture's grey times the plane's red");
+        PixelAt(png, 3, 3)
+            .Should()
+            .Be(0x800000FF, "the column repeats across the plane and its cell down it");
+    }
+
+    [Fact]
+    public async Task AFloorIsReadAtEachPixelsCentreAsTheOfficialPhotoIs()
+    {
+        // A 2x2 texture: red, green / blue, white.
+        _server.Serve(
+            "/room/HabboRoomContent.nitro",
+            Library(
+                "HabboRoomContent",
+                2,
+                2,
+                (x, y) =>
+                    (x, y) switch
+                    {
+                        (0, 0) => 0xFF0000FF,
+                        (1, 0) => 0x00FF00FF,
+                        (0, 1) => 0x0000FFFF,
+                        _ => 0xFFFFFFFF,
+                    },
+                ("floor_tex", null, false)
+            )
+        );
+
+        // A 2:1 floor diamond, its top corner at 4,0: the pixel at 3,1 has its centre over texture pixel 1,1.
+        var (drawn, png) = await RenderAsync(
+            """
+            {"planes":[{"z":2,"color":0,"cornerPoints":[{"x":8,"y":4},{"x":0,"y":4},{"x":8,"y":0},{"x":0,"y":0}]},
+              {"z":1,"color":16777215,"bottomAligned":false,"texCols":[{"assetNames":["floor_tex"]}],
+               "cornerPoints":[{"x":4,"y":4},{"x":0,"y":2},{"x":8,"y":2},{"x":4,"y":0}]}],
+             "sprites":[]}
+            """
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 4, 0)
+            .Should()
+            .Be(0xFF0000FF, "the top corner shows the texture's first pixel");
+        PixelAt(png, 3, 1)
+            .Should()
+            .Be(0xFFFFFFFF, "read at the pixel's centre, one pixel along each side");
+    }
+
+    [Fact]
+    public async Task APlanesMaskCutsItsShapeOutOfThePlane()
+    {
+        // A door mask as the room content has it: black where the hole is, white around it.
+        _server.Serve(
+            "/room/HabboRoomContent.nitro",
+            Library(
+                "HabboRoomContent",
+                2,
+                2,
+                (x, _) => x == 0 ? 0x000000FF : 0xFFFFFFFF,
+                ("door_64", null, false)
+            )
+        );
+
+        var (drawn, png) = await RenderAsync(
+            """
+            {"planes":[{"z":2,"color":255,"cornerPoints":[{"x":4,"y":4},{"x":0,"y":4},{"x":4,"y":0},{"x":0,"y":0}]},
+              {"z":1,"color":16777215,"bottomAligned":false,"texCols":[],
+               "masks":[{"name":"door_64","location":{"x":1,"y":1},"flipH":false,"flipV":false}],
+               "cornerPoints":[{"x":4,"y":4},{"x":0,"y":4},{"x":4,"y":0},{"x":0,"y":0}]}],
+             "sprites":[]}
+            """
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0x0000FFFF, "the hole shows the background behind the wall");
+        PixelAt(png, 2, 1).Should().Be(0xFFFFFFFF, "the mask's white keeps the wall");
+        PixelAt(png, 3, 3).Should().Be(0xFFFFFFFF);
+    }
+
+    [Fact]
+    public async Task AFlippedSpriteIsItsAssetMirroredOnceFromItsX()
+    {
+        // A chair's direction 4 named as its mirrored direction 2 (an asset with a source and flipH):
+        // its left pixel red, its right blue.
+        _server.Serve(
+            "/furni/chair.nitro",
+            Library(
+                "chair",
+                2,
+                1,
+                (x, _) => x == 0 ? 0xFF0000FF : 0x0000FFFF,
+                ("chair_64_a_2_0", null, false),
+                ("chair_64_a_4_0", "chair_64_a_2_0", true)
+            )
+        );
+
+        // As Flash's canvas sends it: the sprite flipped, x where its mirrored picture starts.
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_4_0","x":1,"y":1,"z":-1,"flipH":true}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0x0000FFFF, "mirrored once, the blue pixel comes first");
+        PixelAt(png, 2, 1).Should().Be(0xFF0000FF);
+        PixelAt(png, 0, 1).Should().Be(0x808080FF, "nothing is drawn left of its x");
+    }
+
+    [Fact]
+    public async Task ALibraryThatCannotBeDownloadedNowFailsTheRenderInsteadOfLeavingItOut()
+    {
+        _server.Fail("/furni/chair.nitro");
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeFalse("a picture without the chair the player saw is wrong");
+        File.Exists(png).Should().BeFalse();
+        _server.Requests.Should().Contain("/furni/chair.nitro");
+    }
+
+    [Fact]
+    public async Task ALibraryMissingFromTheHotelIsLeftOutOfThePicture()
+    {
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("a 404 is a library the hotel does not have ({0})", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ACachedLibraryCutShortIsDownloadedAgain()
+    {
+        var library = Library("chair", 1, 1, (_, _) => 0xFF0000FF, ("chair_64_a_2_0", null, false));
+        var cache = Path.Combine(_folder, "cache");
+
+        // What a render that was stopped while it downloaded used to leave in the cache.
+        Directory.CreateDirectory(cache);
+        File.WriteAllBytes(Path.Combine(cache, "chair.nitro"), library[..(library.Length / 2)]);
+        _server.Serve("/furni/chair.nitro", library);
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain("/furni/chair.nitro");
+        PixelAt(png, 1, 1)
+            .Should()
+            .Be(0xFF0000FF, "the chair is drawn from the library downloaded again");
+        File.ReadAllBytes(Path.Combine(cache, "chair.nitro")).Should().Equal(library);
+    }
+
+    [Fact]
+    public async Task ASpriteIsPlacedAtItsPositionCutTowardZero()
+    {
+        _server.Serve(
+            "/furni/chair.nitro",
+            Library("chair", 1, 1, (_, _) => 0xFF0000FF, ("chair_64_a_2_0", null, false))
+        );
+
+        // An official room thumbnail's payload drawn this way matched Habbo's own picture pixel for pixel.
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":1,"y":1.7,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 1, 1).Should().Be(0xFF0000FF, "y 1.7 is row 1");
+        PixelAt(png, 1, 2).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task ATrimmedFrameIsDrawnWhereItLayInTheWholePicture()
+    {
+        _server.Serve(
+            "/furni/chair.nitro",
+            TrimmedLibrary("chair", 1, 1, (_, _) => 0xFF0000FF, 2, ("chair_64_a_2_0", null, false))
+        );
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"chair_64_a_2_0","x":0,"y":0,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 2).Should().Be(0xFF0000FF, "the opaque part lay 2 pixels in");
+        PixelAt(png, 0, 0).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task AHairsBackIsDrawnFromItsHairsLibrary()
+    {
+        // The figure map lists the hair, not its back (hrb), which rides in the same library.
+        _server.Serve(
+            "/figuremap.json",
+            Encoding.UTF8.GetBytes(
+                """{"libraries":[{"id":"hh_human_hair","parts":[{"id":24,"type":"hr"}]}]}"""
+            )
+        );
+        _server.Serve(
+            "/figures/hh_human_hair.nitro",
+            Library("hh_human_hair", "h_std_hrb_24_0_0", 0x00FF00FF)
+        );
+
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"h_std_hrb_24_0_0","x":2,"y":2,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 2).Should().Be(0x00FF00FF);
+    }
+
+    [Fact]
     public async Task ALabEffectTheRendererDoesNotKnowFetchesNothing()
     {
         var (drawn, png) = await RenderAsync(
@@ -439,6 +754,7 @@ public sealed class CameraRendererTests : IDisposable
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
         private readonly ConcurrentDictionary<string, byte[]> _files = new();
         private readonly ConcurrentDictionary<string, string> _redirects = new();
+        private readonly ConcurrentDictionary<string, bool> _failures = new();
         private readonly ConcurrentQueue<string> _requests = new();
         private readonly CancellationTokenSource _stop = new();
 
@@ -455,6 +771,9 @@ public sealed class CameraRendererTests : IDisposable
         public void Serve(string path, byte[] body) => _files[path] = body;
 
         public void Redirect(string path, string to) => _redirects[path] = to;
+
+        /// <summary>Answers <paramref name="path"/> with a server error, as a CDN does while it cannot serve.</summary>
+        public void Fail(string path) => _failures[path] = true;
 
         private async Task AcceptAsync()
         {
@@ -499,7 +818,11 @@ public sealed class CameraRendererTests : IDisposable
             byte[] head;
             var body = Array.Empty<byte>();
 
-            if (_redirects.TryGetValue(path, out var to))
+            if (_failures.ContainsKey(path))
+                head = Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                );
+            else if (_redirects.TryGetValue(path, out var to))
                 head = Encoding.ASCII.GetBytes(
                     $"HTTP/1.1 302 Found\r\nLocation: {to}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                 );
