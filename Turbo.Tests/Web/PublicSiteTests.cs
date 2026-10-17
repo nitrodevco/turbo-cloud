@@ -58,11 +58,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
     private PublicSiteTests(bool registrationOpen, bool showVersion = true)
     {
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            _port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        _port = TestPorts.Free();
 
         _fakes.Handlers["GetActiveBanAsync"] = _ => Task.FromResult(_ban);
         _options = new SiteOptions(open => new WebConfig

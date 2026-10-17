@@ -732,11 +732,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
     {
         int port;
 
-        using (var free = new TcpListener(IPAddress.Loopback, 0))
-        {
-            free.Start();
-            port = ((IPEndPoint)free.LocalEndpoint).Port;
-        }
+        port = TestPorts.Free();
 
         var server = new GamedataServer(
             new ServiceCollection()
