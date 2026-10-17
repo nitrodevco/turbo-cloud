@@ -149,7 +149,11 @@ public sealed class AdminRoomQueries(
             .RoomRights.AsNoTracking()
             .Where(x => x.RoomEntityId == roomId)
             .OrderBy(x => x.PlayerEntity!.Name)
-            .Select(x => new RoomPlayerRef(x.PlayerEntityId, x.PlayerEntity!.Name))
+            .Select(x => new RoomPlayerRef(
+                x.PlayerEntityId,
+                x.PlayerEntity!.Name,
+                x.PlayerEntity.Figure
+            ))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -158,7 +162,12 @@ public sealed class AdminRoomQueries(
             .RoomBans.AsNoTracking()
             .Where(x => x.RoomEntityId == roomId && x.DateExpires > now)
             .OrderBy(x => x.DateExpires)
-            .Select(x => new RoomBanItem(x.PlayerEntityId, x.PlayerEntity.Name, x.DateExpires))
+            .Select(x => new RoomBanItem(
+                x.PlayerEntityId,
+                x.PlayerEntity.Name,
+                x.PlayerEntity.Figure,
+                x.DateExpires
+            ))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -171,6 +180,7 @@ public sealed class AdminRoomQueries(
                     await directory
                         .GetRoomPlayersAsync(new RoomId(roomId), ct)
                         .ConfigureAwait(false),
+                    db,
                     ct
                 )
                 .ConfigureAwait(false)
@@ -295,6 +305,7 @@ public sealed class AdminRoomQueries(
 
     private async Task<List<RoomPlayerRef>> NamedAsync(
         IReadOnlyCollection<PlayerId> players,
+        TurboDbContext db,
         CancellationToken ct
     )
     {
@@ -306,12 +317,22 @@ public sealed class AdminRoomQueries(
             .GetPlayerNamesAsync([.. players], ct)
             .ConfigureAwait(false);
 
+        // The figures as last saved: what the panel draws them by.
+        var ids = players.Select(x => x.Value).ToList();
+        var figures = await db
+            .Players.AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.Figure })
+            .ToDictionaryAsync(x => x.Id, x => x.Figure, ct)
+            .ConfigureAwait(false);
+
         return
         [
             .. players
                 .Select(x => new RoomPlayerRef(
                     x.Value,
-                    names.TryGetValue(x, out var name) ? name : x.ToString()
+                    names.TryGetValue(x, out var name) ? name : x.ToString(),
+                    figures.GetValueOrDefault(x.Value, "")
                 ))
                 .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase),
         ];

@@ -196,6 +196,24 @@ public sealed class AdminRoomQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task ARoomPage_DrawsEachPlayerByTheirOwnFigure()
+    {
+        _db.Insert(new RoomRightEntity { RoomEntityId = 10, PlayerEntityId = BOB });
+        _db.Insert(Ban(1, 10, CAROL, expiresInHours: 1));
+        _activeRooms = [Active(10, population: 2)];
+        _insideRoom10 = [new PlayerId(CAROL), new PlayerId(BOB)];
+
+        var room = await Queries().GetAsync(10, new PlayerId(STAFF), Ct);
+
+        room!
+            .PlayersInside.Select(x => (x.Name, x.Figure))
+            .Should()
+            .Equal(("bob", $"hd-180-{BOB}"), ("carol", $"hd-180-{CAROL}"));
+        room.RightsHolders.Should().ContainSingle().Which.Figure.Should().Be($"hd-180-{BOB}");
+        room.Bans.Should().ContainSingle().Which.Figure.Should().Be($"hd-180-{CAROL}");
+    }
+
+    [Fact]
     public async Task APasswordIsNeverShownOnlyThatThereIsOne()
     {
         var room = await Queries().GetAsync(12, new PlayerId(STAFF), Ct);
@@ -281,7 +299,7 @@ public sealed class AdminRoomQueriesTests : IDisposable
         {
             Id = id,
             Name = name,
-            Figure = "hd-180-1",
+            Figure = $"hd-180-{id}",
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
         };

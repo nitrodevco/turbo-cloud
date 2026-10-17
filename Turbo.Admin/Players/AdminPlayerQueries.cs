@@ -104,6 +104,7 @@ public sealed class AdminPlayerQueries(
             {
                 x.Id,
                 x.Name,
+                x.Figure,
                 x.Motto,
                 x.LastLoginAt,
                 x.CreatedAt,
@@ -125,6 +126,7 @@ public sealed class AdminPlayerQueries(
                 .. rows.Select(x => new PlayerListItem(
                     x.Id,
                     x.Name,
+                    x.Figure,
                     string.IsNullOrWhiteSpace(x.Motto) ? null : x.Motto,
                     online.Contains(x.Id),
                     x.LastLoginAt,

@@ -137,6 +137,15 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchResults_CarryEachPlayersFigure()
+    {
+        var found = await Queries().SearchAsync("", PlayerSearchMode.Name, false, 1, Ct);
+
+        found.Players.Should().OnlyContain(x => x.Figure == $"hd-180-{x.Id}");
+        found.Players.Should().Contain(x => x.Name == "Carol");
+    }
+
+    [Fact]
     public async Task AnIdSearch_FindsThatPlayerOnly()
     {
         (await Queries().SearchAsync("2", PlayerSearchMode.Id, false, 1, Ct))
@@ -306,7 +315,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
         {
             Id = id,
             Name = name,
-            Figure = "hd-180-1",
+            Figure = $"hd-180-{id}",
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
             LastLoginAt = lastLogin,
