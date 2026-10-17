@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Plugins.Extensions;
 
@@ -18,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.Configure<PluginConfig>(pluginSection);
 
         services.AddSingleton<PluginManager>();
+        services.AddSingleton<IPluginAdministration, PluginAdministration>();
         services.AddHostedService<PluginBootstrapper>();
 
         // Read through the bound class, not by key name: a string literal here would keep

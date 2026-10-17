@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -16,6 +18,7 @@ using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -43,6 +46,17 @@ public sealed class PluginManager(
     );
     private readonly SemaphoreSlim _reloadGate = new(1, 1);
 
+    // How each plugin found stands, and the folders whose manifest could not be read, as of the
+    // last scan or action: what the admin panel lists.
+    private readonly ConcurrentDictionary<string, PluginStatus> _status = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private ImmutableArray<(string Folder, string Error)> _unreadable = [];
+
+    internal PluginStateFile State { get; } = new(config.Value.PluginFolderPath);
+
+    internal PluginConfig Config => _config;
+
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
         ValidateScopes = true,
@@ -53,6 +67,7 @@ public sealed class PluginManager(
     {
         var list = new List<(PluginManifest, string)>(capacity: 16);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var unreadable = new List<(string, string)>();
 
         foreach (var devPath in _config.DevPluginPaths)
         {
@@ -73,12 +88,18 @@ public sealed class PluginManager(
             }
             catch (Exception ex)
             {
+                unreadable.Add((dir, ex.Message));
                 _logger.LogError(ex, "Failed to read dev plugin manifest in {Dir}", dir);
             }
         }
 
         if (!Directory.Exists(_config.PluginFolderPath))
+        {
+            _unreadable = [.. unreadable];
+
             return list;
+        }
+
         {
             foreach (var dir in Directory.EnumerateDirectories(_config.PluginFolderPath))
             {
@@ -91,10 +112,13 @@ public sealed class PluginManager(
                 }
                 catch (Exception ex)
                 {
+                    unreadable.Add((dir, ex.Message));
                     _logger.LogError(ex, "Failed to read plugin manifest in {Dir}", dir);
                 }
             }
         }
+
+        _unreadable = [.. unreadable];
 
         return list;
     }
@@ -112,11 +136,21 @@ public sealed class PluginManager(
         {
             var plugins = DiscoverSorted();
             var tasks = new List<Func<Task>>();
+            var disabled = ReadDisabled();
 
             RebuildDependents(plugins.Select(p => p.Manifest));
+            ForgetGone(plugins);
 
             foreach (var (m, folder) in plugins)
             {
+                // A plugin turned off is left out like one removed: unloaded below if it is live.
+                if (disabled.Contains(m.Key))
+                {
+                    SetStatus(m, folder, PluginStateType.Disabled, null);
+
+                    continue;
+                }
+
                 var gate = GetKeyGate(m.Key);
 
                 await gate.WaitAsync(ct).ConfigureAwait(false);
@@ -141,6 +175,7 @@ public sealed class PluginManager(
                     // Its tables cannot be brought up to date (a database from a newer version,
                     // a destructive migration not allowed, migrations set to Check). The message
                     // says what to do; the server carries on without the plugin.
+                    SetStatus(m, folder, PluginStateType.Failed, migration.Message);
                     _logger.LogError(
                         "Not loading {Name}@{Version} by {Author}: {Message}",
                         m.Name,
@@ -151,6 +186,7 @@ public sealed class PluginManager(
                 }
                 catch (Exception ex)
                 {
+                    SetStatus(m, folder, PluginStateType.Failed, ex.Message);
                     _logger.LogError(
                         ex,
                         "Failed to load {Name}@{Version} by {Author}",
@@ -172,7 +208,10 @@ public sealed class PluginManager(
             // Only a plugin whose folder is gone counts as removed. One that failed to reload is
             // still on disk and keeps its previous live version.
             if (unloadRemoved)
-                await UnloadRemovedAsync(plugins.Select(p => p.Manifest.Key), ct)
+                await UnloadRemovedAsync(
+                        plugins.Select(p => p.Manifest.Key).Where(k => !disabled.Contains(k)),
+                        ct
+                    )
                     .ConfigureAwait(false);
 
             _logger.LogInformation("Loaded {Count} plugins", _live.Count);
@@ -204,7 +243,16 @@ public sealed class PluginManager(
             if (match.Manifest is null)
             {
                 await UnloadAsync(key, ct).ConfigureAwait(false);
+                _status.TryRemove(key, out _);
                 _logger.LogInformation("Plugin {Key} was removed from disk and unloaded.", key);
+                return;
+            }
+
+            if (ReadDisabled().Contains(key))
+            {
+                await UnloadAsync(key, ct).ConfigureAwait(false);
+                SetStatus(match.Manifest, match.Folder, PluginStateType.Disabled, null);
+                _logger.LogInformation("Plugin {Key} is turned off, so it was not loaded.", key);
                 return;
             }
 
@@ -222,6 +270,17 @@ public sealed class PluginManager(
                 next.Disposables.Add(disp);
 
                 _logger.LogInformation("Reloaded plugin {Key}", key);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(
+                    match.Manifest,
+                    match.Folder,
+                    PluginStateType.Failed,
+                    MigrationException.FindIn(ex)?.Message ?? ex.Message
+                );
+
+                throw;
             }
             finally
             {
@@ -320,6 +379,17 @@ public sealed class PluginManager(
             {
                 await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
 
+                if (
+                    _status.TryGetValue(key, out var status)
+                    && status.State == PluginStateType.Loaded
+                )
+                    _status[key] = status with
+                    {
+                        State = PluginStateType.NotLoaded,
+                        LoadedAtUtc = null,
+                        Migrations = [],
+                    };
+
                 _logger.LogInformation("Unloaded {Key}", key);
             }
         }
@@ -389,13 +459,24 @@ public sealed class PluginManager(
                 entryPointKey: inst.Key
             );
 
-        var sp = CreatePluginServiceProvider(inst, m);
+        var extensions = new PluginExtensions();
+        var (sp, contexts) = CreatePluginServiceProvider(inst, m, extensions);
 
         await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
         await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
 
+        _status[m.Key] = new PluginStatus(
+            m,
+            folder,
+            PluginStateType.Loaded,
+            null,
+            await ReadMigrationsAsync(sp, contexts, ct).ConfigureAwait(false),
+            DateTime.UtcNow
+        );
+
         return new PluginEnvelope
         {
+            Extensions = extensions,
             Key = m.Key,
             Assembly = asm.Assembly,
             Alc = asm.Alc,
@@ -437,22 +518,236 @@ public sealed class PluginManager(
         return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
     }
 
-    private ServiceProvider CreatePluginServiceProvider(
+    /// <summary>
+    /// The plugin's own container, and the database contexts it registered, whose applied
+    /// migrations the admin panel lists.
+    /// </summary>
+    private (ServiceProvider Services, List<Type> Contexts) CreatePluginServiceProvider(
         ITurboPlugin plugin,
-        PluginManifest manifest
+        PluginManifest manifest,
+        PluginExtensions extensions
     )
     {
         var services = new ServiceCollection();
 
         services.AddSingleton(manifest);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
-        services.AddSingleton<IHostServices>(new HostServices(host));
+        services.AddSingleton<IHostServices>(new HostServices(host, extensions));
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
         plugin.ConfigureServices(services, manifest);
 
-        return services.BuildServiceProvider(SP_OPTIONS);
+        var contexts = services
+            .Select(d => d.ServiceType)
+            .Where(t => typeof(DbContext).IsAssignableFrom(t))
+            .Distinct()
+            .ToList();
+
+        return (services.BuildServiceProvider(SP_OPTIONS), contexts);
     }
+
+    /// <summary>
+    /// The migrations applied for the plugin's tables, by name. Read after its own migrations
+    /// ran; a database that cannot be asked leaves the list empty rather than failing the load.
+    /// </summary>
+    private async Task<ImmutableArray<string>> ReadMigrationsAsync(
+        IServiceProvider sp,
+        List<Type> contexts,
+        CancellationToken ct
+    )
+    {
+        if (contexts.Count == 0)
+            return [];
+
+        var names = new List<string>();
+        var scope = sp.CreateAsyncScope();
+
+        try
+        {
+            foreach (var type in contexts)
+            {
+                var db = (DbContext)scope.ServiceProvider.GetRequiredService(type);
+
+                names.AddRange(
+                    await db.Database.GetAppliedMigrationsAsync(ct).ConfigureAwait(false)
+                );
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not read the applied migrations of a plugin");
+        }
+        finally
+        {
+            await scope.DisposeAsync().ConfigureAwait(false);
+        }
+
+        return [.. names];
+    }
+
+    /// <summary>
+    /// Every plugin found by the last scan or action, live ones with what they registered, then
+    /// the folders whose manifest could not be read.
+    /// </summary>
+    internal ImmutableArray<PluginSnapshot> Snapshot()
+    {
+        var list = new List<PluginSnapshot>();
+
+        foreach (
+            var status in _status.Values.OrderBy(
+                s => s.Manifest.Name,
+                StringComparer.OrdinalIgnoreCase
+            )
+        )
+        {
+            var m = status.Manifest;
+            var extensions = _live.TryGetValue(m.Key, out var env) ? env.Extensions : null;
+
+            list.Add(
+                new PluginSnapshot(
+                    m.Key,
+                    m.Name,
+                    m.Version,
+                    m.Author,
+                    FolderName(status.Folder),
+                    IsDev(status.Folder),
+                    status.State,
+                    status.Error,
+                    [.. m.Dependencies.Select(d => d.Key)],
+                    extensions?.Capabilities ?? [],
+                    extensions?.IncomingHeaders ?? [],
+                    extensions?.OutgoingHeaders ?? [],
+                    status.Migrations,
+                    status.LoadedAtUtc
+                )
+            );
+        }
+
+        foreach (var (folder, error) in _unreadable)
+            list.Add(
+                new PluginSnapshot(
+                    Path.GetFileName(folder),
+                    null,
+                    null,
+                    null,
+                    FolderName(folder),
+                    IsDev(folder),
+                    PluginStateType.Failed,
+                    error,
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    null
+                )
+            );
+
+        return [.. list];
+    }
+
+    /// <summary>The live plugin's folder, or where a known plugin with the key lies.</summary>
+    internal string? FolderOf(string key) =>
+        _status.TryGetValue(key, out var status) ? status.Folder : null;
+
+    internal bool IsDev(string folder) =>
+        !Path.GetFullPath(folder)
+            .StartsWith(
+                Path.GetFullPath(_config.PluginFolderPath).TrimEnd(Path.DirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase
+            );
+
+    private string FolderName(string folder) =>
+        IsDev(folder) ? Path.GetFullPath(folder) : Path.GetFileName(folder);
+
+    /// <summary>
+    /// Scans the folders again so a plugin installed or changed since the
+    /// last scan is known, without loading anything.
+    /// </summary>
+    internal void Refresh()
+    {
+        var plugins = DiscoverPlugins();
+        var disabled = ReadDisabled();
+
+        ForgetGone(plugins);
+
+        foreach (var (m, folder) in plugins)
+        {
+            if (_live.ContainsKey(m.Key) && !disabled.Contains(m.Key))
+                continue;
+
+            SetStatus(
+                m,
+                folder,
+                disabled.Contains(m.Key) ? PluginStateType.Disabled
+                    : _status.TryGetValue(m.Key, out var known) ? known.State
+                    : PluginStateType.NotLoaded,
+                _status.TryGetValue(m.Key, out var was) ? was.Error : null
+            );
+        }
+    }
+
+    private ImmutableHashSet<string> ReadDisabled()
+    {
+        try
+        {
+            return State.Disabled;
+        }
+        catch (Exception ex)
+        {
+            // A broken file turns nothing off rather than stopping every plugin from loading.
+            _logger.LogError(ex, "Could not read {File}; no plugin is turned off", State.Path);
+
+            return ImmutableHashSet<string>.Empty;
+        }
+    }
+
+    private void SetStatus(PluginManifest m, string folder, PluginStateType state, string? error) =>
+        _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
+
+    /// <summary>Forgets plugins whose folder is gone and that are not live.</summary>
+    private void ForgetGone(IEnumerable<(PluginManifest Manifest, string Folder)> plugins)
+    {
+        var found = plugins.Select(p => p.Manifest.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var key in _status.Keys)
+            if (!found.Contains(key) && !_live.ContainsKey(key))
+                _status.TryRemove(key, out _);
+    }
+
+    /// <summary>
+    /// Unloads the plugin, refused while a live plugin depends on it. The caller has turned it
+    /// off already, so the next scan leaves it out too.
+    /// </summary>
+    internal async Task DisableAsync(string key, CancellationToken ct)
+    {
+        await _reloadGate.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            await UnloadAsync(key, ct).ConfigureAwait(false);
+
+            if (_status.TryGetValue(key, out var status))
+                _status[key] = status with
+                {
+                    State = PluginStateType.Disabled,
+                    Error = null,
+                    LoadedAtUtc = null,
+                    Migrations = [],
+                };
+        }
+        finally
+        {
+            _reloadGate.Release();
+        }
+    }
+
+    /// <summary>The dependents of <paramref name="key"/> that are live now.</summary>
+    internal IReadOnlyList<string> LiveDependentsOf(string key) =>
+        _dependents.TryGetValue(key, out var deps)
+            ? [.. deps.Where(_live.ContainsKey).Distinct()]
+            : [];
 
     private async Task StartPluginAsync(
         ITurboPlugin plugin,

@@ -907,6 +907,9 @@ passkey; they add more while signed in instead.
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 | `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
 | `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity and giving or taking them, and the rest of its tabs. |
+| `admin.plugins.view` | The Plugins page: each plugin's manifest, whether it loaded and why not, and the capabilities, packet headers and migrations it added. |
+| `admin.plugins.manage` | Reloading a plugin, scanning the plugin folders again, and turning a plugin off or on on that page. |
+| `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
@@ -998,6 +1001,39 @@ gamedata history. `docs/gamedata.md` has the details.
 (`landing.view.*` and the ones the reception reads besides) beside the hotel's, with the texts its
 new promos name. What you take goes into the draft, a number or switch kept as one, and is saved
 with **Save** like any other change.
+
+## Plugins
+
+The Plugins page lists every plugin the server found: in the plugin folder
+(`Turbo:Plugin:PluginFolderPath`) and in `Turbo:Plugin:DevPluginPaths`. For each, its manifest
+(name, key, version, author, dependencies), whether it is **loaded**, **failed** (with why: a bad
+manifest, a missing dependency, its tables that could not be migrated, an exception as it
+started), **off** or **not loaded** yet, and what it added: the client capabilities it registered,
+the incoming and outgoing packet headers it handles (`docs/plugin-packets.md`) and the migrations
+applied to its tables. A folder whose `manifest.json` can't be read is listed as failed too.
+
+With `admin.plugins.manage`:
+
+- **Reload** loads one plugin again from its folder, as the console's `reload-plugin <key>` does.
+- **Rescan** reads the folders again: new and changed plugins load, removed ones unload
+  (`reload-plugins`, `:reload plugins`).
+- **Turn off** unloads a plugin and keeps it off across restarts; **Turn on** loads it again. A
+  plugin can't be turned off while a loaded plugin depends on it. What is off is kept in
+  `plugins.json` in the plugin folder (`{"Disabled": ["key"]}`), so it travels with the folder and
+  can be edited by hand; the next scan or restart reads it.
+
+**Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`,
+and needs `admin.plugins.install`, which no wildcard grants: a package is server code that runs
+with the hotel's own access. A package is a zip with `manifest.json` and the plugin's assembly at
+its root, or a zipped plugin folder (`dist/<key>` as a plugin's packaging script builds it). The
+manifest is checked first (it needs `Name`, `Key`, `Version` and `AssemblyFile`, its key only
+letters, digits, `.`, `_` and `-`, and the assembly it names), and nothing is written to the
+plugin folder unless it passes. It is installed into `<plugin folder>/<key>`, replacing that
+plugin's files if it is installed already, and loaded. `Turbo:Plugin:MaxUploadBytes` (16 MB)
+bounds the package, packed and unpacked. A plugin from `DevPluginPaths` can't be replaced this way.
+
+Every action on the page, refused ones included, is written to the command log as `plugin
+<action> <key>` from the `panel`, whoever takes it.
 
 ## Server settings
 
