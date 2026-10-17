@@ -65,6 +65,19 @@ public sealed class LtdSaleTests : IDisposable
     }
 
     [Fact]
+    public async Task ARunningBatch_KeepsTheGrainLoadedPastItsWindow()
+    {
+        var (grain, _) = await SeriesAsync(raffled: false);
+
+        (await grain.EnterRaffleAsync(7, Ct)).Success.Should().BeTrue();
+        (await grain.EnterRaffleAsync(8, Ct)).Success.Should().BeTrue();
+
+        // Deactivation draws the batch, so idle collection before the timer would end the
+        // raffle early: the series' 30 s window plus the margin for the draw to run.
+        Pins().Should().Equal(TimeSpan.FromSeconds(30) + TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
     public async Task SalesAfterTheRaffle_NeverRepeatASerial()
     {
         var (grain, _) = await SeriesAsync(raffled: true);
@@ -252,6 +265,9 @@ public sealed class LtdSaleTests : IDisposable
                     )
                 ),
         ];
+
+    private List<TimeSpan> Pins() =>
+        [.. _catalog.Fakes.Log.Of("DelayDeactivation").Select(call => (TimeSpan)call.Args[1]!)];
 
     private int Remaining()
     {

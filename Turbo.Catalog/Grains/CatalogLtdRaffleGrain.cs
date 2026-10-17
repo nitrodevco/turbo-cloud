@@ -31,6 +31,9 @@ namespace Turbo.Catalog.Grains;
 /// </summary>
 internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 {
+    /// <summary>How long past the batch window the grain is kept from deactivating, so its draw can run.</summary>
+    private static readonly TimeSpan DEACTIVATION_MARGIN = TimeSpan.FromMinutes(1);
+
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly CatalogConfig _config;
     private readonly IGrainFactory _grainFactory;
@@ -213,6 +216,10 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 TimeSpan.FromSeconds(buffer),
                 Timeout.InfiniteTimeSpan
             );
+
+            // Deactivation draws the batch, so the grain stays loaded until its timer has run:
+            // idle collection would otherwise end a window longer than the collection age early.
+            DelayDeactivation(TimeSpan.FromSeconds(buffer) + DEACTIVATION_MARGIN);
         }
 
         if (!_state.IsInBufferPeriod)
