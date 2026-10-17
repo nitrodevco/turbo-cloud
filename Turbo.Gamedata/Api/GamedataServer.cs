@@ -73,7 +73,8 @@ internal sealed class GamedataServer(
     public const string PHOTO_ROUTE = "/gamedata/photos/";
     private const string STARTER_ROOM_PICTURE_CACHE = "public, max-age=60";
     private const string ROOM_THUMBNAIL_CACHE = "public, no-cache";
-    private const string PHOTO_DATA_CACHE = "public, max-age=60";
+    private const string PHOTO_DATA_CACHE = "no-store";
+    private const string JSON = "application/json; charset=utf-8";
 
     /// <summary>Where a photo's extra data is served, before <c>&lt;photo id&gt;</c>.</summary>
     public const string PHOTO_DATA_ROUTE = "/gamedata/photodata/";
@@ -199,7 +200,10 @@ internal sealed class GamedataServer(
         return Results.File(Path.GetFullPath(file), "image/png");
     }
 
-    /// <summary>A bought photo's extra data, as it was kept when it was bought; 404 when there is none.</summary>
+    /// <summary>
+    /// A bought photo's extra data, as it was kept when it was bought; 404 when there is none. Not
+    /// cached, as Habbo's (<c>no-store</c>, official client capture).
+    /// </summary>
     private static IResult PhotoData(HttpContext http, ICameraPhotoFiles photos, string id)
     {
         var file = photos.GetExtraDataFile(id);
@@ -209,7 +213,7 @@ internal sealed class GamedataServer(
 
         http.Response.Headers.CacheControl = PHOTO_DATA_CACHE;
 
-        return Results.File(Path.GetFullPath(file), "application/json");
+        return Results.File(Path.GetFullPath(file), JSON);
     }
 
     /// <summary>
@@ -250,11 +254,11 @@ internal sealed class GamedataServer(
                 await File.ReadAllTextAsync(file, ct).ConfigureAwait(false)
             );
 
-            if (data.RootElement.TryGetProperty("w", out var url))
+            if (data.RootElement.TryGetProperty("url", out var url))
                 answers.Add(new { id, url = url.GetString() });
         }
 
-        http.Response.Headers.CacheControl = "no-store";
+        http.Response.Headers.CacheControl = PHOTO_DATA_CACHE;
 
         return Results.Json(answers);
     }

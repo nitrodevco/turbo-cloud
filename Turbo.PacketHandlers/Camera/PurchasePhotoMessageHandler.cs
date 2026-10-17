@@ -99,7 +99,7 @@ public class PurchasePhotoMessageHandler(
             )
             .ConfigureAwait(false);
 
-        var state = CameraPhotoPoster.StateOf(photo);
+        var state = CameraPhotoPoster.StateOf(photo, DateTime.UtcNow);
         var extraData = JsonSerializer.Serialize(
             new Dictionary<string, object> { [ExtraDataSectionType.STUFF] = new { Data = state } }
         );

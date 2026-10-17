@@ -39,7 +39,7 @@ public class RenderRoomMessageHandler(
         )
         {
             var photo = await store
-                .SavePhotoAsync(ctx.PlayerId.Value, json, ct)
+                .SavePhotoAsync(ctx.PlayerId.Value, ctx.RoomId.Value, json, ct)
                 .ConfigureAwait(false);
 
             // With its small copy: bought, the photo is a poster, and a poster draws that one.

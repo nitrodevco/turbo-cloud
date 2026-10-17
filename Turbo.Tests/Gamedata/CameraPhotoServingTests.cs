@@ -113,7 +113,8 @@ public sealed class CameraPhotoServingTests : IAsyncDisposable
         using var one = await _http.GetAsync("/gamedata/photodata/" + photo.Id, Ct);
 
         one.StatusCode.Should().Be(HttpStatusCode.OK);
-        one.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+        one.Content.Headers.ContentType!.ToString().Should().Be("application/json; charset=utf-8");
+        one.Headers.CacheControl!.NoStore.Should().BeTrue();
         one.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
         (await one.Content.ReadAsStringAsync(Ct)).Should().Be(extraData);
 
@@ -125,7 +126,10 @@ public sealed class CameraPhotoServingTests : IAsyncDisposable
 
         using var allowed = await _http.SendAsync(preflight, Ct);
 
-        allowed.Headers.GetValues("Access-Control-Allow-Methods").Should().Contain(x => x.Contains("POST"));
+        allowed
+            .Headers.GetValues("Access-Control-Allow-Methods")
+            .Should()
+            .Contain(x => x.Contains("POST"));
 
         using var batch = await _http.PostAsync(
             "/gamedata/photodata/",

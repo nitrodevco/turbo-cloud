@@ -67,7 +67,16 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
         return false;
     }
 
-    public async Task<CameraPhoto> SavePhotoAsync(int playerId, string json, CancellationToken ct)
+    public Task<CameraPhoto> SavePhotoAsync(int playerId, string json, CancellationToken ct) =>
+        SavePhotoAsync(playerId, 0, json, ct);
+
+    /// <summary>Writes a photo's render data, taken in the room <paramref name="roomId"/>, and makes it the player's last photo.</summary>
+    public async Task<CameraPhoto> SavePhotoAsync(
+        int playerId,
+        int roomId,
+        string json,
+        CancellationToken ct
+    )
     {
         var id = Guid.NewGuid().ToString("N");
         var folder = Path.Combine(_config.StoragePath, "photos");
@@ -81,7 +90,8 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
             $"{_config.StorageUrlPrefix}{id}.png",
             DateTime.UtcNow,
             Path.Combine(folder, $"{id}.json"),
-            Path.Combine(folder, $"{id}.png")
+            Path.Combine(folder, $"{id}.png"),
+            roomId
         );
 
         _lastPhotos[playerId] = photo;
@@ -124,11 +134,12 @@ public sealed class CameraPhotoStore(IOptions<CameraConfig> config)
     public void MarkPublished(int playerId) => _lastPublished[playerId] = DateTime.UtcNow;
 }
 
-/// <summary>A stored photo render: its id, the url the client loads it from, when it was taken, and its JSON and PNG files.</summary>
+/// <summary>A stored photo render: its id, the url the client loads it from, when it was taken, its JSON and PNG files, and the room it was taken in.</summary>
 public sealed record CameraPhoto(
     string Id,
     string Url,
     DateTime CreatedAt,
     string JsonPath,
-    string PngPath
+    string PngPath,
+    int RoomId = 0
 );

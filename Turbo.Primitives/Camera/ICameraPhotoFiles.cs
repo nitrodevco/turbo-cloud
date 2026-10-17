@@ -15,8 +15,8 @@ public interface ICameraPhotoFiles
     string? GetPhotoFile(string name);
 
     /// <summary>
-    /// The photo's extra data on disk, a JSON object (its url <c>w</c>, photographer <c>n</c> and
-    /// <c>s</c>, id <c>u</c> and time <c>t</c>), by the photo's id; null when the photo was never
+    /// The photo's extra data on disk, a JSON object (its <c>url</c>, <c>creator_name</c>,
+    /// <c>creator_id</c>, <c>time</c>, ...), by the photo's id; null when the photo was never
     /// bought, or the id is not a photo's.
     /// </summary>
     string? GetExtraDataFile(string id);

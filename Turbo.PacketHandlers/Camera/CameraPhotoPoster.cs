@@ -5,32 +5,42 @@ using System.Text.Json;
 namespace Turbo.PacketHandlers.Camera;
 
 /// <summary>
-/// A photo poster, as Habbo keeps one. Its state is only when the photo was taken <c>t</c>, in
+/// A photo poster, as Habbo keeps one. Its state is only when it was bought <c>t</c>, in
 /// milliseconds, and the photo's id (an official client capture of two rooms: 102 of 102 posters
-/// are exactly <c>{"t":&lt;ms&gt;,"id":"&lt;id&gt;"}</c>). The client asks the extra data service
-/// (<c>extra_data_service_url</c> + the id, <c>ExternalImageWidget.readFurniJson</c>) for the rest:
-/// the photo's extra data, what <c>ExternalImageWidget.loadPhoto</c> reads - its url <c>w</c>, the
-/// photographer's name <c>n</c> and id <c>s</c>, the photo's id <c>u</c> and its time <c>t</c>.
+/// are exactly <c>{"t":&lt;ms&gt;,"id":"&lt;id&gt;"}</c>, <c>t</c> 0.6 to 742 s after the photo's
+/// time). The client asks the extra data service (<c>extra_data_service_url</c> + the id,
+/// <c>ExternalImageWidget.readFurniJson</c>) for the rest: the photo's extra data, in Habbo's own
+/// keys (the same capture, 100 of 100 answers) - <c>ExternalImageWidget.loadPhoto</c> reads its
+/// <c>url</c>, <c>creator_name</c>, <c>creator_id</c> and <c>time</c>, the date it shows.
 /// </summary>
 public static class CameraPhotoPoster
 {
-    public static string StateOf(CameraPhoto photo) =>
+    private const string TYPE = "PHOTO";
+    private const int VERSION = 1;
+
+    public static string StateOf(CameraPhoto photo, DateTime boughtAt) =>
         JsonSerializer.Serialize(
-            new Dictionary<string, object> { ["t"] = TimeOf(photo), ["id"] = photo.Id }
+            new Dictionary<string, object>
+            {
+                ["t"] = new DateTimeOffset(boughtAt).ToUnixTimeMilliseconds(),
+                ["id"] = photo.Id,
+            }
         );
 
     public static string ExtraDataOf(CameraPhoto photo, int creatorId, string creatorName) =>
         JsonSerializer.Serialize(
             new Dictionary<string, object>
             {
-                ["t"] = TimeOf(photo),
-                ["u"] = photo.Id,
-                ["s"] = creatorId,
-                ["n"] = creatorName,
-                ["w"] = photo.Url,
+                ["id"] = photo.Id,
+                ["url"] = photo.Url,
+                ["previewUrl"] = photo.Url,
+                ["creator_id"] = creatorId,
+                ["creator_name"] = creatorName,
+                ["time"] = new DateTimeOffset(photo.CreatedAt).ToUnixTimeMilliseconds(),
+                ["room_id"] = photo.RoomId,
+                ["type"] = TYPE,
+                ["version"] = VERSION,
+                ["tags"] = Array.Empty<string>(),
             }
         );
-
-    private static long TimeOf(CameraPhoto photo) =>
-        new DateTimeOffset(photo.CreatedAt).ToUnixTimeMilliseconds();
 }
