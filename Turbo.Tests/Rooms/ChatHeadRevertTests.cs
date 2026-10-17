@@ -16,8 +16,8 @@ namespace Turbo.Tests.Rooms;
 /// A listener's head turned toward someone talking, as Habbo does it (official client capture,
 /// hhus 2026-10-17, room 80463631): on the next update the listener's head faces the speaker and
 /// its body stays; exactly ~5.0 s after that the head looks back to the body (3/3: talk, talk,
-/// whisper to it), counted again from a later line. A listener held by a seat keeps its head, yet
-/// still gets the update 5 s later (1/1); one behind the speaker gets neither (3/3). Turbo turned
+/// whisper to it), counted again from a later line, and only when it changes the head (2/2); one
+/// behind the speaker or asleep gets neither (3/3, 2/2). Turbo turned
 /// the head and left it there, a whisper turned nobody, and its quadrant rule turned heads Habbo
 /// keeps ahead and kept heads Habbo turns (a speaker 90 degrees aside, 6+ tiles away).
 /// </summary>
@@ -83,13 +83,14 @@ public sealed class ChatHeadRevertTests
     }
 
     [Fact]
-    public async Task A_listener_held_by_a_seat_keeps_its_head_and_still_gets_the_update_5_s_later()
+    public async Task A_head_already_facing_the_speaker_gets_only_the_look_back()
     {
-        // The recorded positions: the listener on a chair facing north, the speaker at the door.
-        _room.AddFloorItem(10, 7, 7, canSit: true);
+        // The recorded positions: the listener sits on the floor facing north, its head still
+        // north-west from a look at the door, where the speaker talks.
         Enter(SPEAKER, "speaker", 3, 5, Rotation.East);
         var listener = Enter(LISTENER, "listener", 7, 7, Rotation.North);
         listener.Sit(true, rot: Rotation.North);
+        listener.SetHeadRotation(Rotation.NorthWest);
         var start = Now();
         await TickAsync(start);
         var before = Updates().Count;
@@ -97,13 +98,74 @@ public sealed class ChatHeadRevertTests
         await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 4_000);
 
-        listener.HeadRotation.Should().Be(Rotation.North);
         Updates().Should().HaveCount(before);
 
         await TickAsync(start + 5_600);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.North, Rotation.North));
         Updates().Should().HaveCount(before + 1);
+    }
+
+    [Fact]
+    public async Task A_look_back_to_a_head_already_on_the_body_sends_nothing()
+    {
+        // The recorded positions: the listener faces south, the speaker one tile west of its line
+        // of sight; a look straight ahead puts the head back on the body before the time is up.
+        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        var start = Now();
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+        listener.HeadRotation.Should().Be(Rotation.SouthWest);
+
+        await _room.Harness.Room.LookToAsync(
+            ActionContext.CreateForPlayer(100 + LISTENER, _room.Harness.Room.RoomId),
+            6,
+            8,
+            CancellationToken.None
+        );
+        await TickAsync(start + 2_500);
+        LastUpdateOf(LISTENER).Should().Be((Rotation.South, Rotation.South));
+        var before = Updates().Count;
+
+        await TickAsync(start + 5_600);
+
+        Updates().Should().HaveCount(before);
+    }
+
+    [Fact]
+    public async Task A_sleeping_listener_neither_turns_nor_wakes()
+    {
+        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        listener.SetIdle(true);
+        var start = Now();
+        await TickAsync(start);
+        var before = Updates().Count;
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+        await TickAsync(start + 5_600);
+
+        listener.HeadRotation.Should().Be(Rotation.South);
+        listener.IsIdle.Should().BeTrue();
+        Updates().Should().HaveCount(before);
+    }
+
+    [Fact]
+    public async Task A_look_back_still_comes_when_the_listener_falls_asleep()
+    {
+        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        var start = Now();
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+        listener.SetIdle(true);
+        await TickAsync(start + 5_600);
+
+        LastUpdateOf(LISTENER).Should().Be((Rotation.South, Rotation.South));
     }
 
     [Fact]

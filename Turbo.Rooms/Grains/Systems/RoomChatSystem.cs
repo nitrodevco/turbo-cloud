@@ -470,8 +470,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     /// body and posture kept, a floor sitter's too, and looks back 10 ticks (~5.0 s) after it,
     /// counted again from a later line. Chat, shout and a whisper's recipient alike, at any
     /// distance seen (Chebyshev 12). A listener on its last step turns as it arrives; the talker
-    /// never turns. A listener held by a seat keeps its head, yet the room still gets its
-    /// unchanged update when the time is up (1/1).
+    /// never turns, nor does a sleeping listener (2/2), which the line leaves asleep. A head that
+    /// already faces the speaker gets no update for the line, only the look-back (2/2).
     /// </summary>
     private void TurnHeadsTowards(
         IRoomPlayer speaker,
@@ -488,6 +488,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 continue;
 
             if (chatType == RoomChatType.Whisper && avatar.ObjectId != recipient?.ObjectId)
+                continue;
+
+            if (avatar.IsIdle)
                 continue;
 
             var (x, y) = (avatar.X, avatar.Y);
