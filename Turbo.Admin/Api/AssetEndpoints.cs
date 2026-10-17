@@ -55,6 +55,15 @@ internal sealed class AssetEndpoints(
         );
         group.MapGet("/bundles/{kind}/{name}", DetailAsync);
         group.MapGet("/bundles/{kind}/{name}/file", FileAsync);
+        group.MapGet(
+            "/effect-icons",
+            async (CancellationToken ct) =>
+                Results.Ok(
+                    EffectIconsResponse.From(
+                        await bundles.GetEffectIconsAsync(ct).ConfigureAwait(false)
+                    )
+                )
+        );
         group.MapPost("/bundles", UploadAsync);
         group.MapPost("/upload", UploadFileAsync);
         group.MapGet("/pending", (bool? relist, CancellationToken ct) => PendingAsync(relist, ct));

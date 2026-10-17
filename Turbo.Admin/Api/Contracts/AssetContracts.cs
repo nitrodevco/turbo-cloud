@@ -229,6 +229,13 @@ public sealed record AssetBundlesResponse(AssetBundleResponse[] Items, int Total
         new([.. page.Items.Select(AssetBundleResponse.From)], page.Total, page.PageSize);
 }
 
+/// <summary>Each effect's icon by its id, as a PNG's base64, for the panel's list of effects.</summary>
+public sealed record EffectIconsResponse(IReadOnlyDictionary<int, string> Icons)
+{
+    public static EffectIconsResponse From(IReadOnlyDictionary<int, byte[]> icons) =>
+        new(icons.ToDictionary(x => x.Key, x => Convert.ToBase64String(x.Value)));
+}
+
 /// <summary>A file in a bundle's zip.</summary>
 public sealed record AssetBundleFileResponse(string Name, long Size);
 

@@ -209,6 +209,50 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task The_effects_icons_come_from_the_inventory_library()
+    {
+        await _server.StartAsync(Ct);
+
+        var none = await JsonAsync(await SendAsync(HttpMethod.Get, "/api/assets/effect-icons"));
+        none.GetProperty("icons").EnumerateObject().Should().BeEmpty();
+
+        byte[] icon = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+        var bundle = NitroBundle
+            .Create(
+                new Dictionary<string, byte[]>
+                {
+                    ["habbo-inventory-com.json"] = Encoding.UTF8.GetBytes("{}"),
+                    ["habbo-inventory-com-fx_icon_178.png"] = icon,
+                    ["habbo-inventory-com-fx_icon_x.png"] = icon,
+                    ["habbo-inventory-com-tab_effects.png"] = icon,
+                }
+            )
+            .Write();
+
+        await _folder.Store.WriteAsync(AssetBundleKind.Template, "habbo-inventory-com", bundle, Ct);
+        _db.Insert(
+            new AssetBundleEntity
+            {
+                Id = 2,
+                Kind = AssetBundleKind.Template,
+                Name = "habbo-inventory-com",
+                Source = AssetBundleSource.Built,
+                Hash = AssetBundleStore.HashOf(bundle),
+                UpdatedAt = DateTime.UtcNow,
+            }
+        );
+
+        var icons = (await JsonAsync(await SendAsync(HttpMethod.Get, "/api/assets/effect-icons")))
+            .GetProperty("icons")
+            .EnumerateObject()
+            .ToDictionary(x => x.Name, x => x.Value.GetString());
+
+        icons
+            .Should()
+            .Equal(new Dictionary<string, string?> { ["178"] = Convert.ToBase64String(icon) });
+    }
+
+    [Fact]
     public async Task An_upload_it_can_not_take_says_why()
     {
         await _server.StartAsync(Ct);

@@ -44,6 +44,13 @@ internal sealed class AssetBundleService(
     private const string SWF = ".swf";
     private const string HAB = ".hab";
 
+    /// <summary>The template bundle the effects' icons are in, and what each is named there.</summary>
+    private const string EFFECT_ICON_LIBRARY = "habbo-inventory-com";
+    private const string EFFECT_ICON_PREFIX = EFFECT_ICON_LIBRARY + "-fx_icon_";
+
+    // Habbo's are well under a kilobyte; anything this big is not an icon.
+    private const long EFFECT_ICON_MAX_BYTES = 256 * 1024;
+
     public long UploadMaxBytes => Math.Max(1L, config.Value.UploadMaxMegabytes) * 1024 * 1024;
 
     public async Task<AssetOverview> GetOverviewAsync(CancellationToken ct)
@@ -214,6 +221,56 @@ internal sealed class AssetBundleService(
         var path = store.FullPathOf(kind, name);
 
         return hasFile && File.Exists(path) ? path : null;
+    }
+
+    public async Task<ImmutableDictionary<int, byte[]>> GetEffectIconsAsync(CancellationToken ct)
+    {
+        var icons = ImmutableDictionary.CreateBuilder<int, byte[]>();
+
+        if (
+            await GetFilePathAsync(AssetBundleKind.Template, EFFECT_ICON_LIBRARY, ct)
+                .ConfigureAwait(false)
+            is not { } path
+        )
+            return icons.ToImmutable();
+
+        try
+        {
+            using var zip = ZipFile.OpenRead(path);
+
+            foreach (var entry in zip.Entries)
+            {
+                if (
+                    !entry.FullName.StartsWith(EFFECT_ICON_PREFIX, StringComparison.Ordinal)
+                    || !entry.FullName.EndsWith(".png", StringComparison.Ordinal)
+                    || entry.Length > EFFECT_ICON_MAX_BYTES
+                    || !int.TryParse(
+                        entry.FullName.AsSpan(
+                            EFFECT_ICON_PREFIX.Length,
+                            entry.FullName.Length - EFFECT_ICON_PREFIX.Length - ".png".Length
+                        ),
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out var id
+                    )
+                )
+                    continue;
+
+                await using var stream = entry.Open();
+                using var copy = new MemoryStream((int)entry.Length);
+
+                await stream.CopyToAsync(copy, ct).ConfigureAwait(false);
+                icons[id] = copy.ToArray();
+            }
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogWarning(ex, "The effect icons in {Path} could not be read", path);
+
+            return ImmutableDictionary<int, byte[]>.Empty;
+        }
+
+        return icons.ToImmutable();
     }
 
     public async Task<bool> DeleteAsync(

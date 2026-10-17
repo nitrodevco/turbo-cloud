@@ -36,6 +36,13 @@ public interface IAssetBundleService
     /// <summary>A bundle's file on this server; null when it has none.</summary>
     Task<string?> GetFilePathAsync(AssetBundleKind kind, string name, CancellationToken ct);
 
+    /// <summary>
+    /// Each effect's icon by its id, as PNG: the <c>fx_icon_&lt;id&gt;</c> bitmaps of the inventory's
+    /// library (<c>habbo-inventory-com</c>), which the client's effects view draws; empty when the
+    /// hotel has no such template bundle.
+    /// </summary>
+    Task<ImmutableDictionary<int, byte[]>> GetEffectIconsAsync(CancellationToken ct);
+
     /// <summary>Deletes a bundle's row and file; false when there was none.</summary>
     Task<bool> DeleteAsync(
         AssetBundleKind kind,
