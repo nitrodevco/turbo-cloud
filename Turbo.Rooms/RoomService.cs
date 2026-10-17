@@ -35,12 +35,14 @@ namespace Turbo.Rooms;
 internal sealed partial class RoomService(
     ILogger<IRoomService> logger,
     IOptions<RoomConfig> roomConfig,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    TimeProvider time
 ) : IRoomService
 {
     private readonly ILogger<IRoomService> _logger = logger;
     private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly TimeProvider _time = time;
 
     public async Task<FollowFriendErrorCodeType?> FollowFriendAsync(
         PlayerId playerId,

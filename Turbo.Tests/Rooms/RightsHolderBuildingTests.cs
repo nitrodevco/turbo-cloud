@@ -196,7 +196,8 @@ public sealed class RightsHolderBuildingTests
                 typeof(RoomConfig).Assembly.GetType("Turbo.Rooms.RoomService")!,
                 NullLogger<IRoomService>.Instance,
                 Options.Create(new RoomConfig()),
-                room.Grains
+                room.Grains,
+                TimeProvider.System
             )!;
 
     private static bool HasItem(WiredRoom room, int id) =>
