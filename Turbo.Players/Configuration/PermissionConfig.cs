@@ -17,4 +17,11 @@ public class PermissionConfig
 
     /// <summary>How long to wait before trying again after expiring assignments failed.</summary>
     public int ExpiryRetryMs { get; init; } = 60_000;
+
+    /// <summary>
+    /// How often a player's permission grain asks whether its player is still online. It stays
+    /// loaded while they are (what their client was told lives only in that activation), and is
+    /// left to idle collection from the first check that finds no session.
+    /// </summary>
+    public int OnlineCheckMs { get; init; } = 60_000;
 }
