@@ -33,6 +33,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
     public int Respect { get; private set; }
     public int RarityLevel { get; init; }
     public bool HasSaddle { get; private set; }
+    public int? SaddleDefinitionId { get; private set; }
     public bool AnyoneCanRide { get; private set; }
     public bool HasBreedingPermission { get; private set; }
     public DateTime WateredAtUtc { get; private set; }
@@ -91,6 +92,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             Nutrition = snapshot.Nutrition,
             Respect = snapshot.Respect,
             HasSaddle = snapshot.HasSaddle,
+            SaddleDefinitionId = snapshot.HasSaddle ? snapshot.SaddleDefinitionId : null,
             AnyoneCanRide = snapshot.AnyoneCanRide,
             HasBreedingPermission = snapshot.HasBreedingPermission,
             WateredAtUtc = snapshot.WateredAtUtc,
@@ -137,9 +139,10 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
 
     public void SetRespect(int respect) => Respect = Math.Max(0, respect);
 
-    public void SetSaddle(bool hasSaddle)
+    public void SetSaddle(bool hasSaddle, int? saddleDefinitionId)
     {
         HasSaddle = hasSaddle;
+        SaddleDefinitionId = hasSaddle ? saddleDefinitionId : null;
 
         MarkDirty();
     }
@@ -211,6 +214,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             HarvestedAtUtc = HarvestedAtUtc,
             EnergyDecayDueUtc = EnergyDecayDueUtc,
             NutritionDecayDueUtc = NutritionDecayDueUtc,
+            SaddleDefinitionId = SaddleDefinitionId,
         };
 
     protected override RoomPetAvatarSnapshot BuildSnapshot()

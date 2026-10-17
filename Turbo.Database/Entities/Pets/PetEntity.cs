@@ -77,6 +77,10 @@ public class PetEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool HasSaddle { get; set; }
 
+    /// <summary>The saddle definition the pet wears; null when none was recorded.</summary>
+    [Column("saddle_definition_id")]
+    public int? SaddleDefinitionId { get; set; }
+
     [Column("anyone_can_ride")]
     [DefaultValue(false)]
     public bool AnyoneCanRide { get; set; }

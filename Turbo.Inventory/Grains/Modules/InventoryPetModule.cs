@@ -76,6 +76,7 @@ internal sealed class InventoryPetModule(
                     .SetProperty(p => p.Nutrition, snapshot.Nutrition)
                     .SetProperty(p => p.Respect, snapshot.Respect)
                     .SetProperty(p => p.HasSaddle, snapshot.HasSaddle)
+                    .SetProperty(p => p.SaddleDefinitionId, snapshot.SaddleDefinitionId)
                     .SetProperty(p => p.AnyoneCanRide, snapshot.AnyoneCanRide)
                     .SetProperty(p => p.HasBreedingPermission, snapshot.HasBreedingPermission)
                     .SetProperty(p => p.PaletteId, snapshot.Figure.PaletteId)

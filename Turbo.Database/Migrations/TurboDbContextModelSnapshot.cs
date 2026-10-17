@@ -4660,6 +4660,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("direction");
 
+                    b.Property<int?>("SaddleDefinitionId")
+                        .HasColumnType("int")
+                        .HasColumnName("saddle_definition_id");
+
                     b.Property<int>("TypeId")
                         .HasColumnType("int")
                         .HasColumnName("type_id");

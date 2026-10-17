@@ -93,6 +93,13 @@ public sealed record PetSnapshot : IInventoryUnitSnapshot
     [Id(23)]
     public DateTime? NutritionDecayDueUtc { get; init; }
 
+    /// <summary>
+    /// The saddle definition the pet wears, given back when it is taken off; null for none, or
+    /// for a saddle put on before the pet kept which one it was.
+    /// </summary>
+    [Id(24)]
+    public int? SaddleDefinitionId { get; init; }
+
     public int TypeId => Figure.TypeId;
     public int BreedId => Figure.BreedId;
     public bool IsMonsterplant => PetTypes.IsMonsterplant(Figure.TypeId);
