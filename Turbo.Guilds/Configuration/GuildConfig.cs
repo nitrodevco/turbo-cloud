@@ -90,8 +90,8 @@ public class GuildConfig
 
     /// <summary>
     /// How often a group with members in its chat checks that each is still online, dropping
-    /// any whose session ended without leaving (a crashed silo). The check also keeps the group
-    /// loaded while anyone listens, so it must stay under the silo's idle collection age.
+    /// any whose session ended without leaving (a crashed silo). Each join, and each check that
+    /// leaves someone listening, pins the group for two of these while anyone listens.
     /// </summary>
     public int ChatListenerCheckMs { get; init; } = 300000;
 
