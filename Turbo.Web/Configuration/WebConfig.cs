@@ -51,6 +51,12 @@ public sealed class WebConfig
     /// <summary>Sign-in and sign-up requests one address may make a minute.</summary>
     public int SignInAttemptsPerMinute { get; init; } = 20;
 
+    /// <summary>
+    /// Whether <c>/api/version</c> names the server's version and the commit it was built from, so
+    /// a deploy can be checked from outside. Off, the endpoint is not there.
+    /// </summary>
+    public bool ShowVersion { get; init; } = true;
+
     public DiscordConfig Discord { get; init; } = new();
 
     public WiredApiConfig WiredApi { get; init; } = new();

@@ -148,6 +148,7 @@ All settings live under `Turbo:Web`.
 | `PlayTicketMinutes` | `5` | | How long Play's ticket works. Its login uses it up anyway. |
 | `SignUpMinutes` | `15` | | How long someone has to choose a name after their first Discord sign-in. |
 | `SignInAttemptsPerMinute` | `20` | | Sign-in and sign-up requests per address per minute. |
+| `ShowVersion` | `true` | | Whether `/api/version` answers `{"version":"1.0.0","commit":"<sha>"}`: the commit the server was built from, so a deploy can be checked from outside. Off, there is no such endpoint. |
 | `Discord:ClientId` | empty | `TURBO_DISCORD_CLIENT_ID` | The Discord application's client id. |
 | `Discord:ClientSecret` | empty | `TURBO_DISCORD_CLIENT_SECRET` | Its secret. Without both, the site says Discord sign-in isn't available. |
 

@@ -83,6 +83,7 @@ internal sealed class WebApiServer(
         ActivatorUtilities.CreateInstance<AccountEndpoints>(services).Map(api);
         ActivatorUtilities.CreateInstance<WiredVariablesEndpoints>(services).Map(api);
         ActivatorUtilities.CreateInstance<PublicRoomsEndpoints>(services).Map(api);
+        ActivatorUtilities.CreateInstance<VersionEndpoints>(services).Map(api);
 
         try
         {

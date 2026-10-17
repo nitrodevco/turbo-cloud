@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Web;
 using FluentAssertions;
@@ -55,7 +56,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
     public PublicSiteTests()
         : this(registrationOpen: true) { }
 
-    private PublicSiteTests(bool registrationOpen)
+    private PublicSiteTests(bool registrationOpen, bool showVersion = true)
     {
         using (var free = new TcpListener(IPAddress.Loopback, 0))
         {
@@ -71,6 +72,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
             SiteUrl = SITE,
             ClientUrl = "https://play.example.com/?sso={ticket}",
             RegistrationOpen = open,
+            ShowVersion = showVersion,
             SignInAttemptsPerMinute = 1000,
             Discord = new DiscordConfig
             {
@@ -317,6 +319,56 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
         (await closed.SignInWithDiscordAsync("new")).Should().Be($"{SITE}/?error=closed");
         (await closed.SignInWithDiscordAsync("cool")).Should().Be($"{SITE}/");
+    }
+
+    [Fact]
+    public async Task Version_NamesTheCommitTheServerWasBuiltFrom()
+    {
+        await _server.StartAsync(Ct);
+
+        var built = typeof(WebConfig)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+            .InformationalVersion;
+        var version = await _browser.GetFromJsonAsync<JsonElement>("/api/version", Ct);
+
+        // Stamped like a deploy's build, 1.0.0+<the checkout's commit>, when built in a checkout.
+        var plus = built.IndexOf('+');
+
+        version.GetProperty("version").GetString().Should().Be(plus < 0 ? built : built[..plus]);
+        version
+            .GetProperty("commit")
+            .GetString()
+            .Should()
+            .Be(plus < 0 ? null : built[(plus + 1)..]);
+    }
+
+    [Fact]
+    public async Task Version_WhenHidden_IsNotThere()
+    {
+        await using var hidden = new PublicSiteTests(registrationOpen: true, showVersion: false);
+
+        await hidden._server.StartAsync(Ct);
+
+        (await hidden._browser.GetAsync("/api/version", Ct))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData("1.0.0+8879e9f5a2f0", "1.0.0", "8879e9f5a2f0")]
+    [InlineData("1.0.0", "1.0.0", null)]
+    [InlineData("1.0.0+", "1.0.0", null)]
+    [InlineData(null, "", null)]
+    public void Version_ReadsTheBuildStamp(string? stamp, string version, string? commit)
+    {
+        var describe = typeof(WebConfig)
+            .Assembly.GetType("Turbo.Web.Api.VersionEndpoints")!
+            .GetMethod("Describe")!;
+
+        describe
+            .Invoke(null, [stamp])
+            .Should()
+            .Be(new Turbo.Web.Api.Contracts.VersionResponse(version, commit));
     }
 
     [Fact]
