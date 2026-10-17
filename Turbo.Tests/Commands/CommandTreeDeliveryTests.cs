@@ -116,6 +116,8 @@ public class CommandTreeDeliveryTests
             CancellationToken.None
         );
 
+        await TreesSentAsync(before, 10);
+
         TreesTo(10).Should().HaveCount(before);
 
         await handler.HandleAsync(
@@ -128,6 +130,8 @@ public class CommandTreeDeliveryTests
             null!,
             CancellationToken.None
         );
+
+        await TreesSentAsync(before + 1, 10);
 
         TreesTo(10).Should().HaveCount(before + 1);
         TreesTo(10).Last().Tree.Commands.Select(x => x.Name).Should().Equal("boot", "hello");
