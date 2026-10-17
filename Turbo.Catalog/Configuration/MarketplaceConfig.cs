@@ -2,12 +2,12 @@ namespace Turbo.Catalog.Configuration;
 
 /// <summary>
 /// The marketplace: what GetMarketplaceConfiguration tells the client, and the limits the server
-/// holds offers to. Off by default (a hotel turns it on); the numbers are Habbo's (recorded on
-/// hhus, 2026-10-12, 18 samples since).
+/// holds offers to. On by default and every number Habbo's (recorded on hhus, 2026-10-12, 25
+/// samples since, isEnabled true in all); a hotel turns it off with <see cref="Enabled"/>.
 /// </summary>
 public sealed class MarketplaceConfig
 {
-    public bool Enabled { get; init; } = false;
+    public bool Enabled { get; init; } = true;
     public int Commission { get; init; } = 1;
     public int TokenBatchPrice { get; init; } = 0;
     public int TokenBatchSize { get; init; } = 0;

@@ -43,4 +43,28 @@ public sealed class MarketplaceConfigurationTests
             packet.PopBytes(packet.Remaining)
         );
     }
+
+    /// <summary>
+    /// A hotel that sets nothing answers as Habbo does: on. Off by default, the inventory never
+    /// showed "sell" (FurniView.updateActionButtons needs MarketplaceModel.isEnabled).
+    /// </summary>
+    [Fact]
+    public async Task the_marketplace_is_on_unless_the_hotel_turns_it_off()
+    {
+        var fakes = new Fakes();
+
+        await new GetMarketplaceConfigurationMessageHandler(
+            Options.Create(new CatalogConfig())
+        ).HandleAsync(
+            new GetMarketplaceConfigurationMessage(),
+            new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
+            TestContext.Current.CancellationToken
+        );
+
+        var composer = Assert.IsType<MarketplaceConfigurationEventMessageComposer>(
+            fakes.Log.Of("SendComposerAsync").Single().Args[0]
+        );
+
+        Assert.True(PacketHarness.Encode(composer).PopBoolean());
+    }
 }
