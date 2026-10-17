@@ -34,6 +34,9 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
     private const int COLOR_FIELD = 3;
     private const int BRIGHTNESS_FIELD = 4;
 
+    // Extra data sections are written camel-cased (ExtraDataWriter); read them back the same way.
+    private static readonly JsonSerializerOptions PRESET_JSON = new(JsonSerializerDefaults.Web);
+
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
     // The client opens its editor on double-click and switches through ToggleDimmer.
@@ -174,7 +177,7 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
 
         try
         {
-            stored = element.Deserialize<List<DimmerPresetSnapshot>>();
+            stored = element.Deserialize<List<DimmerPresetSnapshot>>(PRESET_JSON);
         }
         catch (JsonException)
         {
