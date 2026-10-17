@@ -140,6 +140,7 @@ public sealed class NetworkManager(
         builder.UseSession<TcpSessionContext>();
         builder.UsePipelineFilter<TcpFilter>();
         builder.UseSessionGateway();
+        builder.UseClosingConnections();
 
         _tcpHost = builder.Build();
     }
@@ -199,6 +200,7 @@ public sealed class NetworkManager(
         );
         builder.UseSession<WebSocketSessionContext>();
         builder.UseSessionGateway();
+        builder.UseClosingConnections();
 
         _wsHost = builder.Build();
     }
