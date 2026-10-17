@@ -35,6 +35,13 @@ internal sealed class InventoryLiveState
     /// </summary>
     public SessionKey FurnitureListSessionKey { get; set; } = SessionKey.Invalid;
 
+    /// <summary>
+    /// Whether this activation knows if a client holds the furni list. A new one does not: the
+    /// activation collected before it may have sent the list to a session still connected,
+    /// whose client keeps that list as current and would never ask again.
+    /// </summary>
+    public bool IsFurnitureListHolderKnown { get; set; }
+
     public InventoryUnitSection<PetSnapshot> Pets { get; } = new();
     public InventoryUnitSection<BotSnapshot> Bots { get; } = new();
 }

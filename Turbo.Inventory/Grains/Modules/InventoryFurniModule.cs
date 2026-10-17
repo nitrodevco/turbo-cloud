@@ -456,6 +456,8 @@ internal sealed class InventoryFurniModule(
             composers.Add(new FurniListInvalidateEventMessageComposer());
         }
 
+        _state.IsFurnitureListHolderKnown = true;
+
         await Presence.SendComposerAsync(composers, ct);
     }
 
@@ -463,6 +465,9 @@ internal sealed class InventoryFurniModule(
     /// Items joined the section or changed in it. Only a client holding the list is told, with
     /// the items themselves; one that has not asked for it yet gets the rows with the rest when
     /// it does. The session that asked having gone, no later one is told until it asks itself.
+    /// An activation that does not know whether a client holds the list (the one before it was
+    /// collected while the player stayed online) calls the list stale once instead, so a client
+    /// holding it asks again when the inventory next shows it (Flash <c>onFurniListInvalidate</c>).
     /// </summary>
     private async Task SendAddedOrUpdatedAsync(
         ImmutableArray<FurnitureItemSnapshot> items,
@@ -471,8 +476,20 @@ internal sealed class InventoryFurniModule(
     {
         var sessionKey = _state.FurnitureListSessionKey;
 
-        if (items.IsDefaultOrEmpty || sessionKey == SessionKey.Invalid)
+        if (items.IsDefaultOrEmpty)
             return;
+
+        if (sessionKey == SessionKey.Invalid)
+        {
+            if (_state.IsFurnitureListHolderKnown)
+                return;
+
+            _state.IsFurnitureListHolderKnown = true;
+
+            await Presence.SendComposerAsync(new FurniListInvalidateEventMessageComposer(), ct);
+
+            return;
+        }
 
         var sent = await Presence.TrySendComposerToSessionAsync(
             sessionKey,
