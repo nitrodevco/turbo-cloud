@@ -105,7 +105,6 @@ public class AchievementDefaultsTests
                 x =>
                 {
                     Assert.Equal(10, x.Score);
-                    Assert.Empty(x.Rewards);
                 }
             );
         }

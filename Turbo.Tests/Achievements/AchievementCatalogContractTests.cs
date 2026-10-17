@@ -10,6 +10,7 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -624,7 +625,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
 
         catalog.Current.Should().HaveCount(pack.Definitions.Length);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:3:");
+        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:4:");
         Directory.Delete(assetDirectory, recursive: true);
     }
 
@@ -702,6 +703,111 @@ public sealed class AchievementCatalogContractTests : IDisposable
         (await db.AchievementAudit.CountAsync(x => x.OperationId.StartsWith("pack-hook:"), Ct))
             .Should()
             .Be(1);
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    [Fact]
+    public async Task AHotelOnThePackWithoutRewardsHasItsUntouchedAchievementsPaidAndItsEditedOnesKept()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-pack-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        var texts = new Dictionary<string, string>();
+        var current = new HabboAchievementPack();
+        foreach (var code in current.Definitions.SelectMany(x => x.Levels).Select(x => x.BadgeCode))
+        {
+            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            texts["badge_name_" + code] = code;
+            texts["badge_desc_" + code] = code;
+        }
+        var duckets = CurrencyKind.ActivityPoints(0);
+        _fakes.Handlers[nameof(ICurrencyTypeProvider.TryGetCurrencyTypeId)] = call =>
+        {
+            call.Args[1] = 4;
+            return (CurrencyKind)call.Args[0]! == duckets;
+        };
+        // Version 3 shipped every level without a reward.
+        var older = new TestAchievementPack(
+            HabboAchievementPack.KEY,
+            3,
+            [.. current.IdRanges],
+            [
+                .. current.Definitions.Select(x =>
+                    x with
+                    {
+                        Levels = [.. x.Levels.Select(level => level with { Rewards = [] })],
+                    }
+                ),
+            ]
+        );
+        var config = new AchievementConfig { BadgeAssetDirectory = assetDirectory };
+        var onOlder = NewCatalog(config, texts, new AchievementPackRegistry([older]));
+        await onOlder.ReloadAsync(Ct);
+        onOlder.Current.Single(x => x.Key == "figure").Levels[0].Rewards.Should().BeEmpty();
+        // The hotel edited one of them since: it is the hotel's now.
+        var visits = onOlder.Current.Single(x => x.Key == "rooms-visited");
+        await onOlder.ImportAsync(
+            [visits with { Revision = visits.Revision + 1, Order = visits.Order + 1 }],
+            true,
+            "admin",
+            "reorder",
+            "edit-rooms-visited",
+            Ct
+        );
+
+        var onCurrent = NewCatalog(config, texts, new AchievementPackRegistry([current]));
+        await onCurrent.ReloadAsync(Ct);
+        await onCurrent.ReloadAsync(Ct);
+
+        // ACH_AvatarLooks1 pays 50 duckets (official client capture tour-basic-2026-10-15T23-48-59).
+        var figure = onCurrent.Current.Single(x => x.Key == "figure");
+        figure.Revision.Should().Be(3);
+        figure
+            .Levels[0]
+            .Rewards.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<AchievementReward>(x =>
+                x.Handler == "wallet" && x.Currency == duckets && x.Amount == 50
+            );
+        var kept = onCurrent.Current.Single(x => x.Key == "rooms-visited");
+        kept.Revision.Should().Be(visits.Revision + 1);
+        kept.Levels.Should().OnlyContain(x => x.Rewards.IsEmpty);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(x => x.OperationId.StartsWith("pack-rewards:"), Ct))
+            .Should()
+            .Be(1);
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    [Fact]
+    public async Task AHotelWithoutTheRewardCurrencyStillInstallsThePack_PayingNothing()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-pack-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        var texts = new Dictionary<string, string>();
+        var pack = new HabboAchievementPack();
+        foreach (var code in pack.Definitions.SelectMany(x => x.Levels).Select(x => x.BadgeCode))
+        {
+            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            texts["badge_name_" + code] = code;
+            texts["badge_desc_" + code] = code;
+        }
+        var catalog = NewCatalog(
+            new AchievementConfig { BadgeAssetDirectory = assetDirectory },
+            texts,
+            new AchievementPackRegistry([pack])
+        );
+
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Should().HaveCount(pack.Definitions.Length);
+        catalog.Current.SelectMany(x => x.Levels).Should().OnlyContain(x => x.Rewards.IsEmpty);
         Directory.Delete(assetDirectory, recursive: true);
     }
 
@@ -1013,6 +1119,15 @@ public sealed class AchievementCatalogContractTests : IDisposable
     {
         var dictionary = texts ?? new Dictionary<string, string>();
         HotelTextFakes.Use(_fakes, key => dictionary.GetValueOrDefault(key));
+        // No currency unless a test gives one; the out argument must still be written.
+        _fakes.Handlers.TryAdd(
+            nameof(ICurrencyTypeProvider.TryGetCurrencyTypeId),
+            call =>
+            {
+                call.Args[1] = 0;
+                return false;
+            }
+        );
         return new AchievementCatalog(
             _db,
             _fakes.Create<ICurrencyTypeProvider>(),

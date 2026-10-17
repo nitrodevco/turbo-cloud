@@ -64,7 +64,7 @@ public sealed class HabboAchievementPackTests
         AchievementDefaults.Crackables.Should().HaveCount(9);
         AchievementDefaults.Unhooked.Should().HaveCount(141);
         Pack.Definitions.Should().HaveCount(168);
-        Pack.Version.Should().Be(3);
+        Pack.Version.Should().Be(4);
     }
 
     [Fact]
@@ -118,6 +118,38 @@ public sealed class HabboAchievementPackTests
         }
     }
 
+    /// <summary>
+    /// A level pays what official client captures recorded as its <c>levelRewardPoints</c> in
+    /// <c>levelRewardPointType</c> (0, duckets), and a level no capture showed with a reward pays nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("ACH_AvatarLooks1", 50)]
+    [InlineData("ACH_EmailVerification1", 20)]
+    [InlineData("ACH_LegDay4", 10)]
+    [InlineData("ACH_RoomDecoFurniCount8", 50)]
+    [InlineData("ACH_SnowStormWin_1", 50)]
+    [InlineData("ACH_Login1", 0)]
+    [InlineData("ACH_LegDay7", 0)]
+    public void ALevelPaysTheDucketsOfficialCapturesRecordedForIt(string badgeCode, int duckets)
+    {
+        var level = Pack
+            .Definitions.SelectMany(x => x.Levels)
+            .Single(x => x.BadgeCode == badgeCode);
+
+        if (duckets == 0)
+            level.Rewards.Should().BeEmpty();
+        else
+            level
+                .Rewards.Should()
+                .Equal(
+                    new AchievementReward
+                    {
+                        Currency = Turbo.Primitives.Players.Wallet.CurrencyKind.ActivityPoints(0),
+                        Amount = duckets,
+                    }
+                );
+    }
+
     [Fact]
     public void RetiredRecordsShipArchivedAndEverythingElseDisabledOnThePlaceholderSource()
     {
@@ -135,7 +167,7 @@ public sealed class HabboAchievementPackTests
                 .Be(state == "ARCHIVED" ? AchievementState.Archived : AchievementState.Disabled);
             definition.Source.Should().Be(AchievementSources.UNHOOKED);
             definition.Reducer.Should().Be(AchievementReducer.Counter);
-            definition.Levels.Should().OnlyContain(x => x.Score == 10 && x.Rewards.IsEmpty);
+            definition.Levels.Should().OnlyContain(x => x.Score == 10);
         }
         AchievementDefaults
             .Unhooked.Count(x => x.State == AchievementState.Archived)

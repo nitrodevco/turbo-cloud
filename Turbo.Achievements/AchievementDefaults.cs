@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
+using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Achievements;
 
@@ -18,6 +19,19 @@ public static class AchievementDefaults
     // Creation times in the snapshot describe definitions, never activation cutoffs.
     private static readonly ImmutableDictionary<string, JsonElement> PublishedCatalog =
         LoadPublishedCatalog();
+
+    /// <summary>
+    /// What Habbo pays for reaching a level, by published name and level, as official client
+    /// captures recorded it: the <c>levelRewardPoints</c> and <c>levelRewardPointType</c> of the
+    /// level in the <c>Achievements</c> list, an <c>Achievement</c> progress update and the
+    /// level-up notification (<c>HabboAchievementNotification</c>), which agree in every capture.
+    /// Only the levels a capture showed with a reward are here; a level no capture showed pays
+    /// nothing until a hotel gives it a reward.
+    /// </summary>
+    private static readonly ImmutableDictionary<
+        (string Name, int Level),
+        CurrencyReward
+    > RecordedRewards = LoadRecordedRewards();
 
     /// <summary>
     /// The crackables achievements crackable furni record, by published name: the one Sulake's furni
@@ -289,29 +303,32 @@ public static class AchievementDefaults
         // read as level 171), so those take an underscore before it.
         var badgePrefix = "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
 
-        return Create(
-            id,
-            KeyOf(name),
-            achievement.GetProperty("category").GetString()!,
-            AchievementSources.UNHOOKED,
-            AchievementReducer.Counter,
-            1,
-            published
-                .GetProperty("levelRequirements")
-                .EnumerateArray()
-                .Select(x => x.GetProperty("requiredScore").GetInt32())
-                .ToArray(),
-            badgePrefix,
-            false,
-            0
-        ) with
-        {
-            Revision = 1,
-            State =
-                achievement.GetProperty("state").GetString() == "ARCHIVED"
-                    ? AchievementState.Archived
-                    : AchievementState.Disabled,
-        };
+        return Rewarded(
+            name,
+            Create(
+                id,
+                KeyOf(name),
+                achievement.GetProperty("category").GetString()!,
+                AchievementSources.UNHOOKED,
+                AchievementReducer.Counter,
+                1,
+                published
+                    .GetProperty("levelRequirements")
+                    .EnumerateArray()
+                    .Select(x => x.GetProperty("requiredScore").GetInt32())
+                    .ToArray(),
+                badgePrefix,
+                false,
+                0
+            ) with
+            {
+                Revision = 1,
+                State =
+                    achievement.GetProperty("state").GetString() == "ARCHIVED"
+                        ? AchievementState.Archived
+                        : AchievementState.Disabled,
+            }
+        );
     }
 
     private static AchievementDefinition HookCrackable(string name, JsonElement published) =>
@@ -372,28 +389,80 @@ public static class AchievementDefaults
                 .All(x => x)
         )
             throw new InvalidOperationException("Published achievement levels must be contiguous.");
-        return Create(
-            id,
-            key,
-            achievement.GetProperty("category").GetString()!,
-            source,
-            reducer,
-            divisor,
-            requirements.Select(x => x.GetProperty("requiredScore").GetInt32()).ToArray(),
-            "ACH_" + publishedName,
-            true,
-            0
-        ) with
-        {
-            State = state switch
+        return Rewarded(
+            publishedName,
+            Create(
+                id,
+                key,
+                achievement.GetProperty("category").GetString()!,
+                source,
+                reducer,
+                divisor,
+                requirements.Select(x => x.GetProperty("requiredScore").GetInt32()).ToArray(),
+                "ACH_" + publishedName,
+                true,
+                0
+            ) with
             {
-                "ENABLED" => AchievementState.Enabled,
-                "ARCHIVED" => AchievementState.Archived,
-                "OFF_SEASON" => AchievementState.OffSeason,
-                _ => AchievementState.Disabled,
-            },
-        };
+                State = state switch
+                {
+                    "ENABLED" => AchievementState.Enabled,
+                    "ARCHIVED" => AchievementState.Archived,
+                    "OFF_SEASON" => AchievementState.OffSeason,
+                    _ => AchievementState.Disabled,
+                },
+            }
+        );
     }
+
+    /// <summary>Gives each level of a published record the reward <see cref="RecordedRewards"/> has for it.</summary>
+    private static AchievementDefinition Rewarded(string name, AchievementDefinition definition) =>
+        definition with
+        {
+            Levels =
+            [
+                .. definition.Levels.Select(
+                    (level, index) =>
+                        RecordedRewards.TryGetValue((name, index + 1), out var reward)
+                            ? level with
+                            {
+                                Rewards =
+                                [
+                                    new AchievementReward
+                                    {
+                                        Currency = CurrencyKind.ActivityPoints(reward.PointType),
+                                        Amount = reward.Points,
+                                    },
+                                ],
+                            }
+                            : level
+                ),
+            ],
+        };
+
+    private static ImmutableDictionary<
+        (string Name, int Level),
+        CurrencyReward
+    > LoadRecordedRewards()
+    {
+        using var stream =
+            typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
+                "Turbo.Achievements.Resources.habbo-achievement-level-rewards-2026-10-17.json"
+            )
+            ?? throw new InvalidOperationException("The recorded achievement rewards are missing.");
+        return (
+            JsonSerializer.Deserialize<JsonElement[]>(stream)
+            ?? throw new InvalidOperationException("The recorded achievement rewards are invalid.")
+        ).ToImmutableDictionary(
+            x => (x.GetProperty("name").GetString()!, x.GetProperty("level").GetInt32()),
+            x => new CurrencyReward(
+                x.GetProperty("points").GetInt32(),
+                x.GetProperty("pointType").GetInt32()
+            )
+        );
+    }
+
+    private readonly record struct CurrencyReward(int Points, int PointType);
 
     private static AchievementDefinition Create(
         int id,
