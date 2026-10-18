@@ -39,6 +39,7 @@ namespace Turbo.Rooms.Grains;
 /// is left. A write that fails keeps its rows queued for the next tick. Pet care
 /// operations are the write-through exception: their pet mutation and achievement receipt commit
 /// together, then their result is merged into any buffered pet snapshot before it is returned.
+/// A use that uses an item up or grants something is the other one (<see cref="WriteUseAsync"/>).
 /// </summary>
 internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 {
@@ -312,24 +313,11 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         _state.DeletedItemIds.Clear();
 
-        // Borrowed furni lives in its own table, keyed by this room and the id the room gave it.
-        var borrowedIds = ids.Where(FurniIdBands.IsBuildersClub).ToList();
-        var ownedIds = ids.Where(x => !FurniIdBands.IsBuildersClub(x)).ToList();
-
         try
         {
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            if (ownedIds.Count > 0)
-                await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
-
-            if (borrowedIds.Count > 0)
-                await dbCtx
-                    .BuildersClubFurnitures.Where(x =>
-                        x.RoomEntityId == _state.RoomId.Value
-                        && borrowedIds.Contains(x.RoomObjectId)
-                    )
-                    .ExecuteDeleteAsync(ct);
+            await DeleteItemRowsAsync(dbCtx, ids, ct);
         }
         catch (Exception ex)
         {
@@ -342,6 +330,81 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             foreach (var id in ids)
                 _state.DeletedItemIds.Add(id);
+        }
+    }
+
+    private async Task DeleteItemRowsAsync(
+        TurboDbContext dbCtx,
+        List<int> ids,
+        CancellationToken ct
+    )
+    {
+        // Borrowed furni lives in its own table, keyed by this room and the id the room gave it.
+        var borrowedIds = ids.Where(FurniIdBands.IsBuildersClub).ToList();
+        var ownedIds = ids.Where(x => !FurniIdBands.IsBuildersClub(x)).ToList();
+
+        if (ownedIds.Count > 0)
+            await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
+
+        if (borrowedIds.Count > 0)
+            await dbCtx
+                .BuildersClubFurnitures.Where(x =>
+                    x.RoomEntityId == _state.RoomId.Value && borrowedIds.Contains(x.RoomObjectId)
+                )
+                .ExecuteDeleteAsync(ct);
+    }
+
+    public async Task WriteUseAsync(
+        RoomId roomId,
+        RoomObjectId? usedItemId,
+        List<PetSnapshot> pets,
+        CancellationToken ct
+    )
+    {
+        // These are newer than anything queued for them, and a queued update of the used item
+        // would only resurrect its row.
+        if (usedItemId is { } itemId)
+        {
+            _state.DirtyItems.Remove(itemId);
+            _state.RemovedItemIds.Remove(itemId);
+            _state.DeletedItemIds.Remove(itemId);
+        }
+
+        foreach (var pet in pets)
+            _state.DirtyPets.Remove(pet.Id);
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var transaction = await dbCtx.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct
+            );
+
+            if (usedItemId is { } id)
+                await DeleteItemRowsAsync(dbCtx, [id.Value], ct);
+
+            if (pets.Count > 0)
+                await WritePetRowsAsync(dbCtx, pets, ct);
+
+            await dbCtx.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to write the use of item {ItemId} ({Count} pets) for room {RoomId}; queued for the next flush",
+                usedItemId,
+                pets.Count,
+                _state.RoomId
+            );
+
+            if (usedItemId is { } queued)
+                _state.DeletedItemIds.Add(queued);
+
+            foreach (var pet in pets)
+                _state.DirtyPets.TryAdd(pet.Id, pet);
         }
     }
 
@@ -762,55 +825,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            var ids = batch.Select(x => x.Id).ToList();
             await using var transaction = await dbCtx.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
                 ct
             );
-            var rows = await dbCtx
-                .Pets.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId)
-                .ToDictionaryAsync(x => x.Id, ct);
 
-            foreach (var pet in batch)
-            {
-                if (!rows.TryGetValue(pet.Id, out var row))
-                    continue;
-
-                row.Name = pet.Name;
-                if (pet.Level > row.Level)
-                    _achievementFacts.Record(
-                        dbCtx,
-                        pet.OwnerId,
-                        new()
-                        {
-                            Source = AchievementSources.PET_LEVEL,
-                            Amount = pet.Level - row.Level,
-                            OperationId = Guid.NewGuid().ToString("N"),
-                            OccurredAtUtc = DateTime.UtcNow,
-                        }
-                    );
-                row.Level = Math.Max(row.Level, pet.Level);
-                row.Experience = Math.Max(row.Experience, pet.Experience);
-                row.Energy = pet.Energy;
-                row.Nutrition = pet.Nutrition;
-                row.Respect = Math.Max(row.Respect, pet.Respect);
-                row.HasSaddle = pet.HasSaddle;
-                row.SaddleDefinitionId = pet.SaddleDefinitionId;
-                row.AnyoneCanRide = pet.AnyoneCanRide;
-                row.HasBreedingPermission = pet.HasBreedingPermission;
-                row.PaletteId = pet.Figure.PaletteId;
-                row.Color = pet.Figure.Color;
-                row.CustomParts = PetFigure.SerializeCustomParts(pet.Figure.CustomParts);
-                row.X = pet.X;
-                row.Y = pet.Y;
-                row.Z = pet.Z.Value;
-                row.Rotation = pet.Rotation;
-                row.WateredAt = pet.WateredAtUtc;
-                row.HarvestedAt = pet.HarvestedAtUtc;
-                row.EnergyDecayDueAt = pet.EnergyDecayDueUtc;
-                row.NutritionDecayDueAt = pet.NutritionDecayDueUtc;
-            }
+            await WritePetRowsAsync(dbCtx, batch, ct);
 
             await dbCtx.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
@@ -829,6 +849,60 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 _state.DirtyPets.TryAdd(pet.Id, pet);
 
             return false;
+        }
+    }
+
+    /// <summary>Tracks the batch's changes on the rows still standing in this room; the caller saves.</summary>
+    private async Task WritePetRowsAsync(
+        TurboDbContext dbCtx,
+        List<PetSnapshot> batch,
+        CancellationToken ct
+    )
+    {
+        var roomId = _state.RoomId.Value;
+        var ids = batch.Select(x => x.Id).ToList();
+        var rows = await dbCtx
+            .Pets.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId)
+            .ToDictionaryAsync(x => x.Id, ct);
+
+        foreach (var pet in batch)
+        {
+            if (!rows.TryGetValue(pet.Id, out var row))
+                continue;
+
+            row.Name = pet.Name;
+            if (pet.Level > row.Level)
+                _achievementFacts.Record(
+                    dbCtx,
+                    pet.OwnerId,
+                    new()
+                    {
+                        Source = AchievementSources.PET_LEVEL,
+                        Amount = pet.Level - row.Level,
+                        OperationId = Guid.NewGuid().ToString("N"),
+                        OccurredAtUtc = DateTime.UtcNow,
+                    }
+                );
+            row.Level = Math.Max(row.Level, pet.Level);
+            row.Experience = Math.Max(row.Experience, pet.Experience);
+            row.Energy = pet.Energy;
+            row.Nutrition = pet.Nutrition;
+            row.Respect = Math.Max(row.Respect, pet.Respect);
+            row.HasSaddle = pet.HasSaddle;
+            row.SaddleDefinitionId = pet.SaddleDefinitionId;
+            row.AnyoneCanRide = pet.AnyoneCanRide;
+            row.HasBreedingPermission = pet.HasBreedingPermission;
+            row.PaletteId = pet.Figure.PaletteId;
+            row.Color = pet.Figure.Color;
+            row.CustomParts = PetFigure.SerializeCustomParts(pet.Figure.CustomParts);
+            row.X = pet.X;
+            row.Y = pet.Y;
+            row.Z = pet.Z.Value;
+            row.Rotation = pet.Rotation;
+            row.WateredAt = pet.WateredAtUtc;
+            row.HarvestedAt = pet.HarvestedAtUtc;
+            row.EnergyDecayDueAt = pet.EnergyDecayDueUtc;
+            row.NutritionDecayDueAt = pet.NutritionDecayDueUtc;
         }
     }
 

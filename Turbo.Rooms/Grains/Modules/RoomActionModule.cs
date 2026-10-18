@@ -503,9 +503,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             removeDelayMs: removeDelayMs
         );
 
+        // Written before the caller grants what the item was worth, and with the pets it changed
+        // (a saddle strapped on): queued for the flush, the row outlived the grant by up to
+        // RoomConfig.DirtyItemsTickMs, and a crash in between gave the item back.
         await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .EnqueueDeletedItemAsync(_roomGrain.RoomId, itemId, ct);
+            .WriteUseAsync(_roomGrain.RoomId, itemId, PetModule.TakeDirtySnapshots(), ct);
 
         return true;
     }

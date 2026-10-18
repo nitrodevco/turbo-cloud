@@ -396,6 +396,39 @@ public sealed class CrackableFurniTests
         grant.Args[0].Should().Be(777);
     }
 
+    // Queued for the next flush, the box's row outlived its prize by up to two seconds: a crash
+    // in between brought the box back to be cracked again (r36 rig: row deleted 2204 ms after
+    // the client saw the furni go; killed inside that, the furni was back with the grant kept).
+    [Fact]
+    public async Task A_cracked_box_is_deleted_from_the_database_before_its_prize_is_given()
+    {
+        _room.Enter(GUEST_AVATAR, 3, 4);
+        _room.Harness.Fakes.Handlers["TryGetDefinitionByName"] = call =>
+            call.Args[0] is "easter_r17_prize"
+                ? Definition(777, "easter_r17_prize", 2, null, FurnitureUsageType.Controller)
+                : null;
+        AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"rewardSet":"easter17_6","target":1,"rewardTo":"Cracker","rewards":[{"furni":"easter_r17_prize"}]}}""",
+            totalStates: 3,
+            usage: FurnitureUsageType.Everybody
+        );
+
+        await UseAsync(GUEST);
+        await RunTimersAsync();
+
+        var calls = _room.Harness.Fakes.Log.Calls.ToList();
+        var written = calls.FindIndex(x =>
+            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == BOX
+        );
+        written.Should().BeGreaterThanOrEqualTo(0, "the box's row is deleted at once");
+        written.Should().BeLessThan(calls.FindIndex(x => x.Method == "GrantFurnitureAsync"));
+        calls.Should().NotContain(x => x.Method == "EnqueueDeletedItemAsync");
+    }
+
     [Fact]
     public async Task A_draw_can_be_a_set_of_furni_all_given_together()
     {

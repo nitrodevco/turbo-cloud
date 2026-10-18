@@ -49,6 +49,20 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct);
 
     /// <summary>
+    /// Writes a use now rather than on the next flush: the used-up item's row (none when
+    /// <paramref name="usedItemId"/> is null) is deleted and <paramref name="pets"/>, what the use
+    /// changed, are written, in one transaction. What the use grants elsewhere (credits, an item
+    /// given back) is written at once by its own grain, so a row left for the flush came back
+    /// after a crash with the grant kept. A write that fails stays queued for the next flush.
+    /// </summary>
+    public Task WriteUseAsync(
+        RoomId roomId,
+        RoomObjectId? usedItemId,
+        List<PetSnapshot> pets,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Writes the row behind a newly borrowed furni, now rather than on the next flush: the room
     /// waits for it, because a borrow the database never heard of would vanish on the next room
     /// load while still counting against the borrower. False when the write failed, and the

@@ -7,12 +7,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Achievements;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Inventory;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Navigator.Enums;
@@ -453,6 +455,63 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             await db.SaveChangesAsync(Ct);
         }
         Assert.True(await inventory.DeletePetAsync(PET_ID, Ct));
+    }
+
+    // A use (a saddle strapped on) deletes the used item's row and writes the pet it changed at
+    // once, in one transaction.
+    [Fact]
+    public async Task A_use_deletes_the_item_and_writes_the_pet_at_once()
+    {
+        _db.Insert(
+            new FurnitureDefinitionEntity
+            {
+                Id = 2840,
+                SpriteId = 2840,
+                Name = "horse_saddle2",
+                ProductType = ProductType.Floor,
+                FurniCategory = FurnitureCategory.PetSaddle,
+                Logic = "pet_saddle",
+                Width = 1,
+                Length = 1,
+                StackHeight = 1,
+                CanStack = true,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = true,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+            }
+        );
+        _db.Insert(
+            new FurnitureEntity
+            {
+                Id = 41,
+                PlayerEntityId = OWNER_ID,
+                FurnitureDefinitionEntityId = 2840,
+                RoomEntityId = ROOM_ID,
+                X = 2,
+                Y = 2,
+            }
+        );
+        PetSnapshot saddled;
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            var pet = await db.Pets.SingleAsync(Ct);
+            pet.RoomEntityId = ROOM_ID;
+            await db.SaveChangesAsync(Ct);
+            saddled = pet.ToSnapshot("owner") with { HasSaddle = true, SaddleDefinitionId = 2840 };
+        }
+        var persistence = CreatePersistenceGrain().Persistence;
+
+        await persistence.WriteUseAsync((RoomId)ROOM_ID, 41, [saddled], Ct);
+
+        await using var after = await _db.CreateDbContextAsync(Ct);
+        (await after.Furnitures.AnyAsync(Ct)).Should().BeFalse("the saddle is used up at once");
+        var row = await after.Pets.SingleAsync(Ct);
+        row.HasSaddle.Should().BeTrue("the horse wears it from the same write");
+        row.SaddleDefinitionId.Should().Be(2840);
     }
 
     private IInventoryGrain CreateInventory()

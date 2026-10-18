@@ -533,6 +533,16 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
     }
 
     /// <summary>
+    /// Writes the marked pets now rather than on the next hand-over, before something is granted
+    /// for what they just gave up (a saddle taken off, a seed harvested): left for the hand-over,
+    /// a crash in between kept the grant and gave it again.
+    /// </summary>
+    internal Task PersistNowAsync(CancellationToken ct) =>
+        _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .WriteUseAsync(_roomGrain.RoomId, null, TakeDirtySnapshots(), ct);
+
+    /// <summary>
     /// The rows of the pets marked since the last hand-over, as they stand now. A pet that left
     /// meanwhile is skipped: whoever took it wrote it back. A pet that has come to rest
     /// somewhere new since its position was last written is marked first.
