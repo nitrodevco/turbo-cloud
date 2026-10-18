@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Main.Settings;
 using Turbo.Primitives.Settings;
+using Turbo.Runtime.Configuration;
 
 namespace Turbo.Tests.Support;
 
@@ -56,6 +57,9 @@ internal sealed class SettingsHarness : IDisposable
 
         var services = new ServiceCollection();
 
+        // As the host has them: its configuration, and lists and maps bound whole.
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddWholeCollectionBinding();
         register(services, configuration);
 
         var registry = ServerSettingRegistry.From(services);

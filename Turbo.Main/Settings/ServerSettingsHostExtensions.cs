@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
+using Turbo.Runtime.Configuration;
 
 namespace Turbo.Main.Settings;
 
@@ -29,6 +30,8 @@ internal static class ServerSettingsHostExtensions
         builder.Services.Configure<ServerSettingsConfig>(
             builder.Configuration.GetSection(ServerSettingsConfig.SECTION_NAME)
         );
+        // A list or map is one setting: what configuration gives is the whole of it.
+        builder.Services.AddWholeCollectionBinding();
         builder.Services.AddSingleton(ServerSettingRegistry.From(builder.Services));
         builder.Services.AddSingleton<ServerSettingsService>();
         builder.Services.AddSingleton<IServerSettings>(sp =>
