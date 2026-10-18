@@ -24,6 +24,14 @@ internal sealed class ServerSettingsConfigurationProvider(
     /// <summary>Why the overrides couldn't be read when they were last read; null when they were.</summary>
     public string? LoadError { get; private set; }
 
+    /// <summary>
+    /// Why the overrides couldn't be read the first time, as the server started; null when they
+    /// were. Kept when a later read works: the options the server started with lack them still.
+    /// </summary>
+    public string? StartupError { get; private set; }
+
+    private bool _loaded;
+
     public override void Load()
     {
         var read = _load();
@@ -54,6 +62,13 @@ internal sealed class ServerSettingsConfigurationProvider(
         }
 
         LoadError = errors.Count == 0 ? null : string.Join("; ", errors);
+
+        if (!_loaded)
+        {
+            StartupError = LoadError;
+            _loaded = true;
+        }
+
         Data = data;
         _paths = paths;
         overrides.Replace(whole);

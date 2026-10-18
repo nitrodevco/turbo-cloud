@@ -382,6 +382,47 @@ public sealed class ServerSettingsTests : IDisposable
     }
 
     [Fact]
+    public async Task overrides_the_server_could_not_read_as_it_started_are_said_until_it_restarts()
+    {
+        var reads = 0;
+        var configuration = new ConfigurationManager();
+
+        ServerSettingsConfiguration.AddTo(
+            configuration,
+            () =>
+                reads++ == 0
+                    ? new ServerSettingsLoad(
+                        [],
+                        "The panel's settings couldn't be read: no database"
+                    )
+                    : ServerSettingsLoad.NONE
+        );
+
+        var services = new ServiceCollection();
+
+        services.Configure<TestHotelConfig>(configuration.GetSection(TestHotelConfig.SECTION_NAME));
+
+        using var provider = services.BuildServiceProvider();
+        using var settings = new ServerSettingsService(
+            configuration,
+            provider,
+            _db,
+            ServerSettingRegistry.From(services),
+            Microsoft.Extensions.Options.Options.Create(new ServerSettingsConfig()),
+            new CapturingLogger<ServerSettingsService>()
+        );
+
+        settings.StartupLoadError.Should().Contain("no database");
+
+        // Read again as one is saved, and read this time: what started without them still runs.
+        await settings.SaveAsync("Test:Hotel:MaxUsers", "60", STAFF, Ct);
+
+        reads.Should().Be(2);
+        settings.StartupLoadError.Should().Contain("no database");
+        Harness().Settings.StartupLoadError.Should().BeNull();
+    }
+
+    [Fact]
     public async Task a_setting_its_module_fills_in_as_it_starts_waits_on_a_restart_only_when_changed()
     {
         // Turbo:Habbicons:Collections, left empty, runs with Habbo's collections: a restart

@@ -69,8 +69,11 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
 
         // Read as the server started, before there was a logger: the server runs without its
         // panel overrides, so say why.
-        if (ServerSettingsConfiguration.Find(configuration)?.LoadError is { } error)
-            _logger.LogWarning("Reading the panel's server settings: {Error}", error);
+        if (StartupLoadError is { } error)
+            _logger.LogWarning(
+                "The panel's server settings couldn't be read as the server started, so it runs without them: {Error}",
+                error
+            );
 
         _reloads = ChangeToken.OnChange(
             configuration.GetReloadToken,
@@ -79,6 +82,9 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     }
 
     public int Version => Volatile.Read(ref _version);
+
+    public string? StartupLoadError =>
+        ServerSettingsConfiguration.Find(_configuration)?.StartupError;
 
     public ImmutableArray<ServerSettingSnapshot> List() => Current().Settings;
 
