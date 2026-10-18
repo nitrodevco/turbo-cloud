@@ -14,6 +14,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Quests;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Messages.Outgoing.Quest;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -424,6 +425,11 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
                         CurrencyKind.ActivityPoints(pointType),
                         amount,
                         CREDIT_REFERENCE_PREFIX + task.Id.ToString(CultureInfo.InvariantCulture),
+                        MovementCause.New(
+                            MovementCauses.REWARD_DAILY_TASK,
+                            _state.PlayerId.Value,
+                            task.Id
+                        ),
                         ct
                     );
 

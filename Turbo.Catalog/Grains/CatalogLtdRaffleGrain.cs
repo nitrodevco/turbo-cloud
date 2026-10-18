@@ -17,6 +17,7 @@ using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
@@ -322,6 +323,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         // between the charge and the commit fails, the rollback undoes the serial and the charge
         // is given back by hand.
         List<WalletDebitRequest>? charged = null;
+        MovementCause? cause = null;
         var committed = false;
 
         try
@@ -355,9 +357,10 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             }
 
             var debits = offer.ToDebitRequests(1);
+            cause = MovementCause.New(MovementCauses.CATALOG_LTD_RAFFLE, playerId, series.Id);
             var debitResult = await _grainFactory
                 .GetPlayerWalletGrain(playerId)
-                .TryDebitAsync(debits, ct);
+                .TryDebitAsync(debits, cause, ct);
 
             if (!debitResult.Succeeded)
             {
@@ -460,10 +463,11 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
             await tx.RollbackAsync();
 
-            if (charged is not null && !committed)
+            if (charged is not null && cause is not null && !committed)
                 await _grainFactory.RefundAsync(
                     PlayerId.Parse(playerId),
                     charged,
+                    cause,
                     _logger,
                     $"LTD series {_state.SeriesId}"
                 );

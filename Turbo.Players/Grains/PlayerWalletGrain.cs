@@ -10,9 +10,11 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
+using Turbo.Database.Movements;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -36,6 +38,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
     private readonly IGrainFactory _grainFactory;
     private readonly ICurrencyTypeProvider _currencyTypeProvider;
     private readonly IPlayerNoticeService _noticeService;
+    private readonly IAssetMovementRecorder _movements;
     private readonly ILogger<IPlayerWalletGrain> _logger;
 
     private readonly PlayerWalletLiveState _state;
@@ -47,6 +50,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         IGrainFactory grainFactory,
         ICurrencyTypeProvider currencyTypeProvider,
         IPlayerNoticeService noticeService,
+        IAssetMovementRecorder movements,
         ILogger<IPlayerWalletGrain> logger
     )
     {
@@ -54,6 +58,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         _grainFactory = grainFactory;
         _currencyTypeProvider = currencyTypeProvider;
         _noticeService = noticeService;
+        _movements = movements;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -77,10 +82,12 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
     /// Takes every requested currency or none. Each currency is one conditional update
     /// (<c>amount = amount - cost WHERE amount &gt;= cost</c>), so the database refuses a short
     /// balance itself; with more than one currency they share a transaction, and the first one
-    /// the balance cannot cover rolls the others back. Memory moves only after the commit.
+    /// the balance cannot cover rolls the others back. Memory moves only after the commit. While
+    /// recording, the movements of every currency taken commit in that same transaction.
     /// </summary>
     public async Task<WalletDebitResult> TryDebitAsync(
         List<WalletDebitRequest> requests,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -91,14 +98,16 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             return WalletDebitResult.Success();
 
         var updates = new List<WalletCurrencyUpdateSnapshot>(normalizedRequests.Count);
+        var recording = _movements.IsRecording;
         WalletDebitRequest? current = null;
 
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-            // One statement is atomic on its own; only several need a transaction around them.
+            // One statement is atomic on its own; several, or one and its movement, need a
+            // transaction around them.
             await using var tx =
-                normalizedRequests.Count > 1
+                normalizedRequests.Count > 1 || recording
                     ? await dbCtx.Database.BeginTransactionAsync(ct)
                     : null;
 
@@ -146,6 +155,22 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
                         Amount = snapshot!.Amount - cost,
                     }
                 );
+            }
+
+            if (recording)
+            {
+                var at = DateTime.UtcNow;
+
+                _movements.Record(
+                    dbCtx,
+                    [
+                        .. normalizedRequests.Select(
+                            (request, seq) =>
+                                Debited(cause, seq, at, request.CurrencyKind, request.Amount)
+                        ),
+                    ]
+                );
+                await dbCtx.SaveChangesAsync(ct);
             }
 
             if (tx is not null)
@@ -217,16 +242,25 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             new WalletDebitFailure { CurrencyKind = request.CurrencyKind, Amount = request.Amount }
         );
 
-    public Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
-        CreditCoreAsync(kind, amount, reward: false, ct);
+    public Task<bool> CreditAsync(
+        CurrencyKind kind,
+        int amount,
+        MovementCause cause,
+        CancellationToken ct
+    ) => CreditCoreAsync(kind, amount, reward: false, cause, ct);
 
-    public Task<bool> CreditRewardAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
-        CreditCoreAsync(kind, amount, reward: true, ct);
+    public Task<bool> CreditRewardAsync(
+        CurrencyKind kind,
+        int amount,
+        MovementCause cause,
+        CancellationToken ct
+    ) => CreditCoreAsync(kind, amount, reward: true, cause, ct);
 
     private async Task<bool> CreditCoreAsync(
         CurrencyKind kind,
         int amount,
         bool reward,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -254,6 +288,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
                 entity.PendingRewardAmount = checked(entity.PendingRewardAmount + amount);
             newAmount = entity.Amount;
 
+            _movements.Record(dbCtx, Credited(cause, kind, amount));
             await dbCtx.SaveChangesAsync(ct);
 
             _state.CurrenciesByKind[kind] = snapshot with { Amount = newAmount };
@@ -282,6 +317,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             };
 
             dbCtx.PlayerCurrencies.Add(entity);
+            _movements.Record(dbCtx, Credited(cause, kind, amount));
 
             await dbCtx.SaveChangesAsync(ct);
 

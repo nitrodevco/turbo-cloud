@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -18,6 +19,7 @@ internal sealed partial class PlayerWalletGrain
         string awardKey,
         CurrencyKind kind,
         int amount,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -63,6 +65,7 @@ internal sealed partial class PlayerWalletGrain
                 PayloadJson = payload,
             }
         );
+        _movements.Record(db, Credited(cause, kind, amount));
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         _state.CurrenciesByKind[kind] = balance.ToSnapshot(kind);

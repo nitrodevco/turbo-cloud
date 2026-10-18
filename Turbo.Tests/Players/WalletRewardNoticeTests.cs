@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
 using Turbo.Players;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -28,6 +29,7 @@ public class WalletRewardNoticeTests : IDisposable
     private readonly TestNotices _notices = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static readonly MovementCause Cause = MovementCause.New("test", 0);
 
     public WalletRewardNoticeTests()
     {
@@ -78,8 +80,8 @@ public class WalletRewardNoticeTests : IDisposable
         _notices.Delivery = PlayerNoticeDelivery.Offline;
         var wallet = await NewWalletAsync(Ct);
 
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 40, Ct)).Should().BeTrue();
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 15, Ct)).Should().BeTrue();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 40, Cause, Ct)).Should().BeTrue();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 15, Cause, Ct)).Should().BeTrue();
 
         await AssertCurrencyAsync(amount: 55, pending: 55);
         _notices.Rewards.Should().BeEmpty();
@@ -104,7 +106,7 @@ public class WalletRewardNoticeTests : IDisposable
         var wallet = await NewWalletAsync(Ct);
         _notices.Delivery = result;
 
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 23, Ct)).Should().BeTrue();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 23, Cause, Ct)).Should().BeTrue();
         await AssertCurrencyAsync(amount: 23, pending: 23);
 
         _notices.Delivery = PlayerNoticeDelivery.Sent;
@@ -119,7 +121,7 @@ public class WalletRewardNoticeTests : IDisposable
     {
         var wallet = await NewWalletAsync(Ct);
 
-        (await wallet.CreditAsync(CurrencyKind.Credits, 12, Ct)).Should().BeTrue();
+        (await wallet.CreditAsync(CurrencyKind.Credits, 12, Cause, Ct)).Should().BeTrue();
 
         await AssertCurrencyAsync(amount: 12, pending: 0);
         _notices.Rewards.Should().BeEmpty();
@@ -131,7 +133,7 @@ public class WalletRewardNoticeTests : IDisposable
         var wallet = await NewWalletAsync(Ct);
         _notices.Delivery = PlayerNoticeDelivery.Sent;
 
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 31, Ct)).Should().BeTrue();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 31, Cause, Ct)).Should().BeTrue();
         await wallet.DeliverPendingRewardsAsync(Ct);
 
         _notices.Rewards.Should().ContainSingle().Which.Amount.Should().Be(31);
@@ -144,13 +146,15 @@ public class WalletRewardNoticeTests : IDisposable
         var wallet = await NewWalletAsync(Ct);
         _notices.Delivery = PlayerNoticeDelivery.Offline;
 
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 0, Ct)).Should().BeFalse();
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, -1, Ct)).Should().BeFalse();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 0, Cause, Ct)).Should().BeFalse();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, -1, Cause, Ct)).Should().BeFalse();
         await using (var db = await _db.CreateDbContextAsync(Ct))
             (await db.PlayerCurrencies.CountAsync(Ct)).Should().Be(0);
 
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, int.MaxValue, Ct)).Should().BeTrue();
-        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 1, Ct)).Should().BeFalse();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, int.MaxValue, Cause, Ct))
+            .Should()
+            .BeTrue();
+        (await wallet.CreditRewardAsync(CurrencyKind.Credits, 1, Cause, Ct)).Should().BeFalse();
 
         await AssertCurrencyAsync(amount: int.MaxValue, pending: int.MaxValue);
     }

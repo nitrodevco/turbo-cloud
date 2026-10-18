@@ -188,7 +188,7 @@ public sealed class WiredChestTests : IDisposable
         Rows(20).Should().BeEmpty();
 
         _fakes.Handlers["CreditAsync"] = call =>
-            call.Args.Length == 4 ? Task.FromResult(WalletCreditResult.Applied) : Fakes.NotHandled;
+            call.Args[2] is string ? Task.FromResult(WalletCreditResult.Applied) : Fakes.NotHandled;
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),
@@ -215,7 +215,9 @@ public sealed class WiredChestTests : IDisposable
         await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), Ct);
 
         _fakes.Handlers["CreditAsync"] = call =>
-            call.Args.Length == 4 ? Task.FromResult(WalletCreditResult.Rejected) : Fakes.NotHandled;
+            call.Args[2] is string
+                ? Task.FromResult(WalletCreditResult.Rejected)
+                : Fakes.NotHandled;
 
         var withdrawal = await chest.WithdrawAsync(
             Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut),

@@ -1,6 +1,6 @@
 # Idempotent wallet credit
 
-`IPlayerWalletGrain.CreditAsync(kind, amount, reference, ct)` credits a balance at most once
+`IPlayerWalletGrain.CreditAsync(kind, amount, reference, cause, ct)` credits a balance at most once
 per `(player, reference)`. Use it when a credit must survive a retry, for example a plugin that
 commits its own database transaction first and then credits the wallet (outbox pattern): if it
 crashes before recording success, it repeats the call and the player is not paid twice.
@@ -15,9 +15,15 @@ crashes before recording success, it repeats the call and the player is not paid
 
 ```csharp
 var wallet = grains.GetPlayerWalletGrain(playerId);
-var result = await wallet.CreditAsync(CurrencyKind.Credits, 50, $"shop:order-{order.Id}", ct);
+var result = await wallet.CreditAsync(
+    CurrencyKind.Credits,
+    50,
+    $"shop:order-{order.Id}",
+    MovementCause.New("shop.order", playerId.Value, order.Id), // docs/movements.md
+    ct
+);
 if (result != WalletCreditResult.Rejected)
     await MarkOrderCreditedAsync(order, ct); // safe to repeat after a crash
 ```
 
-The existing `CreditAsync(kind, amount, ct)` is unchanged and keeps no receipt.
+The existing `CreditAsync(kind, amount, cause, ct)` keeps no receipt.

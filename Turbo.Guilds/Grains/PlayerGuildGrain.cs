@@ -17,6 +17,7 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Guilds;
@@ -240,9 +241,13 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 ]
                 : [];
 
+        var cause = MovementCause.New(MovementCauses.GROUP_CREATE, PlayerId.Value);
+
         if (cost.Count > 0)
         {
-            var debit = await _grainFactory.GetPlayerWalletGrain(PlayerId).TryDebitAsync(cost, ct);
+            var debit = await _grainFactory
+                .GetPlayerWalletGrain(PlayerId)
+                .TryDebitAsync(cost, cause, ct);
 
             if (!debit.Succeeded)
                 return GuildCreationResultSnapshot.Failed(
@@ -300,7 +305,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
             // They have already been charged. Nothing else gives it back, and a player who paid
             // for a group that does not exist has no way to notice, let alone complain.
-            await _grainFactory.RefundAsync(PlayerId, cost, _logger, "creating a group");
+            await _grainFactory.RefundAsync(PlayerId, cost, cause, _logger, "creating a group");
 
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.CreationFailed);
         }

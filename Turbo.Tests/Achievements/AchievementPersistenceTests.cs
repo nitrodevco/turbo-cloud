@@ -8,6 +8,7 @@ using Turbo.Players;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
@@ -29,6 +30,7 @@ public sealed class AchievementPersistenceTests : IDisposable
     private readonly Fakes _fakes = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static readonly MovementCause Cause = MovementCause.New("test", 0);
 
     public AchievementPersistenceTests()
     {
@@ -94,10 +96,10 @@ public sealed class AchievementPersistenceTests : IDisposable
             Task.FromResult(PlayerNoticeDelivery.Offline);
 
         var wallet = (await NewWalletAsync()).Wallet;
-        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Ct))
+        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Cause, Ct))
             .Should()
             .BeTrue();
-        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Ct))
+        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Cause, Ct))
             .Should()
             .BeTrue();
 
@@ -108,7 +110,8 @@ public sealed class AchievementPersistenceTests : IDisposable
             (await db.AchievementWalletReceipts.CountAsync(Ct)).Should().Be(1);
         }
 
-        var act = () => wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 26, Ct);
+        var act = () =>
+            wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 26, Cause, Ct);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 

@@ -13,6 +13,7 @@ using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
@@ -263,6 +264,8 @@ public sealed class IncomeRewardService(
         foreach (var batch in tagged.GroupBy(x => x.ClaimReference!))
         {
             var paid = true;
+            var cause = MovementCause.New(MovementCauses.VAULT_CLAIM, player.Value, batch.Key);
+            var seq = 0;
 
             foreach (var payout in batch.GroupBy(x => (x.Category, x.RewardType)))
             {
@@ -271,6 +274,7 @@ public sealed class IncomeRewardService(
                         CurrencyOf((VaultRewardType)payout.Key.RewardType)!.Value,
                         payout.Sum(x => x.Amount),
                         $"vault:{batch.Key}:{payout.Key.Category}:{payout.Key.RewardType}",
+                        cause.StartingAt(seq++),
                         ct
                     )
                     .ConfigureAwait(false);

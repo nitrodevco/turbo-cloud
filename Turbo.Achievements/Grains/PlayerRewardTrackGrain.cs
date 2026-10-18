@@ -16,6 +16,7 @@ using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Quest;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
@@ -391,7 +392,15 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         {
             var debit = await _grainFactory
                 .GetPlayerWalletGrain(_state.PlayerId)
-                .TryDebitAsync(costs, ct);
+                .TryDebitAsync(
+                    costs,
+                    MovementCause.New(
+                        MovementCauses.REWARD_TRACK,
+                        _state.PlayerId.Value,
+                        $"{track.Id}:premium"
+                    ),
+                    ct
+                );
 
             if (!debit.Succeeded)
                 return debit.Failure?.CurrencyKind.CurrencyType switch
@@ -476,6 +485,11 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                         CurrencyKind.ActivityPoints(pointType),
                         prize.Amount,
                         $"{CREDIT_REFERENCE_PREFIX}{track.Id}:{prize.Id}",
+                        MovementCause.New(
+                            MovementCauses.REWARD_TRACK,
+                            _state.PlayerId.Value,
+                            $"{track.Id}:{prize.Id}"
+                        ),
                         ct
                     );
 

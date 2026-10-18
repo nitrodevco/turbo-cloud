@@ -13,6 +13,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -76,7 +77,9 @@ internal sealed partial class CatalogPurchaseGrain
         if (paidWrapping)
             AddWrappingPrice(debitRequests, wrapping.Price);
 
-        await DebitAsync(debitRequests, ct);
+        var cause = MovementCause.New(MovementCauses.CATALOG_GIFT, buyerId.Value, offer.Id);
+
+        await DebitAsync(debitRequests, cause, ct);
 
         try
         {
@@ -103,6 +106,7 @@ internal sealed partial class CatalogPurchaseGrain
             await _grainFactory.RefundAsync(
                 buyerId,
                 debitRequests,
+                cause,
                 _logger,
                 $"gift of catalog offer {offer.Id}"
             );

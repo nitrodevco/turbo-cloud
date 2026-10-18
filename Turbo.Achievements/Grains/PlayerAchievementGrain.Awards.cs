@@ -9,6 +9,7 @@ using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -142,7 +143,17 @@ internal sealed partial class PlayerAchievementGrain
                             reward.Currency is not { } currency
                             || !await _grains
                                 .GetPlayerWalletGrain(_state.PlayerId)
-                                .CreditAchievementAsync(receiptKey, currency, reward.Amount, ct)
+                                .CreditAchievementAsync(
+                                    receiptKey,
+                                    currency,
+                                    reward.Amount,
+                                    MovementCause.New(
+                                        MovementCauses.REWARD_ACHIEVEMENT,
+                                        _state.PlayerId.Value,
+                                        receiptKey
+                                    ),
+                                    ct
+                                )
                         )
                             throw new InvalidOperationException(
                                 "Wallet reward blocked: unknown currency or overflow."

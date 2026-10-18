@@ -26,6 +26,7 @@ using Turbo.Primitives.Hotel;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
@@ -155,8 +156,13 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         await ValidateBadgeDisplayProductsAsync(offer, extraParam, ct);
 
         var debitRequests = offer.ToDebitRequests(quantity);
+        var cause = MovementCause.New(
+            MovementCauses.CATALOG_PURCHASE,
+            this.GetPlayerId().Value,
+            offerId
+        );
 
-        await DebitAsync(debitRequests, ct);
+        await DebitAsync(debitRequests, cause, ct);
 
         ImmutableArray<FurnitureItemSnapshot> granted;
 
@@ -172,6 +178,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             await _grainFactory.RefundAsync(
                 this.GetPlayerId(),
                 debitRequests,
+                cause,
                 _logger,
                 $"catalog offer {offerId}"
             );
@@ -675,8 +682,9 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
         var debitRequests = offer.ToDebitRequests(1);
+        var cause = MovementCause.New(MovementCauses.CATALOG_ROOM_AD, playerId.Value, offerId);
 
-        await DebitAsync(debitRequests, ct);
+        await DebitAsync(debitRequests, cause, ct);
 
         RoomEventSnapshot? created = null;
 
@@ -706,6 +714,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 await _grainFactory.RefundAsync(
                     playerId,
                     debitRequests,
+                    cause,
                     _logger,
                     $"room ad offer {offerId}"
                 );
@@ -734,14 +743,18 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     }
 
     /// <summary>Takes the price, or throws the refusal the client shows for a short balance.</summary>
-    private async Task DebitAsync(List<WalletDebitRequest> debitRequests, CancellationToken ct)
+    private async Task DebitAsync(
+        List<WalletDebitRequest> debitRequests,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         if (debitRequests.Count == 0)
             return;
 
         var result = await _grainFactory
             .GetPlayerWalletGrain(this.GetPlayerId())
-            .TryDebitAsync(debitRequests, ct);
+            .TryDebitAsync(debitRequests, cause, ct);
 
         if (!result.Succeeded)
             throw CreateInsufficientBalanceException(result);

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
@@ -86,8 +87,13 @@ public sealed class GiveCommand(
             async (player, token) =>
             {
                 var wallet = grainFactory.GetPlayerWalletGrain(player.Id);
+                // One operation per player: each is a wallet of its own.
+                var cause = MovementCause.New(
+                    MovementCauses.STAFF_GIVE_CURRENCY,
+                    ctx.Executor.PlayerId?.Value ?? 0
+                );
                 return arguments.Amount > 0
-                    ? await wallet.CreditRewardAsync(kind, arguments.Amount, token)
+                    ? await wallet.CreditRewardAsync(kind, arguments.Amount, cause, token)
                     : (
                         await wallet.TryDebitAsync(
                             [
@@ -97,6 +103,7 @@ public sealed class GiveCommand(
                                     Amount = -arguments.Amount,
                                 },
                             ],
+                            cause,
                             token
                         )
                     ).Succeeded;
