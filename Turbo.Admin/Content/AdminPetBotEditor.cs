@@ -10,6 +10,7 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Pets;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
@@ -283,7 +284,8 @@ public sealed class AdminPetBotEditor(
         if (
             !await grainFactory
                 .GetInventoryGrain(new PlayerId(bot.OwnerId))
-                .DeleteBotAsync(id, ct)
+                // The panel does not say which staff member asked.
+                .DeleteBotAsync(id, MovementCause.New(MovementCauses.STAFF_DELETE_BOT, 0, id), ct)
                 .ConfigureAwait(false)
         )
             throw new ArgumentException("The bot is no longer in its owner's inventory.");

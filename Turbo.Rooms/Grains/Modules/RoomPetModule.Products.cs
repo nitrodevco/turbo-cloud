@@ -57,16 +57,14 @@ public sealed partial class RoomPetModule
 
         // Used up before the plant is created: the plant is written at once, so a seed deleted
         // after it outlived it by a write and a crash in between left both.
-        await ActionModule.DeleteItemByIdAsync(
-            ctx,
-            seed.ObjectId,
-            MovementCause.New(
-                MovementCauses.USE_MONSTERPLANT_SEED,
-                ctx.PlayerId,
-                seed.ObjectId.Value
-            ),
-            ct
+        // One operation: the seed out of the room, then the plant into the inventory.
+        var cause = MovementCause.New(
+            MovementCauses.USE_MONSTERPLANT_SEED,
+            ctx.PlayerId,
+            seed.ObjectId.Value
         );
+
+        await ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, cause, ct);
 
         var plant = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
@@ -81,6 +79,7 @@ public sealed partial class RoomPetModule
                     NextRandom(MonsterplantFigure.MIN_SHAPE, MonsterplantFigure.MAX_SHAPE + 1),
                     palette.PaletteId
                 ),
+                cause.StartingAt(cause.FirstSeq + 1),
                 ct
             );
 

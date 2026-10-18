@@ -237,7 +237,11 @@ public sealed partial class RoomPetModule
 
         var deleted = await _roomGrain
             ._grainFactory.GetInventoryGrain(pet.OwnerId)
-            .DeletePetAsync(petId, ct);
+            .DeletePetAsync(
+                petId,
+                MovementCause.New(MovementCauses.PET_COMPOST, ctx.PlayerId, petId),
+                ct
+            );
         if (!deleted)
             return false;
         await RemovePetAvatarAsync(ctx, pet, ct);

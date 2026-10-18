@@ -6,9 +6,9 @@ rollback tool, dupe detection). Core says what moved, from where, to where, why 
 what that means is the plugin's business.
 
 **Status:** the record, the recorder, the table, the switch, the wallet, the inventory's
-furni, trades, the marketplace and the room's placements, pickups and use-ups, and the
-dispatcher that hands the rows to plugins and prunes them (below). The holder, borrowed furni,
-pet, bot and onboarding paths are wired up one by one in later changes.
+furni, trades, the marketplace and the room's placements, pickups and use-ups, the holders (wired
+chests, jukeboxes), borrowed furni, pets, bots and starter rooms, and the dispatcher that hands
+the rows to plugins and prunes them (below).
 
 ## The switch
 
@@ -173,6 +173,48 @@ stays queued, ahead of the next flush's updates, and is written again with its m
 | `room.delete`, `room.floorplan`, `room.rent_end`, `group.furni_removed` | furni sent home when the room goes (cause ref: the room), is left off a new floor plan (the room), a rented space ends (the rentable furni), the room's group goes (the room) |
 | `room.delete_item` | a furni the client deletes |
 | `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_supply`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
+
+## Holders, made-in-room and borrowed furni
+
+A wired chest and a jukebox hold furni through the custody, in their own unit of work (a chest
+writes its transaction row with the move):
+
+| Transition | Movement | Called by |
+| --- | --- | --- |
+| `PutInHolderAsync` | `Inventory` -> `Holder` (the holder's id, held for its owner; a chest stamps its transaction) | a chest deposit, a disk put in a jukebox |
+| `TakeOutOfHolderAsync` | `Holder` -> `Inventory` | a chest withdrawal, a disk taken out |
+| `DestroyInInventoryAsync` (in the caller's unit of work, all or none) | `Inventory` -> `None`, with a snapshot | credit furni a chest turns into its balance |
+| `CreateInRoomAsync` | `None` -> `Room` (where it stands), with a snapshot | a note pinned to a post-it wall, a starter room's furni |
+| `SendHomeLeftInRoomAsync` | `Room` -> `Inventory` for every row still in the room | a room deletion's backstop |
+| `BorrowIntoRoomAsync`, `GiveBackBorrowedAsync` | a `BorrowedFurni` (known by its room and the id the room gave it; owner 0) `None` -> `Room`, then `Room` -> `None` | a Builders Club borrow; its pickup, a bulk return, a use |
+
+A chest's credits are a currency nobody owns while it holds them (`ChestCredits`, the chest's id):
+a credit deposit is the credit furni destroyed, then the credits `None` -> `ChestCredits` (after
+the furni's seqs); a withdrawal is `ChestCredits` -> `None` at seq 0 and the wallet's credit at
+seq 1 of the same operation; credits the wallet refused come back `None` -> `ChestCredits` under
+the withdrawal's refund cause.
+
+| Cause | Where |
+| --- | --- |
+| `wired.chest_deposit`, `wired.chest_withdraw` | chest moves (actor 0; cause ref: the chest transaction) |
+| `jukebox.add`, `jukebox.remove` | a disk in or out (cause ref: the jukebox; `jukebox.remove` actor 0) |
+| `room.post_it` | a note made on a post-it wall (cause ref: the wall), and destroyed at the next seq when the room refuses it |
+| `onboarding.starter_room` | a new player's starter room furnished (actor: the player; cause ref: the room) |
+| `room.bc_borrow` | a borrow (cause ref: the offer); the give-back carries the cause of what removed it |
+| `room.delete` | the backstop, an operation of its own after the hand-overs: furni, then pets, then bots |
+
+## Pets and bots
+
+The inventory's unit module is the only writer of where a pet or a bot is; each change is one
+unit of work with its movement (`AssetKind.Pet` with the pet's type as definition, `AssetKind.Bot`
+with none; custody only, no snapshot and no position).
+
+| Change | Movement | Causes |
+| --- | --- | --- |
+| create | `None` -> `Inventory` | `catalog.purchase` and the others of a catalogue offer (pets, then bots, then furni of one offer), `reward.track`, `product.claim`, `pet.breed`, `use.pet_package`, `use.monsterplant_seed` (after the used-up furni) |
+| check out | `Inventory` -> `Room` | `pet.place`, `bot.place`; a placement that fails gives it back under the placement's refund cause |
+| return | `Room` -> `Inventory` | `pet.pickup`, `bot.pickup`, `room.delete` |
+| delete | `Inventory` or `Room` -> `None` | `pet.compost`, `staff.delete_bot` (actor 0: the panel does not say who) |
 
 ## Trades
 

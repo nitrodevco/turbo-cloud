@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -124,6 +125,8 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
         }
 
+        var placeCause = MovementCause.New(MovementCauses.PET_PLACE, ctx.PlayerId, petId);
+
         var placed = await PlaceFromInventoryAsync(
             ctx,
             "pet",
@@ -133,11 +136,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             () =>
                 _roomGrain
                     ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                    .TryCheckOutPetAsync(petId, _roomGrain.RoomId, ct),
+                    .TryCheckOutPetAsync(petId, _roomGrain.RoomId, placeCause, ct),
             snapshot =>
                 _roomGrain
                     ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                    .ReturnPetAsync(snapshot, ct),
+                    .ReturnPetAsync(snapshot, placeCause.ForRefund(), ct),
             (snapshot, tileIdx, z) =>
             {
                 var (tileX, tileY) = MapModule.GetTileXY(tileIdx);
@@ -236,7 +239,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         if (
             !await _roomGrain
                 ._grainFactory.GetInventoryGrain(pet.OwnerId)
-                .ReturnPetAsync(snapshot, ct)
+                .ReturnPetAsync(
+                    snapshot,
+                    MovementCause.New(MovementCauses.PET_PICKUP, ctx.PlayerId, pet.PetId),
+                    ct
+                )
         )
         {
             _roomGrain._logger.LogError(
@@ -339,7 +346,9 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         foreach (var pet in pets)
         {
-            if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), ct))
+            var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
+
+            if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), cause, ct))
                 throw new InvalidOperationException(
                     $"Pet {pet.PetId} could not be returned before room {_roomGrain.RoomId} deletion."
                 );

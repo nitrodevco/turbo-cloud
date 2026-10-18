@@ -423,8 +423,8 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             snapshot = pet.ToSnapshot("owner") with { Level = 3, Respect = 0 };
         }
         var inventory = CreateInventory();
-        Assert.True(await inventory.ReturnPetAsync(snapshot, Ct));
-        Assert.True(await inventory.ReturnPetAsync(snapshot, Ct));
+        Assert.True(await inventory.ReturnPetAsync(snapshot, TestCustody.Cause(), Ct));
+        Assert.True(await inventory.ReturnPetAsync(snapshot, TestCustody.Cause(), Ct));
         await using var after = await _db.CreateDbContextAsync(Ct);
         var returned = await after.Pets.SingleAsync(Ct);
         Assert.Null(returned.RoomEntityId);
@@ -450,13 +450,13 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             }
         );
         var inventory = CreateInventory();
-        Assert.False(await inventory.DeletePetAsync(PET_ID, Ct));
+        Assert.False(await inventory.DeletePetAsync(PET_ID, TestCustody.Cause(), Ct));
         await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             (await db.PetRespectOperations.SingleAsync(Ct)).Completed = true;
             await db.SaveChangesAsync(Ct);
         }
-        Assert.True(await inventory.DeletePetAsync(PET_ID, Ct));
+        Assert.True(await inventory.DeletePetAsync(PET_ID, TestCustody.Cause(), Ct));
     }
 
     // A use (a saddle strapped on) deletes the used item's row and writes the pet it changed at

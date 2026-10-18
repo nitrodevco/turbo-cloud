@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Movements;
 using Turbo.Furniture.Custody;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
@@ -36,6 +37,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
     internal readonly IWordFilter _wordFilter;
     private readonly ILogger<IInventoryGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
+    internal readonly IAssetMovementRecorder _movements;
 
     private readonly InventoryLiveState _state;
     internal readonly InventoryFurniModule FurniModule;
@@ -55,6 +57,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         IPetBreedProvider petBreedProvider,
         IWordFilter wordFilter,
         IAchievementFactRecorder achievementFacts,
+        IAssetMovementRecorder movements,
         ILogger<IInventoryGrain> logger
     )
     {
@@ -63,6 +66,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         _wordFilter = wordFilter;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _movements = movements;
 
         _state = new() { PlayerId = this.GetPlayerId() };
         FurniModule = new InventoryFurniModule(
