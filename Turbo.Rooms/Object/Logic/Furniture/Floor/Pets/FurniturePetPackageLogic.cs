@@ -84,6 +84,10 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
             contents.PaletteId
         );
 
+        // Used up before the pet is created: the pet is written at once, so a package deleted
+        // after it outlived it by a write and a crash in between left both.
+        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+
         var pet = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
             .CreatePetAsync(
@@ -98,9 +102,12 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
             );
 
         if (pet is null)
-            return Reject(ctx, interaction, "the inventory refused the pet");
+        {
+            await ActionModule.GiveBackUsedItemAsync(_ctx.RoomObject, ct);
 
-        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+            return Reject(ctx, interaction, "the inventory refused the pet");
+        }
+
         await SendResultAsync(ctx, PetNameValidationType.Ok, ct);
 
         return true;

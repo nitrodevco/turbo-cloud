@@ -533,6 +533,29 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         return true;
     }
 
+    /// <summary>
+    /// Puts an item used up for a grant that was then refused (the owner holds the most pets
+    /// allowed) back in its owner's inventory. The item goes first so a crash cannot leave both;
+    /// a borrowed or temporary item has nowhere to go and is only logged.
+    /// </summary>
+    internal async Task GiveBackUsedItemAsync(IRoomItem item, CancellationToken ct)
+    {
+        if (item.IsBuildersClub || item.IsTemporary)
+        {
+            _roomGrain._logger.LogWarning(
+                "Used item {ItemId} in room {RoomId} is borrowed or temporary; its refused grant is not given back",
+                item.ObjectId,
+                _roomGrain.RoomId
+            );
+
+            return;
+        }
+
+        await _roomGrain
+            ._grainFactory.GetInventoryGrain(item.OwnerId)
+            .GrantFurnitureAsync(item.Definition.Id, item.ExtraData.GetJsonString(), ct);
+    }
+
     /// <summary>The item's owner may always edit it; otherwise room rights are needed.</summary>
     private async Task<bool> CanEditItemAsync(ActionContext ctx, IRoomItem item) =>
         item.OwnerId == ctx.PlayerId || await SecurityModule.CanManipulateFurniAsync(ctx);

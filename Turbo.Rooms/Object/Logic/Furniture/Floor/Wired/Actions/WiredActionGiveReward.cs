@@ -109,28 +109,44 @@ public class WiredActionGiveReward(
                 continue;
             }
 
+            // Claimed and written before the prize is granted: the prize is written at once by
+            // its own grain, so a claim left for the room's next hand-over was lost in a crash in
+            // between and the box gave the prize again.
+            var (count, lastClaimUnix) = (claim.Count, claim.LastClaimUnix);
+            var hadCode = !claim.ReceivedCodes.Add(reward.Code);
+
+            claim.Count++;
+            claim.LastClaimUnix = now;
+            claims[player.PlayerId] = claim;
+
+            await WriteClaimsAsync(claims, ct);
+
             var result = await GrantAsync(player, reward, ct);
 
             await NotifyAsync(player, result, ct);
 
             if (
                 result
-                is not (
-                    WiredRewardResultType.RewardReceivedBadge
+                is WiredRewardResultType.RewardReceivedBadge
                     or WiredRewardResultType.RewardReceivedProduct
-                )
             )
+            {
+                given = true;
+
                 continue;
+            }
 
-            claim.Count++;
-            claim.LastClaimUnix = now;
-            claim.ReceivedCodes.Add(reward.Code);
-            claims[player.PlayerId] = claim;
-            given = true;
-        }
+            // Nothing was given: the claim is taken back on the next hand-over.
+            (claim.Count, claim.LastClaimUnix) = (count, lastClaimUnix);
 
-        if (given)
+            if (!hadCode)
+                claim.ReceivedCodes.Remove(reward.Code);
+
+            if (claim.Count == 0)
+                claims.Remove(player.PlayerId);
+
             SaveClaims(claims);
+        }
 
         return given;
     }
@@ -303,4 +319,21 @@ public class WiredActionGiveReward(
 
     private void SaveClaims(Dictionary<int, WiredRewardClaim> claims) =>
         _ctx.RoomObject.ExtraData.UpdateSection(WiredRewardClaim.SECTION, claims);
+
+    private async Task WriteClaimsAsync(
+        Dictionary<int, WiredRewardClaim> claims,
+        CancellationToken ct
+    )
+    {
+        SaveClaims(claims);
+
+        var persistence = _grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId);
+
+        await persistence.EnqueueDirtyItemAsync(
+            _roomGrain.RoomId,
+            _ctx.RoomObject.GetSnapshot(),
+            ct
+        );
+        await persistence.FlushNowAsync(ct);
+    }
 }

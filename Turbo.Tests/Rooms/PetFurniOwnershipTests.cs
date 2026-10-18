@@ -89,7 +89,63 @@ public class PetFurniOwnershipTests
         );
 
         room.Fakes.Log.Of("CreatePetAsync").Should().HaveCount(opens ? 1 : 0);
-        room.ItemsById.Contains((RoomObjectId)id).Should().BeTrue();
+        // The package goes before the pet is created; the inventory refused the pet here (the
+        // fake creates none), so the package was given back to its owner's inventory.
+        room.ItemsById.Contains((RoomObjectId)id).Should().Be(!opens);
+        room.Fakes.Log.Of("GrantFurnitureAsync").Should().HaveCount(opens ? 1 : 0);
+    }
+
+    [Fact]
+    public async Task A_pet_package_is_used_up_before_its_pet_is_created()
+    {
+        var room = CreateRoom();
+        RoomHarness.SetField(room.Room, "_petConfig", new PetConfig());
+        RoomHarness.SetField(room.Room, "_wordFilter", room.Fakes.Create<IWordFilter>());
+        RoomHarness.SetField(
+            room.Room,
+            "_petBreedProvider",
+            room.Fakes.Create<IPetBreedProvider>()
+        );
+        room.Fakes.Handlers[nameof(IWordFilter.IsClean)] = _ => true;
+
+        var package = room.CreateFloorItem(
+            ITEM,
+            2,
+            2,
+            Altitude.Zero,
+            name: "petbox_epic",
+            logic: "pet_package",
+            createLogic: (stuffDataFactory, ctx) =>
+                new FurniturePetPackageLogic(stuffDataFactory, ctx)
+        );
+        package.SetExtraData(
+            JsonSerializer.Serialize(
+                new Dictionary<string, object>
+                {
+                    [PetPackageData.SECTION] = new PetPackageData
+                    {
+                        TypeId = 0,
+                        PaletteId = 0,
+                        Color = "FFFFFF",
+                    },
+                }
+            )
+        );
+        room.AddToRoom(package);
+
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            ITEM,
+            new OpenPetPackageInteraction { Name = "Rex" },
+            Ct
+        );
+
+        var calls = room.Fakes.Log.Calls.ToList();
+        var used = calls.FindIndex(x =>
+            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == ITEM
+        );
+        used.Should().BeGreaterThanOrEqualTo(0);
+        used.Should().BeLessThan(calls.FindIndex(x => x.Method == "CreatePetAsync"));
     }
 
     [Theory]

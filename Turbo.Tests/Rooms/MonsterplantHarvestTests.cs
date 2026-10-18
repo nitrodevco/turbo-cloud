@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Providers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -82,6 +83,31 @@ public sealed class MonsterplantHarvestTests
             .BeLessThan(
                 calls.FindIndex(x => x.Method == nameof(IInventoryGrain.GrantFurnitureAsync))
             );
+    }
+
+    [Fact]
+    public async Task A_planted_seed_is_used_up_before_its_plant_is_created()
+    {
+        const int SEED = 60;
+        var seed = _room.AddFloorItem(
+            SEED,
+            3,
+            3,
+            "monsterplant_seed",
+            createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+        );
+
+        await seed.Logic.OnUseAsync(ActionContext.CreateForPlayer(OWNER, 1), 0, Ct);
+
+        var calls = _room.Harness.Fakes.Log.Calls.ToList();
+        var used = calls.FindIndex(x =>
+            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == SEED
+        );
+        used.Should().BeGreaterThanOrEqualTo(0);
+        used.Should()
+            .BeLessThan(calls.FindIndex(x => x.Method == nameof(IInventoryGrain.CreatePetAsync)));
+        // The fake inventory created no plant: the seed goes back to its owner.
+        calls.Should().Contain(x => x.Method == nameof(IInventoryGrain.GrantFurnitureAsync));
     }
 
     private static FurnitureDefinitionSnapshot Seed() =>

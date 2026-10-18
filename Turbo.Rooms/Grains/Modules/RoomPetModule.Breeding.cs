@@ -13,6 +13,7 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -178,6 +179,9 @@ public sealed partial class RoomPetModule
         if (!session.IsConfirmedByAll)
             return true;
 
+        if (await UseUpNestAsync(ctx, session, ct) is not { } nest)
+            return false;
+
         var offspringPalette = PickOffspringPalette(pet1, pet2);
 
         var offspring = await _roomGrain
@@ -202,6 +206,7 @@ public sealed partial class RoomPetModule
                 pet1.OwnerId
             );
 
+            await ActionModule.GiveBackUsedItemAsync(nest, ct);
             await EndNestSessionAsync(session, ConfirmBreedingResultType.PetsMissing, ct);
 
             return false;
@@ -238,6 +243,36 @@ public sealed partial class RoomPetModule
         await EndNestSessionAsync(session, ConfirmBreedingResultType.Ok, ct);
 
         return true;
+    }
+
+    /// <summary>
+    /// The nest disappears in the breeding. It is taken away and written before the offspring is
+    /// created: kept, or left for the next hand-over, it bred again (after a crash) for nothing.
+    /// </summary>
+    private async Task<IRoomItem?> UseUpNestAsync(
+        ActionContext ctx,
+        NestBreedingSession session,
+        CancellationToken ct
+    )
+    {
+        // Out of the pending list first, so taking the nest away does not end this breeding.
+        _roomGrain._state.PendingNestBreedings.Remove(session.NestId);
+
+        if (
+            !_roomGrain._state.ItemsById.TryGetValue(session.NestId, out var nest)
+            || !await ObjectModule.RemoveObjectAsync(ctx, nest, ct)
+        )
+        {
+            await EndNestSessionAsync(session, ConfirmBreedingResultType.NoNest, ct);
+
+            return null;
+        }
+
+        await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .WriteUseAsync(_roomGrain.RoomId, session.NestId, TakeDirtySnapshots(), ct);
+
+        return nest;
     }
 
     /// <summary>Closes a session: every owner hears the result and both pets are freed from the nest.</summary>
