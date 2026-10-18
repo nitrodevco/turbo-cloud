@@ -4,7 +4,7 @@
 //
 //   node render.mjs <in.json> <out.png> [--cache <dir>] [--furni-url <url with %libname%>] [--room-url <url with %libname%>]
 //                   [--figure-url <url with %libname%>] [--figuremap-url <url>]
-//                   [--effect-url <url with %libname%>] [--effectmap-url <url>]
+//                   [--effect-url <url with %libname%>] [--effectmap-url <url>] [--pet-url <url with %libname%>]
 //                   [--effect-image-url <url prefix>] [--external-url <url prefix>]... [--small]
 //
 // --small also writes <out>_small.png at half the size: a photo poster on a wall loads that copy
@@ -18,8 +18,10 @@
 //   - the sprites: furniture assets looked up in the hotel's .nitro bundles (the CDN url the client's
 //     asset.urls.furni gives, cached under --cache), the avatars' parts (`h_std_ch_215_2_0`: the
 //     figure library the figure map names for the part, or an effect's `..._fx<id>_...` the effect
-//     map names), external images (http...) under one of the --external-url prefixes, with the
-//     sprite's alpha, colour tint, flipH and additive blend;
+//     map names), a pet's sprites (`monkey_64_a_2_0`: the pet library, the client's
+//     asset.bundles.pets, in the colours of the palette its `paletteSourceName` names, as Flash's
+//     SpriteDataCollector sends them), external images (http...) under one of the --external-url
+//     prefixes, with the sprite's alpha, colour tint, flipH and additive blend;
 //   - then the photo lab's choices (`filters` and `zoom`, as CameraPhotoLab.renderAllEffects draws
 //     them): zoomed, the middle half at twice the size; each colour matrix and composite picture at
 //     its strength, in the order sent; a frame over all. A composite or frame picture is
@@ -51,6 +53,7 @@ let figureMapUrl = 'https://images.nitrodev.co/gamedata/FigureMap.json';
 let effectUrl = 'https://images.nitrodev.co/bundled/effects/%libname%.nitro';
 let effectMapUrl = 'https://images.nitrodev.co/gamedata/EffectMap.json';
 let effectImageUrl = 'https://images.habbo.com/c_images/Habbo-Stories/';
+let petUrl = 'https://images.nitrodev.co/bundled/pet/%libname%.nitro';
 const externalUrls = [];
 let writeSmall = false;
 let frame = '';
@@ -65,6 +68,7 @@ for (let i = 0; i < args.length; i++) {
     else if (args[i] === '--effect-url') effectUrl = args[++i];
     else if (args[i] === '--effectmap-url') effectMapUrl = args[++i];
     else if (args[i] === '--effect-image-url') effectImageUrl = args[++i];
+    else if (args[i] === '--pet-url') petUrl = args[++i];
     else if (args[i] === '--external-url') externalUrls.push(new URL(args[++i]));
     else if (args[i] === '--small') writeSmall = true;
     else if (args[i] === '--frame') frame = args[++i];
@@ -334,7 +338,7 @@ const fetchBytes = async (url, maxBytes, cacheName, maxAgeMs = Infinity) => {
     return bytes;
 };
 
-/** A bundle (furniture, figure or effect library): its assets (name -> source, x, y, flipH) and the sheet's frames. */
+/** A bundle (furniture, figure, effect or pet library): its assets (name -> source, x, y, flipH), palettes and the sheet's frames. */
 const loadBundle = async (lib, url = furniUrl, kind = '') => {
     const key = `${kind}${lib}`;
 
@@ -356,7 +360,7 @@ const loadBundle = async (lib, url = furniUrl, kind = '') => {
             entries = readZip(await fetchBytes(url.replace('%libname%', lib), MAX_BUNDLE_BYTES, cacheName));
         }
 
-        let assets = {}, frames = {}, image = null;
+        let assets = {}, palettes = [], frames = {}, image = null;
 
         for (const [ name, bytes ] of Object.entries(entries)) {
             if (name.endsWith('_spritesheet.json')) {
@@ -365,12 +369,15 @@ const loadBundle = async (lib, url = furniUrl, kind = '') => {
                 image = decodePng(entries[sheet.meta?.image]);
             } else if (name.endsWith('.json')) {
                 // The asset list is an array of { name, source?, x, y, flipH? } (a map in older bundles).
-                const list = JSON.parse(bytes.toString('utf8')).assets ?? [];
+                const json = JSON.parse(bytes.toString('utf8'));
+                const list = json.assets ?? [];
                 assets = Array.isArray(list) ? Object.fromEntries(list.map(asset => [ asset.name, asset ])) : list;
+                // A pet's palettes: { id, source, rgb: [[r, g, b], ...] } (a map in older bundles).
+                palettes = Object.values(json.palettes ?? {});
             }
         }
 
-        bundle = image ? { assets, frames, image } : null;
+        bundle = image ? { assets, palettes, frames, image } : null;
     } catch (err) {
         if (err.transient) throw err;
 
@@ -496,6 +503,26 @@ const getAssetImage = (bundle, assetName, assetFlip = true) => {
     }
 
     return { width: w, height: h, data: out };
+};
+
+/**
+ * A paletted asset in the colours of the bundle's palette whose source is `source`: each pixel's green
+ * channel picks its colour (GraphicAssetPalette.colorizeBitmap), its alpha stays. As it is without one.
+ */
+const withPalette = (image, bundle, source) => {
+    const palette = source ? bundle.palettes.find(p => p.source === source) : null;
+
+    if (!image || !Array.isArray(palette?.rgb)) return image;
+
+    const { data } = image;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const color = palette.rgb[data[i + 1]] ?? [ 0, 0, 0 ];
+
+        data[i] = color[0]; data[i + 1] = color[1]; data[i + 2] = color[2];
+    }
+
+    return image;
 };
 
 /** The url of an external image when it lies under one of the --external-url prefixes, else null. */
@@ -1095,6 +1122,11 @@ const render = async () => {
                 const bundle = await loadBundle(match[1]);
 
                 if (bundle) image = getAssetImage(bundle, name, false);
+
+                // Not a furni: a pet's sprite, in its colours when it names a palette.
+                const petBundle = image ? null : await loadBundle(match[1], petUrl, 'pet_');
+
+                if (petBundle) image = withPalette(getAssetImage(petBundle, name, false), petBundle, sprite.paletteSourceName);
             }
         }
 

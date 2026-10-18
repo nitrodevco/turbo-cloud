@@ -22,8 +22,10 @@ namespace Turbo.Tests.PacketHandlers;
 /// It draws what the client's camera shows: the avatars' parts (Flash
 /// <c>AvatarVisualization.getSpriteList</c>) from the figure library the figure map names, and the
 /// photo lab's zoom and effects (<c>CameraPhotoLab.renderAllEffects</c>), each room plane's texture
-/// columns and masks (Flash <c>RoomPlane.getDrawingDatas</c>) from the room content library, and a
-/// flipped sprite as its asset mirrored once.
+/// columns and masks (Flash <c>RoomPlane.getDrawingDatas</c>) from the room content library, a pet's
+/// sprites from its pet library in the colours of the palette they name (Flash
+/// <c>SpriteDataCollector.getSpriteDataObject</c>'s <c>paletteSourceName</c>), and a flipped sprite as
+/// its asset mirrored once.
 /// </summary>
 public sealed class CameraRendererTests : IDisposable
 {
@@ -88,6 +90,7 @@ public sealed class CameraRendererTests : IDisposable
                     RendererEffectUrl = $"{_server.Url}effects/%libname%.nitro",
                     RendererEffectMapUrl = $"{_server.Url}effectmap.json",
                     RendererEffectImageUrl = $"{_server.Url}stories/",
+                    RendererPetUrl = $"{_server.Url}pets/%libname%.nitro",
                     RendererExternalImageUrls = externalUrls,
                     // A photo's 15 s budget is not what these tests are about, and a loaded CI
                     // runner has gone past it (17 s); a render that ends still ends at once.
@@ -164,7 +167,8 @@ public sealed class CameraRendererTests : IDisposable
         );
 
         drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
-        _server.Requests.Should().Equal("/furni/chair.nitro");
+        // The chair the furniture bundles do not have is looked for among the pets.
+        _server.Requests.Should().Equal("/furni/chair.nitro", "/pets/chair.nitro");
     }
 
     [Fact]
@@ -250,8 +254,11 @@ public sealed class CameraRendererTests : IDisposable
         return png.ToArray();
     }
 
-    /// <summary>A .nitro library holding one asset, <paramref name="assetName"/>, a 1x1 picture of the colour.</summary>
-    private static byte[] Library(string name, string assetName, uint rgba)
+    /// <summary>
+    /// A .nitro library holding one asset, <paramref name="assetName"/>, a 1x1 picture of the colour, and
+    /// the <paramref name="palettes"/> (JSON) a pet library has.
+    /// </summary>
+    private static byte[] Library(string name, string assetName, uint rgba, string palettes = "[]")
     {
         var zip = new MemoryStream();
 
@@ -267,7 +274,7 @@ public sealed class CameraRendererTests : IDisposable
             Add(
                 $"{name}.json",
                 Encoding.UTF8.GetBytes(
-                    $$"""{"name":"{{name}}","assets":[{"name":"{{assetName}}","x":0,"y":0}]}"""
+                    $$"""{"name":"{{name}}","assets":[{"name":"{{assetName}}","x":0,"y":0}],"palettes":{{palettes}}}"""
                 )
             );
             Add(
@@ -418,6 +425,57 @@ public sealed class CameraRendererTests : IDisposable
         _server.Requests.Should().Contain(["/figuremap.json", "/figures/hh_human_shirt.nitro"]);
         PixelAt(png, 1, 2).Should().Be(0xFF0000FF, "the part is drawn there, tinted red");
         PixelAt(png, 0, 0).Should().Be(0x808080FF);
+    }
+
+    /// <summary>A pet palette's 256 colours, black but <paramref name="index"/>, which is <paramref name="rgb"/>.</summary>
+    private static string PaletteColours(int index, string rgb) =>
+        string.Join(",", Enumerable.Range(0, 256).Select(i => i == index ? rgb : "[0,0,0]"));
+
+    [Fact]
+    public async Task APetsSpriteIsDrawnFromThePetLibraryInThePalettesColoursItNames()
+    {
+        // A paletted pet asset: its green channel (7) picks the colour from the palette.
+        _server.Serve(
+            "/pets/monkey.nitro",
+            Library(
+                "monkey",
+                "monkey_64_a_2_0",
+                0x000700FF,
+                $$"""
+                [{"id":0,"source":"monkey01","rgb":[{{PaletteColours(7, "[0,0,255]")}}]},
+                 {"id":2,"source":"monkey03","rgb":[{{PaletteColours(7, "[255,0,0]")}}]}]
+                """
+            )
+        );
+
+        // As Flash's SpriteDataCollector sends a pet's sprite `monkey_64_a_2_0@2`: the palette's source, the asset's name.
+        var (drawn, png) = await RenderAsync(
+            LabRender(
+                """{"paletteSourceName":"monkey03","name":"monkey_64_a_2_0","x":1,"y":2,"z":-1}""",
+                "[]"
+            )
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        _server.Requests.Should().Contain(["/furni/monkey.nitro", "/pets/monkey.nitro"]);
+        PixelAt(png, 1, 2)
+            .Should()
+            .Be(0xFF0000FF, "the pet is drawn there in its palette's colour");
+        PixelAt(png, 0, 0).Should().Be(0x808080FF);
+    }
+
+    [Fact]
+    public async Task APetsSpriteWithoutAPaletteIsDrawnAsItsAssetIs()
+    {
+        _server.Serve("/pets/dog.nitro", Library("dog", "dog_64_sd_0_0", 0x112233FF));
+
+        // A pet's shadow is not paletted: no paletteSourceName.
+        var (drawn, png) = await RenderAsync(
+            LabRender("""{"name":"dog_64_sd_0_0","x":2,"y":1,"z":-1}""", "[]")
+        );
+
+        drawn.Should().BeTrue("the renderer logged {0}", RendererSaid);
+        PixelAt(png, 2, 1).Should().Be(0x112233FF);
     }
 
     [Fact]

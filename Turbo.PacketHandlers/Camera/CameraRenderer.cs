@@ -83,6 +83,7 @@ public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<Camera
                 ("--effect-url", _config.RendererEffectUrl),
                 ("--effectmap-url", _config.RendererEffectMapUrl),
                 ("--effect-image-url", _config.RendererEffectImageUrl),
+                ("--pet-url", _config.RendererPetUrl),
             }
         )
         {
