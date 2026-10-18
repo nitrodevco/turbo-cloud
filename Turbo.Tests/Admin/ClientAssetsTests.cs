@@ -1,6 +1,5 @@
 using System.Text;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Assets;
 using Turbo.Admin.Configuration;
@@ -146,6 +145,33 @@ public sealed class ClientAssetsTests
             .Be("https://hotel.example/play/client?preview");
     }
 
+    [Fact]
+    public async Task TheClientsPages_ApplyAtOnce_WhenTheyAreChangedInThePanel()
+    {
+        // A panel save reaches the server as a new value of the options; nothing restarts.
+        _variables.Json = """{ "badge.asset.url": "badges/%badgename%.gif" }""";
+        var config = new TestOptionsMonitor<AdminConfig>(new AdminConfig());
+        var assets = new ClientAssets(_variables, config, new CapturingLogger<ClientAssets>());
+
+        (await assets.GetAsync(Ct)).Preview.Should().BeEmpty();
+
+        config.Set(new AdminConfig { ClientPreviewUrl = "https://client.example/nitro/" });
+
+        (await assets.GetAsync(Ct)).Preview.Should().Be("https://client.example/nitro/?preview");
+
+        config.Set(new AdminConfig { ClientLoginUrl = CLIENT_PAGE });
+
+        var changed = await assets.GetAsync(Ct);
+
+        changed.Preview.Should().Be("https://hotel.example/play/client?preview");
+        changed.Badge.Should().Be("https://hotel.example/play/badges/%badgename%.gif");
+
+        _variables.Unreadable = true;
+        config.Set(new AdminConfig { ClientPreviewUrl = "https://other.example/client" });
+
+        (await assets.GetAsync(Ct)).Preview.Should().Be("https://other.example/client?preview");
+    }
+
     private ClientAssets Assets(
         string clientPage = CLIENT_PAGE,
         CapturingLogger<ClientAssets>? log = null,
@@ -154,7 +180,7 @@ public sealed class ClientAssetsTests
     ) =>
         new(
             _variables,
-            Options.Create(
+            new TestOptionsMonitor<AdminConfig>(
                 new AdminConfig
                 {
                     ClientLoginUrl = clientPage,

@@ -43,7 +43,7 @@ environment variable overrides it, and **Put back** (or deleting its row) remove
 | --- | --- | --- |
 | `[SecretSetting]` | `Turbo:Crypto:PrivateKey`, `Turbo:Web:Discord:ClientSecret`, `Turbo:Database:ConnectionString` | Can be replaced, never shown. Its history records only that it changed. No external variable can follow it. |
 | `[StartupSetting]` | `Turbo:Database`, `Turbo:Orleans`, `Turbo:Admin:Enabled`, `Url`, `PanelUrl`, `PasskeyRpId` | Shown, not changed: the panel stands on it. A wrong value would lock staff out of the panel that could fix it. |
-| `[LiveSetting]` | `Turbo:Operations:CountdownReminderMinutes`, `DefaultShutdownMinutes`, `MaxCountdownMinutes`, `RestartExitCode` | Changed, **applies now**: every reader reads it through `IOptionsMonitor<T>.CurrentValue` as it uses it, so it never waits on a restart. |
+| `[LiveSetting]` | `Turbo:Operations:CountdownReminderMinutes`, `DefaultShutdownMinutes`, `MaxCountdownMinutes`, `RestartExitCode`; `Turbo:Admin:ClientLoginUrl`, `ClientPreviewUrl` | Changed, **applies now**: every reader reads it through `IOptionsMonitor<T>.CurrentValue` as it uses it, so it never waits on a restart. |
 | none of these | everything else | Changed, applies after a restart. |
 
 Mark a new option `[SecretSetting]` when its value must not be read, and `[StartupSetting]` (on the

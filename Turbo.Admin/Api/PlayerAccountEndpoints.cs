@@ -32,7 +32,7 @@ internal sealed class PlayerAccountEndpoints(
     ILoginTicketService tickets,
     AdminTicketPolicy ticketPolicy,
     AdminSiteAccounts siteAccounts,
-    IOptions<AdminConfig> config,
+    IOptionsMonitor<AdminConfig> config,
     ILogger<PlayerAccountEndpoints> logger
 )
 {
@@ -184,12 +184,12 @@ internal sealed class PlayerAccountEndpoints(
         if (await RefusalAsync(http, player, ct).ConfigureAwait(false) is { } refused)
             return refused;
 
-        var maxMinutes = config.Value.TicketMaxLifetimeDays * 24 * 60;
+        var maxMinutes = config.CurrentValue.TicketMaxLifetimeDays * 24 * 60;
 
         if (request.LifetimeMinutes is { } minutes && (minutes < 1 || minutes > maxMinutes))
             return AdminResults.Error(
                 StatusCodes.Status400BadRequest,
-                $"A ticket works for 1 minute to {config.Value.TicketMaxLifetimeDays} days, or for good."
+                $"A ticket works for 1 minute to {config.CurrentValue.TicketMaxLifetimeDays} days, or for good."
             );
 
         var issued = await tickets
@@ -210,7 +210,7 @@ internal sealed class PlayerAccountEndpoints(
             issued.Reusable
         );
 
-        var template = config.Value.ClientLoginUrl;
+        var template = config.CurrentValue.ClientLoginUrl;
 
         return Results.Ok(
             new IssuedTicketResponse(

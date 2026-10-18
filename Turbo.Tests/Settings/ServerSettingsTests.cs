@@ -331,6 +331,30 @@ public sealed class ServerSettingsTests : IDisposable
         settings.Get("Turbo:Database:ConnectionString")!.Secret.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task the_clients_pages_apply_at_once_so_a_saved_preview_page_waits_on_no_restart()
+    {
+        var harness = Harness(
+            "{}",
+            (services, configuration) =>
+                services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME))
+        );
+
+        harness.Settings.Get("Turbo:Admin:ClientPreviewUrl")!.Live.Should().BeTrue();
+        harness.Settings.Get("Turbo:Admin:ClientLoginUrl")!.Live.Should().BeTrue();
+        harness.Settings.Get("Turbo:Admin:SessionHours")!.Live.Should().BeFalse();
+
+        var saved = await harness.Settings.SaveAsync(
+            "Turbo:Admin:ClientPreviewUrl",
+            "\"https://hotel.example/client\"",
+            STAFF,
+            Ct
+        );
+
+        saved.PendingRestart.Should().BeFalse();
+        harness.Live<AdminConfig>().ClientPreviewUrl.Should().Be("https://hotel.example/client");
+    }
+
     private SettingsHarness Harness(
         string appSettings = APP_SETTINGS,
         Action<IServiceCollection, IConfiguration>? register = null

@@ -128,6 +128,7 @@ public sealed class AdminConfig
     /// log in with. Empty shows the ticket alone. It is also the page an image address in the
     /// external variables that names no host is under, as the client reads it.
     /// </summary>
+    [LiveSetting]
     public string ClientLoginUrl { get; init; } = "";
 
     /// <summary>
@@ -136,6 +137,7 @@ public sealed class AdminConfig
     /// <see cref="ClientLoginUrl"/>. The client only takes a preview from an origin its
     /// <c>preview.allowed_origins</c> external variable names: the panel's.
     /// </summary>
+    [LiveSetting]
     public string ClientPreviewUrl { get; init; } = "";
 
     /// <summary>
