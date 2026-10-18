@@ -14,11 +14,13 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
+using Turbo.Contracts.Plugins.Admin;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
 using Turbo.Runtime;
@@ -58,6 +60,9 @@ public sealed class PluginManager(
     internal PluginStateFile State { get; } = new(config.Value.PluginFolderPath);
 
     internal PluginConfig Config => _config;
+
+    /// <summary>The admin endpoints and pages of the live plugins; none in a host without them.</summary>
+    private PluginAdminRoutes? Routes => host.GetService<PluginAdminRoutes>();
 
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
@@ -331,6 +336,10 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
+        // A folder copied in by hand is held to the API as an installed package is.
+        if (PluginApi.Refusal(m) is { } refusal)
+            throw new InvalidOperationException(refusal);
+
         var inactive = m.Dependencies.Select(d => d.Key).Where(k => !_live.ContainsKey(k)).ToList();
 
         if (inactive.Count > 0)
@@ -359,6 +368,8 @@ public sealed class PluginManager(
         if (current is not null)
         {
             // Until the new version is up, nothing of the plugin is registered: not "loaded".
+            Routes?.Reloading(m.Key);
+
             if (_status.TryGetValue(m.Key, out var was))
                 _status[m.Key] = was with
                 {
@@ -494,8 +505,20 @@ public sealed class PluginManager(
                     )
                 );
 
+            // Its admin nodes are registered before it starts; its endpoints and pages go live
+            // once it has, and are taken away first when it stops.
+            var admin = sp.GetService<IPluginAdmin>() is { } extension
+                ? PluginAdminRoutes.Build(m.Key, m.Name, m.Version, extension)
+                : null;
+
+            if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
+                disposables.Insert(0, nodes.Register(admin.Nodes));
+
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
             await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
+
+            if (admin is not null && Routes is { } routes)
+                disposables.Insert(0, routes.Live(m.Key, admin));
         }
         catch
         {
@@ -785,8 +808,14 @@ public sealed class PluginManager(
         }
     }
 
-    private void SetStatus(PluginManifest m, string folder, PluginStateType state, string? error) =>
+    private void SetStatus(PluginManifest m, string folder, PluginStateType state, string? error)
+    {
+        // Turned off or failed: what it served in the panel answers "off" until it is back.
+        if (state != PluginStateType.Loaded)
+            Routes?.Off(m.Key);
+
         _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
+    }
 
     /// <summary>Forgets plugins whose folder is gone and that are not live.</summary>
     private void ForgetGone(IEnumerable<(PluginManifest Manifest, string Folder)> plugins)

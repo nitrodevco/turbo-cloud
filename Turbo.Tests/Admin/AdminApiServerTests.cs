@@ -139,13 +139,20 @@ public sealed class AdminApiServerTests : IDisposable
     /// <summary>
     /// The server as the host builds it, over fakes of the hotel it reaches, and the services it
     /// was built from (the live feed among them). <paramref name="options"/>, when given, is the
-    /// whole config, its address included.
+    /// whole config, its address included. <paramref name="pluginRoutes"/> are the plugins' admin
+    /// endpoints and pages: none, unless given.
     /// </summary>
     internal static (
         IHostedService Server,
         ConcurrentQueue<LogEntry> Log,
         IServiceProvider Services
-    ) Build(string url, Fakes fakes, ILoggerFactory hostLog, AdminConfig? options = null)
+    ) Build(
+        string url,
+        Fakes fakes,
+        ILoggerFactory hostLog,
+        AdminConfig? options = null,
+        Turbo.Contracts.Plugins.Admin.IPluginAdminRoutes? pluginRoutes = null
+    )
     {
         var config = Options.Create(options ?? new AdminConfig { Enabled = true, Url = url });
         var services = new ServiceCollection();
@@ -234,6 +241,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminLiveFeed>();
         services.AddSingleton<Turbo.Admin.Plugins.AdminPluginAudit>();
         services.AddSingleton<Turbo.Admin.Server.AdminRestartAudit>();
+        services.AddSingleton(pluginRoutes ?? new Turbo.Plugins.PluginAdminRoutes());
 
         // Internal to Turbo.Admin, as the host knows it.
         var serverType = typeof(AdminConfig).Assembly.GetType("Turbo.Admin.Api.AdminApiServer")!;

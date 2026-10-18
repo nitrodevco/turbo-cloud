@@ -16,7 +16,12 @@ namespace Turbo.Tests.Support;
 /// </summary>
 internal static class PluginBuilder
 {
-    public static void Write(string pluginsFolder, string key, string source)
+    public static void Write(
+        string pluginsFolder,
+        string key,
+        string source,
+        int? apiVersion = null
+    )
     {
         var folder = Path.Combine(pluginsFolder, key);
 
@@ -31,7 +36,8 @@ internal static class PluginBuilder
                     Version = "1.0.0",
                     Author = "Staff",
                     AssemblyFile = $"{key}.dll",
-                    ApiVersion = PluginApi.VERSION,
+                    ApiVersion = apiVersion ?? PluginApi.VERSION,
+                    BuiltAgainst = "abc1234",
                 }
             )
         );
