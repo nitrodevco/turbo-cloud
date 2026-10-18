@@ -77,6 +77,7 @@ public sealed class MarketplaceTests : IDisposable
     /// <summary>The causes the inventories were handed: what was used up, and what was given.</summary>
     private readonly List<MovementCause> _consumeCauses = [];
     private readonly List<MovementCause> _grantCauses = [];
+    private readonly List<MovementCause> _creditCauses = [];
 
     /// <summary>The wallet's receipts of referenced credits, and the credits still to fail.</summary>
     private readonly HashSet<string> _creditReferences = [];
@@ -172,6 +173,9 @@ public sealed class MarketplaceTests : IDisposable
             var player = (long)call.Key!;
             var amount = (int)call.Args[1]!;
 
+            if (call.Args[3] is MovementCause cause)
+                _creditCauses.Add(cause);
+
             if (call.Args[2] is not string reference)
             {
                 _credits[player] += amount;
@@ -230,7 +234,10 @@ public sealed class MarketplaceTests : IDisposable
             .Be((MovementCauses.MARKET_LIST, SELLER, (short)0));
 
         // The item, gone from the inventory, becomes its offer in the same operation.
-        var listed = Movements().Should().ContainSingle().Subject;
+        var listed = Movements()
+            .Should()
+            .ContainSingle(x => x.Cause == MovementCauses.MARKET_LIST)
+            .Subject;
         (listed.OperationId, listed.Seq, listed.Cause, listed.CauseRef)
             .Should()
             .Be((listing.OperationId, (short)1, MovementCauses.MARKET_LIST, offerId.ToString()));
@@ -245,7 +252,7 @@ public sealed class MarketplaceTests : IDisposable
         var sale = _grantCauses.Should().ContainSingle().Subject;
         (sale.Cause, sale.CauseRef, sale.ActorPlayerId, sale.FirstSeq)
             .Should()
-            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)1));
+            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)3));
     }
 
     [Fact]
@@ -300,6 +307,125 @@ public sealed class MarketplaceTests : IDisposable
         (takeBack.Cause, takeBack.CauseRef, takeBack.ActorPlayerId)
             .Should()
             .Be((MovementCauses.MARKET_CANCEL, offerId.ToString(), SELLER));
+    }
+
+    [Fact]
+    public async Task A_sale_takes_the_item_off_its_offer_and_holds_the_revenue_there_until_redeemed()
+    {
+        var marketplace = NewMarketplace(await RecordingAsync());
+        var chair = Give(SELLER, CHAIR, "state:1");
+
+        await marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+        await marketplace.BuyOfferAsync(BUYER, offerId, Ct);
+
+        // After the price (seq 0, the wallet's): the listed item off its offer, the revenue onto it.
+        var sale = _grantCauses.Should().ContainSingle().Subject;
+        var claim = Movements().Where(x => x.OperationId == sale.OperationId).ToList();
+        claim
+            .Select(x =>
+                (
+                    x.Seq,
+                    x.AssetKind,
+                    x.AssetId,
+                    x.FromKind,
+                    x.FromOwner,
+                    x.FromPlace,
+                    x.ToKind,
+                    x.ToOwner,
+                    x.ToPlace,
+                    x.Amount,
+                    x.CauseRef
+                )
+            )
+            .Should()
+            .Equal(
+                (
+                    (short)1,
+                    AssetKind.Furni,
+                    (long)chair,
+                    PlaceKind.MarketplaceOffer,
+                    SELLER,
+                    (long)offerId,
+                    PlaceKind.None,
+                    0,
+                    0L,
+                    1L,
+                    offerId.ToString()
+                ),
+                (
+                    (short)2,
+                    AssetKind.Currency,
+                    0L,
+                    PlaceKind.None,
+                    0,
+                    0L,
+                    PlaceKind.MarketplaceOffer,
+                    SELLER,
+                    (long)offerId,
+                    97L,
+                    offerId.ToString()
+                )
+            );
+        (claim[0].DefinitionId, claim[0].SnapshotExtraData).Should().Be((CHAIR, "state:1"));
+        sale.FirstSeq.Should().Be(3, "the item made for the buyer follows the claim");
+
+        // The redeem takes the revenue off the offer (seq 0) and credits it (seq 1).
+        (await marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97);
+        var credit = _creditCauses.Should().ContainSingle().Subject;
+        credit.FirstSeq.Should().Be(1);
+        var redeemed = Movements()
+            .Should()
+            .ContainSingle(x => x.OperationId == credit.OperationId)
+            .Subject;
+        (redeemed.Seq, redeemed.FromKind, redeemed.FromOwner, redeemed.FromPlace)
+            .Should()
+            .Be(((short)0, PlaceKind.MarketplaceOffer, SELLER, (long)offerId));
+        (redeemed.ToKind, redeemed.Amount, redeemed.Cause, redeemed.CauseRef)
+            .Should()
+            .Be((PlaceKind.None, 97L, MovementCauses.MARKET_REDEEM, offerId.ToString()));
+
+        // Whatever the offer held came off it again.
+        Movements()
+            .Where(x =>
+                x.ToKind == PlaceKind.MarketplaceOffer || x.FromKind == PlaceKind.MarketplaceOffer
+            )
+            .GroupBy(x => (x.AssetKind, x.AssetId))
+            .Select(g => g.Sum(x => x.ToKind == PlaceKind.MarketplaceOffer ? x.Amount : -x.Amount))
+            .Should()
+            .Equal(0L, 0L);
+    }
+
+    [Fact]
+    public async Task An_offer_taken_back_takes_its_item_off_the_offer_before_giving_it_back()
+    {
+        var marketplace = NewMarketplace(await RecordingAsync());
+        var chair = Give(SELLER, CHAIR);
+        await marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+
+        (await marketplace.CancelOfferAsync(SELLER, offerId, Ct)).Should().BeTrue();
+        (await marketplace.CancelOfferAsync(SELLER, offerId, Ct)).Should().BeFalse();
+
+        var takeBack = _grantCauses.Should().ContainSingle().Subject;
+        takeBack.FirstSeq.Should().Be(1);
+        var off = Movements()
+            .Should()
+            .ContainSingle(x => x.Cause == MovementCauses.MARKET_CANCEL)
+            .Subject;
+        (off.OperationId, off.Seq, off.AssetId, off.FromKind, off.FromPlace, off.ToKind)
+            .Should()
+            .Be(
+                (
+                    takeBack.OperationId,
+                    (short)0,
+                    (long)chair,
+                    PlaceKind.MarketplaceOffer,
+                    (long)offerId,
+                    PlaceKind.None
+                )
+            );
+        off.CauseRef.Should().Be(offerId.ToString());
     }
 
     /// <summary>A chair of the seller's, listed and bought; answers the offer id.</summary>
