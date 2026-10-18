@@ -70,7 +70,10 @@ public sealed class ClientAssets(
             // Pictures are a convenience: the panel works without them, so keep what was read last.
             logger.LogWarning(ex, "Could not read the client's external variables");
 
-            return _read.Assets;
+            return _read.Assets with
+            {
+                Preview = PreviewUrl(),
+            };
         }
     }
 
@@ -101,8 +104,30 @@ public sealed class ClientAssets(
             Value(BADGE),
             Value(IMAGE_LIBRARY),
             Value(TEMPLATES),
-            _config.ImagerUrl.TrimEnd('/')
+            _config.ImagerUrl.TrimEnd('/'),
+            PreviewUrl()
         );
+    }
+
+    /// <summary>
+    /// The client's preview host: <c>ClientPreviewUrl</c>, else the page of <c>ClientLoginUrl</c>,
+    /// its query replaced by <c>?preview</c>; empty when neither is an http(s) address.
+    /// </summary>
+    private string PreviewUrl()
+    {
+        var page = string.IsNullOrWhiteSpace(_config.ClientPreviewUrl)
+            ? _config.ClientLoginUrl
+            : _config.ClientPreviewUrl;
+
+        if (
+            !Uri.TryCreate(page, UriKind.Absolute, out var url)
+            || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
+        )
+            return "";
+
+        return new UriBuilder(url) { Query = "preview", Fragment = "" }
+            .Uri
+            .AbsoluteUri;
     }
 
     /// <summary>Every <c>${key}</c> the config has a value for, replaced, as the client does.</summary>
