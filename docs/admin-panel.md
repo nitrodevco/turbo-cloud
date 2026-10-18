@@ -295,7 +295,8 @@ shutdown ends with. Every request, refused ones included, is in the command log 
 **The host has to start it again.** Ploi's daemon (Supervisor, `autorestart=true`) restarts the
 process whatever it exits with, so a restart comes back within seconds and so does a shutdown.
 To keep a shutdown down, set the program's `autorestart=unexpected` and `exitcodes=0`; systemd
-does the same with `Restart=on-failure` (or `RestartForceExitStatus=75`). Run without a
+does the same with `Restart=on-failure` (or `RestartForceExitStatus=75`). A crash exits with 1, so
+both start a crashed server again. Run without a
 supervisor (`dotnet Turbo.Main.dll` in a terminal), a restart stops the server like a shutdown
 and nothing brings it back. A restart does not overrule a shutdown that is counting down or under
 way; a shutdown replaces a restart.
