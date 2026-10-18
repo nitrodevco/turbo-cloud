@@ -26,4 +26,11 @@ public static class FurniturePlacementNotifications
     /// second Roller Speed Controller (official client capture, 2026-10-18, 1/1).
     /// </summary>
     public const string TYPE_LIMIT_MESSAGE = "${room.error.type_limit}";
+
+    /// <summary>
+    /// The <c>message</c> parameter when a player may not pick up a wired variable box: "Only the
+    /// room owner and wired variable owner can pick up this furniture." (official hotel texts
+    /// 2026-10-12), Habbo's answer to a room admin picking up a variable.
+    /// </summary>
+    public const string VARIABLE_PERMISSIONS_MESSAGE = "${room.error.variable_permissions}";
 }

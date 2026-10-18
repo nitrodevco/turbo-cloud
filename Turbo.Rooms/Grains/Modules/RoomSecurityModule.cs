@@ -17,6 +17,7 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -96,6 +97,17 @@ public sealed class RoomSecurityModule(
 
         return FurniturePickupType.None;
     }
+
+    /// <summary>
+    /// Whether the player may pick up a wired variable box, which takes every value it stored
+    /// with it: only the room's owner and the box's own may, whatever else they may pick up
+    /// (Habbo answers a room admin with <c>room.error.variable_permissions</c>). The room
+    /// clearing itself always may.
+    /// </summary>
+    public async Task<bool> CanPickUpVariableAsync(ActionContext ctx, IRoomItem item) =>
+        ctx.Origin == ActionOrigin.System
+        || item.OwnerId == ctx.PlayerId
+        || await GetIsRoomOwnerAsync(ctx);
 
     public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx) => GetIsRoomOwnerAsync(ctx.PlayerId);
 
