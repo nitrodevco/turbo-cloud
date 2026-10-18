@@ -3796,6 +3796,12 @@ public class Revision20260909 : IRevision
 
             #region Valut
             {
+                typeof(CreditVaultStatusMessageComposer),
+                new CreditVaultStatusMessageComposerSerializer(
+                    MessageComposer.CreditVaultStatusMessageComposer
+                )
+            },
+            {
                 typeof(IncomeRewardClaimResponseMessageComposer),
                 new IncomeRewardClaimResponseMessageComposerSerializer(
                     MessageComposer.IncomeRewardClaimResponseMessageComposer
