@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -345,7 +346,11 @@ public sealed partial class RoomMapModule
                 homeless.Count
             );
 
-            await ActionModule.ReturnItemsToOwnersAsync(homeless, ct);
+            await ActionModule.ReturnItemsToOwnersAsync(
+                homeless,
+                MovementCause.New(MovementCauses.ROOM_FLOORPLAN, 0, _roomGrain.RoomId.Value),
+                ct
+            );
         }
 
         var avatars = _roomGrain._state.AvatarsByObjectId.Values.ToList();

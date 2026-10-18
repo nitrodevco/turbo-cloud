@@ -47,30 +47,20 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     private const int PRESENT = 2;
     private const int TELEPORT = 3;
 
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-    private readonly SqliteDb _db = new();
-    private readonly Fakes _fakes = new();
-    private readonly TestOptionsMonitor<MovementsConfig> _config = new(new() { Enabled = true });
-    private readonly List<FurnitureDefinitionEntity> _definitions = [];
+    private readonly FurnitureWorld _world = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public FurnitureCustodyMovementTests()
     {
-        AddPlayer(OWNER, "owner");
-        AddPlayer(OTHER, "other");
-        AddDefinition(CHAIR, "chair", "default_floor");
-        AddDefinition(PRESENT, "present_wrap*1", PresentData.LOGIC_NAME);
-        AddDefinition(TELEPORT, "teleport_door", TeleportFurniture.LOGIC_NAME);
-
-        _fakes.Handlers["TryGetDefinition"] = call =>
-            _definitions.FirstOrDefault(x => x.Id == (int)call.Args[0]!)?.ToSnapshot(0.01);
-        _fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult<string?>("owner");
+        _world.AddPlayer(OWNER, "owner");
+        _world.AddPlayer(OTHER, "other");
+        _world.AddDefinition(CHAIR, "chair", "default_floor");
+        _world.AddDefinition(PRESENT, "present_wrap*1", PresentData.LOGIC_NAME);
+        _world.AddDefinition(TELEPORT, "teleport_door", TeleportFurniture.LOGIC_NAME);
     }
 
-    public void Dispose() => _db.Dispose();
+    public void Dispose() => _world.Dispose();
 
     [Fact]
     public async Task AGrant_IsMadeFromNowhereIntoTheInventory_UnderTheCallersCause()
@@ -150,7 +140,7 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     {
         var inventory = await NewInventoryAsync(OWNER);
         var chair = await inventory.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
-        await DeleteRowAsync(chair!.ItemId.Value);
+        await _world.DeleteRowAsync(chair!.ItemId.Value, Ct);
         var cause = MovementCause.New(MovementCauses.USE_DECORATION, OWNER);
 
         (await inventory.ConsumeFurnitureAsync(chair.ItemId, cause, Ct)).Should().BeNull();
@@ -227,8 +217,8 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
         var partner = await NewInventoryAsync(OTHER);
         var offered = await initiator.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
         var asked = await partner.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
-        _fakes.Instances[(typeof(IInventoryGrain), (long)OWNER)] = initiator;
-        _fakes.Instances[(typeof(IInventoryGrain), (long)OTHER)] = partner;
+        _world.Fakes.Instances[(typeof(IInventoryGrain), (long)OWNER)] = initiator;
+        _world.Fakes.Instances[(typeof(IInventoryGrain), (long)OTHER)] = partner;
         var trades = NewTradeGrain();
         var initiatorCtx = ActionContext.CreateForPlayer(OWNER, ROOM);
         var partnerCtx = ActionContext.CreateForPlayer(OTHER, ROOM);
@@ -239,7 +229,7 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
         await trades.AcceptAsync(initiatorCtx, true, Ct);
         await trades.AcceptAsync(partnerCtx, true, Ct);
         // The partner's row goes behind the trade's back, so the second half cannot move.
-        await DeleteRowAsync(asked.ItemId.Value);
+        await _world.DeleteRowAsync(asked.ItemId.Value, Ct);
         await trades.ConfirmAsync(initiatorCtx, true, Ct);
         await trades.ConfirmAsync(partnerCtx, true, Ct);
 
@@ -263,7 +253,7 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     [Fact]
     public async Task RecordingOff_WritesNoMovements_AndTheRowsChangeAsBefore()
     {
-        _config.Set(new() { Enabled = false });
+        _world.Config.Set(new() { Enabled = false });
         var inventory = await NewInventoryAsync(OWNER);
 
         var chair = await inventory.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
@@ -330,134 +320,16 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
         };
     }
 
-    private async Task DeleteRowAsync(int id)
-    {
-        await using var db = await _db.CreateDbContextAsync(Ct);
+    private Task<IInventoryGrain> NewInventoryAsync(int playerId) =>
+        _world.NewInventoryAsync(playerId, Ct);
 
-        await db.Furnitures.Where(x => x.Id == id).ExecuteDeleteAsync(Ct);
-    }
+    private List<FurnitureEntity> Rows() => _world.Rows();
 
-    private List<FurnitureEntity> Rows()
-    {
-        using var db = _db.CreateDbContext();
-
-        return db.Furnitures.AsNoTracking().OrderBy(x => x.Id).ToList();
-    }
-
-    private List<AssetMovementOutboxEntity> Movements()
-    {
-        using var db = _db.CreateDbContext();
-
-        return db
-            .AssetMovementOutbox.AsNoTracking()
-            .Where(x =>
-                x.Cause != MovementCauses.RECORDING_STARTED
-                && x.Cause != MovementCauses.RECORDING_STOPPED
-            )
-            .OrderBy(x => x.Id)
-            .ToList();
-    }
-
-    private void AddPlayer(int id, string name) =>
-        _db.Insert(
-            new PlayerEntity
-            {
-                Id = id,
-                Name = name,
-                Figure = "hd-180-1",
-                Gender = AvatarGenderType.Male,
-                PlayerStatus = PlayerStatusType.Offline,
-            }
-        );
-
-    private void AddDefinition(int id, string name, string logic)
-    {
-        var definition = new FurnitureDefinitionEntity
-        {
-            Id = id,
-            SpriteId = id,
-            Name = name,
-            ProductType = ProductType.Floor,
-            FurniCategory = FurnitureCategory.Default,
-            Logic = logic,
-            Width = 1,
-            Length = 1,
-            StackHeight = 1,
-            CanStack = true,
-            CanWalk = false,
-            CanSit = false,
-            CanLay = false,
-            CanRecycle = true,
-            CanTrade = true,
-            CanGroup = true,
-            CanSell = true,
-        };
-
-        _definitions.Add(definition);
-        _db.Insert(definition);
-    }
-
-    /// <summary>
-    /// A player's inventory grain, freshly activated, with its real furniture section and the
-    /// custody over this database, recording through the real recorder.
-    /// </summary>
-    private async Task<IInventoryGrain> NewInventoryAsync(int playerId)
-    {
-        var recorder = new AssetMovementRecorder(
-            _config,
-            _db,
-            NullLogger<AssetMovementRecorder>.Instance
-        );
-        await recorder.StartAsync(Ct);
-
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            _fakes,
-            _db,
-            playerId
-        );
-        var definitions = _fakes.Create<IFurnitureDefinitionProvider>();
-        var loader = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Factories.InventoryFurnitureLoader"
-            )!,
-            All,
-            null,
-            [
-                _db,
-                definitions,
-                new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
-                NullLogger<IInventoryFurnitureLoader>.Instance,
-            ],
-            null
-        )!;
-        var module = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryFurniModule"
-            )!,
-            All,
-            null,
-            [
-                grain,
-                RoomHarness.GetMember(grain, "_state")!,
-                TestCustody.Over(_db, recorder),
-                loader,
-                definitions,
-                _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),
-                NullLogger.Instance,
-            ],
-            null
-        )!;
-
-        RoomHarness.SetField(grain, "FurniModule", module);
-
-        return (IInventoryGrain)grain;
-    }
+    private List<AssetMovementOutboxEntity> Movements() => _world.Movements();
 
     private IRoomTradeGrain NewTradeGrain()
     {
-        _fakes.Handlers[nameof(IRoomGrain.GetTradePartiesAsync)] = _ =>
+        _world.Fakes.Handlers[nameof(IRoomGrain.GetTradePartiesAsync)] = _ =>
             Task.FromResult<TradePartiesSnapshot?>(
                 new TradePartiesSnapshot
                 {
@@ -468,12 +340,12 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
                     PartnerMayTrade = true,
                 }
             );
-        _fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        _world.Fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
 
         var grain = GrainHarness.Create(
             typeof(RoomModule).Assembly,
             "Turbo.Rooms.Grains.RoomTradeGrain",
-            _fakes
+            _world.Fakes
         );
         RoomHarness.SetMember(
             RoomHarness.GetField(grain, "_state")!,

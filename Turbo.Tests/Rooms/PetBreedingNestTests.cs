@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
@@ -85,7 +86,9 @@ public sealed class PetBreedingNestTests
 
         var calls = _room.Harness.Fakes.Log.Calls.ToList();
         var used = calls.FindIndex(x =>
-            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == NEST
+            x.Method == "WriteUseAsync"
+            && x.Args[1] is UsedUpItem { Item.ObjectId: var id }
+            && id == NEST
         );
         used.Should().BeGreaterThanOrEqualTo(0, "the nest's row is deleted at once");
         used.Should()

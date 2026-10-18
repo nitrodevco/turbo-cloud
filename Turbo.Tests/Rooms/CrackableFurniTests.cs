@@ -18,6 +18,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -422,7 +423,9 @@ public sealed class CrackableFurniTests
 
         var calls = _room.Harness.Fakes.Log.Calls.ToList();
         var written = calls.FindIndex(x =>
-            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == BOX
+            x.Method == "WriteUseAsync"
+            && x.Args[1] is UsedUpItem { Item.ObjectId: var id }
+            && id == BOX
         );
         written.Should().BeGreaterThanOrEqualTo(0, "the box's row is deleted at once");
         written.Should().BeLessThan(calls.FindIndex(x => x.Method == "GrantFurnitureAsync"));

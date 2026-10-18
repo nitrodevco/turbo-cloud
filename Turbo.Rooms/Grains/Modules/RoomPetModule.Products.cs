@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
@@ -56,7 +57,16 @@ public sealed partial class RoomPetModule
 
         // Used up before the plant is created: the plant is written at once, so a seed deleted
         // after it outlived it by a write and a crash in between left both.
-        await ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(
+            ctx,
+            seed.ObjectId,
+            MovementCause.New(
+                MovementCauses.USE_MONSTERPLANT_SEED,
+                ctx.PlayerId,
+                seed.ObjectId.Value
+            ),
+            ct
+        );
 
         var plant = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)

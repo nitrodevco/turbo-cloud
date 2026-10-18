@@ -650,12 +650,14 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGra
   A9A270FA: EnqueueCommandLogsAsync(System.Collections.Generic.List<Turbo.Primitives.Commands.Snapshots.CommandLogSnapshot>, System.Threading.CancellationToken) -> Task
   EBA32523: EnqueueDeletedItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task
   23990BCC: EnqueueDirtyBotsAsync(System.Collections.Generic.List<Turbo.Primitives.Bots.Snapshots.BotSnapshot>, System.Threading.CancellationToken) -> Task
-  11BDFF78: EnqueueDirtyItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, System.Threading.CancellationToken, bool) -> Task
+  751F6506: EnqueueDirtyItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, System.Threading.CancellationToken) -> Task
   1847F886: EnqueueDirtyItemsAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task
   64DB0503: EnqueueDirtyPetsAsync(System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
   1BAF3003: FlushNowAsync(System.Threading.CancellationToken) -> Task
   9ACCF37C: InsertBuildersClubItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, int, System.Threading.CancellationToken) -> Task<bool>
-  F2A7520B: WriteUseAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Object.RoomObjectId?, System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
+  66028104: WritePickupAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
+  990F942A: WritePlacementAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
+  C4EF66C5: WriteUseAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.UsedUpItem?, System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomTradeGrain")] Turbo.Primitives.Rooms.Grains.IRoomTradeGrain [Version(0)]
   738A1DBC: AcceptAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<bool>

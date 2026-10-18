@@ -13,6 +13,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Avatars.Pet;
@@ -142,7 +143,9 @@ public class PetFurniOwnershipTests
 
         var calls = room.Fakes.Log.Calls.ToList();
         var used = calls.FindIndex(x =>
-            x.Method == "WriteUseAsync" && x.Args[1] is RoomObjectId id && id == ITEM
+            x.Method == "WriteUseAsync"
+            && x.Args[1] is UsedUpItem { Item.ObjectId: var id }
+            && id == ITEM
         );
         used.Should().BeGreaterThanOrEqualTo(0);
         used.Should().BeLessThan(calls.FindIndex(x => x.Method == "CreatePetAsync"));

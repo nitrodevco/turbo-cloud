@@ -12,7 +12,7 @@ namespace Turbo.Tests.Support;
 /// <summary>
 /// Builds any Turbo grain without an Orleans runtime: an uninitialized instance, its
 /// &lt;Grain&gt;LiveState created with the given key, dependencies filled by type (the given
-/// database, shipped config defaults, null loggers, a recording grain factory, an event system
+/// database, the furniture custody over it, shipped config defaults, null loggers, a recording grain factory, an event system
 /// with no handlers), and a fake
 /// grain context so timer registration is inert.
 /// </summary>
@@ -46,6 +46,8 @@ public static class GrainHarness
             stateField.SetValue(grain, state);
         }
 
+        db ??= new InMemoryDb();
+
         foreach (var f in type.GetFields(All))
         {
             if (f.GetValue(grain) is not null)
@@ -62,7 +64,9 @@ public static class GrainHarness
                     )
                 );
             else if (t == typeof(IDbContextFactory<TurboDbContext>))
-                f.SetValue(grain, db ?? new InMemoryDb());
+                f.SetValue(grain, db);
+            else if (t == typeof(Turbo.Furniture.Custody.IFurnitureCustody))
+                f.SetValue(grain, TestCustody.Over(db));
             else if (t.Name.EndsWith("Config", StringComparison.Ordinal) && t.IsClass)
                 f.SetValue(grain, Activator.CreateInstance(t));
             else if (t == typeof(IGrainFactory))

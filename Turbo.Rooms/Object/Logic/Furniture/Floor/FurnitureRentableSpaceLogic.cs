@@ -284,7 +284,11 @@ public class FurnitureRentableSpaceLogic(
             .Cast<IRoomItem>()
             .ToList();
 
-        await ActionModule.ReturnItemsToOwnersAsync(built, ct);
+        await ActionModule.ReturnItemsToOwnersAsync(
+            built,
+            MovementCause.New(MovementCauses.ROOM_RENT_END, 0, _ctx.ObjectId.Value),
+            ct
+        );
     }
 
     private void ScheduleExpiry()

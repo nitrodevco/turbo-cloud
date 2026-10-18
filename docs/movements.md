@@ -6,8 +6,9 @@ rollback tool, dupe detection). Core says what moved, from where, to where, why 
 what that means is the plugin's business.
 
 **Status:** the record, the recorder, the table, the switch, the wallet, the inventory's
-furni, trades and the marketplace (below). The room, holder, pet and bot paths are wired up one by
-one in later changes, and so are the dispatcher that hands the rows to a plugin and the pruning.
+furni, trades, the marketplace and the room's placements, pickups and use-ups (below). The
+holder, borrowed furni, pet, bot and onboarding paths are wired up one by one in later changes,
+and so are the dispatcher that hands the rows to a plugin and the pruning.
 
 ## The switch
 
@@ -148,6 +149,30 @@ A grant that follows a debit of the same action starts after the debit's seqs
 | `reward.track` | a reward track furni prize |
 | `staff.give_item`, `staff.gift` | `:giveitem` and `:gift` (actor: the staff member; one operation per item or present) |
 | `trade`, `market.*` | below |
+
+## The room
+
+A room buffers where its furni stand and their data in its persistence grain and writes them on
+the flush (`RoomConfig.DirtyItemsTickMs`). Who holds a furni and in which room is not buffered: a
+placement, a pickup and a use-up are written through the furniture custody when they happen, by
+the room's persistence grain (`WritePlacementAsync`, `WritePickupAsync`, `WriteUseAsync`), so
+they wait for a flush under way and nothing older of that room lands after them. A pickup drops
+the room's queued update of the item, and the flush writes no owner or room. A write that fails
+stays queued, ahead of the next flush's updates, and is written again with its movements.
+
+| Transition | Movement | Called by |
+| --- | --- | --- |
+| `PlaceInRoomAsync` | `Inventory` -> `Room` (the room, where it was put) | a player's placement, floor or wall, and a crackable's prize or a present's content put down |
+| `TakeOutOfRoomAsync` | `Room` (who held it, where it stood) -> `Inventory` (the snapshot's owner: the picker when they keep it), with the data it left with; one write for any number | a pickup, `ReturnItemsToOwnersAsync` |
+| `DestroyInRoomAsync` | `Room` -> `None`, with a snapshot, in the use's own transaction with the pets it changed | `DeleteItemByIdAsync`, a breeding nest |
+
+| Cause | Where |
+| --- | --- |
+| `room.place`, `room.pickup` | a placement and a pickup (actor: the player; `room.pickup` actor 0 when the room sends a furni back) |
+| `room.pickall`, `room.ejectall` | `:pickall` and `:ejectall`, one operation for all the furni |
+| `room.delete`, `room.floorplan`, `room.rent_end`, `group.furni_removed` | furni sent home when the room goes (cause ref: the room), is left off a new floor plan (the room), a rented space ends (the rentable furni), the room's group goes (the room) |
+| `room.delete_item` | a furni the client deletes |
+| `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_supply`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
 
 ## Trades
 

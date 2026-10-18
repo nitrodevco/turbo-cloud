@@ -11,6 +11,7 @@ using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -247,12 +248,13 @@ public sealed partial class RoomGrain
     public async Task OnGuildDeletedAsync(CancellationToken ct)
     {
         var ctx = ActionContext.CreateForSystem(RoomId);
+        var cause = MovementCause.New(MovementCauses.GROUP_FURNI_REMOVED, 0, RoomId.Value);
 
         foreach (var itemId in _state.ItemsById.Keys.ToList())
         {
             try
             {
-                await ActionModule.RemoveItemByIdAsync(ctx, itemId, confirmed: true, ct);
+                await ActionModule.RemoveItemByIdAsync(ctx, itemId, confirmed: true, cause, ct);
             }
             catch (Exception ex)
             {

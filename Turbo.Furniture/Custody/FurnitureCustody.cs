@@ -14,7 +14,9 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Furniture.Custody;
 
@@ -259,6 +261,155 @@ public sealed class FurnitureCustody(
         );
     }
 
+    public Task<bool> PlaceInRoomAsync(
+        RoomId roomId,
+        RoomItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var owner = item.OwnerId;
+        double z = item.Z;
+        var wallOffset = WallOffsetOf(item) ?? 0;
+
+        return dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
+            {
+                var placed = await InInventory(dbCtx, owner, [item.ObjectId.Value])
+                    .ExecuteUpdateAsync(
+                        up =>
+                            up.SetProperty(x => x.RoomEntityId, roomId.Value)
+                                .SetProperty(x => x.X, item.X)
+                                .SetProperty(x => x.Y, item.Y)
+                                .SetProperty(x => x.Z, z)
+                                .SetProperty(x => x.Rotation, item.Rotation)
+                                .SetProperty(x => x.WallOffset, wallOffset),
+                        ct
+                    );
+
+                if (placed == 0)
+                    return UnitOfWork.Rollback(false);
+
+                movements.Record(
+                    dbCtx,
+                    Movement(
+                        cause,
+                        0,
+                        Furni(item.ObjectId.Value, item.DefinitionId),
+                        Inventory(owner),
+                        InRoom(owner, roomId, item)
+                    )
+                );
+
+                return UnitOfWork.Commit(true);
+            },
+            ct
+        );
+    }
+
+    public async Task<int> TakeOutOfRoomAsync(
+        RoomId roomId,
+        IReadOnlyList<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (items.Count == 0)
+            return 0;
+
+        var ids = items.Select(x => x.ObjectId.Value).ToList();
+
+        var taken = await dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
+            {
+                var rows = await dbCtx
+                    .Furnitures.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId.Value)
+                    .ToDictionaryAsync(x => x.Id, ct);
+
+                var at = DateTime.UtcNow;
+                var moved = new List<AssetMovement>(rows.Count);
+
+                foreach (var item in items)
+                {
+                    if (!rows.TryGetValue(item.ObjectId.Value, out var row))
+                        continue;
+
+                    var leftBy = (PlayerId)row.PlayerEntityId;
+
+                    // The spot and data it left with, so the inventory and a later restore see
+                    // what the room last showed.
+                    row.RoomEntityId = null;
+                    row.PlayerEntityId = item.OwnerId.Value;
+                    row.X = item.X;
+                    row.Y = item.Y;
+                    row.Z = item.Z;
+                    row.Rotation = item.Rotation;
+                    row.WallOffset = WallOffsetOf(item) ?? row.WallOffset;
+                    row.ExtraData = item.ExtraData;
+
+                    moved.Add(
+                        Movement(
+                            cause,
+                            moved.Count,
+                            Furni(row.Id, row.FurnitureDefinitionEntityId),
+                            InRoom(leftBy, roomId, item),
+                            Inventory(item.OwnerId),
+                            at: at
+                        )
+                    );
+                }
+
+                movements.Record(dbCtx, moved);
+
+                return UnitOfWork.Commit(moved.Count);
+            },
+            ct
+        );
+
+        if (taken != items.Count)
+            logger.LogWarning(
+                "{Missing} of {Count} items taken out of room {RoomId} were no longer in it; skipped",
+                items.Count - taken,
+                items.Count,
+                roomId
+            );
+
+        return taken;
+    }
+
+    public async Task<bool> DestroyInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        RoomItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var owner = await dbCtx
+            .Furnitures.Where(x => x.Id == item.ObjectId.Value && x.RoomEntityId == roomId.Value)
+            .Select(x => (int?)x.PlayerEntityId)
+            .FirstOrDefaultAsync(ct);
+
+        if (owner is null)
+            return false;
+
+        await dbCtx.Furnitures.Where(x => x.Id == item.ObjectId.Value).ExecuteDeleteAsync(ct);
+
+        movements.Record(
+            dbCtx,
+            Movement(
+                cause,
+                0,
+                Furni(item.ObjectId.Value, item.DefinitionId),
+                InRoom((PlayerId)owner.Value, roomId, item),
+                AssetPlace.Nowhere,
+                new AssetSnapshot(item.DefinitionId, item.ExtraData)
+            )
+        );
+
+        return true;
+    }
+
     /// <summary>The rows of these ids an inventory holds: its owner's, in no room and no holder.</summary>
     private static IQueryable<FurnitureEntity> InInventory(
         TurboDbContext dbCtx,
@@ -333,6 +484,17 @@ public sealed class FurnitureCustody(
 
     private static AssetPlace Inventory(PlayerId owner) =>
         new(owner.Value, PlaceKind.Inventory, 0, null);
+
+    private static AssetPlace InRoom(PlayerId owner, RoomId roomId, RoomItemSnapshot item) =>
+        new(
+            owner.Value,
+            PlaceKind.Room,
+            roomId.Value,
+            new RoomPosition(item.X, item.Y, item.Z, item.Rotation, WallOffsetOf(item))
+        );
+
+    private static int? WallOffsetOf(RoomItemSnapshot item) =>
+        item is RoomWallItemSnapshot wallItem ? wallItem.WallOffset : null;
 
     private static AssetPlace Holder(PlayerId owner, int holderId) =>
         new(owner.Value, PlaceKind.Holder, holderId, null);

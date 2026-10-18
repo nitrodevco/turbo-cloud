@@ -14,11 +14,14 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
+using Turbo.Furniture.Custody;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
@@ -39,7 +42,10 @@ namespace Turbo.Rooms.Grains;
 /// is left. A write that fails keeps its rows queued for the next tick. Pet care
 /// operations are the write-through exception: their pet mutation and achievement receipt commit
 /// together, then their result is merged into any buffered pet snapshot before it is returned.
-/// A use that uses an item up or grants something is the other one (<see cref="WriteUseAsync"/>).
+/// A use that uses an item up or grants something is another one (<see cref="WriteUseAsync"/>),
+/// and so is who holds a furni and in which room: a placement and a pickup are written through
+/// the furniture custody when they happen (<see cref="WritePlacementAsync"/>,
+/// <see cref="WritePickupAsync"/>), and only where a furni stands and its data are buffered.
 /// </summary>
 internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 {
@@ -48,6 +54,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IRoomPersistenceGrain> _logger;
     private readonly IAchievementFactRecorder _achievementFacts;
+    private readonly IFurnitureCustody _custody;
 
     private readonly RoomPersistenceLiveState _state;
 
@@ -59,6 +66,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         IOptions<RoomConfig> roomConfig,
         IGrainFactory grainFactory,
         IAchievementFactRecorder achievementFacts,
+        IFurnitureCustody custody,
         ILogger<IRoomPersistenceGrain> logger
     )
     {
@@ -67,6 +75,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         _grainFactory = grainFactory;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _custody = custody;
 
         _state = new() { RoomId = this.GetRoomId() };
     }
@@ -356,17 +365,18 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
     public async Task WriteUseAsync(
         RoomId roomId,
-        RoomObjectId? usedItemId,
+        UsedUpItem? usedUp,
         List<PetSnapshot> pets,
         CancellationToken ct
     )
     {
+        var usedItemId = usedUp?.Item.ObjectId;
+
         // These are newer than anything queued for them, and a queued update of the used item
         // would only resurrect its row.
         if (usedItemId is { } itemId)
         {
             _state.DirtyItems.Remove(itemId);
-            _state.RemovedItemIds.Remove(itemId);
             _state.DeletedItemIds.Remove(itemId);
         }
 
@@ -375,14 +385,20 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         try
         {
+            // Its placement first, if that is still waiting to be written.
+            if (!await FlushCustodyWritesAsync(ct))
+                throw new InvalidOperationException(
+                    "earlier changes of who holds furni are unwritten"
+                );
+
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
             await using var transaction = await dbCtx.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
                 ct
             );
 
-            if (usedItemId is { } id)
-                await DeleteItemRowsAsync(dbCtx, [id.Value], ct);
+            if (usedUp is not null)
+                await DestroyUsedUpAsync(dbCtx, usedUp.Item, usedUp.Cause, ct);
 
             if (pets.Count > 0)
                 await WritePetRowsAsync(dbCtx, pets, ct);
@@ -400,8 +416,10 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 _state.RoomId
             );
 
-            if (usedItemId is { } queued)
-                _state.DeletedItemIds.Add(queued);
+            if (usedUp is not null && FurniIdBands.IsBuildersClub(usedUp.Item.ObjectId))
+                _state.DeletedItemIds.Add(usedUp.Item.ObjectId);
+            else if (usedUp is not null)
+                _state.PendingCustodyWrites.Enqueue(new CustodyDestroy(usedUp.Item, usedUp.Cause));
 
             foreach (var pet in pets)
                 _state.DirtyPets.TryAdd(pet.Id, pet);
@@ -411,23 +429,142 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     public Task EnqueueDirtyItemAsync(
         RoomId roomId,
         RoomItemSnapshot snapshot,
-        CancellationToken ct,
-        bool remove = false
+        CancellationToken ct
     )
     {
         _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
-        if (remove)
-            _state.RemovedItemIds.Add(snapshot.ObjectId);
-
         return Task.CompletedTask;
+    }
+
+    public Task WritePlacementAsync(
+        RoomId roomId,
+        RoomItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        _state.PendingCustodyWrites.Enqueue(new CustodyPlacement(item, cause));
+
+        return FlushCustodyWritesAsync(ct);
+    }
+
+    public Task WritePickupAsync(
+        RoomId roomId,
+        List<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        // A queued update of one of them would write the spot it had here over wherever it goes.
+        foreach (var item in items)
+            _state.DirtyItems.Remove(item.ObjectId);
+
+        _state.PendingCustodyWrites.Enqueue(new CustodyPickup(items, cause));
+
+        return FlushCustodyWritesAsync(ct);
+    }
+
+    /// <summary>
+    /// Writes the changes of who holds what, oldest first. False when one could not be written:
+    /// it stays first in line for the next tick, and nothing behind it is written before it.
+    /// </summary>
+    private async Task<bool> FlushCustodyWritesAsync(CancellationToken ct)
+    {
+        while (_state.PendingCustodyWrites.TryPeek(out var write))
+        {
+            try
+            {
+                await WriteCustodyAsync(write, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to write a change of who holds furni in room {RoomId} ({Cause}); queued for the next flush",
+                    _state.RoomId,
+                    write.Cause.Cause
+                );
+
+                return false;
+            }
+
+            _state.PendingCustodyWrites.Dequeue();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// A borrowed furni has no owner and no custody: its row goes with the borrow. Anything else
+    /// leaves through the custody, with its movement.
+    /// </summary>
+    private async Task DestroyUsedUpAsync(
+        TurboDbContext dbCtx,
+        RoomItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (FurniIdBands.IsBuildersClub(item.ObjectId))
+        {
+            await DeleteItemRowsAsync(dbCtx, [item.ObjectId.Value], ct);
+
+            return;
+        }
+
+        if (!await _custody.DestroyInRoomAsync(dbCtx, _state.RoomId, item, cause, ct))
+            _logger.LogWarning(
+                "Used-up item {ItemId} has no row in room {RoomId}; nothing deleted",
+                item.ObjectId,
+                _state.RoomId
+            );
+    }
+
+    private async Task WriteCustodyAsync(CustodyWrite write, CancellationToken ct)
+    {
+        switch (write)
+        {
+            case CustodyDestroy destroy:
+                await _dbCtxFactory.InTransactionAsync(
+                    async dbCtx =>
+                    {
+                        await DestroyUsedUpAsync(dbCtx, destroy.Item, destroy.Cause, ct);
+
+                        return UnitOfWork.Commit(true);
+                    },
+                    ct
+                );
+
+                break;
+            case CustodyPlacement placement:
+                if (
+                    !await _custody.PlaceInRoomAsync(
+                        _state.RoomId,
+                        placement.Item,
+                        placement.Cause,
+                        ct
+                    )
+                )
+                    _logger.LogError(
+                        "Item {ItemId} was placed in room {RoomId} but is not in the inventory of player {OwnerId}; not written",
+                        placement.Item.ObjectId,
+                        _state.RoomId,
+                        placement.Item.OwnerId
+                    );
+
+                break;
+            case CustodyPickup pickup:
+                await _custody.TakeOutOfRoomAsync(_state.RoomId, pickup.Items, pickup.Cause, ct);
+
+                break;
+        }
     }
 
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
     {
         // A pending update for the same item would only resurrect the row.
         _state.DirtyItems.Remove(itemId);
-        _state.RemovedItemIds.Remove(itemId);
         _state.DeletedItemIds.Add(itemId);
 
         return Task.CompletedTask;
@@ -440,13 +577,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         foreach (var snapshot in snapshots)
-        {
             _state.DirtyItems[snapshot.ObjectId] = snapshot;
-
-            // The room hands over only what stands in it. An item picked up and put back before
-            // the next flush still had its pick-up queued, which wrote it out of the room again.
-            _state.RemovedItemIds.Remove(snapshot.ObjectId);
-        }
 
         return Task.CompletedTask;
     }
@@ -978,7 +1109,12 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     /// </summary>
     private async Task FlushDirtyItemsAsync(int maxBatches, CancellationToken ct)
     {
-        await FlushDeletedItemsAsync(ct);
+        // Who holds a furni goes first: an update of where it stands, or its row deleted, must
+        // not overtake its placement.
+        var custodyWritten = await FlushCustodyWritesAsync(ct);
+
+        if (custodyWritten)
+            await FlushDeletedItemsAsync(ct);
 
         for (var i = 0; i < maxBatches && _state.DirtyPets.Count > 0; i++)
         {
@@ -992,7 +1128,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 break;
         }
 
-        for (var i = 0; i < maxBatches && _state.DirtyItems.Count > 0; i++)
+        for (var i = 0; custodyWritten && i < maxBatches && _state.DirtyItems.Count > 0; i++)
         {
             if (!await FlushDirtyItemBatchAsync(ct))
                 break;
@@ -1010,12 +1146,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         foreach (var item in batch)
             _state.DirtyItems.Remove(item.ObjectId);
 
-        // Read, not taken: a pickup's mark is cleared only once its write has landed.
-        var removed = batch
-            .Select(x => x.ObjectId)
-            .Where(_state.RemovedItemIds.Contains)
-            .ToHashSet();
-
         try
         {
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -1029,37 +1159,16 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                     continue;
                 }
 
-                var dbEntity = new FurnitureEntity
-                {
-                    Id = item.ObjectId.Value,
-                    PlayerEntityId = item.OwnerId.Value,
-                };
+                // Where it stands and its data only: who holds it and in which room were written
+                // when that changed.
+                var dbEntity = new FurnitureEntity { Id = item.ObjectId.Value };
 
                 dbCtx.Attach(dbEntity);
 
-                var e = dbCtx.Entry(dbEntity);
-
-                WritePlacement(e, item);
-
-                e.Property(x => x.PlayerEntityId).IsModified = true;
-
-                // A removed item leaves the room; anything else is written as standing in it.
-                dbEntity.RoomEntityId = removed.Contains(item.ObjectId)
-                    ? null
-                    : _state.RoomId.Value;
-
-                e.Property(x => x.RoomEntityId).IsModified = true;
+                WritePlacement(dbCtx.Entry(dbEntity), item);
             }
 
             await dbCtx.SaveChangesAsync(ct);
-
-            // The enqueues interleave with this write: an item queued again meanwhile keeps the
-            // mark its newer change gave it.
-            foreach (var itemId in removed)
-            {
-                if (!_state.DirtyItems.ContainsKey(itemId))
-                    _state.RemovedItemIds.Remove(itemId);
-            }
 
             return true;
         }
@@ -1087,10 +1196,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     /// </summary>
     private void FlushBorrowedItem(TurboDbContext dbCtx, RoomItemSnapshot item)
     {
-        // Leaving the room is the same as being given back for a borrowed furni, which the
-        // delete queue handles, so nothing should ever mark one as merely removed.
-        _state.RemovedItemIds.Remove(item.ObjectId);
-
         var dbEntity = new BuildersClubFurnitureEntity
         {
             RoomEntityId = _state.RoomId.Value,

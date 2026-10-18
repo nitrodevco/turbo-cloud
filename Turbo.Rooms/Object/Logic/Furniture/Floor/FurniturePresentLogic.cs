@@ -154,7 +154,12 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         var (x, y, rotation) = (_ctx.RoomObject.X, _ctx.RoomObject.Y, _ctx.RoomObject.Rotation);
 
         // The wrapping goes first so the tile is free for what was inside.
-        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(
+            ctx,
+            _ctx.ObjectId,
+            MovementCause.New(MovementCauses.USE_PRESENT, ctx.PlayerId, _ctx.ObjectId.Value),
+            ct
+        );
 
         var placedInRoom = false;
 

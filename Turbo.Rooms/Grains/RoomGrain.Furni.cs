@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -40,7 +41,15 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await ActionModule.RemoveItemByIdAsync(ctx, itemId, confirmed, ct))
+            if (
+                !await ActionModule.RemoveItemByIdAsync(
+                    ctx,
+                    itemId,
+                    confirmed,
+                    MovementCause.New(MovementCauses.ROOM_PICKUP, ctx.PlayerId),
+                    ct
+                )
+            )
                 return false;
 
             return true;
@@ -238,7 +247,12 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await ActionModule.DeleteItemByIdAsync(ctx, itemId, ct);
+            return await ActionModule.DeleteItemByIdAsync(
+                ctx,
+                itemId,
+                MovementCause.New(MovementCauses.ROOM_DELETE_ITEM, ctx.PlayerId),
+                ct
+            );
         }
         catch (Exception ex)
         {

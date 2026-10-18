@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Commands.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
@@ -16,10 +17,27 @@ internal sealed class RoomPersistenceLiveState
 
     /// <summary>Swapped for an empty one at the start of a flush, so it is settable.</summary>
     public Dictionary<long, RoomItemSnapshot> DirtyItems { get; set; } = [];
-    public HashSet<RoomObjectId> RemovedItemIds { get; } = [];
+
+    /// <summary>Changes of who holds a furni, oldest first, kept until each has been written.</summary>
+    public Queue<CustodyWrite> PendingCustodyWrites { get; } = new();
     public HashSet<RoomObjectId> DeletedItemIds { get; } = [];
     public Dictionary<int, PetSnapshot> DirtyPets { get; } = [];
     public Dictionary<int, BotSnapshot> DirtyBots { get; } = [];
     public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
     public Queue<CommandLogSnapshot> PendingCommandLogs { get; } = new();
 }
+
+/// <summary>A change of who holds a furni and where, written through rather than buffered.</summary>
+internal abstract record CustodyWrite(MovementCause Cause);
+
+/// <summary>An item put down in the room from its owner's inventory.</summary>
+internal sealed record CustodyPlacement(RoomItemSnapshot Item, MovementCause Cause)
+    : CustodyWrite(Cause);
+
+/// <summary>An item a use took out of the room for good.</summary>
+internal sealed record CustodyDestroy(RoomItemSnapshot Item, MovementCause Cause)
+    : CustodyWrite(Cause);
+
+/// <summary>Items that left the room for the inventories their snapshots name.</summary>
+internal sealed record CustodyPickup(IReadOnlyList<RoomItemSnapshot> Items, MovementCause Cause)
+    : CustodyWrite(Cause);

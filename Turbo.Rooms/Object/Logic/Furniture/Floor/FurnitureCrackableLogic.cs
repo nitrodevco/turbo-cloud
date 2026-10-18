@@ -253,6 +253,11 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
             !await ActionModule.DeleteItemByIdAsync(
                 owner,
                 _ctx.ObjectId,
+                MovementCause.New(
+                    MovementCauses.USE_CRACKABLE,
+                    owner.PlayerId,
+                    _ctx.ObjectId.Value
+                ),
                 ct,
                 removeDelayMs: _roomGrain._roomConfig.CrackableRemoveDelayMs,
                 byOwner: false

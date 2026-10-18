@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Database.Context;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Furniture.Custody;
 
@@ -21,8 +24,8 @@ public sealed record CustodyFurni(
 );
 
 /// <summary>
-/// The only writer of who holds a furni and where, on the inventory side (docs/movements.md "The
-/// inventory"): every change of owner, place or existence is one explicit transition, written in
+/// The only writer of who holds a furni and where (docs/movements.md "The inventory", "The
+/// room"): every change of owner, place or existence is one explicit transition, written in
 /// one unit of work with its movements while recording. Each takes the caller's cause and numbers
 /// its movements from <see cref="MovementCause.FirstSeq"/>, one per furni. The inventory keeps its
 /// list in step; this writes the rows.
@@ -91,6 +94,43 @@ public interface IFurnitureCustody
         PlayerId from,
         PlayerId to,
         IReadOnlyList<FurnitureItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Inventory -> room: the row of <paramref name="item"/>, held by its owner in no room and no
+    /// holder, stands in <paramref name="roomId"/> where the snapshot puts it. False when there is
+    /// no such row.
+    /// </summary>
+    Task<bool> PlaceInRoomAsync(
+        RoomId roomId,
+        RoomItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Room -> inventory: each of <paramref name="items"/> standing in <paramref name="roomId"/>
+    /// goes to the inventory of the owner its snapshot names (the picker, when they keep it), with
+    /// the spot and data it left with. A row no longer in the room is skipped; answers how many went.
+    /// </summary>
+    Task<int> TakeOutOfRoomAsync(
+        RoomId roomId,
+        IReadOnlyList<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Room -> none, in the caller's unit of work (a use that also writes the pets it changed):
+    /// the row of <paramref name="item"/> standing in <paramref name="roomId"/> is deleted. False
+    /// when there is no such row.
+    /// </summary>
+    Task<bool> DestroyInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        RoomItemSnapshot item,
         MovementCause cause,
         CancellationToken ct
     );

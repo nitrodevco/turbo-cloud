@@ -5,6 +5,7 @@ using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -86,7 +87,12 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         // Used up before the pet is created: the pet is written at once, so a package deleted
         // after it outlived it by a write and a crash in between left both.
-        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(
+            ctx,
+            _ctx.ObjectId,
+            MovementCause.New(MovementCauses.USE_PET_PACKAGE, ctx.PlayerId, _ctx.ObjectId.Value),
+            ct
+        );
 
         var pet = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)

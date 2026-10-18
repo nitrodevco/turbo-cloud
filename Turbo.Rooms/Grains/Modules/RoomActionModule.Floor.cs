@@ -4,9 +4,11 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -49,12 +51,28 @@ public sealed partial class RoomActionModule
         )
             return false;
 
+        await WritePlacementAsync(ctx, item, ct);
+
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
 
         await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
 
         return true;
     }
+
+    /// <summary>
+    /// Writes now that the item left its owner's inventory for this room, before the inventory
+    /// lets go of it: a row still in the inventory after the room took it could be traded away.
+    /// </summary>
+    private Task WritePlacementAsync(ActionContext ctx, IRoomItem item, CancellationToken ct) =>
+        _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .WritePlacementAsync(
+                _roomGrain.RoomId,
+                item.GetSnapshot(),
+                MovementCause.New(MovementCauses.ROOM_PLACE, ctx.PlayerId),
+                ct
+            );
 
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,

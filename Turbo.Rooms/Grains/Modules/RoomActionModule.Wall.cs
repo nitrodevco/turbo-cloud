@@ -4,6 +4,7 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -47,7 +48,11 @@ public sealed partial class RoomActionModule
             wallOffset,
             rot,
             ct,
-            beforeShown: () => inventory.RemoveFurnitureAsync(item.ObjectId, ct)
+            beforeShown: async () =>
+            {
+                await WritePlacementAsync(ctx, item, ct);
+                await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
+            }
         );
     }
 
