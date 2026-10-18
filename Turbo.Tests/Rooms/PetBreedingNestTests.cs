@@ -1,12 +1,16 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -181,6 +185,75 @@ public sealed class PetBreedingNestTests
         (await BreedAsync(pet)).Should().BeFalse();
         (pet.X, pet.Y).Should().Be((3, 6));
     }
+
+    /// <summary>
+    /// A pet is created on the tile it is put down on, so its first step went nowhere and never
+    /// took the tile: until it first moved, another pet could be put down on it and anyone could
+    /// walk onto it.
+    /// </summary>
+    [Fact]
+    public async Task A_pet_just_put_down_holds_its_tile_before_its_first_step()
+    {
+        await PlaceAsync(PET1, 3, 3);
+
+        _room.TileFlags()[3 * 10 + 3].Should().HaveFlag(RoomTileFlags.AvatarOccupied);
+        (await Pets.PlacePetAsync(Owner, PET2, 3, 3, Ct))
+            .Should()
+            .BeFalse("the tile is the first pet's");
+        Pets.TryGetPet(PET2, out _).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// The confirm window numbers the categories in the order sent and always shows its four
+    /// rows, EPIC first (ConfirmPetBreedingView.as:198-217, confirm_pet_breeding.xml breeds1-4,
+    /// breedpets.confirmation.widget.raritycategory.1-4). Only the levels with palettes were sent,
+    /// commonest first: every dog palette landed under EPIC at the commonest chance and the other
+    /// rows showed "%percent%" unfilled.
+    /// </summary>
+    [Fact]
+    public async Task The_confirm_window_gets_every_rarity_row_rarest_first()
+    {
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_petBreedProvider",
+            _room.Harness.Fakes.Create<IPetBreedProvider>()
+        );
+        _room.Harness.Fakes.Handlers[nameof(IPetBreedProvider.GetPalettes)] = _ =>
+            ImmutableArray.Create(Palette(0, 0), Palette(1, 0), Palette(7, 2));
+        AddNest();
+        var first = await PlaceAsync(PET1, 6, 3);
+        var second = await PlaceAsync(PET2, 3, 6);
+
+        (await BreedAsync(first)).Should().BeTrue();
+        await TickAsync(first);
+        (await BreedAsync(second)).Should().BeTrue();
+        await TickAsync(second);
+
+        var request = _room
+            .Harness.Fakes.Log.Of("SendComposerAsync")
+            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
+            .Select(c => c.Args[0])
+            .OfType<ConfirmBreedingRequestEventMessageComposer>()
+            .Single();
+
+        request.RarityCategories.Select(x => x.Chance).Should().Equal(3, 7, 20, 70);
+        request
+            .RarityCategories.Select(x => x.PaletteIds.ToArray())
+            .Should()
+            .BeEquivalentTo(new int[][] { [], [7], [], [0, 1] }, o => o.WithStrictOrdering());
+    }
+
+    private static PetBreedSnapshot Palette(int paletteId, int rarityLevel) =>
+        new()
+        {
+            TypeId = PetTypes.DOG,
+            BreedId = paletteId,
+            PaletteId = paletteId,
+            RarityLevel = rarityLevel,
+            Sellable = true,
+            Rare = false,
+            ColorTag = -1,
+        };
 
     private FurniturePetBreedingNestLogic AddNest() =>
         (FurniturePetBreedingNestLogic)

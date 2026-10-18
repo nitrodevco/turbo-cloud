@@ -238,7 +238,10 @@ public class PetConfig
     /// </summary>
     public Altitude RiderHeight { get; init; } = Altitude.FromValue(1.0);
 
-    /// <summary>Chance in percent per rarity level (index) when a nest breeding picks a breed.</summary>
+    /// <summary>
+    /// Chance in percent per rarity level (index, 0 the commonest) when a nest breeding picks a
+    /// breed. The confirm window shows one row per level, rarest first.
+    /// </summary>
     public int[] BreedingRarityChances { get; init; } = [70, 20, 7, 3];
     public int NestBreedingMinLevel { get; init; } = 1;
 

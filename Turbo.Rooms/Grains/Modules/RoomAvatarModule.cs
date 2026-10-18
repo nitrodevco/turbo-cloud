@@ -738,8 +738,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             var prevTileId = MapModule.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = MapModule.GetTileXY(nextTileId);
 
+            // A pet or bot is created on the tile it is placed on, so its first step goes nowhere;
+            // it still takes the tile, or it blocks nobody until it first moves.
             if (prevTileId == nextTileId)
+            {
+                if (!_roomGrain._state.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId))
+                    MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
+
                 return;
+            }
 
             var fromX = avatar.X;
             var fromY = avatar.Y;

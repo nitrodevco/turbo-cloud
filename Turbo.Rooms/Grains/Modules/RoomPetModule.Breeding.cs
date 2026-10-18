@@ -159,7 +159,7 @@ public sealed partial class RoomPetModule
             NestId = nestId,
             Pet1 = ToBreedingPet(pet1),
             Pet2 = ToBreedingPet(pet2),
-            RarityCategories = RarityCategoriesFor(pet1.TypeId),
+            RarityCategories = ConfirmWindowCategoriesFor(pet1.TypeId),
             ResultPetTypeId = pet1.TypeId,
         };
 
@@ -418,6 +418,39 @@ public sealed partial class RoomPetModule
                     PaletteIds = [.. group.Select(x => x.PaletteId)],
                 }),
         ];
+
+    /// <summary>
+    /// The confirm window's four rows always show, EPIC first, numbered in the order the
+    /// categories are sent (ConfirmPetBreedingView.as:198-217, confirm_pet_breeding.xml
+    /// breeds1-4, breedpets.confirmation.widget.raritycategory.1-4): a row not sent shows its
+    /// "%percent%" unfilled, and one past the fourth has no list to go in.
+    /// </summary>
+    private const int CONFIRM_WINDOW_ROWS = 4;
+
+    /// <summary>
+    /// The confirm window's rows, rarest level first: each level's chance and its palettes, an
+    /// empty level included.
+    /// </summary>
+    private ImmutableArray<PetBreedingRarityCategorySnapshot> ConfirmWindowCategoriesFor(int typeId)
+    {
+        var palettes = _roomGrain._petBreedProvider.GetPalettes(typeId);
+
+        return
+        [
+            .. Enumerable
+                .Range(0, CONFIRM_WINDOW_ROWS)
+                .Reverse()
+                .Select(level => new PetBreedingRarityCategorySnapshot
+                {
+                    RarityLevel = level,
+                    Chance = ChanceForRarity(level),
+                    PaletteIds =
+                    [
+                        .. palettes.Where(x => x.RarityLevel == level).Select(x => x.PaletteId),
+                    ],
+                }),
+        ];
+    }
 
     private int ChanceForRarity(int rarityLevel) =>
         rarityLevel >= 0 && rarityLevel < Config.BreedingRarityChances.Length
