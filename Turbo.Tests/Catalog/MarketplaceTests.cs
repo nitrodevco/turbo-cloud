@@ -621,7 +621,9 @@ public sealed class MarketplaceTests : IDisposable
             [new MarketplaceIncomeRewardSource(_marketplace)],
             _catalog.Db,
             _catalog.Fakes.Create<IGrainFactory>(),
-            _time
+            _time,
+            Options.Create(new CatalogConfig()),
+            NullLogger<IncomeRewardService>.Instance
         );
         var first = Give(SELLER, CHAIR);
         var second = Give(SELLER, LAMP);

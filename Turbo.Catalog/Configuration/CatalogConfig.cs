@@ -32,4 +32,11 @@ public class CatalogConfig
 
     /// <summary>How vouchers are redeemed and made.</summary>
     public VoucherConfig Vouchers { get; init; } = new();
+
+    /// <summary>
+    /// How long after an earning reaches the vault its holder is sent the vault's status unasked,
+    /// in milliseconds; every earning in that time shares the one status. The official server's
+    /// came 110-133 ms after the first notification of a burst.
+    /// </summary>
+    public int IncomeRewardStatusPushDelayMs { get; init; } = 100;
 }

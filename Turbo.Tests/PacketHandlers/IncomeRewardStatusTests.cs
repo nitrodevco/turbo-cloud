@@ -1,4 +1,7 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Vault;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Vault;
@@ -23,7 +26,14 @@ public sealed class IncomeRewardStatusTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     private IncomeRewardService NewVault(Fakes fakes) =>
-        new([], _db, fakes.Create<IGrainFactory>(), TimeProvider.System);
+        new(
+            [],
+            _db,
+            fakes.Create<IGrainFactory>(),
+            TimeProvider.System,
+            Options.Create(new CatalogConfig()),
+            NullLogger<IncomeRewardService>.Instance
+        );
 
     [Fact]
     public async Task The_vault_status_is_answered_with_nothing_to_claim()

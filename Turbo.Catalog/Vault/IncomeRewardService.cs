@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Messages.Outgoing.Vault;
@@ -27,10 +31,15 @@ public sealed class IncomeRewardService(
     IEnumerable<IIncomeRewardSource> sources,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
-    TimeProvider time
+    TimeProvider time,
+    IOptions<CatalogConfig> config,
+    ILogger<IncomeRewardService> logger
 ) : IIncomeRewardService
 {
     private readonly ImmutableArray<IIncomeRewardSource> _sources = [.. sources];
+
+    /// <summary>The players a status is about to be pushed to.</summary>
+    private readonly ConcurrentDictionary<PlayerId, byte> _statusPushes = new();
 
     public async Task<ImmutableArray<IncomeRewardSnapshot>> GetRewardsAsync(
         PlayerId player,
@@ -148,7 +157,60 @@ public sealed class IncomeRewardService(
             )
             .ConfigureAwait(false);
 
+        PushStatusSoon(player);
+
         return true;
+    }
+
+    /// <summary>
+    /// The official server follows an earning's IncomeRewardNotification with the vault's
+    /// IncomeRewardStatus nobody asked for, one per burst: 9 notifications in 7 bursts, 7 statuses
+    /// 110-133 ms after each burst's first, no IncomeRewardStatus request from the client (official
+    /// client capture 2026-10-13/17). Flash reads it like any status (VaultController.as:105): an
+    /// open vault shows the new sums.
+    /// </summary>
+    private void PushStatusSoon(PlayerId player)
+    {
+        if (_statusPushes.TryAdd(player, 0))
+            _ = PushStatusAsync(player);
+    }
+
+    private async Task PushStatusAsync(PlayerId player)
+    {
+        try
+        {
+            await Task.Delay(
+                    TimeSpan.FromMilliseconds(
+                        Math.Max(0, config.Value.IncomeRewardStatusPushDelayMs)
+                    ),
+                    time
+                )
+                .ConfigureAwait(false);
+
+            // An earning from here on starts the next push, so none is left out of a status.
+            _statusPushes.TryRemove(player, out _);
+
+            var rewards = await GetRewardsAsync(player, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            await grainFactory
+                .TrySendComposerToPlayerAsync(
+                    player,
+                    new IncomeRewardStatusMessageComposer { IncomeRewards = [.. rewards] },
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            _statusPushes.TryRemove(player, out _);
+
+            logger.LogWarning(
+                e,
+                "Earnings vault status for player {PlayerId} not sent",
+                player.Value
+            );
+        }
     }
 
     /// <summary>

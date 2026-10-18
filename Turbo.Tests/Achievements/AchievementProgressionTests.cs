@@ -3,9 +3,11 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
+using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Vault;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
@@ -77,7 +79,14 @@ public sealed class AchievementProgressionTests : IDisposable
         RoomHarness.SetField(
             grain,
             "_incomeRewards",
-            new IncomeRewardService([], _database, _fakes.Create<IGrainFactory>(), _clock)
+            new IncomeRewardService(
+                [],
+                _database,
+                _fakes.Create<IGrainFactory>(),
+                _clock,
+                Options.Create(new CatalogConfig()),
+                NullLogger<IncomeRewardService>.Instance
+            )
         );
         RoomHarness.SetField(grain, "_time", _clock);
         RoomHarness.SetField(
@@ -200,7 +209,14 @@ public sealed class AchievementProgressionTests : IDisposable
                 .Select(x => x.Args[0])
                 .OfType<IncomeRewardNotificationMessageComposer>()
         );
-        var vault = new IncomeRewardService([], _database, _fakes.Create<IGrainFactory>(), _clock);
+        var vault = new IncomeRewardService(
+            [],
+            _database,
+            _fakes.Create<IGrainFactory>(),
+            _clock,
+            Options.Create(new CatalogConfig()),
+            NullLogger<IncomeRewardService>.Instance
+        );
         Assert.Equal(
             [
                 (VaultRewardCategoryType.Achievements, VaultRewardType.Duckets, 10),
