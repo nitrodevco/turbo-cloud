@@ -152,6 +152,14 @@ public class RoomConfig
     /// </summary>
     public int FloorSwitchWalkTimeoutMs { get; init; } = 15000;
 
+    /// <summary>
+    /// How long after an avatar sent to a floor switch takes its last step onto the tile beside
+    /// it the switch flips; at most <see cref="AvatarTickMs"/>, which is when the avatar stops.
+    /// Habbo flipped ~300 ms after the last step update, 4 of 4 (official client capture,
+    /// 2026-10-18, build WIN63-202610151745).
+    /// </summary>
+    public int FloorSwitchUseAfterLastStepMs { get; init; } = 300;
+
     /// <summary>How long a random teleport tile, and the one it sent an avatar to, stay lit.</summary>
     public int RandomTeleportFlashMs { get; init; } = 1000;
 

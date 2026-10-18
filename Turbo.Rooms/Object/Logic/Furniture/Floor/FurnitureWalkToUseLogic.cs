@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,8 +19,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// </summary>
 public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 {
-    /// <summary>Avatars on their way to use it: the tile they were sent to, and until when.</summary>
-    private readonly Dictionary<RoomObjectId, (int TileIdx, long UntilMs)> _approaching = [];
+    /// <summary>Avatars on their way to use it, by avatar.</summary>
+    private readonly Dictionary<RoomObjectId, Approach> _approaching = [];
 
     protected FurnitureWalkToUseLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
         : base(stuffDataFactory, ctx) { }
@@ -27,8 +28,21 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     /// <summary>How long it waits for an avatar it sent walking over to arrive.</summary>
     protected abstract int WalkTimeoutMs { get; }
 
-    /// <summary>Uses it for the avatar, which stands on the tile it was used from.</summary>
-    protected abstract Task UseFromTileAsync(IRoomAvatar avatar, CancellationToken ct);
+    /// <summary>
+    /// How long after the avatar's last step onto the tile it was sent to the use happens, at most
+    /// one avatar tick; -1 waits until the avatar has stopped there.
+    /// </summary>
+    protected virtual int UseAfterLastStepMs => -1;
+
+    /// <summary>
+    /// Uses it for the avatar, which stands on the tile it was used from (or is taking its last
+    /// step onto it); <paramref name="ctx"/> is the use request's.
+    /// </summary>
+    protected abstract Task UseFromTileAsync(
+        ActionContext ctx,
+        IRoomAvatar avatar,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Its own timed work, run on each of its ticks after the arrivals: whether it needs another
@@ -42,6 +56,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     /// stands there, or walks it to the first of them it can reach and uses it on arrival.
     /// </summary>
     protected async Task WalkToUseAsync(
+        ActionContext ctx,
         IRoomAvatar avatar,
         IEnumerable<int> useTiles,
         CancellationToken ct
@@ -55,7 +70,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 
         if (map.ToIdx(avatar.X, avatar.Y) == tiles[0] && !avatar.IsWalking)
         {
-            await UseFromTileAsync(avatar, ct);
+            await UseFromTileAsync(ctx, avatar, ct);
 
             return;
         }
@@ -67,7 +82,12 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
             if (!await AvatarModule.WalkAvatarToAsync(avatar, x, y, ct))
                 continue;
 
-            _approaching[avatar.ObjectId] = (tileIdx, _roomGrain.NowMs() + WalkTimeoutMs);
+            _approaching[avatar.ObjectId] = new()
+            {
+                Ctx = ctx,
+                TileIdx = tileIdx,
+                UntilMs = _roomGrain.NowMs() + WalkTimeoutMs,
+            };
             ScheduleTick();
 
             return;
@@ -116,8 +136,34 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
         return base.OnPickupAsync(ctx, ct);
     }
 
-    protected void ScheduleTick() =>
-        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, TickAsync);
+    /// <summary>
+    /// Schedules its next tick. One that uses a while after the last step ticks right after the
+    /// avatars step, on their boundary, so it sees that step in the tick it is taken, and again
+    /// when a use it is waiting on is due.
+    /// </summary>
+    protected void ScheduleTick()
+    {
+        var tickMs = _roomGrain._roomConfig.AvatarTickMs;
+
+        if (UseAfterLastStepMs < 0)
+        {
+            TimerSystem.Schedule(_ctx.ObjectId, tickMs, TickAsync);
+
+            return;
+        }
+
+        var now = _roomGrain.NowMs();
+        var boundary = _roomGrain._state.NextAvatarBoundaryMs;
+        var dueAtMs = boundary > now ? boundary : now + tickMs;
+
+        foreach (var approach in _approaching.Values)
+        {
+            if (approach.UseAtMs > 0)
+                dueAtMs = Math.Min(dueAtMs, approach.UseAtMs);
+        }
+
+        TimerSystem.ScheduleAt(_ctx.ObjectId, dueAtMs, TickAsync);
+    }
 
     /// <summary>
     /// Uses it for whoever has arrived, forgets whoever went elsewhere or took too long, and runs
@@ -127,7 +173,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     {
         var now = _roomGrain.NowMs();
 
-        foreach (var (objectId, (tileIdx, untilMs)) in _approaching.ToArray())
+        foreach (var (objectId, approach) in _approaching.ToArray())
         {
             if (!AvatarModule.TryGetAvatar(objectId, out var avatar))
             {
@@ -136,15 +182,37 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
                 continue;
             }
 
+            var tileIdx = approach.TileIdx;
             var arrived = MapModule.ToIdx(avatar.X, avatar.Y) == tileIdx && !avatar.IsWalking;
 
-            if (arrived)
+            // The last step, once taken, stands: a walk asked for after it goes on from the tile.
+            if (
+                approach.UseAtMs == 0
+                && !arrived
+                && UseAfterLastStepMs >= 0
+                && avatar.NextTileId == tileIdx
+                && avatar.TilePath.Count == 0
+                && avatar.GoalTileId == tileIdx
+            )
+                approach.UseAtMs = now + UseAfterLastStepMs;
+
+            if (approach.UseAtMs > 0 && !arrived)
+            {
+                if (now < approach.UseAtMs)
+                    continue;
+
+                _approaching.Remove(objectId);
+
+                if (avatar.NextTileId == tileIdx || MapModule.ToIdx(avatar.X, avatar.Y) == tileIdx)
+                    await UseFromTileAsync(approach.Ctx, avatar, ct);
+            }
+            else if (arrived)
             {
                 _approaching.Remove(objectId);
 
-                await UseFromTileAsync(avatar, ct);
+                await UseFromTileAsync(approach.Ctx, avatar, ct);
             }
-            else if (!avatar.IsWalking || now >= untilMs || avatar.GoalTileId != tileIdx)
+            else if (!avatar.IsWalking || now >= approach.UntilMs || avatar.GoalTileId != tileIdx)
                 _approaching.Remove(objectId);
         }
 
@@ -152,5 +220,20 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 
         if (_approaching.Count > 0 || more)
             ScheduleTick();
+    }
+
+    private sealed class Approach
+    {
+        /// <summary>The use request.</summary>
+        public required ActionContext Ctx { get; init; }
+
+        /// <summary>The tile the avatar was sent to.</summary>
+        public required int TileIdx { get; init; }
+
+        /// <summary>When it stops waiting for the avatar.</summary>
+        public required long UntilMs { get; init; }
+
+        /// <summary>When the use happens, once the avatar has taken its last step; 0 before.</summary>
+        public long UseAtMs { get; set; }
     }
 }
