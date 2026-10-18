@@ -60,12 +60,16 @@ public class PetConfig
     /// <summary>
     /// What a free-roaming pet of a type does when it stops, by pet type: a posture ("eyb",
     /// "kck") or a gesture ("gst sml") held for <see cref="IdlePostureDurationMs"/>, or "sit" /
-    /// "lay" to rest. A type not listed sits, lies, wags its tail, speaks or looks round. Horses
-    /// from official client captures (2026-10-17/18, 13 saddled horses): blink, wag, kick a front
-    /// leg, smile, thirst and playful gestures, never sit (the horse has no sit posture).
+    /// "lay" to rest, or "std" to just stand. A type not listed sits, lies, wags its tail, speaks
+    /// or looks round. An action may end in ":&lt;weight&gt;" to be picked that much more often
+    /// (default 1). Horses from the official client capture of 2026-10-17 (room "saddle club", two
+    /// horses, 540 s, 891 updates), weighted by how many times each was seen: stand, blink, smile
+    /// (the heart), kick a front leg, wag, lie down (unsaddled only); never sit (the horse has no
+    /// sit posture). The thirst, tired, playful and hungry gestures are need icons (the horse's
+    /// drop, house, ball and cutlery), not idle filler: none were seen there.
     /// </summary>
     public Dictionary<int, string[]> IdleActionsByType { get; init; } =
-        new() { [15] = ["eyb", "wag", "kck", "gst sml", "gst thr", "gst plf", "lay"] };
+        new() { [15] = ["std:88", "eyb:51", "gst sml:47", "kck:22", "wag:17", "lay:8"] };
 
     /// <summary>How long an idle posture or gesture lasts: an official horse blinks for 1.0 s.</summary>
     public int IdlePostureDurationMs { get; init; } = 1000;
@@ -81,6 +85,34 @@ public class PetConfig
     /// hotel's <c>pet.vocals.&lt;type&gt;.DRINKING</c> / <c>EATING</c> / <c>PLAYING</c> lines.
     /// </summary>
     public int VocalChancePercent { get; init; } = 100;
+
+    /// <summary>
+    /// How high a pet sits on a seat it walked onto, whatever the seat. Official free pets
+    /// (types 12, 17, 37) on sofas of height 1.0 sat at 0.45 while players on the same sofas sat
+    /// at 1.0 (official client capture 2026-10-18, 10 of 10 seat visits).
+    /// </summary>
+    public Altitude PetSeatHeight { get; init; } = Altitude.FromValue(0.45);
+
+    /// <summary>
+    /// Chance in percent that a free-roaming pet, when it next decides what to do, walks to a toy
+    /// in the room and plays with it. Two official horses with a rubber ball played 6 times in
+    /// 9 minutes (official client capture 2026-10-17, room "saddle club"): about one decision in
+    /// twenty at this pace.
+    /// </summary>
+    public int ToyPlayChancePercent { get; init; } = 5;
+
+    /// <summary>
+    /// How long a pet plays with a toy, and the toy shows it is played with (state 1): 3.5 s,
+    /// 6 of 6 official plays.
+    /// </summary>
+    public int ToyPlayDurationMs { get; init; } = 3500;
+
+    /// <summary>
+    /// The posture a pet of a type plays with a toy in, where it is not "pla": an official horse
+    /// kicks the ball with a front leg ("kck", 6 of 6; the horse has no play posture).
+    /// </summary>
+    public Dictionary<int, string> ToyPlayPostureByType { get; init; } = new() { [15] = "kck" };
+
     public int FreeRoamMaxDistance { get; init; } = 6;
     public int EnergyDecayMs { get; init; } = 120000;
     public int NutritionDecayMs { get; init; } = 180000;

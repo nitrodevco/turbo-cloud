@@ -267,8 +267,9 @@ public sealed class PetSaddleTests
 
     /// <summary>
     /// Left to itself an official horse blinks, wags, paws with a front leg ("kck") and shows
-    /// gestures (gst sml / thr / plf), each for about a second; it lies down only unsaddled and
-    /// never sits (no sit posture). Ours sat, lay and wagged, whatever it wore.
+    /// the heart (gst sml), each for about a second; it lies down only unsaddled and never sits
+    /// (no sit posture). The need icons (thr / trd / plf / hng) are no idle filler. Ours sat, lay
+    /// and wagged, whatever it wore.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -282,7 +283,9 @@ public sealed class PetSaddleTests
         await SayAsync("Rex free");
         var seen = new List<string>();
 
-        for (var pick = 0; pick < 10; pick++)
+        // The actions are weighted by how often official horses showed them; stepping through
+        // the whole weight range reaches each.
+        for (var pick = 0; pick < 235; pick += 5)
         {
             RoomHarness.SetField(Pets, "_random", new FixedRandom(pick));
             await _room.Harness.Room.PetTickSystem.ProcessPetsAsync((pick + 1) * 1_000_000L, Ct);
@@ -293,6 +296,13 @@ public sealed class PetSaddleTests
         seen.Should().Contain(x => x.Contains("/kck"));
         seen.Should().Contain(x => x.Contains("/gst sml/"));
         seen.Should().NotContain(x => x.Contains("/sit"));
+        seen.Should()
+            .NotContain(x =>
+                x.Contains("/gst thr")
+                || x.Contains("/gst trd")
+                || x.Contains("/gst plf")
+                || x.Contains("/gst hng")
+            );
 
         if (saddled)
             seen.Should().NotContain(x => x.Contains("/lay"));

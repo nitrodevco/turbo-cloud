@@ -15,6 +15,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -489,6 +490,60 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     /// <summary>Whether the pet may sit or lie down: a saddled one stays on its feet.</summary>
     internal bool CanRest(IRoomPet pet) => Config.SaddledPetsRest || !pet.HasSaddle;
+
+    /// <summary>
+    /// A tile a free pet may wander to: any tile an NPC may stand on, and a free seat for a pet
+    /// that may sit. Official free pets walk onto sofas and sit there (official client capture
+    /// 2026-10-18, 10 of 10 seat visits); a bot or a placed pet still keeps off seats.
+    /// </summary>
+    internal bool IsTileFreeForPetWalk(IRoomPet pet, int tileIdx)
+    {
+        if (IsTileFreeForNpc(tileIdx))
+            return true;
+
+        if (!CanRest(pet))
+            return false;
+
+        var flags = _roomGrain._state.TileFlags[tileIdx];
+
+        return flags.Has(RoomTileFlags.Sittable)
+            && !flags.Has(RoomTileFlags.Disabled)
+            && !flags.Has(RoomTileFlags.Closed)
+            && !flags.Has(RoomTileFlags.AvatarOccupied);
+    }
+
+    /// <summary>The seat the pet stands on, if the furni on top of its tile is one.</summary>
+    internal bool TryGetSeat(IRoomPet pet, [NotNullWhen(true)] out IRoomFloorItem? seat)
+    {
+        if (
+            MapModule.TryGetHighestFloorItem(MapModule.ToIdx(pet.X, pet.Y), out seat)
+            && seat.Logic.CanSit()
+        )
+            return true;
+
+        seat = null;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Ends a rest for a pet's next posture: off a seat it stands up, on a seat it stays seated
+    /// at the pet's seat height (official: "sit 0.45 0" kept under every posture on a sofa).
+    /// </summary>
+    internal void StandOrStaySeated(IRoomPet pet)
+    {
+        pet.Lay(false);
+
+        if (!TryGetSeat(pet, out var seat) || !CanRest(pet))
+        {
+            pet.Sit(false);
+
+            return;
+        }
+
+        if (!pet.HasStatus(AvatarStatusType.Sit))
+            pet.Sit(true, Config.PetSeatHeight, seat.Rotation);
+    }
 
     /// <summary>The context-menu flags the client keys its buttons on.</summary>
     internal void RefreshFlags(IRoomPet pet)
