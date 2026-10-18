@@ -80,6 +80,34 @@ than one call (a voucher paying credits and another currency, a vault claim of s
 gives each later call its own range of seqs with `cause.StartingAt(n)`, so no two of its movements
 share an (operation, seq) pair. The codes core writes are the constants in `MovementCauses`.
 
+A movement's cause is its row's own: one operation may hold more than one code (a sale and its
+fee, the categories of one vault claim), and the operation id is what ties them. Each source, sink
+and fee has a code of its own, so what entered, left or was taken per channel is a sum by code:
+
+| Class | Codes |
+| --- | --- |
+| Sources (currency made) | `vault.<category>` (one per earnings category, below), `reward.achievement`, `reward.quest`, `reward.daily_task`, `reward.track`, `catalog.voucher`, `use.credit_furni`, `use.crackable`, `staff.give_currency` |
+| Sinks (currency spent) | `catalog.purchase`, `catalog.gift`, `catalog.room_ad`, `catalog.targeted_offer`, `catalog.ltd_raffle`, `catalog.habbicon`, `camera.purchase`, `camera.publish`, `group.create`, `market.tokens`, `market.fee`, `room.rent`, `wired.chest_upgrade`, `reward.track_premium`, `staff.give_currency` (a negative `:give`) |
+| Transfers (between players) | `trade`, `catalog.gift` (the present, below), `market.buy` and `market.redeem` (through the offer), `wired.chest_deposit` and `wired.chest_withdraw` (through the chest) |
+
+A code that is both tells which by its direction (`None` -> `Wallet` or `Wallet` -> `None`), and a
+refund is a credit under its charge's code. The vault names a payout's category the way Flash's earnings view does:
+`vault.tutorial`, `vault.dailygift`, `vault.achievements`, `vault.marketplace`, `vault.habboclub`
+(HC payday), `vault.levelprogression`, `vault.roombundlesales`, `vault.bonusbag`,
+`vault.donation`, `vault.surprise`, `vault.snowstorm`, `vault.games`, `vault.wiredchest`,
+`vault.agency`; `vault.claim` is a payout of a category it does not know. Core pays no HC payday,
+daily gift, level progression or recycler prize of its own: they reach a player only through a
+vault deposit (`IIncomeRewardService.DepositAsync`), so their codes are the vault's. Wired gives
+furni, never currency (`wired.give_reward`).
+
+Fees: the marketplace's is a movement of its own in the sale (`market.fee`, below). Core has no
+donation or credit transfer, no silver trade fee and no premium on credit furni (a credit furni
+redeems at its face value, and what it cost is its catalogue price, `catalog.purchase`).
+
+Caps: a balance has none but `int.MaxValue`. A credit that would cross it is refused whole and
+records nothing, and the caller is told (a vault claim and a marketplace redeem stay waiting), so
+no surplus is ever cut off and lost unrecorded.
+
 ## Who writes the rows
 
 Only the primitives below write a furniture, pet, bot or balance row, so nothing changes owner,
@@ -136,12 +164,13 @@ the same charge pays nothing twice.
 | `catalog.voucher` | a voucher's credits and currency (cause ref: the voucher) |
 | `camera.purchase`, `camera.publish` | a photo's price (cause ref: the photo) and its refund |
 | `group.create` | a group's price and its refund |
-| `vault.claim` | an earnings vault payout (cause ref: the claim) |
+| `vault.<category>`, `vault.claim` | an earnings vault payout, one movement per category and currency under one operation per claim (cause ref: the claim) |
 | `market.tokens`, `market.buy`, `market.redeem` | marketplace tokens, a purchase (cause ref: the offer) and its refund, a redeemed sale (cause ref: the offer) |
 | `room.rent` | renting a space (cause ref: the furni) and its refund |
 | `use.credit_furni`, `use.crackable` | a redeemed credit furni, a cracked crackable's credits (cause ref: the furni) |
 | `wired.chest_upgrade`, `wired.chest_withdraw` | a chest's upgrade price and its refund, credits a chest pays out (actor 0; cause ref: the chest transaction) |
-| `reward.track`, `reward.quest`, `reward.daily_task`, `reward.achievement` | reward track premium and prizes, quest, daily task and achievement rewards |
+| `reward.track`, `reward.quest`, `reward.daily_task`, `reward.achievement` | reward track prizes (cause ref: track and prize), quest, daily task and achievement rewards |
+| `reward.track_premium` | a reward track's premium bought (cause ref: the track) |
 | `staff.give_currency` | `:give` (actor: the staff member; one operation per player) |
 
 ## The inventory
@@ -248,10 +277,23 @@ with none; custody only, no snapshot and no position).
 
 ## Trades
 
-A trade is one operation (`trade`, actor: the player whose confirm completed it): the initiator's
-items to the partner from seq 0, then the partner's items to the initiator. When the second half
-fails, the first is handed back under the same operation after both, with the cause ref
-`compensation`, so a half trade shows as such.
+A trade is one operation (`trade`, actor: the player whose confirm completed it; cause ref: the
+room it was made in): the initiator's items to the partner from seq 0, then the partner's items to
+the initiator. Each side's list is its half's rows (`From` owner: who offered it), so a side that
+offered nothing has no rows and a one-sided trade reads as one. When the second half fails, the
+first is handed back under the same operation after both, with the cause ref `compensation`, so a
+half trade shows as such.
+
+## Gifts
+
+A catalogue gift is one operation (`catalog.gift`, actor: the sender; cause ref: the offer): the
+sender's price (`Wallet` -> `None`), then the present made into the receiver's inventory (`None` ->
+`Inventory`, owner: the receiver) and its content into the present (`None` -> `Holder`, the
+present's id, held for the receiver). Opening it (`use.present`, cause ref:
+the present) takes the content `Holder` (that present) -> `Inventory` (the opener, who may hold the
+present by a trade) and the present `Room` -> `None`. So sender, receiver and contents are one
+chain from the purchase to the opening, keyed by the present's id. A staff gift (`staff.gift`) is
+the same without the price.
 
 ## The marketplace
 
@@ -260,7 +302,7 @@ Every move names its offer:
 | Cause | Movements |
 | --- | --- |
 | `market.list` | one operation per listing: each item `Inventory` -> `None` (with its snapshot), then, once the offer rows exist, each item `None` -> `MarketplaceOffer` (the offer's id) under the offer's id as cause ref. A listing that cannot be saved gives the items back under the listing's refund cause. |
-| `market.buy` | the price (seq 0); with the claim that marks the offer sold, the item off its offer `MarketplaceOffer` -> `None` (seq 1, with its snapshot) and the seller's revenue onto it, credits `None` -> `MarketplaceOffer` (seq 2, none for a revenue of 0); then the item made again `None` -> `Inventory` for the buyer (seq 3). All under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. A buyer who lost the race writes no claim. |
+| `market.buy`, `market.fee` | the price (seq 0); with the claim that marks the offer sold, the item off its offer `MarketplaceOffer` -> `None` (seq 1, with its snapshot), the price onto it, credits `None` -> `MarketplaceOffer` (seq 2), and the marketplace's fee off it again, `MarketplaceOffer` -> `None` under `market.fee` (seq 3, none for a fee of 0), so the offer holds the seller's revenue; then the item made again `None` -> `Inventory` for the buyer (seq 4). All under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. A buyer who lost the race writes no claim. |
 | `market.cancel` | an offer taken back (or expired): the item off its offer (seq 0), with the delete that claims it, then made again in the seller's inventory (seq 1), under the offer's id. |
 | `market.redeem` | one operation per sale: the revenue off its offer `MarketplaceOffer` -> `None` (seq 0), written with the sale marked redeemed, and the wallet's credit (seq 1) under the reference `marketplace:<offer>`, credited first. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once), and the next writes the revenue off the offer under its own operation. |
 

@@ -371,9 +371,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
     }
 
     /// <summary>
-    /// Both halves of the trade, as one operation confirmed by <paramref name="confirmedBy"/>:
-    /// the initiator's items, then the partner's, then (when the second half fails) the first
-    /// half given back, so a half trade shows in the movements as such.
+    /// Both halves of the trade, as one operation confirmed by <paramref name="confirmedBy"/> and
+    /// caused by this room: the initiator's items, then the partner's, then (when the second half
+    /// fails) the first half given back, so a half trade shows in the movements as such.
     /// </summary>
     private async Task CommitAsync(TradeSession session, PlayerId confirmedBy, CancellationToken ct)
     {
@@ -381,7 +381,7 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
         var initiatorItems = session.InitiatorSide.Items.Keys.ToImmutableArray();
         var partnerItems = session.PartnerSide.Items.Keys.ToImmutableArray();
-        var cause = MovementCause.New(MovementCauses.TRADE, confirmedBy.Value);
+        var cause = MovementCause.New(MovementCauses.TRADE, confirmedBy.Value, RoomId.Value);
 
         var toPartner = await _grainFactory
             .GetInventoryGrain(session.InitiatorId)

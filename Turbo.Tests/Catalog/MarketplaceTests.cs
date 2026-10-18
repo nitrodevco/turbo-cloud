@@ -252,7 +252,7 @@ public sealed class MarketplaceTests : IDisposable
         var sale = _grantCauses.Should().ContainSingle().Subject;
         (sale.Cause, sale.CauseRef, sale.ActorPlayerId, sale.FirstSeq)
             .Should()
-            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)3));
+            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)4));
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class MarketplaceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_sale_takes_the_item_off_its_offer_and_holds_the_revenue_there_until_redeemed()
+    public async Task A_sale_takes_the_item_off_its_offer_its_fee_out_and_holds_the_revenue_there_until_redeemed()
     {
         var marketplace = NewMarketplace(await RecordingAsync());
         var chair = Give(SELLER, CHAIR, "state:1");
@@ -319,7 +319,9 @@ public sealed class MarketplaceTests : IDisposable
         var offerId = (await marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
         await marketplace.BuyOfferAsync(BUYER, offerId, Ct);
 
-        // After the price (seq 0, the wallet's): the listed item off its offer, the revenue onto it.
+        // After the price (seq 0, the wallet's): the listed item off its offer, the price onto it
+        // and the fee (3 of 100: the default 2% plus the half tax, rounded up) off it again, a
+        // movement of its own in the same operation, so the offer holds the seller's 97.
         var sale = _grantCauses.Should().ContainSingle().Subject;
         var claim = Movements().Where(x => x.OperationId == sale.OperationId).ToList();
         claim
@@ -335,6 +337,7 @@ public sealed class MarketplaceTests : IDisposable
                     x.ToOwner,
                     x.ToPlace,
                     x.Amount,
+                    x.Cause,
                     x.CauseRef
                 )
             )
@@ -351,6 +354,7 @@ public sealed class MarketplaceTests : IDisposable
                     0,
                     0L,
                     1L,
+                    MovementCauses.MARKET_BUY,
                     offerId.ToString()
                 ),
                 (
@@ -363,12 +367,27 @@ public sealed class MarketplaceTests : IDisposable
                     PlaceKind.MarketplaceOffer,
                     SELLER,
                     (long)offerId,
-                    97L,
+                    100L,
+                    MovementCauses.MARKET_BUY,
+                    offerId.ToString()
+                ),
+                (
+                    (short)3,
+                    AssetKind.Currency,
+                    0L,
+                    PlaceKind.MarketplaceOffer,
+                    SELLER,
+                    (long)offerId,
+                    PlaceKind.None,
+                    0,
+                    0L,
+                    3L,
+                    MovementCauses.MARKET_FEE,
                     offerId.ToString()
                 )
             );
         (claim[0].DefinitionId, claim[0].SnapshotExtraData).Should().Be((CHAIR, "state:1"));
-        sale.FirstSeq.Should().Be(3, "the item made for the buyer follows the claim");
+        sale.FirstSeq.Should().Be(4, "the item made for the buyer follows the claim");
 
         // The redeem takes the revenue off the offer (seq 0) and credits it (seq 1).
         (await marketplace.RedeemCreditsAsync(SELLER, Ct))
