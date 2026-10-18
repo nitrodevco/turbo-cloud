@@ -19,6 +19,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Settings;
 using Turbo.Primitives.Settings.Enums;
 using Turbo.Primitives.Settings.Snapshots;
+using Turbo.Runtime.Configuration;
 
 namespace Turbo.Main.Settings;
 
@@ -113,9 +114,6 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                 SettingJson.CheckUrl(json);
         }
 
-        // What is kept: for a list or map, only what its defaults don't already say.
-        var stored = SettingJson.BeyondDefaults(json, snapshot.Default, setting.Kind);
-
         await _writes.WaitAsync(ct).ConfigureAwait(false);
 
         try
@@ -126,18 +124,18 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             var row = await dbCtx
                 .ServerSettings.FirstOrDefaultAsync(x => x.Path == setting.Path, ct)
                 .ConfigureAwait(false);
-            if (row?.Value == stored)
+            if (row?.Value == json)
                 return snapshot;
 
-            // The history keeps the values as staff saw them: a list whole, defaults and all.
+            // The history keeps the values as staff saw them.
             var before = row is null ? null : snapshot.Value;
 
             if (row is null)
                 dbCtx.ServerSettings.Add(
-                    new ServerSettingEntity { Path = setting.Path, Value = stored }
+                    new ServerSettingEntity { Path = setting.Path, Value = json }
                 );
             else
-                row.Value = stored;
+                row.Value = json;
 
             dbCtx.ServerSettingChanges.Add(Change(setting, before, json, player));
 
@@ -511,8 +509,10 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         {
             var defaults = Instance(section, () => Activator.CreateInstance(section.Type));
             var configured =
-                Instance(section, () => _configuration.GetSection(section.Name).Get(section.Type))
-                ?? defaults;
+                Instance(
+                    section,
+                    () => WholeCollectionBinding.Get(_configuration, section.Name, section.Type)
+                ) ?? defaults;
             // A plugin's own value is what it reads through its monitor: running and live alike.
             var running = Instance(
                 section,
@@ -663,7 +663,8 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         {
             var sets = ReferenceEquals(provider, panel)
                 ? panel!.Overrides(setting.Path)
-                : (provider.TryGet(setting.Path, out var value) && (value is not null || !whole))
+                // A list or map is set by its items, or by its key alone, as a file empties it.
+                : (provider.TryGet(setting.Path, out var value) && (!whole || value is null or ""))
                     || (whole && provider.GetChildKeys([], setting.Path).Any());
 
             if (!sets)

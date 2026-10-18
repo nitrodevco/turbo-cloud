@@ -13,6 +13,7 @@ using Turbo.LoadBots;
 using Turbo.LoadBots.Knowledge;
 using Turbo.LoadBots.Provisioning;
 using Turbo.LoadBots.Runner;
+using Turbo.Runtime.Configuration;
 
 const string USAGE = """
     Turbo load-test bots
@@ -57,9 +58,11 @@ builder.Configuration.AddCommandLine(args[1..]);
 
 builder.Services.AddTurboDatabaseContext(builder);
 
-var options =
-    builder.Configuration.GetSection(LoadBotOptions.SECTION_NAME).Get<LoadBotOptions>()
-    ?? new LoadBotOptions();
+// Lists given whole: personas named on the command line are the run's, not added to the defaults.
+var options = WholeCollectionBinding.Get<LoadBotOptions>(
+    builder.Configuration,
+    LoadBotOptions.SECTION_NAME
+);
 
 using var host = builder.Build();
 

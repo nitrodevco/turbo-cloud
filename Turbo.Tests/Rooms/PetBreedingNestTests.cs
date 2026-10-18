@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
@@ -22,6 +24,7 @@ using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Providers;
+using Turbo.Runtime.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -241,6 +244,49 @@ public sealed class PetBreedingNestTests
             .RarityCategories.Select(x => x.PaletteIds.ToArray())
             .Should()
             .BeEquivalentTo(new int[][] { [], [7], [], [0, 1] }, o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task The_confirm_window_shows_the_chances_the_configuration_gives_not_the_defaults()
+    {
+        // As the host binds Turbo:Pets from appsettings.json (or the panel): the chances given
+        // are the chances, not four more after the class's own 70, 20, 7, 3.
+        var configuration = new ConfigurationBuilder()
+            .AddJsonStream(
+                new MemoryStream(
+                    """{ "Turbo": { "Pets": { "BreedingRarityChances": [40, 30, 20, 10] } } }"""u8.ToArray()
+                )
+            )
+            .Build();
+        using var services = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddWholeCollectionBinding()
+            .Configure<PetConfig>(configuration.GetSection(PetConfig.SECTION_NAME))
+            .BuildServiceProvider();
+
+        RoomHarness.SetField(
+            _room.Harness.Room,
+            "_petConfig",
+            services.GetRequiredService<IOptions<PetConfig>>().Value
+        );
+        AddNest();
+        var first = await PlaceAsync(PET1, 6, 3);
+        var second = await PlaceAsync(PET2, 3, 6);
+
+        (await BreedAsync(first)).Should().BeTrue();
+        await TickAsync(first);
+        (await BreedAsync(second)).Should().BeTrue();
+        await TickAsync(second);
+
+        var request = _room
+            .Harness.Fakes.Log.Of("SendComposerAsync")
+            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
+            .Select(c => c.Args[0])
+            .OfType<ConfirmBreedingRequestEventMessageComposer>()
+            .Single();
+
+        // Rarest first: EPIC (level 3) .. COMMON (level 0).
+        request.RarityCategories.Select(x => x.Chance).Should().Equal(10, 20, 30, 40);
     }
 
     private static PetBreedSnapshot Palette(int paletteId, int rarityLevel) =>

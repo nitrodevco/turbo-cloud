@@ -104,74 +104,6 @@ internal static partial class SettingJson
     }
 
     /// <summary>
-    /// What configuration has to say for a list or map to come out as <paramref name="json"/>:
-    /// the binder fills one on top of the items its class starts with
-    /// (<paramref name="defaults"/>), so those can be kept or added to, never taken away. A list
-    /// keeps its defaults first and says only what follows; a map says only what differs. Throws
-    /// <see cref="ArgumentException"/> for a default left out.
-    /// </summary>
-    public static string BeyondDefaults(string json, string? defaults, string kind)
-    {
-        if (defaults is null)
-            return json;
-
-        using var start = JsonDocument.Parse(defaults);
-        using var value = JsonDocument.Parse(json);
-
-        if (
-            kind == "list"
-            && start.RootElement.ValueKind == JsonValueKind.Array
-            && value.RootElement.ValueKind == JsonValueKind.Array
-        )
-        {
-            var kept = start.RootElement.EnumerateArray().Select(x => x.GetRawText()).ToList();
-            var items = value.RootElement.EnumerateArray().Select(x => x.GetRawText()).ToList();
-
-            if (kept.Count == 0)
-                return json;
-
-            if (items.Count < kept.Count || !items.Take(kept.Count).SequenceEqual(kept))
-                throw new ArgumentException(
-                    $"This list always starts with its {kept.Count} default items ({string.Join(", ", kept)}): configuration can add to them, not take them away. Keep them first.",
-                    nameof(json)
-                );
-
-            return $"[{string.Join(",", items.Skip(kept.Count))}]";
-        }
-
-        if (
-            kind == "map"
-            && start.RootElement.ValueKind == JsonValueKind.Object
-            && value.RootElement.ValueKind == JsonValueKind.Object
-        )
-        {
-            var kept = start
-                .RootElement.EnumerateObject()
-                .ToDictionary(x => x.Name, x => x.Value.GetRawText());
-            var entries = value
-                .RootElement.EnumerateObject()
-                .ToDictionary(x => x.Name, x => x.Value.GetRawText());
-
-            if (kept.Keys.FirstOrDefault(x => !entries.ContainsKey(x)) is { } missing)
-                throw new ArgumentException(
-                    $"{missing} is one of this map's defaults: configuration can change it, not take it away.",
-                    nameof(json)
-                );
-
-            return "{"
-                + string.Join(
-                    ",",
-                    entries
-                        .Where(x => !kept.TryGetValue(x.Key, out var was) || was != x.Value)
-                        .Select(x => $"{JsonSerializer.Serialize(x.Key)}:{x.Value}")
-                )
-                + "}";
-        }
-
-        return json;
-    }
-
-    /// <summary>
     /// The configuration keys the JSON value at the path stands for, as a JSON configuration file
     /// gives them: an object's properties and a list's items under the path, each with its own
     /// key.
@@ -180,6 +112,12 @@ internal static partial class SettingJson
     {
         switch (value.ValueKind)
         {
+            // An empty list or map is its key with no value, as a JSON file gives it: a list
+            // the panel empties is empty, not the items its class starts with.
+            case JsonValueKind.Object or JsonValueKind.Array when IsEmpty(value):
+                into[path] = null;
+
+                break;
             case JsonValueKind.Object:
                 foreach (var property in value.EnumerateObject())
                     Flatten($"{path}{KEY_DELIMITER}{property.Name}", property.Value, into);
@@ -218,6 +156,11 @@ internal static partial class SettingJson
                 break;
         }
     }
+
+    private static bool IsEmpty(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Array
+            ? value.GetArrayLength() == 0
+            : !value.EnumerateObject().Any();
 
     // What a setting fills in itself: {roomId}, %libname%.
     [GeneratedRegex(@"\{[^{}]*\}|%[^%]*%")]

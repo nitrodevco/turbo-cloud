@@ -25,6 +25,7 @@ using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
+using Turbo.Runtime.Configuration;
 
 namespace Turbo.Plugins;
 
@@ -605,7 +606,10 @@ public sealed class PluginManager(
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
         if (host.GetService<IConfiguration>() is { } configuration)
+        {
             services.AddSingleton(configuration);
+            services.AddWholeCollectionBinding();
+        }
 
         plugin.ConfigureServices(services, manifest);
 

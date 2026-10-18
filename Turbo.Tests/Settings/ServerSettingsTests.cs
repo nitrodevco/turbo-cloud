@@ -69,6 +69,9 @@ public sealed class ServerSettingsTests : IDisposable
         settings.Get("Test:Hotel:Mode")!.Options.Should().Equal("Normal", "Maintenance");
         settings.Get("Test:Hotel:Links:Site")!.Value.Should().Be("\"https://hotel.example\"");
         settings.Get("Test:Hotel:Layouts")!.Kind.Should().Be("list");
+        // The file's list is the whole list, not added to the one the class starts with.
+        settings.Get("Test:Hotel:Layouts")!.Value.Should().Be("""["a","b","c","d","e"]""");
+        settings.Get("Test:Hotel:Layouts")!.Default.Should().Be("""["default"]""");
         settings.Get("Test:Hotel:Prices")!.Kind.Should().Be("map");
         settings.Get("Test:Hotel:IsNamed").Should().BeNull();
     }
@@ -165,17 +168,27 @@ public sealed class ServerSettingsTests : IDisposable
     }
 
     [Fact]
-    public async Task a_list_keeps_the_items_its_class_starts_with_which_configuration_cant_take_away()
+    public async Task a_saved_list_is_the_whole_list_without_the_items_its_class_starts_with()
     {
         var harness = Harness();
 
-        var drop = () => harness.Settings.SaveAsync("Test:Hotel:Layouts", """["x"]""", STAFF, Ct);
+        // The class starts the list with "default": a list saved without it runs without it.
+        var saved = await harness.Settings.SaveAsync("Test:Hotel:Layouts", """["x"]""", STAFF, Ct);
 
-        await drop.Should().ThrowAsync<ArgumentException>().WithMessage("*default items*");
+        saved.Value.Should().Be("""["x"]""");
 
-        await harness.Settings.SaveAsync("Test:Hotel:Layouts", """["default"]""", STAFF, Ct);
+        var restarted = Restart(harness);
 
-        Restart(harness).Running<TestHotelConfig>().Layouts.Should().Equal("default");
+        restarted.Running<TestHotelConfig>().Layouts.Should().Equal("x");
+        restarted.Settings.Get("Test:Hotel:Layouts")!.Value.Should().Be("""["x"]""");
+
+        // And one saved empty is empty, over the file's five and the class's one.
+        await restarted.Settings.SaveAsync("Test:Hotel:Layouts", "[]", STAFF, Ct);
+
+        var emptied = Restart(restarted);
+
+        emptied.Running<TestHotelConfig>().Layouts.Should().BeEmpty();
+        emptied.Settings.Get("Test:Hotel:Layouts")!.Source.Should().Be(ServerSettingSource.Panel);
     }
 
     [Fact]
