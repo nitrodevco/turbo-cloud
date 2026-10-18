@@ -31,6 +31,8 @@ public class WiredConditionVariableAgeMatch(
 {
     public override int WiredCode => (int)WiredConditionType.VARIABLE_AGE;
 
+    protected override bool AllowsWallFurni => true;
+
     private const int PARAM_FROM_VARIABLE = 6;
     private const int PARAM_REFERENCE_TARGET = 7;
 

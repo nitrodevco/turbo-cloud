@@ -14,6 +14,8 @@ using Turbo.Primitives;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
+using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -45,6 +47,14 @@ internal sealed class InventoryPetModule(
     private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
 
     protected override string Kind => "pet";
+
+    protected override AssetKind AssetKind => AssetKind.Pet;
+
+    protected override int DefinitionOf(PetEntity entity) => entity.TypeId;
+
+    protected override int DefinitionOf(PetSnapshot snapshot) => snapshot.TypeId;
+
+    protected override RoomId? RoomOf(PetSnapshot snapshot) => snapshot.RoomId;
 
     protected override UnseenItemCategory UnseenCategory => UnseenItemCategory.Pet;
 
@@ -124,6 +134,7 @@ internal sealed class InventoryPetModule(
         string color,
         int rarityLevel,
         ImmutableArray<int> customParts,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -146,6 +157,7 @@ internal sealed class InventoryPetModule(
                 Nutrition = config.PetStartNutrition,
                 WateredAt = DateTime.UtcNow,
             },
+            cause,
             ct
         );
     }
@@ -230,7 +242,11 @@ internal sealed class InventoryPetModule(
         );
     }
 
-    public async Task GrantProductAsync(PetProductGrant grant, CancellationToken ct)
+    public async Task GrantProductAsync(
+        PetProductGrant grant,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         var pet = await CreateAsync(
             grant.Name,
@@ -240,6 +256,7 @@ internal sealed class InventoryPetModule(
             grant.Color,
             grant.RarityLevel,
             [],
+            cause,
             ct
         );
 

@@ -22,6 +22,8 @@ public class WiredActionToggleItemState(
 {
     public override int WiredCode => (int)WiredActionType.TOGGLE_FURNI_STATE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false), // Toggle type
@@ -37,7 +39,7 @@ public class WiredActionToggleItemState(
         {
             try
             {
-                if (!FurniModule.TryGetItem(furniId, out var item))
+                if (!FurniModule.TryGetItem(furniId, out var item) || !item.Logic.CanWiredToggle())
                     continue;
 
                 var state = _wiredData.GetIntParam<bool>(0) switch

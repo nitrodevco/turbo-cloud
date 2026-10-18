@@ -6,12 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Database.Context;
+using Turbo.Database.Entities;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -243,6 +246,55 @@ public sealed partial class RoomGrain
         return [.. _state.AvatarsByPlayerId.Keys];
     }
 
+    /// <summary>
+    /// Room -> inventory for every pet or bot row in <paramref name="inRoom"/>, in the deletion's
+    /// unit of work: its backstop for one whose hand-over home failed. Where they stood is read
+    /// only while recording; otherwise this stays the one statement it always was. Answers how
+    /// many there were.
+    /// </summary>
+    private async Task<int> SendUnitsHomeLeftInRoomAsync<TEntity>(
+        TurboDbContext dbCtx,
+        IQueryable<TEntity> inRoom,
+        AssetKind kind,
+        Func<TEntity, int> definitionOf,
+        MovementCause cause,
+        CancellationToken ct
+    )
+        where TEntity : class, IInventoryUnitEntity
+    {
+        var left = _movements.IsRecording
+            ? await inRoom.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct)
+            : [];
+
+        var sent = await inRoom.ExecuteUpdateAsync(
+            up => up.SetProperty(x => x.RoomEntityId, (int?)null),
+            ct
+        );
+
+        var at = DateTime.UtcNow;
+
+        _movements.Record(
+            dbCtx,
+            [
+                .. left.Select(
+                    (unit, i) =>
+                        UnitMovements.Of(
+                            cause,
+                            i,
+                            kind,
+                            unit.Id,
+                            definitionOf(unit),
+                            UnitMovements.InRoom(unit.PlayerEntityId, _state.RoomId.Value),
+                            UnitMovements.Inventory(unit.PlayerEntityId),
+                            at
+                        )
+                ),
+            ]
+        );
+
+        return sent;
+    }
+
     public async Task CompleteRoomDeletionAsync(CancellationToken ct)
     {
         if (!_state.IsDeleting)
@@ -271,15 +323,26 @@ public sealed partial class RoomGrain
         // hand-over failed, which the cascade would otherwise delete. A navigator still holding
         // this room as a favourite drops it at its next flush (PlayerNavigatorGrain).
 
-        await dbCtx
-            .Furnitures.Where(x => x.RoomEntityId == roomId)
-            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
-        await dbCtx
-            .Pets.Where(x => x.RoomEntityId == roomId)
-            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
-        await dbCtx
-            .Bots.Where(x => x.RoomEntityId == roomId)
-            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
+        // The backstop is an operation of its own, after the hand-overs above.
+        var backstop = MovementCause.New(MovementCauses.ROOM_DELETE, 0, roomId);
+
+        var furniSent = await _custody.SendHomeLeftInRoomAsync(dbCtx, _state.RoomId, backstop, ct);
+        var petsSent = await SendUnitsHomeLeftInRoomAsync(
+            dbCtx,
+            dbCtx.Pets.Where(x => x.RoomEntityId == roomId),
+            AssetKind.Pet,
+            x => x.TypeId,
+            backstop.StartingAt(backstop.FirstSeq + furniSent),
+            ct
+        );
+        await SendUnitsHomeLeftInRoomAsync(
+            dbCtx,
+            dbCtx.Bots.Where(x => x.RoomEntityId == roomId),
+            AssetKind.Bot,
+            _ => 0,
+            backstop.StartingAt(backstop.FirstSeq + furniSent + petsSent),
+            ct
+        );
         await dbCtx.RoomRights.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomBans.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomMutes.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);

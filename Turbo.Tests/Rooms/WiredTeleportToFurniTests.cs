@@ -91,10 +91,13 @@ public sealed class WiredTeleportToFurniTests
     }
 
     [Fact]
-    public async Task ATeleportOntoAClosedTile_IsStillRefused()
+    public async Task ATeleportWithNowhereToStand_OnOrBesideTheFurni_IsRefused()
     {
-        var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers);
-        _room.TileFlags()[_room.Map.ToIdx(5, 5)] |= RoomTileFlags.Closed;
+        var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers, targetCanWalk: false);
+
+        for (var x = 4; x <= 6; x++)
+        for (var y = 4; y <= 6; y++)
+            _room.TileFlags()[_room.Map.ToIdx(x, y)] |= RoomTileFlags.Closed;
 
         var moved = await ExecuteAsync(box, signalUsers: [5, 6, 7], triggerer: 5);
 
@@ -102,15 +105,34 @@ public sealed class WiredTeleportToFurniTests
         _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
     }
 
-    [Fact]
-    public async Task ATeleportOntoAFurniNobodyCanStandOn_IsStillRefused()
+    /// <summary>
+    /// Onto a furni nobody can stand on (an antenna) Habbo puts the user on the tile in front of
+    /// it, or the next free one clockwise (official client capture 2026-10-18, 2/2 each).
+    /// </summary>
+    [Theory]
+    [InlineData(Rotation.North, new int[0], "5,4")]
+    [InlineData(Rotation.East, new int[0], "6,5")]
+    [InlineData(Rotation.South, new int[0], "5,6")]
+    [InlineData(Rotation.West, new int[0], "4,5")]
+    [InlineData(Rotation.West, new[] { 4, 5 }, "4,4")]
+    [InlineData(Rotation.West, new[] { 4, 5, 4, 4 }, "5,4")]
+    [InlineData(Rotation.North, new[] { 5, 4 }, "6,4")]
+    public async Task ATeleportOntoAFurniNobodyCanStandOn_LandsInFrontOfIt_OrTheNextFreeTileClockwise(
+        Rotation rotation,
+        int[] taken,
+        string landing
+    )
     {
         var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers, targetCanWalk: false);
+        _room.FloorItem(TARGET).SetRotation(rotation);
 
-        var moved = await ExecuteAsync(box, signalUsers: [5, 6, 7], triggerer: 5);
+        for (var i = 0; i < taken.Length; i += 2)
+            _room.AddFloorItem(31 + i, taken[i], taken[i + 1], canWalk: false);
 
-        moved.Should().BeFalse();
-        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
+        var moved = await ExecuteAsync(box, signalUsers: [5, 6], triggerer: 5);
+
+        moved.Should().BeTrue();
+        _room.Positions().Should().Equal($"5@{landing}", $"6@{landing}", "7@3,1");
     }
 
     [Fact]

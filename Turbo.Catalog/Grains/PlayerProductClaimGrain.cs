@@ -12,6 +12,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
@@ -134,6 +135,7 @@ internal sealed class PlayerProductClaimGrain : Grain, IPlayerProductClaimGrain
                 pet.Value.Color,
                 pet.Value.Palette.RarityLevel,
                 [],
+                MovementCause.New(MovementCauses.PRODUCT_CLAIM, _state.PlayerId.Value, claimId),
                 ct
             );
 

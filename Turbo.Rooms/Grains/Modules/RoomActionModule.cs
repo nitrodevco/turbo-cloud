@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Movements;
@@ -25,6 +27,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -45,6 +48,30 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
+        // A variable box takes what it stored with it, so only the room's owner and its own may
+        // pick it up; anyone else is told (a room admin who could pick up borrowed furni was
+        // refused 8 variables with furni_placement_error room.error.variable_permissions).
+        if (
+            item.Logic is FurnitureWiredVariableLogic
+            && !await SecurityModule.CanPickUpVariableAsync(ctx, item)
+        )
+        {
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
+                    Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                        "message",
+                        FurniturePlacementNotifications.VARIABLE_PERMISSIONS_MESSAGE
+                    ),
+                },
+                ct
+            );
+
+            return false;
+        }
+
         // A borrowed furni is given back rather than picked up: it belongs to the club, so it
         // reaches no inventory and the room simply lets go of it. The client warns the player
         // that it cannot be borrowed again before it asks for this.
@@ -56,7 +83,14 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             if (!confirmed && await AskToConfirmPickupAsync(ctx, item, ct))
                 return false;
 
-            return await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
+            if (!await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId))
+                return false;
+
+            await _roomGrain
+                ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                .EnqueueGiveBackAsync(_roomGrain.RoomId, [item.GetSnapshot()], cause, ct);
+
+            return true;
         }
 
         var pickupType = await SecurityModule.GetFurniPickupTypeAsync(ctx);
@@ -173,7 +207,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
     /// <summary>
     /// <c>:ejectall</c>: everybody else's furni goes back to its owners, for whoever may eject
-    /// one furni at a time. The room owner's furni and the player's own stay. Null when the
+    /// one furni at a time. The room owner's furni and the player's own stay, and so do other
+    /// players' variable boxes unless the player is the room's owner, as one at a time. Null when the
     /// player may not eject here; otherwise how many left the room.
     /// </summary>
     public async Task<int?> EjectAllAsync(ActionContext ctx, CancellationToken ct)
@@ -182,9 +217,13 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             return null;
 
         var roomOwnerId = _roomGrain._state.RoomSnapshot.OwnerId;
+        var mayTakeVariables = await SecurityModule.GetIsRoomOwnerAsync(ctx);
         var items = _roomGrain
             ._state.ItemsById.Values.Where(x =>
-                x.OwnerId != ctx.PlayerId && x.OwnerId != roomOwnerId && !x.IsTemporary
+                x.OwnerId != ctx.PlayerId
+                && x.OwnerId != roomOwnerId
+                && !x.IsTemporary
+                && (mayTakeVariables || x.Logic is not FurnitureWiredVariableLogic)
             )
             .ToList();
 
@@ -217,6 +256,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
         var removed = new Dictionary<PlayerId, List<IRoomItem>>();
         var borrowsGivenBack = new Dictionary<PlayerId, List<string>>();
+        var borrowed = new List<RoomItemSnapshot>();
 
         foreach (var item in items)
         {
@@ -245,6 +285,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     borrowsGivenBack[item.OwnerId] = logicNames = [];
 
                 logicNames.Add(item.Definition.LogicName);
+                borrowed.Add(item.GetSnapshot());
 
                 continue;
             }
@@ -290,6 +331,17 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     ct
                 );
         }
+
+        // The borrowed ones are numbered after the furni that go home, under the same cause.
+        if (borrowed.Count > 0)
+            await _roomGrain
+                ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                .EnqueueGiveBackAsync(
+                    _roomGrain.RoomId,
+                    borrowed,
+                    cause.StartingAt(cause.FirstSeq + returned.Values.Sum(x => x.Count)),
+                    ct
+                );
 
         var buildersClub = _roomGrain._grainFactory.GetBuildersClubGrain();
 

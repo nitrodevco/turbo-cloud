@@ -22,6 +22,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -640,6 +641,18 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     protected virtual bool CanPickFurni(IRoomItem item) => true;
 
+    /// <summary>
+    /// Whether the editor lets this box pick wall furni too (the client's <c>allowWallFurni</c>).
+    /// Habbo lets only the boxes that work on any furni's state, position, type or variables do
+    /// so (Toggle State, Move and Rotate, Give Variable, Furni With Variable, State Changed, ...)
+    /// and refuses it to every other box (official client captures of the box editors,
+    /// WIN63-202610121709 to 202610151745); <see cref="Configuration.WiredConfig.AllowWallFurni"/> off refuses
+    /// it to all. A wall item a box may not pick is dropped from what it saves.
+    /// </summary>
+    protected virtual bool AllowsWallFurni => false;
+
+    private bool MayPickWallFurni => AllowsWallFurni && _roomGrain._wiredConfig.AllowWallFurni;
+
     /// <summary>The <c>wiredfurni.error.require_*</c> text for a pick <see cref="CanPickFurni"/> refuses.</summary>
     protected virtual string? PickRefusedErrorKey => null;
 
@@ -671,7 +684,12 @@ public abstract partial class FurnitureWiredLogic(
 
             var id = WiredFurniIds.FromClient(FurniModule, proposedId);
 
-            if (!FurniModule.TryGetItem(id, out var item) || !CanPickFurni(item) || !seen.Add(id))
+            if (
+                !FurniModule.TryGetItem(id, out var item)
+                || !CanPickFurni(item)
+                || (item is IRoomWallItem && !MayPickWallFurni)
+                || !seen.Add(id)
+            )
                 continue;
 
             stuffIds.Add(id);
@@ -913,7 +931,7 @@ public abstract partial class FurnitureWiredLogic(
             Code = WiredCode,
             AdvancedMode = SupportsAdvancedMode(),
             AmountFurniSelections = [],
-            AllowWallFurni = _roomGrain._wiredConfig.AllowWallFurni,
+            AllowWallFurni = MayPickWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),
             AllowedPlayerSources = GetOfferedPlayerSources(),
             DefaultFurniSources = GetDefaultFurniSources(),

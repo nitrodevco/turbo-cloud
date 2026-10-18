@@ -27,6 +27,8 @@ public class WiredActionSetAltitude(
 {
     public override int WiredCode => (int)WiredActionType.SET_FURNI_ALTITUDE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(0, 8000, 0),

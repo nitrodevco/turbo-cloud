@@ -854,6 +854,39 @@ public sealed class PluginManager(
         }
     }
 
+    /// <summary>
+    /// Unloads the plugin and deletes its folder, holding the gate every load and scan holds, so
+    /// none brings it back halfway. False, changing nothing, while a load, reload or scan runs.
+    /// Throws <see cref="PluginDependencyException"/> while a live plugin depends on it.
+    /// </summary>
+    internal async Task<bool> TryRemoveAsync(string key, CancellationToken ct)
+    {
+        if (!await _reloadGate.WaitAsync(0, ct).ConfigureAwait(false))
+            return false;
+
+        try
+        {
+            await UnloadAsync(key, ct).ConfigureAwait(false);
+
+            Routes?.Off(key);
+
+            if (_status.TryRemove(key, out var status) && Directory.Exists(status.Folder))
+                Directory.Delete(status.Folder, recursive: true);
+
+            _logger.LogInformation("Plugin {Key} was uninstalled.", key);
+
+            return true;
+        }
+        finally
+        {
+            _reloadGate.Release();
+        }
+    }
+
+    /// <summary>The manifests of the plugins known, as of the last scan.</summary>
+    internal IReadOnlyList<PluginManifest> Manifests() =>
+        [.. _status.Values.Select(x => x.Manifest)];
+
     /// <summary>The dependents of <paramref name="key"/> that are live now.</summary>
     internal IReadOnlyList<string> LiveDependentsOf(string key) =>
         _dependents.TryGetValue(key, out var deps)

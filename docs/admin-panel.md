@@ -931,6 +931,7 @@ passkey; they add more while signed in instead.
 | `admin.plugins.view` | The Plugins page: each plugin's manifest, whether it loaded and why not, and the capabilities, packet headers and migrations it added. |
 | `admin.plugins.manage` | Reloading a plugin, scanning the plugin folders again, and turning a plugin off or on on that page. |
 | `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
+| `admin.plugins.uninstall` | With `admin.plugins.manage`: uninstalling a plugin on that page, its dry run, and the SQL export of its tables. No wildcard grants it. |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
@@ -1075,9 +1076,41 @@ plugins may be linked from (empty: any); `Turbo:Plugin:GitHubApiUrl` points at G
 A plugin repository builds its release package in CI against turbo-cloud (the bug report plugin's
 `.github/workflows/release.yml` is one). Links are kept in `plugins.json` under `Sources`.
 
+**Uninstalling** a plugin (with `admin.plugins.uninstall`, which no wildcard grants) starts with a
+dry run of what would go: its folder and the earlier versions kept of it, the GitHub links it was
+installed from, and its data with how much of each:
+
+- its **tables**: every table whose name starts with its manifest's `TablePrefix`, with their rows,
+  and its migrations' history (`__EFMigrationsHistory_<prefix>`). Never a table the hotel's own
+  model maps, nor one of another installed plugin whose prefix starts with this one's
+  (`bug_` and `bug_report_`). A prefix that is empty or more than letters, digits and `_` matches
+  nothing.
+- its **settings** overridden on the Settings page. The settings know a plugin's config classes
+  only while it is loaded, so for a plugin that is off or failed none are listed (the dry run says
+  so): turn it on first to have them deleted too.
+- the **grants** of its permission nodes and meta keys to groups and players: `plugin.<key>.*` (its
+  panel nodes) and `<key>.*` (an `IPermissionNodeSource`'s prefix is the plugin id), wildcards and
+  denials included, unless core uses that root.
+
+Then one of two:
+
+- **Uninstall, keep data** unloads it and deletes its folder, kept versions and links, and takes it
+  out of `plugins.json`. Its tables, settings and grants stay: installing it again picks them up
+  (its migrations are applied already, its settings and grants apply as it loads).
+- **Uninstall and delete data** does that, then drops its tables, puts its settings back (each
+  written to the settings history) and takes its grants away through the permission groups and
+  players, so each removal is in the permission audit and reaches the players online.
+
+Either needs the plugin's key typed again. **Download SQL** first writes its tables (each dropped
+if there, created as it is now, and its rows inserted) to a file to keep. An uninstall is refused
+while the plugin is loading or reloading, while a package is being installed (an update from a
+link included), while another installed plugin depends on it, and for a development plugin
+(`DevPluginPaths`: take it out of the list instead). Deleting data is refused when part of it
+could not be looked at.
+
 Every action on the page, refused ones included, is written to the command log as `plugin
 <action> <key>` (`plugin source add owner/repo`, `plugin update owner/repo`, `plugin rollback key
-version`, ...) from the `panel`, whoever takes it.
+version`, `plugin uninstall key delete-data`, `plugin export key`, ...) from the `panel`, whoever takes it.
 
 ## Server settings
 

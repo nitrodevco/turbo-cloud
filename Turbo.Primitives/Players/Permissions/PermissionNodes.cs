@@ -356,6 +356,13 @@ public static class PermissionNodes
         /// only: no wildcard grants it. Needs <see cref="PLUGINS_MANAGE"/> as well.
         /// </summary>
         public const string PLUGINS_INSTALL = "admin.plugins.install";
+
+        /// <summary>
+        /// Uninstall a plugin from the panel: its code, and with it, if asked, its tables, settings
+        /// and grants. Data deleted can't be brought back, so the node is explicit only: no
+        /// wildcard grants it. Needs <see cref="PLUGINS_MANAGE"/> as well.
+        /// </summary>
+        public const string PLUGINS_UNINSTALL = "admin.plugins.uninstall";
     }
 
     /// <summary>

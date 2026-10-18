@@ -230,6 +230,7 @@ public sealed partial class RoomPetModule
                 Chance(50) ? pet1.PetFigure.Color : pet2.PetFigure.Color,
                 offspringPalette.RarityLevel,
                 [],
+                MovementCause.New(MovementCauses.PET_BREED, ctx.PlayerId, session.NestId.Value),
                 ct
             );
         var rarityLevel = offspringPalette.RarityLevel;

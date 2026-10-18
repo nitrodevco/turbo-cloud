@@ -313,56 +313,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             _state.PendingChatlogs.Enqueue(snapshot);
     }
 
-    private async Task FlushDeletedItemsAsync(CancellationToken ct)
-    {
-        if (_state.DeletedItemIds.Count == 0)
-            return;
-
-        var ids = _state.DeletedItemIds.Select(x => x.Value).ToList();
-
-        _state.DeletedItemIds.Clear();
-
-        try
-        {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            await DeleteItemRowsAsync(dbCtx, ids, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to delete {Count} furniture items for room {RoomId}",
-                ids.Count,
-                _state.RoomId
-            );
-
-            foreach (var id in ids)
-                _state.DeletedItemIds.Add(id);
-        }
-    }
-
-    private async Task DeleteItemRowsAsync(
-        TurboDbContext dbCtx,
-        List<int> ids,
-        CancellationToken ct
-    )
-    {
-        // Borrowed furni lives in its own table, keyed by this room and the id the room gave it.
-        var borrowedIds = ids.Where(FurniIdBands.IsBuildersClub).ToList();
-        var ownedIds = ids.Where(x => !FurniIdBands.IsBuildersClub(x)).ToList();
-
-        if (ownedIds.Count > 0)
-            await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
-
-        if (borrowedIds.Count > 0)
-            await dbCtx
-                .BuildersClubFurnitures.Where(x =>
-                    x.RoomEntityId == _state.RoomId.Value && borrowedIds.Contains(x.RoomObjectId)
-                )
-                .ExecuteDeleteAsync(ct);
-    }
-
     public async Task WriteUseAsync(
         RoomId roomId,
         UsedUpItem? usedUp,
@@ -375,10 +325,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         // These are newer than anything queued for them, and a queued update of the used item
         // would only resurrect its row.
         if (usedItemId is { } itemId)
-        {
             _state.DirtyItems.Remove(itemId);
-            _state.DeletedItemIds.Remove(itemId);
-        }
 
         foreach (var pet in pets)
             _state.DirtyPets.Remove(pet.Id);
@@ -416,9 +363,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 _state.RoomId
             );
 
-            if (usedUp is not null && FurniIdBands.IsBuildersClub(usedUp.Item.ObjectId))
-                _state.DeletedItemIds.Add(usedUp.Item.ObjectId);
-            else if (usedUp is not null)
+            if (usedUp is not null)
                 _state.PendingCustodyWrites.Enqueue(new CustodyDestroy(usedUp.Item, usedUp.Cause));
 
             foreach (var pet in pets)
@@ -496,8 +441,8 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     }
 
     /// <summary>
-    /// A borrowed furni has no owner and no custody: its row goes with the borrow. Anything else
-    /// leaves through the custody, with its movement.
+    /// A borrowed furni has no owner: used up, it goes back to the club. Anything else is
+    /// destroyed. Both leave through the custody, with their movement.
     /// </summary>
     private async Task DestroyUsedUpAsync(
         TurboDbContext dbCtx,
@@ -508,7 +453,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     {
         if (FurniIdBands.IsBuildersClub(item.ObjectId))
         {
-            await DeleteItemRowsAsync(dbCtx, [item.ObjectId.Value], ct);
+            await _custody.GiveBackBorrowedAsync(dbCtx, _state.RoomId, [item], cause, ct);
 
             return;
         }
@@ -558,14 +503,37 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 await _custody.TakeOutOfRoomAsync(_state.RoomId, pickup.Items, pickup.Cause, ct);
 
                 break;
+            case CustodyGiveBack giveBack:
+                await _dbCtxFactory.InTransactionAsync(
+                    async dbCtx =>
+                        UnitOfWork.Commit(
+                            await _custody.GiveBackBorrowedAsync(
+                                dbCtx,
+                                _state.RoomId,
+                                giveBack.Items,
+                                giveBack.Cause,
+                                ct
+                            )
+                        ),
+                    ct
+                );
+
+                break;
         }
     }
 
-    public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
+    public Task EnqueueGiveBackAsync(
+        RoomId roomId,
+        List<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
-        // A pending update for the same item would only resurrect the row.
-        _state.DirtyItems.Remove(itemId);
-        _state.DeletedItemIds.Add(itemId);
+        // A pending update of one of them would only resurrect its row.
+        foreach (var item in items)
+            _state.DirtyItems.Remove(item.ObjectId);
+
+        _state.PendingCustodyWrites.Enqueue(new CustodyGiveBack(items, cause));
 
         return Task.CompletedTask;
     }
@@ -1113,9 +1081,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         // not overtake its placement.
         var custodyWritten = await FlushCustodyWritesAsync(ct);
 
-        if (custodyWritten)
-            await FlushDeletedItemsAsync(ct);
-
         for (var i = 0; i < maxBatches && _state.DirtyPets.Count > 0; i++)
         {
             if (!await FlushDirtyPetBatchAsync(ct))
@@ -1247,33 +1212,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         RoomId roomId,
         RoomItemSnapshot snapshot,
         int offerId,
+        MovementCause cause,
         CancellationToken ct
     )
     {
         try
         {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            dbCtx.BuildersClubFurnitures.Add(
-                new BuildersClubFurnitureEntity
-                {
-                    RoomEntityId = _state.RoomId.Value,
-                    RoomObjectId = snapshot.ObjectId.Value,
-                    FurnitureDefinitionEntityId = snapshot.DefinitionId,
-                    PlacedByPlayerEntityId = snapshot.OwnerId.Value,
-                    CatalogOfferEntityId = offerId,
-                    X = snapshot.X,
-                    Y = snapshot.Y,
-                    Z = snapshot.Z,
-                    Rotation = snapshot.Rotation,
-                    WallOffset = snapshot is RoomWallItemSnapshot wallItem
-                        ? wallItem.WallOffset
-                        : 0,
-                    ExtraData = snapshot.ExtraData,
-                }
-            );
-
-            await dbCtx.SaveChangesAsync(ct);
+            await _custody.BorrowIntoRoomAsync(_state.RoomId, snapshot, offerId, cause, ct);
 
             return true;
         }

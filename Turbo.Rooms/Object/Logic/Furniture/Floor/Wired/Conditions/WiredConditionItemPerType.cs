@@ -24,6 +24,8 @@ public class WiredConditionItemPerType(
 {
     public override int WiredCode => (int)WiredConditionType.STUFF_TYPE_MATCHES;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),

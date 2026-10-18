@@ -10,9 +10,12 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Extensions;
+using Turbo.Database.Movements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
@@ -40,8 +43,22 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
     protected readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     protected readonly ILogger _logger = logger;
 
+    private IAssetMovementRecorder Movements => _inventoryGrain._movements;
+
     /// <summary>"pet" or "bot", for the logs.</summary>
     protected abstract string Kind { get; }
+
+    /// <summary>What its movements call it.</summary>
+    protected abstract AssetKind AssetKind { get; }
+
+    /// <summary>The definition its movements name: a pet's type; a bot has none.</summary>
+    protected virtual int DefinitionOf(TEntity entity) => 0;
+
+    /// <inheritdoc cref="DefinitionOf(TEntity)"/>
+    protected virtual int DefinitionOf(TSnapshot snapshot) => 0;
+
+    /// <summary>The room a unit coming back from a room stood in.</summary>
+    protected abstract RoomId? RoomOf(TSnapshot snapshot);
 
     /// <summary>The inventory tab a new one is marked "new" in.</summary>
     protected abstract UnseenItemCategory UnseenCategory { get; }
@@ -109,24 +126,51 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         return _section.ById.TryGetValue(id, out var unit) ? unit : null;
     }
 
-    /// <summary>Hands a unit to a room. Null when it is not here to give.</summary>
-    public async Task<TSnapshot?> TryCheckOutAsync(int id, RoomId roomId, CancellationToken ct)
+    /// <summary>Hands a unit to a room, with its movement under <paramref name="cause"/>. Null when it is not here to give.</summary>
+    public async Task<TSnapshot?> TryCheckOutAsync(
+        int id,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         await EnsureReadyAsync(ct);
 
         if (!_section.ById.TryGetValue(id, out var unit))
             return null;
 
-        int updated;
+        var updated = await _dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
+            {
+                var updated = await Table(dbCtx)
+                    .Where(x =>
+                        x.Id == id && x.PlayerEntityId == PlayerId.Value && x.RoomEntityId == null
+                    )
+                    .ExecuteUpdateAsync(
+                        up => up.SetProperty(x => x.RoomEntityId, roomId.Value),
+                        ct
+                    );
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            updated = await Table(dbCtx)
-                .Where(x =>
-                    x.Id == id && x.PlayerEntityId == PlayerId.Value && x.RoomEntityId == null
-                )
-                .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, roomId.Value), ct);
-        }
+                if (updated == 0)
+                    return UnitOfWork.Rollback(0);
+
+                Movements.Record(
+                    dbCtx,
+                    UnitMovements.Of(
+                        cause,
+                        0,
+                        AssetKind,
+                        id,
+                        DefinitionOf(unit),
+                        UnitMovements.Inventory(PlayerId.Value),
+                        UnitMovements.InRoom(PlayerId.Value, roomId.Value)
+                    )
+                );
+
+                return UnitOfWork.Commit(updated);
+            },
+            ct
+        );
 
         if (updated == 0)
         {
@@ -149,8 +193,15 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         return WithRoom(unit, roomId);
     }
 
-    /// <summary>Takes a unit back from a room, with what it brought back.</summary>
-    public async Task<bool> ReturnAsync(TSnapshot snapshot, CancellationToken ct)
+    /// <summary>
+    /// Takes a unit back from a room, with what it brought back and its movement under
+    /// <paramref name="cause"/>.
+    /// </summary>
+    public async Task<bool> ReturnAsync(
+        TSnapshot snapshot,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         if (snapshot.OwnerId != PlayerId)
             return false;
@@ -217,6 +268,19 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                             OccurredAtUtc = DateTime.UtcNow,
                         }
                     );
+                if (updated > 0)
+                    Movements.Record(
+                        dbCtx,
+                        UnitMovements.Of(
+                            cause,
+                            0,
+                            AssetKind,
+                            snapshot.Id,
+                            DefinitionOf(snapshot),
+                            UnitMovements.InRoom(PlayerId.Value, RoomOf(snapshot)?.Value ?? 0),
+                            UnitMovements.Inventory(PlayerId.Value)
+                        )
+                    );
                 await dbCtx.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
                 break;
@@ -252,42 +316,69 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
     /// Adds a new unit to the inventory. Null when the player already owns
     /// <see cref="MaxOwned"/>, counting the ones standing in rooms.
     /// </summary>
-    protected async Task<TSnapshot?> CreateAsync(TEntity entity, CancellationToken ct)
+    protected async Task<TSnapshot?> CreateAsync(
+        TEntity entity,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         await EnsureReadyAsync(ct);
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            var owned = await Table(dbCtx).CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct);
-
-            if (owned >= MaxOwned)
+        var created = await _dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
             {
-                _logger.LogWarning(
-                    "Player {PlayerId} owns {Count} of kind {Kind}, the configured maximum; not creating another",
-                    PlayerId,
-                    owned,
-                    Kind
-                );
+                var owned = await Table(dbCtx)
+                    .CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct);
 
-                return null;
-            }
+                if (owned >= MaxOwned)
+                {
+                    _logger.LogWarning(
+                        "Player {PlayerId} owns {Count} of kind {Kind}, the configured maximum; not creating another",
+                        PlayerId,
+                        owned,
+                        Kind
+                    );
 
-            dbCtx.Add(entity);
-            if (entity is PetEntity)
-                _inventoryGrain._achievementFacts.Record(
+                    return UnitOfWork.Rollback(false);
+                }
+
+                dbCtx.Add(entity);
+                if (entity is PetEntity)
+                    _inventoryGrain._achievementFacts.Record(
+                        dbCtx,
+                        PlayerId,
+                        new()
+                        {
+                            Source = AchievementSources.PETS,
+                            OperationId = Guid.NewGuid().ToString("N"),
+                            Amount = owned + 1,
+                            OccurredAtUtc = DateTime.UtcNow,
+                        }
+                    );
+
+                // The id the movement names exists once the row is inserted.
+                await dbCtx.SaveChangesAsync(ct);
+
+                Movements.Record(
                     dbCtx,
-                    PlayerId,
-                    new()
-                    {
-                        Source = AchievementSources.PETS,
-                        OperationId = Guid.NewGuid().ToString("N"),
-                        Amount = owned + 1,
-                        OccurredAtUtc = DateTime.UtcNow,
-                    }
+                    UnitMovements.Of(
+                        cause,
+                        0,
+                        AssetKind,
+                        entity.Id,
+                        DefinitionOf(entity),
+                        AssetPlace.Nowhere,
+                        UnitMovements.Inventory(PlayerId.Value)
+                    )
                 );
 
-            await dbCtx.SaveChangesAsync(ct);
-        }
+                return UnitOfWork.Commit(true);
+            },
+            ct
+        );
+
+        if (!created)
+            return null;
 
         var snapshot = ToSnapshot(entity, await GetOwnerNameAsync(ct));
 
@@ -303,29 +394,57 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         return snapshot;
     }
 
-    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    /// <summary>Deletes a unit for good, wherever it stands, with its movement under <paramref name="cause"/>.</summary>
+    public async Task<bool> DeleteAsync(int id, MovementCause cause, CancellationToken ct)
     {
         await EnsureReadyAsync(ct);
 
-        int deleted;
-
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            // Keep the recipient row available until a durably admitted respect finishes.
-            if (
-                typeof(TEntity) == typeof(PetEntity)
-                && await dbCtx.PetRespectOperations.AnyAsync(
-                    x => x.PetId == id && !x.Completed && !x.Rejected,
-                    ct
+        var deleted = await _dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
+            {
+                // Keep the recipient row available until a durably admitted respect finishes.
+                if (
+                    typeof(TEntity) == typeof(PetEntity)
+                    && await dbCtx.PetRespectOperations.AnyAsync(
+                        x => x.PetId == id && !x.Completed && !x.Rejected,
+                        ct
+                    )
                 )
-            )
-                return false;
-            deleted = await Table(dbCtx)
-                .Where(x => x.Id == id && x.PlayerEntityId == PlayerId.Value)
-                .ExecuteDeleteAsync(ct);
-        }
+                    return UnitOfWork.Rollback(false);
 
-        if (deleted == 0)
+                var row = Table(dbCtx).Where(x => x.Id == id && x.PlayerEntityId == PlayerId.Value);
+
+                // Where it stood is read only while recording: otherwise this stays the one
+                // statement it always was.
+                var was = Movements.IsRecording
+                    ? await row.AsNoTracking().FirstOrDefaultAsync(ct)
+                    : null;
+
+                if (await row.ExecuteDeleteAsync(ct) == 0)
+                    return UnitOfWork.Rollback(false);
+
+                if (was is not null)
+                    Movements.Record(
+                        dbCtx,
+                        UnitMovements.Of(
+                            cause,
+                            0,
+                            AssetKind,
+                            id,
+                            DefinitionOf(was),
+                            was.RoomEntityId is { } roomId
+                                ? UnitMovements.InRoom(PlayerId.Value, roomId)
+                                : UnitMovements.Inventory(PlayerId.Value),
+                            AssetPlace.Nowhere
+                        )
+                    );
+
+                return UnitOfWork.Commit(true);
+            },
+            ct
+        );
+
+        if (!deleted)
             return false;
 
         if (_section.ById.Remove(id))

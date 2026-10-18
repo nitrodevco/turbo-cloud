@@ -8,7 +8,13 @@ public class RoomConfig
 {
     public const string SECTION_NAME = "Turbo:Rooms";
 
-    public Altitude MaxStackHeight { get; init; } = Altitude.FromInt(4000);
+    /// <summary>
+    /// How high an item's top may stand. Habbo refuses a placement over 80 with
+    /// <c>${room.error.cant_set_item}</c> (official client capture, 2026-10-18: a top of 79.40
+    /// placed, 80.05 refused), and its stacking helper's window goes up to 80
+    /// (<c>CustomStackHeightWidget.MAX_HEIGHT</c>).
+    /// </summary>
+    public Altitude MaxStackHeight { get; init; } = Altitude.FromInt(8000);
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
 
     // FloorHeightMap uses -1 for automatic walls above the highest floor; zero is fixed.

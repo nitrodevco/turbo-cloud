@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +19,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// <summary>
 /// Sends a signal to the antenna furni of the first slot; the furni of the second slot and
 /// the selected users travel with it. Params: split by furni and split by users, each of
-/// which sends one signal per forwarded furni or user instead of one for all.
+/// which sends one signal per forwarded furni or user, in a random order, instead of one for all.
 /// </summary>
 [RoomObjectLogic("wf_act_send_signal")]
 public class WiredActionSendSignal(
@@ -97,11 +98,20 @@ public class WiredActionSendSignal(
         return true;
     }
 
+    /// <summary>
+    /// One batch per id, in a random order: Habbo's split sends do not arrive in the order the
+    /// furni or users were picked, so builds number them as they come in.
+    /// </summary>
     private static List<HashSet<TId>> Split<TId>(HashSet<TId> ids)
     {
-        var batches = new List<HashSet<TId>>(ids.Count);
+        var order = new TId[ids.Count];
 
-        foreach (var id in ids)
+        ids.CopyTo(order);
+        Random.Shared.Shuffle(order);
+
+        var batches = new List<HashSet<TId>>(order.Length);
+
+        foreach (var id in order)
             batches.Add([id]);
 
         return batches;

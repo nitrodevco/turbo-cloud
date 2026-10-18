@@ -87,12 +87,14 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         // Used up before the pet is created: the pet is written at once, so a package deleted
         // after it outlived it by a write and a crash in between left both.
-        await ActionModule.DeleteItemByIdAsync(
-            ctx,
-            _ctx.ObjectId,
-            MovementCause.New(MovementCauses.USE_PET_PACKAGE, ctx.PlayerId, _ctx.ObjectId.Value),
-            ct
+        // One operation: the package out of the room, then the pet into the inventory.
+        var cause = MovementCause.New(
+            MovementCauses.USE_PET_PACKAGE,
+            ctx.PlayerId,
+            _ctx.ObjectId.Value
         );
+
+        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, cause, ct);
 
         var pet = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
@@ -104,6 +106,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
                 contents.Color.ToUpperInvariant(),
                 palette?.RarityLevel ?? 0,
                 [],
+                cause.StartingAt(cause.FirstSeq + 1),
                 ct
             );
 

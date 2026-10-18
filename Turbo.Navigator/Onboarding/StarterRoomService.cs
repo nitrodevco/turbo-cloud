@@ -15,10 +15,12 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
+using Turbo.Furniture.Custody;
 using Turbo.Navigator.Configuration;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -44,6 +46,7 @@ public sealed class StarterRoomService(
     INavigatorService navigatorService,
     IFurnitureDefinitionProvider furnitureDefinitions,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IFurnitureCustody custody,
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> navigatorConfig,
     IStarterRoomDirectory directory,
@@ -277,28 +280,35 @@ public sealed class StarterRoomService(
         var items = await db
             .Furnitures.AsNoTracking()
             .Where(x => x.RoomEntityId == source.Id)
+            .OrderBy(x => x.Id)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        foreach (var item in items)
-        {
-            db.Add(
-                new FurnitureEntity
-                {
-                    PlayerEntityId = playerId.Value,
-                    FurnitureDefinitionEntityId = item.FurnitureDefinitionEntityId,
-                    RoomEntityId = newRoomId,
-                    X = item.X,
-                    Y = item.Y,
-                    Z = item.Z,
-                    Rotation = item.Rotation,
-                    WallOffset = item.WallOffset,
-                    ExtraData = WithoutTeleportLink(item.ExtraData),
-                }
-            );
-        }
+        // The look and the furni in one write, the furni through the custody.
+        var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var txScope = tx.ConfigureAwait(false);
+
+        await custody
+            .CreateInRoomAsync(
+                db,
+                roomId.Value,
+                playerId,
+                [
+                    .. items.Select(item => new FurniToPlace(
+                        new FurniToMake(
+                            item.FurnitureDefinitionEntityId,
+                            WithoutTeleportLink(item.ExtraData)
+                        ),
+                        new RoomPosition(item.X, item.Y, item.Z, item.Rotation, item.WallOffset)
+                    )),
+                ],
+                StarterRoomCause(playerId, roomId.Value),
+                ct
+            )
+            .ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
 
         return new(roomId.Value, name);
     }
@@ -340,24 +350,18 @@ public sealed class StarterRoomService(
         room.PaintLandscape = template.Landscape;
 
         List<string> missing = [];
+        List<FurniToPlace> furni = [];
 
         foreach (var item in template.FloorItems)
         {
             if (Definition(item.Name, missing) is not { } definition)
                 continue;
 
-            db.Add(
-                new FurnitureEntity
-                {
-                    PlayerEntityId = ownerId.Value,
-                    FurnitureDefinitionEntityId = definition,
-                    RoomEntityId = roomId.Value,
-                    X = item.X,
-                    Y = item.Y,
-                    Z = item.Z,
-                    Rotation = (Rotation)item.Rotation,
-                    ExtraData = State(item.State),
-                }
+            furni.Add(
+                new FurniToPlace(
+                    new FurniToMake(definition, State(item.State)),
+                    new RoomPosition(item.X, item.Y, item.Z, (Rotation)item.Rotation, null)
+                )
             );
         }
 
@@ -378,23 +382,29 @@ public sealed class StarterRoomService(
             if (Definition(item.Name, missing) is not { } definition)
                 continue;
 
-            db.Add(
-                new FurnitureEntity
-                {
-                    PlayerEntityId = ownerId.Value,
-                    FurnitureDefinitionEntityId = definition,
-                    RoomEntityId = roomId.Value,
-                    X = position.X,
-                    Y = position.Y,
-                    Z = position.Z,
-                    Rotation = position.Rotation,
-                    WallOffset = position.WallOffset,
-                    ExtraData = State(item.State),
-                }
+            furni.Add(
+                new FurniToPlace(
+                    new FurniToMake(definition, State(item.State)),
+                    new RoomPosition(
+                        position.X,
+                        position.Y,
+                        position.Z,
+                        position.Rotation,
+                        position.WallOffset
+                    )
+                )
             );
         }
 
+        var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var txScope = tx.ConfigureAwait(false);
+
+        await custody
+            .CreateInRoomAsync(db, roomId, ownerId, furni, StarterRoomCause(ownerId, roomId), ct)
+            .ConfigureAwait(false);
+
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
 
         if (missing.Count > 0)
             logger.LogWarning(
@@ -403,6 +413,10 @@ public sealed class StarterRoomService(
                 string.Join(", ", missing.Distinct())
             );
     }
+
+    /// <summary>A new player's room furnished for them: their own action, the room what caused it.</summary>
+    private static MovementCause StarterRoomCause(PlayerId playerId, RoomId roomId) =>
+        MovementCause.New(MovementCauses.ONBOARDING_STARTER_ROOM, playerId.Value, roomId.Value);
 
     private int? Definition(string name, List<string> missing)
     {

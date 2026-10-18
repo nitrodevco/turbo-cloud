@@ -22,6 +22,8 @@ public class WiredActionToggleToRandomState(
 {
     public override int WiredCode => (int)WiredActionType.TOGGLE_TO_RANDOM_STATE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)

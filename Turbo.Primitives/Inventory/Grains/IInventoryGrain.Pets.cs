@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 
@@ -24,10 +25,19 @@ public partial interface IInventoryGrain
     /// Hands a pet over to a room: the row is marked as standing in it and the pet leaves the
     /// inventory list. Null when the pet is not in this inventory.
     /// </summary>
-    public Task<PetSnapshot?> TryCheckOutPetAsync(int petId, RoomId roomId, CancellationToken ct);
+    public Task<PetSnapshot?> TryCheckOutPetAsync(
+        int petId,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>Takes a pet back from a room with the stats it accumulated there.</summary>
-    public Task<bool> ReturnPetAsync(PetSnapshot snapshot, CancellationToken ct);
+    public Task<bool> ReturnPetAsync(
+        PetSnapshot snapshot,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Creates a new pet (purchase, hatched package, nest breeding) in this inventory. The
@@ -42,7 +52,8 @@ public partial interface IInventoryGrain
         string color,
         int rarityLevel,
         ImmutableArray<int> customParts,
+        MovementCause cause,
         CancellationToken ct
     );
-    public Task<bool> DeletePetAsync(int petId, CancellationToken ct);
+    public Task<bool> DeletePetAsync(int petId, MovementCause cause, CancellationToken ct);
 }

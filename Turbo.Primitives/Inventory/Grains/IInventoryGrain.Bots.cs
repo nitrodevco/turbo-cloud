@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -19,16 +20,26 @@ public partial interface IInventoryGrain
     /// Hands a bot over to a room: the row is marked as standing in it and the bot leaves the
     /// inventory list. Null when the bot is not in this inventory.
     /// </summary>
-    public Task<BotSnapshot?> TryCheckOutBotAsync(int botId, RoomId roomId, CancellationToken ct);
+    public Task<BotSnapshot?> TryCheckOutBotAsync(
+        int botId,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>Takes a bot back from a room with whatever its owner changed there.</summary>
-    public Task<bool> ReturnBotAsync(BotSnapshot snapshot, CancellationToken ct);
+    public Task<bool> ReturnBotAsync(
+        BotSnapshot snapshot,
+        MovementCause cause,
+        CancellationToken ct
+    );
     public Task<BotSnapshot?> CreateBotAsync(
         string name,
         string motto,
         string figure,
         AvatarGenderType gender,
+        MovementCause cause,
         CancellationToken ct
     );
-    public Task<bool> DeleteBotAsync(int botId, CancellationToken ct);
+    public Task<bool> DeleteBotAsync(int botId, MovementCause cause, CancellationToken ct);
 }

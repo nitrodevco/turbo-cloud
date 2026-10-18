@@ -40,6 +40,8 @@ public class WiredActionGiveVariable(
 
     public override int WiredCode => (int)WiredActionType.GIVE_VARIABLE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredVariableTargetType>(

@@ -155,22 +155,16 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                 _roomGrain._state.ItemsById.Remove(item.ObjectId);
                 _roomGrain._state.ItemsVersion++;
 
-                if (item.IsBuildersClub)
-                {
-                    // Nobody owns a borrowed furni, so there is nowhere for it to go: leaving the
-                    // room is the end of it, and the borrow goes back to the club.
+                // Nobody owns a borrowed furni, so leaving the room is the end of it, and the
+                // borrow goes back to the club.
+                if (item.IsBuildersClub && reportBorrow)
                     await _roomGrain
-                        ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-                        .EnqueueDeletedItemAsync(_roomGrain.RoomId, item.ObjectId, ct);
+                        ._grainFactory.GetBuildersClubGrain()
+                        .OnReturnedAsync(item.OwnerId, [item.Definition.LogicName], ct);
 
-                    if (reportBorrow)
-                        await _roomGrain
-                            ._grainFactory.GetBuildersClubGrain()
-                            .OnReturnedAsync(item.OwnerId, [item.Definition.LogicName], ct);
-                }
-
-                // Where an owned furni goes is the caller's to write: an inventory (a pickup,
-                // ReturnItemsToOwnersAsync) or nowhere (a use that deletes it).
+                // Where a furni goes is the caller's to write, with why: an inventory (a pickup,
+                // ReturnItemsToOwnersAsync), back to the club (a borrowed one) or nowhere (a use
+                // that deletes it).
 
                 break;
             }

@@ -43,6 +43,8 @@ public class WiredActionMoveAsGroup(
 
     public override int WiredCode => (int)WiredActionType.MOVE_AS_GROUP;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(true),

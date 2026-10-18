@@ -220,6 +220,37 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_list_starts_at_page_1_and_page_0_is_refused()
+    {
+        var (read, write) = await SetUpAsync();
+
+        await JsonAsync(
+            HttpMethod.Put,
+            $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}",
+            write: write,
+            body: """{"value":"7"}"""
+        );
+
+        var page = await JsonAsync(
+            HttpMethod.Get,
+            "/api/public/rooms/1/variables/furni/hp/furni?page=1&size=2",
+            read: read
+        );
+
+        page!["page"]!.GetValue<int>().Should().Be(1);
+        page["items"]!.AsArray().Should().ContainSingle();
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                "/api/public/rooms/1/variables/furni/hp/furni?page=0&size=2",
+                read: read
+            )
+        )
+            .Should()
+            .Be((400, "wired.variables.invalid_value"));
+    }
+
+    [Fact]
     public async Task Wall_items_go_by_their_positive_id_and_globals_are_patched()
     {
         var (read, write) = await SetUpAsync();

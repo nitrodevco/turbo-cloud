@@ -94,16 +94,25 @@ internal sealed partial class InventoryGrain
             }
         }
 
-        foreach (var pet in pets)
-            await PetModule.GrantProductAsync(pet, ct);
+        // One operation: the pets, then the bots, then the furni, each numbered after the last.
+        for (var i = 0; i < pets.Count; i++)
+            await PetModule.GrantProductAsync(pets[i], cause.StartingAt(cause.FirstSeq + i), ct);
 
-        foreach (var bot in bots)
-            await BotModule.GrantProductAsync(bot, ct);
+        for (var i = 0; i < bots.Count; i++)
+            await BotModule.GrantProductAsync(
+                bots[i],
+                cause.StartingAt(cause.FirstSeq + pets.Count + i),
+                ct
+            );
 
-        var granted = await FurniModule.GrantAsync(furniture, cause, ct);
+        var granted = await FurniModule.GrantAsync(
+            furniture,
+            cause.StartingAt(cause.FirstSeq + pets.Count + bots.Count),
+            ct
+        );
         var pairs = await FurniModule.GrantTeleportPairsAsync(
             teleportPairs,
-            cause.StartingAt(cause.FirstSeq + granted.Length),
+            cause.StartingAt(cause.FirstSeq + pets.Count + bots.Count + granted.Length),
             ct
         );
 

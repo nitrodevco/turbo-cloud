@@ -10,6 +10,8 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.WiredTrading;
+using Turbo.Database.Movements;
+using Turbo.Furniture.Custody;
 using Turbo.Logging;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
@@ -17,6 +19,7 @@ using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -51,6 +54,8 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
     private readonly IGrainFactory _grainFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider;
     private readonly IInventoryFurnitureLoader _furnitureLoader;
+    private readonly IFurnitureCustody _custody;
+    private readonly IAssetMovementRecorder _movements;
     private readonly ILogger<IWiredChestGrain> _logger;
 
     private static readonly IReadOnlyDictionary<ChestItemTypeSnapshot, int> NoItems =
@@ -64,6 +69,8 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider defsProvider,
         IInventoryFurnitureLoader furnitureLoader,
+        IFurnitureCustody custody,
+        IAssetMovementRecorder movements,
         ILogger<IWiredChestGrain> logger
     )
     {
@@ -72,6 +79,8 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         _grainFactory = grainFactory;
         _defsProvider = defsProvider;
         _furnitureLoader = furnitureLoader;
+        _custody = custody;
+        _movements = movements;
         _logger = logger;
 
         _state = new() { ChestId = RoomObjectId.Parse((int)this.GetPrimaryKeyLong()) };
@@ -378,31 +387,24 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             transactionId = log.Id;
 
-            var moved = await dbCtx
-                .Furnitures.Where(x =>
-                    ids.Contains(x.Id)
-                    && x.PlayerEntityId == depositorId
-                    && x.RoomEntityId == null
-                    && x.ChestItemEntityId == null
-                )
-                .ExecuteUpdateAsync(
-                    up =>
-                        up.SetProperty(x => x.ChestItemEntityId, chestId)
-                            .SetProperty(x => x.PlayerEntityId, request.Chest.OwnerId.Value)
-                            .SetProperty(x => x.ChestTransactionId, transactionId),
-                    ct
-                );
+            var moved = await _custody.PutInHolderAsync(
+                dbCtx,
+                request.DepositorId,
+                items,
+                new FurniHolder(chestId, request.Chest.OwnerId, transactionId),
+                ChestCause(MovementCauses.WIRED_CHEST_DEPOSIT, transactionId),
+                ct
+            );
 
-            if (moved != ids.Count)
+            if (!moved)
             {
                 await tx.RollbackAsync(ct);
 
                 _logger.LogWarning(
-                    "Deposit of {Count} items by player {PlayerId} into wired chest {ChestId} found {Moved} of them; rolled back",
+                    "Deposit of {Count} items by player {PlayerId} into wired chest {ChestId} did not find all of them; rolled back",
                     ids.Count,
                     request.DepositorId,
-                    _state.ChestId,
-                    moved
+                    _state.ChestId
                 );
 
                 return WiredChestMoveResultSnapshot.Failed(
@@ -487,26 +489,35 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         await using (var tx = await dbCtx.Database.BeginTransactionAsync(ct))
         {
-            // The credit furni are spent: they become the chest's credits and nothing else.
-            var spent = await dbCtx
-                .Furnitures.Where(x =>
-                    ids.Contains(x.Id)
-                    && x.PlayerEntityId == depositorId
-                    && x.RoomEntityId == null
-                    && x.ChestItemEntityId == null
-                )
-                .ExecuteDeleteAsync(ct);
+            var log = NewTransaction(request, NoItems, coins, isDeposit: true);
 
-            if (spent != ids.Count)
+            dbCtx.WiredChestTransactions.Add(log);
+
+            // The movements name the transaction, which exists once its row is inserted.
+            await dbCtx.SaveChangesAsync(ct);
+
+            transactionId = log.Id;
+
+            var cause = ChestCause(MovementCauses.WIRED_CHEST_DEPOSIT, transactionId);
+
+            // The credit furni are spent: they become the chest's credits and nothing else.
+            if (
+                !await _custody.DestroyInInventoryAsync(
+                    dbCtx,
+                    request.DepositorId,
+                    items,
+                    cause,
+                    ct
+                )
+            )
             {
                 await tx.RollbackAsync(ct);
 
                 _logger.LogWarning(
-                    "Credit deposit of {Count} items by player {PlayerId} into wired chest {ChestId} found {Spent} of them; rolled back",
+                    "Credit deposit of {Count} items by player {PlayerId} into wired chest {ChestId} did not find all of them; rolled back",
                     ids.Count,
                     request.DepositorId,
-                    _state.ChestId,
-                    spent
+                    _state.ChestId
                 );
 
                 return WiredChestMoveResultSnapshot.Failed(
@@ -519,14 +530,16 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             row.Coins += coins;
 
-            var log = NewTransaction(request, NoItems, coins, isDeposit: true);
-
-            dbCtx.WiredChestTransactions.Add(log);
+            RecordChestCredits(
+                dbCtx,
+                cause.StartingAt(cause.FirstSeq + items.Length),
+                coins,
+                credited: true
+            );
 
             await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            transactionId = log.Id;
             _state.Coins = row.Coins;
         }
 
@@ -559,6 +572,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             );
 
         long transactionId;
+        MovementCause cause;
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         await using (var tx = await dbCtx.Database.BeginTransactionAsync(ct))
@@ -590,22 +604,29 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             dbCtx.WiredChestTransactions.Add(log);
 
+            // The movement names the transaction, which exists once its row is inserted.
+            await dbCtx.SaveChangesAsync(ct);
+
+            transactionId = log.Id;
+            cause = ChestCause(MovementCauses.WIRED_CHEST_WITHDRAW, transactionId);
+
+            RecordChestCredits(dbCtx, cause, amount, credited: false);
+
             await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            transactionId = log.Id;
             _state.Coins = row.Coins;
         }
 
-        // Referenced by the transaction, so a retried credit can never pay twice.
+        // Referenced by the transaction, so a retried credit can never pay twice. One operation
+        // with the chest's side: out of the chest (seq 0), into the wallet.
         var credited = await _grainFactory
             .GetPlayerWalletGrain(request.ReceiverId)
             .CreditAsync(
                 CurrencyKind.Credits,
                 amount,
                 CreditReference(transactionId),
-                // Wired moves it, not a player.
-                MovementCause.New(MovementCauses.WIRED_CHEST_WITHDRAW, 0, transactionId),
+                cause.StartingAt(cause.FirstSeq + 1),
                 ct
             );
 
@@ -619,7 +640,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 transactionId
             );
 
-            await RestoreCoinsAsync(transactionId, amount, ct);
+            await RestoreCoinsAsync(transactionId, amount, cause, ct);
 
             return WiredChestMoveResultSnapshot.Failed(
                 WiredTransactionFailureType.InternalError,
@@ -672,25 +693,23 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             transactionId = log.Id;
 
-            var moved = await dbCtx
-                .Furnitures.Where(x => ids.Contains(x.Id) && x.ChestItemEntityId == chestId)
-                .ExecuteUpdateAsync(
-                    up =>
-                        up.SetProperty(x => x.ChestItemEntityId, (int?)null)
-                            .SetProperty(x => x.ChestTransactionId, (long?)null)
-                            .SetProperty(x => x.PlayerEntityId, request.ReceiverId.Value),
-                    ct
-                );
+            var moved = await _custody.TakeOutOfHolderAsync(
+                dbCtx,
+                new FurniHolder(chestId, request.Chest.OwnerId),
+                [.. taken.Select(x => x.Item.GetSnapshot())],
+                request.ReceiverId,
+                ChestCause(MovementCauses.WIRED_CHEST_WITHDRAW, transactionId),
+                ct
+            );
 
-            if (moved != ids.Count)
+            if (!moved)
             {
                 await tx.RollbackAsync(ct);
 
                 _logger.LogError(
-                    "Withdrawal of {Count} items from wired chest {ChestId} found {Moved} of them; rolled back and reloading",
+                    "Withdrawal of {Count} items from wired chest {ChestId} did not find all of them; rolled back and reloading",
                     ids.Count,
-                    _state.ChestId,
-                    moved
+                    _state.ChestId
                 );
 
                 await ReloadAsync(ct);
@@ -766,7 +785,16 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         return (items, null);
     }
 
-    private async Task RestoreCoinsAsync(long transactionId, int amount, CancellationToken ct)
+    /// <summary>
+    /// Puts back credits the wallet refused, as the refund of the withdrawal's
+    /// <paramref name="cause"/>: back into the chest from nowhere.
+    /// </summary>
+    private async Task RestoreCoinsAsync(
+        long transactionId,
+        int amount,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         try
         {
@@ -776,6 +804,8 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             var row = await GetOrAddChestRowAsync(dbCtx, ct);
 
             row.Coins += amount;
+
+            RecordChestCredits(dbCtx, cause.ForRefund(), amount, credited: true);
 
             var log = await dbCtx.WiredChestTransactions.FirstOrDefaultAsync(
                 x => x.Id == transactionId,
@@ -1040,6 +1070,40 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             : _grainFactory.SendComposerToPlayersAsync(_state.ViewerIds, composer, ct);
 
     private static string CreditReference(long transactionId) => $"wiredchest:{transactionId}";
+
+    /// <summary>
+    /// Why a chest move happens: wired moves it, not a player, so the actor is the server, and
+    /// the chest transaction is what caused it.
+    /// </summary>
+    private static MovementCause ChestCause(string cause, long transactionId) =>
+        MovementCause.New(cause, 0, transactionId);
+
+    /// <summary>
+    /// The chest's credits going up (<paramref name="credited"/>) or down by
+    /// <paramref name="amount"/>: a currency that nobody owns while the chest holds it.
+    /// </summary>
+    private void RecordChestCredits(
+        TurboDbContext dbCtx,
+        MovementCause cause,
+        int amount,
+        bool credited
+    )
+    {
+        var chest = new AssetPlace(0, PlaceKind.ChestCredits, _state.ChestId.Value, null);
+
+        _movements.Record(
+            dbCtx,
+            AssetMovement.For(
+                cause,
+                cause.FirstSeq,
+                DateTime.UtcNow,
+                new AssetRef(AssetKind.Currency, 0, 0, CurrencyKind.Credits),
+                credited ? AssetPlace.Nowhere : chest,
+                credited ? chest : AssetPlace.Nowhere,
+                amount
+            )
+        );
+    }
 
     private static string Truncate(string value, int length) =>
         value.Length <= length ? value : value[..length];

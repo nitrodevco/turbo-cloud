@@ -4,7 +4,6 @@ using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -20,7 +19,6 @@ internal sealed class RoomPersistenceLiveState
 
     /// <summary>Changes of who holds a furni, oldest first, kept until each has been written.</summary>
     public Queue<CustodyWrite> PendingCustodyWrites { get; } = new();
-    public HashSet<RoomObjectId> DeletedItemIds { get; } = [];
     public Dictionary<int, PetSnapshot> DirtyPets { get; } = [];
     public Dictionary<int, BotSnapshot> DirtyBots { get; } = [];
     public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
@@ -40,4 +38,8 @@ internal sealed record CustodyDestroy(RoomItemSnapshot Item, MovementCause Cause
 
 /// <summary>Items that left the room for the inventories their snapshots name.</summary>
 internal sealed record CustodyPickup(IReadOnlyList<RoomItemSnapshot> Items, MovementCause Cause)
+    : CustodyWrite(Cause);
+
+/// <summary>Borrowed furni that left the room, going back to the club.</summary>
+internal sealed record CustodyGiveBack(IReadOnlyList<RoomItemSnapshot> Items, MovementCause Cause)
     : CustodyWrite(Cause);

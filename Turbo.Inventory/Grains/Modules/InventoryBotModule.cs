@@ -12,6 +12,8 @@ using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Bots;
+using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -37,6 +39,10 @@ internal sealed class InventoryBotModule(
     )
 {
     protected override string Kind => "bot";
+
+    protected override AssetKind AssetKind => AssetKind.Bot;
+
+    protected override RoomId? RoomOf(BotSnapshot snapshot) => snapshot.RoomId;
 
     protected override UnseenItemCategory UnseenCategory => UnseenItemCategory.Bot;
 
@@ -101,6 +107,7 @@ internal sealed class InventoryBotModule(
         string motto,
         string figure,
         AvatarGenderType gender,
+        MovementCause cause,
         CancellationToken ct
     ) =>
         CreateAsync(
@@ -113,6 +120,7 @@ internal sealed class InventoryBotModule(
                 Gender = gender,
                 ChatDelaySeconds = Config.BotDefaultChatDelaySeconds,
             },
+            cause,
             ct
         );
 
@@ -144,13 +152,18 @@ internal sealed class InventoryBotModule(
         return new BotProductGrant(name, product.ExtraParam);
     }
 
-    public async Task GrantProductAsync(BotProductGrant grant, CancellationToken ct)
+    public async Task GrantProductAsync(
+        BotProductGrant grant,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         var bot = await CreateAsync(
             grant.Name,
             Config.BotDefaultMotto,
             grant.Figure,
             AvatarGenderType.Male,
+            cause,
             ct
         );
 
