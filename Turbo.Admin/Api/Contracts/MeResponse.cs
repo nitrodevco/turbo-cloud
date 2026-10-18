@@ -18,5 +18,6 @@ public sealed record MeResponse(
     bool CanViewGamedata,
     bool CanViewSettings,
     bool CanViewContent,
-    bool CanViewPlugins
+    bool CanViewPlugins,
+    bool CanManageRewardTracks
 );

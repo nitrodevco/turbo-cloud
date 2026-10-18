@@ -36,7 +36,14 @@ internal sealed class RewardTrackEndpoints(IGrainFactory grainFactory, AdminRewa
             "/{id}",
             (string id) =>
                 tracks.Get(id) is { } track
-                    ? Results.Ok(new { track, warnings = tracks.Warnings(track) })
+                    ? Results.Ok(
+                        new
+                        {
+                            track,
+                            warnings = tracks.Warnings(track),
+                            furni = tracks.PrizeFurni(track),
+                        }
+                    )
                     : Results.NotFound()
         );
         group.MapPut("/{id}", SaveAsync);
@@ -83,7 +90,14 @@ internal sealed class RewardTrackEndpoints(IGrainFactory grainFactory, AdminRewa
 
             var saved = await tracks.SaveAsync(AdminIdentity.Of(http).PlayerId, track, ct);
 
-            return Results.Ok(new { track = saved, warnings = tracks.Warnings(saved) });
+            return Results.Ok(
+                new
+                {
+                    track = saved,
+                    warnings = tracks.Warnings(saved),
+                    furni = tracks.PrizeFurni(saved),
+                }
+            );
         });
 
     private static IResult Refusing(Func<IResult> change)
