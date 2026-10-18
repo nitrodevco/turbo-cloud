@@ -23,6 +23,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -32,10 +33,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     public Task<bool> AddItemAsync(IRoomItem item, CancellationToken ct) =>
         ObjectModule.AttatchObjectAsync(item, ct);
 
+    /// <param name="cause">Why it leaves the room; written with its movement into the inventory.</param>
     public async Task<bool> RemoveItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         bool confirmed,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -99,6 +102,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         var snapshot = item.GetSnapshot();
 
+        // The row is the inventory's before the inventory lists it, so whatever it does next
+        // with the item (a trade, a sale) finds it there.
+        await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .WritePickupAsync(_roomGrain.RoomId, [snapshot], cause, ct);
+
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(snapshot.OwnerId);
 
         await inventory.AddFurnitureFromRoomItemSnapshotAsync(snapshot, ct);
@@ -153,7 +162,11 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             )
             .ToList();
 
-        await ReturnItemsToOwnersAsync(items, ct);
+        await ReturnItemsToOwnersAsync(
+            items,
+            MovementCause.New(MovementCauses.ROOM_PICKALL, ctx.PlayerId),
+            ct
+        );
 
         return items.Count;
     }
@@ -175,7 +188,11 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             )
             .ToList();
 
-        await ReturnItemsToOwnersAsync(items, ct);
+        await ReturnItemsToOwnersAsync(
+            items,
+            MovementCause.New(MovementCauses.ROOM_EJECTALL, ctx.PlayerId),
+            ct
+        );
 
         return items.Count;
     }
@@ -184,10 +201,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     /// Sends many items home at once: the room lets go of all of them first, then each owner's
     /// inventory takes its share in one call, owners side by side. The room is told once per
     /// owner, floor items in one ObjectRemoveMultiple and wall items in one ItemRemoveMultiple
-    /// (the client removes each list together), borrowed and temporary furni included.
+    /// (the client removes each list together), borrowed and temporary furni included. The rows
+    /// go to their owners in one write under <paramref name="cause"/>, before any inventory lists them.
     /// </summary>
     public async Task ReturnItemsToOwnersAsync(
         IReadOnlyCollection<IRoomItem> items,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -276,6 +295,18 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         foreach (var (playerId, logicNames) in borrowsGivenBack)
             await buildersClub.OnReturnedAsync(playerId, [.. logicNames], ct);
+
+        if (returned.Count == 0)
+            return;
+
+        await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .WritePickupAsync(
+                _roomGrain.RoomId,
+                [.. returned.Values.SelectMany(x => x).Select(x => x.GetSnapshot())],
+                cause,
+                ct
+            );
 
         await Task.WhenAll(
             returned.Select(entry =>
@@ -498,6 +529,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         return await item.Logic.SetMapDataAsync(entries);
     }
 
+    /// <param name="cause">What used it up; written with its movement out of existence.</param>
     /// <param name="removeDelayMs">How long the client waits before it takes the furni away.</param>
     /// <param name="byOwner">
     /// False when nobody picks it up, so the client draws no pickup towards its owner.
@@ -505,6 +537,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     public async Task<bool> DeleteItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
+        MovementCause cause,
         CancellationToken ct,
         int removeDelayMs = 0,
         bool byOwner = true
@@ -529,7 +562,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         // RoomConfig.DirtyItemsTickMs, and a crash in between gave the item back.
         await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .WriteUseAsync(_roomGrain.RoomId, itemId, PetModule.TakeDirtySnapshots(), ct);
+            .WriteUseAsync(
+                _roomGrain.RoomId,
+                new UsedUpItem(item.GetSnapshot(), cause),
+                PetModule.TakeDirtySnapshots(),
+                ct
+            );
 
         return true;
     }

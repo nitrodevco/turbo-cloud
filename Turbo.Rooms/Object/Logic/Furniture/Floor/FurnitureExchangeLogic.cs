@@ -62,6 +62,11 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return Reject(ctx, interaction, "wallet refused the credit");
 
         // The wallet has the value now; the furni must not survive to be redeemed twice.
-        return await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        return await ActionModule.DeleteItemByIdAsync(
+            ctx,
+            _ctx.ObjectId,
+            MovementCause.New(MovementCauses.USE_CREDIT_FURNI, ctx.PlayerId, _ctx.ObjectId.Value),
+            ct
+        );
     }
 }

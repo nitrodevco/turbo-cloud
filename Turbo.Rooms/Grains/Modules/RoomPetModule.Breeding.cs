@@ -16,6 +16,7 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -305,7 +306,15 @@ public sealed partial class RoomPetModule
 
         await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .WriteUseAsync(_roomGrain.RoomId, session.NestId, TakeDirtySnapshots(), ct);
+            .WriteUseAsync(
+                _roomGrain.RoomId,
+                new UsedUpItem(
+                    nest.GetSnapshot(),
+                    MovementCause.New(MovementCauses.PET_BREED, ctx.PlayerId, session.NestId.Value)
+                ),
+                TakeDirtySnapshots(),
+                ct
+            );
 
         return nest;
     }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -58,7 +59,12 @@ public class FurnitureEffectBoxLogic(IStuffDataFactory stuffDataFactory, IRoomFl
                 return;
             }
 
-            await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+            await ActionModule.DeleteItemByIdAsync(
+                ctx,
+                _ctx.ObjectId,
+                MovementCause.New(MovementCauses.USE_EFFECT_BOX, ctx.PlayerId, _ctx.ObjectId.Value),
+                ct
+            );
 
             // Wearing goes through the presence and back to this room, so it is told, not awaited.
             effects

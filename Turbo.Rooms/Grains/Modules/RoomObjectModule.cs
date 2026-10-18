@@ -168,12 +168,9 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                             ._grainFactory.GetBuildersClubGrain()
                             .OnReturnedAsync(item.OwnerId, [item.Definition.LogicName], ct);
                 }
-                else if (!item.IsTemporary)
-                {
-                    await _roomGrain
-                        ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-                        .EnqueueDirtyItemAsync(_roomGrain.RoomId, item.GetSnapshot(), ct, true);
-                }
+
+                // Where an owned furni goes is the caller's to write: an inventory (a pickup,
+                // ReturnItemsToOwnersAsync) or nowhere (a use that deletes it).
 
                 break;
             }

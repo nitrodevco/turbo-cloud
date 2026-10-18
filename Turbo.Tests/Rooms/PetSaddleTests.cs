@@ -16,6 +16,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -139,7 +140,7 @@ public sealed class PetSaddleTests
         (await SaddleAsync(SADDLE2_DEFINITION, SADDLE2)).Should().BeTrue();
 
         var write = _room.Harness.Fakes.Log.Of("WriteUseAsync").Should().ContainSingle().Subject;
-        write.Args[1].Should().Be((RoomObjectId)SADDLE);
+        ((UsedUpItem)write.Args[1]!).Item.ObjectId.Should().Be((RoomObjectId)SADDLE);
         ((List<PetSnapshot>)write.Args[2]!)
             .Should()
             .ContainSingle(x =>

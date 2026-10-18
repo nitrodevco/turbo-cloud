@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -89,7 +90,12 @@ public class FurniturePurchasableClothingLogic(
             await _clothing.BindFurnitureAsync(ctx.PlayerId, _ctx.Definition.Id, setIds, ct);
 
             // The sets are the owner's now; the furni must not survive to be bound twice.
-            return await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+            return await ActionModule.DeleteItemByIdAsync(
+                ctx,
+                _ctx.ObjectId,
+                MovementCause.New(MovementCauses.USE_CLOTHING, ctx.PlayerId, _ctx.ObjectId.Value),
+                ct
+            );
         }
         finally
         {

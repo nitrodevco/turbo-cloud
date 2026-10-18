@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -60,7 +61,12 @@ public abstract class FurniturePetProductLogic(
         if (!await ApplyAsync(pet, ct))
             return Reject(ctx, interaction, ApplyRefusal);
 
-        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(
+            ctx,
+            _ctx.ObjectId,
+            MovementCause.New(MovementCauses.USE_PET_PRODUCT, ctx.PlayerId, _ctx.ObjectId.Value),
+            ct
+        );
 
         return true;
     }

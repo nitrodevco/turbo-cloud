@@ -13,6 +13,7 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Pet;
@@ -102,7 +103,7 @@ public sealed class MonsterplantBreedOnceTests
             .Fakes.Log.Calls.ToList()
             .Exists(x =>
                 x.Method == "WriteUseAsync"
-                && x.Args[1] is RoomObjectId id
+                && x.Args[1] is UsedUpItem { Item.ObjectId: var id }
                 && id == POTION
                 && x.Args[2] is List<PetSnapshot> pets
                 && pets.Any(p => p.Id == PLANT && !p.HasBred)

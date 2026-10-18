@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -255,7 +256,11 @@ public sealed partial class RoomGrain
 
         // Furniture goes home before the row goes: the same path a pickup takes, so inventories
         // that are live see the items arrive.
-        await ActionModule.ReturnItemsToOwnersAsync([.. _state.ItemsById.Values], ct);
+        await ActionModule.ReturnItemsToOwnersAsync(
+            [.. _state.ItemsById.Values],
+            MovementCause.New(MovementCauses.ROOM_DELETE, 0, roomId),
+            ct
+        );
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);

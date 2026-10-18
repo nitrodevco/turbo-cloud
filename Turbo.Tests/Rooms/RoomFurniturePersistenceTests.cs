@@ -20,6 +20,7 @@ namespace Turbo.Tests.Rooms;
 /// A room's furni changes are buffered and written by its persistence grain. A write that fails
 /// (a deadlock, a timeout, the database restarting) keeps its changes queued for the next tick:
 /// what the players did must reach the database eventually, or the room comes back as it was.
+/// A pickup's own retry is in <see cref="RoomFurnitureCustodyTests"/>.
 /// </summary>
 public sealed class RoomFurniturePersistenceTests
 {
@@ -29,43 +30,6 @@ public sealed class RoomFurniturePersistenceTests
     private const int OWNER = 2;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    [Fact]
-    public async Task A_pickup_whose_first_write_fails_is_written_by_the_next_flush()
-    {
-        var db = new FailingOnceDb();
-        await using (var ctx = db.Inner.CreateDbContext())
-        {
-            ctx.Furnitures.Add(
-                new FurnitureEntity
-                {
-                    Id = ITEM,
-                    PlayerEntityId = OWNER,
-                    FurnitureDefinitionEntityId = 1,
-                    RoomEntityId = ROOM,
-                    X = 1,
-                    Y = 1,
-                }
-            );
-            await ctx.SaveChangesAsync(Ct);
-        }
-
-        var grain = NewGrain(db);
-
-        await ((IRoomPersistenceGrain)grain).EnqueueDirtyItemAsync(
-            ROOM,
-            Item(x: 4, y: 5),
-            Ct,
-            remove: true
-        );
-
-        await FlushItems(grain);
-        await FlushItems(grain);
-
-        await using var read = db.Inner.CreateDbContext();
-        var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
-        row.RoomEntityId.Should().BeNull("the owner picked it up, so it is in their inventory");
-    }
 
     [Fact]
     public async Task A_move_whose_first_write_fails_is_written_by_the_next_flush()

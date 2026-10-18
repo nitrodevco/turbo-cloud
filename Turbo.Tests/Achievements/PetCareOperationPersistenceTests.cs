@@ -15,6 +15,7 @@ using Turbo.Database.Extensions;
 using Turbo.Inventory;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Navigator.Enums;
@@ -25,6 +26,7 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
 using Xunit;
@@ -505,7 +507,29 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         }
         var persistence = CreatePersistenceGrain().Persistence;
 
-        await persistence.WriteUseAsync((RoomId)ROOM_ID, 41, [saddled], Ct);
+        var saddle = new RoomFloorItemSnapshot
+        {
+            ObjectId = 41,
+            OwnerId = OWNER_ID,
+            OwnerName = "owner",
+            DefinitionId = 2840,
+            SpriteId = 2840,
+            X = 2,
+            Y = 2,
+            Z = 0,
+            Rotation = Rotation.North,
+            StackHeight = 1,
+            StuffData = new LegacyStuffSnapshot { StuffBitmask = 0, Data = "" },
+            ExtraData = string.Empty,
+            UsagePolicy = FurnitureUsageType.Everybody,
+        };
+
+        await persistence.WriteUseAsync(
+            (RoomId)ROOM_ID,
+            new UsedUpItem(saddle, TestCustody.Cause()),
+            [saddled],
+            Ct
+        );
 
         await using var after = await _db.CreateDbContextAsync(Ct);
         (await after.Furnitures.AnyAsync(Ct)).Should().BeFalse("the saddle is used up at once");

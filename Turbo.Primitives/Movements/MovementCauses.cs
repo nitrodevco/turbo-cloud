@@ -42,13 +42,28 @@ public static class MovementCauses
     /// <summary>A trade's cause ref on the movements that give back the first half after the second failed.</summary>
     public const string TRADE_REF_COMPENSATION = "compensation";
 
+    public const string ROOM_PLACE = "room.place";
+    public const string ROOM_PICKUP = "room.pickup";
+    public const string ROOM_PICKALL = "room.pickall";
+    public const string ROOM_EJECTALL = "room.ejectall";
+    public const string ROOM_DELETE = "room.delete";
+    public const string ROOM_FLOORPLAN = "room.floorplan";
     public const string ROOM_RENT = "room.rent";
+    public const string ROOM_RENT_END = "room.rent_end";
+    public const string ROOM_DELETE_ITEM = "room.delete_item";
+    public const string GROUP_FURNI_REMOVED = "group.furni_removed";
     public const string ROOM_GIVE_BACK_USED = "room.give_back_used";
     public const string USE_CREDIT_FURNI = "use.credit_furni";
     public const string USE_CRACKABLE = "use.crackable";
     public const string USE_PRESENT = "use.present";
     public const string USE_CRAFTING = "use.crafting";
     public const string USE_DECORATION = "use.decoration";
+    public const string USE_EFFECT_BOX = "use.effect_box";
+    public const string USE_CLOTHING = "use.clothing";
+    public const string USE_PET_SUPPLY = "use.pet_supply";
+    public const string USE_PET_PRODUCT = "use.pet_product";
+    public const string USE_PET_PACKAGE = "use.pet_package";
+    public const string USE_MONSTERPLANT_SEED = "use.monsterplant_seed";
 
     public const string PET_BREED = "pet.breed";
     public const string PET_HARVEST = "pet.harvest";

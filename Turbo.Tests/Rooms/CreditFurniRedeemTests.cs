@@ -7,6 +7,7 @@ using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -71,7 +72,7 @@ public class CreditFurniRedeemTests
         );
 
         room.Fakes.Log.Of("WriteUseAsync")
-            .Select(x => x.Args[1])
+            .Select(x => ((UsedUpItem)x.Args[1]!).Item.ObjectId)
             .Should()
             .Equal((RoomObjectId)ITEM);
         room.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
