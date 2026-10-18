@@ -102,11 +102,53 @@ public sealed class BundleDiscountTests : IDisposable
     }
 
     [Fact]
-    public async Task the_most_the_spinner_allows_is_sold()
+    public async Task the_most_the_spinner_allows_is_sold_with_its_free_items()
     {
         await BuyAsync(SOLD, 100);
 
-        _catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Single().Args[2].Should().Be(100);
+        // 5, 9, 9, 13, 13 ... 97, 97: all 47 listed quantities are reached.
+        Granted().Should().Be(147);
+        Charged().Should().Be(500, "the free items cost nothing");
+    }
+
+    /// <summary>
+    /// The spinner showed 10 with "3 free" (one at 5, two at 9) and the confirmation the price of
+    /// 10; the purchase gave 10 and charged for 10, so the free items the client promised never came.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(4, 4)]
+    [InlineData(5, 6)]
+    [InlineData(10, 13)]
+    public async Task the_free_items_the_client_shows_are_given_and_not_charged(
+        int quantity,
+        int granted
+    )
+    {
+        await BuyAsync(SOLD, quantity);
+
+        Granted().Should().Be(granted);
+        Charged().Should().Be(quantity * 5);
+    }
+
+    [Fact]
+    public async Task a_basic_bundle_gives_its_free_items_per_whole_bundle()
+    {
+        var config = new CatalogConfig
+        {
+            BundleDiscount = new BundleDiscountConfig
+            {
+                BundleSize = 6,
+                BundleDiscountSize = 1,
+                BonusThreshold = 100,
+                AdditionalBonusDiscountThresholdQuantities = [],
+            },
+        };
+
+        await BuyAsync(SOLD, 13, config);
+
+        Granted().Should().Be(15, "two whole bundles of six");
+        Charged().Should().Be(65);
     }
 
     [Theory]
@@ -126,8 +168,16 @@ public sealed class BundleDiscountTests : IDisposable
         _catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Should().BeEmpty();
     }
 
+    private int Granted() => (int)_catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Single().Args[2]!;
+
+    private int Charged() =>
+        (
+            (IEnumerable<WalletDebitRequest>)
+                _catalog.Fakes.Log.Of("TryDebitAsync").Single().Args[0]!
+        ).Sum(x => x.Amount);
+
     /// <summary>The buyer's purchase grain buying an offer from the catalog as published.</summary>
-    private async Task BuyAsync(int offerId, int quantity)
+    private async Task BuyAsync(int offerId, int quantity, CatalogConfig? config = null)
     {
         var provider = _catalog.NormalProvider();
 
@@ -148,6 +198,9 @@ public sealed class BundleDiscountTests : IDisposable
 
         Set(grain, "_catalogService", fakes.Create<ICatalogService>());
         Set(grain, "_definitionProvider", _catalog.Definitions);
+
+        if (config is not null)
+            Set(grain, "_catalogConfig", config);
         typeof(Grain)
             .GetProperty(
                 "GrainContext",

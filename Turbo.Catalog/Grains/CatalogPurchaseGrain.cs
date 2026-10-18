@@ -145,10 +145,18 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         await ValidateClubLevelAsync(offer, ct);
 
+        // Paid for is the quantity; given is that and the free items the bulk-buy ruleset earns
+        // it, which the client showed as the spinner's bonus line and in the confirmation. The
+        // builders club has no bonus line (bundleDiscountEnabled), so no free items either.
+        var units =
+            catalogType == CatalogType.Normal && offer.CanBundle
+                ? quantity + _catalogConfig.BundleDiscount.FreeItems(quantity)
+                : quantity;
+
         ValidatePetProducts(offer, extraParam);
         extraParam = PrepareTrophyInscription(offer, extraParam);
         ValidateSubscriptionProducts(offer);
-        await ValidateEffectProductsAsync(offer, quantity, ct);
+        await ValidateEffectProductsAsync(offer, units, ct);
         await ValidateBadgeProductsAsync(offer, ct);
 
         await ValidateGuildProductsAsync(offer, extraParam, ct);
@@ -173,7 +181,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 .GrantCatalogOfferAsync(
                     offer,
                     extraParam,
-                    quantity,
+                    units,
                     cause.StartingAt(debitRequests.Count),
                     ct
                 );
@@ -194,7 +202,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         // Last, because extending a membership tells the buyer it happened: a grant that threw
         // above must not leave them holding a notification for a purchase that did not land.
-        await GrantSubscriptionsAsync(offer, quantity, ct);
+        await GrantSubscriptionsAsync(offer, units, ct);
         await OpenGuildForumAsync(offer, extraParam, ct);
 
         // A reward track task of that type counts the purchase (the player's grain ignores it
