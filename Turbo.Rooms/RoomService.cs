@@ -250,6 +250,25 @@ internal sealed partial class RoomService(
                     .ConfigureAwait(false);
                 return;
 
+            // Habbo opens the entry like any other, with the player's NFT chat styles, then says
+            // the room is not there and closes it; the client drops to the hotel view without an
+            // alert (official client capture 2026-10-18, 2 of 2 direct entries).
+            case RoomEntryAccessType.NotFound:
+                await RejectEntryAsync(
+                        playerPresence,
+                        new NoSuchFlatEventMessageComposer { RoomId = roomId },
+                        ct,
+                        new UserNftChatStylesMessageComposer
+                        {
+                            ChatStyleIds = await _grainFactory
+                                .GetPlayerSettingsGrain(playerId)
+                                .GetOwnedNftChatStyleIdsAsync(ct)
+                                .ConfigureAwait(false),
+                        }
+                    )
+                    .ConfigureAwait(false);
+                return;
+
             case RoomEntryAccessType.Doorbell:
                 await RingDoorbellAsync(playerPresence, playerId, room, roomId, ct)
                     .ConfigureAwait(false);
@@ -515,7 +534,7 @@ internal sealed partial class RoomService(
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
     }
 
-    /// <param name="notice">Shown before the refusal, in the same batch, when the refusal needs explaining.</param>
+    /// <param name="notice">Sent before the refusal, in the same batch: what explains it, or what Habbo sends ahead of it.</param>
     /// <param name="closeConnection">False when the client's own Quit, which it sends on the refusal, closes it.</param>
     private static async Task RejectEntryAsync(
         IPlayerPresenceGrain playerPresence,

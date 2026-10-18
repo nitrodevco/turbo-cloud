@@ -20,4 +20,7 @@ public enum RoomEntryAccessType
 
     /// <summary>A new user lobby (<see cref="RoomDoorModeType.NoobLobby"/>), and the player is not new.</summary>
     NewUsersOnly = 8,
+
+    /// <summary>No room has this id (deleted, or never there).</summary>
+    NotFound = 9,
 }

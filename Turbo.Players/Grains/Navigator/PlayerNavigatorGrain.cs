@@ -594,7 +594,8 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     /// <summary>
     /// Inserts buffered room visits in one save. A failed batch stays buffered and is retried on
     /// the next tick; only after repeated failures is it given up, so a persistent error (such as
-    /// a deleted room) cannot block history forever.
+    /// a database outage) cannot block history forever. A visit to a room deleted since is
+    /// dropped: its row could never be written.
     /// </summary>
     private async Task FlushVisitsAsync(CancellationToken ct)
     {
@@ -604,12 +605,21 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
+            var visitedIds = visits.Select(x => x.Value).Distinct().ToList();
+            var existingIds = await dbCtx
+                .Rooms.AsNoTracking()
+                .Where(x => visitedIds.Contains(x.Id))
+                .Select(x => x.Id)
+                .ToListAsync(ct);
+
             dbCtx.RoomEntryLogs.AddRange(
-                visits.Select(roomId => new RoomEntryLogEntity
-                {
-                    RoomEntityId = roomId.Value,
-                    PlayerEntityId = _state.PlayerId.Value,
-                })
+                visits
+                    .Where(roomId => existingIds.Contains(roomId.Value))
+                    .Select(roomId => new RoomEntryLogEntity
+                    {
+                        RoomEntityId = roomId.Value,
+                        PlayerEntityId = _state.PlayerId.Value,
+                    })
             );
 
             await dbCtx.SaveChangesAsync(ct);
