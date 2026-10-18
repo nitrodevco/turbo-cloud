@@ -6,6 +6,7 @@ using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Vault;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Wallet;
@@ -140,6 +141,35 @@ public sealed class IncomeRewardVaultTests : IDisposable
         // A claimed row still holds its reference, so a late retry of its payer is not paid twice.
         Assert.True(await DepositAsync(VaultRewardCategoryType.Achievements, 20, "ach:1"));
         Assert.Empty(await WaitingAsync());
+    }
+
+    [Fact]
+    public async Task A_claim_is_one_operation_whose_payouts_are_each_caused_by_their_category()
+    {
+        await DepositAsync(VaultRewardCategoryType.DailyGift, 5, "gift:1");
+        await DepositAsync(VaultRewardCategoryType.HabboClub, 30, "payday:1");
+        await DepositAsync(VaultRewardCategoryType.LevelProgression, 40, "level:2");
+
+        Assert.True(await _vault.ClaimAsync(PLAYER, VaultRewardCategoryType.All, Ct));
+
+        var causes = _fakes
+            .Log.Of(nameof(IPlayerWalletGrain.CreditAsync))
+            .Select(x => (MovementCause)x.Args[3]!)
+            .ToList();
+        Assert.Equal(
+            [
+                MovementCauses.VAULT_DAILY_GIFT,
+                MovementCauses.VAULT_HABBO_CLUB,
+                MovementCauses.VAULT_LEVEL_PROGRESSION,
+            ],
+            causes.Select(x => x.Cause).Order()
+        );
+        Assert.Equal([0, 1, 2], causes.Select(x => (int)x.FirstSeq).Order());
+        Assert.Single(causes.Select(x => (x.OperationId, x.CauseRef, x.ActorPlayerId)).Distinct());
+        Assert.Equal(
+            MovementCauses.VAULT_CLAIM,
+            MovementCauses.VaultClaimOf((VaultRewardCategoryType)99)
+        );
     }
 
     [Fact]

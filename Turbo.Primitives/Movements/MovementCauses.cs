@@ -1,3 +1,5 @@
+using Turbo.Primitives.Vault.Enums;
+
 namespace Turbo.Primitives.Movements;
 
 /// <summary>
@@ -36,14 +38,43 @@ public static class MovementCauses
     public const string CAMERA_PURCHASE = "camera.purchase";
     public const string CAMERA_PUBLISH = "camera.publish";
     public const string GROUP_CREATE = "group.create";
+
+    /// <summary>
+    /// An earnings vault payout of a category this list does not name. A payout of a named one
+    /// carries its category's own code (<see cref="VaultClaimOf"/>).
+    /// </summary>
     public const string VAULT_CLAIM = "vault.claim";
+
+    // One code per earnings category, named as Flash's EarningsView names them, so each source
+    // the vault pays out is a cause of its own.
+    public const string VAULT_TUTORIAL = "vault.tutorial";
+    public const string VAULT_DAILY_GIFT = "vault.dailygift";
+    public const string VAULT_ACHIEVEMENTS = "vault.achievements";
+    public const string VAULT_MARKETPLACE = "vault.marketplace";
+    public const string VAULT_HABBO_CLUB = "vault.habboclub";
+    public const string VAULT_LEVEL_PROGRESSION = "vault.levelprogression";
+    public const string VAULT_ROOM_BUNDLE_SALES = "vault.roombundlesales";
+    public const string VAULT_BONUS_BAG = "vault.bonusbag";
+    public const string VAULT_DONATION = "vault.donation";
+    public const string VAULT_SURPRISE = "vault.surprise";
+    public const string VAULT_SNOWSTORM = "vault.snowstorm";
+    public const string VAULT_GAMES = "vault.games";
+    public const string VAULT_WIRED_CHEST = "vault.wiredchest";
+    public const string VAULT_AGENCY = "vault.agency";
 
     public const string MARKET_LIST = "market.list";
     public const string MARKET_TOKENS = "market.tokens";
     public const string MARKET_CANCEL = "market.cancel";
     public const string MARKET_BUY = "market.buy";
+
+    /// <summary>
+    /// The marketplace's fee on a sale: the share of the price that leaves the offer when it is
+    /// sold, in the sale's operation, so the seller is paid the rest.
+    /// </summary>
+    public const string MARKET_FEE = "market.fee";
     public const string MARKET_REDEEM = "market.redeem";
 
+    /// <summary>A trade's operation; its cause ref is the room the trade was made in.</summary>
     public const string TRADE = "trade";
 
     /// <summary>A trade's cause ref on the movements that give back the first half after the second failed.</summary>
@@ -96,6 +127,9 @@ public static class MovementCauses
     public const string ONBOARDING_STARTER_ROOM = "onboarding.starter_room";
 
     public const string REWARD_TRACK = "reward.track";
+
+    /// <summary>A reward track's premium bought: its price, apart from the prizes the track pays.</summary>
+    public const string REWARD_TRACK_PREMIUM = "reward.track_premium";
     public const string REWARD_QUEST = "reward.quest";
     public const string REWARD_DAILY_TASK = "reward.daily_task";
     public const string REWARD_ACHIEVEMENT = "reward.achievement";
@@ -110,4 +144,25 @@ public static class MovementCauses
     /// operation it undoes, its actor whom the reversal was asked for.
     /// </summary>
     public const string REVERSAL = "reversal";
+
+    /// <summary>The code of an earnings vault payout of <paramref name="category"/>.</summary>
+    public static string VaultClaimOf(VaultRewardCategoryType category) =>
+        category switch
+        {
+            VaultRewardCategoryType.Tutorial => VAULT_TUTORIAL,
+            VaultRewardCategoryType.DailyGift => VAULT_DAILY_GIFT,
+            VaultRewardCategoryType.Achievements => VAULT_ACHIEVEMENTS,
+            VaultRewardCategoryType.Marketplace => VAULT_MARKETPLACE,
+            VaultRewardCategoryType.HabboClub => VAULT_HABBO_CLUB,
+            VaultRewardCategoryType.LevelProgression => VAULT_LEVEL_PROGRESSION,
+            VaultRewardCategoryType.RoomBundleSales => VAULT_ROOM_BUNDLE_SALES,
+            VaultRewardCategoryType.BonusBag => VAULT_BONUS_BAG,
+            VaultRewardCategoryType.Donation => VAULT_DONATION,
+            VaultRewardCategoryType.Suprise => VAULT_SURPRISE,
+            VaultRewardCategoryType.SnowStorm => VAULT_SNOWSTORM,
+            VaultRewardCategoryType.Games => VAULT_GAMES,
+            VaultRewardCategoryType.WiredChest => VAULT_WIRED_CHEST,
+            VaultRewardCategoryType.Agency => VAULT_AGENCY,
+            _ => VAULT_CLAIM,
+        };
 }

@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Quest;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
@@ -225,6 +226,12 @@ public sealed class RewardTrackTests : IDisposable
         ((List<WalletDebitRequest>)debit.Args[0]!)
             .Should()
             .Equal(new WalletDebitRequest { CurrencyKind = CurrencyKind.Credits, Amount = 10 });
+        // The premium is a spend of its own, apart from the prizes the track pays.
+        ((MovementCause)debit.Args[1]!)
+            .Should()
+            .Match<MovementCause>(x =>
+                x.Cause == MovementCauses.REWARD_TRACK_PREMIUM && x.CauseRef == TRACK
+            );
         // 10 earned, 100 instant, the passed premium level's 40 boosted by 1.5.
         Sent<RewardTrackPremiumPurchaseResultMessageComposer>()
             .Select(x => (x.Result, x.Points))
