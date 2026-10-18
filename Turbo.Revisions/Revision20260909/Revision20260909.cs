@@ -3073,6 +3073,12 @@ public class Revision20260909 : IRevision
                 new ItemRemoveMessageComposerSerializer(MessageComposer.ItemRemoveMessageComposer)
             },
             {
+                typeof(ItemRemoveMultipleMessageComposer),
+                new ItemRemoveMultipleMessageComposerSerializer(
+                    MessageComposer.ItemRemoveMultipleMessageComposer
+                )
+            },
+            {
                 typeof(ItemsMessageComposer),
                 new ItemsMessageComposerSerializer(MessageComposer.ItemsMessageComposer)
             },

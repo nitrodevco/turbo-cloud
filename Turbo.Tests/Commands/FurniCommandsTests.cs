@@ -10,14 +10,17 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Commands;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Furniture.Wall;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -104,6 +107,54 @@ public class FurniCommandsTests
             .Which.Args.Take(2)
             .Should()
             .Equal((Turbo.Primitives.Players.PlayerId)BUILDER, 1);
+    }
+
+    [Fact]
+    public async Task Pickall_tells_the_room_once_for_the_floor_and_once_for_the_wall()
+    {
+        _room.AddPlayer(BUILDER, PermissionNodes.Command.PICKALL);
+        AddFloorItem(10, 1, 1, BUILDER);
+        AddFloorItem(11, 2, 1, BUILDER);
+        AddWallItem(20, BUILDER);
+        AddWallItem(21, BUILDER);
+
+        await _room.SayAsync(BUILDER, ":pickall");
+
+        ItemIds().Should().BeEmpty();
+        var sent = SentToRoom();
+        sent.OfType<ObjectRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.ObjectIdsToRemove.Should()
+            .Equal(10, 11);
+        sent.OfType<ItemRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<ItemRemoveMultipleMessageComposer>(x =>
+                x.ObjectIdsToRemove.SequenceEqual(new long[] { 20, 21 })
+                && x.PickerId == (Turbo.Primitives.Players.PlayerId)BUILDER
+                && !x.ByInvisibleFurniManager
+            );
+        sent.OfType<ItemRemoveMessageComposer>().Should().BeEmpty("not one by one");
+    }
+
+    [Fact]
+    public async Task Pickallbc_takes_the_borrowed_furni_off_everybodys_screen()
+    {
+        var borrowed = FurniIdBands.BuildersClubMin + 5;
+        _room.AddPlayer(BUILDER, PermissionNodes.Command.PICKALLBC);
+        AddFloorItem(borrowed, 2, 1, BUILDER);
+
+        await _room.SayAsync(BUILDER, ":pickallbc");
+
+        ItemIds().Should().BeEmpty();
+        SentToRoom()
+            .OfType<ObjectRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.ObjectIdsToRemove.Should()
+            .Equal(borrowed);
     }
 
     [Fact]
@@ -217,6 +268,65 @@ public class FurniCommandsTests
             .GetMethod("AddItem", All, [typeof(IRoomItem)])!
             .Invoke(_room.Harness.Module<RoomMapModule>(), [item]);
     }
+
+    private void AddWallItem(int id, int ownerId)
+    {
+        var stuffData = _room.Harness.Services.GetRequiredService<IStuffDataFactory>();
+        var item = new RoomWallItem
+        {
+            ObjectId = id,
+            OwnerId = ownerId,
+            OwnerName = $"player{ownerId}",
+            Definition = new FurnitureDefinitionSnapshot
+            {
+                Id = 2000,
+                SpriteId = 2000,
+                Name = "wall_lamp",
+                ProductType = ProductType.Wall,
+                FurniCategory = FurnitureCategory.Default,
+                LogicName = "default_wall",
+                TotalStates = 2,
+                Width = 1,
+                Length = 1,
+                StackHeight = Altitude.Zero,
+                CanStack = false,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = true,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+                UsagePolicy = FurnitureUsageType.Everybody,
+                ExtraData = null,
+            },
+        };
+
+        item.SetExtraData(null);
+        item.SetLogic(
+            new Turbo.Rooms.Object.Logic.Furniture.Wall.FurnitureWallLogic(
+                stuffData,
+                new RoomWallItemContext(_room.Harness.Room, item)
+            )
+        );
+
+        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
+            (RoomObjectId)id,
+            item
+        );
+        typeof(RoomMapModule)
+            .GetMethod("AddItem", All, [typeof(IRoomItem)])!
+            .Invoke(_room.Harness.Module<RoomMapModule>(), [item]);
+    }
+
+    /// <summary>Every composer the room was told, in order.</summary>
+    private List<object> SentToRoom() =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
+                .OfType<RoomOutboundSnapshot>()
+                .SelectMany(x => x.Composers),
+        ];
 
     private IEnumerable<int> ItemIds() =>
         ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!)

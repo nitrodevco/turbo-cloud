@@ -74,6 +74,22 @@ public sealed class FurniRemoveByAreaHideFlagTests
         several.PopInt().Should().Be(3);
         several.PopBoolean().Should().BeFalse();
         several.Remaining.Should().Be(0);
+
+        // ItemRemoveMultiple (WIN63-202610151745 RoomMessageHandler.as:286/911): int ids, unlike ItemRemove.
+        var walls = PacketHarness.Encode(
+            new ItemRemoveMultipleMessageComposer
+            {
+                ObjectIdsToRemove = [8, 10],
+                PickerId = (PlayerId)3,
+                ByInvisibleFurniManager = true,
+            }
+        );
+        walls.PopInt().Should().Be(2);
+        walls.PopInt().Should().Be(8);
+        walls.PopInt().Should().Be(10);
+        walls.PopInt().Should().Be(3);
+        walls.PopBoolean().Should().BeTrue();
+        walls.Remaining.Should().Be(0);
     }
 
     [Fact]
