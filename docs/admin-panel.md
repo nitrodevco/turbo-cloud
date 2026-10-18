@@ -273,12 +273,32 @@ control opens first. A control only appears if you hold the node behind it:
 | Hotel alert | `command.hotelalert` | A pop-up for everyone online. |
 | Maintenance | `command.maintenance` | Counts down (now, 5, 10 or 30 minutes), then sends home everyone without the bypass and keeps them out. **End maintenance** appears while it is scheduled or on. |
 | Shutdown | `command.shutdown` | Counts down, sends everyone home and stops the server. It does not start again by itself. **Call it off** appears while one is scheduled. |
+| Restart | `admin.server.restart` | Counts down (now, 1, 5 or 10 minutes) as a shutdown does, sends everyone home, saves and ends the process with the restart exit code for its host to start it again. **Call it off** appears while one is scheduled. Also on the Settings page while settings wait on a restart. |
 | Welcome message | `admin.welcome.manage` | The message every player is shown when they log in, as the message of the day. Saving it empty turns it off. |
 
 Like the player and room actions, each of the first three is the hotel's own command
 (`hotelalert`, `maintenance`, `shutdown`) run as you, so the same permissions, confirmations and
 command log apply. If the command asks to be confirmed, the card shows a **Confirm** button. The
 reason you type is shown to players and is flattened to one line.
+
+### Restarting the server
+
+**Restart** is not a command: the panel calls `POST /api/server/restart` (`{ "minutes": 5,
+"message": "..." }`; `DELETE` calls it off, `GET` says whether one is under way and whether you
+may). Players are warned as for a shutdown (the closing notice at each reminder, the reason as a
+broadcast), then sent home with `hotel.restarting` (a hotel text; "The hotel is restarting.
+Please come back in a minute." by default). The host stops, so the grains write what they hold,
+and the process exits with `Turbo:Operations:RestartExitCode` (75 by default) instead of the 0 a
+shutdown ends with. Every request, refused ones included, is in the command log as `restart
+<minutes> [reason]` or `restart cancel` from the `panel`, whoever makes it.
+
+**The host has to start it again.** Ploi's daemon (Supervisor, `autorestart=true`) restarts the
+process whatever it exits with, so a restart comes back within seconds and so does a shutdown.
+To keep a shutdown down, set the program's `autorestart=unexpected` and `exitcodes=0`; systemd
+does the same with `Restart=on-failure` (or `RestartForceExitStatus=75`). Run without a
+supervisor (`dotnet Turbo.Main.dll` in a terminal), a restart stops the server like a shutdown
+and nothing brings it back. A restart does not overrule a shutdown that is counting down or under
+way; a shutdown replaces a restart.
 
 The welcome message is kept in the `hotel_settings` table (the `AddHotelSettings` migration) and
 read from memory at each login, so a change applies from the next login on; players already

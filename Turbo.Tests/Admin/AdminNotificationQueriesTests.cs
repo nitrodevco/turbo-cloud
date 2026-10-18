@@ -112,6 +112,21 @@ public sealed class AdminNotificationQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task AScheduledRestart_IsCalledARestart_NotAShutdown()
+    {
+        _availability = new HotelAvailabilitySnapshot(
+            HotelAvailabilityPhase.ShutdownScheduled,
+            NOW.AddMinutes(5),
+            "Applying settings",
+            Restart: true
+        );
+
+        var items = (await Queries().GetAsync(new NotificationScope(false, false), Ct)).Items;
+
+        items.Should().ContainSingle().Which.Title.Should().Be("A restart is scheduled");
+    }
+
+    [Fact]
     public async Task ScheduledMaintenance_IsFirst_ForEveryone()
     {
         var start = NOW.AddMinutes(10);

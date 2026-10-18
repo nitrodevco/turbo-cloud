@@ -27,7 +27,7 @@ public sealed record ShutdownArguments(string? When = null, RestOfLine? Reason =
 [RequiresPermission(PermissionNodes.Command.SHUTDOWN)]
 public sealed class ShutdownCommand(
     IHotelAvailability availability,
-    IOptions<OperationsConfig> config
+    IOptionsMonitor<OperationsConfig> config
 ) : IOperatorCommand<ShutdownArguments>
 {
     private const string SCHEDULED = "scheduled";
@@ -60,8 +60,8 @@ public sealed class ShutdownCommand(
                     : CommandResult.Fail(NOT_ACTIVE)
             );
 
-        var max = config.Value.MaxCountdownMinutes;
-        var minutes = config.Value.DefaultShutdownMinutes;
+        var max = config.CurrentValue.MaxCountdownMinutes;
+        var minutes = config.CurrentValue.DefaultShutdownMinutes;
 
         if (
             arguments.When is not null

@@ -29,6 +29,26 @@ public interface IHotelAvailability
     void ScheduleShutdown(TimeSpan delay, string reason);
 
     /// <summary>
+    /// Counts down to a restart: a shutdown that ends the process with
+    /// <c>Turbo:Operations:RestartExitCode</c>, for the host (Supervisor, systemd) to start it
+    /// again. Replaces a maintenance or restart scheduled; false when a shutdown is counting down
+    /// or under way, which it does not overrule.
+    /// </summary>
+    bool ScheduleRestart(TimeSpan delay, string reason);
+
+    /// <summary>The longest countdown that may be started (<c>Turbo:Operations:MaxCountdownMinutes</c>).</summary>
+    TimeSpan MaxCountdown { get; }
+
+    /// <summary>What a restart ends the process with (<c>Turbo:Operations:RestartExitCode</c>).</summary>
+    int RestartExitCode { get; }
+
+    /// <summary>
+    /// What the process exits with once the host has stopped: the restart exit code after a
+    /// restart, 0 otherwise.
+    /// </summary>
+    int ExitCode { get; }
+
+    /// <summary>
     /// Calls off a countdown, or ends a maintenance; false when the hotel was open, and when it is
     /// already shutting down, which nothing calls off.
     /// </summary>

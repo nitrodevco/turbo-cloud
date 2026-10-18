@@ -47,7 +47,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                             x.Type,
                             x.Name!,
                             [],
-                            x.Type.IsDefined(typeof(StartupSettingAttribute))
+                            x.Type.IsDefined(typeof(StartupSettingAttribute)),
+                            x.Type.IsDefined(typeof(LiveSettingAttribute))
                         ),
                     ]
                 )),
@@ -63,7 +64,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
         Type type,
         string path,
         ImmutableArray<PropertyInfo> chain,
-        bool startup
+        bool startup,
+        bool live
     )
     {
         foreach (
@@ -76,6 +78,7 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
             var at = chain.Add(property);
             var name = $"{path}{SettingJson.KEY_DELIMITER}{property.Name}";
             var isStartup = startup || property.IsDefined(typeof(StartupSettingAttribute));
+            var isLive = live || property.IsDefined(typeof(LiveSettingAttribute));
             var kind = KindOf(property.PropertyType);
 
             if (kind is null)
@@ -89,7 +92,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                         name,
                         at,
                         isStartup
-                            || property.PropertyType.IsDefined(typeof(StartupSettingAttribute))
+                            || property.PropertyType.IsDefined(typeof(StartupSettingAttribute)),
+                        isLive || property.PropertyType.IsDefined(typeof(LiveSettingAttribute))
                     )
                 )
                     yield return nested;
@@ -107,6 +111,7 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                 value.IsEnum ? [.. Enum.GetNames(value)] : [],
                 property.IsDefined(typeof(SecretSettingAttribute)),
                 isStartup,
+                isLive,
                 SettingDocs.Summary(property)
             );
         }
@@ -166,6 +171,7 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
         ImmutableArray<string> Options,
         bool Secret,
         bool Startup,
+        bool Live,
         string Summary
     )
     {

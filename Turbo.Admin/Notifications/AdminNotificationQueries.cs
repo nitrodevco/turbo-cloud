@@ -135,7 +135,7 @@ public sealed class AdminNotificationQueries(
         ]);
     }
 
-    /// <summary>Maintenance or a shutdown, coming or under way; none while the hotel is open.</summary>
+    /// <summary>Maintenance, a shutdown or a restart, coming or under way; none while the hotel is open.</summary>
     private NotificationItem? Availability()
     {
         var current = availability.Current;
@@ -143,6 +143,9 @@ public sealed class AdminNotificationQueries(
         {
             HotelAvailabilityPhase.MaintenanceScheduled => "Maintenance is scheduled",
             HotelAvailabilityPhase.Maintenance => "The hotel is in maintenance",
+            HotelAvailabilityPhase.ShutdownScheduled when current.Restart =>
+                "A restart is scheduled",
+            HotelAvailabilityPhase.ShuttingDown when current.Restart => "The server is restarting",
             HotelAvailabilityPhase.ShutdownScheduled => "A shutdown is scheduled",
             HotelAvailabilityPhase.ShuttingDown => "The hotel is shutting down",
             _ => null,

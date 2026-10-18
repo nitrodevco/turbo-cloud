@@ -49,7 +49,10 @@ public sealed record ServerSettingSnapshot
     [Id(8)]
     public string? Value { get; init; }
 
-    /// <summary>The value the server is using now: what it read as it started.</summary>
+    /// <summary>
+    /// The value the server is using now: what it read as it started, or for a <see cref="Live"/>
+    /// setting what it reads now.
+    /// </summary>
     [Id(9)]
     public string? Running { get; init; }
 
@@ -70,4 +73,11 @@ public sealed record ServerSettingSnapshot
     /// <summary>The value configured differs from the one running: it applies after a restart.</summary>
     [Id(13)]
     public required bool PendingRestart { get; init; }
+
+    /// <summary>
+    /// Read as it is used (<see cref="LiveSettingAttribute"/>), so a change applies at once and
+    /// never waits on a restart.
+    /// </summary>
+    [Id(14)]
+    public bool Live { get; init; }
 }

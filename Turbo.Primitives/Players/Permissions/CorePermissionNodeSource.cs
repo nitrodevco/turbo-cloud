@@ -352,6 +352,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "See the server's settings in the admin panel: each value, where it comes from and what waits on a restart. Secrets are never shown."
         ),
         new(
+            PermissionNodes.Admin.SERVER_RESTART,
+            "Restart the server from the admin panel after a countdown players are warned of, so settings waiting on a restart apply. The host must start the process again."
+        ),
+        new(
             PermissionNodes.Settings.MANAGE,
             "Change the server's settings in the admin panel: override appsettings.json, replace a secret, and put a setting back."
         ),
