@@ -7,8 +7,9 @@ using Turbo.Primitives.Rooms.Object.Logic;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// The "else" branch of a stack: runs when the conditions of this stack fail, and asks the
-/// target stacks to run their actions only when their own conditions fail.
+/// The "else" branch of a stack: runs when the conditions of this stack fail, and runs the
+/// target stacks' actions whatever their own conditions say (official client capture,
+/// WIN63-202610171745).
 /// </summary>
 [RoomObjectLogic("wf_act_neg_call_stacks")]
 public class WiredActionNegativeCallStacks(

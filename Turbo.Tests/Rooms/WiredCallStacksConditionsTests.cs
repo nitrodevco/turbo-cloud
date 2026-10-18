@@ -17,8 +17,8 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// "Execute Wired Stacks" runs the stacks it picks "regardless of existing conditions or
 /// triggers" (official furnidata 2026-10-13, id 4834 wf_act_call_stacks): a called stack whose own
-/// condition fails still runs its effects. The negative call keeps running them only when the
-/// called stack's conditions fail until that variant is measured.
+/// condition fails still runs its effects. The negative call does the same (official client
+/// capture, WIN63-202610171745: the callee's effect ran with its condition false 5/5, true 2/2).
 /// </summary>
 public sealed class WiredCallStacksConditionsTests
 {
@@ -31,6 +31,7 @@ public sealed class WiredCallStacksConditionsTests
     private const int CALLEE_TRIGGER = 3;
     private const int CALLEE_CONDITION = 4;
     private const int CALLEE_ACTION = 5;
+    private const int CALLER_CONDITION = 6;
 
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
@@ -62,34 +63,36 @@ public sealed class WiredCallStacksConditionsTests
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    public async Task A_negative_call_still_runs_the_effects_only_when_the_conditions_fail(
-        bool conditionPasses,
-        bool runs
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_negative_call_runs_the_called_stack_whatever_its_conditions_say(
+        bool conditionPasses
     )
     {
-        await BuildAsync(conditionPasses);
+        await BuildAsync(conditionPasses, negative: true, callerPasses: false);
 
-        await Wired.OnRoomEventAsync(
-            new WiredStackCalledEvent
-            {
-                RoomId = 1,
-                CausedBy = ActionContext.CreateForSystem(1),
-                StackIds = [_room.Map.ToIdx(2, 0)],
-                FurniIds = [],
-                AvatarIds = [],
-                Depth = 1,
-                IsNegative = true,
-            },
-            Ct
-        );
+        await ClickAsync();
         await TickAsync(2);
 
-        Logged("callee").Should().Be(runs ? 1 : 0);
+        Logged("callee").Should().Be(1);
     }
 
-    private async Task BuildAsync(bool conditionPasses)
+    [Fact]
+    public async Task A_negative_call_does_not_run_when_the_callers_conditions_pass()
+    {
+        await BuildAsync(conditionPasses: false, negative: true, callerPasses: true);
+
+        await ClickAsync();
+        await TickAsync(2);
+
+        Logged("callee").Should().Be(0);
+    }
+
+    private async Task BuildAsync(
+        bool conditionPasses,
+        bool negative = false,
+        bool callerPasses = true
+    )
     {
         // The callee listens to another furni, which nobody clicks.
         _room.AddBox<WiredTriggerClickFurni>(CALLEE_TRIGGER, 2, 0, "wf_trg_click_furni");
@@ -145,8 +148,34 @@ public sealed class WiredCallStacksConditionsTests
             )
         ).Should().BeTrue();
 
+        // The caller's own condition: the negative call is its else branch.
+        _room.AddBox<WiredConditionSelectQuantity>(CALLER_CONDITION, 0, 0, "wf_cnd_slc_quantity");
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                CALLER_CONDITION,
+                intParams: [0, callerPasses ? 0 : 5, 1],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectorItems],
+                ],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.SelectorUsers],
+                ]
+            )
+        ).Should().BeTrue();
+
         // The call picks the callee's trigger, so the callee is placed first.
-        _room.AddBox<WiredActionCallStacks>(CALLER_ACTION, 0, 0, "wf_act_call_stacks");
+        if (negative)
+            _room.AddBox<WiredActionNegativeCallStacks>(
+                CALLER_ACTION,
+                0,
+                0,
+                "wf_act_neg_call_stacks"
+            );
+        else
+            _room.AddBox<WiredActionCallStacks>(CALLER_ACTION, 0, 0, "wf_act_call_stacks");
+
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 CALLER_ACTION,

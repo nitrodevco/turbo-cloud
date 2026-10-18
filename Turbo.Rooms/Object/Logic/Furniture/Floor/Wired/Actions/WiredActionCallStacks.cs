@@ -16,8 +16,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// <summary>
 /// Runs the stacks the picked wired boxes belong to, handing them the current selection. The
 /// target stack runs its actions "regardless of existing conditions or triggers" (official
-/// furnidata 2026-10-13, id 4834); the negative variant runs them when the target's conditions
-/// fail. Depth is bounded by the room config.
+/// furnidata 2026-10-13, id 4834); so does the negative variant, which is the caller's else
+/// branch. Depth is bounded by the room config.
 /// </summary>
 [RoomObjectLogic("wf_act_call_stacks")]
 public class WiredActionCallStacks(
