@@ -291,7 +291,9 @@ public sealed partial class RoomFurniModule
             return false;
         }
 
-        await _roomGrain._grainFactory.GetBuildersClubGrain().OnBorrowedAsync(ctx.PlayerId, ct);
+        await _roomGrain
+            ._grainFactory.GetBuildersClubGrain()
+            .OnBorrowedAsync(ctx.PlayerId, item.Definition.LogicName, ct);
 
         if (!borrow.IsMember)
             await _roomGrain.SetHiddenByBuildersClubAsync(true, ct);

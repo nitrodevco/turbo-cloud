@@ -16,4 +16,10 @@ public class BuildersClubConfig
     /// they do by the day.
     /// </summary>
     public int LapseSweepMs { get; init; } = 900000;
+
+    /// <summary>
+    /// Furni logics lent without counting toward the borrower's limit, so borrowing or returning
+    /// one does not resend the count either. Habbo leaves its stack helper tile out.
+    /// </summary>
+    public string[] UncountedLogics { get; init; } = ["custom_stack_height"];
 }

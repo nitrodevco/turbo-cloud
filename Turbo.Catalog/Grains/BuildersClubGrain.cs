@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -122,16 +123,25 @@ internal sealed partial class BuildersClubGrain : Grain, IBuildersClubGrain
             ct
         );
 
-    public Task OnBorrowedAsync(PlayerId playerId, CancellationToken ct)
+    public Task OnBorrowedAsync(PlayerId playerId, string logicName, CancellationToken ct)
     {
+        if (!IsCounted(logicName))
+            return Task.CompletedTask;
+
         _state.BorrowedCountByPlayerId[playerId] =
             _state.BorrowedCountByPlayerId.GetValueOrDefault(playerId) + 1;
 
         return SendFurniCountAsync(playerId, ct);
     }
 
-    public Task OnReturnedAsync(PlayerId playerId, int count, CancellationToken ct)
+    public Task OnReturnedAsync(
+        PlayerId playerId,
+        ImmutableArray<string> logicNames,
+        CancellationToken ct
+    )
     {
+        var count = logicNames.IsDefault ? 0 : logicNames.Count(IsCounted);
+
         if (count <= 0)
             return Task.CompletedTask;
 
@@ -144,6 +154,9 @@ internal sealed partial class BuildersClubGrain : Grain, IBuildersClubGrain
 
         return SendFurniCountAsync(playerId, ct);
     }
+
+    private bool IsCounted(string logicName) =>
+        !_buildersClubConfig.UncountedLogics.Contains(logicName);
 
     /// <summary>
     /// Recounts from the rows. A borrow that was counted here but whose row never landed, or a
@@ -166,8 +179,11 @@ internal sealed partial class BuildersClubGrain : Grain, IBuildersClubGrain
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
+        var uncounted = _buildersClubConfig.UncountedLogics;
+
         var counts = await dbCtx
             .BuildersClubFurnitures.AsNoTracking()
+            .Where(x => !uncounted.Contains(x.FurnitureDefinitionEntity!.Logic))
             .GroupBy(x => x.PlacedByPlayerEntityId)
             .Select(g => new { PlayerId = g.Key, Count = g.Count() })
             .ToListAsync(ct);

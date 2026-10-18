@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -19,14 +20,22 @@ public interface IBuildersClubGrain : IGrainWithStringKey
     /// <summary>Sends the player their borrow count, which is what unlocks placement client-side.</summary>
     public Task SendFurniCountAsync(PlayerId playerId, CancellationToken ct);
 
-    /// <summary>Counts a borrow and tells the player their new total.</summary>
-    public Task OnBorrowedAsync(PlayerId playerId, CancellationToken ct);
+    /// <summary>
+    /// Counts a borrow of a furni with the given logic and tells the player their new total. A
+    /// logic the club does not count (the stack helper tile) changes nothing and tells nobody.
+    /// </summary>
+    public Task OnBorrowedAsync(PlayerId playerId, string logicName, CancellationToken ct);
 
     /// <summary>
-    /// Counts <paramref name="count"/> returns and tells the player. A room that lets go of many
-    /// at once (a deleted room) reports them together, so the player is told once.
+    /// Counts the returns of furni with these logics, one name per furni, and tells the player.
+    /// A room that lets go of many at once (a deleted room) reports them together, so the player
+    /// is told once; returns the club never counted are not reported at all.
     /// </summary>
-    public Task OnReturnedAsync(PlayerId playerId, int count, CancellationToken ct);
+    public Task OnReturnedAsync(
+        PlayerId playerId,
+        ImmutableArray<string> logicNames,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Told when a player's Builders Club membership changed, so the rooms holding what they

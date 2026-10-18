@@ -65,8 +65,8 @@ interface [GrainInterfaceType("Turbo.Primitives.Badges.Grains.IPlayerBadgeGrain"
 
 interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.IBuildersClubGrain")] Turbo.Primitives.Catalog.Grains.IBuildersClubGrain [Version(0)]
   1B5AF6F6: GetBorrowedCountAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<int>
-  A435EC0C: OnBorrowedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
-  CF2D178F: OnReturnedAsync(Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task
+  068D7D21: OnBorrowedAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
+  DE253995: OnReturnedAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task
   73C7002E: OnSubscriptionChangedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   8C7095AF: SendFurniCountAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
 

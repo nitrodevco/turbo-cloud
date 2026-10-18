@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
@@ -100,13 +101,13 @@ public class FurniCommandsTests
 
         ItemIds().Should().BeEquivalentTo([10, othersBorrowed]);
         ReturnedTo(BUILDER).Should().BeEmpty("a borrowed furni goes back to the club");
-        _room
+        var returnedBorrows = _room
             .Harness.Fakes.Log.Of("OnReturnedAsync")
             .Should()
             .ContainSingle()
-            .Which.Args.Take(2)
-            .Should()
-            .Equal((Turbo.Primitives.Players.PlayerId)BUILDER, 1);
+            .Which.Args;
+        returnedBorrows[0].Should().Be((Turbo.Primitives.Players.PlayerId)BUILDER);
+        ((ImmutableArray<string>)returnedBorrows[1]!).Should().HaveCount(1);
     }
 
     [Fact]
