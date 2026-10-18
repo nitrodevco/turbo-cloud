@@ -145,10 +145,7 @@ public static class ServiceCollectionExtensions
                 UseTurboMySql(
                     options,
                     host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
-                    mysql =>
-                        mysql.MigrationsHistoryTable(
-                            $"__EFMigrationsHistory_{prefix().TrimEnd('_')}"
-                        )
+                    mysql => mysql.MigrationsHistoryTable(MigrationHelper.HistoryTableOf(prefix()))
                 );
             }
         );

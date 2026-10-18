@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Data;
 using Turbo.Plugins.Sources;
 using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
@@ -281,7 +282,13 @@ public sealed class PluginSourcesTests : IDisposable
             NullLogger<PluginManager>.Instance
         );
 
-        _plugins = new PluginAdministration(manager, NullLogger<PluginAdministration>.Instance);
+        var tables = new PluginTables(new SqliteDb(), NullLogger<PluginTables>.Instance);
+        _plugins = new PluginAdministration(
+            manager,
+            tables,
+            [],
+            NullLogger<PluginAdministration>.Instance
+        );
         _sources = new PluginSources(
             manager,
             _plugins,

@@ -389,6 +389,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             ExplicitOnly: true
         ),
         new(
+            PermissionNodes.Admin.PLUGINS_UNINSTALL,
+            "Uninstall a plugin from the admin panel, and delete its tables, settings and grants if asked. Deleted data can't be brought back.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Figure.ANY,
             "Wear any clothing and colour, whatever the figure data says of club, sale or selection."
         ),

@@ -41,6 +41,17 @@ public static class MigrationHelper
         }
     }
 
+    /// <summary>
+    /// Whether a plugin's table prefix tells its tables apart from the hotel's: not empty, and
+    /// only letters, digits and '_', so it needs no escaping in SQL or LIKE.
+    /// </summary>
+    public static bool IsPlainTablePrefix(string? prefix) =>
+        !string.IsNullOrEmpty(prefix) && prefix.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
+
+    /// <summary>The table EF keeps a plugin context's applied migrations in, by its prefix.</summary>
+    public static string HistoryTableOf(string prefix) =>
+        $"__EFMigrationsHistory_{prefix.TrimEnd('_')}";
+
     public static async Task UninstallAsync<TContext>(IServiceProvider sp, CancellationToken ct)
         where TContext : DbContext
     {
@@ -51,10 +62,7 @@ public static class MigrationHelper
         // The drop below matches every table that starts with the prefix. With no prefix that is
         // every table in the database, the hotel's included; anything but a plain identifier
         // would have to be escaped for SQL and for LIKE, so it is refused rather than escaped.
-        if (
-            string.IsNullOrEmpty(prefix)
-            || !prefix.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')
-        )
+        if (!IsPlainTablePrefix(prefix))
             throw new InvalidOperationException(
                 $"Refusing to uninstall {typeof(TContext).Name}: table prefix '{prefix}' is empty or not a plain identifier, so its tables cannot be told apart from the hotel's."
             );

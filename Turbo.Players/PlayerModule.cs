@@ -19,6 +19,7 @@ using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Players;
@@ -68,5 +69,6 @@ public sealed class PlayerModule : IHostPluginModule
         );
         services.AddSingleton<IPlayerOnboardingService, PlayerOnboardingService>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
+        services.AddSingleton<IPluginDataOwner, PluginPermissionData>();
     }
 }

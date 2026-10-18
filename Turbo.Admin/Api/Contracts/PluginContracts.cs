@@ -8,7 +8,7 @@ namespace Turbo.Admin.Api.Contracts;
 /// <summary>
 /// The server's plugins, and what the staff member may do with them: <see cref="CanManage"/>
 /// reload and turn them off or on; <see cref="CanInstall"/> install a package, which also needs
-/// the server to allow it (<see cref="UploadEnabled"/>). <see cref="Sources"/> are the GitHub
+/// the server to allow it (<see cref="UploadEnabled"/>); <see cref="CanUninstall"/> uninstall one. <see cref="Sources"/> are the GitHub
 /// repositories plugins are linked to, checked every <see cref="CheckMinutes"/> (0: on request),
 /// from the owners in <see cref="AllowedSources"/> (empty: any); <see cref="Job"/> is the check or
 /// update running, or the last one.
@@ -22,7 +22,8 @@ public sealed record PluginsResponse(
     IReadOnlyList<PluginSourceView> Sources,
     PluginJobView? Job,
     IReadOnlyList<string> AllowedSources,
-    int CheckMinutes
+    int CheckMinutes,
+    bool CanUninstall
 );
 
 /// <summary>
@@ -149,6 +150,71 @@ public sealed record PluginSourceRequest(
 
 /// <summary>Rolls a plugin back to a kept version.</summary>
 public sealed record PluginRollbackRequest(string? Version);
+
+/// <summary>
+/// Uninstalls a plugin: <see cref="Mode"/> <c>keep-data</c> or <c>delete-data</c>, and
+/// <see cref="Confirm"/> its key typed again, as it is written.
+/// </summary>
+public sealed record PluginUninstallRequest(string? Mode, string? Confirm)
+{
+    public const string KEEP_DATA = "keep-data";
+    public const string DELETE_DATA = "delete-data";
+
+    /// <summary>The mode asked for; null for anything else.</summary>
+    public PluginUninstallMode? ParsedMode =>
+        Mode switch
+        {
+            KEEP_DATA => PluginUninstallMode.KeepData,
+            DELETE_DATA => PluginUninstallMode.DeleteData,
+            _ => null,
+        };
+}
+
+/// <summary>
+/// The dry run of uninstalling a plugin: the files and links that go with its code, the data that
+/// goes when asked (<see cref="Data"/>), what could not be looked at, and why it can't be
+/// uninstalled now (<see cref="Refusal"/>, null when it can).
+/// </summary>
+public sealed record PluginUninstallPlanView(
+    PluginView Plugin,
+    IReadOnlyList<string> Files,
+    IReadOnlyList<string> Sources,
+    IReadOnlyList<PluginDataItemView> Data,
+    IReadOnlyList<string> Notes,
+    string? Refusal
+)
+{
+    public static PluginUninstallPlanView From(PluginUninstallPlan plan) =>
+        new(
+            PluginView.From(plan.Plugin),
+            [.. plan.Files],
+            [.. plan.Sources],
+            [.. plan.Data.Select(PluginDataItemView.From)],
+            [.. plan.Notes],
+            plan.Refusal
+        );
+}
+
+/// <summary>
+/// One thing of a plugin's data: <see cref="Kind"/> <c>table</c> (<see cref="Count"/> its rows),
+/// <c>setting</c> (<see cref="Detail"/> its value, null for a secret) or <c>grant</c>
+/// (<see cref="Count"/> its assignments, <see cref="Detail"/> who holds them).
+/// </summary>
+public sealed record PluginDataItemView(string Kind, string Name, long Count, string? Detail)
+{
+    public static PluginDataItemView From(PluginDataItem item) =>
+        new(
+            item.Kind switch
+            {
+                PluginDataKind.Table => "table",
+                PluginDataKind.Setting => "setting",
+                _ => "grant",
+            },
+            item.Name,
+            item.Count,
+            item.Detail
+        );
+}
 
 /// <summary>
 /// A plugin check or update, shaped as the asset jobs are (<c>kind</c> <c>plugin-check</c> or
