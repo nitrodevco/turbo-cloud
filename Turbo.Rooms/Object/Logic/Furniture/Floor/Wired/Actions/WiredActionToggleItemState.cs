@@ -39,7 +39,7 @@ public class WiredActionToggleItemState(
         {
             try
             {
-                if (!FurniModule.TryGetItem(furniId, out var item))
+                if (!FurniModule.TryGetItem(furniId, out var item) || !item.Logic.CanWiredToggle())
                     continue;
 
                 var state = _wiredData.GetIntParam<bool>(0) switch
