@@ -23,6 +23,8 @@ public class WiredActionGiveCurrencyFromChest(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_CURRENCY_FROM_CHEST;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override WiredChestKind Kind => WiredChestKind.Coins;
 
     protected override IWiredParamRule KindParamRule =>

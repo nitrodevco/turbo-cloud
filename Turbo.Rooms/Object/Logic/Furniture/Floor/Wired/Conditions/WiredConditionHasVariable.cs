@@ -22,6 +22,8 @@ public class WiredConditionHasVariable(
 {
     public override int WiredCode => (int)WiredConditionType.var_4934;
 
+    protected override bool AllowsWallFurni => true;
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>

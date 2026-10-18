@@ -24,6 +24,8 @@ public class WiredActionRemoveVariable(
 {
     public override int WiredCode => (int)WiredActionType.REMOVE_VARIABLE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>

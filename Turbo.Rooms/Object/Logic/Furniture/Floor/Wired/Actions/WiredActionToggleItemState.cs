@@ -22,6 +22,8 @@ public class WiredActionToggleItemState(
 {
     public override int WiredCode => (int)WiredActionType.TOGGLE_FURNI_STATE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false), // Toggle type

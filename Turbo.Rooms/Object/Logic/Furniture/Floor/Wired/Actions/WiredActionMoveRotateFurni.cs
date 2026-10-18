@@ -23,6 +23,8 @@ public class WiredActionMoveRotateFurni(
 {
     public override int WiredCode => (int)WiredActionType.MOVE_AND_ROTATE_FURNI;
 
+    protected override bool AllowsWallFurni => true;
+
     private int _movementType = 0;
     private int _rotationType = 0;
 

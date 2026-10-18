@@ -63,6 +63,8 @@ public class WiredActionInitiateTransaction(
 
     public override int WiredCode => (int)WiredActionType.INITIATE_TRANSACTION;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override bool HasPositionalVariableIds => true;
 
     public override int GetMaxVariableIds() => 1;

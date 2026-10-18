@@ -27,6 +27,8 @@ public class WiredSelectorItemsByType(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

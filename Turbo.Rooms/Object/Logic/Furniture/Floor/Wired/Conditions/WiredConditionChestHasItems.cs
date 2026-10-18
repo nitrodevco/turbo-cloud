@@ -43,6 +43,8 @@ public class WiredConditionChestHasItems(
 
     public override int WiredCode => (int)WiredConditionType.CHEST_HAS_ITEMS;
 
+    protected override bool AllowsWallFurni => true;
+
     /// <summary>The furni slot of the chests; the variable reference is the slot after it.</summary>
     protected virtual int ChestSlot => 0;
 

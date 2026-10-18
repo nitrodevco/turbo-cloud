@@ -21,6 +21,8 @@ public class WiredActionFurniToFurni(
 {
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_FURNI;
 
+    protected override bool AllowsWallFurni => true;
+
     // The movers default to the triggering furni and the target to the picked furni (official
     // client capture); the secondary picks are offered on both.
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

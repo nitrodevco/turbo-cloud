@@ -25,6 +25,8 @@ public class WiredConditionItemMatches(
 {
     public override int WiredCode => (int)WiredConditionType.STATES_MATCH;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false), // state

@@ -31,6 +31,8 @@ public class WiredActionChangeVariable(
 {
     public override int WiredCode => (int)WiredActionType.CHANGE_VARIABLE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override int GetMaxVariableIds() => 2;
 
     // The variable and its reference by position: the same variable may be both (official client

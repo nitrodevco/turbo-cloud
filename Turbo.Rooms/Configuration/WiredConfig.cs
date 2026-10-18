@@ -163,6 +163,11 @@ public class WiredConfig
     /// </summary>
     public bool NotifyTriggerTextCaptureOnEntry { get; init; } = true;
 
+    /// <summary>
+    /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
+    /// that work on any furni's state, position, type or variables may (the editor's
+    /// <c>allowWallFurni</c>, per box); off, none may.
+    /// </summary>
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;
