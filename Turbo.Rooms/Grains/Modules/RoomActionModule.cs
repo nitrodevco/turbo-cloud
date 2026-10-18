@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Movements;
@@ -25,6 +27,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -44,6 +47,30 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     {
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        // A variable box takes what it stored with it, so only the room's owner and its own may
+        // pick it up; anyone else is told (a room admin who could pick up borrowed furni was
+        // refused 8 variables with furni_placement_error room.error.variable_permissions).
+        if (
+            item.Logic is FurnitureWiredVariableLogic
+            && !await SecurityModule.CanPickUpVariableAsync(ctx, item)
+        )
+        {
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
+                    Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                        "message",
+                        FurniturePlacementNotifications.VARIABLE_PERMISSIONS_MESSAGE
+                    ),
+                },
+                ct
+            );
+
+            return false;
+        }
 
         // A borrowed furni is given back rather than picked up: it belongs to the club, so it
         // reaches no inventory and the room simply lets go of it. The client warns the player
@@ -180,7 +207,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
     /// <summary>
     /// <c>:ejectall</c>: everybody else's furni goes back to its owners, for whoever may eject
-    /// one furni at a time. The room owner's furni and the player's own stay. Null when the
+    /// one furni at a time. The room owner's furni and the player's own stay, and so do other
+    /// players' variable boxes unless the player is the room's owner, as one at a time. Null when the
     /// player may not eject here; otherwise how many left the room.
     /// </summary>
     public async Task<int?> EjectAllAsync(ActionContext ctx, CancellationToken ct)
@@ -189,9 +217,13 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             return null;
 
         var roomOwnerId = _roomGrain._state.RoomSnapshot.OwnerId;
+        var mayTakeVariables = await SecurityModule.GetIsRoomOwnerAsync(ctx);
         var items = _roomGrain
             ._state.ItemsById.Values.Where(x =>
-                x.OwnerId != ctx.PlayerId && x.OwnerId != roomOwnerId && !x.IsTemporary
+                x.OwnerId != ctx.PlayerId
+                && x.OwnerId != roomOwnerId
+                && !x.IsTemporary
+                && (mayTakeVariables || x.Logic is not FurnitureWiredVariableLogic)
             )
             .ToList();
 
