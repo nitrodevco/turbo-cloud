@@ -78,6 +78,11 @@ public sealed class MarketplaceTests : IDisposable
     private readonly List<MovementCause> _consumeCauses = [];
     private readonly List<MovementCause> _grantCauses = [];
 
+    /// <summary>The wallet's receipts of referenced credits, and the credits still to fail.</summary>
+    private readonly HashSet<string> _creditReferences = [];
+    private int _failingCredits;
+    private int _lostCreditAnswers;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public MarketplaceTests()
@@ -157,9 +162,38 @@ public sealed class MarketplaceTests : IDisposable
         };
         fakes.Handlers["CreditAsync"] = call =>
         {
-            _credits[(long)call.Key!] += (int)call.Args[1]!;
+            if (_failingCredits > 0)
+            {
+                _failingCredits--;
 
-            return Task.FromResult(true);
+                throw new InvalidOperationException("the wallet is down");
+            }
+
+            var player = (long)call.Key!;
+            var amount = (int)call.Args[1]!;
+
+            if (call.Args[2] is not string reference)
+            {
+                _credits[player] += amount;
+
+                return Task.FromResult(true);
+            }
+
+            var applied = _creditReferences.Add(reference);
+
+            if (applied)
+                _credits[player] += amount;
+
+            if (_lostCreditAnswers > 0)
+            {
+                _lostCreditAnswers--;
+
+                throw new TimeoutException("the wallet paid, its answer was lost");
+            }
+
+            return Task.FromResult(
+                applied ? WalletCreditResult.Applied : WalletCreditResult.AlreadyApplied
+            );
         };
         fakes.Handlers["Create"] = call =>
             fakes.Create<IFurnitureItem>((call.Args[3], call.Args[4]));
@@ -215,6 +249,45 @@ public sealed class MarketplaceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_redeem_whose_credit_fails_leaves_the_revenue_waiting_for_the_next()
+    {
+        var offerId = await SellAsync(100);
+        _failingCredits = 1;
+
+        await FluentActions
+            .Awaiting(() => _marketplace.RedeemCreditsAsync(SELLER, Ct))
+            .Should()
+            .ThrowAsync<InvalidOperationException>();
+
+        _credits[SELLER].Should().Be(0);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct))
+            .CreditsWaiting.Should()
+            .Be(97, "nothing was paid, so nothing may be marked paid");
+
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97);
+        _credits[SELLER].Should().Be(97);
+        _creditReferences.Should().Equal($"marketplace:{offerId}");
+    }
+
+    [Fact]
+    public async Task A_redeem_that_paid_but_lost_the_answer_pays_nothing_twice()
+    {
+        await SellAsync(100);
+        _lostCreditAnswers = 1;
+
+        await FluentActions
+            .Awaiting(() => _marketplace.RedeemCreditsAsync(SELLER, Ct))
+            .Should()
+            .ThrowAsync<TimeoutException>();
+
+        _credits[SELLER].Should().Be(97);
+
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97, "now marked");
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(0);
+        _credits[SELLER].Should().Be(97, "the sale is paid once");
+    }
+
+    [Fact]
     public async Task Taking_an_offer_back_names_the_offer()
     {
         var chair = Give(SELLER, CHAIR);
@@ -227,6 +300,19 @@ public sealed class MarketplaceTests : IDisposable
         (takeBack.Cause, takeBack.CauseRef, takeBack.ActorPlayerId)
             .Should()
             .Be((MovementCauses.MARKET_CANCEL, offerId.ToString(), SELLER));
+    }
+
+    /// <summary>A chair of the seller's, listed and bought; answers the offer id.</summary>
+    private async Task<int> SellAsync(int price)
+    {
+        await _marketplace.MakeOfferAsync(SELLER, price, [-Give(SELLER, CHAIR)], Ct);
+        var offerId = (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+
+        (await _marketplace.BuyOfferAsync(BUYER, offerId, Ct))
+            .Code.Should()
+            .Be(MarketplaceBuyResultCode.Bought);
+
+        return offerId;
     }
 
     private MarketplaceService NewMarketplace(IAssetMovementRecorder movements) =>

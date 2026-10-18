@@ -106,7 +106,7 @@ the same charge pays nothing twice.
 | `camera.purchase`, `camera.publish` | a photo's price (cause ref: the photo) and its refund |
 | `group.create` | a group's price and its refund |
 | `vault.claim` | an earnings vault payout (cause ref: the claim) |
-| `market.tokens`, `market.buy`, `market.redeem` | marketplace tokens, a purchase (cause ref: the offer) and its refund, redeemed sales |
+| `market.tokens`, `market.buy`, `market.redeem` | marketplace tokens, a purchase (cause ref: the offer) and its refund, a redeemed sale (cause ref: the offer) |
 | `room.rent` | renting a space (cause ref: the furni) and its refund |
 | `use.credit_furni`, `use.crackable` | a redeemed credit furni, a cracked crackable's credits (cause ref: the furni) |
 | `wired.chest_upgrade`, `wired.chest_withdraw` | a chest's upgrade price and its refund, credits a chest pays out (actor 0; cause ref: the chest transaction) |
@@ -165,7 +165,7 @@ Every move names its offer:
 | `market.list` | one operation per listing: each item `Inventory` -> `None` (with its snapshot), then, once the offer rows exist, each item `None` -> `MarketplaceOffer` (the offer's id) under the offer's id as cause ref. A listing that cannot be saved gives the items back under the listing's refund cause. |
 | `market.buy` | the price (seq 0), then the item made again `None` -> `Inventory` for the buyer (seq 1), both under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. |
 | `market.cancel` | an offer taken back (or expired) made again in the seller's inventory, under the offer's id. |
-| `market.redeem` | the seller's credits for redeemed sales. |
+| `market.redeem` | one operation per sale: its revenue credited to the seller under the wallet reference `marketplace:<offer>`, then the sale marked redeemed. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once). |
 
 ## Decided for now
 

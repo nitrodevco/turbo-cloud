@@ -56,6 +56,9 @@ public sealed class MarketplaceService(
     /// <summary>Days of price history a stats answer covers: 30 in both official captures (2026-10-13).</summary>
     public const int HISTORY_DAYS = 30;
 
+    /// <summary>The wallet reference a sale's revenue is paid under: one receipt per offer.</summary>
+    public const string REDEEM_REFERENCE_PREFIX = "marketplace:";
+
     private readonly MarketplaceConfig _config = config.Value.Marketplace;
 
     public async Task<MarketplaceOfferPage> SearchOffersAsync(
@@ -729,11 +732,39 @@ public sealed class MarketplaceService(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        var wallet = grainFactory.GetPlayerWalletGrain(player);
         var total = 0;
 
-        // Row by row, each marked before it pays: a second redeem at the same moment finds it taken.
+        // Sale by sale, each paid before it is marked, under a credit referenced by its offer: a
+        // credit that fails leaves the sale waiting for the next redeem, and a redeem that stops
+        // between the two (or runs at the same moment as another) pays nothing twice.
         foreach (var offer in sold)
         {
+            if (offer.Revenue > 0)
+            {
+                var credited = await wallet
+                    .CreditAsync(
+                        CurrencyKind.Credits,
+                        offer.Revenue,
+                        RedeemReference(offer.Id),
+                        MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value, offer.Id),
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
+
+                if (credited == WalletCreditResult.Rejected)
+                {
+                    logger.LogWarning(
+                        "Marketplace offer {OfferId}: the wallet of player {PlayerId} refused {Revenue} credits; left to redeem",
+                        offer.Id,
+                        player.Value,
+                        offer.Revenue
+                    );
+
+                    continue;
+                }
+            }
+
             var marked = await dbCtx
                 .MarketplaceOffers.Where(x => x.Id == offer.Id && !x.CreditsRedeemed)
                 .ExecuteUpdateAsync(
@@ -746,19 +777,11 @@ public sealed class MarketplaceService(
                 total += offer.Revenue;
         }
 
-        if (total > 0)
-            await grainFactory
-                .GetPlayerWalletGrain(player)
-                .CreditAsync(
-                    CurrencyKind.Credits,
-                    total,
-                    MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value),
-                    CancellationToken.None
-                )
-                .ConfigureAwait(false);
-
         return total;
     }
+
+    private static string RedeemReference(int offerId) =>
+        REDEEM_REFERENCE_PREFIX + offerId.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// What the seller receives for a sale at <paramref name="price"/>: Flash's
