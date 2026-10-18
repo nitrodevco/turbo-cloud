@@ -19,7 +19,7 @@ internal class FurnitureItemSerializer
         StuffDataSnapshotSerializer.Serialize(packet, item.StuffData);
 
         packet
-            .WriteBoolean(item.Definition.CanRecycle)
+            .WriteBoolean(item.Definition.IsRecyclable)
             .WriteBoolean(item.Definition.CanTrade)
             .WriteBoolean(item.Definition.CanGroup)
             .WriteBoolean(item.Definition.IsSellable)
