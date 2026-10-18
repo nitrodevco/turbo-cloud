@@ -120,6 +120,51 @@ public sealed class WiredDisableTests
     }
 
     [Fact]
+    public async Task Switched_off_a_one_second_timer_starts_over_two_avatar_ticks_on()
+    {
+        // Official client capture 2026-10-18: a 1 s timer firing on one avatar tick, switched off
+        // 139 ms after the next tick, fired again on the second tick after (+866 and +848 ms),
+        // not where its old schedule was (+361); then every second from there.
+        var pad = await BuildTimerStackAsync();
+        var disabler = await AddDisablerAsync();
+        var fired = new List<long>();
+
+        await RunUntilAsync(13_550, pad, fired);
+        fired.Should().Equal(11_500, 12_500, 13_500);
+
+        await disabler.Logic.OnUseAsync(Owner, 0, Ct);
+        await RunUntilAsync(17_100, pad, fired);
+        fired.Should().HaveCount(3, "the timer is still while the disabler is on");
+
+        await disabler.Logic.OnUseAsync(Owner, 0, Ct);
+        await RunUntilAsync(20_000, pad, fired);
+
+        fired.Skip(3).Should().Equal(18_000, 19_000, 20_000);
+    }
+
+    [Fact]
+    public async Task Picked_up_while_on_a_timer_keeps_its_schedule()
+    {
+        // Official client capture 2026-10-18: picked up while on, the timer fired 240 ms later, on
+        // the phase it had before the disabler went on (1/1).
+        var pad = await BuildTimerStackAsync();
+        var disabler = await AddDisablerAsync();
+        var fired = new List<long>();
+
+        await RunUntilAsync(13_550, pad, fired);
+        await disabler.Logic.OnUseAsync(Owner, 0, Ct);
+        await RunUntilAsync(16_900, pad, fired);
+
+        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Remove(
+            (RoomObjectId)DISABLER
+        );
+        await disabler.Logic.OnDetachAsync(Ct);
+        await RunUntilAsync(19_000, pad, fired);
+
+        fired.Skip(3).Should().Equal(17_500, 18_500);
+    }
+
+    [Fact]
     public async Task A_player_without_rights_cannot_switch_it()
     {
         var disabler = await AddDisablerAsync();
@@ -180,6 +225,52 @@ public sealed class WiredDisableTests
         await TickAsync(1);
 
         return pad;
+    }
+
+    // A 1 s timer toggles PAD. First seen at 10 050, it fires from 11 500 on, every second.
+    private async Task<IRoomFloorItem> BuildTimerStackAsync()
+    {
+        var pad = _room.AddFloorItem(PAD, 3, 3);
+        _room.AddBox<WiredTriggerPeriodically>(TRIGGER, 0, 0, "wf_trg_periodically");
+        _room.AddBox<WiredActionToggleItemState>(EFFECT, 0, 0, "wf_act_toggle_state");
+        (await _room.SaveAsync<UpdateTriggerMessage>(TRIGGER, intParams: [2])).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [0],
+                stuffIds: [PAD],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = Owner,
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+
+        return pad;
+    }
+
+    // Wired ticks every 50 ms up to `until`; each PAD toggle is a firing at that tick.
+    private async Task RunUntilAsync(long until, IRoomFloorItem pad, List<long> fired)
+    {
+        while (_now < until)
+        {
+            var before = pad.Logic.GetState();
+            _now += 50;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+
+            if (pad.Logic.GetState() != before)
+                fired.Add(_now);
+        }
     }
 
     private Task<bool> SaveTriggerAsync() =>

@@ -19,6 +19,7 @@ public sealed partial class RoomWiredSystem
     private readonly Dictionary<RoomObjectId, long> _atTimeFiredVersion = [];
     private long _timersEpochMs = -1;
     private long _timersEpochVersion = 0;
+    private bool _restartPeriodicTriggers;
 
     /// <summary>Restarts the timer that "time elapsed" and "at given time" wired read.</summary>
     public void ResetTimers(long now)
@@ -37,6 +38,15 @@ public sealed partial class RoomWiredSystem
     }
 
     public int GetElapsedTimerPulses(long now) => WiredPulses.FromMs(GetElapsedTimerMs(now));
+
+    /// <summary>
+    /// A Wired Disabler was switched off: every periodic trigger starts its period over, counted
+    /// in avatar ticks from the one before the switch, so a 1 s timer fires on the second avatar
+    /// tick after it (official client capture, 2026-10-18: +866 and +848 ms, where the schedule
+    /// it kept while the disabler was on said +361). Picking up a switched-on disabler keeps the
+    /// schedule (+240 ms, on the old phase, 1/1).
+    /// </summary>
+    public void RestartPeriodicTriggers() => _restartPeriodicTriggers = true;
 
     private void ForgetTimedTrigger(RoomObjectId objectId)
     {
@@ -60,9 +70,25 @@ public sealed partial class RoomWiredSystem
             : now + delayMs;
     }
 
+    /// <summary>
+    /// When a restarted periodic trigger fires next: a period of whole avatar ticks counts from
+    /// the avatar tick before the restart, the next one (or this tick, on one) being the first.
+    /// </summary>
+    private long RestartedPeriodicAt(long now, long delayMs)
+    {
+        var avatarTickMs = _roomGrain._roomConfig.AvatarTickMs;
+
+        return avatarTickMs > 0 && delayMs % avatarTickMs == 0
+            ? _roomGrain.AlignToNextBoundary(now, avatarTickMs) + delayMs - avatarTickMs
+            : now + delayMs;
+    }
+
     private async Task ProcessTimedTriggersAsync(long now, CancellationToken ct)
     {
         var elapsedMs = GetElapsedTimerMs(now);
+        var restartPeriodic = _restartPeriodicTriggers;
+
+        _restartPeriodicTriggers = false;
 
         // Listed when the stacks were rebuilt, in the order the stacks and their triggers are
         // walked there, which is the order this loop used to find them in.
@@ -74,6 +100,9 @@ public sealed partial class RoomWiredSystem
                 {
                     var objectId = periodic.ObjectId;
                     var delayMs = periodic.GetPeriodicDelayMs();
+
+                    if (restartPeriodic)
+                        _nextPeriodicAtMs[objectId] = RestartedPeriodicAt(now, delayMs);
 
                     if (!_nextPeriodicAtMs.TryGetValue(objectId, out var nextAt))
                     {

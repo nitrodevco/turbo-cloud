@@ -34,8 +34,14 @@ public class FurnitureWiredDisableLogic(
         if (!await HasRightsAsync(ctx))
             return;
 
+        var wasOn = IsOn;
+
         // Two states whatever the definition counts: it is a switch.
-        await SetStateAsync(IsOn ? OFF : ON);
+        await SetStateAsync(wasOn ? OFF : ON);
+
+        // Switched off, the timers start over; picked up while on, they keep their schedule.
+        if (wasOn)
+            WiredSystem.RestartPeriodicTriggers();
     }
 
     public override async Task OnPlaceAsync(ActionContext ctx, CancellationToken ct)
