@@ -1920,6 +1920,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(IsOfferGiftableMessageComposer),
+                new IsOfferGiftableMessageComposerSerializer(
+                    MessageComposer.IsOfferGiftableMessageComposer
+                )
+            },
+            {
                 typeof(HasClaimedProductResponseMessageComposer),
                 new HasClaimedProductResponseMessageComposerSerializer(
                     MessageComposer.HasClaimedProductResponseMessageComposer

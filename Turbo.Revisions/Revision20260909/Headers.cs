@@ -880,6 +880,7 @@ internal static class MessageComposer
     public const int InterstitialMessageComposer = 2103;
     public const int IsBadgeRequestFulfilledMessageComposer = 3984;
     public const int IsFirstLoginOfDayMessageComposer = 2990;
+    public const int IsOfferGiftableMessageComposer = 3918;
     public const int IssueCloseNotificationMessageComposer = 1983;
     public const int IssueDeletedMessageComposer = 2666;
     public const int IssueInfoMessageComposer = 2141;
@@ -1130,7 +1131,6 @@ internal static class MessageComposer
     public const int UnknownIncoming_U1dMessageComposer = 3600;
     public const int UnknownIncoming_W1AMessageComposer = 132;
     public const int UnknownIncoming_Z1vMessageComposer = 3248;
-    public const int UnknownIncoming_zBMessageComposer = 3918;
     public const int UnreadForumsCountMessageComposer = 1041;
     public const int UnseenItemsMessageComposer = 987;
     public const int UpdateMessageComposer = 220;
