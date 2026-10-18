@@ -424,9 +424,16 @@ public sealed partial class RoomPetModule
     {
         var item = FindSupplyItem(type);
 
-        if (item is null)
-            return false;
+        return item is not null && await WalkToSupplyItemAsync(pet, item, ct);
+    }
 
+    /// <summary>Walks the pet to the supply item; false when there is no way to it.</summary>
+    internal async Task<bool> WalkToSupplyItemAsync(
+        IRoomPet pet,
+        IRoomObject item,
+        CancellationToken ct
+    )
+    {
         pet.TargetItemId = item.ObjectId;
 
         if (IsAtItem(pet, item))

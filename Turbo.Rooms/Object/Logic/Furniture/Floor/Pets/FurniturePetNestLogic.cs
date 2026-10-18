@@ -17,7 +17,7 @@ public class FurniturePetNestLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
     public override bool CanWalk() => true;
 
-    protected override Task ServeAsync(IRoomPet pet, CancellationToken ct)
+    protected override Task ServeAsync(IRoomPet pet, int left, CancellationToken ct)
     {
         pet.Lay(true, GetPostureOffset(), _ctx.RoomObject.Rotation);
         pet.IsFreeRoaming = false;

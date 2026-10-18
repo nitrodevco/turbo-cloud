@@ -155,7 +155,40 @@ public class PetConfig
     public int NutritionDecayMs { get; init; } = 180000;
     public int RestEnergyPerTick { get; init; } = 2;
     public int FoodNutrition { get; init; } = 20;
-    public int DrinkEnergy { get; init; } = 20;
+
+    /// <summary>
+    /// Nutrition and energy a drink gives. Official drinks raised the horse's nutrition by one
+    /// each and left its energy as it was (PetInfo before and after 3 drinks, official client
+    /// capture 2026-10-17, room "saddle club").
+    /// </summary>
+    public int DrinkNutrition { get; init; } = 1;
+    public int DrinkEnergy { get; init; } = 0;
+
+    /// <summary>
+    /// A drink, as the official horses drank (9 of 9): the pet stands at the drink with a smile
+    /// for <see cref="DrinkStartDelayMs"/>, drinks ("eat", no gesture) for
+    /// <see cref="DrinkDurationMs"/>, then smiles again as the drink goes down a level and stands
+    /// for <see cref="DrinkEndMs"/> before it moves on (1 s, 3.5 s and 0.5 s).
+    /// </summary>
+    public int DrinkStartDelayMs { get; init; } = 1000;
+    public int DrinkDurationMs { get; init; } = 3500;
+    public int DrinkEndMs { get; init; } = 500;
+
+    /// <summary>
+    /// How long a food or drink has to be left alone to be full again at its next serving; one not
+    /// served since the room loaded is full too. Official: the first drink at each of a stable's
+    /// three (left at 4, 2 and 3) showed it full less one (4 of 5), and 205 s between two drinks
+    /// did not refill one (official client capture 2026-10-17, room "saddle club"); the period
+    /// itself is unrecorded, 5 minutes is an inference. 0: only a room load refills.
+    /// </summary>
+    public int SupplyRefillMs { get; init; } = 300000;
+
+    /// <summary>
+    /// How long a free pet stands with a smile before it sets off for a drink or a toy, turning to
+    /// it halfway: official horses showed "std/gst sml" for 2 s, turned after 1 s, and took
+    /// their first step 2.5 s after the smile began (7 of 7 set-offs, room "saddle club").
+    /// </summary>
+    public int SetOffLeadInMs { get; init; } = 2500;
     public int ToyExperience { get; init; } = 5;
     public int HandItemNutrition { get; init; } = 10;
     public int HandItemEnergy { get; init; } = 10;
