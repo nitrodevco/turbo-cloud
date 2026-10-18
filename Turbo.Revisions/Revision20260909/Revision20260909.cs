@@ -3908,13 +3908,6 @@ public class Revision20260909 : IRevision
             },
             #endregion
 
-            #region Catalog
-            {
-                typeof(FigureSetIdsMessage),
-                new FigureSetIdsMessageSerializer(MessageComposer.FigureSetIdsMessageComposer)
-            },
-            #endregion
-
             #region Competition
             {
                 typeof(CompetitionEntrySubmitResultMessageComposer),
