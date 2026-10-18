@@ -306,6 +306,21 @@ public class RoomEntryPreparationTests
     }
 
     [Fact]
+    public async Task ApprovedEntry_TellsThePresenceTheOwnerTheRoomHolds()
+    {
+        // The presence counts a visit to another player's room; the owner comes from the room
+        // that admitted the player, not from a database read on every entry.
+        var harness = await ApprovedHarnessAsync();
+
+        await OpenRoomAsync(harness);
+
+        var view = await (Task<RoomEntryViewSnapshot>)
+            harness.Fakes.Handlers["GetEntryViewAsync"](null!)!;
+        var call = Assert.Single(harness.Fakes.Log.Of("SetActiveRoomAsync"));
+        Assert.Equal(view.Room.OwnerId, Assert.IsType<PlayerId>(call.Args[1]));
+    }
+
+    [Fact]
     public async Task ApprovedEntry_OpensWithEmptyNftChatStylesRightBeforeRoomReady()
     {
         // hhus, 2026-10-13: OpenConnection, UserNftChatStyles (00000000 for an account without

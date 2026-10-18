@@ -672,7 +672,7 @@ internal sealed partial class RoomService(
             .MeasureAsync(
                 RoomTelemetry.MEMBERSHIP,
                 roomId,
-                () => playerPresence.SetActiveRoomAsync(roomId, ct)
+                () => playerPresence.SetActiveRoomAsync(roomId, snapshot.OwnerId, ct)
             )
             .ConfigureAwait(false);
 

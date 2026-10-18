@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
@@ -15,6 +13,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -67,7 +66,7 @@ internal sealed partial class PlayerPresenceGrain
             ? _state.PendingEntry
             : RoomEntrySnapshot.Default;
 
-    public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
+    public async Task SetActiveRoomAsync(RoomId roomId, PlayerId ownerId, CancellationToken ct)
     {
         if (roomId <= 0)
             return;
@@ -75,50 +74,20 @@ internal sealed partial class PlayerPresenceGrain
         await ClearActiveRoomAsync(ct);
         await ClearPendingRoomAsync(ct);
 
-        // Admission has succeeded. Persist the distinct visit before acknowledging room membership.
-        await using (var db = await _achievementDatabase.CreateDbContextAsync(ct))
-        {
-            var roomOwner = await db
-                .Rooms.Where(x => x.Id == roomId.Value)
-                .Select(x => (int?)x.PlayerEntityId)
-                .SingleOrDefaultAsync(ct);
-            if (roomOwner is { } owner && owner != _state.PlayerId.Value)
-            {
-                _achievementFacts.Record(
-                    db,
-                    _state.PlayerId,
-                    new()
-                    {
-                        Source = AchievementSources.VISIT,
-                        OperationId = Guid.NewGuid().ToString("N"),
-                        OccurredAtUtc = DateTime.UtcNow,
-                        Value = roomId.Value.ToString(
-                            System.Globalization.CultureInfo.InvariantCulture
-                        ),
-                    }
-                );
-                await db.SaveChangesAsync(ct);
+        // Admission has succeeded. The distinct visit, the directory, the room stream and the
+        // player's summary do not depend on each other, so they are asked together; all of them
+        // are in place before the room makes the avatar. The owner comes from the room that
+        // admitted the player, so an entry never reads the room back from the database.
+        var visit =
+            ownerId > 0 && ownerId != _state.PlayerId
+                ? RecordRoomVisitAsync(roomId, ct)
+                : Task.CompletedTask;
 
-                _grainFactory
-                    .GetPlayerDailyTaskGrain(_state.PlayerId)
-                    .RecordActivityAsync(
-                        DailyTaskActivity.RoomVisit,
-                        roomId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        CancellationToken.None
-                    )
-                    .LogAndForget(
-                        _logger,
-                        "count the visit of player {PlayerId} to room {RoomId} for daily tasks",
-                        _state.PlayerId,
-                        roomId
-                    );
-            }
-        }
         _state.ActiveRoomId = roomId;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
         OnActiveRoomChanged();
 
-        await _grainFactory
+        var directory = _grainFactory
             .GetRoomDirectoryGrain()
             .AddPlayerToRoomAsync(_state.PlayerId, roomId, ct);
 
@@ -134,7 +103,7 @@ internal sealed partial class PlayerPresenceGrain
 
         var stream = GetRoomStream(roomId);
 
-        _roomOutboundSub = await RoomTelemetry.MeasureAsync(
+        var subscribe = RoomTelemetry.MeasureAsync(
             RoomTelemetry.SUBSCRIBE,
             roomId,
             async () =>
@@ -144,11 +113,16 @@ internal sealed partial class PlayerPresenceGrain
             }
         );
 
-        var playerSnapshot = await RoomTelemetry.MeasureAsync(
+        var summary = RoomTelemetry.MeasureAsync(
             RoomTelemetry.PLAYER_SUMMARY,
             roomId,
             () => _grainFactory.GetPlayerGrain(_state.PlayerId).GetSummaryAsync(ct)
         );
+
+        await Task.WhenAll(visit, directory, subscribe, summary);
+
+        _roomOutboundSub = await subscribe;
+        var playerSnapshot = await summary;
 
         // Only the room a furni named gets the entry it named; anywhere else is a plain walk in.
         var entry = PendingEntryFor(roomId);
@@ -181,6 +155,56 @@ internal sealed partial class PlayerPresenceGrain
             .GetPlayerBadgeGrain(_state.PlayerId)
             .RefreshBadgesRankAsync(CancellationToken.None)
             .LogAndForget(_logger, "refresh the badges rank of player {PlayerId}", _state.PlayerId);
+    }
+
+    /// <summary>
+    /// Persists the distinct visit to another player's room. A failed write is logged and never
+    /// costs the player the room they were admitted to.
+    /// </summary>
+    private async Task RecordRoomVisitAsync(RoomId roomId, CancellationToken ct)
+    {
+        var value = roomId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        try
+        {
+            await using var db = await _achievementDatabase.CreateDbContextAsync(ct);
+            _achievementFacts.Record(
+                db,
+                _state.PlayerId,
+                new()
+                {
+                    Source = AchievementSources.VISIT,
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    OccurredAtUtc = DateTime.UtcNow,
+                    Value = value,
+                }
+            );
+            await db.SaveChangesAsync(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to persist the visit of player {PlayerId} to room {RoomId}",
+                _state.PlayerId,
+                roomId
+            );
+            return;
+        }
+
+        _grainFactory
+            .GetPlayerDailyTaskGrain(_state.PlayerId)
+            .RecordActivityAsync(DailyTaskActivity.RoomVisit, value, CancellationToken.None)
+            .LogAndForget(
+                _logger,
+                "count the visit of player {PlayerId} to room {RoomId} for daily tasks",
+                _state.PlayerId,
+                roomId
+            );
     }
 
     /// <summary>

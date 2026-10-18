@@ -14,7 +14,9 @@ public partial interface IPlayerPresenceGrain
 
     [AlwaysInterleave]
     public Task<RoomPendingSnapshot> GetPendingRoomAsync(CancellationToken ct);
-    public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
+
+    /// <param name="ownerId">The owner of the room as the room that admitted the player holds it.</param>
+    public Task SetActiveRoomAsync(RoomId roomId, PlayerId ownerId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
 
     /// <summary>
