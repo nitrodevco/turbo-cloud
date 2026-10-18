@@ -267,6 +267,7 @@ public sealed class IncomeRewardService(
             var cause = MovementCause.New(MovementCauses.VAULT_CLAIM, player.Value, batch.Key);
             var seq = 0;
 
+            // One operation per claim; each payout is caused by its category, the source it pays.
             foreach (var payout in batch.GroupBy(x => (x.Category, x.RewardType)))
             {
                 var result = await wallet
@@ -274,7 +275,14 @@ public sealed class IncomeRewardService(
                         CurrencyOf((VaultRewardType)payout.Key.RewardType)!.Value,
                         payout.Sum(x => x.Amount),
                         $"vault:{batch.Key}:{payout.Key.Category}:{payout.Key.RewardType}",
-                        cause.StartingAt(seq++),
+                        (
+                            cause with
+                            {
+                                Cause = MovementCauses.VaultClaimOf(
+                                    (VaultRewardCategoryType)payout.Key.Category
+                                ),
+                            }
+                        ).StartingAt(seq++),
                         ct
                     )
                     .ConfigureAwait(false);

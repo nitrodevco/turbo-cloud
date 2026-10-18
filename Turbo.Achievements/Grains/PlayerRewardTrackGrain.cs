@@ -397,9 +397,9 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                 .TryDebitAsync(
                     costs,
                     MovementCause.New(
-                        MovementCauses.REWARD_TRACK,
+                        MovementCauses.REWARD_TRACK_PREMIUM,
                         _state.PlayerId.Value,
-                        $"{track.Id}:premium"
+                        track.Id
                     ),
                     ct
                 );

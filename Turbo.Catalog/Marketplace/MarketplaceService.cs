@@ -530,7 +530,7 @@ public sealed class MarketplaceService(
                     if (count == 0)
                         return UnitOfWork.Rollback(false);
 
-                    movements.Record(claimCtx, Claimed(cause, row, 0, Now()));
+                    movements.Record(claimCtx, Claimed(cause, row, 0, 0, Now()));
 
                     return UnitOfWork.Commit(true);
                 },
@@ -588,8 +588,9 @@ public sealed class MarketplaceService(
 
         var revenue = Revenue(row.Price);
 
-        // The claim, with what it moves after the price (seq 0): the item off its offer (seq 1)
-        // and the seller's revenue onto it (seq 2), held there until redeemed.
+        // The claim, with what it moves after the price (seq 0): the item off its offer (seq 1),
+        // the price onto it (seq 2) and the fee off it (seq 3), so it holds the seller's revenue
+        // until redeemed.
         var claimed = await dbCtxFactory
             .InTransactionAsync(
                 async claimCtx =>
@@ -613,7 +614,10 @@ public sealed class MarketplaceService(
                     if (count == 0)
                         return UnitOfWork.Rollback(false);
 
-                    movements.Record(claimCtx, Claimed(cause.StartingAt(1), row, revenue, now));
+                    movements.Record(
+                        claimCtx,
+                        Claimed(cause.StartingAt(1), row, row.Price, revenue, now)
+                    );
 
                     return UnitOfWork.Commit(true);
                 },
@@ -630,8 +634,8 @@ public sealed class MarketplaceService(
             return await NextOfferAsync(dbCtx, row, now, ct).ConfigureAwait(false);
         }
 
-        // The price and the claim took seqs 0 to 2.
-        await GiveItemAsync(player, row, cause.StartingAt(3)).ConfigureAwait(false);
+        // The price and the claim took seqs 0 to 3.
+        await GiveItemAsync(player, row, cause.StartingAt(4)).ConfigureAwait(false);
 
         // The seller's revenue now waits in the earnings vault; an online seller gets Flash's
         // "notification.earning.new" (VaultController.as:139). Inference: the official client
@@ -1012,17 +1016,19 @@ public sealed class MarketplaceService(
     /// <summary>
     /// The movements of an offer's claim, from <paramref name="cause"/>'s first seq: its item off
     /// the offer (its listing made it there; an offer listed before the item's id was kept has
-    /// none), then, on a sale, the seller's <paramref name="revenue"/> onto the offer, where it is
-    /// held until redeemed.
+    /// none), then, on a sale, the <paramref name="price"/> onto the offer and the marketplace's fee
+    /// off it again (<see cref="MovementCauses.MARKET_FEE"/>), so the offer holds the seller's
+    /// <paramref name="revenue"/> until redeemed and the fee is a movement of its own.
     /// </summary>
     private static List<AssetMovement> Claimed(
         MovementCause cause,
         MarketplaceOfferEntity row,
+        int price,
         int revenue,
         DateTime now
     )
     {
-        var claimed = new List<AssetMovement>(2);
+        var claimed = new List<AssetMovement>(3);
         var offer = OfferPlace(row.PlayerEntityId, row.Id);
 
         if (row.ListedFurnitureId is { } itemId)
@@ -1038,7 +1044,7 @@ public sealed class MarketplaceService(
                 )
             );
 
-        if (revenue > 0)
+        if (price > 0)
             claimed.Add(
                 AssetMovement.For(
                     cause,
@@ -1047,7 +1053,23 @@ public sealed class MarketplaceService(
                     REVENUE,
                     AssetPlace.Nowhere,
                     offer,
-                    revenue
+                    price
+                )
+            );
+
+        if (price - revenue > 0)
+            claimed.Add(
+                AssetMovement.For(
+                    cause with
+                    {
+                        Cause = MovementCauses.MARKET_FEE,
+                    },
+                    checked((short)(cause.FirstSeq + 2)),
+                    now,
+                    REVENUE,
+                    offer,
+                    AssetPlace.Nowhere,
+                    price - revenue
                 )
             );
 

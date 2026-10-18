@@ -156,13 +156,15 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
 
         var present = await inventory.ReceiveStaffPresentAsync(StaffGift(), wrap, Ct);
 
+        // The sender is the wrap's actor, the receiver owns the present and its content, and the
+        // content is held by the present: a gift is traceable from its wrap to its opening.
         var wrapped = Movements();
         wrapped
-            .Select(x => (x.Seq, x.DefinitionId, x.ToKind, x.ToPlace))
+            .Select(x => (x.Seq, x.DefinitionId, x.Actor, x.ToKind, x.ToOwner, x.ToPlace))
             .Should()
             .Equal(
-                (0, PRESENT, PlaceKind.Inventory, 0L),
-                (1, CHAIR, PlaceKind.Holder, (long)present.ItemId.Value)
+                (0, PRESENT, 1, PlaceKind.Inventory, OWNER, 0L),
+                (1, CHAIR, 1, PlaceKind.Holder, OWNER, (long)present.ItemId.Value)
             );
 
         // Traded on, then opened by the other player: the content comes out to the opener.
@@ -243,7 +245,7 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
             .Select(x => (x.Seq, (int)x.AssetId, x.FromOwner, x.ToOwner, x.CauseRef))
             .Should()
             .Equal(
-                (0, offered.ItemId.Value, OWNER, OTHER, null),
+                (0, offered.ItemId.Value, OWNER, OTHER, ROOM.ToString()),
                 (2, offered.ItemId.Value, OTHER, OWNER, MovementCauses.TRADE_REF_COMPENSATION)
             );
         trade.Should().OnlyContain(x => x.Actor == OTHER, "the partner's confirm closed it");
