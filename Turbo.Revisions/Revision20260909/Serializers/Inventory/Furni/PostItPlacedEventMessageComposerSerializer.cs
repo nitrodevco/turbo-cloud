@@ -11,6 +11,6 @@ internal class PostItPlacedEventMessageComposerSerializer(int header)
         PostItPlacedEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.ItemId).WriteInteger(message.ItemsLeft);
     }
 }
