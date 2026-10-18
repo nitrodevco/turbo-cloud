@@ -176,6 +176,41 @@ public class QuestsPacketTests
         Assert.Empty(harness.Fakes.Log.Of("RejectAsync"));
     }
 
+    /// <summary>
+    /// The friend list sends FriendRequestQuestComplete with each friend request that goes out
+    /// (HabboFriendList.as:250-252 @1745; official client capture 2026-10-13, hc-rights-test, sent
+    /// with RequestFriend): it counts once towards a friend request quest.
+    /// </summary>
+    [Fact]
+    public async Task a_friend_request_sent_counts_towards_the_friend_request_quest()
+    {
+        var harness = new PacketHarness();
+
+        var replies = await harness.SendAsync(
+            PacketHarness.Incoming("FriendRequestQuestCompleteMessageEvent"),
+            [],
+            playerId: 3
+        );
+
+        Assert.Empty(replies);
+        var call = Assert.Single(harness.Fakes.Log.Of("RecordAsync"));
+        Assert.Equal(3L, Convert.ToInt64(call.Key));
+        Assert.Equal("FRIEND_REQUEST", call.Args[0]);
+        Assert.Equal(string.Empty, call.Args[1]);
+    }
+
+    /// <summary>EpicPopupMessageParser.as:15-17 @1745 reads the picture's address and nothing else.</summary>
+    [Fact]
+    public void the_epic_popup_is_the_pictures_address()
+    {
+        var packet = PacketHarness.Encode(
+            new EpicPopupMessageComposer { ImageUri = "https://images.habbo.com/c_images/x.png" }
+        );
+
+        Assert.Equal("https://images.habbo.com/c_images/x.png", packet.PopString());
+        Assert.True(packet.End);
+    }
+
     [Fact]
     public void cancelled_and_completed_wrap_the_quest_as_their_parsers_read_it()
     {
