@@ -32,11 +32,9 @@ public class PurchaseRoomAdMessageMessageHandler(
         var name = message.Name?.Trim() ?? string.Empty;
         var description = message.Description?.Trim() ?? string.Empty;
 
-        if (
-            !_navigatorService
-                .GetEventCategories()
-                .Any(x => x.Id == message.CategoryId && x.Visible)
-        )
+        var categoryId = _navigatorService.GetRoomAdCategoryId(message.CategoryId);
+
+        if (categoryId is null)
         {
             await ctx.SendPurchaseErrorAsync(CatalogPurchaseErrorType.PurchaseFailed, ct)
                 .ConfigureAwait(false);
@@ -51,7 +49,7 @@ public class PurchaseRoomAdMessageMessageHandler(
                 .PurchaseRoomAdAsync(
                     message.OfferId,
                     message.FlatId,
-                    message.CategoryId,
+                    categoryId.Value,
                     name,
                     description,
                     message.Extended,

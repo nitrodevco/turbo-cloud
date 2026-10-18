@@ -54,6 +54,12 @@ public interface INavigatorService
         CancellationToken ct
     );
     public ImmutableArray<NavigatorEventCategorySnapshot> GetEventCategories();
+
+    /// <summary>
+    /// The event category a room ad is bought into: the one asked for when it is shown, else the
+    /// first shown one, or null when none is shown.
+    /// </summary>
+    public int? GetRoomAdCategoryId(int requestedCategoryId);
     public Task<ImmutableArray<NavigatorPopularTagSnapshot>> GetPopularTagsAsync(
         CancellationToken ct
     );
