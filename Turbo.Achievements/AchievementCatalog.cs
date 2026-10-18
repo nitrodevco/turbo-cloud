@@ -614,31 +614,12 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 var previous = d.Reducer == AchievementReducer.Rank ? int.MaxValue : -1;
                 if (d.Levels.Sum(x => (long)x.Score) > int.MaxValue)
                     throw new InvalidOperationException("Achievement score exceeds packet limits.");
-                var badgeLevel = 0;
-                string? badgePrefix = null;
-                // A prefix may end in a digit itself (Habbo's ACH_bazaar171 .. ACH_bazaar1710):
-                // the first level's code without its "1" is the prefix every level adds to.
-                var levelPrefix = AchievementBadgeCodes.PrefixOf(d.Levels[0].BadgeCode, 1);
-                var prefixed =
-                    levelPrefix is not null
-                    && d.Levels.Select((x, i) => x.BadgeCode == levelPrefix + (i + 1)).All(x => x);
+                // A level's code is its own: the family a badge replaces within is the
+                // achievement's list of codes (unique across the catalog), not a shared prefix,
+                // so Habbo's ACH_Profile1 and ACH_Profile2 are each one level of their own and
+                // ACH_bazaar171 .. ACH_bazaar1710 are bazaar17's ten.
                 foreach (var level in d.Levels)
                 {
-                    badgeLevel++;
-                    var match = Regex.Match(level.BadgeCode, "^([A-Za-z0-9_]*?)([0-9]+)$");
-                    if (
-                        !prefixed
-                        && (
-                            !match.Success
-                            || !int.TryParse(match.Groups[2].Value, out var suffix)
-                            || suffix != badgeLevel
-                            || (badgePrefix is not null && badgePrefix != match.Groups[1].Value)
-                        )
-                    )
-                        throw new InvalidOperationException(
-                            "Standard clients require one stable badge prefix with the earned level as its numeric suffix."
-                        );
-                    badgePrefix = match.Groups[1].Value;
                     if (
                         level.Requirement < 0
                         || (d.Reducer == AchievementReducer.Rank && level.Requirement == 0)

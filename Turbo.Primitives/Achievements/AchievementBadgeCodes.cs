@@ -1,59 +1,17 @@
 using System;
-using System.Globalization;
 
 namespace Turbo.Primitives.Achievements;
 
 /// <summary>
-/// The levels of one achievement share a badge base followed by the level number
-/// (<c>ACH_Login1</c> .. <c>ACH_Login20</c>), as the client reads them. Only an exact base plus
-/// digits is a level of that base, so <c>ACH_Login</c> never claims <c>ACH_LoginStreak5</c>.
+/// How the client reads an achievement badge code for its texts: the base is the code without
+/// its trailing digits (<c>ACH_Login3</c> is <c>ACH_Login</c>). Which badges are levels of one
+/// achievement is that achievement's own list of codes, not this base: Habbo's
+/// <c>ACH_Profile1</c> and <c>ACH_Profile2</c> share a base but are two achievements.
 /// </summary>
 public static class AchievementBadgeCodes
 {
     /// <summary>The code without its trailing level number; the code itself when it has none.</summary>
     public static string BaseOf(string code) => code[..LevelStart(code)];
-
-    /// <summary>The base of a code that ends in a level number; false for a code without one.</summary>
-    public static bool TryGetBase(string code, out string badgeBase)
-    {
-        var start = LevelStart(code);
-        badgeBase = code[..start];
-        return start > 0 && start < code.Length;
-    }
-
-    /// <summary>Whether the code is the base followed by a level number and nothing else.</summary>
-    public static bool IsLevelOf(string badgeBase, string code) =>
-        code.Length > badgeBase.Length
-        && code.StartsWith(badgeBase, StringComparison.Ordinal)
-        && code.AsSpan(badgeBase.Length).IndexOfAnyExceptInRange('0', '9') < 0;
-
-    /// <summary>The trailing level number; zero when the code has none or it does not fit.</summary>
-    public static int LevelOf(string code) =>
-        int.TryParse(code.AsSpan(LevelStart(code)), out var level) ? level : 0;
-
-    /// <summary>
-    /// The level number after a known prefix: <c>ACH_bazaar1710</c> under <c>ACH_bazaar17</c> is
-    /// level 10. Zero when the code is not a level of that prefix.
-    /// </summary>
-    public static int LevelOf(string badgePrefix, string code) =>
-        IsLevelOf(badgePrefix, code) && int.TryParse(code.AsSpan(badgePrefix.Length), out var level)
-            ? level
-            : 0;
-
-    /// <summary>
-    /// The prefix of a level's code: the code without that level's number at its end. A name that
-    /// ends in a digit keeps it (Habbo's <c>ACH_bazaar171</c> at level 1 is <c>ACH_bazaar17</c>),
-    /// which stripping every trailing digit would not. Null when the code does not end in the level.
-    /// </summary>
-    public static string? PrefixOf(string code, int level)
-    {
-        if (level <= 0)
-            return null;
-        var suffix = level.ToString(CultureInfo.InvariantCulture);
-        return code.Length > suffix.Length && code.EndsWith(suffix, StringComparison.Ordinal)
-            ? code[..^suffix.Length]
-            : null;
-    }
 
     private static int LevelStart(string code)
     {

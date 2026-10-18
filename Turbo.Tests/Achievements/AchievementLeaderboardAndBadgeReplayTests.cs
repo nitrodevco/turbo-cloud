@@ -125,8 +125,8 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         );
         var badges = await NewBadgeGrainAsync();
 
-        await badges.GrantAchievementAsync(20, 1, "ACH_ManualWorn", Ct);
-        await badges.GrantAchievementAsync(20, 1, "ACH_ManualWorn", Ct);
+        await badges.GrantAchievementAsync(20, 1, ["ACH_ManualWorn"], Ct);
+        await badges.GrantAchievementAsync(20, 1, ["ACH_ManualWorn"], Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var badge = await db.PlayerBadges.SingleAsync(Ct);
@@ -137,7 +137,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
     public async Task ReplayingWornAchievementUpgradeKeepsTransferredSlotAndSingleBadge()
     {
         var badges = await NewBadgeGrainAsync();
-        await badges.GrantAchievementAsync(30, 1, "ACH_Worn1", Ct);
+        await badges.GrantAchievementAsync(30, 1, Levels("ACH_Worn", 10), Ct);
         await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             var oldBadge = await db.PlayerBadges.SingleAsync(Ct);
@@ -145,8 +145,8 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
             await db.SaveChangesAsync(Ct);
         }
 
-        await badges.GrantAchievementAsync(30, 2, "ACH_Worn2", Ct);
-        await badges.GrantAchievementAsync(30, 2, "ACH_Worn2", Ct);
+        await badges.GrantAchievementAsync(30, 2, Levels("ACH_Worn", 10), Ct);
+        await badges.GrantAchievementAsync(30, 2, Levels("ACH_Worn", 10), Ct);
 
         await using var check = await _db.CreateDbContextAsync(Ct);
         var badge = await check.PlayerBadges.SingleAsync(Ct);
@@ -162,8 +162,8 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         _db.Insert(NewBadge(13, 1, "ACH_Unrelated2"));
         var badges = await NewBadgeGrainAsync();
 
-        await badges.GrantAchievementAsync(40, 3, "ACH_TrueHabbo3", Ct);
-        await badges.GrantAchievementAsync(40, 3, "ACH_TrueHabbo3", Ct);
+        await badges.GrantAchievementAsync(40, 3, Levels("ACH_TrueHabbo", 10), Ct);
+        await badges.GrantAchievementAsync(40, 3, Levels("ACH_TrueHabbo", 10), Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var owned = await db.PlayerBadges.OrderBy(x => x.BadgeCode).ToListAsync(Ct);
@@ -179,7 +179,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         _db.Insert(NewBadge(31, 1, "ACH_LevelUp1"));
         var badges = await NewBadgeGrainAsync();
 
-        await badges.GrantAchievementAsync(50, 2, "ACH_LevelUp2", Ct);
+        await badges.GrantAchievementAsync(50, 2, Levels("ACH_LevelUp", 10), Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var granted = await db.PlayerBadges.SingleAsync(Ct);
@@ -201,7 +201,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         _db.Insert(NewBadge(41, 1, "ACH_Owned2"));
         var badges = await NewBadgeGrainAsync();
 
-        await badges.GrantAchievementAsync(60, 2, "ACH_Owned2", Ct);
+        await badges.GrantAchievementAsync(60, 2, Levels("ACH_Owned", 10), Ct);
 
         _fakes.Log.Of(nameof(IPlayerUnseenItemsGrain.AddAsync)).Should().BeEmpty();
     }
@@ -212,7 +212,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         _db.Insert(NewBadge(21, 1, "ACH_TrueHabbo5", slot: 1));
         var badges = await NewBadgeGrainAsync();
 
-        await badges.GrantAchievementAsync(40, 2, "ACH_TrueHabbo2", Ct);
+        await badges.GrantAchievementAsync(40, 2, Levels("ACH_TrueHabbo", 10), Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var badge = await db.PlayerBadges.SingleAsync(Ct);
@@ -230,14 +230,18 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         _db.Insert(NewBadge(200, 1, "ACH_TrueHabboExtra2"));
         var badges = await NewBadgeGrainAsync();
 
-        await badges.NormalizeAchievementBadgesAsync(["ACH_TrueHabbo"], Ct);
-        await badges.NormalizeAchievementBadgesAsync(["ACH_TrueHabbo"], Ct);
+        await badges.NormalizeAchievementBadgesAsync([Levels("ACH_TrueHabbo", 10)], Ct);
+        await badges.NormalizeAchievementBadgesAsync([Levels("ACH_TrueHabbo", 10)], Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var owned = await db.PlayerBadges.OrderBy(x => x.BadgeCode).ToListAsync(Ct);
         owned.Select(x => x.BadgeCode).Should().Equal("ACH_TrueHabbo10", "ACH_TrueHabboExtra2");
         owned[0].SlotId.Should().Be(5);
     }
+
+    /// <summary>An achievement's level codes: the prefix plus each level number.</summary>
+    private static ImmutableArray<string> Levels(string prefix, int count) =>
+        [.. Enumerable.Range(1, count).Select(x => prefix + x)];
 
     private IBadgeLeaderboardGrain NewLeaderboardGrain()
     {
