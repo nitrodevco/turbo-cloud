@@ -326,6 +326,14 @@ public sealed partial class RoomPetModule
     {
         pet.SetSaddle(hasSaddle, saddleDefinitionId);
 
+        // A saddled pet stays on its feet, so one saddled lying down gets up.
+        if (!CanRest(pet))
+        {
+            pet.Sit(false);
+            pet.Lay(false);
+            pet.MarkDirty();
+        }
+
         await BroadcastFigureAsync(pet, ct);
         Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);

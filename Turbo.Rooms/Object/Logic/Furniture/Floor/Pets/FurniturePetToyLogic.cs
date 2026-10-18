@@ -16,13 +16,14 @@ public class FurniturePetToyLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
 {
     public override PetSupplyType SupplyType => PetSupplyType.Toy;
 
-    protected override Task ServeAsync(IRoomPet pet, CancellationToken ct)
+    protected override async Task ServeAsync(IRoomPet pet, CancellationToken ct)
     {
         var config = _roomGrain._petConfig;
 
         pet.AddStatus(AvatarStatusType.Play, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
 
-        return PetModule.AddExperienceAsync(pet, config.ToyExperience, ct);
+        await PetModule.SayVocalAsync(pet, "PLAYING", ct);
+        await PetModule.AddExperienceAsync(pet, config.ToyExperience, ct);
     }
 }

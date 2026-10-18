@@ -39,6 +39,7 @@ public enum AvatarStatusType
     JumpOut,
     CarryItem,
     UseItem,
+    EyeBlink,
 }
 
 public static class RoomAvatarStatusTypeExtensions
@@ -83,6 +84,7 @@ public static class RoomAvatarStatusTypeExtensions
             AvatarStatusType.JumpOut => "jmp-out",
             AvatarStatusType.CarryItem => "cri",
             AvatarStatusType.UseItem => "usei",
+            AvatarStatusType.EyeBlink => "eyb",
             _ => throw new System.NotImplementedException(),
         };
 }

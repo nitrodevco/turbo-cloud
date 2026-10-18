@@ -487,6 +487,9 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         return !flags.Has(RoomTileFlags.FurnitureOccupied) || flags.Has(RoomTileFlags.Walkable);
     }
 
+    /// <summary>Whether the pet may sit or lie down: a saddled one stays on its feet.</summary>
+    internal bool CanRest(IRoomPet pet) => Config.SaddledPetsRest || !pet.HasSaddle;
+
     /// <summary>The context-menu flags the client keys its buttons on.</summary>
     internal void RefreshFlags(IRoomPet pet)
     {

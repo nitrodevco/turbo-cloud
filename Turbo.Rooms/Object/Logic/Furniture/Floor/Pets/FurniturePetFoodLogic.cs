@@ -32,5 +32,7 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         );
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
+
+        await PetModule.SayVocalAsync(pet, "EATING", ct);
     }
 }

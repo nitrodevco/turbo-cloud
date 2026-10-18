@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -31,6 +32,7 @@ public sealed partial class RoomPetModule
         AvatarStatusType.Eat,
         AvatarStatusType.Gesture,
         AvatarStatusType.WagTail,
+        AvatarStatusType.EyeBlink,
     ];
 
     public async Task<bool> RequestPetCommandsAsync(
@@ -147,6 +149,12 @@ public sealed partial class RoomPetModule
 
             return false;
         }
+
+        if (
+            command is PetCommandType.Sit or PetCommandType.LieDown or PetCommandType.Nest
+            && !CanRest(pet)
+        )
+            return false;
 
         AvatarModule.TryGetPlayer(pet.OwnerId, out var owner);
 
@@ -270,6 +278,37 @@ public sealed partial class RoomPetModule
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.SpeakDurationMs;
 
         await ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), ct);
+    }
+
+    /// <summary>
+    /// Says one of the hotel's lines for what the pet is doing: <c>pet.vocals.&lt;type&gt;.&lt;vocal&gt;.&lt;n&gt;</c>
+    /// (Habbo's texts carry them, pet.vocals.15.DRINKING.0 "Ah, that's the good stuff."; the client
+    /// never reads them, so the room says them). Nothing when the hotel has none for the type.
+    /// </summary>
+    internal async Task SayVocalAsync(IRoomPet pet, string vocal, CancellationToken ct)
+    {
+        if (pet.IsSilenced || !Chance(Config.VocalChancePercent))
+            return;
+
+        var prefix = $"pet.vocals.{pet.TypeId}.{vocal}.";
+        var texts = await _roomGrain._hotelTextProvider.GetTextsByPrefixAsync(prefix, ct);
+        var lines = new List<string>(texts.Count);
+
+        for (var i = 0; i < texts.Count; i++)
+        {
+            if (texts.TryGetText(prefix + i, out var line))
+                lines.Add(line);
+        }
+
+        if (lines.Count == 0)
+            return;
+
+        await ChatSystem.SayAsAvatarAsync(
+            pet,
+            lines[NextRandom(0, lines.Count)],
+            new AvatarSpeech(),
+            ct
+        );
     }
 
     /// <summary>Walks <paramref name="walker"/> to a free tile next to <paramref name="target"/>; false when none is reachable.</summary>

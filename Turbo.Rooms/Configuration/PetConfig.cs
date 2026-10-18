@@ -56,6 +56,31 @@ public class PetConfig
     public int IdleActionMinMs { get; init; } = 4000;
     public int IdleActionMaxMs { get; init; } = 12000;
     public int FreeRoamWalkChancePercent { get; init; } = 60;
+
+    /// <summary>
+    /// What a free-roaming pet of a type does when it stops, by pet type: a posture ("eyb",
+    /// "kck") or a gesture ("gst sml") held for <see cref="IdlePostureDurationMs"/>, or "sit" /
+    /// "lay" to rest. A type not listed sits, lies, wags its tail, speaks or looks round. Horses
+    /// from official client captures (2026-10-17/18, 13 saddled horses): blink, wag, kick a front
+    /// leg, smile, thirst and playful gestures, never sit (the horse has no sit posture).
+    /// </summary>
+    public Dictionary<int, string[]> IdleActionsByType { get; init; } =
+        new() { [15] = ["eyb", "wag", "kck", "gst sml", "gst thr", "gst plf", "lay"] };
+
+    /// <summary>How long an idle posture or gesture lasts: an official horse blinks for 1.0 s.</summary>
+    public int IdlePostureDurationMs { get; init; } = 1000;
+
+    /// <summary>
+    /// Whether a saddled pet sits or lies down, on its own or when told. Official saddled horses
+    /// never did (0 of ~330 updates) and the horse has no saddle drawn lying down.
+    /// </summary>
+    public bool SaddledPetsRest { get; init; } = false;
+
+    /// <summary>
+    /// Chance in percent that a pet drinking, eating or playing with a toy says one of the
+    /// hotel's <c>pet.vocals.&lt;type&gt;.DRINKING</c> / <c>EATING</c> / <c>PLAYING</c> lines.
+    /// </summary>
+    public int VocalChancePercent { get; init; } = 100;
     public int FreeRoamMaxDistance { get; init; } = 6;
     public int EnergyDecayMs { get; init; } = 120000;
     public int NutritionDecayMs { get; init; } = 180000;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,11 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
     private readonly List<IRoomPet> _pets = [];
 
     private PetConfig Config => _roomGrain._petConfig;
+
+    /// <summary>Statuses by the code the client knows them by, for the configured idle actions.</summary>
+    private static readonly Dictionary<string, AvatarStatusType> STATUS_BY_CODE =
+        Enum.GetValues<AvatarStatusType>()
+            .ToDictionary(x => x.ToLegacyString(), StringComparer.OrdinalIgnoreCase);
 
     // Decay runs on wall-clock time; read once per pass so every pet in it agrees.
     private DateTime _utcNow;
@@ -117,6 +123,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (
             pet.Energy < Config.TiredEnergy
+            && module.CanRest(pet)
             && await module.WalkToSupplyAsync(pet, PetSupplyType.Nest, ct)
         )
             return;
@@ -299,12 +306,19 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
     {
         var module = PetModule;
 
+        if (Config.IdleActionsByType.TryGetValue(pet.TypeId, out var actions) && actions.Length > 0)
+        {
+            ShowIdleAction(pet, actions[module.NextRandom(0, actions.Length)]);
+
+            return;
+        }
+
         switch (module.NextRandom(0, 6))
         {
-            case 0:
+            case 0 when module.CanRest(pet):
                 pet.Sit(true);
                 break;
-            case 1:
+            case 1 when module.CanRest(pet):
                 pet.Lay(true);
                 break;
             case 2:
@@ -323,5 +337,35 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
                 pet.SetRotation((Rotation)module.NextRandom(0, 8));
                 break;
         }
+    }
+
+    /// <summary>
+    /// One of the type's own idle actions: "sit" / "lay" to rest (a saddled pet stays standing),
+    /// otherwise a posture or "gst &lt;gesture&gt;" shown on its feet for a moment.
+    /// </summary>
+    private void ShowIdleAction(IRoomPet pet, string action)
+    {
+        var parts = action.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 0 || !STATUS_BY_CODE.TryGetValue(parts[0], out var status))
+            return;
+
+        PetModule.ClearActionStatuses(pet);
+
+        if (status is AvatarStatusType.Sit or AvatarStatusType.Lay)
+        {
+            var rest = PetModule.CanRest(pet);
+
+            pet.Sit(rest && status == AvatarStatusType.Sit);
+            pet.Lay(rest && status == AvatarStatusType.Lay);
+
+            return;
+        }
+
+        pet.Sit(false);
+        pet.Lay(false);
+
+        pet.AddStatus(status, parts.Length > 1 ? parts[1] : string.Empty);
+        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
     }
 }
