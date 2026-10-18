@@ -451,7 +451,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// <summary>
     /// Runs the selectors, addons and conditions of a stack for one firing and schedules the
     /// actions the outcome selects. <paramref name="negativeCall"/> is set for stack calls: a
-    /// positive call runs the actions when the conditions pass, a negative one when they fail.
+    /// positive call runs the actions without asking the conditions, a negative one when they fail.
     /// </summary>
     private async Task RunStackAsync(
         WiredProcessingContext ctx,
@@ -523,7 +523,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return;
         }
 
-        var passed = EvaluateConditions(ctx.Stack.Conditions, ctx);
+        // A stack call runs the called stack "regardless of existing conditions or triggers"
+        // (official furnidata 2026-10-13, wf_act_call_stacks), so its conditions are not asked.
+        // The negative call still runs it only when they fail, until that variant is measured.
+        var skipConditions = negativeCall == false;
+        var passed = skipConditions || EvaluateConditions(ctx.Stack.Conditions, ctx);
 
         if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
             return;
@@ -535,7 +539,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (ctx.Trigger is not null)
             Flash(ctx.Trigger);
 
-        if (passed)
+        if (passed && !skipConditions)
         {
             foreach (var condition in ctx.Stack.Conditions)
                 Flash(condition);
