@@ -40,7 +40,12 @@ public sealed record MovementCause(
 
     /// <summary>
     /// What gives back what this action took after it failed: the same cause and actor, an
-    /// operation of its own, and this operation as its cause ref, so the two pair up.
+    /// operation of its own, and this operation as its cause ref, so the two pair up. Its id is
+    /// derived from this one, so a refund given again for the same charge is the same operation
+    /// and the wallet pays it once.
     /// </summary>
-    public MovementCause ForRefund() => New(Cause, ActorPlayerId, OperationId);
+    public MovementCause ForRefund() =>
+        new(OperationId + REFUND_SUFFIX, Cause, OperationId, ActorPlayerId);
+
+    private const string REFUND_SUFFIX = "-refund";
 }

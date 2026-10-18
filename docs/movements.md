@@ -85,14 +85,19 @@ Every `IPlayerWalletGrain` method that moves a balance takes the caller's `Movem
 `TryDebitAsync`, both `CreditAsync`, `CreditRewardAsync` and `CreditAchievementAsync`. While
 recording, each currency it moves is one movement (`Wallet` -> `None` for a debit, `None` ->
 `Wallet` for a credit; asset id 0 and its `CurrencyKind`), written in the same transaction as the
-balance. A debit of one currency, a single statement when recording is off, then runs in a
-transaction of its own; a debit of several is one operation, numbered from the cause's first seq,
-and takes all of them or none. A debit the balance cannot cover, a refused credit and a replayed
-referenced or achievement credit write nothing.
+balance. Every call is one transaction (`InTransactionAsync`) with a receipt in
+`wallet_credit_receipts`: the plugin's reference for a referenced credit, the award key for an
+achievement credit, and otherwise the cause's operation id and first seq (`#op:<seq>:<operation>`,
+hashed when too long). The same call made again under the same cause, a retry, changes nothing:
+a debit answers success, a credit true. A debit of several currencies is one operation, numbered
+from the cause's first seq, and takes all of them or none. A debit the balance cannot cover, a
+refused credit and a replayed credit write nothing, and a refused one keeps no receipt.
 
 A refund (`GrainFactoryExtensions.RefundAsync`) is given the charge's cause and credits under
-`cause.ForRefund()`: the same cause code and actor, an operation of its own, and the charge's
-operation id as its cause ref, so a debit and its refund pair up.
+`cause.ForRefund()`: the same cause code and actor, an operation of its own whose id is the
+charge's with `-refund` added, and the charge's operation id as its cause ref, so a debit and its
+refund pair up. The i-th currency is refunded at the charge's i-th seq, so a refund given again for
+the same charge pays nothing twice.
 
 | Cause | Where |
 | --- | --- |

@@ -367,10 +367,13 @@ internal sealed class PlayerHabbiconGrain : Grain, IPlayerHabbiconGrain
         if (!await SaveAsync([.. habbicons.Select(x => x.Id)], HabbiconState.Owned, ct))
         {
             // Nothing was given, so the price goes back.
-            var refund = cause.ForRefund();
-
-            foreach (var cost in costs)
-                await wallet.CreditAsync(cost.CurrencyKind, cost.Amount, refund, ct);
+            await _grainFactory.RefundAsync(
+                _state.PlayerId,
+                costs,
+                cause,
+                _logger,
+                "a habbicon purchase"
+            );
 
             await SendNotAllowedAsync(ct);
 

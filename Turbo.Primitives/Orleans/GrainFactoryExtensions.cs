@@ -380,13 +380,20 @@ public static class GrainFactoryExtensions
         var wallet = factory.GetPlayerWalletGrain(playerId);
         var refund = cause.ForRefund();
 
-        foreach (var debit in debits)
+        // The i-th currency at the charge's i-th seq: each is a credit of its own, and a refund
+        // given again for the same charge finds every one of them already paid.
+        foreach (var (debit, seq) in debits.Select((debit, i) => (debit, cause.FirstSeq + i)))
         {
             try
             {
                 // Not the caller's token: a refund that has started must not be abandoned.
                 await wallet
-                    .CreditAsync(debit.CurrencyKind, debit.Amount, refund, CancellationToken.None)
+                    .CreditAsync(
+                        debit.CurrencyKind,
+                        debit.Amount,
+                        refund.StartingAt(seq),
+                        CancellationToken.None
+                    )
                     .ConfigureAwait(false);
             }
             catch (Exception ex)

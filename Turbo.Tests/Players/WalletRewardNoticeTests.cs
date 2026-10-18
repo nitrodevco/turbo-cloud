@@ -29,7 +29,9 @@ public class WalletRewardNoticeTests : IDisposable
     private readonly TestNotices _notices = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-    private static readonly MovementCause Cause = MovementCause.New("test", 0);
+
+    // A fresh operation per call, as every production caller makes one per action.
+    private static MovementCause Cause => MovementCause.New("test", 0);
 
     public WalletRewardNoticeTests()
     {
