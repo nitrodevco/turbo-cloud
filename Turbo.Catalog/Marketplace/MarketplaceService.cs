@@ -18,6 +18,7 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -421,7 +422,11 @@ public sealed class MarketplaceService(
             && !(
                 await grainFactory
                     .GetPlayerWalletGrain(player)
-                    .TryDebitAsync(debits, ct)
+                    .TryDebitAsync(
+                        debits,
+                        MovementCause.New(MovementCauses.MARKET_TOKENS, player.Value),
+                        ct
+                    )
                     .ConfigureAwait(false)
             ).Succeeded
         )
@@ -514,9 +519,10 @@ public sealed class MarketplaceService(
             CurrencyKind = CurrencyKind.Credits,
             Amount = row.Price,
         };
+        var cause = MovementCause.New(MovementCauses.MARKET_BUY, player.Value, offerId);
         var paid = await grainFactory
             .GetPlayerWalletGrain(player)
-            .TryDebitAsync([debit], ct)
+            .TryDebitAsync([debit], cause, ct)
             .ConfigureAwait(false);
 
         if (!paid.Succeeded)
@@ -544,7 +550,7 @@ public sealed class MarketplaceService(
         if (claimed == 0)
         {
             await grainFactory
-                .RefundAsync(player, [debit], logger, $"marketplace offer {offerId}")
+                .RefundAsync(player, [debit], cause, logger, $"marketplace offer {offerId}")
                 .ConfigureAwait(false);
 
             return await NextOfferAsync(dbCtx, row, now, ct).ConfigureAwait(false);
@@ -709,7 +715,12 @@ public sealed class MarketplaceService(
         if (total > 0)
             await grainFactory
                 .GetPlayerWalletGrain(player)
-                .CreditAsync(CurrencyKind.Credits, total, CancellationToken.None)
+                .CreditAsync(
+                    CurrencyKind.Credits,
+                    total,
+                    MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value),
+                    CancellationToken.None
+                )
                 .ConfigureAwait(false);
 
         return total;

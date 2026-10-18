@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Camera;
 using Turbo.Primitives.Messages.Outgoing.Camera;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Wallet;
 
@@ -80,11 +81,13 @@ public class PurchasePhotoMessageHandler(
                 }
             );
 
+        var cause = MovementCause.New(MovementCauses.CAMERA_PURCHASE, ctx.PlayerId.Value, photo.Id);
+
         if (debits.Count > 0)
         {
             var result = await grainFactory
                 .GetPlayerWalletGrain(ctx.PlayerId)
-                .TryDebitAsync(debits, ct)
+                .TryDebitAsync(debits, cause, ct)
                 .ConfigureAwait(false);
 
             if (!result.Succeeded)
@@ -118,7 +121,7 @@ public class PurchasePhotoMessageHandler(
         catch
         {
             await grainFactory
-                .RefundAsync(ctx.PlayerId, debits, logger, $"camera photo {photo.Id}")
+                .RefundAsync(ctx.PlayerId, debits, cause, logger, $"camera photo {photo.Id}")
                 .ConfigureAwait(false);
 
             throw;

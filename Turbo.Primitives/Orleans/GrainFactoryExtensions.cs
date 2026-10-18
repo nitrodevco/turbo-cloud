@@ -13,6 +13,7 @@ using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Habbicons.Grains;
 using Turbo.Primitives.Hotel.Grains;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -364,17 +365,20 @@ public static class GrainFactoryExtensions
     /// could not be made. A debit never shares a transaction with what it buys — the wallet is
     /// another grain — so every "charge, then create" path ends here on failure. A refund that
     /// itself fails is logged and nothing more: there is no third place to put the money, and
-    /// throwing would lose the original failure.
+    /// throwing would lose the original failure. <paramref name="cause"/> is the charge's own: the
+    /// refund is recorded under its cause, as an operation of its own that names the charge's.
     /// </summary>
     public static async Task RefundAsync(
         this IGrainFactory factory,
         PlayerId playerId,
         IEnumerable<WalletDebit> debits,
+        MovementCause cause,
         ILogger logger,
         string what
     )
     {
         var wallet = factory.GetPlayerWalletGrain(playerId);
+        var refund = cause.ForRefund();
 
         foreach (var debit in debits)
         {
@@ -382,7 +386,7 @@ public static class GrainFactoryExtensions
             {
                 // Not the caller's token: a refund that has started must not be abandoned.
                 await wallet
-                    .CreditAsync(debit.CurrencyKind, debit.Amount, CancellationToken.None)
+                    .CreditAsync(debit.CurrencyKind, debit.Amount, refund, CancellationToken.None)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)

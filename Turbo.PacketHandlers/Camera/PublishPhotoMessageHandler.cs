@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Camera;
 using Turbo.Primitives.Messages.Outgoing.Camera;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests;
@@ -67,6 +68,7 @@ public class PublishPhotoMessageHandler(
                             Amount = _config.PublishDucketPrice,
                         },
                     },
+                    MovementCause.New(MovementCauses.CAMERA_PUBLISH, ctx.PlayerId.Value),
                     ct
                 )
                 .ConfigureAwait(false);

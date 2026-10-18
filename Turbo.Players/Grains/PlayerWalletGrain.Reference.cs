@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -14,12 +15,14 @@ internal sealed partial class PlayerWalletGrain
 {
     /// <summary>
     /// The balance and the receipt of the reference are one SaveChanges, so either both exist or
-    /// neither does. The primary key of the receipt settles a race with another activation.
+    /// neither does, and so is its movement while recording. The primary key of the receipt
+    /// settles a race with another activation.
     /// </summary>
     public async Task<WalletCreditResult> CreditAsync(
         CurrencyKind kind,
         int amount,
         string reference,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -66,6 +69,7 @@ internal sealed partial class PlayerWalletGrain
         dbCtx.WalletCreditReceipts.Add(
             new WalletCreditReceiptEntity { PlayerId = PlayerId.Value, Reference = reference }
         );
+        _movements.Record(dbCtx, Credited(cause, kind, amount));
 
         try
         {

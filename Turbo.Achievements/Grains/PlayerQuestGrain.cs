@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Messages.Outgoing.Quest;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
@@ -310,6 +311,7 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
                     CurrencyKind.ActivityPoints(quest.ActivityPointType),
                     quest.RewardAmount,
                     $"{CREDIT_REFERENCE_PREFIX}{quest.Id}",
+                    MovementCause.New(MovementCauses.REWARD_QUEST, _playerId.Value, quest.Id),
                     ct
                 );
 

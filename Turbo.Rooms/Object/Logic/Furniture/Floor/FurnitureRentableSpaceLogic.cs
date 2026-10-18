@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -88,10 +89,15 @@ public class FurnitureRentableSpaceLogic(
     {
         var refusal = await GetRentRefusalAsync(ctx, ct);
         List<WalletDebitRequest>? paid = null;
+        var cause = MovementCause.New(
+            MovementCauses.ROOM_RENT,
+            ctx.PlayerId.Value,
+            _ctx.ObjectId.Value
+        );
 
         if (
             refusal == RentableSpaceRentFailedType.None
-            && (paid = await TryPayAsync(ctx, ct)) is null
+            && (paid = await TryPayAsync(ctx, cause, ct)) is null
         )
             refusal = RentableSpaceRentFailedType.NotEnoughCredits;
 
@@ -136,6 +142,7 @@ public class FurnitureRentableSpaceLogic(
                 await _roomGrain._grainFactory.RefundAsync(
                     ctx.PlayerId,
                     paid,
+                    cause,
                     _roomGrain._logger,
                     $"renting space {_ctx.ObjectId} in room {_ctx.RoomId}"
                 );
@@ -234,6 +241,7 @@ public class FurnitureRentableSpaceLogic(
     /// <summary>What was taken for the rent, empty when it is free; null when the wallet refused.</summary>
     private async Task<List<WalletDebitRequest>?> TryPayAsync(
         ActionContext ctx,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -249,7 +257,7 @@ public class FurnitureRentableSpaceLogic(
 
         var result = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .TryDebitAsync(debits, ct);
+            .TryDebitAsync(debits, cause, ct);
 
         return result.Succeeded ? debits : null;
     }

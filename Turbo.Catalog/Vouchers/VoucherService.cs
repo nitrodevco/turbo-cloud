@@ -18,6 +18,7 @@ using Turbo.Database.Extensions;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Providers;
@@ -387,6 +388,7 @@ public sealed partial class VoucherService(
     {
         var failed = false;
         var wallet = grainFactory.GetPlayerWalletGrain(player);
+        var cause = MovementCause.New(MovementCauses.CATALOG_VOUCHER, player.Value, voucher.Id);
 
         async Task TryAsync(string what, Func<Task<bool>> give)
         {
@@ -425,6 +427,7 @@ public sealed partial class VoucherService(
                                 CurrencyKind.Credits,
                                 voucher.Credits,
                                 Reference(voucher, "credits"),
+                                cause,
                                 ct
                             )
                             .ConfigureAwait(false)
@@ -449,6 +452,7 @@ public sealed partial class VoucherService(
                                 },
                                 voucher.CurrencyAmount,
                                 Reference(voucher, "currency"),
+                                cause.StartingAt(1),
                                 ct
                             )
                             .ConfigureAwait(false)

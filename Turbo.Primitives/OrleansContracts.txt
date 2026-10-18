@@ -286,14 +286,14 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   E09E1AF9: UnregisterSessionObserverAsync(Turbo.Primitives.Networking.SessionKey, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerWalletGrain")] Turbo.Primitives.Players.Grains.IPlayerWalletGrain [Version(0)]
-  6FE41EA6: CreditAchievementAsync(string, Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
-  77F40F43: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
-  9FD63EC5: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletCreditResult>
-  85917D79: CreditRewardAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
+  EC0925AA: CreditAchievementAsync(string, Turbo.Primitives.Players.Wallet.CurrencyKind, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
+  EF7AFC9B: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
+  8E8A6236: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, string, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletCreditResult>
+  E465CE9D: CreditRewardAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
   4D784270: DeliverPendingRewardsAsync(System.Threading.CancellationToken) -> Task
   19EE0FB8: GetActivityPointsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.Dictionary<int, int>>
   E63487B5: GetAmountForCurrencyAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, System.Threading.CancellationToken) -> Task<int>
-  27BF2E0D: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
+  CD725880: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain")] Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain [Version(0)]
   2B299D06: AcceptFriendRequestsAsync(System.Collections.Generic.List<int>, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerAcceptFriendFailure>>

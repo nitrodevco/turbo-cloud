@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
@@ -340,7 +341,16 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (reward.Credits > 0)
             await _roomGrain
                 ._grainFactory.GetPlayerWalletGrain(recipient)
-                .CreditAsync(CurrencyKind.Credits, reward.Credits, ct);
+                .CreditAsync(
+                    CurrencyKind.Credits,
+                    reward.Credits,
+                    MovementCause.New(
+                        MovementCauses.USE_CRACKABLE,
+                        recipient.Value,
+                        _ctx.ObjectId.Value
+                    ),
+                    ct
+                );
 
         if (string.IsNullOrWhiteSpace(reward.Furni))
             return;

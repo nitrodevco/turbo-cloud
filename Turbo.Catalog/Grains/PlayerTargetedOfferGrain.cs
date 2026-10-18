@@ -15,6 +15,7 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.TargetedOffers;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Wallet;
@@ -113,8 +114,13 @@ internal sealed class PlayerTargetedOfferGrain : Grain, IPlayerTargetedOfferGrai
 
         var costs = Costs(offer, quantity);
         var wallet = _grainFactory.GetPlayerWalletGrain(_state.PlayerId);
+        var cause = MovementCause.New(
+            MovementCauses.CATALOG_TARGETED_OFFER,
+            _state.PlayerId.Value,
+            offer.Id
+        );
 
-        if (costs.Count > 0 && !(await wallet.TryDebitAsync(costs, ct)).Succeeded)
+        if (costs.Count > 0 && !(await wallet.TryDebitAsync(costs, cause, ct)).Succeeded)
             return false;
 
         try
@@ -128,6 +134,7 @@ internal sealed class PlayerTargetedOfferGrain : Grain, IPlayerTargetedOfferGrai
             await _grainFactory.RefundAsync(
                 _state.PlayerId,
                 costs,
+                cause,
                 _logger,
                 $"targeted offer {offer.Id}"
             );

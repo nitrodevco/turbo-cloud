@@ -16,6 +16,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -212,9 +213,17 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 .Select(x => new WalletDebitRequest { CurrencyKind = x.Kind, Amount = x.Amount }),
         ];
 
+        var cause = MovementCause.New(
+            MovementCauses.WIRED_CHEST_UPGRADE,
+            payerId.Value,
+            _state.ChestId.Value
+        );
+
         if (debits.Count > 0)
         {
-            var debit = await _grainFactory.GetPlayerWalletGrain(payerId).TryDebitAsync(debits, ct);
+            var debit = await _grainFactory
+                .GetPlayerWalletGrain(payerId)
+                .TryDebitAsync(debits, cause, ct);
 
             if (!debit.Succeeded)
                 return (
@@ -250,6 +259,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             await _grainFactory.RefundAsync(
                 payerId,
                 debits,
+                cause,
                 _logger,
                 $"wired chest {_state.ChestId} upgrade"
             );
@@ -590,7 +600,14 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         // Referenced by the transaction, so a retried credit can never pay twice.
         var credited = await _grainFactory
             .GetPlayerWalletGrain(request.ReceiverId)
-            .CreditAsync(CurrencyKind.Credits, amount, CreditReference(transactionId), ct);
+            .CreditAsync(
+                CurrencyKind.Credits,
+                amount,
+                CreditReference(transactionId),
+                // Wired moves it, not a player.
+                MovementCause.New(MovementCauses.WIRED_CHEST_WITHDRAW, 0, transactionId),
+                ct
+            );
 
         if (credited == WalletCreditResult.Rejected)
         {

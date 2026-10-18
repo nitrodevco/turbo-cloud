@@ -19,6 +19,7 @@ using Turbo.Primitives.Habbicons.Grains;
 using Turbo.Primitives.Habbicons.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Habbicons;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -334,10 +335,15 @@ internal sealed class PlayerHabbiconGrain : Grain, IPlayerHabbiconGrain
     {
         var costs = offer.ToDebitRequests(1);
         var wallet = _grainFactory.GetPlayerWalletGrain(_state.PlayerId);
+        var cause = MovementCause.New(
+            MovementCauses.CATALOG_HABBICON,
+            _state.PlayerId.Value,
+            offer.Id
+        );
 
         if (costs.Count > 0)
         {
-            var debit = await wallet.TryDebitAsync(costs, ct);
+            var debit = await wallet.TryDebitAsync(costs, cause, ct);
 
             if (!debit.Succeeded)
             {
@@ -361,8 +367,10 @@ internal sealed class PlayerHabbiconGrain : Grain, IPlayerHabbiconGrain
         if (!await SaveAsync([.. habbicons.Select(x => x.Id)], HabbiconState.Owned, ct))
         {
             // Nothing was given, so the price goes back.
+            var refund = cause.ForRefund();
+
             foreach (var cost in costs)
-                await wallet.CreditAsync(cost.CurrencyKind, cost.Amount, ct);
+                await wallet.CreditAsync(cost.CurrencyKind, cost.Amount, refund, ct);
 
             await SendNotAllowedAsync(ct);
 

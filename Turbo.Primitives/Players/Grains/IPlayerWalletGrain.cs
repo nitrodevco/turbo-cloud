@@ -2,20 +2,32 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Primitives.Players.Grains;
 
+/// <summary>
+/// A player's balances. Every method that moves one takes the <see cref="MovementCause"/> of the
+/// action it is part of; while <c>Turbo:Movements:Enabled</c> is on, each currency it moves is one
+/// movement, written in the same transaction as the balance (docs/movements.md).
+/// </summary>
 public interface IPlayerWalletGrain : IGrainWithIntegerKey
 {
     public Task<WalletDebitResult> TryDebitAsync(
         List<WalletDebitRequest> requests,
+        MovementCause cause,
         CancellationToken ct
     );
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct);
 
     /// <summary>Adds to a balance and tells the player. False when the currency does not exist.</summary>
-    public Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct);
+    public Task<bool> CreditAsync(
+        CurrencyKind kind,
+        int amount,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Credits at most once per <paramref name="reference"/> for this player, so a caller that
@@ -27,17 +39,24 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
         CurrencyKind kind,
         int amount,
         string reference,
+        MovementCause cause,
         CancellationToken ct
     );
 
     /// <summary>Credits a command reward and persists its notification with the balance.</summary>
-    public Task<bool> CreditRewardAsync(CurrencyKind kind, int amount, CancellationToken ct);
+    public Task<bool> CreditRewardAsync(
+        CurrencyKind kind,
+        int amount,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>Commits an immutable award receipt with the balance; replay cannot credit twice.</summary>
     public Task<bool> CreditAchievementAsync(
         string awardKey,
         CurrencyKind kind,
         int amount,
+        MovementCause cause,
         CancellationToken ct
     );
 

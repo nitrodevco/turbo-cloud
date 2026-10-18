@@ -72,6 +72,8 @@ public static class GrainHarness
                     grain,
                     fakes.Create<Turbo.Database.Achievements.IAchievementFactRecorder>()
                 );
+            else if (t == typeof(Turbo.Database.Movements.IAssetMovementRecorder))
+                f.SetValue(grain, fakes.Create<Turbo.Database.Movements.IAssetMovementRecorder>());
             else if (t == typeof(TimeProvider))
                 f.SetValue(grain, TimeProvider.System);
             else if (t == typeof(EventSystem))
