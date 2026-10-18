@@ -129,6 +129,7 @@ public sealed class AdminConfig
     /// external variables that names no host is under, as the client reads it.
     /// </summary>
     [LiveSetting]
+    [UrlSetting]
     public string ClientLoginUrl { get; init; } = "";
 
     /// <summary>
@@ -138,6 +139,7 @@ public sealed class AdminConfig
     /// <c>preview.allowed_origins</c> external variable names: the panel's.
     /// </summary>
     [LiveSetting]
+    [UrlSetting]
     public string ClientPreviewUrl { get; init; } = "";
 
     /// <summary>
@@ -146,6 +148,7 @@ public sealed class AdminConfig
     /// <c>https://imager.example.com</c>. It must send CORS headers for previews drawn on a
     /// canvas. Empty, previews show no avatars.
     /// </summary>
+    [UrlSetting]
     public string ImagerUrl { get; init; } = "";
 
     /// <summary>The hits the panel's search lists of each kind; the rest are on that kind's page.</summary>

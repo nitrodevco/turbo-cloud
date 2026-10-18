@@ -44,6 +44,7 @@ environment variable overrides it, and **Put back** (or deleting its row) remove
 | `[SecretSetting]` | `Turbo:Crypto:PrivateKey`, `Turbo:Web:Discord:ClientSecret`, `Turbo:Database:ConnectionString` | Can be replaced, never shown. Its history records only that it changed. No external variable can follow it. |
 | `[StartupSetting]` | `Turbo:Database`, `Turbo:Orleans`, `Turbo:Admin:Enabled`, `Url`, `PanelUrl`, `PasskeyRpId` | Shown, not changed: the panel stands on it. A wrong value would lock staff out of the panel that could fix it. |
 | `[LiveSetting]` | `Turbo:Operations:CountdownReminderMinutes`, `DefaultShutdownMinutes`, `MaxCountdownMinutes`, `RestartExitCode`; `Turbo:Admin:ClientLoginUrl`, `ClientPreviewUrl` | Changed, **applies now**: every reader reads it through `IOptionsMonitor<T>.CurrentValue` as it uses it, so it never waits on a restart. |
+| `[UrlSetting]` | `Turbo:Admin:ClientLoginUrl`, `ClientPreviewUrl`, `ImagerUrl`, `Turbo:Web:SiteUrl`, `ClientUrl`, `Turbo:Gamedata:PublicUrl`, the asset and camera renderer addresses | Text that is a whole web address (`http://` or `https://` and a host) or empty; anything else is refused with a message. Placeholders (`{name}`, `%libname%`) may stand anywhere in it. Combines with the others. |
 | none of these | everything else | Changed, applies after a restart. |
 
 Mark a new option `[SecretSetting]` when its value must not be read, and `[StartupSetting]` (on the
@@ -56,7 +57,13 @@ with what the monitor reads now instead of with what the server started with.
 
 A value is JSON: `"text"` in quotes, `true`, `120`, `0.5`, an enum by name (`"Auto"`), a duration
 as `"00:05:00"`, a list `["a", "b"]`, a map `{ "chair": 5 }`. The panel's fields write it for you.
-It is checked against the setting's type before it is saved.
+It is checked against the setting's type before it is saved. One pair of quotes (`"` or `'`)
+typed around the whole of a text value is taken off, so `"https://example.com"` pasted from a
+`.env` file is saved as the address, not with its quotes.
+
+If the panel's overrides couldn't be read as the server started (the database unreachable, a value
+that isn't JSON), the server runs without them, logs why, and the Settings page says so above the
+list (`startupError` in `GET /api/settings`) until it restarts and reads them.
 
 **Lists and maps are taken whole.** A list set in the panel replaces the list in
 `appsettings.json`; it is not merged item by item. The binder fills a list on top of the items its

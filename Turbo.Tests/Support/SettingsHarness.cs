@@ -167,6 +167,7 @@ public sealed class TestHotelConfig
 /// <summary>A nested section of <see cref="TestHotelConfig"/>.</summary>
 public sealed class TestHotelLinks
 {
+    [UrlSetting]
     public string Site { get; init; } = "https://hotel.example";
 }
 

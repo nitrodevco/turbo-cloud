@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -420,6 +421,74 @@ public sealed class ServerSettingsTests : IDisposable
         reads.Should().Be(2);
         settings.StartupLoadError.Should().Contain("no database");
         Harness().Settings.StartupLoadError.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("\"\\\"Habbo\\\"\"", "\"Habbo\"")]
+    [InlineData("\"'Habbo'\"", "\"Habbo\"")]
+    [InlineData("\"\\\"\\\"\"", "\"\"")]
+    [InlineData("\"Habbo's\"", "\"Habbo's\"")]
+    [InlineData("\"\\\"Habbo'\"", "\"\\\"Habbo'\"")]
+    [InlineData("\"say \\\"hi\\\"\"", "\"say \\\"hi\\\"\"")]
+    public async Task quotes_typed_around_a_text_setting_are_taken_off_as_it_is_saved(
+        string typed,
+        string saved
+    )
+    {
+        var harness = Harness();
+
+        (await harness.Settings.SaveAsync("Test:Hotel:Name", typed, STAFF, Ct))
+            .Value.Should()
+            .Be(saved);
+        Restart(harness)
+            .Running<TestHotelConfig>()
+            .Name.Should()
+            .Be(JsonSerializer.Deserialize<string>(saved));
+    }
+
+    [Theory]
+    [InlineData("\"https://other.example/\"", "https://other.example/")]
+    [InlineData("\"\\\"https://other.example/\\\"\"", "https://other.example/")]
+    [InlineData("\"http://localhost:3000/client/\"", "http://localhost:3000/client/")]
+    [InlineData(
+        "\"https://images.{domain}/c_images/{name}.png?v=%revision%\"",
+        "https://images.{domain}/c_images/{name}.png?v=%revision%"
+    )]
+    [InlineData("\"\"", "")]
+    public async Task a_web_address_setting_takes_a_whole_address_or_nothing(
+        string typed,
+        string saved
+    )
+    {
+        var harness = Harness();
+
+        harness.Settings.Get("Test:Hotel:Links:Site")!.Url.Should().BeTrue();
+        harness.Settings.Get("Test:Hotel:Name")!.Url.Should().BeFalse();
+
+        await harness.Settings.SaveAsync("Test:Hotel:Links:Site", typed, STAFF, Ct);
+
+        Restart(harness).Running<TestHotelConfig>().Links.Site.Should().Be(saved);
+    }
+
+    [Theory]
+    [InlineData("\"other.example\"")]
+    [InlineData("\"/client/\"")]
+    [InlineData("\"https:/other.example\"")]
+    [InlineData("\"ftp://other.example/\"")]
+    [InlineData("\"https://other example/\"")]
+    [InlineData("\"https://other.example/ \"")]
+    [InlineData("\"\\\"https://other.example/\"")]
+    public async Task a_web_address_setting_refuses_anything_else_and_says_why(string typed)
+    {
+        var settings = Harness().Settings;
+
+        var save = () => settings.SaveAsync("Test:Hotel:Links:Site", typed, STAFF, Ct);
+
+        (await save.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("isn't a web address");
+        settings.Get("Test:Hotel:Links:Site")!.Value.Should().Be("\"https://hotel.example\"");
+        (await settings.HistoryAsync(0, Ct)).Total.Should().Be(0);
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Achievements.Configuration;
 
 public sealed class AchievementConfig
@@ -31,6 +33,7 @@ public sealed class AchievementConfig
     /// <c>https://images.example.com/badges/%badgename%.gif</c>). When set, catalog imports check
     /// badge images here instead of in <see cref="BadgeAssetDirectory"/>.
     /// </summary>
+    [UrlSetting]
     public string BadgeAssetUrl { get; set; } = "";
     public int MaxDefinitions { get; set; } = 1000;
     public int MaxDistinctValues { get; set; } = 100000;

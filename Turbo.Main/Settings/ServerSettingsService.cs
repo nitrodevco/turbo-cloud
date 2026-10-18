@@ -103,6 +103,16 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     {
         var (setting, snapshot) = Writable(path);
         var json = SettingJson.Normalize(value, setting.Type);
+
+        if (setting.Kind == "string")
+        {
+            // Quotes typed around text (pasted from a .env file) would be kept as part of it.
+            json = SettingJson.Unquoted(json);
+
+            if (setting.Url)
+                SettingJson.CheckUrl(json);
+        }
+
         // What is kept: for a list or map, only what its defaults don't already say.
         var stored = SettingJson.BeyondDefaults(json, snapshot.Default, setting.Kind);
 
@@ -463,6 +473,7 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                         SourceName = name,
                         PendingRestart = restarted != now,
                         Plugin = section.Plugin,
+                        Url = setting.Url,
                     }
                 );
             }

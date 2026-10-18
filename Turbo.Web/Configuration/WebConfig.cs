@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Web.Configuration;
 
 /// <summary>
@@ -18,6 +20,7 @@ public sealed class WebConfig
     /// The public site's address. Discord sends people back to its <c>/api/auth/discord/callback</c>,
     /// and sign-ins end on its pages. Cookies are marked secure when it is https.
     /// </summary>
+    [UrlSetting]
     public string SiteUrl { get; init; } = "http://localhost:5175";
 
     /// <summary>The hotel's name, shown on the site.</summary>
@@ -28,6 +31,7 @@ public sealed class WebConfig
     /// <c>https://play.example.com/?sso={ticket}</c>. The site loads it in a frame, so the
     /// client's host must allow being framed by the site.
     /// </summary>
+    [UrlSetting]
     public string ClientUrl { get; init; } = "";
 
     /// <summary>

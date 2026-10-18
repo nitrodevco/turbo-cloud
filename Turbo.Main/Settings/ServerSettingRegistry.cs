@@ -136,7 +136,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                 property.IsDefined(typeof(SecretSettingAttribute)),
                 isStartup,
                 isLive,
-                summary(property)
+                summary(property),
+                kind == "string" && property.IsDefined(typeof(UrlSettingAttribute))
             );
         }
     }
@@ -201,7 +202,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
         bool Secret,
         bool Startup,
         bool Live,
-        string Summary
+        string Summary,
+        bool Url = false
     )
     {
         /// <summary>The setting's value in an instance of its section's class; null along a null class.</summary>
