@@ -104,4 +104,10 @@ public static class MovementCauses
     public const string STAFF_GIVE_ITEM = "staff.give_item";
     public const string STAFF_GIFT = "staff.gift";
     public const string STAFF_DELETE_BOT = "staff.delete_bot";
+
+    /// <summary>
+    /// A movement undone through <see cref="IAssetReversalService"/>: its cause ref is the
+    /// operation it undoes, its actor whom the reversal was asked for.
+    /// </summary>
+    public const string REVERSAL = "reversal";
 }

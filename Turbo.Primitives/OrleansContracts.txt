@@ -297,6 +297,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerWalletGrai
   19EE0FB8: GetActivityPointsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.Dictionary<int, int>>
   E63487B5: GetAmountForCurrencyAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, System.Threading.CancellationToken) -> Task<int>
   CD725880: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
+  1B11A6AE: TryDebitAsync(System.Collections.Generic.List<Turbo.Primitives.Players.Wallet.WalletDebitRequest>, string, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletDebitResult>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain")] Turbo.Primitives.Players.Grains.Messenger.IPlayerMessengerGrain [Version(0)]
   2B299D06: AcceptFriendRequestsAsync(System.Collections.Generic.List<int>, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerAcceptFriendFailure>>

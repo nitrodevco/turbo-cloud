@@ -269,6 +269,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PermissionAuditEntity> PermissionAudit { get; init; }
 
     public DbSet<AssetMovementOutboxEntity> AssetMovementOutbox { get; init; }
+    public DbSet<AssetReversalReceiptEntity> AssetReversalReceipts { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

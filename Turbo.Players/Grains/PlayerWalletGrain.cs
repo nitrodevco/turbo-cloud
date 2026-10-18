@@ -86,8 +86,33 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
     /// cause takes nothing and succeeds. Memory moves only after the commit. While recording, the
     /// movements of every currency taken commit in that same transaction.
     /// </summary>
-    public async Task<WalletDebitResult> TryDebitAsync(
+    public Task<WalletDebitResult> TryDebitAsync(
         List<WalletDebitRequest> requests,
+        MovementCause cause,
+        CancellationToken ct
+    ) => DebitOnceAsync(requests, DebitReceipt(OperationReceipt(cause)), cause, ct);
+
+    /// <summary>
+    /// <see cref="TryDebitAsync(List{WalletDebitRequest}, MovementCause, CancellationToken)"/>
+    /// once per <paramref name="reference"/> for this player: asked again under the same
+    /// reference, it takes nothing and succeeds, saying so. A credit under the same reference is
+    /// not a repeat of it.
+    /// </summary>
+    public Task<WalletDebitResult> TryDebitAsync(
+        List<WalletDebitRequest> requests,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        ThrowIfNotAReference(reference);
+
+        return DebitOnceAsync(requests, DebitReceipt(reference), cause, ct);
+    }
+
+    private async Task<WalletDebitResult> DebitOnceAsync(
+        List<WalletDebitRequest> requests,
+        string reference,
         MovementCause cause,
         CancellationToken ct
     )
@@ -105,7 +130,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         try
         {
             result = await ApplyOnceAsync(
-                OperationReceipt(cause),
+                reference,
                 async dbCtx =>
                 {
                     foreach (var request in normalizedRequests)
@@ -188,7 +213,7 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         switch (result)
         {
             case WalletCreditResult.AlreadyApplied:
-                return WalletDebitResult.Success();
+                return WalletDebitResult.Repeated();
             case WalletCreditResult.Rejected:
                 return InsufficientBalance(current!);
         }
