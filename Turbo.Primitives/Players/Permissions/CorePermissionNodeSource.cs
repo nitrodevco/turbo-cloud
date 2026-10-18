@@ -344,6 +344,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Import Habbo's Builders Club catalogue from a capture in the admin panel."
         ),
         new(
+            PermissionNodes.Admin.REWARD_TRACKS_MANAGE,
+            "Manage the reward tracks in the admin panel: tracks, tasks, prizes, premium and dates, and import Habbo's from a capture."
+        ),
+        new(
             PermissionNodes.Admin.GAMEDATA_VIEW,
             "See the hotel's gamedata in the admin panel: Habbo's releases, pending updates, the client's files and their history."
         ),

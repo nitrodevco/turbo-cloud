@@ -21,6 +21,7 @@ using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Quests.Grains;
+using Turbo.Primitives.Quests.RewardTracks;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -616,6 +617,35 @@ public sealed class RewardTrackTests : IDisposable
     }
 
     [Fact]
+    public async Task A_track_out_of_its_dates_is_not_sent_counts_nothing_and_gives_nothing()
+    {
+        _config.Tracks[0].EndsAt = DateTime.UtcNow.AddMinutes(-1);
+        var grain = await GrainAsync();
+
+        await grain.SendTracksAsync(Ct);
+        await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
+        await grain.ClaimPrizeAsync(TRACK, "duckets", Ct);
+
+        Single<RewardTracksMessageComposer>().Tracks.Should().BeEmpty();
+        Sent<RewardTrackProgressMessageComposer>().Should().BeEmpty();
+        Single<RewardTrackClaimResultMessageComposer>()
+            .Result.Should()
+            .Be(RewardTrackClaimResult.TrackNotFound);
+    }
+
+    [Fact]
+    public async Task Staff_changing_the_tracks_sends_them_again_marked_reload()
+    {
+        var grain = await GrainAsync();
+
+        await grain.ReloadTracksAsync(Ct);
+
+        var sent = Single<RewardTracksMessageComposer>();
+        sent.Reload.Should().BeTrue();
+        sent.Tracks.Should().ContainSingle().Which.Id.Should().Be(TRACK);
+    }
+
+    [Fact]
     public async Task Disabled_tracks_are_sent_as_disabled_and_refuse_claims_with_code_1()
     {
         _config.Enabled = false;
@@ -637,6 +667,7 @@ public sealed class RewardTrackTests : IDisposable
     {
         var listener = new RewardTrackFactListener(
             Options.Create(_config),
+            Store(),
             _fakes.Create<Orleans.IGrainFactory>(),
             NullLogger<RewardTrackFactListener>.Instance
         );
@@ -660,6 +691,7 @@ public sealed class RewardTrackTests : IDisposable
     {
         var listener = new RewardTrackRoomListener(
             Options.Create(_config),
+            Store(),
             _fakes.Create<Orleans.IGrainFactory>(),
             NullLogger<RewardTrackRoomListener>.Instance
         );
@@ -750,11 +782,14 @@ public sealed class RewardTrackTests : IDisposable
             _db
         );
         RoomHarness.SetField(grain, "_config", _config);
+        RoomHarness.SetField(grain, "_tracks", Store());
         RoomHarness.SetField(grain, "_petBreeds", _fakes.Create<IPetBreedProvider>());
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerRewardTrackGrain)grain;
     }
+
+    private ListRewardTrackStore Store() => new(() => _config.Tracks);
 
     private static AchievementFact Fact(string source, string value) =>
         new()

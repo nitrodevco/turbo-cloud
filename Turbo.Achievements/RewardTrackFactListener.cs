@@ -9,13 +9,14 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
+using Turbo.Primitives.Quests.RewardTracks;
 
 namespace Turbo.Achievements;
 
 /// <summary>
 /// Counts reward track tasks from the achievement facts the hotel already records: each fact
 /// source below is the action a task of that type counts. A visit counts once per room, as the
-/// explore achievement does. Only facts some configured task counts reach the player's grain.
+/// explore achievement does. Only facts some task of an enabled track counts reach the player's grain.
 /// </summary>
 public sealed class RewardTrackFactListener : IAchievementFactListener
 {
@@ -33,30 +34,29 @@ public sealed class RewardTrackFactListener : IAchievementFactListener
     };
 
     private readonly IGrainFactory _grainFactory;
-    private readonly HashSet<string> _counted;
+    private readonly bool _enabled;
+    private readonly IRewardTrackStore _tracks;
     private readonly ILogger<RewardTrackFactListener> _logger;
 
     public RewardTrackFactListener(
         IOptions<RewardTrackConfig> config,
+        IRewardTrackStore tracks,
         IGrainFactory grainFactory,
         ILogger<RewardTrackFactListener> logger
     )
     {
         _grainFactory = grainFactory;
         _logger = logger;
-        _counted = config.Value.Enabled
-            ? config
-                .Value.Tracks.SelectMany(x => x.Tasks)
-                .Select(x => x.ActionType.ToLowerInvariant())
-                .ToHashSet()
-            : [];
+        _enabled = config.Value.Enabled;
+        _tracks = tracks;
     }
 
     public void OnFactRecorded(PlayerId playerId, AchievementFact fact)
     {
         if (
             !ACTIONS.TryGetValue(fact.Source, out var action)
-            || !_counted.Contains(action.ActionType)
+            || !_enabled
+            || !_tracks.Counts(action.ActionType)
         )
             return;
 

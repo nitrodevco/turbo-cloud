@@ -7,6 +7,7 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -108,6 +109,39 @@ public sealed class MonsterplantHarvestTests
             .BeLessThan(calls.FindIndex(x => x.Method == nameof(IInventoryGrain.CreatePetAsync)));
         // The fake inventory created no plant: the seed goes back to its owner.
         calls.Should().Contain(x => x.Method == nameof(IInventoryGrain.GrantFurnitureAsync));
+    }
+
+    [Fact]
+    public async Task Planting_a_seed_and_treating_the_plant_count_for_the_reward_tracks()
+    {
+        // Habboween 2026: "Plant a monsterplant seed" (plant_mnstr, PLANT_MONSTER_PLANT) and
+        // "Treat a monsterplant" (treat_mnstr, TREAT_MONSTER_PLANT). The plant's owner is not
+        // the room's, but a plant is no pet taken visiting.
+        RoomHarness.SetMember(Member("RoomSnapshot"), "OwnerId", (PlayerId)77);
+        _room.Harness.Fakes.Handlers[nameof(IInventoryGrain.CreatePetAsync)] = _ =>
+            Task.FromResult<PetSnapshot?>(Plant());
+        _room.Harness.Fakes.Handlers["ApplyPetRespectOperationAsync"] = _ =>
+            Task.FromResult(new PetRespectOperationResult { Accepted = true, Respect = 1 });
+        var seed = _room.AddFloorItem(
+            60,
+            3,
+            3,
+            "monsterplant_seed",
+            createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+        );
+        var owner = ActionContext.CreateForPlayer(OWNER, 1);
+
+        await seed.Logic.OnUseAsync(owner, 0, Ct);
+        (await Pets.RespectPetAsync(owner, PLANT, Ct)).Should().BeTrue();
+
+        _room
+            .Harness.Fakes.Log.Of("RecordActionAsync")
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(
+                RewardTrackActionTypes.PLANT_MONSTER_PLANT,
+                RewardTrackActionTypes.TREAT_MONSTER_PLANT
+            );
     }
 
     private static FurnitureDefinitionSnapshot Seed() =>

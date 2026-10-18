@@ -9,6 +9,7 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -67,6 +68,24 @@ public sealed class MonsterplantBreedOnceTests
         _room
             .Fakes.Log.Calls.Should()
             .NotContain(x => x.Method == nameof(IInventoryGrain.GrantFurnitureAsync));
+    }
+
+    [Fact]
+    public async Task A_breeding_counts_once_for_the_reward_tracks_and_a_refused_one_not()
+    {
+        // Habboween 2026 "Breed a monsterplant" (breed_mnstr, BREED_MONSTER_PLANT): both plants
+        // are this owner's, so it counts once.
+        AddPlant(PLANT, 1);
+        AddPlant(OTHER_PLANT, 3);
+
+        (await BreedAsync()).Should().BeTrue();
+        (await BreedAsync()).Should().BeFalse();
+
+        _room
+            .Fakes.Log.Of("RecordActionAsync")
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(RewardTrackActionTypes.BREED_MONSTER_PLANT);
     }
 
     [Fact]

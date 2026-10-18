@@ -11,6 +11,12 @@ public interface IPlayerRewardTrackGrain : IGrainWithIntegerKey
     Task SendTracksAsync(CancellationToken ct);
 
     /// <summary>
+    /// Sends the tracks again with <c>reload</c> set, after staff changed them: the client
+    /// rebuilds its track window and says the track was updated if it is open.
+    /// </summary>
+    Task ReloadTracksAsync(CancellationToken ct);
+
+    /// <summary>
     /// Counts an action towards every task of that action type. A non-empty
     /// <paramref name="distinctValue"/> counts once per value (a room id for a visit).
     /// </summary>

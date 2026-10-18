@@ -24,6 +24,7 @@ using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Quests.Grains;
+using Turbo.Primitives.Quests.RewardTracks;
 using Turbo.Primitives.Quests.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -31,8 +32,8 @@ namespace Turbo.Achievements.Grains;
 
 /// <summary>
 /// A player's reward track progress, write-through: each step, claim and purchase is saved
-/// before it is sent. The tracks are configuration (<see cref="RewardTrackConfig"/>); the grain
-/// keeps one row per track the player has progress on. How the client reads it is the AS3
+/// before it is sent. The tracks are the hotel's (<see cref="IRewardTrackStore"/>, the live ones at
+/// each step); the grain keeps one row per track the player has progress on. How the client reads it is the AS3
 /// RewardTrack data classes: a task's count crossing a level's count gives that level's points
 /// (a premium level only to a premium owner, every level's points times the premium boost for
 /// one), and a prize can be claimed when it is not premium-locked and the points reach it.
@@ -44,6 +45,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
 
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RewardTrackConfig _config;
+    private readonly IRewardTrackStore _tracks;
     private readonly IGrainFactory _grainFactory;
     private readonly IFurnitureDefinitionProvider _definitions;
     private readonly IPetBreedProvider _petBreeds;
@@ -54,6 +56,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
     public PlayerRewardTrackGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RewardTrackConfig> config,
+        IRewardTrackStore tracks,
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider definitions,
         IPetBreedProvider petBreeds,
@@ -62,6 +65,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
     {
         _dbCtxFactory = dbCtxFactory;
         _config = config.Value;
+        _tracks = tracks;
         _grainFactory = grainFactory;
         _definitions = definitions;
         _petBreeds = petBreeds;
@@ -100,17 +104,26 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         }
     }
 
-    public Task SendTracksAsync(CancellationToken ct) =>
+    public Task SendTracksAsync(CancellationToken ct) => SendTracksAsync(reload: false, ct);
+
+    // RewardTrackController.onRewardTracks: a reload rebuilds the window's views and, when it is
+    // open, says so ("reward_track.reload.*").
+    public Task ReloadTracksAsync(CancellationToken ct) => SendTracksAsync(reload: true, ct);
+
+    private Task SendTracksAsync(bool reload, CancellationToken ct) =>
         _grainFactory.SendComposerToPlayerAsync(
             _state.PlayerId,
             new RewardTracksMessageComposer
             {
                 Disabled = !_config.Enabled,
-                Tracks = _config.Enabled ? [.. _config.Tracks.Select(Snapshot)] : [],
-                Reload = false,
+                Tracks = _config.Enabled ? [.. Live().Select(Snapshot)] : [],
+                Reload = reload,
             },
             ct
         );
+
+    /// <summary>The tracks players get now; one that ended no longer counts or gives.</summary>
+    private ImmutableArray<RewardTrackDefinition> Live() => _tracks.LiveAt(DateTime.UtcNow);
 
     public async Task RecordActionAsync(
         string actionType,
@@ -124,7 +137,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         var updates = new List<IComposer>();
         var changed = new HashSet<string>();
 
-        foreach (var track in _config.Tracks)
+        foreach (var track in Live())
         {
             foreach (var task in track.Tasks)
             {
@@ -176,7 +189,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
     {
         if (
             !_config.Enabled
-            || _config.Tracks.Find(x => x.Id == trackId) is not { } track
+            || Live().FirstOrDefault(x => x.Id == trackId) is not { } track
             || track.Tasks.Find(x => x.Id == taskId) is not { } task
             || (task.Premium && !IsPremium(trackId))
         )
@@ -203,7 +216,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
     {
         if (
             !_config.Enabled
-            || !_config.Tracks.Exists(x => x.Id == trackId)
+            || !Live().Any(x => x.Id == trackId)
             || !_state.Rows.TryGetValue(trackId, out var row)
         )
             return false;
@@ -212,18 +225,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         _state.Progress[trackId] = new();
 
         await SaveAsync([trackId], ct);
-        // RewardTrackController.onRewardTracks: a reload rebuilds the window's views and, when
-        // it is open, says so ("reward_track.reload.*").
-        await _grainFactory.SendComposerToPlayerAsync(
-            _state.PlayerId,
-            new RewardTracksMessageComposer
-            {
-                Disabled = false,
-                Tracks = [.. _config.Tracks.Select(Snapshot)],
-                Reload = true,
-            },
-            ct
-        );
+        await ReloadTracksAsync(ct);
 
         return true;
     }
@@ -317,7 +319,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         if (!_config.Enabled)
             return RewardTrackClaimResult.Disabled;
 
-        var track = _config.Tracks.Find(x => x.Id == trackId);
+        var track = Live().FirstOrDefault(x => x.Id == trackId);
 
         if (track is null)
             return RewardTrackClaimResult.TrackNotFound;
@@ -357,7 +359,7 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
         if (!_config.Enabled)
             return RewardTrackPremiumResult.Disabled;
 
-        var track = _config.Tracks.Find(x => x.Id == trackId);
+        var track = Live().FirstOrDefault(x => x.Id == trackId);
 
         if (track is null)
             return RewardTrackPremiumResult.TrackNotFound;

@@ -1,4 +1,4 @@
-namespace Turbo.Achievements.Configuration;
+namespace Turbo.Primitives.Quests.RewardTracks;
 
 public sealed class RewardTrackTaskLevelDefinition
 {

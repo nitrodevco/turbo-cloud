@@ -7,6 +7,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 
@@ -80,7 +81,16 @@ public sealed partial class RoomPetModule
             return false;
         }
 
-        return await PlacePetAsync(ctx, plant.Id, x, y, ct);
+        if (!await PlacePetAsync(ctx, plant.Id, x, y, ct))
+            return false;
+
+        _roomGrain._grainFactory.CountRewardTrackAction(
+            ctx.PlayerId,
+            RewardTrackActionTypes.PLANT_MONSTER_PLANT,
+            _roomGrain._logger
+        );
+
+        return true;
     }
 
     /// <summary>Replaces the custom part on one layer of the pet's figure (a new mane, a dye).</summary>

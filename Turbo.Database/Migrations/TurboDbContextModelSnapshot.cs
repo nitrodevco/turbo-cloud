@@ -6841,6 +6841,262 @@ namespace Turbo.Database.Migrations
                     b.ToTable("quests");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("enabled");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ends_at");
+
+                    b.Property<bool>("HasPremium")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_premium");
+
+                    b.Property<int>("PremiumCostCredits")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("premium_cost_credits");
+
+                    b.Property<int>("PremiumCostDiamonds")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("premium_cost_diamonds");
+
+                    b.Property<int>("PremiumInstantPoints")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("premium_instant_points");
+
+                    b.Property<double>("PremiumTaskPointsBoost")
+                        .HasColumnType("double")
+                        .HasDefaultValue(1.0)
+                        .HasColumnName("premium_task_points_boost");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("theme");
+
+                    b.Property<string>("TrackId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("track_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrackId")
+                        .IsUnique();
+
+                    b.ToTable("reward_tracks");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackPrizeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("ExtraParams")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("extra_params");
+
+                    b.Property<int?>("FurnitureDefinitionId")
+                        .HasColumnType("int")
+                        .HasColumnName("furniture_definition_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("Premium")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("premium");
+
+                    b.Property<string>("PrizeId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("prize_id");
+
+                    b.Property<short>("ProductType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("product_type");
+
+                    b.Property<int>("RequiredPoints")
+                        .HasColumnType("int")
+                        .HasColumnName("required_points");
+
+                    b.Property<int>("RewardTrackEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("reward_track_id");
+
+                    b.Property<string>("RewardTypeId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("reward_type_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RewardTrackEntityId", "PrizeId")
+                        .IsUnique();
+
+                    b.ToTable("reward_track_prizes");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackTaskEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("action_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Parameter")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("parameter");
+
+                    b.Property<bool>("Premium")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("premium");
+
+                    b.Property<int>("RewardTrackEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("reward_track_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("task_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RewardTrackEntityId", "TaskId")
+                        .IsUnique();
+
+                    b.ToTable("reward_track_tasks");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackTaskLevelEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("points");
+
+                    b.Property<bool>("Premium")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("premium");
+
+                    b.Property<int>("RequiredCount")
+                        .HasColumnType("int")
+                        .HasColumnName("required_count");
+
+                    b.Property<int>("RewardTrackTaskEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("reward_track_task_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RewardTrackTaskEntityId", "RequiredCount")
+                        .IsUnique();
+
+                    b.ToTable("reward_track_task_levels");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Room.CommandLogEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -9049,6 +9305,39 @@ namespace Turbo.Database.Migrations
                     b.Navigation("Campaign");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackPrizeEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Quests.RewardTrackEntity", "RewardTrackEntity")
+                        .WithMany("Prizes")
+                        .HasForeignKey("RewardTrackEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RewardTrackEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackTaskEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Quests.RewardTrackEntity", "RewardTrackEntity")
+                        .WithMany("Tasks")
+                        .HasForeignKey("RewardTrackEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RewardTrackEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackTaskLevelEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Quests.RewardTrackTaskEntity", "RewardTrackTaskEntity")
+                        .WithMany("Levels")
+                        .HasForeignKey("RewardTrackTaskEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RewardTrackTaskEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomBanEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -9394,6 +9683,18 @@ namespace Turbo.Database.Migrations
                     b.Navigation("Rooms");
 
                     b.Navigation("SecurityTickets");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackEntity", b =>
+                {
+                    b.Navigation("Prizes");
+
+                    b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.RewardTrackTaskEntity", b =>
+                {
+                    b.Navigation("Levels");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomEntity", b =>
