@@ -2426,6 +2426,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(FurniListRemoveMultipleEventMessageComposer),
+                new FurniListRemoveMultipleEventMessageComposerSerializer(
+                    MessageComposer.FurniListRemoveMultipleMessageComposer
+                )
+            },
+            {
                 typeof(PostItPlacedEventMessageComposer),
                 new PostItPlacedEventMessageComposerSerializer(
                     MessageComposer.PostItPlacedMessageComposer
