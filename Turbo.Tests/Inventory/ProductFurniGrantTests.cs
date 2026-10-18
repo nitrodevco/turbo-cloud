@@ -96,7 +96,13 @@ public sealed class ProductFurniGrantTests : IDisposable
     )
     {
         await NewInventory()
-            .GrantCatalogOfferAsync(Offer(definitionId, productParam), "999", 2, Ct);
+            .GrantCatalogOfferAsync(
+                Offer(definitionId, productParam),
+                "999",
+                2,
+                TestCustody.Cause(),
+                Ct
+            );
 
         var listed = await NewInventory().GetAllItemSnapshotsAsync(Ct);
 
@@ -114,7 +120,7 @@ public sealed class ProductFurniGrantTests : IDisposable
     public async Task TheGrant_ReturnsTheFurniItCreated_ForThePurchaseConfirmation()
     {
         var granted = await NewInventory()
-            .GrantCatalogOfferAsync(Offer(7, null), string.Empty, 2, Ct);
+            .GrantCatalogOfferAsync(Offer(7, null), string.Empty, 2, TestCustody.Cause(), Ct);
 
         var listed = await NewInventory().GetAllItemSnapshotsAsync(Ct);
 
@@ -125,7 +131,8 @@ public sealed class ProductFurniGrantTests : IDisposable
     [Fact]
     public async Task ASongDisc_NamesItsSong()
     {
-        await NewInventory().GrantCatalogOfferAsync(Offer(5, "5"), string.Empty, 1, Ct);
+        await NewInventory()
+            .GrantCatalogOfferAsync(Offer(5, "5"), string.Empty, 1, TestCustody.Cause(), Ct);
 
         var disc = (await NewInventory().GetAllItemSnapshotsAsync(Ct)).Single();
 
@@ -136,7 +143,8 @@ public sealed class ProductFurniGrantTests : IDisposable
     [Fact]
     public async Task OtherFurni_IsNotGivenTheClientsParameter()
     {
-        await NewInventory().GrantCatalogOfferAsync(Offer(7, "x"), "999", 1, Ct);
+        await NewInventory()
+            .GrantCatalogOfferAsync(Offer(7, "x"), "999", 1, TestCustody.Cause(), Ct);
 
         (await NewInventory().GetAllItemSnapshotsAsync(Ct))
             .Single()
@@ -151,7 +159,7 @@ public sealed class ProductFurniGrantTests : IDisposable
     {
         var inventory = NewInventory();
 
-        await inventory.GrantCatalogOfferAsync(Offer(6, null), " ADM ", 1, Ct);
+        await inventory.GrantCatalogOfferAsync(Offer(6, null), " ADM ", 1, TestCustody.Cause(), Ct);
 
         string[] expected = ["0", "ADM", "buyer", ClientDates.Format(DateTime.UtcNow)];
 
@@ -172,12 +180,13 @@ public sealed class ProductFurniGrantTests : IDisposable
     [Fact]
     public async Task UsingUpAnItem_DeletesItsRow_AndTakesItOffTheList()
     {
-        await NewInventory().GrantCatalogOfferAsync(Offer(1, "101"), string.Empty, 1, Ct);
+        await NewInventory()
+            .GrantCatalogOfferAsync(Offer(1, "101"), string.Empty, 1, TestCustody.Cause(), Ct);
 
         var inventory = NewInventory();
         var paper = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single();
 
-        var consumed = await inventory.ConsumeFurnitureAsync(paper.ItemId, Ct);
+        var consumed = await inventory.ConsumeFurnitureAsync(paper.ItemId, TestCustody.Cause(), Ct);
 
         consumed.Should().NotBeNull();
         consumed!.StuffData.Should().Be(paper.StuffData);
@@ -187,7 +196,7 @@ public sealed class ProductFurniGrantTests : IDisposable
         await using var db = await _db.CreateDbContextAsync(Ct);
 
         (await db.Furnitures.CountAsync(Ct)).Should().Be(0);
-        (await inventory.ConsumeFurnitureAsync(paper.ItemId, Ct))
+        (await inventory.ConsumeFurnitureAsync(paper.ItemId, TestCustody.Cause(), Ct))
             .Should()
             .BeNull("it is not held any more");
     }
@@ -196,7 +205,7 @@ public sealed class ProductFurniGrantTests : IDisposable
     public async Task ARoomLinker_IsAPair_EachHalfNamingTheOther()
     {
         var granted = await NewInventory()
-            .GrantCatalogOfferAsync(Offer(8, null), string.Empty, 1, Ct);
+            .GrantCatalogOfferAsync(Offer(8, null), string.Empty, 1, TestCustody.Cause(), Ct);
 
         foreach (var items in new[] { granted, await NewInventory().GetAllItemSnapshotsAsync(Ct) })
         {
@@ -311,7 +320,7 @@ public sealed class ProductFurniGrantTests : IDisposable
             [
                 grain,
                 RoomHarness.GetMember(grain, "_state")!,
-                _db,
+                TestCustody.Over(_db),
                 loader,
                 definitions,
                 _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),

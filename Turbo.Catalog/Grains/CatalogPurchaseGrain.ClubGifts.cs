@@ -8,6 +8,7 @@ using Turbo.Catalog.Exceptions;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
@@ -114,7 +115,13 @@ internal sealed partial class CatalogPurchaseGrain
 
         await _grainFactory
             .GetInventoryGrain(playerId)
-            .GrantCatalogOfferAsync(offer, string.Empty, 1, ct);
+            .GrantCatalogOfferAsync(
+                offer,
+                string.Empty,
+                1,
+                MovementCause.New(MovementCauses.CATALOG_CLUB_GIFT, playerId.Value, offer.Id),
+                ct
+            );
 
         _logger.LogInformation(
             "Player {PlayerId} claimed club gift {OfferId} ({ProductCode})",

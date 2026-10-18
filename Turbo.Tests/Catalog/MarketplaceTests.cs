@@ -1,13 +1,17 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Marketplace;
 using Turbo.Catalog.Vault;
+using Turbo.Database.Configuration;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Movements;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -20,6 +24,8 @@ using Turbo.Primitives.Messages.Incoming.Vault;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Messages.Outgoing.Marketplace;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -68,6 +74,10 @@ public sealed class MarketplaceTests : IDisposable
     };
     private int _nextItemId = 500;
 
+    /// <summary>The causes the inventories were handed: what was used up, and what was given.</summary>
+    private readonly List<MovementCause> _consumeCauses = [];
+    private readonly List<MovementCause> _grantCauses = [];
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public MarketplaceTests()
@@ -111,6 +121,8 @@ public sealed class MarketplaceTests : IDisposable
             var inventory = _inventories[(long)call.Key!];
             var id = ((RoomObjectId)call.Args[0]!).Value;
 
+            _consumeCauses.Add((MovementCause)call.Args[1]!);
+
             return Task.FromResult(inventory.Remove(id, out var item) ? Snapshot(id, item) : null);
         };
         fakes.Handlers["GrantFurnitureAsync"] = call =>
@@ -118,6 +130,7 @@ public sealed class MarketplaceTests : IDisposable
             var id = _nextItemId++;
             var item = ((int)call.Args[0]!, (string?)call.Args[1] ?? "");
 
+            _grantCauses.Add((MovementCause)call.Args[2]!);
             _inventories[(long)call.Key!][id] = item;
 
             return Task.FromResult<FurnitureItemSnapshot?>(Snapshot(id, item));
@@ -160,20 +173,101 @@ public sealed class MarketplaceTests : IDisposable
             );
         };
 
-        _marketplace = new MarketplaceService(
+        _marketplace = NewMarketplace(fakes.Create<IAssetMovementRecorder>());
+    }
+
+    public void Dispose() => _catalog.Dispose();
+
+    [Fact]
+    public async Task A_listing_and_the_sale_it_ends_in_name_the_same_offer()
+    {
+        var marketplace = NewMarketplace(await RecordingAsync());
+        var chair = Give(SELLER, CHAIR, "state:1");
+
+        await marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await marketplace.SearchOffersAsync(-1, -1, "", 1, true, Ct))
+            .Offers[0]
+            .OfferId;
+        await marketplace.BuyOfferAsync(BUYER, offerId, Ct);
+
+        var listing = _consumeCauses.Should().ContainSingle().Subject;
+        (listing.Cause, listing.ActorPlayerId, listing.FirstSeq)
+            .Should()
+            .Be((MovementCauses.MARKET_LIST, SELLER, (short)0));
+
+        // The item, gone from the inventory, becomes its offer in the same operation.
+        var listed = Movements().Should().ContainSingle().Subject;
+        (listed.OperationId, listed.Seq, listed.Cause, listed.CauseRef)
+            .Should()
+            .Be((listing.OperationId, (short)1, MovementCauses.MARKET_LIST, offerId.ToString()));
+        (listed.AssetId, listed.DefinitionId, listed.SnapshotExtraData)
+            .Should()
+            .Be((chair, CHAIR, "state:1"));
+        (listed.FromKind, listed.ToKind, listed.ToOwner, listed.ToPlace)
+            .Should()
+            .Be((PlaceKind.None, PlaceKind.MarketplaceOffer, SELLER, (long)offerId));
+
+        // The sale gives a new row under the buyer's purchase, after its price, naming the offer.
+        var sale = _grantCauses.Should().ContainSingle().Subject;
+        (sale.Cause, sale.CauseRef, sale.ActorPlayerId, sale.FirstSeq)
+            .Should()
+            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)1));
+    }
+
+    [Fact]
+    public async Task Taking_an_offer_back_names_the_offer()
+    {
+        var chair = Give(SELLER, CHAIR);
+        await _marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+
+        (await _marketplace.CancelOfferAsync(SELLER, offerId, Ct)).Should().BeTrue();
+
+        var takeBack = _grantCauses.Should().ContainSingle().Subject;
+        (takeBack.Cause, takeBack.CauseRef, takeBack.ActorPlayerId)
+            .Should()
+            .Be((MovementCauses.MARKET_CANCEL, offerId.ToString(), SELLER));
+    }
+
+    private MarketplaceService NewMarketplace(IAssetMovementRecorder movements) =>
+        new(
             _catalog.Db,
             Options.Create(
                 new CatalogConfig { Marketplace = new MarketplaceConfig { Enabled = true } }
             ),
-            fakes.Create<IGrainFactory>(),
-            definitions,
-            fakes.Create<IInventoryFurnitureLoader>(),
+            _catalog.Fakes.Create<IGrainFactory>(),
+            _catalog.Definitions,
+            _catalog.Fakes.Create<IInventoryFurnitureLoader>(),
             _time,
+            movements,
             NullLogger<MarketplaceService>.Instance
         );
+
+    private async Task<AssetMovementRecorder> RecordingAsync()
+    {
+        var recorder = new AssetMovementRecorder(
+            new TestOptionsMonitor<MovementsConfig>(new() { Enabled = true }),
+            _catalog.Db,
+            NullLogger<AssetMovementRecorder>.Instance
+        );
+        await recorder.StartAsync(Ct);
+
+        return recorder;
     }
 
-    public void Dispose() => _catalog.Dispose();
+    private List<AssetMovementOutboxEntity> Movements()
+    {
+        using var db = _catalog.Db.CreateDbContext();
+
+        return db
+            .AssetMovementOutbox.AsNoTracking()
+            .Where(x =>
+                x.Cause != MovementCauses.RECORDING_STARTED
+                && x.Cause != MovementCauses.RECORDING_STOPPED
+            )
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
 
     [Fact]
     public async Task Offered_items_leave_the_inventory_and_list_as_one_row_per_kind()

@@ -112,7 +112,12 @@ public class PurchasePhotoMessageHandler(
             if (
                 await grainFactory
                     .GetInventoryGrain(ctx.PlayerId)
-                    .GrantFurnitureAsync(definition.Id, extraData, ct)
+                    .GrantFurnitureAsync(
+                        definition.Id,
+                        extraData,
+                        cause.StartingAt(debits.Count),
+                        ct
+                    )
                     .ConfigureAwait(false)
                 is null
             )

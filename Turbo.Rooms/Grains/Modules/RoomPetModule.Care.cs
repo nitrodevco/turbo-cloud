@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -202,7 +203,12 @@ public sealed partial class RoomPetModule
 
         var seed = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-            .GrantFurnitureAsync(definition.Id, null, ct);
+            .GrantFurnitureAsync(
+                definition.Id,
+                null,
+                MovementCause.New(MovementCauses.PET_HARVEST, ctx.PlayerId.Value, petId),
+                ct
+            );
 
         if (seed is null)
         {

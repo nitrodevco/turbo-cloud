@@ -7,13 +7,18 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Inventory.Grains;
 
 internal sealed partial class InventoryGrain
 {
-    public async Task ReceivePresentAsync(PresentGrantRequest request, CancellationToken ct)
+    public async Task ReceivePresentAsync(
+        PresentGrantRequest request,
+        MovementCause cause,
+        CancellationToken ct
+    )
     {
         var content = FurniModule.GetDefinitionOrThrow(request.Product.FurniDefinitionId);
         var present = FurniModule.GetDefinitionOrThrow(request.PresentDefinitionId);
@@ -46,6 +51,7 @@ internal sealed partial class InventoryGrain
             ),
             content,
             contentExtraData,
+            cause,
             ct
         );
     }
@@ -57,6 +63,7 @@ internal sealed partial class InventoryGrain
     /// </summary>
     public Task<FurnitureItemSnapshot> ReceiveStaffPresentAsync(
         StaffPresentGrantRequest request,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -85,14 +92,16 @@ internal sealed partial class InventoryGrain
             ),
             content,
             null,
+            cause,
             ct
         );
     }
 
     public Task<FurnitureItemSnapshot?> UnwrapPresentAsync(
         RoomObjectId presentId,
+        MovementCause cause,
         CancellationToken ct
-    ) => FurniModule.UnwrapPresentAsync(presentId, ct);
+    ) => FurniModule.UnwrapPresentAsync(presentId, cause, ct);
 
     /// <summary>
     /// What the present carries: the tag the client's present logic reads from its map data,

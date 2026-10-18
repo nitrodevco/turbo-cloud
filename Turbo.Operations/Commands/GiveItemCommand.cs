@@ -8,6 +8,7 @@ using Orleans;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -79,7 +80,15 @@ public sealed class GiveItemCommand(
             async (player, token) =>
                 await grainFactory
                     .GetInventoryGrain(player.Id)
-                    .GrantFurnitureAsync(definition.Id, null, token)
+                    .GrantFurnitureAsync(
+                        definition.Id,
+                        null,
+                        MovementCause.New(
+                            MovementCauses.STAFF_GIVE_ITEM,
+                            ctx.Executor.PlayerId?.Value ?? 0
+                        ),
+                        token
+                    )
                     is not null,
             ct
         );

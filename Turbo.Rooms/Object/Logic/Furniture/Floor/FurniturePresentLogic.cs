@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -124,7 +125,15 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         // drop the item back to whoever it was first given to, behind this inventory's back.
         var wrapped = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-            .UnwrapPresentAsync(_ctx.ObjectId, ct);
+            .UnwrapPresentAsync(
+                _ctx.ObjectId,
+                MovementCause.New(
+                    MovementCauses.USE_PRESENT,
+                    ctx.PlayerId.Value,
+                    _ctx.ObjectId.Value
+                ),
+                ct
+            );
 
         if (wrapped is null)
         {

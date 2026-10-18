@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Orleans.Concurrency;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -34,6 +35,7 @@ public partial interface IInventoryGrain
     /// </summary>
     public Task<FurnitureItemSnapshot?> ConsumeFurnitureAsync(
         RoomObjectId itemId,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -46,12 +48,14 @@ public partial interface IInventoryGrain
 
     /// <summary>
     /// Gives the player a bought offer's products. Returns the furni it created, teleporter
-    /// pairs included; pets, bots and effects are not furni and are not listed.
+    /// pairs included; pets, bots and effects are not furni and are not listed. The furni are
+    /// numbered from <paramref name="cause"/>'s first seq: the plain ones first, then the pairs.
     /// </summary>
     public Task<ImmutableArray<FurnitureItemSnapshot>> GrantCatalogOfferAsync(
         CatalogOfferSnapshot offer,
         string extraParam,
         int quantity,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -61,11 +65,13 @@ public partial interface IInventoryGrain
     /// <param name="catalogProductId">The catalog product ID.</param>
     /// <param name="serialNumber">The unique serial number (e.g., 123).</param>
     /// <param name="seriesSize">The total series size (e.g., 500).</param>
+    /// <param name="cause">Why it is granted, for its movement.</param>
     /// <param name="ct">Cancellation token.</param>
     public Task GrantLtdFurnitureAsync(
         int catalogProductId,
         int serialNumber,
         int seriesSize,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -76,6 +82,7 @@ public partial interface IInventoryGrain
     public Task<FurnitureItemSnapshot?> GrantFurnitureAsync(
         int definitionId,
         string? extraDataJson,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -98,6 +105,7 @@ public partial interface IInventoryGrain
     public Task<bool> TransferFurnitureAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -117,7 +125,11 @@ public partial interface IInventoryGrain
     /// Wraps a bought gift and gives it to this player: the present is listed, and the item
     /// inside is held by it, out of the list, until it is opened.
     /// </summary>
-    public Task ReceivePresentAsync(PresentGrantRequest request, CancellationToken ct);
+    public Task ReceivePresentAsync(
+        PresentGrantRequest request,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Wraps a gift from the hotel and gives it to this player, as <see cref="ReceivePresentAsync"/>
@@ -125,6 +137,7 @@ public partial interface IInventoryGrain
     /// </summary>
     public Task<FurnitureItemSnapshot> ReceiveStaffPresentAsync(
         StaffPresentGrantRequest request,
+        MovementCause cause,
         CancellationToken ct
     );
 
@@ -134,6 +147,7 @@ public partial interface IInventoryGrain
     /// </summary>
     public Task<FurnitureItemSnapshot?> UnwrapPresentAsync(
         RoomObjectId presentId,
+        MovementCause cause,
         CancellationToken ct
     );
 

@@ -17,6 +17,7 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 
@@ -381,7 +382,16 @@ public sealed class BonusRareService(
                 definition is not null
                 && await grainFactory
                     .GetInventoryGrain(player)
-                    .GrantFurnitureAsync(definition.Id, null, ct)
+                    .GrantFurnitureAsync(
+                        definition.Id,
+                        null,
+                        MovementCause.New(
+                            MovementCauses.CATALOG_BONUS_RARE,
+                            player.Value,
+                            campaign.Id
+                        ),
+                        ct
+                    )
                     .ConfigureAwait(false)
                     is not null
             )

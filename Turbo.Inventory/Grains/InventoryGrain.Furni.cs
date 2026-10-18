@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -40,8 +41,9 @@ internal sealed partial class InventoryGrain
 
     public Task<FurnitureItemSnapshot?> ConsumeFurnitureAsync(
         RoomObjectId itemId,
+        MovementCause cause,
         CancellationToken ct
-    ) => FurniModule.ConsumeAsync(itemId, ct);
+    ) => FurniModule.ConsumeAsync(itemId, cause, ct);
 
     public Task ReleaseFurnitureAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct) =>
         FurniModule.ReleaseAsync(itemIds, ct);
@@ -49,21 +51,24 @@ internal sealed partial class InventoryGrain
     public Task<FurnitureItemSnapshot?> GrantFurnitureAsync(
         int definitionId,
         string? extraDataJson,
+        MovementCause cause,
         CancellationToken ct
-    ) => FurniModule.GrantAsync(definitionId, extraDataJson, ct);
+    ) => FurniModule.GrantAsync(definitionId, extraDataJson, cause, ct);
 
     public Task GrantLtdFurnitureAsync(
         int catalogProductId,
         int serialNumber,
         int seriesSize,
+        MovementCause cause,
         CancellationToken ct
-    ) => FurniModule.GrantLimitedAsync(catalogProductId, serialNumber, seriesSize, ct);
+    ) => FurniModule.GrantLimitedAsync(catalogProductId, serialNumber, seriesSize, cause, ct);
 
     public Task<bool> TransferFurnitureAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        MovementCause cause,
         CancellationToken ct
-    ) => FurniModule.TransferAsync(itemIds, toPlayerId, ct);
+    ) => FurniModule.TransferAsync(itemIds, toPlayerId, cause, ct);
 
     public Task ReceiveFurnitureAsync(
         ImmutableArray<FurnitureItemSnapshot> items,

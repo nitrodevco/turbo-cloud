@@ -131,7 +131,14 @@ public sealed class PetPurchaseNamingTests : IDisposable
     [Fact]
     public async Task ABoughtPet_TellsTheBuyerTheyBoughtIt()
     {
-        await NewInventory().GrantCatalogOfferAsync(PetOffer(), $"Rex\n{PALETTE}\nFFFFFF", 1, Ct);
+        await NewInventory()
+            .GrantCatalogOfferAsync(
+                PetOffer(),
+                $"Rex\n{PALETTE}\nFFFFFF",
+                1,
+                TestCustody.Cause(),
+                Ct
+            );
 
         var received = Sent<PetReceivedMessageComposer>().Should().ContainSingle().Subject;
 
@@ -144,7 +151,14 @@ public sealed class PetPurchaseNamingTests : IDisposable
     public async Task ARefusedPurchase_TellsTheBuyerNothing()
     {
         var purchase = () =>
-            NewInventory().GrantCatalogOfferAsync(PetOffer(), $"Rex<3\n{PALETTE}\nFFFFFF", 1, Ct);
+            NewInventory()
+                .GrantCatalogOfferAsync(
+                    PetOffer(),
+                    $"Rex<3\n{PALETTE}\nFFFFFF",
+                    1,
+                    TestCustody.Cause(),
+                    Ct
+                );
 
         await purchase.Should().ThrowAsync<Exception>();
         Sent<PetReceivedMessageComposer>().Should().BeEmpty();
@@ -233,7 +247,7 @@ public sealed class PetPurchaseNamingTests : IDisposable
             [
                 grain,
                 RoomHarness.GetMember(grain, "_state")!,
-                _db,
+                TestCustody.Over(_db),
                 _fakes.Create<IInventoryFurnitureLoader>(),
                 _fakes.Create<IFurnitureDefinitionProvider>(),
                 _fakes.Create<ICatalogService>(),

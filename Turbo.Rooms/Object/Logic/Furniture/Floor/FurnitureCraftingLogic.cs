@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -197,10 +198,20 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
             return await FailAsync(ctx, interaction, $"no furni {recipe.Product}", ct);
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
+        // One operation: each ingredient used up in turn, then the product.
+        var cause = MovementCause.New(
+            MovementCauses.USE_CRAFTING,
+            ctx.PlayerId.Value,
+            _ctx.ObjectId.Value
+        );
+        var seq = 0;
 
         foreach (var item in ingredients)
         {
-            if (await inventory.ConsumeFurnitureAsync(item.ItemId, ct) is null)
+            if (
+                await inventory.ConsumeFurnitureAsync(item.ItemId, cause.StartingAt(seq++), ct)
+                is null
+            )
             {
                 _roomGrain._logger.LogError(
                     "Crafting {Recipe} on item {ItemId} in room {RoomId}: ingredient {Ingredient} of player {PlayerId} went missing mid-craft",
@@ -215,7 +226,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
             }
         }
 
-        await inventory.GrantFurnitureAsync(product.Id, null, ct);
+        await inventory.GrantFurnitureAsync(product.Id, null, cause.StartingAt(seq), ct);
 
         await SendAsync(
             ctx,

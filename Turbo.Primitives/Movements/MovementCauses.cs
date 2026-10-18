@@ -19,9 +19,11 @@ public static class MovementCauses
 
     public const string CATALOG_PURCHASE = "catalog.purchase";
     public const string CATALOG_GIFT = "catalog.gift";
+    public const string CATALOG_CLUB_GIFT = "catalog.club_gift";
     public const string CATALOG_ROOM_AD = "catalog.room_ad";
     public const string CATALOG_TARGETED_OFFER = "catalog.targeted_offer";
     public const string CATALOG_LTD_RAFFLE = "catalog.ltd_raffle";
+    public const string CATALOG_BONUS_RARE = "catalog.bonus_rare";
     public const string CATALOG_VOUCHER = "catalog.voucher";
     public const string CATALOG_HABBICON = "catalog.habbicon";
     public const string CAMERA_PURCHASE = "camera.purchase";
@@ -29,13 +31,30 @@ public static class MovementCauses
     public const string GROUP_CREATE = "group.create";
     public const string VAULT_CLAIM = "vault.claim";
 
+    public const string MARKET_LIST = "market.list";
     public const string MARKET_TOKENS = "market.tokens";
+    public const string MARKET_CANCEL = "market.cancel";
     public const string MARKET_BUY = "market.buy";
     public const string MARKET_REDEEM = "market.redeem";
 
+    public const string TRADE = "trade";
+
+    /// <summary>A trade's cause ref on the movements that give back the first half after the second failed.</summary>
+    public const string TRADE_REF_COMPENSATION = "compensation";
+
     public const string ROOM_RENT = "room.rent";
+    public const string ROOM_GIVE_BACK_USED = "room.give_back_used";
     public const string USE_CREDIT_FURNI = "use.credit_furni";
     public const string USE_CRACKABLE = "use.crackable";
+    public const string USE_PRESENT = "use.present";
+    public const string USE_CRAFTING = "use.crafting";
+    public const string USE_DECORATION = "use.decoration";
+
+    public const string PET_BREED = "pet.breed";
+    public const string PET_HARVEST = "pet.harvest";
+    public const string PET_UNSADDLE = "pet.unsaddle";
+
+    public const string WIRED_GIVE_REWARD = "wired.give_reward";
 
     public const string WIRED_CHEST_UPGRADE = "wired.chest_upgrade";
     public const string WIRED_CHEST_WITHDRAW = "wired.chest_withdraw";
@@ -46,4 +65,6 @@ public static class MovementCauses
     public const string REWARD_ACHIEVEMENT = "reward.achievement";
 
     public const string STAFF_GIVE_CURRENCY = "staff.give_currency";
+    public const string STAFF_GIVE_ITEM = "staff.give_item";
+    public const string STAFF_GIFT = "staff.gift";
 }

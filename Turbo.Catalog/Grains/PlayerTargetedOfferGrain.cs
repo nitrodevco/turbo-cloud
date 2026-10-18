@@ -127,7 +127,13 @@ internal sealed class PlayerTargetedOfferGrain : Grain, IPlayerTargetedOfferGrai
         {
             await _grainFactory
                 .GetInventoryGrain(_state.PlayerId)
-                .GrantCatalogOfferAsync(catalogOffer, string.Empty, quantity, ct);
+                .GrantCatalogOfferAsync(
+                    catalogOffer,
+                    string.Empty,
+                    quantity,
+                    cause.StartingAt(costs.Count),
+                    ct
+                );
         }
         catch
         {
