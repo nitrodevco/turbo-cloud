@@ -84,4 +84,11 @@ public sealed record ServerSettingSnapshot
     /// <summary>The key of the plugin whose setting it is; null for the host's own.</summary>
     [Id(15)]
     public string? Plugin { get; init; }
+
+    /// <summary>
+    /// A text setting that holds a web address or nothing (<see cref="UrlSettingAttribute"/>):
+    /// anything else is refused.
+    /// </summary>
+    [Id(16)]
+    public bool Url { get; init; }
 }

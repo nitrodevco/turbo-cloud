@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
@@ -162,6 +163,21 @@ internal class Program
                 .RunCommandAsync(host.Services, migrate, bootstrapLogger, ct)
                 .ConfigureAwait(false);
 
+        return await RunAsync(host, bootstrapLogger, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The server from its tables' migration to its shutdown; returns the process exit code. A
+    /// crash ends with a non-zero code, so a host that starts the server again only when it
+    /// fails (Supervisor's <c>autorestart=unexpected</c>, systemd's <c>Restart=on-failure</c>)
+    /// starts it again.
+    /// </summary>
+    internal static async Task<int> RunAsync(
+        IHost host,
+        ILogger bootstrapLogger,
+        CancellationToken ct
+    )
+    {
         try
         {
             // The emulator's own tables first: every provider and grain reads them as it starts.
@@ -197,9 +213,9 @@ internal class Program
         catch (Exception ex)
         {
             bootstrapLogger.LogCritical(ex, "Host terminated unexpectedly");
-        }
 
-        return DatabaseStartup.EXIT_OK;
+            return DatabaseStartup.EXIT_FAILED;
+        }
     }
 
     private static string GetProjectName()

@@ -21,6 +21,12 @@ public interface IServerSettings
     /// </summary>
     public int Version { get; }
 
+    /// <summary>
+    /// Why the panel's overrides couldn't be read as the server started, so it runs without them
+    /// until it restarts and reads them; null when they were read.
+    /// </summary>
+    public string? StartupLoadError { get; }
+
     /// <summary>Every setting, by path.</summary>
     public ImmutableArray<ServerSettingSnapshot> List();
 

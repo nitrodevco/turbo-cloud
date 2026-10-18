@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Turbo.Main.Settings;
 
@@ -12,7 +13,7 @@ namespace Turbo.Main.Settings;
 /// A setting's value as JSON, and as the configuration keys it stands for. Enums are written by
 /// name, as <c>appsettings.json</c> writes them; text is written as it is, for staff to read.
 /// </summary>
-internal static class SettingJson
+internal static partial class SettingJson
 {
     public const char KEY_DELIMITER = ':';
 
@@ -56,6 +57,50 @@ internal static class SettingJson
                 ex
             );
         }
+    }
+
+    /// <summary>
+    /// A JSON text value without one pair of quotes (<c>"</c> or <c>'</c>) wrapped around the
+    /// whole of it, as typed by someone who thought the field wanted them; anything else as it is.
+    /// </summary>
+    public static string Unquoted(string json)
+    {
+        if (JsonSerializer.Deserialize<string>(json, OPTIONS) is not { Length: >= 2 } text)
+            return json;
+
+        var quote = text[0];
+
+        return quote is '"' or '\'' && text[^1] == quote
+            ? Write(text[1..^1], typeof(string))
+            : json;
+    }
+
+    /// <summary>
+    /// Throws <see cref="ArgumentException"/> unless the JSON text value is empty or a whole web
+    /// address: <c>http</c> or <c>https</c>, with a host. Placeholders (<c>{name}</c>,
+    /// <c>%name%</c>) are read as any text.
+    /// </summary>
+    public static void CheckUrl(string json)
+    {
+        var text = JsonSerializer.Deserialize<string>(json, OPTIONS);
+
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        var filled = Placeholder().Replace(text, "x");
+
+        if (
+            filled.Any(char.IsWhiteSpace)
+            || !Uri.TryCreate(filled, UriKind.Absolute, out var url)
+            || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
+            // Uri takes https:/host and https:host as https://host.
+            || !filled.StartsWith(url.Scheme + "://", StringComparison.OrdinalIgnoreCase)
+            || url.Host.Length == 0
+        )
+            throw new ArgumentException(
+                $"{text} isn't a web address: give the whole of it, such as https://example.com/, or leave it empty.",
+                nameof(json)
+            );
     }
 
     /// <summary>
@@ -173,4 +218,8 @@ internal static class SettingJson
                 break;
         }
     }
+
+    // What a setting fills in itself: {roomId}, %libname%.
+    [GeneratedRegex(@"\{[^{}]*\}|%[^%]*%")]
+    private static partial Regex Placeholder();
 }

@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.PacketHandlers.Camera;
 
 /// <summary>
@@ -44,30 +46,38 @@ public sealed class CameraConfig
     public string RendererCacheDirectory { get; init; } = "camera/cache";
 
     /// <summary>The furniture bundles (the client's <c>asset.urls.furni</c>, <c>%libname%</c> for the library); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererFurniUrl { get; init; } = "";
 
     /// <summary>The room content bundle the planes' textures and masks are drawn from (the client's <c>asset.bundles.room</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererRoomUrl { get; init; } = "";
 
     /// <summary>The figure libraries an avatar's parts are drawn from (the client's <c>asset.bundles.avatar</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererFigureUrl { get; init; } = "";
 
     /// <summary>The figure map naming each part's library (the client's <c>figuremap.url</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererFigureMapUrl { get; init; } = "";
 
     /// <summary>The avatar effect libraries (the client's <c>asset.bundles.effects</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererEffectUrl { get; init; } = "";
 
     /// <summary>The effect map naming each avatar effect's library (the client's <c>effectmap.url</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererEffectMapUrl { get; init; } = "";
 
     /// <summary>The pet libraries a pet's sprites and palettes are drawn from (the client's <c>asset.bundles.pets</c>); empty uses the script's default.</summary>
+    [UrlSetting]
     public string RendererPetUrl { get; init; } = "";
 
     /// <summary>
     /// Where the photo lab's composite and frame pictures are, <c>&lt;name&gt;.png</c> under it (the
     /// client's <c>image.library.url</c> + <c>Habbo-Stories/</c>); empty uses the script's default.
     /// </summary>
+    [UrlSetting]
     public string RendererEffectImageUrl { get; init; } = "";
 
     /// <summary>

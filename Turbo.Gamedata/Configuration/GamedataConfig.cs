@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Gamedata.Configuration;
 
 /// <summary>
@@ -19,6 +21,7 @@ public sealed class GamedataConfig
     /// Where clients reach the gamedata host (<c>https://gamedata.example.com</c>), for the
     /// addresses <c>/gamedata/hashes</c> lists. Empty takes the address a request came to.
     /// </summary>
+    [UrlSetting]
     public string PublicUrl { get; init; } = "";
 
     /// <summary>The Habbo hotel updates are taken from: <c>com</c>, <c>nl</c>, <c>com.br</c>, ...</summary>
@@ -63,6 +66,7 @@ public sealed class GamedataConfig
     /// rest the file says: <c>{domain}</c>, <c>{revision}</c> and <c>{name}</c> (the classname
     /// without its <c>*N</c> colour) are filled in.
     /// </summary>
+    [UrlSetting]
     public string FurnitureFileUrl { get; init; } =
         "https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}.swf";
 

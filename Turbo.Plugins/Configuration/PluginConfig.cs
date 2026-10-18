@@ -44,6 +44,7 @@ public class PluginConfig
     public string[] AllowedSources { get; init; } = [];
 
     /// <summary>GitHub's REST API; another for GitHub Enterprise.</summary>
+    [UrlSetting]
     public string GitHubApiUrl { get; init; } = "https://api.github.com";
 
     /// <summary>

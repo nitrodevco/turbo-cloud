@@ -36,7 +36,8 @@ internal sealed class SettingsEndpoints(IGrainFactory grainFactory, IServerSetti
         Results.Ok(
             new SettingsResponse(
                 settings.List(),
-                await CanManageAsync(http, ct).ConfigureAwait(false)
+                await CanManageAsync(http, ct).ConfigureAwait(false),
+                settings.StartupLoadError
             )
         );
 

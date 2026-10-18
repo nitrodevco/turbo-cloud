@@ -69,8 +69,11 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
 
         // Read as the server started, before there was a logger: the server runs without its
         // panel overrides, so say why.
-        if (ServerSettingsConfiguration.Find(configuration)?.LoadError is { } error)
-            _logger.LogWarning("Reading the panel's server settings: {Error}", error);
+        if (StartupLoadError is { } error)
+            _logger.LogWarning(
+                "The panel's server settings couldn't be read as the server started, so it runs without them: {Error}",
+                error
+            );
 
         _reloads = ChangeToken.OnChange(
             configuration.GetReloadToken,
@@ -79,6 +82,9 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     }
 
     public int Version => Volatile.Read(ref _version);
+
+    public string? StartupLoadError =>
+        ServerSettingsConfiguration.Find(_configuration)?.StartupError;
 
     public ImmutableArray<ServerSettingSnapshot> List() => Current().Settings;
 
@@ -97,6 +103,16 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     {
         var (setting, snapshot) = Writable(path);
         var json = SettingJson.Normalize(value, setting.Type);
+
+        if (setting.Kind == "string")
+        {
+            // Quotes typed around text (pasted from a .env file) would be kept as part of it.
+            json = SettingJson.Unquoted(json);
+
+            if (setting.Url)
+                SettingJson.CheckUrl(json);
+        }
+
         // What is kept: for a list or map, only what its defaults don't already say.
         var stored = SettingJson.BeyondDefaults(json, snapshot.Default, setting.Kind);
 
@@ -457,6 +473,7 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                         SourceName = name,
                         PendingRestart = restarted != now,
                         Plugin = section.Plugin,
+                        Url = setting.Url,
                     }
                 );
             }

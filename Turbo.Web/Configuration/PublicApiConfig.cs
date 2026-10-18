@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Web.Configuration;
 
 /// <summary>
@@ -15,11 +17,13 @@ public sealed class PublicApiConfig
     /// address (Habbo's: <c>.../navigator-thumbnail/hhus/{roomId}.png</c>). Empty leaves
     /// <c>thumbnailUrl</c> out.
     /// </summary>
+    [UrlSetting]
     public string RoomThumbnailUrl { get; init; } = "";
 
     /// <summary>
     /// A room's full-size picture, with <c>{roomId}</c> (Habbo's: <c>.../fullroom-photo/hhus/{roomId}.png</c>).
     /// Empty leaves <c>imageUrl</c> out.
     /// </summary>
+    [UrlSetting]
     public string RoomImageUrl { get; init; } = "";
 }
