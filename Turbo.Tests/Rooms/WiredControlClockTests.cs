@@ -103,17 +103,20 @@ public sealed class WiredControlClockTests
                 )
                 .Logic;
         var timers = _room.Harness.Module<RoomTimerSystem>();
-        var started = Stopwatch.StartNew();
+        var startedAt = NowMs();
 
         await clock.ControlAsync(WiredClockControlType.Start, Ct);
 
-        while (started.ElapsedMilliseconds < 3_050)
-        {
-            await Task.Delay(120, Ct);
-            await timers.ProcessTimersAsync(NowMs(), Ct);
-        }
+        var startReturnedAt = NowMs();
 
-        clock.HalfSeconds.Should().BeGreaterThanOrEqualTo(6);
+        // Passes at the times a room tick 120 ms late would run them, not at the test host's
+        // own pace (a loaded host merged two half seconds into one pass, or started late).
+        for (var t = startReturnedAt + 120; t <= startReturnedAt + 3_050; t += 120)
+            await timers.ProcessTimersAsync(t, Ct);
+
+        clock
+            .HalfSeconds.Should()
+            .BeInRange(6, 7 + (int)((startReturnedAt - startedAt) / 500), "one per 500 ms cycle");
     }
 
     /// <summary>

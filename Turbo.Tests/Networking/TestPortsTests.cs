@@ -43,8 +43,17 @@ public sealed class TestPortsTests
             for (var port = next; port < next + 4 && port <= TestPorts.Last; port++)
             {
                 var listener = new TcpListener(IPAddress.Loopback, port);
-                listener.Start();
-                taken.Add(listener);
+
+                // Another test or test run already listening on it takes it all the same.
+                try
+                {
+                    listener.Start();
+                    taken.Add(listener);
+                }
+                catch (SocketException)
+                {
+                    listener.Dispose();
+                }
             }
 
             var free = TestPorts.Free();
