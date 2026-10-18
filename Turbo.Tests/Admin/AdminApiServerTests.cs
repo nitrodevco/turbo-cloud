@@ -215,6 +215,9 @@ public sealed class AdminApiServerTests : IDisposable
             services.AddSingleton(iface, fakes.Create(iface));
 
         services.AddSingleton(config);
+        services.AddSingleton<IOptionsMonitor<AdminConfig>>(
+            new TestOptionsMonitor<AdminConfig>(config.Value)
+        );
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<AdminLinkPolicy>();

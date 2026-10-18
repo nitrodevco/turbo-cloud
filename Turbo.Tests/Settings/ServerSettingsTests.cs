@@ -331,6 +331,91 @@ public sealed class ServerSettingsTests : IDisposable
         settings.Get("Turbo:Database:ConnectionString")!.Secret.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task the_clients_pages_apply_at_once_so_a_saved_preview_page_waits_on_no_restart()
+    {
+        var harness = Harness(
+            "{}",
+            (services, configuration) =>
+                services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME))
+        );
+
+        harness.Settings.Get("Turbo:Admin:ClientPreviewUrl")!.Live.Should().BeTrue();
+        harness.Settings.Get("Turbo:Admin:ClientLoginUrl")!.Live.Should().BeTrue();
+        harness.Settings.Get("Turbo:Admin:SessionHours")!.Live.Should().BeFalse();
+
+        var saved = await harness.Settings.SaveAsync(
+            "Turbo:Admin:ClientPreviewUrl",
+            "\"https://hotel.example/client\"",
+            STAFF,
+            Ct
+        );
+
+        saved.PendingRestart.Should().BeFalse();
+        harness.Live<AdminConfig>().ClientPreviewUrl.Should().Be("https://hotel.example/client");
+    }
+
+    [Fact]
+    public void overrides_the_server_could_not_read_as_it_started_are_logged()
+    {
+        var configuration = new ConfigurationManager();
+
+        ServerSettingsConfiguration.AddTo(
+            configuration,
+            () => new ServerSettingsLoad([], "The panel's settings couldn't be read: no database")
+        );
+
+        var log = new CapturingLogger<ServerSettingsService>();
+        using var services = new ServiceCollection().BuildServiceProvider();
+        using var settings = new ServerSettingsService(
+            configuration,
+            services,
+            _db,
+            ServerSettingRegistry.From(new ServiceCollection()),
+            Microsoft.Extensions.Options.Options.Create(new ServerSettingsConfig()),
+            log
+        );
+
+        log.AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning)
+            .Should()
+            .ContainSingle(x => x.Message.Contains("no database"));
+    }
+
+    [Fact]
+    public async Task a_setting_its_module_fills_in_as_it_starts_waits_on_a_restart_only_when_changed()
+    {
+        // Turbo:Habbicons:Collections, left empty, runs with Habbo's collections: a restart
+        // changes nothing, so the page must not say one is waiting.
+        Action<IServiceCollection, IConfiguration> register = (services, configuration) =>
+            services
+                .AddOptions<FilledInConfig>()
+                .Bind(configuration.GetSection(FilledInConfig.SECTION_NAME))
+                .PostConfigure(x =>
+                {
+                    if (x.Names.Count == 0)
+                        x.Names = ["habbo"];
+                });
+        var harness = Harness("{}", register);
+
+        harness.Running<FilledInConfig>().Names.Should().Equal("habbo");
+        harness.Settings.Get("Test:Filled:Names")!.PendingRestart.Should().BeFalse();
+        harness.Settings.List().Where(x => x.PendingRestart).Should().BeEmpty();
+
+        var saved = await harness.Settings.SaveAsync(
+            "Test:Filled:Names",
+            """["mine"]""",
+            STAFF,
+            Ct
+        );
+
+        saved.PendingRestart.Should().BeTrue();
+
+        var restarted = Restart(harness);
+
+        restarted.Running<FilledInConfig>().Names.Should().Equal("mine");
+        restarted.Settings.Get("Test:Filled:Names")!.PendingRestart.Should().BeFalse();
+    }
+
     private SettingsHarness Harness(
         string appSettings = APP_SETTINGS,
         Action<IServiceCollection, IConfiguration>? register = null
@@ -367,4 +452,12 @@ public sealed class ServerSettingsTests : IDisposable
         Environment.SetEnvironmentVariable(name, value);
         _variables.Add(name);
     }
+}
+
+/// <summary>A section whose module fills in a list left empty as the options are built, as Habbicons do.</summary>
+public sealed class FilledInConfig
+{
+    public const string SECTION_NAME = "Test:Filled";
+
+    public List<string> Names { get; set; } = [];
 }

@@ -19,10 +19,11 @@ namespace Turbo.Admin.Assets;
 /// see. They are written as the client resolves them: <c>${key}</c> is another key's value, and
 /// an address that names no host is under the client's page (<see cref="AdminConfig.ClientLoginUrl"/>);
 /// without one, such an address is left out. One starting <c>//</c> names its host, so it is kept. Read again whenever the variables are built anew.
+/// The client's pages are read as each request uses them, so a panel change to them applies at once.
 /// </summary>
 public sealed class ClientAssets(
     IGamedataFileService files,
-    IOptions<AdminConfig> config,
+    IOptionsMonitor<AdminConfig> config,
     ILogger<ClientAssets> logger
 )
 {
@@ -39,12 +40,16 @@ public sealed class ClientAssets(
     // As many rounds as the client's own `interpolate` makes.
     private const int MAX_KEY_DEPTH = 3;
 
-    private readonly AdminConfig _config = config.Value;
-
-    private (string Hash, ClientAssetsResponse Assets) _read = ("", ClientAssetsResponse.NONE);
+    private (string Hash, string Page, ClientAssetsResponse Assets) _read = (
+        "",
+        "",
+        ClientAssetsResponse.NONE
+    );
 
     public async Task<ClientAssetsResponse> GetAsync(CancellationToken ct)
     {
+        var options = config.CurrentValue;
+
         try
         {
             var current = await files
@@ -52,16 +57,16 @@ public sealed class ClientAssets(
                 .ConfigureAwait(false);
             var read = _read;
 
-            if (current.File.Hash == read.Hash)
-                return read.Assets;
+            if (current.File.Hash == read.Hash && options.ClientLoginUrl == read.Page)
+                return read.Assets with { Preview = PreviewUrl(options) };
 
             using var content = new GZipStream(
                 new MemoryStream(current.Gzipped),
                 CompressionMode.Decompress
             );
-            var assets = Read(content);
+            var assets = Read(content, options);
 
-            _read = (current.File.Hash, assets);
+            _read = (current.File.Hash, options.ClientLoginUrl, assets);
 
             return assets;
         }
@@ -72,12 +77,12 @@ public sealed class ClientAssets(
 
             return _read.Assets with
             {
-                Preview = PreviewUrl(),
+                Preview = PreviewUrl(options),
             };
         }
     }
 
-    private ClientAssetsResponse Read(Stream content)
+    private static ClientAssetsResponse Read(Stream content, AdminConfig options)
     {
         using var document = JsonDocument.Parse(content);
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -87,7 +92,7 @@ public sealed class ClientAssets(
                 values[property.Name] = property.Value.GetString() ?? "";
 
         var page =
-            Uri.TryCreate(_config.ClientLoginUrl, UriKind.Absolute, out var url)
+            Uri.TryCreate(options.ClientLoginUrl, UriKind.Absolute, out var url)
             && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps)
                 ? url
                 : null;
@@ -104,8 +109,8 @@ public sealed class ClientAssets(
             Value(BADGE),
             Value(IMAGE_LIBRARY),
             Value(TEMPLATES),
-            _config.ImagerUrl.TrimEnd('/'),
-            PreviewUrl()
+            options.ImagerUrl.TrimEnd('/'),
+            PreviewUrl(options)
         );
     }
 
@@ -113,11 +118,11 @@ public sealed class ClientAssets(
     /// The client's preview host: <c>ClientPreviewUrl</c>, else the page of <c>ClientLoginUrl</c>,
     /// its query replaced by <c>?preview</c>; empty when neither is an http(s) address.
     /// </summary>
-    private string PreviewUrl()
+    private static string PreviewUrl(AdminConfig options)
     {
-        var page = string.IsNullOrWhiteSpace(_config.ClientPreviewUrl)
-            ? _config.ClientLoginUrl
-            : _config.ClientPreviewUrl;
+        var page = string.IsNullOrWhiteSpace(options.ClientPreviewUrl)
+            ? options.ClientLoginUrl
+            : options.ClientPreviewUrl;
 
         if (
             !Uri.TryCreate(page, UriKind.Absolute, out var url)
