@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
@@ -96,8 +97,10 @@ public sealed class WiredContextVariableScopeTests
         var seenId = _seen.GetVarSnapshot().VariableId.ToString();
         _numberId = number.GetVarSnapshot().VariableId.ToString();
 
-        // The sender: number = 7, then a signal to both antennas.
+        // The sender: number = 7, then a signal to both antennas. In that order: effects run in a
+        // random one unless the stack says otherwise.
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredAddonExecuteInOrder>(40, 0, 0, "wf_xtra_exec_in_order");
         _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
         _room.AddBox<WiredActionSendSignal>(3, 0, 0, "wf_act_send_signal");
         (
@@ -155,9 +158,12 @@ public sealed class WiredContextVariableScopeTests
         // B: (optionally its own number = 5,) then, two seconds on, seen = number.
         _room.AddBox<WiredTriggerReceiveSignal>(6, 0, 7, "wf_trg_recv_signal");
 
-        // Placed first, so it runs first.
+        // Placed first, so with "Execute In Order" it runs first.
         if (bGivesItsOwn)
+        {
+            _room.AddBox<WiredAddonExecuteInOrder>(41, 0, 7, "wf_xtra_exec_in_order");
             _room.AddBox<WiredActionGiveVariable>(8, 0, 7, "wf_act_give_var");
+        }
 
         _room.AddBox<WiredActionChangeVariable>(7, 0, 7, "wf_act_change_var_val");
         await ReceiveAsync(6, ANTENNA_B);

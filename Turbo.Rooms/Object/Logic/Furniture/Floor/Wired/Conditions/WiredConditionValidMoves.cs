@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -11,7 +9,13 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>True when the picked furni have at least one neighbouring tile they could move to.</summary>
+/// <summary>
+/// "Can Perform Movements": true when every furni move the stack's effects are about to make can
+/// be made. The box has no options; the moves are the ones the effects that would run make, in
+/// the order they would run them, each from where the moves before it left the furni
+/// (<see cref="Turbo.Rooms.Grains.Systems.RoomWiredSystem"/> works them out before the conditions are asked). A failed move
+/// fails the condition, and with it the stack.
+/// </summary>
 [RoomObjectLogic("wf_cnd_valid_moves")]
 public class WiredConditionValidMoves(
     IGrainFactory grainFactory,
@@ -21,31 +25,7 @@ public class WiredConditionValidMoves(
 {
     public override int WiredCode => (int)WiredConditionType.CAN_PERFORM_MOVE;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
-
-    protected override bool EvaluateCore(IWiredProcessingContext ctx)
-    {
-        var items = GetFloorItems(ctx.GetSelection(this));
-
-        return Quantify(items.Select(CanMoveAnywhere), true);
-    }
-
-    private bool CanMoveAnywhere(IRoomFloorItem item)
-    {
-        var map = MapModule;
-        var idx = map.ToIdx(item.X, item.Y);
-
-        foreach (var direction in RotationExtensions.CARDINAL)
-        {
-            if (!map.TryGetTileInFront(idx, direction, out var nextIdx))
-                continue;
-
-            var (x, y) = map.GetTileXY(nextIdx);
-
-            if (FurniModule.CanPlaceFloorItem(item.ObjectId, x, y, item.Rotation))
-                return true;
-        }
-
-        return false;
-    }
+    protected override bool EvaluateCore(IWiredProcessingContext ctx) =>
+        ctx is WiredProcessingContext { MovePlans: { } plans }
+        && plans.Values.All(x => !x.HasBlockedMove);
 }

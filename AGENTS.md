@@ -752,7 +752,16 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   per-tick hop limits.
 - Movement of furni and users goes through `IWiredExecutionContext` (`ProcessFloorItemMovementAsync`,
   `ProcessUserMovementAsync`, `ProcessUserDirectionAsync`); the system flushes one
-  `WiredMovements` packet per action. Text an action shows goes through `FormatTextAsync` so the
+  `WiredMovements` packet per action. A furni mover derives from `FurnitureWiredMoveActionLogic`
+  and only plans (`PlanMoves` on a `WiredMovePlan`): it reads positions through `plan.Where`,
+  rolls its dice there, and holds every side effect back with `plan.Then`. "Can Perform
+  Movements" (`wf_cnd_valid_moves`) is why: before the conditions are asked, the system picks and
+  orders the effects that would run and plans their moves on one `WiredGhostLayout`, so a furni
+  moved twice is checked from where the first move leaves it, and the moves then made are the
+  checked ones (each re-checked against the room when made, for delays). Effects run in a random
+  order unless "Execute In Order" sets `IWiredPolicy.ExecuteInOrder`. Placement rules live once,
+  in `RoomMapModule.EvaluateTile` and `CanPlaceFloorItem`; a ghost reads them through
+  `IRoomTileView`, never through a copy. Text an action shows goes through `FormatTextAsync` so the
   placeholder addons apply. Selections carry player ids and furni object ids; bots are not in
   them, bot actions resolve the named bot from their string param.
 - **An internal variable's place in the editor's list is its id.** The client sorts by variable

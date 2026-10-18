@@ -31,7 +31,7 @@ public class WiredActionMoveAsGroup(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int PARAM_TARGET_IS_USER = 0;
     private const int PARAM_OFFSET_X = 1;
@@ -62,46 +62,51 @@ public class WiredActionMoveAsGroup(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var group = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
 
-        if (group.Count == 0 || !TryGetTargetTile(ctx, out var targetX, out var targetY))
-            return false;
+        if (group.Count == 0 || !TryGetTargetTile(ctx, plan, out var targetX, out var targetY))
+            return;
 
         var map = MapModule;
-        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - group[0].X;
-        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - group[0].Y;
+        var lead = plan.Where(group[0]);
+        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - lead.X;
+        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - lead.Y;
 
         if (dx == 0 && dy == 0)
-            return false;
+            return;
 
         // As a group: when any of them would leave the room, none of them moves.
-        if (group.Any(x => !map.InBounds(x.X + dx, x.Y + dy)))
-            return false;
+        if (
+            group.Any(x =>
+            {
+                var at = plan.Where(x);
 
-        var moved = false;
+                return !map.InBounds(at.X + dx, at.Y + dy);
+            })
+        )
+        {
+            plan.Block();
+
+            return;
+        }
 
         // The furni furthest along the way goes first, so each one steps onto a tile the one
         // before it has just left instead of being blocked by its own group.
         foreach (
-            var item in group.OrderByDescending(x => x.X * Math.Sign(dx) + x.Y * Math.Sign(dy))
+            var (item, at) in group
+                .Select(x => (Item: x, At: plan.Where(x)))
+                .OrderByDescending(x => x.At.X * Math.Sign(dx) + x.At.Y * Math.Sign(dy))
         )
         {
-            var x = item.X + dx;
-            var y = item.Y + dy;
-
             // A blocked furni stops the ones behind it too: they would run into it.
-            if (!await ctx.TryMoveFloorItemAsync(item, x, y))
+            if (!plan.Move(item, at.X + dx, at.Y + dy))
                 break;
-
-            moved = true;
         }
-
-        return moved;
     }
 
-    private bool TryGetTargetTile(IWiredExecutionContext ctx, out int x, out int y)
+    private bool TryGetTargetTile(IWiredContext ctx, WiredMovePlan plan, out int x, out int y)
     {
         x = 0;
         y = 0;
@@ -123,7 +128,9 @@ public class WiredActionMoveAsGroup(
         if (targets.Count == 0)
             return false;
 
-        (x, y) = (targets[0].X, targets[0].Y);
+        var target = plan.Where(targets[0]);
+
+        (x, y) = (target.X, target.Y);
 
         return true;
     }

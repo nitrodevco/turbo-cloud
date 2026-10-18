@@ -26,7 +26,7 @@ public class WiredActionMoveToDirection(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     // The editor's "turn" radio, wiredfurni.params.turn.0 to .6 (AS3 MoveToDirection).
     private const int TURN_WAIT = 0;
@@ -58,33 +58,35 @@ public class WiredActionMoveToDirection(
         _headingByItemId.Clear();
     }
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var selection = ctx.GetSelection(this);
         var startDirection = (Rotation)GetIntParamOrDefault(0, 0);
         var turnMode = GetIntParamOrDefault(1, TURN_WAIT);
         var blockOnUsers = GetIntParamOrDefault(2, false);
         var map = MapModule;
-        var moved = false;
 
         foreach (var item in GetFloorItems(selection))
         {
             if (!_headingByItemId.TryGetValue(item.ObjectId, out var heading))
                 heading = startDirection;
 
-            // Try the heading, then the turned headings until one is free or we give up.
+            var moved = false;
+
+            // Try the heading, then the turned headings until one is free or we give up. Only
+            // giving up is a blocked move: turning and going another way is the box working.
             for (var attempt = 0; attempt < 8; attempt++)
             {
-                var itemIdx = map.ToIdx(item.X, item.Y);
+                var at = plan.Where(item);
 
                 if (
-                    map.TryGetTileInFront(itemIdx, heading, out var nextIdx)
-                    && !IsBlockedByUser(nextIdx, blockOnUsers, item)
+                    map.TryGetTileInFront(map.ToIdx(at.X, at.Y), heading, out var nextIdx)
+                    && !IsBlockedByUser(nextIdx, blockOnUsers, item, plan)
                 )
                 {
                     var (x, y) = map.GetTileXY(nextIdx);
 
-                    if (await ctx.TryMoveFloorItemAsync(item, x, y))
+                    if (plan.TryMove(item, x, y))
                     {
                         moved = true;
 
@@ -98,13 +100,21 @@ public class WiredActionMoveToDirection(
                 heading = Turn(heading, turnMode);
             }
 
-            _headingByItemId[item.ObjectId] = heading;
-        }
+            if (!moved)
+                plan.Block();
 
-        return moved;
+            var finalHeading = heading;
+
+            plan.Then(() => _headingByItemId[item.ObjectId] = finalHeading);
+        }
     }
 
-    private bool IsBlockedByUser(int tileIdx, bool blockOnUsers, IRoomFloorItem item)
+    private bool IsBlockedByUser(
+        int tileIdx,
+        bool blockOnUsers,
+        IRoomFloorItem item,
+        WiredMovePlan plan
+    )
     {
         if (!blockOnUsers || !AvatarModule.HasAvatarOnTile(tileIdx))
             return false;
@@ -112,7 +122,7 @@ public class WiredActionMoveToDirection(
         foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileIdx))
         {
             if (avatar is IRoomPlayer player)
-                PublishCollision(item, player);
+                plan.Then(() => PublishCollision(item, player));
         }
 
         return true;

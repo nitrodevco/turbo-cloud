@@ -19,7 +19,7 @@ public class WiredActionMoveRotateFurni(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.MOVE_AND_ROTATE_FURNI;
 
@@ -36,11 +36,11 @@ public class WiredActionMoveRotateFurni(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
-    {
-        var selection = ctx.GetSelection(this);
+    protected override bool SucceedsWithoutMoving => true;
 
-        foreach (var furniId in selection.SelectedFurniIds)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
+    {
+        foreach (var furniId in ctx.GetSelection(this).SelectedFurniIds)
         {
             if (
                 !FurniModule.TryGetItem(furniId, out var item)
@@ -48,24 +48,28 @@ public class WiredActionMoveRotateFurni(
             )
                 continue;
 
+            var at = plan.Where(floorItem);
             var moveDirection = GetMoveDirection(_movementType);
-            var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
+            var moveRotation = GetMoveRotation(at.Rotation, _rotationType);
 
+            // Off the edge of the room is a move that cannot be made.
             if (
                 !MapModule.TryGetTileInFront(
-                    MapModule.ToIdx(floorItem.X, floorItem.Y),
+                    MapModule.ToIdx(at.X, at.Y),
                     moveDirection,
                     out var nextIdx
                 )
             )
+            {
+                plan.Block();
+
                 continue;
+            }
 
             var (targetX, targetY) = MapModule.GetTileXY(nextIdx);
 
-            await ctx.TryMoveFloorItemAsync(floorItem, targetX, targetY, null, moveRotation);
+            plan.Move(floorItem, targetX, targetY, null, moveRotation);
         }
-
-        return true;
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)

@@ -24,7 +24,7 @@ public sealed partial class RoomFurniModule
     /// <summary>
     /// The one way a new floor item comes into the room, whoever brings it: a player from their
     /// inventory, a Builders Club borrow, a temporary furni, a present's contents. It checks the
-    /// spot (<see cref="CanPlaceFloorItem(IRoomFloorItem, int, int, Rotation, Func{IRoomFloorItem, bool})"/>) and the room's
+    /// spot (<see cref="CanPlaceFloorItem(IRoomFloorItem, int, int, Rotation, Func{IRoomFloorItem, bool}, IRoomTileView)"/>) and the room's
     /// placement limits here, so no caller can forget either. A spot that does not take the item
     /// is false; a limit that refuses throws, as <see cref="IRoomPlacementLimit"/> says.
     /// </summary>
@@ -155,15 +155,20 @@ public sealed partial class RoomFurniModule
     /// footprint that leaves the map is simply a no, so callers do not check bounds first.
     /// <paramref name="canStackOnAnyway"/> names furni the item may land on top of even though
     /// nothing may be stacked on them (wired movement physics, "move through furni").
+    /// <paramref name="tiles"/> reads the tiles from moves not made yet; the room as it stands
+    /// without one.
     /// </summary>
     public bool CanPlaceFloorItem(
         IRoomFloorItem item,
         int x,
         int y,
         Rotation rot,
-        Func<IRoomFloorItem, bool>? canStackOnAnyway = null
+        Func<IRoomFloorItem, bool>? canStackOnAnyway = null,
+        IRoomTileView? tiles = null
     )
     {
+        tiles ??= MapModule;
+
         if (
             !MapModule.InBounds(x, y)
             || !MapModule.GetTileIdForSize(
@@ -181,10 +186,7 @@ public sealed partial class RoomFurniModule
 
         foreach (var idx in tileIds)
         {
-            var tileFlags = _roomGrain._state.TileFlags[idx];
-            var tileHeight = _roomGrain._state.TileHeights[idx];
-
-            MapModule.TryGetHighestFloorItem(idx, out var top);
+            var (tileHeight, tileFlags, top) = tiles.GetTile(idx);
 
             // An item already standing here is moved or turned in place: it is not in its own way.
             var isSelf = ReferenceEquals(top, item);

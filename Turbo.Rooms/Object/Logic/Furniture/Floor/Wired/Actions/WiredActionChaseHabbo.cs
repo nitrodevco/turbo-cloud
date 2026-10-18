@@ -19,7 +19,7 @@ public class WiredActionChaseHabbo(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     // How close counts as having caught a player: the furni never moves when adjacent (official
     // client capture 2026-10-16). How far it notices one is WiredConfig.ChaseRange.
@@ -30,14 +30,17 @@ public class WiredActionChaseHabbo(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override bool SucceedsWithoutMoving => true;
+
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var map = MapModule;
         var range = _roomGrain._wiredConfig.ChaseRange;
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {
-            var floorIdx = map.ToIdx(floorItem.X, floorItem.Y);
+            var at = plan.Where(floorItem);
+            var floorIdx = map.ToIdx(at.X, at.Y);
             var targetIdx = NO_TILE;
 
             if (
@@ -51,7 +54,7 @@ public class WiredActionChaseHabbo(
             {
                 if (distance <= COLLISION_RANGE)
                 {
-                    PublishCollision(floorItem, player);
+                    plan.Then(() => PublishCollision(floorItem, player));
 
                     continue;
                 }
@@ -75,15 +78,17 @@ public class WiredActionChaseHabbo(
             }
 
             if (targetIdx == NO_TILE)
+            {
+                plan.Block();
+
                 continue;
+            }
 
             var (targetX, targetY) = map.GetTileXY(targetIdx);
 
             // Height follows the room's move physics like every other mover (the KeepAltitude
             // addon keeps it); this box used to pin it, where its mirror, flee, did not.
-            await ctx.TryMoveFloorItemAsync(floorItem, targetX, targetY);
+            plan.Move(floorItem, targetX, targetY);
         }
-
-        return true;
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -523,6 +524,21 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return;
         }
 
+        // "Can Perform Movements" asks about moves that have not been made: the effects that would
+        // run are picked and put in order first, and their moves worked out on a ghost of the room.
+        // That pick is the one that runs if the conditions pass.
+        WiredActionPick? positivePick = null;
+
+        if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
+        {
+            positivePick = ChooseActions(
+                ActionsOfSide(ctx.Stack, negative: false),
+                ctx.Policy,
+                ctx.Stack.StackId
+            );
+            ctx.MovePlans = PlanMoves(ctx, positivePick.Actions);
+        }
+
         // A stack call, positive or negative, runs the called stack "regardless of existing
         // conditions or triggers" (official furnidata 2026-10-13, wf_act_call_stacks): its
         // conditions are not asked and do not flash (official client capture, WIN63-202610171745:
@@ -547,25 +563,85 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         // A stack call runs the positive actions; a trigger runs the side its conditions chose.
-        var runNegative = !passed;
-        var pool = new List<IWiredAction>(ctx.Stack.Actions.Count);
+        var pick = passed
+            ? positivePick
+                ?? ChooseActions(
+                    ActionsOfSide(ctx.Stack, negative: false),
+                    ctx.Policy,
+                    ctx.Stack.StackId
+                )
+            : ChooseActions(
+                ActionsOfSide(ctx.Stack, negative: true),
+                ctx.Policy,
+                ctx.Stack.StackId
+            );
 
-        foreach (var action in ctx.Stack.Actions)
-        {
-            if (action.IsNegative == runNegative)
-                pool.Add(action);
-        }
-
-        if (pool.Count == 0)
+        if (pick.Actions.Count == 0)
             return;
+
+        CommitPick(pick, ctx.Stack.StackId);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
-        ScheduleStackExecution(ctx, ChooseActions(pool, ctx.Policy, ctx.Stack.StackId), now);
+        ScheduleStackExecution(ctx, pick.Actions, passed ? ctx.MovePlans : null, now);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
+    }
+
+    private static List<IWiredAction> ActionsOfSide(IWiredStack stack, bool negative)
+    {
+        var pool = new List<IWiredAction>(stack.Actions.Count);
+
+        foreach (var action in stack.Actions)
+        {
+            if (action.IsNegative == negative)
+                pool.Add(action);
+        }
+
+        return pool;
+    }
+
+    /// <summary>
+    /// Works out the furni moves of these effects, in this order, on one ghost of the room, so
+    /// each effect's moves start where the ones before it left the furni. An effect that fails to
+    /// plan counts as a blocked move: it would fail the same way running.
+    /// </summary>
+    private Dictionary<IWiredAction, WiredMovePlan> PlanMoves(
+        WiredProcessingContext ctx,
+        List<IWiredAction> actions
+    )
+    {
+        var layout = new WiredGhostLayout(MapModule, FurniModule);
+        var plans = new Dictionary<IWiredAction, WiredMovePlan>();
+
+        foreach (var action in actions)
+        {
+            if (action is not FurnitureWiredMoveActionLogic mover)
+                continue;
+
+            try
+            {
+                plans[action] = mover.Plan(ctx, layout);
+            }
+            catch (Exception ex)
+            {
+                _roomGrain._logger.LogWarning(
+                    ex,
+                    "Wired action {WiredCode} failed to plan its moves in room {RoomId}",
+                    action.WiredCode,
+                    _roomGrain.RoomId
+                );
+
+                var blocked = new WiredMovePlan(layout, ctx.Policy, MapModule);
+
+                blocked.Block();
+                plans[action] = blocked;
+            }
+        }
+
+        return plans;
     }
 
     /// <summary>
@@ -793,6 +869,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private void ScheduleStackExecution(
         WiredProcessingContext ctx,
         List<IWiredAction> actions,
+        Dictionary<IWiredAction, WiredMovePlan>? movePlans,
         long dueAtMs
     )
     {
@@ -822,6 +899,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             NextActionIndex = 0,
             VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
             ContextValues = ctx.ContextValues,
+            MovePlans = movePlans,
         };
 
         // Without a delay the actions run in the execution that chose them; with one, they are
@@ -993,7 +1071,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 try
                 {
-                    succeeded = await action.ExecuteAsync(ctx, ct);
+                    // A mover whose moves were checked makes those moves, not new ones.
+                    succeeded =
+                        action is FurnitureWiredMoveActionLogic mover
+                        && pending.MovePlans?.GetValueOrDefault(action) is { } plan
+                            ? await mover.ApplyAsync(ctx, plan)
+                            : await action.ExecuteAsync(ctx, ct);
                 }
                 finally
                 {
@@ -1277,34 +1360,78 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         _stacksById[stackId] = stack;
     }
 
-    private List<IWiredAction> ChooseActions(
+    /// <summary>
+    /// The effects a run of the stack makes and their order. Effects run in a random order unless
+    /// "Execute In Order" keeps them in stacking order (<see cref="IWiredPolicy.ExecuteInOrder"/>).
+    /// Nothing is remembered until <see cref="CommitPick"/>.
+    /// </summary>
+    private WiredActionPick ChooseActions(
+        List<IWiredAction> actions,
+        IWiredPolicy policy,
+        int stackId
+    )
+    {
+        var pick = PickActions(actions, policy, stackId);
+
+        if (!policy.ExecuteInOrder && pick.Actions.Count > 1)
+            Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pick.Actions));
+
+        return pick;
+    }
+
+    private WiredActionPick PickActions(
         List<IWiredAction> actions,
         IWiredPolicy policy,
         int stackId
     )
     {
         if (actions.Count == 0)
-            return [];
+            return new() { Actions = [] };
 
         switch (policy.EffectMode)
         {
             case WiredEffectModeType.FirstOnly:
-                return [actions[0]];
+                return new() { Actions = [actions[0]] };
             case WiredEffectModeType.Random:
                 return ChooseRandomActions(actions, policy, stackId);
             case WiredEffectModeType.Unseen:
             {
                 _nextUnseenIndexByStackId.TryGetValue(stackId, out var index);
 
-                var picked = actions[index % actions.Count];
-
-                _nextUnseenIndexByStackId[stackId] = (index + 1) % actions.Count;
-
-                return [picked];
+                return new()
+                {
+                    Actions = [actions[index % actions.Count]],
+                    NextUnseenIndex = (index + 1) % actions.Count,
+                };
             }
             default:
-                return [.. actions];
+                return new() { Actions = [.. actions] };
         }
+    }
+
+    /// <summary>Remembers a pick whose effects run, for the random and unseen add-ons.</summary>
+    private void CommitPick(WiredActionPick pick, int stackId)
+    {
+        if (pick.NextUnseenIndex is { } next)
+            _nextUnseenIndexByStackId[stackId] = next;
+
+        if (pick.RandomRun is not { } run)
+            return;
+
+        if (pick.RandomAvoidCount <= 0)
+        {
+            _recentRandomPicksByStackId.Remove(stackId);
+
+            return;
+        }
+
+        if (!_recentRandomPicksByStackId.TryGetValue(stackId, out var recent))
+            recent = _recentRandomPicksByStackId[stackId] = new Queue<List<IWiredAction>>();
+
+        recent.Enqueue(run);
+
+        while (recent.Count > pick.RandomAvoidCount)
+            recent.Dequeue();
     }
 
     /// <summary>
@@ -1317,7 +1444,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// last execution leave too few, it tops up from the avoided ones (inferred: the text says
     /// "Pick %picks% effects").
     /// </summary>
-    private List<IWiredAction> ChooseRandomActions(
+    private WiredActionPick ChooseRandomActions(
         List<IWiredAction> actions,
         IWiredPolicy policy,
         int stackId
@@ -1360,20 +1487,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (chosen.Count < picks)
             chosen.AddRange(PickAtRandom(avoided, picks - chosen.Count));
 
-        if (avoidCount > 0)
+        return new()
         {
-            recent ??= _recentRandomPicksByStackId[stackId] = new Queue<List<IWiredAction>>();
-            recent.Enqueue([.. chosen]);
-
-            while (recent.Count > avoidCount)
-                recent.Dequeue();
-        }
-        else
-        {
-            _recentRandomPicksByStackId.Remove(stackId);
-        }
-
-        return chosen;
+            Actions = chosen,
+            RandomRun = [.. chosen],
+            RandomAvoidCount = avoidCount,
+        };
     }
 
     /// <summary>

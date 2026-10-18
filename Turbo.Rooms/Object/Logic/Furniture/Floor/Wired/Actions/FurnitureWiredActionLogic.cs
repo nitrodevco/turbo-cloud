@@ -37,33 +37,6 @@ public abstract class FurnitureWiredActionLogic(
         Task.FromResult(true);
 
     /// <summary>
-    /// Moves the furni in slot 0 onto the first furni in slot 1, offset by
-    /// (<paramref name="dx"/>, <paramref name="dy"/>) tiles. "Furni to furni" is this with no
-    /// offset and "move furni to" with one; they were the same loop written twice.
-    /// </summary>
-    protected async Task<bool> MoveOntoTargetFurniAsync(IWiredExecutionContext ctx, int dx, int dy)
-    {
-        var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
-        var targets = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1));
-
-        if (movers.Count == 0 || targets.Count == 0)
-            return false;
-
-        var target = targets[0];
-        var moved = false;
-
-        foreach (var mover in movers)
-        {
-            if (mover.ObjectId == target.ObjectId)
-                continue;
-
-            moved |= await ctx.TryMoveFloorItemAsync(mover, target.X + dx, target.Y + dy);
-        }
-
-        return moved;
-    }
-
-    /// <summary>
     /// A furni this action moves ran into a player: what the "furni collides with user" trigger
     /// listens for. Queued, so the action does not wait for whatever the trigger sets off.
     /// </summary>

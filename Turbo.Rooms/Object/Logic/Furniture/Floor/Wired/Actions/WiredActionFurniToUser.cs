@@ -17,7 +17,7 @@ public class WiredActionFurniToUser(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_USER;
 
@@ -25,23 +25,18 @@ public class WiredActionFurniToUser(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var selection = ctx.GetSelection(this);
         var players = GetPlayers(selection);
         var items = GetFloorItems(selection);
 
         if (players.Count == 0 || items.Count == 0)
-            return false;
+            return;
 
         var target = players[0];
-        var moved = false;
 
         foreach (var item in items)
-        {
-            moved |= await ctx.TryMoveFloorItemAsync(item, target.X, target.Y);
-        }
-
-        return moved;
+            plan.Move(item, target.X, target.Y);
     }
 }

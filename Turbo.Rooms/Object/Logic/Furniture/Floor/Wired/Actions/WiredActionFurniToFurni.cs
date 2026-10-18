@@ -17,7 +17,7 @@ public class WiredActionFurniToFurni(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_FURNI;
 
@@ -31,6 +31,6 @@ public class WiredActionFurniToFurni(
             WiredSources.FurniOrSecondary,
         ];
 
-    public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
-        MoveOntoTargetFurniAsync(ctx, 0, 0);
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan) =>
+        PlanOntoTargetFurni(ctx, plan, 0, 0);
 }

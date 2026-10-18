@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -138,7 +139,8 @@ public sealed class WiredExecutionModelTests
             0,
             2,
             receiveAntenna: ANTENNA_A,
-            actions: [Log("loop"), Signal(ANTENNA_A, delayPulses: 1)]
+            actions: [Log("loop"), Signal(ANTENNA_A, delayPulses: 1)],
+            inOrder: true
         );
         await StartAsync();
 
@@ -402,10 +404,15 @@ public sealed class WiredExecutionModelTests
         bool periodic = false,
         int shortPeriodUnits = 0,
         int receiveAntenna = 0,
-        ActionSpec[]? actions = null
+        ActionSpec[]? actions = null,
+        bool inOrder = false
     )
     {
         var triggerId = _nextBoxId++;
+
+        // Effects run in a random order unless the stack says otherwise.
+        if (inOrder)
+            _room.AddBox<WiredAddonExecuteInOrder>(_nextBoxId++, x, y, "wf_xtra_exec_in_order");
 
         if (shortPeriodUnits > 0)
         {

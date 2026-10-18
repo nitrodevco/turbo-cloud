@@ -23,7 +23,7 @@ public class WiredActionSetAltitude(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.SET_FURNI_ALTITUDE;
 
@@ -37,17 +37,15 @@ public class WiredActionSetAltitude(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var amount = GetIntParamOrDefault(0, 0);
         var op = GetIntParamOrDefault(1, WiredOperatorType.Set);
         var maxAltitude = _roomGrain._roomConfig.MaxStackHeight.ToInt();
-        var map = MapModule;
-        var moved = false;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            var current = item.Z.ToInt();
+            var current = plan.Where(item).Z.ToInt();
             var next = op switch
             {
                 WiredOperatorType.Add => current + amount,
@@ -60,16 +58,9 @@ public class WiredActionSetAltitude(
             if (next == current)
                 continue;
 
-            // Not TryMoveFloorItemAsync: the furni stays on its own tile and only its height
-            // changes, which is this box's to set, so there is no placement to ask about.
-            moved |= await ctx.ProcessFloorItemMovementAsync(
-                item,
-                map.ToIdx(item.X, item.Y),
-                Altitude.FromInt(next),
-                item.Rotation
-            );
+            // Not a placement: the furni stays on its own tile and only its height changes, which
+            // is this box's to set, so there is nothing to ask about and nothing to block.
+            plan.SetAltitude(item, Altitude.FromInt(next));
         }
-
-        return moved;
     }
 }

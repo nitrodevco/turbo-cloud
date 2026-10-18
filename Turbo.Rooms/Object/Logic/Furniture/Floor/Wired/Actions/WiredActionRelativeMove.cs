@@ -21,7 +21,7 @@ public class WiredActionRelativeMove(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.RELATIVE_FURNI_MOVE;
 
@@ -32,24 +32,19 @@ public class WiredActionRelativeMove(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var dx = GetIntParamOrDefault(0, 0);
         var dy = GetIntParamOrDefault(1, 0);
 
         if (dx == 0 && dy == 0)
-            return false;
-
-        var moved = false;
+            return;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            var x = item.X + dx;
-            var y = item.Y + dy;
+            var at = plan.Where(item);
 
-            moved |= await ctx.TryMoveFloorItemAsync(item, x, y);
+            plan.Move(item, at.X + dx, at.Y + dy);
         }
-
-        return moved;
     }
 }

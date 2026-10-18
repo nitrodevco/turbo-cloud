@@ -19,7 +19,7 @@ public class WiredActionFleeHabbo(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int FLEE_RANGE = 3;
 
@@ -27,15 +27,15 @@ public class WiredActionFleeHabbo(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var selection = ctx.GetSelection(this);
         var map = MapModule;
-        var moved = false;
 
         foreach (var item in GetFloorItems(selection))
         {
-            var itemIdx = map.ToIdx(item.X, item.Y);
+            var at = plan.Where(item);
+            var itemIdx = map.ToIdx(at.X, at.Y);
 
             if (!AvatarModule.TryGetNearestPlayer(itemIdx, FLEE_RANGE, out var nearest, out _))
                 continue;
@@ -47,25 +47,22 @@ public class WiredActionFleeHabbo(
 
             if (candidates.Count == 0)
             {
-                var sideX = item.X + Random.Shared.Next(-1, 2);
+                var sideX = at.X + Random.Shared.Next(-1, 2);
 
-                if (map.InBounds(sideX, item.Y))
-                    candidates.Add(map.ToIdx(sideX, item.Y));
+                if (map.InBounds(sideX, at.Y))
+                    candidates.Add(map.ToIdx(sideX, at.Y));
             }
 
-            foreach (var tileIdx in candidates)
-            {
-                var (x, y) = map.GetTileXY(tileIdx);
-
-                if (await ctx.TryMoveFloorItemAsync(item, x, y))
+            // Each way out is tried in turn; only finding none is a blocked move.
+            if (
+                !candidates.Any(tileIdx =>
                 {
-                    moved = true;
+                    var (x, y) = map.GetTileXY(tileIdx);
 
-                    break;
-                }
-            }
+                    return plan.TryMove(item, x, y);
+                })
+            )
+                plan.Block();
         }
-
-        return moved;
     }
 }

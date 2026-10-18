@@ -19,7 +19,9 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
+public sealed partial class RoomMapModule(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IRoomTileView
 {
     /// <summary>
     /// What a tile's highest-item slot holds when no furni stands there. Zero, never -1:
@@ -277,82 +279,17 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         if (_roomGrain._state.IsTileComputationPaused)
             return;
 
-        var nextHeight = _roomGrain._state.Model?.BaseHeights[id] ?? 0.0;
-        var nextFlags =
-            _roomGrain._state.Model?.BaseFlags[id]
-            ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
-        var floorStack = _roomGrain._state.TileFloorStacks[id];
-        var avatarStack = _roomGrain._state.TileAvatarStacks[id];
-
-        IRoomFloorItem? nextHighestItem = null;
-        IRoomFloorItem? stackHelper = null;
-
-        if (avatarStack.Count > 0)
+        foreach (var objectId in _roomGrain._state.TileAvatarStacks[id])
         {
-            nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
-
-            foreach (var objectId in avatarStack)
-            {
-                if (!AvatarModule.TryGetAvatar(objectId, out var avatar))
-                    continue;
-
+            if (AvatarModule.TryGetAvatar(objectId, out var avatar))
                 avatar.NeedsInvoke = true;
-            }
         }
 
-        if (floorStack.Count > 0)
-        {
-            nextFlags = nextFlags.Add(RoomTileFlags.FurnitureOccupied);
-
-            foreach (var itemId in floorStack)
-            {
-                if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
-                    continue;
-
-                var height = item.Height;
-
-                if (item.Logic is FurnitureInvisibleClickTileLogic invisLogic)
-                {
-                    nextFlags = nextFlags.Add(RoomTileFlags.TileClickListener);
-                }
-
-                if (
-                    item.Logic is FurnitureStackTileLogic
-                    && (stackHelper is null || item.Z.Value > stackHelper.Z.Value)
-                )
-                    stackHelper = (IRoomFloorItem)item;
-
-                if (height < nextHeight)
-                    continue;
-
-                nextHeight = height;
-                nextHighestItem = (IRoomFloorItem)item;
-            }
-        }
-
-        // A stacking or walking helper decides its tiles' height whatever else stands there:
-        // "Adjust the height of stacking helper as you want, then move the other furni on top of
-        // it", "All users on this tile will stand on this height" (widget.custom.stack|walk.height.text).
-        if (stackHelper is not null)
-        {
-            nextHeight = stackHelper.Height;
-            nextHighestItem = stackHelper;
-        }
-
-        if (nextHighestItem is not null)
-        {
-            if (!nextHighestItem.Logic.CanStack())
-                nextFlags = nextFlags.Add(RoomTileFlags.StackBlocked);
-
-            if (nextHighestItem.Logic.CanWalk())
-                nextFlags = nextFlags.Add(RoomTileFlags.Walkable);
-
-            if (nextHighestItem.Logic.CanSit())
-                nextFlags = nextFlags.Add(RoomTileFlags.Sittable);
-
-            if (nextHighestItem.Logic.CanLay())
-                nextFlags = nextFlags.Add(RoomTileFlags.Layable);
-        }
+        var (nextHeight, nextFlags, nextHighestItem) = EvaluateTile(
+            id,
+            FurniModule.GetFloorItemsOnTile(id),
+            static item => item.Z
+        );
 
         _roomGrain._state.TileHeights[id] = nextHeight;
         _roomGrain._state.TileFlags[id] = nextFlags;
@@ -377,6 +314,93 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         }
 
         _dirty = true;
+    }
+
+    public RoomTileState GetTile(int tileIdx)
+    {
+        TryGetHighestFloorItem(tileIdx, out var highest);
+
+        return new(
+            _roomGrain._state.TileHeights[tileIdx],
+            _roomGrain._state.TileFlags[tileIdx],
+            highest
+        );
+    }
+
+    /// <summary>
+    /// What a tile is with these furni on it, each at the altitude <paramref name="zOf"/> gives:
+    /// the one place the stacking rules live. <see cref="ComputeTile(int)"/> passes the furni
+    /// standing there; a view of moves not yet made passes the furni it has put there.
+    /// </summary>
+    public RoomTileState EvaluateTile(
+        int id,
+        IEnumerable<IRoomFloorItem> floorItems,
+        Func<IRoomFloorItem, Altitude> zOf
+    )
+    {
+        Altitude nextHeight = _roomGrain._state.Model?.BaseHeights[id] ?? 0.0;
+        var nextFlags =
+            _roomGrain._state.Model?.BaseFlags[id]
+            ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
+
+        IRoomFloorItem? nextHighestItem = null;
+        IRoomFloorItem? stackHelper = null;
+        Altitude stackHelperZ = 0.0;
+
+        if (_roomGrain._state.TileAvatarStacks[id].Count > 0)
+            nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
+
+        foreach (var item in floorItems)
+        {
+            nextFlags = nextFlags.Add(RoomTileFlags.FurnitureOccupied);
+
+            var z = zOf(item);
+            Altitude height = z + item.GetStackHeight();
+
+            if (item.Logic is FurnitureInvisibleClickTileLogic)
+                nextFlags = nextFlags.Add(RoomTileFlags.TileClickListener);
+
+            if (
+                item.Logic is FurnitureStackTileLogic
+                && (stackHelper is null || z.Value > stackHelperZ.Value)
+            )
+            {
+                stackHelper = item;
+                stackHelperZ = z;
+            }
+
+            if (height < nextHeight)
+                continue;
+
+            nextHeight = height;
+            nextHighestItem = item;
+        }
+
+        // A stacking or walking helper decides its tiles' height whatever else stands there:
+        // "Adjust the height of stacking helper as you want, then move the other furni on top of
+        // it", "All users on this tile will stand on this height" (widget.custom.stack|walk.height.text).
+        if (stackHelper is not null)
+        {
+            nextHeight = stackHelperZ + stackHelper.GetStackHeight();
+            nextHighestItem = stackHelper;
+        }
+
+        if (nextHighestItem is not null)
+        {
+            if (!nextHighestItem.Logic.CanStack())
+                nextFlags = nextFlags.Add(RoomTileFlags.StackBlocked);
+
+            if (nextHighestItem.Logic.CanWalk())
+                nextFlags = nextFlags.Add(RoomTileFlags.Walkable);
+
+            if (nextHighestItem.Logic.CanSit())
+                nextFlags = nextFlags.Add(RoomTileFlags.Sittable);
+
+            if (nextHighestItem.Logic.CanLay())
+                nextFlags = nextFlags.Add(RoomTileFlags.Layable);
+        }
+
+        return new(nextHeight, nextFlags, nextHighestItem);
     }
 
     public RoomMapSnapshot GetMapSnapshot(CancellationToken ct)

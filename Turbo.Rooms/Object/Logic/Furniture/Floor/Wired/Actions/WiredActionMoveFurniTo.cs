@@ -22,7 +22,7 @@ public class WiredActionMoveFurniTo(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO;
 
@@ -41,11 +41,11 @@ public class WiredActionMoveFurniTo(
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.Furni, WiredSources.SecondaryFurni];
 
-    public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var tiles = GetIntParamOrDefault(1, 1);
         var (dx, dy) = MapModule.GetDirectionOffset(GetIntParamOrDefault(0, Rotation.North));
 
-        return MoveOntoTargetFurniAsync(ctx, dx * tiles, dy * tiles);
+        PlanOntoTargetFurni(ctx, plan, dx * tiles, dy * tiles);
     }
 }

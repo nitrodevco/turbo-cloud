@@ -29,7 +29,7 @@ public class WiredActionMatchToSnapshot(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.SET_FURNI_STATE;
 
@@ -47,7 +47,9 @@ public class WiredActionMatchToSnapshot(
 
     protected override bool KeepsFurniSnapshot => true;
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    protected override bool SucceedsWithoutMoving => true;
+
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var snapshot = GetFurniSnapshot();
         var restoreState = GetIntParamOrDefault(0, false);
@@ -64,30 +66,29 @@ public class WiredActionMatchToSnapshot(
             if (!snapshot.TryGetValue(item.ObjectId, out var entry))
             {
                 if (restoreState && onlyEntry is { } only && item.Logic.GetState() != only.State)
-                    await ctx.ProcessItemStateUpdateAsync(item, only.State);
+                    plan.Then(execution => execution.ProcessItemStateUpdateAsync(item, only.State));
 
                 continue;
             }
 
             if (restoreState && item.Logic.GetState() != entry.State)
-                await ctx.ProcessItemStateUpdateAsync(item, entry.State);
+                plan.Then(execution => execution.ProcessItemStateUpdateAsync(item, entry.State));
 
-            var targetX = restorePosition ? entry.X : item.X;
-            var targetY = restorePosition ? entry.Y : item.Y;
-            var targetRotation = restoreRotation ? (Rotation)entry.Rotation : item.Rotation;
+            var at = plan.Where(item);
+            var targetX = restorePosition ? entry.X : at.X;
+            var targetY = restorePosition ? entry.Y : at.Y;
+            var targetRotation = restoreRotation ? (Rotation)entry.Rotation : at.Rotation;
             Altitude? targetZ = restoreAltitude ? Altitude.FromInt(entry.Z) : null;
 
             if (
-                targetX == item.X
-                && targetY == item.Y
-                && targetRotation == item.Rotation
-                && (targetZ is null || targetZ == item.Z)
+                targetX == at.X
+                && targetY == at.Y
+                && targetRotation == at.Rotation
+                && (targetZ is null || targetZ == at.Z)
             )
                 continue;
 
-            await ctx.TryMoveFloorItemAsync(item, targetX, targetY, targetZ, targetRotation);
+            plan.Move(item, targetX, targetY, targetZ, targetRotation);
         }
-
-        return true;
     }
 }
