@@ -30,15 +30,15 @@ updated"); a start or end date passing is seen at the next login.
 
 ## Panel API
 
-Every route needs `admin.rewardtracks.manage`. Every change is written to the command log as
+Every route needs `admin.rewardtracks.manage` (`/api/me` says whether the player holds it, as `canManageRewardTracks`). Every change is written to the command log as
 `rewardtracks <save|delete|import|reload> <track ids>` from `panel`, and sends the tracks again
 to the players online.
 
 | Route | Does |
 | --- | --- |
 | `GET /api/reward-tracks` | `{ tracks: [{ id, theme, enabled, startsAt, endsAt, live, hasPremium, tasks, levels, prizes, maxPoints }], actionTypes }`; `actionTypes` are the types the server counts |
-| `GET /api/reward-tracks/{id}` | `{ track, warnings }`: the whole track (below) and what this hotel cannot do of it |
-| `PUT /api/reward-tracks/{id}` | saves the track in the body (added, or replaced whole); 400 with the reason when it is invalid |
+| `GET /api/reward-tracks/{id}` | `{ track, warnings, furni }`: the whole track (below), what this hotel cannot do of it, and the furni each furni prize gives here (`prizeId`, `definitionId`, `name`) |
+| `PUT /api/reward-tracks/{id}` | saves the track in the body (added, or replaced whole) and answers as `GET` does; 400 with the reason when it is invalid |
 | `DELETE /api/reward-tracks/{id}` | removes it (204, or 404) |
 | `POST /api/reward-tracks/import/preview` | the plan of an import, nothing changed |
 | `POST /api/reward-tracks/import` | makes it: every added or changed track saved in one transaction |

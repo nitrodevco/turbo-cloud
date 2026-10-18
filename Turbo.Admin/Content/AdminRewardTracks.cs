@@ -14,6 +14,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -95,6 +96,18 @@ public sealed class AdminRewardTracks(
                 .Prizes.Select(x => (x.Id, Problem: GiveProblem(x)))
                 .Where(x => x.Problem is not null)
                 .Select(x => $"prize {x.Id}: {x.Problem}"),
+        ];
+
+    /// <summary>
+    /// The furni each furni prize gives here (its definition, else the hotel's furni of its
+    /// sprite), so the panel can show what the prize is.
+    /// </summary>
+    public RewardTrackPrizeFurni[] PrizeFurni(RewardTrackDefinition track) =>
+        [
+            .. track
+                .Prizes.Select(x => (x.Id, Definition: FurniOf(x)))
+                .Where(x => x.Definition is not null)
+                .Select(x => new RewardTrackPrizeFurni(x.Id, x.Definition!.Id, x.Definition.Name)),
         ];
 
     public async Task<RewardTrackDefinition> SaveAsync(
@@ -319,6 +332,28 @@ public sealed class AdminRewardTracks(
     }
 
     /// <summary>Why the server cannot give a prize, as <c>PlayerRewardTrackGrain</c> gives them, or null.</summary>
+    private FurnitureDefinitionSnapshot? FurniOf(RewardTrackPrizeDefinition prize) =>
+        prize.ProductType switch
+        {
+            ProductDisplayType.FloorItem
+            or ProductDisplayType.WallItem when prize.FurnitureDefinitionId is { } id =>
+                definitions.TryGetDefinition(id),
+            ProductDisplayType.FloorItem
+            or ProductDisplayType.WallItem
+                when int.TryParse(
+                    prize.RewardTypeId,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var sprite
+                ) => definitions.TryGetDefinitionBySprite(
+                prize.ProductType == ProductDisplayType.WallItem
+                    ? ProductType.Wall
+                    : ProductType.Floor,
+                sprite
+            ),
+            _ => null,
+        };
+
     private string? GiveProblem(RewardTrackPrizeDefinition prize)
     {
         var number = int.TryParse(

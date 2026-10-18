@@ -21,6 +21,9 @@ public sealed record RewardTrackListItem(
     int MaxPoints
 );
 
+/// <summary>The furni a furni prize gives here: its definition id and class name.</summary>
+public sealed record RewardTrackPrizeFurni(string PrizeId, int DefinitionId, string Name);
+
 /// <summary>
 /// Habbo's reward tracks to take in from a capture: what its client was sent at login
 /// (<c>RewardTracks</c>), as the client reads it. <see cref="Only"/> takes in just those track

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -12,6 +13,7 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Content;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -167,6 +169,75 @@ public sealed class RewardTrackAdminTests : IDisposable
             .Should()
             .Throw<ArgumentException>()
             .WithMessage("*not usable*");
+    }
+
+    [Fact]
+    public async Task A_furni_prize_names_the_furni_it_gives_here()
+    {
+        var chair = (
+            (FurnitureDefinitionSnapshot)
+                RuntimeHelpers.GetUninitializedObject(typeof(FurnitureDefinitionSnapshot))
+        ) with
+        {
+            Id = 7,
+            Name = "hween_c26_chair",
+        };
+        _fakes.Handlers[nameof(IFurnitureDefinitionProvider.TryGetDefinitionBySprite)] = call =>
+            (int)call.Args[1]! == 4582 ? chair : null;
+
+        await _tracks.ImportAsync(STAFF, Request(withFurni: true), Ct);
+
+        _tracks
+            .PrizeFurni(_store.Tracks[0])
+            .Should()
+            .Equal(new RewardTrackPrizeFurni("furni", 7, "hween_c26_chair"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_panel_is_told_whether_its_player_may_manage_the_reward_tracks(bool holds)
+    {
+        var port = TestPorts.Free();
+        var fakes = new Fakes();
+        fakes.Handlers["GetSessionAsync"] = _ =>
+            Task.FromResult<AdminSessionSnapshot?>(
+                new AdminSessionSnapshot
+                {
+                    PlayerId = 1,
+                    ExpiresAtUtc = DateTime.UtcNow.AddHours(1),
+                }
+            );
+        fakes.Handlers["HasAsync"] = call =>
+            Task.FromResult(
+                (string)call.Args[0]! != PermissionNodes.Admin.REWARD_TRACKS_MANAGE || holds
+            );
+        var (server, _, _) = AdminApiServerTests.Build(
+            $"http://127.0.0.1:{port}",
+            fakes,
+            NullLoggerFactory.Instance
+        );
+        using var client = new HttpClient();
+
+        await server.StartAsync(Ct);
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"http://127.0.0.1:{port}/api/me"
+            );
+            request.Headers.Authorization = new("Bearer", "a-session");
+
+            using var response = await client.SendAsync(request, Ct);
+            var me = await response.Content.ReadFromJsonAsync<MeResponse>(Ct);
+
+            me!.CanManageRewardTracks.Should().Be(holds);
+            me.CanViewPlugins.Should().BeTrue();
+        }
+        finally
+        {
+            await server.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]
