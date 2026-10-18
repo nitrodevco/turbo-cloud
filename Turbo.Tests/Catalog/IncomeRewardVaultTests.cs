@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Vault;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Messages.Outgoing.Vault;
@@ -27,6 +30,7 @@ public sealed class IncomeRewardVaultTests : IDisposable
     private readonly Fakes _fakes = new();
     private readonly List<(CurrencyKind Kind, int Amount, string Reference)> _credited = [];
     private readonly HashSet<string> _references = [];
+    private readonly HeldTimers _timers = new();
     private readonly IncomeRewardService _vault;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -58,7 +62,9 @@ public sealed class IncomeRewardVaultTests : IDisposable
             [],
             _db,
             _fakes.Create<IGrainFactory>(),
-            TimeProvider.System
+            _timers,
+            Options.Create(new CatalogConfig()),
+            NullLogger<IncomeRewardService>.Instance
         );
     }
 
@@ -95,7 +101,9 @@ public sealed class IncomeRewardVaultTests : IDisposable
             ],
             _fakes
                 .Log.Of("TrySendComposerAsync")
-                .Select(x => ((IncomeRewardNotificationMessageComposer)x.Args[0]!).RewardCategory)
+                .Select(x => x.Args[0])
+                .OfType<IncomeRewardNotificationMessageComposer>()
+                .Select(x => x.RewardCategory)
         );
         Assert.Equal(
             [
@@ -164,5 +172,100 @@ public sealed class IncomeRewardVaultTests : IDisposable
         Assert.Empty(await WaitingAsync());
         await using var db = await _db.CreateDbContextAsync(Ct);
         Assert.All(await db.PlayerIncomeRewards.ToListAsync(Ct), x => Assert.NotNull(x.ClaimedAt));
+    }
+
+    [Fact]
+    public async Task A_burst_of_earnings_is_followed_by_one_status_nobody_asked_for()
+    {
+        // Official client capture 2026-10-13/17: IncomeRewardNotification {2}, {5}, {5} within 60 ms,
+        // then one IncomeRewardStatus 117 ms after the first, with no request from the client.
+        await DepositAsync(VaultRewardCategoryType.Achievements, 20, "ach:1");
+        await DepositAsync(VaultRewardCategoryType.LevelProgression, 40, "level:2");
+        await DepositAsync(VaultRewardCategoryType.LevelProgression, 45, "level:3");
+
+        Assert.Empty(Sent().OfType<IncomeRewardStatusMessageComposer>());
+        Assert.Equal(1, _timers.Fire());
+
+        var status = await StatusAsync(1);
+        Assert.Equal(
+            [
+                (VaultRewardCategoryType.Achievements, VaultRewardType.Duckets, 20),
+                (VaultRewardCategoryType.LevelProgression, VaultRewardType.Duckets, 40),
+                (VaultRewardCategoryType.LevelProgression, VaultRewardType.Duckets, 45),
+            ],
+            status.IncomeRewards.Select(x => (x.RewardCategory, x.RewardType, x.Amount))
+        );
+        Assert.Equal(4, Sent().Count);
+
+        // A later earning has a status of its own.
+        await DepositAsync(VaultRewardCategoryType.Achievements, 50, "ach:2");
+        Assert.Equal(1, _timers.Fire());
+
+        Assert.Equal(4, (await StatusAsync(2)).IncomeRewards.Count);
+        Assert.Equal(6, Sent().Count);
+    }
+
+    private List<object?> Sent() =>
+        [.. _fakes.Log.Of("TrySendComposerAsync").Select(x => x.Args[0])];
+
+    /// <summary>The <paramref name="nth"/> status sent, once the push that sends it has finished.</summary>
+    private async Task<IncomeRewardStatusMessageComposer> StatusAsync(int nth)
+    {
+        for (var tries = 0; tries < 100; tries++)
+        {
+            var sent = Sent().OfType<IncomeRewardStatusMessageComposer>().ToList();
+
+            if (sent.Count >= nth)
+                return sent[nth - 1];
+
+            await Task.Delay(50, Ct);
+        }
+
+        throw new TimeoutException($"status {nth} never sent");
+    }
+
+    /// <summary>A clock whose timers fire only when the test says so.</summary>
+    private sealed class HeldTimers : TimeProvider
+    {
+        private readonly List<(TimerCallback Callback, object? State)> _held = [];
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period
+        )
+        {
+            lock (_held)
+                _held.Add((callback, state));
+
+            return new Held();
+        }
+
+        /// <summary>Fires every timer made so far; how many there were.</summary>
+        public int Fire()
+        {
+            List<(TimerCallback Callback, object? State)> due;
+
+            lock (_held)
+            {
+                due = [.. _held];
+                _held.Clear();
+            }
+
+            foreach (var (callback, state) in due)
+                callback(state);
+
+            return due.Count;
+        }
+
+        private sealed class Held : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose() { }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }
