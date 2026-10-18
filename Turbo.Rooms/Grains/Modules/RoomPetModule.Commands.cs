@@ -15,6 +15,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -428,15 +429,116 @@ public sealed partial class RoomPetModule
 
         pet.TargetItemId = item.ObjectId;
 
-        if (pet.X == item.X && pet.Y == item.Y)
+        if (IsAtItem(pet, item))
             return true;
 
-        if (await AvatarModule.WalkAvatarToAsync(pet, item.X, item.Y, ct))
-            return true;
+        if (CanStandOn(item))
+        {
+            if (await AvatarModule.WalkAvatarToAsync(pet, item.X, item.Y, ct))
+                return true;
+        }
+        else
+        {
+            foreach (var (x, y) in SidesOf(item))
+            {
+                if (!IsTileFreeForNpc(MapModule.ToIdx(x, y)))
+                    continue;
+
+                if (await AvatarModule.WalkAvatarToAsync(pet, x, y, ct))
+                    return true;
+            }
+        }
 
         pet.TargetItemId = -1;
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether the pet is where it uses the item: on it, or for an item it cannot stand on (a
+    /// horse trough) on a tile beside it. Official horses drank at a walkable water bowl standing
+    /// on it, and at a trough from the tile next to it, facing it (official client capture
+    /// 2026-10-17, room "saddle club": 4,1 facing 4,2 and 5,3 facing 4,3).
+    /// </summary>
+    internal bool IsAtItem(IRoomPet pet, IRoomObject item)
+    {
+        if (pet.X == item.X && pet.Y == item.Y)
+            return true;
+
+        if (CanStandOn(item))
+            return false;
+
+        foreach (var (x, y) in SidesOf(item))
+        {
+            if (pet.X == x && pet.Y == y)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a pet may stand on the item's tile, whoever stands there now.</summary>
+    private bool CanStandOn(IRoomObject item)
+    {
+        var idx = MapModule.ToIdx(item.X, item.Y);
+
+        if (!MapModule.InBounds(idx))
+            return false;
+
+        var flags = _roomGrain._state.TileFlags[idx];
+
+        return !flags.Has(RoomTileFlags.Disabled)
+            && !flags.Has(RoomTileFlags.Closed)
+            && (!flags.Has(RoomTileFlags.FurnitureOccupied) || flags.Has(RoomTileFlags.Walkable));
+    }
+
+    /// <summary>
+    /// The tiles beside an item's footprint, sharing an edge with it, in a random order. Corners
+    /// are left out: the official horses drank from a side every time (5 of 5 trough drinks) with
+    /// free corner tiles next to the trough.
+    /// </summary>
+    private (int X, int Y)[] SidesOf(IRoomObject item)
+    {
+        var map = MapModule;
+        var footprint = new HashSet<int>();
+
+        if (
+            item is IRoomFloorItem floorItem
+            && map.GetTileIdForSize(
+                item.X,
+                item.Y,
+                item.Rotation,
+                floorItem.Definition.Width,
+                floorItem.Definition.Length,
+                out var tileIds
+            )
+        )
+            footprint.UnionWith(tileIds);
+        else
+            footprint.Add(map.ToIdx(item.X, item.Y));
+
+        var sides = new List<(int X, int Y)>();
+
+        foreach (var idx in footprint)
+        {
+            var (x, y) = map.GetTileXY(idx);
+
+            foreach (var (sx, sy) in new[] { (x, y - 1), (x + 1, y), (x, y + 1), (x - 1, y) })
+            {
+                if (
+                    map.InBounds(sx, sy)
+                    && !footprint.Contains(map.ToIdx(sx, sy))
+                    && !sides.Contains((sx, sy))
+                )
+                    sides.Add((sx, sy));
+            }
+        }
+
+        var shuffled = sides.ToArray();
+
+        _random.Shuffle(shuffled);
+
+        return shuffled;
     }
 
     /// <summary>
