@@ -330,6 +330,22 @@ public sealed class NavigatorService(
     public ImmutableArray<NavigatorEventCategorySnapshot> GetEventCategories() =>
         _navigatorProvider.GetEventCategories();
 
+    /// <remarks>
+    /// Habbo's room ad page sends -1 unless the buyer picks a category: its drop menu shows the
+    /// first visible category selected, but the purchase data it writes the pick into is made
+    /// only after that selection (RoomAdsCatalogWidget.onPurchaseInfoEvent, RoomAdPurchaseData
+    /// categoryId -1). The ad goes where the buyer saw it would.
+    /// </remarks>
+    public int? GetRoomAdCategoryId(int requestedCategoryId)
+    {
+        var visible = GetEventCategories().Where(x => x.Visible).ToList();
+
+        if (visible.Any(x => x.Id == requestedCategoryId))
+            return requestedCategoryId;
+
+        return visible.Count > 0 ? visible[0].Id : null;
+    }
+
     public async Task<ImmutableArray<NavigatorPopularTagSnapshot>> GetPopularTagsAsync(
         CancellationToken ct
     )

@@ -715,6 +715,10 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (created is null)
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
+        // Habbo's room ad offer is "room_ad_plus_badge": the ad and a badge product (RADZZ in the
+        // official catalogue page). Every ad bought carries it, so one already owned is no refusal.
+        await GrantBadgesAsync(offer, ct);
+
         return offer;
     }
 
