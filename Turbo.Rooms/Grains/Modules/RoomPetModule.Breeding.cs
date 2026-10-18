@@ -74,6 +74,39 @@ public sealed partial class RoomPetModule
         return false;
     }
 
+    /// <summary>
+    /// Whether a pet on its way to breed may step onto its nest though a pet already lies there.
+    /// A nest is one tile and holds both parents, so only the pets in the nest or stepping into it
+    /// are no obstacle; anyone else on the tile still is.
+    /// </summary>
+    internal bool CanJoinNestOn(IRoomAvatar avatar, int tileIdx)
+    {
+        if (
+            avatar is not IRoomPet pet
+            || !_roomGrain._state.ItemsById.TryGetValue(pet.TargetItemId, out var item)
+            || item.Logic is not FurniturePetBreedingNestLogic nest
+            || MapModule.ToIdx(item.X, item.Y) != tileIdx
+            || !nest.CanAccept(pet)
+        )
+            return false;
+
+        foreach (var objectId in _roomGrain._state.TileAvatarStacks[tileIdx])
+        {
+            if (objectId == pet.ObjectId)
+                continue;
+
+            // A pet on its last step in is on the tile before it is in the nest.
+            if (
+                !AvatarModule.TryGetAvatar(objectId, out var other)
+                || !nest.Holds(other)
+                    && (other is not IRoomPet arriving || arriving.TargetItemId != item.ObjectId)
+            )
+                return false;
+        }
+
+        return true;
+    }
+
     internal async Task OnPetReachedNestAsync(
         IRoomPet pet,
         FurniturePetBreedingNestLogic nest,

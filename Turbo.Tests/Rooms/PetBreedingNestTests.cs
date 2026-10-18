@@ -1,8 +1,10 @@
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Pets;
+using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
@@ -105,9 +107,80 @@ public sealed class PetBreedingNestTests
             .NotContain(x => x.Method == nameof(IInventoryGrain.CreatePetAsync));
     }
 
-    private async Task SitBothInNestAsync()
+    /// <summary>
+    /// Every official nest is one tile (furnidata pet_breeding_* 1x1) and holds both parents
+    /// ("the parent pets ran off the nest", breedpets.confirmation.alert.petsmissing.desc), so the
+    /// second pet told to breed walks onto the tile the first lies on. It stopped short: the pet
+    /// already there blocked the tile like any avatar.
+    /// </summary>
+    [Fact]
+    public async Task The_second_pet_told_to_breed_walks_into_a_nest_the_first_lies_in()
     {
-        var nest = (FurniturePetBreedingNestLogic)
+        var nest = AddNest();
+        var first = await PlaceAsync(PET1, 6, 3);
+        var second = await PlaceAsync(PET2, 3, 6);
+
+        (await BreedAsync(first)).Should().BeTrue();
+        await TickAsync(first);
+        nest.OccupantPetIds.Should().Equal(PET1);
+        _room.TileFlags()[6 * 10 + 6].Should().HaveFlag(RoomTileFlags.AvatarOccupied);
+
+        (await BreedAsync(second)).Should().BeTrue();
+        await TickAsync(second);
+
+        (second.X, second.Y).Should().Be((6, 6));
+        (first.X, first.Y).Should().Be((6, 6));
+        first
+            .HasStatus(AvatarStatusType.Lay)
+            .Should()
+            .BeTrue("the first parent stays lying when the second steps in");
+        second.HasStatus(AvatarStatusType.Lay).Should().BeTrue();
+        nest.OccupantPetIds.Should().Equal(PET1, PET2);
+        ((System.Collections.IDictionary)Member("PendingNestBreedings"))
+            .Contains((RoomObjectId)NEST)
+            .Should()
+            .BeTrue("both parents are in the nest, so their owners are asked to confirm");
+    }
+
+    [Fact]
+    public async Task The_second_pet_may_be_told_while_the_first_takes_its_last_step_in()
+    {
+        var nest = AddNest();
+        var first = await PlaceAsync(PET1, 6, 3);
+        var second = await PlaceAsync(PET2, 3, 6);
+
+        (await BreedAsync(first)).Should().BeTrue();
+
+        for (var step = 0; step < 20 && (first.X, first.Y) != (6, 6); step++)
+        {
+            _now += 10_000L;
+            await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(_now, Ct);
+        }
+
+        nest.OccupantPetIds.Should().BeEmpty("the first pet is on the tile, not yet in the nest");
+
+        (await BreedAsync(second)).Should().BeTrue();
+        await TickAsync(second);
+
+        (second.X, second.Y).Should().Be((6, 6));
+        nest.OccupantPetIds.Should().BeEquivalentTo([PET1, PET2]);
+    }
+
+    [Fact]
+    public async Task A_player_on_the_nest_still_keeps_a_pet_out()
+    {
+        AddNest();
+        _room.Map.RemoveAvatar(_owner, false);
+        _owner.SetPosition(6, 6);
+        _room.Map.AddAvatar(_owner, false);
+        var pet = await PlaceAsync(PET2, 3, 6);
+
+        (await BreedAsync(pet)).Should().BeFalse();
+        (pet.X, pet.Y).Should().Be((3, 6));
+    }
+
+    private FurniturePetBreedingNestLogic AddNest() =>
+        (FurniturePetBreedingNestLogic)
             _room
                 .AddFloorItem(
                     NEST,
@@ -117,6 +190,39 @@ public sealed class PetBreedingNestTests
                     createLogic: (factory, ctx) => new FurniturePetBreedingNestLogic(factory, ctx)
                 )
                 .Logic;
+
+    private async Task<IRoomPet> PlaceAsync(int petId, int x, int y)
+    {
+        (await Pets.PlacePetAsync(Owner, petId, x, y, Ct)).Should().BeTrue();
+        Pets.TryGetPet(petId, out var pet).Should().BeTrue();
+
+        return pet!;
+    }
+
+    /// <summary>The "breed" pet command, as the owner's chat gives it.</summary>
+    private Task<bool> BreedAsync(IRoomPet pet) =>
+        (Task<bool>)
+            typeof(RoomPetModule)
+                .GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(Pets, [Owner, pet, PetCommandType.Breed, Ct])!;
+
+    private async Task TickAsync(IRoomPet pet)
+    {
+        var room = _room.Harness.Room;
+
+        for (var step = 0; step < 20 && (pet.IsWalking || pet.TargetItemId > 0); step++)
+        {
+            _now += 10_000L;
+            await room.AvatarTickSystem.ProcessAvatarsAsync(_now, Ct);
+            await room.PetTickSystem.ProcessPetsAsync(_now, Ct);
+        }
+    }
+
+    private long _now;
+
+    private async Task SitBothInNestAsync()
+    {
+        var nest = AddNest();
 
         foreach (var (petId, x) in new[] { (PET1, 4), (PET2, 5) })
         {
