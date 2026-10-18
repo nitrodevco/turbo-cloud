@@ -578,13 +578,28 @@ public sealed partial class RoomPetModule
             return false;
         }
 
-        await EndPlantBreedingAsync(request, PetBreedingState.Accepted, ct);
-
         if (
             !TryGetPet(request.PetId, out var requesterPlant)
             || !TryGetPet(request.OtherPetId, out var otherPlant)
         )
             return false;
+
+        // Either plant may have bred, died or been taken since the request.
+        RefreshFlags(requesterPlant);
+        RefreshFlags(otherPlant);
+
+        if (!requesterPlant.CanBreed || !otherPlant.CanBreed)
+        {
+            await EndPlantBreedingAsync(request, PetBreedingState.Cancelled, ct);
+
+            return false;
+        }
+
+        await EndPlantBreedingAsync(request, PetBreedingState.Accepted, ct);
+
+        // Both plants are spent and written before the seeds are given: left for the hand-over,
+        // a crash in between kept the seeds and let the plants breed again.
+        await SetPlantsBredAsync([requesterPlant, otherPlant], true, ct);
 
         var requesterSeed = await _roomGrain
             ._grainFactory.GetInventoryGrain(request.RequesterId)
@@ -592,6 +607,13 @@ public sealed partial class RoomPetModule
         var otherSeed = await _roomGrain
             ._grainFactory.GetInventoryGrain(request.OtherOwnerId)
             .GrantFurnitureAsync(definition.Id, null, ct);
+
+        if (requesterSeed is null && otherSeed is null)
+        {
+            await SetPlantsBredAsync([requesterPlant, otherPlant], false, ct);
+
+            return false;
+        }
 
         if (requesterSeed is null || otherSeed is null)
             return false;
@@ -639,6 +661,36 @@ public sealed partial class RoomPetModule
             );
 
         return true;
+    }
+
+    /// <summary>Marks the plants bred or not, writes them now and tells the room.</summary>
+    private async Task SetPlantsBredAsync(IRoomPet[] plants, bool hasBred, CancellationToken ct)
+    {
+        foreach (var plant in plants)
+        {
+            plant.SetHasBred(hasBred);
+            RefreshFlags(plant);
+            Persist(plant);
+        }
+
+        await PersistNowAsync(ct);
+
+        foreach (var plant in plants)
+            await BroadcastStatusAsync(plant, ct);
+    }
+
+    /// <summary>
+    /// The re-breeding potion: a plant that has bred may breed once more. Only marked here; the
+    /// potion's use writes the plant with the item it used up.
+    /// </summary>
+    internal async Task RebreedAsync(IRoomPet pet, CancellationToken ct)
+    {
+        pet.SetHasBred(false);
+        RefreshFlags(pet);
+        Persist(pet);
+
+        await BroadcastStatusAsync(pet, ct);
+        await SendInfoToOwnerAsync(pet, ct);
     }
 
     private PlantBreedingRequest? FindPlantRequest(int petId, int otherPetId) =>

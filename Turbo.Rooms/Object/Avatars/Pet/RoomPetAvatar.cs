@@ -36,6 +36,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
     public int? SaddleDefinitionId { get; private set; }
     public bool AnyoneCanRide { get; private set; }
     public bool HasBreedingPermission { get; private set; }
+    public bool HasBred { get; private set; }
     public DateTime WateredAtUtc { get; private set; }
     public DateTime? HarvestedAtUtc { get; private set; }
     public RoomObjectId RiderObjectId { get; private set; } = -1;
@@ -95,6 +96,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             SaddleDefinitionId = snapshot.HasSaddle ? snapshot.SaddleDefinitionId : null,
             AnyoneCanRide = snapshot.AnyoneCanRide,
             HasBreedingPermission = snapshot.HasBreedingPermission,
+            HasBred = snapshot.HasBred,
             WateredAtUtc = snapshot.WateredAtUtc,
             HarvestedAtUtc = snapshot.HarvestedAtUtc,
             EnergyDecayDueUtc = snapshot.EnergyDecayDueUtc,
@@ -174,6 +176,8 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
 
     public void SetHarvestedAt(DateTime? harvestedAtUtc) => HarvestedAtUtc = harvestedAtUtc;
 
+    public void SetHasBred(bool hasBred) => HasBred = hasBred;
+
     /// <summary>The context-menu flags the room derives from stats and config.</summary>
     public void SetFlags(bool canBreed, bool canHarvest, bool canRevive)
     {
@@ -215,6 +219,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             EnergyDecayDueUtc = EnergyDecayDueUtc,
             NutritionDecayDueUtc = NutritionDecayDueUtc,
             SaddleDefinitionId = SaddleDefinitionId,
+            HasBred = HasBred,
         };
 
     protected override RoomPetAvatarSnapshot BuildSnapshot()

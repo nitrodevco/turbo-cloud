@@ -4603,6 +4603,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("harvested_at");
 
+                    b.Property<bool>("HasBred")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_bred");
+
                     b.Property<bool>("HasBreedingPermission")
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
