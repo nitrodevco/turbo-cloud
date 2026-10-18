@@ -635,9 +635,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   with the hotel's `pet.command.<id>` texts.
 - Pet-related furniture is a `[RoomObjectLogic]` like any other: `pet_food`, `pet_drink`,
   `pet_toy`, `pet_nest` (`IPetSupplyLogic`), `pet_breeding_nest`, `pet_package`, `pet_saddle`,
-  `pet_revive`, `pet_fertilizer`, `pet_dye`, `pet_custom_part`, `monsterplant_seed`. The stock Habbo
-  names are mapped to these by the data migration `MapPetFurnitureLogic`; extend that mapping
-  rather than editing rows by hand. A product used on a pet is a
+  `pet_revive`, `pet_rebreed`, `pet_fertilizer`, `pet_dye`, `pet_custom_part`, `monsterplant_seed`.
+  The stock Habbo names are mapped to these by the data migration `MapPetFurnitureLogic`
+  (`pet_rebreed` by `AddPetHasBred`); map new ones in a migration rather than editing rows by hand. A product used on a pet is a
   `UseWithPetInteraction` on the item; what an item applies (package contents, a hair part) is
   a JSON section read with `FurnitureExtraDataSections.Read` from the item's extra data, with
   the definition's extra data as the per-type default.

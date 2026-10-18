@@ -29,6 +29,9 @@ public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext
     public int? SaddleDefinitionId { get; }
     public bool AnyoneCanRide { get; }
     public bool HasBreedingPermission { get; }
+
+    /// <summary>A monsterplant that has bred; it breeds again only after a re-breeding potion.</summary>
+    public bool HasBred { get; }
     public bool IsMonsterplant { get; }
     public bool IsRiding { get; }
 
@@ -79,6 +82,7 @@ public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext
     public void SetPosture(string posture);
     public void SetWateredAt(System.DateTime wateredAtUtc);
     public void SetHarvestedAt(System.DateTime? harvestedAtUtc);
+    public void SetHasBred(bool hasBred);
     public void SetFlags(bool canBreed, bool canHarvest, bool canRevive);
     public PetSnapshot GetPetSnapshot();
     public System.DateTime CreatedAtUtc { get; }

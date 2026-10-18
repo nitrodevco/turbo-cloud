@@ -892,6 +892,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             row.SaddleDefinitionId = pet.SaddleDefinitionId;
             row.AnyoneCanRide = pet.AnyoneCanRide;
             row.HasBreedingPermission = pet.HasBreedingPermission;
+            row.HasBred = pet.HasBred;
             row.PaletteId = pet.Figure.PaletteId;
             row.Color = pet.Figure.Color;
             row.CustomParts = PetFigure.SerializeCustomParts(pet.Figure.CustomParts);

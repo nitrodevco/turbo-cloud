@@ -45,6 +45,7 @@ public static class PetEntityExtensions
             EnergyDecayDueUtc = entity.EnergyDecayDueAt,
             NutritionDecayDueUtc = entity.NutritionDecayDueAt,
             SaddleDefinitionId = entity.SaddleDefinitionId,
+            HasBred = entity.HasBred,
         };
 
     public static PetBreedSnapshot ToSnapshot(this PetBreedEntity entity) =>

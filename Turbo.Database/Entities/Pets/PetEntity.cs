@@ -89,6 +89,11 @@ public class PetEntity : TurboEntity, IInventoryUnitEntity
     [DefaultValue(false)]
     public bool HasBreedingPermission { get; set; }
 
+    /// <summary>A monsterplant that has bred; it breeds again only after a re-breeding potion.</summary>
+    [Column("has_bred")]
+    [DefaultValue(false)]
+    public bool HasBred { get; set; }
+
     [Column("x")]
     [DefaultValue(0)]
     public int X { get; set; }

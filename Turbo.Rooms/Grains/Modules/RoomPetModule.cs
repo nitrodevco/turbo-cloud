@@ -513,7 +513,13 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
                     >= Config.MonsterplantHarvestIntervalSeconds
             );
 
-        pet.SetFlags(canBreed: grown && !dead, canHarvest: harvestable, canRevive: dead);
+        // A plant breeds once ("Plants can be bred only once!", breedpets.widget.info) until a
+        // re-breeding potion, which the client offers for a grown, living plant that cannot breed.
+        pet.SetFlags(
+            canBreed: grown && !dead && !pet.HasBred,
+            canHarvest: harvestable,
+            canRevive: dead
+        );
     }
 
     internal void RefreshPosture(IRoomPet pet)

@@ -100,6 +100,10 @@ public sealed record PetSnapshot : IInventoryUnitSnapshot
     [Id(24)]
     public int? SaddleDefinitionId { get; init; }
 
+    /// <summary>A monsterplant that has bred; it breeds again only after a re-breeding potion.</summary>
+    [Id(25)]
+    public bool HasBred { get; init; }
+
     public int TypeId => Figure.TypeId;
     public int BreedId => Figure.BreedId;
     public bool IsMonsterplant => PetTypes.IsMonsterplant(Figure.TypeId);
