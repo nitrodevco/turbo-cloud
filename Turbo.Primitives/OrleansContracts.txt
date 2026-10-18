@@ -454,6 +454,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerRewardTrack
   B00CABA2: ProgressTaskAsync(string, string, int, bool, System.Threading.CancellationToken) -> Task<bool>
   9F91EF78: PurchasePremiumAsync(string, System.Threading.CancellationToken) -> Task
   0EE5ECDF: RecordActionAsync(string, string, System.Threading.CancellationToken) -> Task
+  DAB62D2B: ReloadTracksAsync(System.Threading.CancellationToken) -> Task
   0F164BCA: ResetTrackAsync(string, System.Threading.CancellationToken) -> Task<bool>
   345CDD2A: SendTracksAsync(System.Threading.CancellationToken) -> Task
 

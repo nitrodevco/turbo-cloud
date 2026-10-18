@@ -284,6 +284,12 @@ public static class PermissionNodes
         public const string CATALOG_IMPORT = "admin.catalog.import";
 
         /// <summary>
+        /// Manage the reward tracks in the panel: change, add and remove tracks, their tasks and
+        /// prizes, take Habbo's in from a capture and read them again. Every change is logged.
+        /// </summary>
+        public const string REWARD_TRACKS_MANAGE = "admin.rewardtracks.manage";
+
+        /// <summary>
         /// See the hotel's gamedata in the panel: Habbo's releases, what an update would change,
         /// the files the client loads and the history of changes. Changing it needs
         /// <see cref="Gamedata.MANAGE"/> as well.

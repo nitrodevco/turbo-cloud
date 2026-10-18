@@ -10,6 +10,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
+using Turbo.Primitives.Quests.RewardTracks;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -26,30 +27,28 @@ namespace Turbo.Achievements;
 /// one to another tile (<c>move_item</c>) or turning it in place (<c>rotate_item</c>) and
 /// saying something (<c>chat_with_someone</c>, any chat line that was not cancelled), the action
 /// types of the official client's <c>reward_track_tasks_&lt;type&gt;</c> images. Only a
-/// player's own doing counts, never wired's or a bot's, and only types some configured task counts
+/// player's own doing counts, never wired's or a bot's, and only types some task of an enabled track counts
 /// reach the player's grain. The room listener processor finds and registers it, as it does a
 /// plugin's.
 /// </summary>
 public sealed class RewardTrackRoomListener : IRoomEventListener
 {
     private readonly IGrainFactory _grainFactory;
-    private readonly HashSet<string> _counted;
+    private readonly bool _enabled;
+    private readonly IRewardTrackStore _tracks;
     private readonly ILogger<RewardTrackRoomListener> _logger;
 
     public RewardTrackRoomListener(
         IOptions<RewardTrackConfig> config,
+        IRewardTrackStore tracks,
         IGrainFactory grainFactory,
         ILogger<RewardTrackRoomListener> logger
     )
     {
         _grainFactory = grainFactory;
         _logger = logger;
-        _counted = config.Value.Enabled
-            ? config
-                .Value.Tracks.SelectMany(x => x.Tasks)
-                .Select(x => x.ActionType.ToLowerInvariant())
-                .ToHashSet()
-            : [];
+        _enabled = config.Value.Enabled;
+        _tracks = tracks;
     }
 
     /// <summary>The action type a room event counts as, or null.</summary>
@@ -78,7 +77,8 @@ public sealed class RewardTrackRoomListener : IRoomEventListener
             evt.CausedBy is not { Origin: ActionOrigin.Player, PlayerId: var playerId }
             || playerId <= 0
             || ActionTypeOf(evt) is not { } actionType
-            || !_counted.Contains(actionType)
+            || !_enabled
+            || !_tracks.Counts(actionType)
         )
             return Task.CompletedTask;
 

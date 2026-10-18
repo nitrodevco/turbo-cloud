@@ -143,6 +143,14 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
 
+    public DbSet<RewardTrackEntity> RewardTracks { get; init; }
+
+    public DbSet<RewardTrackTaskEntity> RewardTrackTasks { get; init; }
+
+    public DbSet<RewardTrackTaskLevelEntity> RewardTrackTaskLevels { get; init; }
+
+    public DbSet<RewardTrackPrizeEntity> RewardTrackPrizes { get; init; }
+
     public DbSet<PlayerHabbiconEntity> PlayerHabbicons { get; init; }
 
     public DbSet<RoomPollEntity> RoomPolls { get; init; }

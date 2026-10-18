@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Turbo.Achievements.Configuration;
+namespace Turbo.Primitives.Quests.RewardTracks;
 
 /// <summary>
 /// A task: <see cref="Id"/> names the <c>reward_track.&lt;track&gt;.task.&lt;id&gt;.*</c> texts,

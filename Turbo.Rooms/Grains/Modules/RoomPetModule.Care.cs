@@ -10,6 +10,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
@@ -67,6 +68,11 @@ public sealed partial class RoomPetModule
             // "Treat" in the plant menu is a scratch; it also perks the plant up.
             pet.SetEnergy(
                 Math.Min(Config.MaxEnergy, pet.Energy + Config.MonsterplantSupplementEnergy)
+            );
+            _roomGrain._grainFactory.CountRewardTrackAction(
+                ctx.PlayerId,
+                RewardTrackActionTypes.TREAT_MONSTER_PLANT,
+                _roomGrain._logger
             );
         }
         else if (!pet.IsRiding)

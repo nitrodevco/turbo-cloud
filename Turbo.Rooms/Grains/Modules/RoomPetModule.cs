@@ -12,6 +12,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -163,7 +164,20 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
 
         if (TryGetPet(petId, out var pet))
+        {
             Persist(pet);
+
+            if (
+                pet.OwnerId == ctx.PlayerId
+                && !pet.IsMonsterplant
+                && _roomGrain._state.RoomSnapshot.OwnerId != ctx.PlayerId
+            )
+                _roomGrain._grainFactory.CountRewardTrackAction(
+                    ctx.PlayerId,
+                    RewardTrackActionTypes.PET_OTHER_USERS_ROOM,
+                    _roomGrain._logger
+                );
+        }
 
         return true;
     }

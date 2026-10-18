@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Achievements.Configuration;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Navigator.Onboarding;
@@ -13,7 +12,6 @@ using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Onboarding;
-using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Grains.Modules;
@@ -253,35 +251,6 @@ public sealed class NewUserLobbyTests : IDisposable
             .Which.Args[0]
             .Should()
             .Be(new RoomId(10));
-    }
-
-    [Fact]
-    public void Habbos_introduction_track_is_whole_and_valid()
-    {
-        var track = HabboRewardTracks.Introduction();
-        var config = new RewardTrackConfig { Tracks = [track] };
-
-        config.Problem().Should().BeNull();
-        track.Id.Should().Be("introduction");
-        track.Theme.Should().Be("blue");
-        track.Premium!.TaskPointsBoost.Should().Be(1.2);
-        track.Premium.CostCredits.Should().Be(100);
-        track.Premium.CostDiamonds.Should().Be(100);
-        track.Tasks.Should().HaveCount(30);
-        track.Tasks[0].Id.Should().Be("visit_rooms");
-        track
-            .Tasks[0]
-            .Levels.Select(x => (x.RequiredCount, x.Points))
-            .Should()
-            .Equal((1, 10), (5, 20), (20, 30));
-        // All 49 prizes, the Habbicons, pets and bot among them.
-        track.Prizes.Should().HaveCount(49);
-        track
-            .Prizes.Should()
-            .Contain(x => x.Id == "free_008" && x.ProductType == ProductDisplayType.Pet)
-            .And.Contain(x => x.Id == "premium_011" && x.ProductType == ProductDisplayType.Bot)
-            .And.Contain(x => x.Id == "free_001" && x.ProductType == ProductDisplayType.Habbicon);
-        track.Prizes.Should().Contain(x => x.Id == "free_031" && x.RewardTypeId == "JRH31");
     }
 
     private NoobLobbyDirectory Lobbies() =>

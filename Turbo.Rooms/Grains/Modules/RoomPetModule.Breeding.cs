@@ -11,6 +11,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -691,6 +692,13 @@ public sealed partial class RoomPetModule
                     OtherResult = requesterResult,
                 },
                 ct
+            );
+
+        foreach (var ownerId in new[] { request.RequesterId, request.OtherOwnerId }.Distinct())
+            _roomGrain._grainFactory.CountRewardTrackAction(
+                ownerId,
+                RewardTrackActionTypes.BREED_MONSTER_PLANT,
+                _roomGrain._logger
             );
 
         return true;

@@ -1,6 +1,6 @@
 using Turbo.Primitives.Quests.Enums;
 
-namespace Turbo.Achievements.Configuration;
+namespace Turbo.Primitives.Quests.RewardTracks;
 
 /// <summary>
 /// A prize. <see cref="ProductType"/> and <see cref="RewardTypeId"/> are what the client draws
@@ -27,8 +27,8 @@ public sealed class RewardTrackPrizeDefinition
     public int? FurnitureDefinitionId { get; set; }
 
     /// <summary>
-    /// The name a pet or bot prize is given; empty for <see cref="RewardTrackConfig.PetPrizeName"/>
-    /// or <see cref="RewardTrackConfig.BotPrizeName"/>. Habbo's prizes carry none.
+    /// The name a pet or bot prize is given; empty for the hotel's <c>PetPrizeName</c> or
+    /// <c>BotPrizeName</c> (<c>Turbo:RewardTracks</c>). Habbo's prizes carry none.
     /// </summary>
     public string Name { get; set; } = "";
 }

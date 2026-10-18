@@ -59,6 +59,14 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
 
+    public DbSet<RewardTrackEntity>? RewardTracks { get; set; }
+
+    public DbSet<RewardTrackTaskEntity>? RewardTrackTasks { get; set; }
+
+    public DbSet<RewardTrackTaskLevelEntity>? RewardTrackTaskLevels { get; set; }
+
+    public DbSet<RewardTrackPrizeEntity>? RewardTrackPrizes { get; set; }
+
     public DbSet<PlayerHabbiconEntity>? PlayerHabbicons { get; set; }
     public DbSet<PlayerTargetedOfferEntity>? PlayerTargetedOffers { get; set; }
 

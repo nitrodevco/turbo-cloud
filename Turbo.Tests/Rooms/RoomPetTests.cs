@@ -8,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -161,6 +162,26 @@ public sealed class RoomPetTests
             .Select(x => x.Text)
             .Should()
             .Equal("Meow!");
+    }
+
+    [Theory]
+    [InlineData(OWNER, false)]
+    [InlineData(77, true)]
+    public async Task Putting_ones_pet_down_in_someone_elses_room_counts_a_pet_visit(
+        int roomOwnerId,
+        bool counts
+    )
+    {
+        // Habboween 2026 "Take your pet to visit a friend" (pet_visit, PET_OTHER_USERS_ROOM).
+        RoomHarness.SetMember(Member("RoomSnapshot"), "OwnerId", (PlayerId)roomOwnerId);
+
+        await PlaceAsync();
+
+        _harness
+            .Fakes.Log.Of("RecordActionAsync")
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(counts ? [RewardTrackActionTypes.PET_OTHER_USERS_ROOM] : []);
     }
 
     private async Task PlaceAsync() =>

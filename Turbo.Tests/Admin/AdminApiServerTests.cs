@@ -197,6 +197,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Catalog.IBonusRareService),
                 typeof(Turbo.Primitives.Catalog.IExpiringPageService),
                 typeof(Turbo.Primitives.Catalog.IVoucherService),
+                typeof(Turbo.Primitives.Quests.RewardTracks.IRewardTrackStore),
                 typeof(Turbo.Primitives.Achievements.IAchievementCatalog),
                 typeof(Turbo.Primitives.Navigator.INavigatorProvider),
                 typeof(Turbo.Primitives.Pets.Providers.IPetBreedProvider),
@@ -230,6 +231,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminCatalogImport>();
+        services.AddSingleton<Turbo.Admin.Content.AdminRewardTracks>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminGroupQueries>();

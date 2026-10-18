@@ -18,7 +18,7 @@ behaviour as the default.
 | Names no one may take | `Turbo:Players:BlockedNames` | none |
 | How long a player counts as new | `Turbo:Onboarding:NewUserHours` | 24 |
 | The new user lobbies | `:nooblobby` in the hotel (below) | none |
-| The Introduction reward track | `Turbo:RewardTracks:HabboIntroduction` (when `Tracks` lists none) | Habbo's |
+| The reward tracks (Introduction, Habboween 2026) | the panel's Reward Tracks (`/api/reward-tracks`, docs/reward-tracks.md) | Habbo's two |
 | Suggestions for a taken name | `Turbo:Onboarding:NameSuggestions`, `SuggestionWords` | 3, Turbo's words |
 | Room types, pictures and names in the client | written by `:starterroom` (client `new.user.flow.roomTypes`, `new.user.flow.room.image.url`, texts `room.name.<type>` / `room.description.<type>`) | Habbo's |
 | The looks the dice rolls | client `new.user.flow.figures.male`, `.female` (comma-separated) | Habbo's 25 each |

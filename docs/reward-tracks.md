@@ -7,48 +7,72 @@ login (`RewardTracks`, 2614), a task's count and the track's points when they ch
 2717 → `RewardTrackPremiumPurchaseResult` 917, codes 0-9). The codes' meanings are the hotel
 texts `reward_track.claim.notification.fail.<code>` and `reward_track.premium.notification.fail.<code>`.
 
-## Tracks are configuration
+## Tracks are in the database
 
-Habbo's Introduction track is not shown in full anywhere (30 tasks, 49 prizes), so the server
-ships with no track. A hotel lists its tracks under `Turbo:RewardTracks:Tracks`; the server
-refuses to start on a track with repeated ids, levels that do not count up from 1, a premium
-boost below 1, or negative points, costs or amounts. Progress is kept per player and track in
-`player_reward_tracks`.
+The tracks are kept in `reward_tracks` (id, theme, on/off, start and end dates, order, premium:
+boost, instant points, credit and diamond costs), `reward_track_tasks` (id, action type, parameter,
+premium, order), `reward_track_task_levels` (count, points, premium) and `reward_track_prizes`
+(id, points, product type, reward type id, extra params, amount, premium, furni definition, name,
+order). The migration that makes them puts in Habbo's two tracks as its client was sent them at
+login on 2026-10-18 (build WIN63-202610151745): Introduction (blue, 30 tasks, 61 levels, 49
+prizes, premium 100 credits / 100 diamonds, boost 1.2) and Habboween 2026 (red, 17 tasks, 31
+levels, 60 prizes from 100 to 1650 points, premium 75 / 75, boost 1.2). A track listed under the
+old `Turbo:RewardTracks:Tracks` that the database lacks is moved in when the server starts (a
+warning says so; remove it from the configuration then). `Turbo:RewardTracks` keeps `Enabled`,
+`PetPrizeName` and `BotPrizeName`. Progress is kept per player and track in
+`player_reward_tracks`, by track id, so it outlives a track removed and added again.
+
+Habbo's protocol has no dates: the client has a track only from the list sent at login. A track
+is sent while it is on and within its dates; one that has ended counts and gives nothing more.
+A change made in the panel is sent to everyone online at once with `reload` set (AS3
+`RewardTrackController.onRewardTracks`: the window is rebuilt and, when open, says "Reward Track
+updated"); a start or end date passing is seen at the next login.
+
+## Panel API
+
+Every route needs `admin.rewardtracks.manage`. Every change is written to the command log as
+`rewardtracks <save|delete|import|reload> <track ids>` from `panel`, and sends the tracks again
+to the players online.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/reward-tracks` | `{ tracks: [{ id, theme, enabled, startsAt, endsAt, live, hasPremium, tasks, levels, prizes, maxPoints }], actionTypes }`; `actionTypes` are the types the server counts |
+| `GET /api/reward-tracks/{id}` | `{ track, warnings }`: the whole track (below) and what this hotel cannot do of it |
+| `PUT /api/reward-tracks/{id}` | saves the track in the body (added, or replaced whole); 400 with the reason when it is invalid |
+| `DELETE /api/reward-tracks/{id}` | removes it (204, or 404) |
+| `POST /api/reward-tracks/import/preview` | the plan of an import, nothing changed |
+| `POST /api/reward-tracks/import` | makes it: every added or changed track saved in one transaction |
+| `POST /api/reward-tracks/reload` | reads the tables again (after an edit by hand) |
+
+A track, as `GET` returns it and `PUT` takes it (`productType` is the client's product item type:
+0 wall, 1 floor, 2 effect, 4 badge, 6 bot, 8 activity points, 9 chat style, 10 pet, 12 Habbicon):
 
 ```json
-"RewardTracks": {
-    "Enabled": true,
-    "Tracks": [
-        {
-            "Id": "introduction",
-            "Theme": "",
-            "Premium": { "TaskPointsBoost": 1.5, "InstantPoints": 100, "CostCredits": 0, "CostDiamonds": 50 },
-            "Tasks": [
-                {
-                    "Id": "visit_rooms",
-                    "ActionType": "enter_other_users_room",
-                    "Levels": [
-                        { "RequiredCount": 1, "Points": 10 },
-                        { "RequiredCount": 5, "Points": 20 },
-                        { "RequiredCount": 20, "Points": 30 }
-                    ]
-                }
-            ],
-            "Prizes": [
-                { "Id": "duckets_300", "RequiredPoints": 300, "ProductType": "ActivityPoints", "RewardTypeId": "0", "Amount": 50 },
-                { "Id": "badge_300", "RequiredPoints": 300, "ProductType": "Badge", "RewardTypeId": "ABC01", "Premium": true },
-                { "Id": "furni_500", "RequiredPoints": 500, "ProductType": "FloorItem", "RewardTypeId": "<sprite id>", "FurnitureDefinitionId": 123, "Amount": 10 }
-            ]
-        }
+{
+    "id": "habboween2026", "enabled": true, "startsAt": null, "endsAt": "2026-11-02T00:00:00Z", "theme": "red",
+    "premium": { "taskPointsBoost": 1.2, "instantPoints": 0, "costCredits": 75, "costDiamonds": 75 },
+    "tasks": [
+        { "id": "pet_visit", "actionType": "PET_OTHER_USERS_ROOM", "parameter": "", "premium": false,
+          "levels": [ { "requiredCount": 1, "points": 20, "premium": false } ] }
+    ],
+    "prizes": [
+        { "id": "free30", "requiredPoints": 1650, "productType": 4, "rewardTypeId": "DAD18", "extraParams": "",
+          "amount": 1, "premium": false, "furnitureDefinitionId": null, "name": "" }
     ]
 }
 ```
 
-What the official client shows (2026-10-09 captures `introduction.png`, `rt-dragged.png`):
-- the track id `introduction` (texts `reward_track.introduction.*`), 30 tasks and 49 prizes;
-- "Visit rooms" with levels 1, 5 and 20 for 10, 20 and 30 points, which the example uses;
-- prizes at 300, 350, 400, 450 and 500 points, free and premium, some of them x10. Which furni
-  they are is not readable, so none is seeded.
+An import takes the `RewardTracks` message as its client read it, `{ "capture": { "tracks": [...] },
+"only": ["habboween2026"] }` (`only` optional): each track with `id`, `theme`, `hasPremiumConfig`,
+`taskPointsBoost`, `instantPoints`, `costDiamonds`, `costCredits`, `tasks` (`id`, `actionType`,
+`parameter`, `premium`, `levels`: `requiredCount`, `pointsReward`, `premium`) and `prizes` (`id`,
+`requiredPoints`, `productItemTypeId`, `rewardTypeId`, `extraParams`, `rewardAmount`, `premium`); a
+player's progress in it is not read. The plan lists per track `action` (added, changed, unchanged),
+`premiumChanged`, `themeChanged`, the task and prize ids added, changed and removed, and
+`warnings`: a task type the server does not count, a `CUSTOM_WIRED_ACTION` task (counted only by a
+wired Progress Reward Track box naming it), a prize it cannot give (a furni sprite this hotel has
+no furni for, a product type it cannot give). A changed track keeps the hotel's own choices: on or
+off, its dates, and the furni definition and name of each prize it still has.
 
 ## Rules, from the AS3 RewardTrack classes
 
@@ -87,9 +111,14 @@ both locked, for both). The messenger service counts `request_friend` (a request
 cleared); the player grain `replenish_respect` (a replenish used); publishing a photo
 `publish_picture`; the catalogue purchase grain `buy_from_catalogue` once a purchase landed; the
 navigator service `create_room` once a room was created; and the Habbicon grain `use_habbicon`.
-What each type counts is inference from the image's name and the task's hotel texts
-(`reward_track.introduction.task.<id>.desc`); the official client only names them. All thirty
-are counted.
+Habboween 2026 adds five more: `pet_other_users_room` (a player's own pet, not a monsterplant,
+put down in a room someone else owns: "Take your pet to visit a friend"), `plant_monster_plant` (a
+seed planted), `treat_monster_plant` (the plant menu's Treat), `breed_monster_plant` (a plant
+breeding, for each of its two owners) and `custom_wired_action`, which no player action is: its
+nine campaign tasks move only by the wired Progress Reward Track action below. What each type
+counts is inference from the image's name and the task's hotel texts
+(`reward_track.<track>.task.<id>.desc`); the official client only names them. All thirty-five are
+counted.
 
 ## Wired
 

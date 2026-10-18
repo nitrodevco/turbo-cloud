@@ -13,6 +13,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Quests.RewardTracks;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Revisions.Revision20260909;
 
@@ -25,6 +26,7 @@ public class TurboEmulator(
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
     IAchievementCatalog achievements,
+    IRewardTrackStore rewardTracks,
     IChatStyleProvider chatStyleProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
@@ -68,6 +70,7 @@ public class TurboEmulator(
             // After the currencies: installing a pack checks every enabled achievement's reward
             // currency against them.
             await achievements.ReloadAsync(ct).ConfigureAwait(false);
+            await rewardTracks.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

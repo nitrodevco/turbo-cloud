@@ -6,6 +6,7 @@ using Turbo.Achievements.Configuration;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Quests;
+using Turbo.Primitives.Quests.RewardTracks;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
@@ -74,7 +75,8 @@ public sealed class RewardTrackHooksTests
     public async Task Only_configured_types_reach_the_players_grain()
     {
         var listener = new RewardTrackRoomListener(
-            Options.Create(Config(RewardTrackActionTypes.ROTATE_ITEM)),
+            Options.Create(new RewardTrackConfig()),
+            Store(RewardTrackActionTypes.ROTATE_ITEM),
             _fakes.Create<Orleans.IGrainFactory>(),
             NullLogger<RewardTrackRoomListener>.Instance
         );
@@ -94,7 +96,8 @@ public sealed class RewardTrackHooksTests
     public void A_badge_put_on_counts_as_wearing_one()
     {
         var listener = new RewardTrackFactListener(
-            Options.Create(Config(RewardTrackActionTypes.WEAR_BADGE)),
+            Options.Create(new RewardTrackConfig()),
+            Store(RewardTrackActionTypes.WEAR_BADGE),
             _fakes.Create<Orleans.IGrainFactory>(),
             NullLogger<RewardTrackFactListener>.Instance
         );
@@ -117,12 +120,10 @@ public sealed class RewardTrackHooksTests
             .Equal(((object?)RewardTrackActionTypes.WEAR_BADGE, (object?)""));
     }
 
-    private static RewardTrackConfig Config(string actionType) =>
-        new()
-        {
-            Tracks =
+    private static ListRewardTrackStore Store(string actionType) =>
+        new(() =>
             [
-                new()
+                new RewardTrackDefinition
                 {
                     Id = "t",
                     Tasks =
@@ -135,8 +136,8 @@ public sealed class RewardTrackHooksTests
                         },
                     ],
                 },
-            ],
-        };
+            ]
+        );
 
     private static RoomItemMovedEvent Moved(bool tileChanged) =>
         new()
