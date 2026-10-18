@@ -45,7 +45,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
     public async Task ProcessItemStateUpdateAsync(IRoomItem item, int state)
     {
-        if (item is null)
+        if (item is null || !item.Logic.CanChangeState())
             return;
 
         try

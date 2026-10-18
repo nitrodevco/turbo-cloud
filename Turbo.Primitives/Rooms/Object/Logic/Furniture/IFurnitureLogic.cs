@@ -29,6 +29,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     /// <summary>Whether this player may use the item now; see the implementation's note.</summary>
     public Task<bool> CanUseAsync(ActionContext ctx);
     public bool CanToggle();
+
+    /// <summary>
+    /// Whether wired may change this item's state now. False leaves it out of the wired state
+    /// update altogether (a wired door someone stands in).
+    /// </summary>
+    public bool CanChangeState();
     public Altitude GetStackHeight();
     public int GetState();
     public string GetLegacyString();
