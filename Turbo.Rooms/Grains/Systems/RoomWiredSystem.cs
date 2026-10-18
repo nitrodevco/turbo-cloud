@@ -75,6 +75,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // Events turned away because the queue was full, reported once per tick.
     private int _droppedEvents;
 
+    // The switched-on Wired Disablers in the room: while there is one, no trigger fires.
+    private readonly HashSet<RoomObjectId> _disabledBy = [];
+
     private int _tickMs => _roomGrain._wiredConfig.TickMs;
     private bool _firstRun = true;
     private bool _initialized;
@@ -278,6 +281,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         return ProcessRoomEventAsync(evt, execution.Now, ct);
     }
 
+    /// <summary>
+    /// A Wired Disabler (<c>FurnitureWiredDisableLogic</c>) was switched on or off, placed or
+    /// picked up: while any in the room is on, no trigger fires. Saving and opening boxes go on.
+    /// </summary>
+    public void SetDisabledBy(RoomObjectId disablerId, bool on)
+    {
+        if (on)
+            _disabledBy.Add(disablerId);
+        else
+            _disabledBy.Remove(disablerId);
+    }
+
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is null)
@@ -384,6 +399,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             trigger is null
             || evt is null
             || stack is null
+            || _disabledBy.Count > 0
             || !await trigger.MatchesEventAsync(evt, ct)
         )
             return;
