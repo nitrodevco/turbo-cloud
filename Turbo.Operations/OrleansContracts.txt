@@ -10,4 +10,6 @@
 # Review every diff: identity or signature changes can break wire compatibility during rolling upgrades.
 # Details: https://aka.ms/orleans/OrleansContracts.txt
 
+class [GrainType("assetmovementdispatcher")] Turbo.Operations.Grains.AssetMovementDispatcherGrain
+
 class [GrainType("welcomemessage")] Turbo.Operations.Grains.WelcomeMessageGrain

@@ -6,9 +6,9 @@ rollback tool, dupe detection). Core says what moved, from where, to where, why 
 what that means is the plugin's business.
 
 **Status:** the record, the recorder, the table, the switch, the wallet, the inventory's
-furni, trades, the marketplace and the room's placements, pickups and use-ups (below). The
-holder, borrowed furni, pet, bot and onboarding paths are wired up one by one in later changes,
-and so are the dispatcher that hands the rows to a plugin and the pruning.
+furni, trades, the marketplace and the room's placements, pickups and use-ups, and the
+dispatcher that hands the rows to plugins and prunes them (below). The holder, borrowed furni,
+pet, bot and onboarding paths are wired up one by one in later changes.
 
 ## The switch
 
@@ -192,12 +192,93 @@ Every move names its offer:
 | `market.cancel` | an offer taken back (or expired) made again in the seller's inventory, under the offer's id. |
 | `market.redeem` | one operation per sale: its revenue credited to the seller under the wallet reference `marketplace:<offer>`, then the sale marked redeemed. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once). |
 
+## Consuming movements
+
+A plugin reads the outbox through an `IAssetMovementConsumer` (`Turbo.Primitives/Movements`),
+registered the way extension packets are (`docs/plugin-packets.md`): take
+`IAssetMovementConsumerRegistry` from the host services in `StartAsync`, register, and dispose the
+handle in `StopAsync`. Disposing stops delivery and cancels a batch in hand; a hot reload
+registers the new load's consumer, which starts again from its own cursor. One consumer per name
+at a time.
+
+```csharp
+private IDisposable? _consumer;
+
+public Task StartAsync(IServiceProvider services, CancellationToken ct)
+{
+    var registry = services.GetRequiredService<IHostServices>()
+        .GetRequiredService<IAssetMovementConsumerRegistry>();
+
+    _consumer = registry.Register(new LedgerConsumer(/* its own DbContext factory */));
+
+    return Task.CompletedTask;
+}
+
+public Task StopAsync(CancellationToken ct)
+{
+    _consumer?.Dispose();
+
+    return Task.CompletedTask;
+}
+```
+
+The consumer answers `GetCursorAsync` with the outbox id it has handled up to (0 for none), and
+`HandleAsync(batch)` writes what it makes of the batch **and** `batch.Cursor` (or the cursor it
+has, when that is higher) in one transaction of its own. Delivery is at least once, so it drops a
+movement whose `(OperationId, Seq)` it has already applied; its effect is then exactly once.
+
+| A batch's | Meaning |
+| --- | --- |
+| `Movements` | Outbox rows in id order: `Id`, the `AssetMovement`, `WrittenAtUtc`. Marker rows (`recording.started`, `recording.stopped`) come as rows too. |
+| `Gap` | Ids pruned before this consumer read them (first to last), or null. An id in the range may never have held a row: a rolled-back save still used its ids. |
+| `Cursor` | What to store with the batch. |
+| `IsLate` | Rows found below the cursor (see the settle window); `Cursor` is unchanged. |
+
+The dispatcher is one grain for the hotel (`IAssetMovementDispatcherGrain`). Registering a
+consumer wakes it; it then polls every `PollMs`, and a poll that finds no consumer stops the
+timer and reads nothing, so a hotel without a consumer never reads the outbox. Each poll:
+
+1. **Prunes** rows older than `OutboxRetentionHours`, oldest first, `BatchSize` at a time and at
+   most once an hour (again at once after a full batch), whatever the consumers have read. The
+   newest row it removes becomes an `outbox.pruned` marker and the previous marker goes: every id
+   up to the marker is gone. A consumer whose cursor is below it is given the range as `Gap`;
+   the marker itself is never delivered as a row. A plugin that is off longer than the retention
+   therefore knows exactly what it missed. Recording on without any consumer keeps every row,
+   since nothing polls; turn recording on for a consumer.
+2. **Hands each consumer** the rows past its cursor, `BatchSize` at a time, in id order, stopping
+   at the first row written less than `SettleMs` ago: ids are given at insert, not at commit, so
+   a save still committing can hold a lower id than rows already visible. A full batch is followed
+   by the next at once. A consumer that throws is logged, its cursor is asked again, and the same
+   rows come on the next poll; the other consumers are not held up.
+3. **Looks again for skipped ids.** An id the reading stepped over is either a rolled-back save
+   (never a row) or one slower than `SettleMs`; for `ReReadWindowMs` its row is looked for and,
+   once it appears, handed over as a late batch (`IsLate`).
+
+Each dispatcher activation keeps the cursors in memory and asks a consumer again after a failure.
+Orleans may briefly run two activations; both then hand over the same rows, and the consumer's
+own cursor and `(OperationId, Seq)` check absorb it. Each silo has its own registry, filled by the
+plugins it loads.
+
+| Setting (`Turbo:Movements`) | Default | |
+| --- | --- | --- |
+| `PollMs` | 1000 | How often the outbox is read while a consumer is registered. |
+| `BatchSize` | 500 | Rows per call; rows pruned per go; skipped-id ranges kept per consumer. |
+| `OutboxRetentionHours` | 72 | How long a row is kept; 0 keeps every row. |
+| `SettleMs` | 2000 | How old a row must be before it is delivered. |
+| `ReReadWindowMs` | 300000 | How long skipped ids are looked for; 0 stops looking. |
+
+These apply after a restart; `Enabled` alone is live.
+
 ## Decided for now
 
 These follow the design's recommendations and wait on review:
 
 - Delivery is a same-transaction outbox, not an event published after the commit: a record that can
   go missing silently is worse than none for an audit or a rollback.
+- `HandleAsync` returns nothing: the batch carries the cursor to store, so the dispatcher and the
+  consumer cannot disagree on it, and a late batch cannot move it back.
+- Pruning leaves a marker in place of the newest row it removed instead of a table of its own, so
+  a gap survives a restart without core storing anything per consumer.
 - Primitives will take a required `MovementCause` (operation id, cause, cause ref, actor) rather
   than an ambient context, so a path that forgets one does not build.
 - Badges, effects, clothing and subscriptions are out of scope; pets and bots are tracked for

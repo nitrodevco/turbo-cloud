@@ -2,6 +2,7 @@ using System;
 using Turbo.Database.Entities.Movements;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
+using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Database.Extensions;
 
@@ -48,6 +49,61 @@ public static class MovementEntityExtensions
                 : null,
             CreatedAt = createdAtUtc,
         };
+    }
+
+    /// <summary>
+    /// The row as a consumer is given it. The one position the row keeps goes back on its room
+    /// end; a snapshot's extra data is the stored string, empty for a snapshot without any.
+    /// </summary>
+    public static OutboxMovement ToOutboxMovement(this AssetMovementOutboxEntity entity)
+    {
+        RoomPosition? position = entity is { X: { } x, Y: { } y, Z: { } z, Rotation: { } rot }
+            ? new RoomPosition(x, y, z, rot, entity.WallOffset)
+            : null;
+
+        return new OutboxMovement(
+            entity.Id,
+            new AssetMovement
+            {
+                OperationId = entity.OperationId,
+                Seq = entity.Seq,
+                OccurredAtUtc = DateTime.SpecifyKind(entity.OccurredAt, DateTimeKind.Utc),
+                Asset = new AssetRef(
+                    entity.AssetKind,
+                    entity.AssetId,
+                    entity.DefinitionId,
+                    entity.CurrencyType is { } currencyType
+                        ? new CurrencyKind
+                        {
+                            CurrencyType = currencyType,
+                            ActivityPointType = entity.ActivityPointType,
+                        }
+                        : null
+                ),
+                From = new AssetPlace(
+                    entity.FromOwner,
+                    entity.FromKind,
+                    entity.FromPlace,
+                    entity.ToKind != PlaceKind.Room && entity.FromKind == PlaceKind.Room
+                        ? position
+                        : null
+                ),
+                To = new AssetPlace(
+                    entity.ToOwner,
+                    entity.ToKind,
+                    entity.ToPlace,
+                    entity.ToKind == PlaceKind.Room ? position : null
+                ),
+                Amount = entity.Amount,
+                ActorPlayerId = entity.Actor,
+                Cause = entity.Cause,
+                CauseRef = entity.CauseRef,
+                Snapshot = entity.SnapshotExtraData is { } extraData
+                    ? new AssetSnapshot(entity.DefinitionId, extraData)
+                    : null,
+            },
+            DateTime.SpecifyKind(entity.CreatedAt, DateTimeKind.Utc)
+        );
     }
 
     /// <summary>

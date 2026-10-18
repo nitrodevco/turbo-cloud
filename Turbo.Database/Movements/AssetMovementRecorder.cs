@@ -224,7 +224,12 @@ public sealed class AssetMovementRecorder(
         )
             return "cause empty or too long";
 
-        if (movement.Cause is MovementCauses.RECORDING_STARTED or MovementCauses.RECORDING_STOPPED)
+        if (
+            movement.Cause
+            is MovementCauses.RECORDING_STARTED
+                or MovementCauses.RECORDING_STOPPED
+                or MovementCauses.OUTBOX_PRUNED
+        )
             return "marker cause";
 
         if (movement.CauseRef?.Length > AssetMovement.MAX_CAUSE_REF_LENGTH)

@@ -4,14 +4,17 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Operations.Configuration;
+using Turbo.Operations.Movements;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 
 namespace Turbo.Operations;
 
 /// <summary>
-/// Running the hotel: sanctions, the word filter, the maintenance and shutdown countdown, and the operator
-/// commands (<c>docs/commands.md</c> section 4.1) that put them in staff's hands.
+/// Running the hotel: sanctions, the word filter, the maintenance and shutdown countdown, the operator
+/// commands (<c>docs/commands.md</c> section 4.1) that put them in staff's hands, and handing the
+/// asset movement outbox to plugins.
 /// </summary>
 public sealed class OperationsModule : IHostPluginModule
 {
@@ -36,5 +39,13 @@ public sealed class OperationsModule : IHostPluginModule
             sp.GetRequiredService<HotelAvailabilityService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<HotelAvailabilityService>());
+
+        // Plugins register asset movement consumers; each dispatcher activation has its own
+        // cursors (docs/movements.md).
+        services.AddSingleton<AssetMovementConsumerRegistry>();
+        services.AddSingleton<IAssetMovementConsumerRegistry>(sp =>
+            sp.GetRequiredService<AssetMovementConsumerRegistry>()
+        );
+        services.AddTransient<AssetMovementDispatcher>();
     }
 }

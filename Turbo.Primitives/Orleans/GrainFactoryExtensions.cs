@@ -14,6 +14,7 @@ using Turbo.Primitives.Habbicons.Grains;
 using Turbo.Primitives.Hotel.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Grains;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -247,6 +248,10 @@ public static class GrainFactoryExtensions
 
     public static IWelcomeMessageGrain GetWelcomeMessageGrain(this IGrainFactory factory) =>
         factory.GetGrain<IWelcomeMessageGrain>(SingletonGrainId.GLOBAL);
+
+    public static IAssetMovementDispatcherGrain GetAssetMovementDispatcherGrain(
+        this IGrainFactory factory
+    ) => factory.GetGrain<IAssetMovementDispatcherGrain>(SingletonGrainId.GLOBAL);
 
     public static ICatalogLtdRaffleGrain GetLtdRaffleGrain(
         this IGrainFactory factory,
