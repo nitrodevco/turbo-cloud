@@ -1,13 +1,17 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Marketplace;
 using Turbo.Catalog.Vault;
+using Turbo.Database.Configuration;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Movements;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -20,6 +24,8 @@ using Turbo.Primitives.Messages.Incoming.Vault;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Messages.Outgoing.Marketplace;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -68,6 +74,15 @@ public sealed class MarketplaceTests : IDisposable
     };
     private int _nextItemId = 500;
 
+    /// <summary>The causes the inventories were handed: what was used up, and what was given.</summary>
+    private readonly List<MovementCause> _consumeCauses = [];
+    private readonly List<MovementCause> _grantCauses = [];
+
+    /// <summary>The wallet's receipts of referenced credits, and the credits still to fail.</summary>
+    private readonly HashSet<string> _creditReferences = [];
+    private int _failingCredits;
+    private int _lostCreditAnswers;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public MarketplaceTests()
@@ -111,6 +126,8 @@ public sealed class MarketplaceTests : IDisposable
             var inventory = _inventories[(long)call.Key!];
             var id = ((RoomObjectId)call.Args[0]!).Value;
 
+            _consumeCauses.Add((MovementCause)call.Args[1]!);
+
             return Task.FromResult(inventory.Remove(id, out var item) ? Snapshot(id, item) : null);
         };
         fakes.Handlers["GrantFurnitureAsync"] = call =>
@@ -118,6 +135,7 @@ public sealed class MarketplaceTests : IDisposable
             var id = _nextItemId++;
             var item = ((int)call.Args[0]!, (string?)call.Args[1] ?? "");
 
+            _grantCauses.Add((MovementCause)call.Args[2]!);
             _inventories[(long)call.Key!][id] = item;
 
             return Task.FromResult<FurnitureItemSnapshot?>(Snapshot(id, item));
@@ -144,9 +162,38 @@ public sealed class MarketplaceTests : IDisposable
         };
         fakes.Handlers["CreditAsync"] = call =>
         {
-            _credits[(long)call.Key!] += (int)call.Args[1]!;
+            if (_failingCredits > 0)
+            {
+                _failingCredits--;
 
-            return Task.FromResult(true);
+                throw new InvalidOperationException("the wallet is down");
+            }
+
+            var player = (long)call.Key!;
+            var amount = (int)call.Args[1]!;
+
+            if (call.Args[2] is not string reference)
+            {
+                _credits[player] += amount;
+
+                return Task.FromResult(true);
+            }
+
+            var applied = _creditReferences.Add(reference);
+
+            if (applied)
+                _credits[player] += amount;
+
+            if (_lostCreditAnswers > 0)
+            {
+                _lostCreditAnswers--;
+
+                throw new TimeoutException("the wallet paid, its answer was lost");
+            }
+
+            return Task.FromResult(
+                applied ? WalletCreditResult.Applied : WalletCreditResult.AlreadyApplied
+            );
         };
         fakes.Handlers["Create"] = call =>
             fakes.Create<IFurnitureItem>((call.Args[3], call.Args[4]));
@@ -160,20 +207,153 @@ public sealed class MarketplaceTests : IDisposable
             );
         };
 
-        _marketplace = new MarketplaceService(
+        _marketplace = NewMarketplace(fakes.Create<IAssetMovementRecorder>());
+    }
+
+    public void Dispose() => _catalog.Dispose();
+
+    [Fact]
+    public async Task A_listing_and_the_sale_it_ends_in_name_the_same_offer()
+    {
+        var marketplace = NewMarketplace(await RecordingAsync());
+        var chair = Give(SELLER, CHAIR, "state:1");
+
+        await marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await marketplace.SearchOffersAsync(-1, -1, "", 1, true, Ct))
+            .Offers[0]
+            .OfferId;
+        await marketplace.BuyOfferAsync(BUYER, offerId, Ct);
+
+        var listing = _consumeCauses.Should().ContainSingle().Subject;
+        (listing.Cause, listing.ActorPlayerId, listing.FirstSeq)
+            .Should()
+            .Be((MovementCauses.MARKET_LIST, SELLER, (short)0));
+
+        // The item, gone from the inventory, becomes its offer in the same operation.
+        var listed = Movements().Should().ContainSingle().Subject;
+        (listed.OperationId, listed.Seq, listed.Cause, listed.CauseRef)
+            .Should()
+            .Be((listing.OperationId, (short)1, MovementCauses.MARKET_LIST, offerId.ToString()));
+        (listed.AssetId, listed.DefinitionId, listed.SnapshotExtraData)
+            .Should()
+            .Be((chair, CHAIR, "state:1"));
+        (listed.FromKind, listed.ToKind, listed.ToOwner, listed.ToPlace)
+            .Should()
+            .Be((PlaceKind.None, PlaceKind.MarketplaceOffer, SELLER, (long)offerId));
+
+        // The sale gives a new row under the buyer's purchase, after its price, naming the offer.
+        var sale = _grantCauses.Should().ContainSingle().Subject;
+        (sale.Cause, sale.CauseRef, sale.ActorPlayerId, sale.FirstSeq)
+            .Should()
+            .Be((MovementCauses.MARKET_BUY, offerId.ToString(), BUYER, (short)1));
+    }
+
+    [Fact]
+    public async Task A_redeem_whose_credit_fails_leaves_the_revenue_waiting_for_the_next()
+    {
+        var offerId = await SellAsync(100);
+        _failingCredits = 1;
+
+        await FluentActions
+            .Awaiting(() => _marketplace.RedeemCreditsAsync(SELLER, Ct))
+            .Should()
+            .ThrowAsync<InvalidOperationException>();
+
+        _credits[SELLER].Should().Be(0);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 2, Ct))
+            .CreditsWaiting.Should()
+            .Be(97, "nothing was paid, so nothing may be marked paid");
+
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97);
+        _credits[SELLER].Should().Be(97);
+        _creditReferences.Should().Equal($"marketplace:{offerId}");
+    }
+
+    [Fact]
+    public async Task A_redeem_that_paid_but_lost_the_answer_pays_nothing_twice()
+    {
+        await SellAsync(100);
+        _lostCreditAnswers = 1;
+
+        await FluentActions
+            .Awaiting(() => _marketplace.RedeemCreditsAsync(SELLER, Ct))
+            .Should()
+            .ThrowAsync<TimeoutException>();
+
+        _credits[SELLER].Should().Be(97);
+
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97, "now marked");
+        (await _marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(0);
+        _credits[SELLER].Should().Be(97, "the sale is paid once");
+    }
+
+    [Fact]
+    public async Task Taking_an_offer_back_names_the_offer()
+    {
+        var chair = Give(SELLER, CHAIR);
+        await _marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct);
+        var offerId = (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+
+        (await _marketplace.CancelOfferAsync(SELLER, offerId, Ct)).Should().BeTrue();
+
+        var takeBack = _grantCauses.Should().ContainSingle().Subject;
+        (takeBack.Cause, takeBack.CauseRef, takeBack.ActorPlayerId)
+            .Should()
+            .Be((MovementCauses.MARKET_CANCEL, offerId.ToString(), SELLER));
+    }
+
+    /// <summary>A chair of the seller's, listed and bought; answers the offer id.</summary>
+    private async Task<int> SellAsync(int price)
+    {
+        await _marketplace.MakeOfferAsync(SELLER, price, [-Give(SELLER, CHAIR)], Ct);
+        var offerId = (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers[0].OfferId;
+
+        (await _marketplace.BuyOfferAsync(BUYER, offerId, Ct))
+            .Code.Should()
+            .Be(MarketplaceBuyResultCode.Bought);
+
+        return offerId;
+    }
+
+    private MarketplaceService NewMarketplace(IAssetMovementRecorder movements) =>
+        new(
             _catalog.Db,
             Options.Create(
                 new CatalogConfig { Marketplace = new MarketplaceConfig { Enabled = true } }
             ),
-            fakes.Create<IGrainFactory>(),
-            definitions,
-            fakes.Create<IInventoryFurnitureLoader>(),
+            _catalog.Fakes.Create<IGrainFactory>(),
+            _catalog.Definitions,
+            _catalog.Fakes.Create<IInventoryFurnitureLoader>(),
             _time,
+            movements,
             NullLogger<MarketplaceService>.Instance
         );
+
+    private async Task<AssetMovementRecorder> RecordingAsync()
+    {
+        var recorder = new AssetMovementRecorder(
+            new TestOptionsMonitor<MovementsConfig>(new() { Enabled = true }),
+            _catalog.Db,
+            NullLogger<AssetMovementRecorder>.Instance
+        );
+        await recorder.StartAsync(Ct);
+
+        return recorder;
     }
 
-    public void Dispose() => _catalog.Dispose();
+    private List<AssetMovementOutboxEntity> Movements()
+    {
+        using var db = _catalog.Db.CreateDbContext();
+
+        return db
+            .AssetMovementOutbox.AsNoTracking()
+            .Where(x =>
+                x.Cause != MovementCauses.RECORDING_STARTED
+                && x.Cause != MovementCauses.RECORDING_STOPPED
+            )
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
 
     [Fact]
     public async Task Offered_items_leave_the_inventory_and_list_as_one_row_per_kind()

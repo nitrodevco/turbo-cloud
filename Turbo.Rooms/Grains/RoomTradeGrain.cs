@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -364,21 +365,27 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
         if (!session.BothConfirmed)
             return true;
 
-        await CommitAsync(session, ct);
+        await CommitAsync(session, ctx.PlayerId, ct);
 
         return true;
     }
 
-    private async Task CommitAsync(TradeSession session, CancellationToken ct)
+    /// <summary>
+    /// Both halves of the trade, as one operation confirmed by <paramref name="confirmedBy"/>:
+    /// the initiator's items, then the partner's, then (when the second half fails) the first
+    /// half given back, so a half trade shows in the movements as such.
+    /// </summary>
+    private async Task CommitAsync(TradeSession session, PlayerId confirmedBy, CancellationToken ct)
     {
         session.State = TradeStateType.Completed;
 
         var initiatorItems = session.InitiatorSide.Items.Keys.ToImmutableArray();
         var partnerItems = session.PartnerSide.Items.Keys.ToImmutableArray();
+        var cause = MovementCause.New(MovementCauses.TRADE, confirmedBy.Value);
 
         var toPartner = await _grainFactory
             .GetInventoryGrain(session.InitiatorId)
-            .TransferFurnitureAsync(initiatorItems, session.PartnerId, ct);
+            .TransferFurnitureAsync(initiatorItems, session.PartnerId, cause, ct);
 
         if (!toPartner)
         {
@@ -389,14 +396,26 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
         var toInitiator = await _grainFactory
             .GetInventoryGrain(session.PartnerId)
-            .TransferFurnitureAsync(partnerItems, session.InitiatorId, ct);
+            .TransferFurnitureAsync(
+                partnerItems,
+                session.InitiatorId,
+                cause.StartingAt(initiatorItems.Length),
+                ct
+            );
 
         if (!toInitiator)
         {
             // The first half already moved; hand it back rather than leave a one-sided trade.
             var returned = await _grainFactory
                 .GetInventoryGrain(session.PartnerId)
-                .TransferFurnitureAsync(initiatorItems, session.InitiatorId, ct);
+                .TransferFurnitureAsync(
+                    initiatorItems,
+                    session.InitiatorId,
+                    (cause with { CauseRef = MovementCauses.TRADE_REF_COMPENSATION }).StartingAt(
+                        initiatorItems.Length + partnerItems.Length
+                    ),
+                    ct
+                );
 
             if (!returned)
                 _logger.LogError(

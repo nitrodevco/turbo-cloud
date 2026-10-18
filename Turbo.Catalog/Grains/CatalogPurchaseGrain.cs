@@ -170,7 +170,13 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         {
             granted = await _grainFactory
                 .GetInventoryGrain(this.GetPlayerId())
-                .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
+                .GrantCatalogOfferAsync(
+                    offer,
+                    extraParam,
+                    quantity,
+                    cause.StartingAt(debitRequests.Count),
+                    ct
+                );
             await GrantBadgesAsync(offer, ct);
         }
         catch

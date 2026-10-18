@@ -98,6 +98,7 @@ internal sealed partial class CatalogPurchaseGrain
                         PurchaserFigure = request.ShowPurchaserName ? buyer.Figure : null,
                         BuyerName = buyer.Name,
                     },
+                    cause.StartingAt(debitRequests.Count),
                     ct
                 );
         }

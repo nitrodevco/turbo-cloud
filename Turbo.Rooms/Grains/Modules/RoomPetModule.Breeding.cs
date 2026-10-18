@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -635,12 +636,14 @@ public sealed partial class RoomPetModule
         // a crash in between kept the seeds and let the plants breed again.
         await SetPlantsBredAsync([requesterPlant, otherPlant], true, ct);
 
+        // One breeding, one operation: a seed for each owner.
+        var cause = MovementCause.New(MovementCauses.PET_BREED, request.RequesterId.Value);
         var requesterSeed = await _roomGrain
             ._grainFactory.GetInventoryGrain(request.RequesterId)
-            .GrantFurnitureAsync(definition.Id, null, ct);
+            .GrantFurnitureAsync(definition.Id, null, cause, ct);
         var otherSeed = await _roomGrain
             ._grainFactory.GetInventoryGrain(request.OtherOwnerId)
-            .GrantFurnitureAsync(definition.Id, null, ct);
+            .GrantFurnitureAsync(definition.Id, null, cause.StartingAt(1), ct);
 
         if (requesterSeed is null && otherSeed is null)
         {

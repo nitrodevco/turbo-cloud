@@ -426,6 +426,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     series.CatalogProductEntityId,
                     serial,
                     series.TotalQuantity,
+                    cause.StartingAt(debits.Count),
                     CancellationToken.None
                 );
 

@@ -4,10 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Turbo.Database.Context;
-using Turbo.Database.Entities.Furniture;
+using Turbo.Furniture.Custody;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Catalog;
@@ -21,6 +19,7 @@ using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -32,12 +31,13 @@ namespace Turbo.Inventory.Grains.Modules;
 /// <summary>
 /// The furniture a player keeps in the inventory (rows in no room). Same rules as the pet and
 /// bot modules: the section loads on first use, the row is written before the list changes,
-/// and the presence is told once per change, not once per item.
+/// and the presence is told once per change, not once per item. The furniture custody writes
+/// every row, under the cause the caller gives.
 /// </summary>
 internal sealed class InventoryFurniModule(
     InventoryGrain inventoryGrain,
     InventoryLiveState liveState,
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IFurnitureCustody custody,
     IInventoryFurnitureLoader furnitureLoader,
     IFurnitureDefinitionProvider definitionProvider,
     ICatalogService catalogService,
@@ -45,7 +45,7 @@ internal sealed class InventoryFurniModule(
 ) : InventoryGrainComponent(inventoryGrain)
 {
     private readonly InventoryLiveState _state = liveState;
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly IFurnitureCustody _custody = custody;
     private readonly IInventoryFurnitureLoader _furnitureLoader = furnitureLoader;
     private readonly IFurnitureDefinitionProvider _definitionProvider = definitionProvider;
     private readonly ICatalogService _catalogService = catalogService;
@@ -178,6 +178,7 @@ internal sealed class InventoryFurniModule(
     /// </summary>
     public async Task<FurnitureItemSnapshot?> ConsumeAsync(
         RoomObjectId itemId,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -186,21 +187,9 @@ internal sealed class InventoryFurniModule(
         if (!_state.FurnitureById.TryGetValue(itemId, out var item))
             return null;
 
-        int deleted;
+        var snapshot = item.GetSnapshot();
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            deleted = await dbCtx
-                .Furnitures.Where(x =>
-                    x.Id == (int)itemId
-                    && x.PlayerEntityId == (int)PlayerId
-                    && x.RoomEntityId == null
-                    && x.ChestItemEntityId == null
-                )
-                .ExecuteDeleteAsync(ct);
-        }
-
-        if (deleted == 0)
+        if (!await _custody.DestroyInInventoryAsync(PlayerId, snapshot, cause, ct))
         {
             _logger.LogWarning(
                 "Furniture {ItemId} is listed in the inventory of player {PlayerId} but has no row there; not used up",
@@ -215,7 +204,7 @@ internal sealed class InventoryFurniModule(
 
         await SendRemovedAsync([itemId], ct);
 
-        return item.GetSnapshot();
+        return snapshot;
     }
 
     /// <summary>
@@ -226,123 +215,74 @@ internal sealed class InventoryFurniModule(
     /// </summary>
     public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantAsync(
         IReadOnlyList<(FurnitureDefinitionSnapshot Definition, string? ExtraDataJson)> grants,
+        MovementCause cause,
         CancellationToken ct
     )
     {
         if (grants.Count == 0)
             return [];
 
-        var entities = grants
-            .Select(grant => new FurnitureEntity
-            {
-                PlayerEntityId = (int)PlayerId,
-                FurnitureDefinitionEntityId = grant.Definition.Id,
-                ExtraData = grant.ExtraDataJson,
-            })
-            .ToList();
-
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            dbCtx.AddRange(entities);
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-
-        return await ListGrantedAsync(
-            entities,
-            grants.Select(grant => grant.Definition).ToList(),
+        var rows = await _custody.CreateInInventoryAsync(
+            PlayerId,
+            [.. grants.Select(grant => new FurniToMake(grant.Definition.Id, grant.ExtraDataJson))],
+            cause,
             ct
         );
+
+        return await ListGrantedAsync(rows, [.. grants.Select(grant => grant.Definition)], ct);
     }
 
     /// <summary>
     /// Teleporters, each unit a linked pair: two rows, each naming the other in its
-    /// <c>room_linker</c> section. The ids exist only once the rows are inserted, so the pair is
-    /// inserted, linked and committed in one transaction — no half is ever left unlinked.
+    /// <c>room_linker</c> section; no half is ever left unlinked
+    /// (<see cref="IFurnitureCustody.CreateTeleportPairsInInventoryAsync"/>).
     /// </summary>
     public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantTeleportPairsAsync(
         IReadOnlyList<FurnitureDefinitionSnapshot> definitions,
+        MovementCause cause,
         CancellationToken ct
     )
     {
         if (definitions.Count == 0)
             return [];
 
-        var pairDefinitions = definitions
-            .SelectMany(definition => new[] { definition, definition })
-            .ToList();
-        var entities = pairDefinitions
-            .Select(definition => new FurnitureEntity
-            {
-                PlayerEntityId = (int)PlayerId,
-                FurnitureDefinitionEntityId = definition.Id,
-            })
-            .ToList();
+        var rows = await _custody.CreateTeleportPairsInInventoryAsync(
+            PlayerId,
+            [.. definitions.Select(definition => definition.Id)],
+            cause,
+            ct
+        );
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
-
-            dbCtx.AddRange(entities);
-
-            await dbCtx.SaveChangesAsync(ct);
-
-            for (var i = 0; i < entities.Count; i += 2)
-            {
-                entities[i].ExtraData = TeleportFurniture.PairExtraData(entities[i + 1].Id);
-                entities[i + 1].ExtraData = TeleportFurniture.PairExtraData(entities[i].Id);
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-
-        return await ListGrantedAsync(entities, pairDefinitions, ct);
+        return await ListGrantedAsync(
+            rows,
+            [.. definitions.SelectMany(definition => new[] { definition, definition })],
+            ct
+        );
     }
 
     /// <summary>
-    /// A present and the item it holds. The present's id exists only once its row is inserted,
-    /// so both rows go in one transaction: the item is never left loose in the inventory, nor
-    /// the present empty. Only the present is listed; the held row stays out of every inventory
-    /// query until <see cref="UnwrapPresentAsync"/>.
+    /// A present and the item it holds, both or neither: the item is never left loose in the
+    /// inventory, nor the present empty. Only the present is listed; the held row stays out of
+    /// every inventory query until <see cref="UnwrapPresentAsync"/>.
     /// </summary>
     public async Task<FurnitureItemSnapshot> GrantPresentAsync(
         FurnitureDefinitionSnapshot present,
         string presentExtraDataJson,
         FurnitureDefinitionSnapshot content,
         string? contentExtraDataJson,
+        MovementCause cause,
         CancellationToken ct
     )
     {
-        var presentEntity = new FurnitureEntity
-        {
-            PlayerEntityId = (int)PlayerId,
-            FurnitureDefinitionEntityId = present.Id,
-            ExtraData = presentExtraDataJson,
-        };
-        var contentEntity = new FurnitureEntity
-        {
-            PlayerEntityId = (int)PlayerId,
-            FurnitureDefinitionEntityId = content.Id,
-            ExtraData = contentExtraDataJson,
-        };
+        var presentRow = await _custody.CreatePresentInInventoryAsync(
+            PlayerId,
+            new FurniToMake(present.Id, presentExtraDataJson),
+            new FurniToMake(content.Id, contentExtraDataJson),
+            cause,
+            ct
+        );
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
-
-            dbCtx.Add(presentEntity);
-
-            await dbCtx.SaveChangesAsync(ct);
-
-            contentEntity.ChestItemEntityId = presentEntity.Id;
-            dbCtx.Add(contentEntity);
-
-            await dbCtx.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-
-        var granted = await ListGrantedAsync([presentEntity], [present], ct);
+        var granted = await ListGrantedAsync([presentRow], [present], ct);
 
         return granted[0];
     }
@@ -354,28 +294,16 @@ internal sealed class InventoryFurniModule(
     /// </summary>
     public async Task<FurnitureItemSnapshot?> UnwrapPresentAsync(
         RoomObjectId presentId,
+        MovementCause cause,
         CancellationToken ct
     )
     {
-        FurnitureEntity? row;
+        var row = await _custody.TakeOutOfPresentAsync(PlayerId, presentId, cause, ct);
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            row = await dbCtx
-                .Furnitures.Where(x => x.ChestItemEntityId == presentId.Value)
-                .OrderBy(x => x.Id)
-                .FirstOrDefaultAsync(ct);
+        if (row is null)
+            return null;
 
-            if (row is null)
-                return null;
-
-            row.ChestItemEntityId = null;
-            row.PlayerEntityId = (int)PlayerId;
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-
-        var definition = GetDefinitionOrThrow(row.FurnitureDefinitionEntityId);
+        var definition = GetDefinitionOrThrow(row.DefinitionId);
         var listed = await ListGrantedAsync([row], [definition], ct);
 
         return listed[0];
@@ -387,26 +315,26 @@ internal sealed class InventoryFurniModule(
     /// read loads the rows with everything else.
     /// </summary>
     private async Task<ImmutableArray<FurnitureItemSnapshot>> ListGrantedAsync(
-        List<FurnitureEntity> entities,
-        List<FurnitureDefinitionSnapshot> definitions,
+        IReadOnlyList<CustodyFurni> rows,
+        IReadOnlyList<FurnitureDefinitionSnapshot> definitions,
         CancellationToken ct
     )
     {
         var ownerName = await GetOwnerNameAsync(ct);
-        var items = new List<IFurnitureItem>(entities.Count);
+        var items = new List<IFurnitureItem>(rows.Count);
 
-        for (var i = 0; i < entities.Count; i++)
+        for (var i = 0; i < rows.Count; i++)
         {
-            var entity = entities[i];
+            var row = rows[i];
 
             items.Add(
                 _furnitureLoader.Create(
-                    entity.Id,
+                    row.Id,
                     PlayerId,
                     ownerName,
                     definitions[i],
-                    entity.ExtraData,
-                    entity.CreatedAt
+                    row.ExtraDataJson,
+                    row.CreatedAt
                 )
             );
         }
@@ -543,6 +471,7 @@ internal sealed class InventoryFurniModule(
     public async Task<FurnitureItemSnapshot?> GrantAsync(
         int definitionId,
         string? extraDataJson,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -559,7 +488,7 @@ internal sealed class InventoryFurniModule(
             return null;
         }
 
-        var granted = await GrantAsync([(definition, extraDataJson)], ct);
+        var granted = await GrantAsync([(definition, extraDataJson)], cause, ct);
 
         return granted.Length > 0 ? granted[0] : null;
     }
@@ -569,6 +498,7 @@ internal sealed class InventoryFurniModule(
         int catalogProductId,
         int serialNumber,
         int seriesSize,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -597,7 +527,11 @@ internal sealed class InventoryFurniModule(
             }
         );
 
-        await GrantAsync([(GetDefinitionOrThrow(product.FurniDefinitionId), extraDataJson)], ct);
+        await GrantAsync(
+            [(GetDefinitionOrThrow(product.FurniDefinitionId), extraDataJson)],
+            cause,
+            ct
+        );
     }
 
     /// <summary>
@@ -607,6 +541,7 @@ internal sealed class InventoryFurniModule(
     public async Task<bool> TransferAsync(
         ImmutableArray<RoomObjectId> itemIds,
         PlayerId toPlayerId,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -646,42 +581,20 @@ internal sealed class InventoryFurniModule(
             items.Add(item);
         }
 
-        var ids = items.Select(x => x.ItemId.Value).ToList();
-
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        await using (var tx = await dbCtx.Database.BeginTransactionAsync(ct))
+        if (
+            !await _custody.TransferBetweenInventoriesAsync(
+                PlayerId,
+                toPlayerId,
+                [.. items.Select(x => x.GetSnapshot())],
+                cause,
+                ct
+            )
+        )
         {
-            var updated = await dbCtx
-                .Furnitures.Where(x =>
-                    ids.Contains(x.Id)
-                    && x.PlayerEntityId == (int)PlayerId
-                    && x.RoomEntityId == null
-                    && x.ChestItemEntityId == null
-                )
-                .ExecuteUpdateAsync(
-                    up => up.SetProperty(x => x.PlayerEntityId, toPlayerId.Value),
-                    ct
-                );
+            // The list and the rows disagree; reload rather than keep trading on it.
+            _state.IsFurnitureReady = false;
 
-            if (updated != ids.Count)
-            {
-                await tx.RollbackAsync(ct);
-
-                _logger.LogError(
-                    "Transfer of {Count} items from player {PlayerId} to {ToPlayerId} changed {Updated} rows; rolled back",
-                    ids.Count,
-                    PlayerId,
-                    toPlayerId,
-                    updated
-                );
-
-                // The list and the rows disagree; reload rather than keep trading on it.
-                _state.IsFurnitureReady = false;
-
-                return false;
-            }
-
-            await tx.CommitAsync(ct);
+            return false;
         }
 
         foreach (var item in items)

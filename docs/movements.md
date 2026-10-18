@@ -5,9 +5,9 @@ Core can record every furni, pet, bot and currency that changes **owner**, **pla
 rollback tool, dupe detection). Core says what moved, from where, to where, why and who did it;
 what that means is the plugin's business.
 
-**Status:** the record, the recorder, the table, the switch and the wallet (below). The inventory,
-trade, marketplace, room, holder, pet and bot paths are wired up one by one in later changes, and
-so are the dispatcher that hands the rows to a plugin and the pruning.
+**Status:** the record, the recorder, the table, the switch, the wallet, the inventory's
+furni, trades and the marketplace (below). The room, holder, pet and bot paths are wired up one by
+one in later changes, and so are the dispatcher that hands the rows to a plugin and the pruning.
 
 ## The switch
 
@@ -106,12 +106,66 @@ the same charge pays nothing twice.
 | `camera.purchase`, `camera.publish` | a photo's price (cause ref: the photo) and its refund |
 | `group.create` | a group's price and its refund |
 | `vault.claim` | an earnings vault payout (cause ref: the claim) |
-| `market.tokens`, `market.buy`, `market.redeem` | marketplace tokens, a purchase (cause ref: the offer) and its refund, redeemed sales |
+| `market.tokens`, `market.buy`, `market.redeem` | marketplace tokens, a purchase (cause ref: the offer) and its refund, a redeemed sale (cause ref: the offer) |
 | `room.rent` | renting a space (cause ref: the furni) and its refund |
 | `use.credit_furni`, `use.crackable` | a redeemed credit furni, a cracked crackable's credits (cause ref: the furni) |
 | `wired.chest_upgrade`, `wired.chest_withdraw` | a chest's upgrade price and its refund, credits a chest pays out (actor 0; cause ref: the chest transaction) |
 | `reward.track`, `reward.quest`, `reward.daily_task`, `reward.achievement` | reward track premium and prizes, quest, daily task and achievement rewards |
 | `staff.give_currency` | `:give` (actor: the staff member; one operation per player) |
+
+## The inventory
+
+The furniture custody (`IFurnitureCustody`, `Turbo.Furniture/Custody`) is the only writer of who
+holds an inventory's furni and where. Each of its transitions is one unit of work
+(`InTransactionAsync`) with its movements while recording, one per furni, numbered from the
+cause's first seq; the inventory grain keeps its list and the client in step after the commit.
+Every `IInventoryGrain` method that makes, uses up, wraps, unwraps or hands over a furni takes the
+caller's `MovementCause`.
+
+| Transition | Movement | Called by |
+| --- | --- | --- |
+| `CreateInInventoryAsync` | `None` -> `Inventory`, with a snapshot | `GrantFurnitureAsync`, `GrantLtdFurnitureAsync`, `GrantCatalogOfferAsync` |
+| `CreateTeleportPairsInInventoryAsync` | `None` -> `Inventory` per half, linked, with a snapshot | `GrantCatalogOfferAsync` (after the plain furni of the offer) |
+| `CreatePresentInInventoryAsync` | the present `None` -> `Inventory`, then its content `None` -> `Holder` (the present) | `ReceivePresentAsync`, `ReceiveStaffPresentAsync` |
+| `TakeOutOfPresentAsync` | `Holder` (whom it was wrapped for) -> `Inventory` (the opener) | `UnwrapPresentAsync` |
+| `DestroyInInventoryAsync` | `Inventory` -> `None`, with a snapshot | `ConsumeFurnitureAsync` |
+| `TransferBetweenInventoriesAsync` | `Inventory` -> `Inventory`, all or none | `TransferFurnitureAsync` |
+
+A grant that follows a debit of the same action starts after the debit's seqs
+(`cause.StartingAt(debits.Count)`): a purchase is one operation, its price then its furni.
+
+| Cause | Where |
+| --- | --- |
+| `catalog.purchase`, `catalog.gift`, `catalog.targeted_offer`, `catalog.ltd_raffle`, `camera.purchase` | the furni or present bought (cause ref: the offer, series or photo), after the price |
+| `catalog.club_gift`, `catalog.bonus_rare`, `catalog.voucher` | a club gift (the offer), a bonus rare (the campaign), a voucher's furni (after its credits and currency) |
+| `use.decoration` | a room paper used up (cause ref: the room), and given back when the room could not take it |
+| `use.crafting` | each ingredient used up, then the product (cause ref: the crafting table) |
+| `use.crackable` | a cracked crackable's credits, then each furni prize (cause ref: the crackable) |
+| `use.present` | a present's content coming out to the opener (cause ref: the present) |
+| `room.give_back_used` | an item used up for a refused grant, given back (cause ref: the item) |
+| `pet.breed`, `pet.harvest`, `pet.unsaddle` | a monster plant seed for each owner, a harvested seed, a saddle taken off |
+| `wired.give_reward` | a wired reward's furni (actor 0; cause ref: the reward box) |
+| `reward.track` | a reward track furni prize |
+| `staff.give_item`, `staff.gift` | `:giveitem` and `:gift` (actor: the staff member; one operation per item or present) |
+| `trade`, `market.*` | below |
+
+## Trades
+
+A trade is one operation (`trade`, actor: the player whose confirm completed it): the initiator's
+items to the partner from seq 0, then the partner's items to the initiator. When the second half
+fails, the first is handed back under the same operation after both, with the cause ref
+`compensation`, so a half trade shows as such.
+
+## The marketplace
+
+Every move names its offer:
+
+| Cause | Movements |
+| --- | --- |
+| `market.list` | one operation per listing: each item `Inventory` -> `None` (with its snapshot), then, once the offer rows exist, each item `None` -> `MarketplaceOffer` (the offer's id) under the offer's id as cause ref. A listing that cannot be saved gives the items back under the listing's refund cause. |
+| `market.buy` | the price (seq 0), then the item made again `None` -> `Inventory` for the buyer (seq 1), both under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. |
+| `market.cancel` | an offer taken back (or expired) made again in the seller's inventory, under the offer's id. |
+| `market.redeem` | one operation per sale: its revenue credited to the seller under the wallet reference `marketplace:<offer>`, then the sale marked redeemed. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once). |
 
 ## Decided for now
 
@@ -126,5 +180,9 @@ These follow the design's recommendations and wait on review:
 - In-room moves are not recorded.
 - A refund is an operation of its own whose cause ref is the charge's operation id, not the
   charge's operation: the two can never collide on (operation, seq).
+- The furni a listing destroys and the offer that holds it are two movements of one operation,
+  the second under the offer's id (written with the offer rows, so the id exists); the design
+  lists the offer row (C7) with the holders, but the listing to sale lineage needs it here.
+- A trade's actor is the player whose confirm completed it.
 - A cause names the action's actor as the player who did it (the buyer, the earner); wired and
   other server-driven moves are actor 0. `:give` has no execution id to use as its cause ref yet.

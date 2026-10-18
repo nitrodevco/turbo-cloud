@@ -65,7 +65,7 @@ public sealed class PresentInventoryTests : IDisposable
     [Fact]
     public async Task OnlyThePresentIsListed_WithItsTagAndItsBoxAndRibbon()
     {
-        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), Ct);
+        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
 
         foreach (var inventory in new[] { NewInventory(RECEIVER), NewInventory(RECEIVER) })
         {
@@ -95,7 +95,15 @@ public sealed class PresentInventoryTests : IDisposable
     public async Task AnAnonymousGift_HasNoNameOnItsTag()
     {
         await NewInventory(RECEIVER)
-            .ReceivePresentAsync(Gift() with { PurchaserName = null, PurchaserFigure = null }, Ct);
+            .ReceivePresentAsync(
+                Gift() with
+                {
+                    PurchaserName = null,
+                    PurchaserFigure = null,
+                },
+                TestCustody.Cause(),
+                Ct
+            );
 
         var tag = (MapStuffSnapshot)
             (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single().StuffData;
@@ -109,10 +117,10 @@ public sealed class PresentInventoryTests : IDisposable
     {
         var inventory = NewInventory(RECEIVER);
 
-        await inventory.ReceivePresentAsync(Gift(), Ct);
+        await inventory.ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
 
         var present = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single();
-        var inside = await inventory.UnwrapPresentAsync(present.ItemId, Ct);
+        var inside = await inventory.UnwrapPresentAsync(present.ItemId, TestCustody.Cause(), Ct);
 
         inside.Should().NotBeNull();
         inside!.Definition.Id.Should().Be(CHAIR);
@@ -124,7 +132,7 @@ public sealed class PresentInventoryTests : IDisposable
             .Select(x => x.ItemId)
             .Should()
             .Contain(inside.ItemId, "the row is free of the present");
-        (await inventory.UnwrapPresentAsync(present.ItemId, Ct))
+        (await inventory.UnwrapPresentAsync(present.ItemId, TestCustody.Cause(), Ct))
             .Should()
             .BeNull("it holds nothing any more");
     }
@@ -143,10 +151,10 @@ public sealed class PresentInventoryTests : IDisposable
             PurchaserFigure = namedOnTag ? "hd-180-1" : null,
         };
 
-        await inventory.ReceivePresentAsync(gift, Ct);
+        await inventory.ReceivePresentAsync(gift, TestCustody.Cause(), Ct);
 
         var present = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single();
-        var trophy = await inventory.UnwrapPresentAsync(present.ItemId, Ct);
+        var trophy = await inventory.UnwrapPresentAsync(present.ItemId, TestCustody.Cause(), Ct);
 
         var engraving = trophy!
             .StuffData.Should()
@@ -179,7 +187,7 @@ public sealed class PresentInventoryTests : IDisposable
             Products = [Gift().Product with { FurniDefinitionId = TROPHY, SpriteId = TROPHY }],
         };
 
-        await inventory.GrantCatalogOfferAsync(offer, "Mine", 1, Ct);
+        await inventory.GrantCatalogOfferAsync(offer, "Mine", 1, TestCustody.Cause(), Ct);
 
         ((LegacyStuffSnapshot)(await inventory.GetAllItemSnapshotsAsync(Ct)).Single().StuffData)
             .Data.Split(TrophyData.SEPARATOR)[0]
@@ -190,10 +198,11 @@ public sealed class PresentInventoryTests : IDisposable
     [Fact]
     public async Task APresentThatChangedHands_OpensIntoItsNewOwnersInventory()
     {
-        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), Ct);
+        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
 
         var presentId = (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single().ItemId;
-        var inside = await NewInventory(TRADED_TO).UnwrapPresentAsync(presentId, Ct);
+        var inside = await NewInventory(TRADED_TO)
+            .UnwrapPresentAsync(presentId, TestCustody.Cause(), Ct);
 
         inside.Should().NotBeNull();
         (await Rows()).Single(x => x.Id == inside!.ItemId).PlayerEntityId.Should().Be(TRADED_TO);
@@ -204,7 +213,7 @@ public sealed class PresentInventoryTests : IDisposable
     {
         var inventory = NewInventory(RECEIVER);
 
-        await inventory.ReceiveStaffPresentAsync(StaffGift(), Ct);
+        await inventory.ReceiveStaffPresentAsync(StaffGift(), TestCustody.Cause(), Ct);
 
         var present = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single();
         var tag = present.StuffData.Should().BeOfType<MapStuffSnapshot>().Subject.Data;
@@ -228,7 +237,9 @@ public sealed class PresentInventoryTests : IDisposable
             .Deserialize<PresentStorage>();
 
         storage!.BadgeCode.Should().Be("ADM");
-        (await inventory.UnwrapPresentAsync(present.ItemId, Ct))!.Definition.Id.Should().Be(CHAIR);
+        (await inventory.UnwrapPresentAsync(present.ItemId, TestCustody.Cause(), Ct))!
+            .Definition.Id.Should()
+            .Be(CHAIR);
     }
 
     [Theory]
@@ -237,7 +248,14 @@ public sealed class PresentInventoryTests : IDisposable
     public async Task AStaffGift_SaysItsSenderIsTrusted_OnlyWhenAsked(bool trusted)
     {
         await NewInventory(RECEIVER)
-            .ReceiveStaffPresentAsync(StaffGift() with { TrustedSender = trusted }, Ct);
+            .ReceiveStaffPresentAsync(
+                StaffGift() with
+                {
+                    TrustedSender = trusted,
+                },
+                TestCustody.Cause(),
+                Ct
+            );
 
         var tag = (MapStuffSnapshot)
             (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single().StuffData;
@@ -367,7 +385,7 @@ public sealed class PresentInventoryTests : IDisposable
             [
                 grain,
                 RoomHarness.GetMember(grain, "_state")!,
-                _db,
+                TestCustody.Over(_db),
                 loader,
                 definitions,
                 _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),

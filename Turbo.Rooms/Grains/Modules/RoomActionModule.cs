@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -553,7 +554,16 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         await _roomGrain
             ._grainFactory.GetInventoryGrain(item.OwnerId)
-            .GrantFurnitureAsync(item.Definition.Id, item.ExtraData.GetJsonString(), ct);
+            .GrantFurnitureAsync(
+                item.Definition.Id,
+                item.ExtraData.GetJsonString(),
+                MovementCause.New(
+                    MovementCauses.ROOM_GIVE_BACK_USED,
+                    item.OwnerId.Value,
+                    item.ObjectId.Value
+                ),
+                ct
+            );
     }
 
     /// <summary>The item's owner may always edit it; otherwise room rights are needed.</summary>

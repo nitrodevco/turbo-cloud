@@ -338,30 +338,30 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                 ._grainFactory.GetPlayerSubscriptionGrain(recipient)
                 .ExtendAsync(subscription, reward.SubscriptionDays, ct);
 
+        // One operation for the whole prize: the credits first, then each furni.
+        var cause = MovementCause.New(
+            MovementCauses.USE_CRACKABLE,
+            recipient.Value,
+            _ctx.ObjectId.Value
+        );
+
         if (reward.Credits > 0)
             await _roomGrain
                 ._grainFactory.GetPlayerWalletGrain(recipient)
-                .CreditAsync(
-                    CurrencyKind.Credits,
-                    reward.Credits,
-                    MovementCause.New(
-                        MovementCauses.USE_CRACKABLE,
-                        recipient.Value,
-                        _ctx.ObjectId.Value
-                    ),
-                    ct
-                );
+                .CreditAsync(CurrencyKind.Credits, reward.Credits, cause, ct);
 
         if (string.IsNullOrWhiteSpace(reward.Furni))
             return;
 
-        await GiveFurniAsync(recipient, reward.Furni, x, y, rotation, ct);
+        var seq = 1;
+
+        await GiveFurniAsync(recipient, reward.Furni, x, y, rotation, cause.StartingAt(seq++), ct);
 
         if (reward.Also.IsDefaultOrEmpty)
             return;
 
         foreach (var also in reward.Also)
-            await GiveFurniAsync(recipient, also, x, y, rotation, ct);
+            await GiveFurniAsync(recipient, also, x, y, rotation, cause.StartingAt(seq++), ct);
     }
 
     /// <summary>
@@ -374,6 +374,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         int x,
         int y,
         Rotation rotation,
+        MovementCause cause,
         CancellationToken ct
     )
     {
@@ -391,7 +392,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
         var item = await _roomGrain
             ._grainFactory.GetInventoryGrain(recipient)
-            .GrantFurnitureAsync(definition.Id, null, ct);
+            .GrantFurnitureAsync(definition.Id, null, cause, ct);
 
         if (
             item is null

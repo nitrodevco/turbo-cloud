@@ -514,7 +514,16 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                     prize,
                     async () =>
                     {
-                        if (await inventory.GrantFurnitureAsync(definitionId, null, ct) is not null)
+                        var cause = MovementCause.New(
+                            MovementCauses.REWARD_TRACK,
+                            _state.PlayerId.Value,
+                            $"{track.Id}:{prize.Id}"
+                        );
+
+                        if (
+                            await inventory.GrantFurnitureAsync(definitionId, null, cause, ct)
+                            is not null
+                        )
                             return true;
 
                         _logger.LogError(

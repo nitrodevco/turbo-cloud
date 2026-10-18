@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -229,7 +230,17 @@ public class WiredActionGiveReward(
 
                     var granted = await _grainFactory
                         .GetInventoryGrain(player.PlayerId)
-                        .GrantFurnitureAsync(definition.Id, null, ct);
+                        .GrantFurnitureAsync(
+                            definition.Id,
+                            null,
+                            // Wired moves are the server's: actor 0, the reward box as the ref.
+                            MovementCause.New(
+                                MovementCauses.WIRED_GIVE_REWARD,
+                                0,
+                                _ctx.RoomObject.ObjectId.Value
+                            ),
+                            ct
+                        );
 
                     return granted is null
                         ? WiredRewardResultType.RewardNotFound

@@ -484,15 +484,20 @@ public sealed partial class VoucherService(
             var inventory = grainFactory.GetInventoryGrain(player);
 
             for (var i = 0; i < voucher.FurnitureQuantity; i++)
+            {
+                // The credits and the currency took seqs 0 and 1.
+                var furniCause = cause.StartingAt(2 + i);
+
                 await TryAsync(
                         "furniture",
                         async () =>
                             await inventory
-                                .GrantFurnitureAsync(definitionId, null, ct)
+                                .GrantFurnitureAsync(definitionId, null, furniCause, ct)
                                 .ConfigureAwait(false)
                                 is not null
                     )
                     .ConfigureAwait(false);
+            }
 
             var definition = await dbCtx
                 .FurnitureDefinitions.AsNoTracking()

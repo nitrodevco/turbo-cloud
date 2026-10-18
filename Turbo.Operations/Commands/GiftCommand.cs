@@ -15,6 +15,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -145,7 +146,14 @@ public sealed class GiftCommand(
             {
                 await grainFactory
                     .GetInventoryGrain(player.Id)
-                    .ReceiveStaffPresentAsync(request, token);
+                    .ReceiveStaffPresentAsync(
+                        request,
+                        MovementCause.New(
+                            MovementCauses.STAFF_GIFT,
+                            ctx.Executor.PlayerId?.Value ?? 0
+                        ),
+                        token
+                    );
 
                 return true;
             },

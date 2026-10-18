@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Furniture.Custody;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Catalog;
@@ -45,6 +46,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
 
     public InventoryGrain(
         IDbContextFactory<TurboDbContext> dbContextFactory,
+        IFurnitureCustody furnitureCustody,
         IOptions<InventoryConfig> inventoryConfig,
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider furnitureDefinitionProvider,
@@ -66,7 +68,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         FurniModule = new InventoryFurniModule(
             this,
             _state,
-            dbContextFactory,
+            furnitureCustody,
             furnitureItemsLoader,
             furnitureDefinitionProvider,
             catalogService,

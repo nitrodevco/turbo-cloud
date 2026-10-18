@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,14 +12,18 @@ using Orleans;
 using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Extensions;
+using Turbo.Database.Movements;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Factories;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Movements;
+using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -34,6 +39,8 @@ namespace Turbo.Catalog.Marketplace;
 /// of the same back. A purchase claims its row with one conditional update (open and unexpired),
 /// so two buyers never get one offer: the later one is refunded and offered the next cheapest of
 /// the kind, as Flash's <c>MarketPlaceLogic.onBuyResult</c> expects.
+/// Every move names its offer: a listing's movements and the item a sale or a take-back gives
+/// carry the offer id as their cause ref (docs/movements.md "The marketplace").
 /// </summary>
 public sealed class MarketplaceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -42,11 +49,15 @@ public sealed class MarketplaceService(
     IFurnitureDefinitionProvider definitions,
     IInventoryFurnitureLoader furnitureLoader,
     TimeProvider time,
+    IAssetMovementRecorder movements,
     ILogger<MarketplaceService> logger
 ) : IMarketplaceService
 {
     /// <summary>Days of price history a stats answer covers: 30 in both official captures (2026-10-13).</summary>
     public const int HISTORY_DAYS = 30;
+
+    /// <summary>The wallet reference a sale's revenue is paid under: one receipt per offer.</summary>
+    public const string REDEEM_REFERENCE_PREFIX = "marketplace:";
 
     private readonly MarketplaceConfig _config = config.Value.Marketplace;
 
@@ -339,22 +350,26 @@ public sealed class MarketplaceService(
 
         var now = Now();
         var rows = new List<MarketplaceOfferEntity>(items.Length);
+        var taken = new List<FurnitureItemSnapshot>(items.Length);
+        // One listing, one operation: each item leaves the inventory, then becomes its offer.
+        var cause = MovementCause.New(MovementCauses.MARKET_LIST, player.Value);
 
         foreach (var item in items)
         {
-            var taken = await inventory
-                .ConsumeFurnitureAsync(item.ItemId, ct)
+            var consumed = await inventory
+                .ConsumeFurnitureAsync(item.ItemId, cause.StartingAt(taken.Count), ct)
                 .ConfigureAwait(false);
 
-            if (taken is null)
+            if (consumed is null)
                 continue;
 
+            taken.Add(consumed);
             rows.Add(
                 new MarketplaceOfferEntity
                 {
                     PlayerEntityId = player.Value,
-                    FurnitureDefinitionEntityId = taken.Definition.Id,
-                    ExtraData = taken.ExtraData,
+                    FurnitureDefinitionEntityId = consumed.Definition.Id,
+                    ExtraData = consumed.ExtraData,
                     Price = price,
                     State = MarketplaceOfferEntity.STATE_OPEN,
                     ExpiresAt = now.AddHours(_config.ExpirationHours),
@@ -368,20 +383,34 @@ public sealed class MarketplaceService(
 
         try
         {
-            var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+            await dbCtxFactory
+                .InTransactionAsync(
+                    async dbCtx =>
+                    {
+                        dbCtx.MarketplaceOffers.AddRange(rows);
 
-            dbCtx.MarketplaceOffers.AddRange(rows);
-            await dbCtx.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+                        // The offer ids the movements name exist once the rows are inserted.
+                        await dbCtx.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
 
-            if (TokensUsed)
-                await dbCtx
-                    .MarketplaceTokens.Where(x => x.PlayerEntityId == player.Value)
-                    .ExecuteUpdateAsync(
-                        u => u.SetProperty(x => x.Tokens, x => x.Tokens - rows.Count),
-                        CancellationToken.None
-                    )
-                    .ConfigureAwait(false);
+                        movements.Record(
+                            dbCtx,
+                            Listed(cause.StartingAt(taken.Count), taken, rows, now)
+                        );
+
+                        if (TokensUsed)
+                            await dbCtx
+                                .MarketplaceTokens.Where(x => x.PlayerEntityId == player.Value)
+                                .ExecuteUpdateAsync(
+                                    u => u.SetProperty(x => x.Tokens, x => x.Tokens - rows.Count),
+                                    CancellationToken.None
+                                )
+                                .ConfigureAwait(false);
+
+                        return UnitOfWork.Commit(true);
+                    },
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -392,8 +421,10 @@ public sealed class MarketplaceService(
                 rows.Count
             );
 
-            foreach (var row in rows)
-                await GiveItemAsync(player, row).ConfigureAwait(false);
+            var giveBack = cause.ForRefund();
+
+            for (var i = 0; i < rows.Count; i++)
+                await GiveItemAsync(player, rows[i], giveBack.StartingAt(i)).ConfigureAwait(false);
 
             return MarketplaceMakeOfferCode.TechnicalError;
         }
@@ -488,7 +519,12 @@ public sealed class MarketplaceService(
         if (deleted == 0)
             return false;
 
-        await GiveItemAsync(player, row).ConfigureAwait(false);
+        await GiveItemAsync(
+                player,
+                row,
+                MovementCause.New(MovementCauses.MARKET_CANCEL, player.Value, offerId)
+            )
+            .ConfigureAwait(false);
 
         return true;
     }
@@ -556,7 +592,8 @@ public sealed class MarketplaceService(
             return await NextOfferAsync(dbCtx, row, now, ct).ConfigureAwait(false);
         }
 
-        await GiveItemAsync(player, row).ConfigureAwait(false);
+        // The price took seq 0.
+        await GiveItemAsync(player, row, cause.StartingAt(1)).ConfigureAwait(false);
 
         // The seller's revenue now waits in the earnings vault; an online seller gets Flash's
         // "notification.earning.new" (VaultController.as:139). Inference: the official client
@@ -695,11 +732,39 @@ public sealed class MarketplaceService(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        var wallet = grainFactory.GetPlayerWalletGrain(player);
         var total = 0;
 
-        // Row by row, each marked before it pays: a second redeem at the same moment finds it taken.
+        // Sale by sale, each paid before it is marked, under a credit referenced by its offer: a
+        // credit that fails leaves the sale waiting for the next redeem, and a redeem that stops
+        // between the two (or runs at the same moment as another) pays nothing twice.
         foreach (var offer in sold)
         {
+            if (offer.Revenue > 0)
+            {
+                var credited = await wallet
+                    .CreditAsync(
+                        CurrencyKind.Credits,
+                        offer.Revenue,
+                        RedeemReference(offer.Id),
+                        MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value, offer.Id),
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
+
+                if (credited == WalletCreditResult.Rejected)
+                {
+                    logger.LogWarning(
+                        "Marketplace offer {OfferId}: the wallet of player {PlayerId} refused {Revenue} credits; left to redeem",
+                        offer.Id,
+                        player.Value,
+                        offer.Revenue
+                    );
+
+                    continue;
+                }
+            }
+
             var marked = await dbCtx
                 .MarketplaceOffers.Where(x => x.Id == offer.Id && !x.CreditsRedeemed)
                 .ExecuteUpdateAsync(
@@ -712,19 +777,11 @@ public sealed class MarketplaceService(
                 total += offer.Revenue;
         }
 
-        if (total > 0)
-            await grainFactory
-                .GetPlayerWalletGrain(player)
-                .CreditAsync(
-                    CurrencyKind.Credits,
-                    total,
-                    MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value),
-                    CancellationToken.None
-                )
-                .ConfigureAwait(false);
-
         return total;
     }
+
+    private static string RedeemReference(int offerId) =>
+        REDEEM_REFERENCE_PREFIX + offerId.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// What the seller receives for a sale at <paramref name="price"/>: Flash's
@@ -851,13 +908,56 @@ public sealed class MarketplaceService(
             );
     }
 
-    private async Task GiveItemAsync(PlayerId player, MarketplaceOfferEntity row)
+    /// <summary>
+    /// The movements of a listing after its items left the inventory: each item, made again as
+    /// its offer, under the offer's id, so the item a sale or take-back later gives links to it.
+    /// </summary>
+    private static List<AssetMovement> Listed(
+        MovementCause cause,
+        IReadOnlyList<FurnitureItemSnapshot> taken,
+        IReadOnlyList<MarketplaceOfferEntity> rows,
+        DateTime now
+    ) =>
+        [
+            .. rows.Select(
+                (row, i) =>
+                    AssetMovement.For(
+                        cause with
+                        {
+                            CauseRef = row.Id.ToString(CultureInfo.InvariantCulture),
+                        },
+                        checked((short)(cause.FirstSeq + i)),
+                        now,
+                        new AssetRef(
+                            AssetKind.Furni,
+                            taken[i].ItemId.Value,
+                            row.FurnitureDefinitionEntityId,
+                            null
+                        ),
+                        AssetPlace.Nowhere,
+                        new AssetPlace(
+                            row.PlayerEntityId,
+                            PlaceKind.MarketplaceOffer,
+                            row.Id,
+                            null
+                        ),
+                        snapshot: new AssetSnapshot(row.FurnitureDefinitionEntityId, row.ExtraData)
+                    )
+            ),
+        ];
+
+    private async Task GiveItemAsync(
+        PlayerId player,
+        MarketplaceOfferEntity row,
+        MovementCause cause
+    )
     {
         var given = await grainFactory
             .GetInventoryGrain(player)
             .GrantFurnitureAsync(
                 row.FurnitureDefinitionEntityId,
                 row.ExtraData,
+                cause,
                 CancellationToken.None
             )
             .ConfigureAwait(false);

@@ -86,7 +86,8 @@ public sealed class FurniListUpdateTests : IDisposable
     [Fact]
     public async Task APurchase_BeforeTheInventoryWasOpened_SendsNoListPacket()
     {
-        var granted = await NewInventory().GrantFurnitureAsync(CHAIR, null, Ct);
+        var granted = await NewInventory()
+            .GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
 
         granted.Should().NotBeNull();
         ListPackets()
@@ -104,8 +105,8 @@ public sealed class FurniListUpdateTests : IDisposable
         // Collected while the player stayed online: the next call activates a new grain, which
         // does not know the client still holds the list it was sent.
         var activatedAgain = NewInventory();
-        await activatedAgain.GrantFurnitureAsync(CHAIR, null, Ct);
-        await activatedAgain.GrantFurnitureAsync(CHAIR, null, Ct);
+        await activatedAgain.GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
+        await activatedAgain.GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
 
         ListPackets()
             .Should()
@@ -120,7 +121,7 @@ public sealed class FurniListUpdateTests : IDisposable
         var inventory = NewInventory();
 
         await inventory.SendFurnitureInventoryAsync(Session, Ct);
-        var granted = await inventory.GrantFurnitureAsync(CHAIR, null, Ct);
+        var granted = await inventory.GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
 
         var sent = _fakes
             .Log.Of(nameof(IPlayerPresenceGrain.TrySendComposerToSessionAsync))
@@ -148,8 +149,8 @@ public sealed class FurniListUpdateTests : IDisposable
         var inventory = NewInventory();
 
         await inventory.SendFurnitureInventoryAsync(new SessionKey("earlier-session"), Ct);
-        await inventory.GrantFurnitureAsync(CHAIR, null, Ct);
-        await inventory.GrantFurnitureAsync(CHAIR, null, Ct);
+        await inventory.GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
+        await inventory.GrantFurnitureAsync(CHAIR, null, TestCustody.Cause(), Ct);
 
         _fakes
             .Log.Of(nameof(IPlayerPresenceGrain.TrySendComposerToSessionAsync))
@@ -210,7 +211,7 @@ public sealed class FurniListUpdateTests : IDisposable
             [
                 grain,
                 RoomHarness.GetMember(grain, "_state")!,
-                _db,
+                TestCustody.Over(_db),
                 loader,
                 definitions,
                 _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),

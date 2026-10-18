@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -40,7 +41,12 @@ public sealed partial class RoomGrain
 
         // Used up first: only what the inventory actually gave up is applied, so an item traded
         // or placed meanwhile cannot decorate the room for nothing.
-        var consumed = await inventory.ConsumeFurnitureAsync(itemId, ct);
+        var cause = MovementCause.New(
+            MovementCauses.USE_DECORATION,
+            ctx.PlayerId.Value,
+            _state.RoomId.Value
+        );
+        var consumed = await inventory.ConsumeFurnitureAsync(itemId, cause, ct);
 
         if (consumed is null)
             return RejectDecoration(ctx, itemId, "the inventory no longer holds it");
@@ -64,7 +70,12 @@ public sealed partial class RoomGrain
             // Nowhere else to put it: a failed give-back is logged with what was lost.
             try
             {
-                await inventory.GrantFurnitureAsync(consumed.Definition.Id, consumed.ExtraData, ct);
+                await inventory.GrantFurnitureAsync(
+                    consumed.Definition.Id,
+                    consumed.ExtraData,
+                    cause.StartingAt(1),
+                    ct
+                );
             }
             catch (Exception grantEx)
             {
