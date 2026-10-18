@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
+using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.HotelView;
 using Turbo.Primitives.Gamedata;
@@ -41,6 +42,12 @@ internal sealed class GamedataVariableService(
     private const string VALUE = "value";
     private const string SETTING = "setting";
     private const string FILE = "file";
+
+    /// <summary>
+    /// The variables the hotel keeps itself, as it keeps the ones that follow a file: a client
+    /// config's import neither sets nor removes them.
+    /// </summary>
+    public static readonly IReadOnlyList<string> MANAGED = [PublishedPets.PET_TYPES_VARIABLE];
 
     private readonly GamedataConfig _config = config.Value;
 
@@ -608,6 +615,7 @@ internal sealed class GamedataVariableService(
             Value = ExternalVariablesFile.Resolve(value, setting, file, addresses, settings),
             Setting = setting,
             File = file,
+            Managed = IsManaged(key),
         };
 
     internal static VariableState State(GamedataVariableEntity row) =>
@@ -655,8 +663,12 @@ internal sealed class GamedataVariableService(
 
             ours.TryGetValue(key, out var current);
 
-            // A variable that follows a setting or a file: the config can't set it.
-            if (current?.SettingPath is not null || current?.LinkedFile is not null)
+            // A variable that follows a setting or a file, or one the hotel keeps: the config can't set it.
+            if (
+                current?.SettingPath is not null
+                || current?.LinkedFile is not null
+                || IsManaged(key)
+            )
             {
                 plan.Skipped.Add(key);
 
@@ -672,14 +684,16 @@ internal sealed class GamedataVariableService(
         plan.Items.Reverse();
         plan.Skipped.Reverse();
 
-        // What the config lacks, but not what follows a setting or a file (the hotel writes those)
-        // nor the reception's, which the Hotel view page keeps and a client config rarely carries.
+        // What the config lacks, but not what follows a setting or a file or the hotel keeps (it
+        // writes those) nor the reception's, which the Hotel view page keeps and a client config
+        // rarely carries.
         if (removeMissing)
             plan.Removed.AddRange(
                 ours.Values.Where(x =>
                         !seen.Contains(x.Key)
                         && x.SettingPath is null
                         && x.LinkedFile is null
+                        && !IsManaged(x.Key)
                         && !IsHotelView(x.Key)
                     )
                     .OrderBy(x => x.Key, StringComparer.Ordinal)
@@ -687,6 +701,8 @@ internal sealed class GamedataVariableService(
 
         return plan;
     }
+
+    private static bool IsManaged(string key) => MANAGED.Contains(key, StringComparer.Ordinal);
 
     /// <summary>One of the reception's variables, kept by the Hotel view page.</summary>
     private static bool IsHotelView(string key) =>

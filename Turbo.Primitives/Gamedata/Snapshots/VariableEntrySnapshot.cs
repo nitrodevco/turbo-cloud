@@ -26,4 +26,11 @@ public sealed record VariableEntrySnapshot
     /// </summary>
     [Id(3)]
     public string? File { get; init; }
+
+    /// <summary>
+    /// Whether the hotel keeps it itself (<c>renderer.petTypes</c>, which a publish writes from the
+    /// pet bundles), so an import never sets nor removes it.
+    /// </summary>
+    [Id(4)]
+    public bool Managed { get; init; }
 }

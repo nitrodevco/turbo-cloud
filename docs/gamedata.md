@@ -293,7 +293,8 @@ longer publishes them.
   hotel's variables the config doesn't have** is ticked: then those are removed too, listed in the
   review first. A variable that follows a setting or a file is never removed, nor the reception's
   (`landing.view.*` and the others the Hotel view page keeps), and a config with no keys can't
-  remove anything. Every edit and import is a change set and rolls back like any other.
+  remove anything. `renderer.petTypes` is the hotel's own, as the file addresses are: a publish
+  writes it from the pet bundles, and an import neither sets nor removes it. Every edit and import is a change set and rolls back like any other.
 - **A variable can follow something** instead of holding a value of its own. **Link** it on the
   Variables tab, and the file writes what it follows, built again whenever that changes:
   - **a server setting** (`Turbo:Web:HotelName`, say): its value configured now, so saving the

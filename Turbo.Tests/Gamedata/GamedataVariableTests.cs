@@ -294,6 +294,42 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         preview.Added.Should().Be(1);
     }
 
+    [Fact]
+    public async Task an_import_neither_sets_nor_removes_the_pet_types_the_hotel_keeps()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        await hotel.Variables.SaveAsync(
+            "renderer.petTypes",
+            """["dog","cat","myhotelpet"]""",
+            STAFF,
+            Ct
+        );
+
+        var preview = await hotel.Variables.PreviewImportAsync(
+            """{ "renderer.petTypes": ["dog"], "socket.url": "wss://y" }""",
+            true,
+            Ct
+        );
+
+        preview.Skipped.Should().Equal("renderer.petTypes");
+        preview.Items.Select(x => x.Key).Should().Equal("socket.url");
+
+        await hotel.Variables.ImportAsync("""{ "socket.url": "wss://y" }""", true, STAFF, Ct);
+
+        var variables = (await VariablesAsync(hotel)).Variables;
+
+        variables["renderer.petTypes"]!
+            .AsArray()
+            .Select(x => x!.GetValue<string>())
+            .Should()
+            .Equal("dog", "cat", "myhotelpet");
+        (await hotel.Variables.SearchAsync("renderer.petTypes", 0, Ct))
+            .Items.Single()
+            .Managed.Should()
+            .BeTrue();
+    }
+
     [Theory]
     [InlineData("", "true")]
     [InlineData("socket.url", "wss://not-quoted")]
