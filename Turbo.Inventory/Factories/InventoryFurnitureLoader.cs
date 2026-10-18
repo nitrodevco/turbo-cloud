@@ -168,8 +168,8 @@ internal sealed class InventoryFurnitureLoader(
 
     /// <summary>
     /// The number the client reads beside an item's stuff data, never from it: a song disk's
-    /// song, and a present's box and ribbon (which pick the frames it is drawn with). Zero for
-    /// everything else.
+    /// song, a present's box and ribbon (which pick the frames it is drawn with), and a room
+    /// linker's other half. Zero for everything else.
     /// </summary>
     private int ObjectExtra(
         FurnitureDefinitionSnapshot definition,
@@ -179,6 +179,12 @@ internal sealed class InventoryFurnitureLoader(
     {
         if (SongDisks.IsSongDisk(definition))
             return SongDisks.SongIdOf(stuffData);
+
+        if (TeleportFurniture.IsRoomLinker(definition.Name))
+            return FurnitureExtraDataSections
+                    .Read<RoomLinkerData>(extraData, RoomLinkerData.SECTION, _logger)
+                    ?.ItemId
+                ?? 0;
 
         if (!PresentData.IsPresent(definition.LogicName))
             return 0;
