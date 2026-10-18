@@ -42,6 +42,13 @@ public class RoomEntryPreparationTests
                 "CantConnectMessageComposer",
                 "CloseConnectionMessageComposer",
             ],
+            // Habbo answers a full room with CantConnect alone; the connection closes on the
+            // client's Quit (official client capture 2026-10-18, 3 of 3 entries).
+            RoomEntryAccessType.Full =>
+            [
+                "OpenConnectionMessageComposer",
+                "CantConnectMessageComposer",
+            ],
             _ =>
             [
                 "OpenConnectionMessageComposer",

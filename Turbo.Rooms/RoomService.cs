@@ -132,7 +132,8 @@ internal sealed partial class RoomService(
 
     /// <summary>
     /// OpenConnection is sent first so the client leaves the hotel view, then the decision is
-    /// applied: banned/full → CantConnect + CloseConnection, wrong or missing password →
+    /// applied: banned → CantConnect + CloseConnection, full → CantConnect alone (the client quits on it
+    /// and its Quit closes the connection, as on Habbo), wrong or missing password →
     /// GenericError + CloseConnection, locked → doorbell ring (FlatAccessDenied when nobody can
     /// answer), allowed → the room is streamed.
     /// </summary>
@@ -197,7 +198,8 @@ internal sealed partial class RoomService(
                         {
                             ErrorType = RoomConnectionErrorType.RoomFull,
                         },
-                        ct
+                        ct,
+                        closeConnection: false
                     )
                     .ConfigureAwait(false);
                 return;
@@ -514,22 +516,23 @@ internal sealed partial class RoomService(
     }
 
     /// <param name="notice">Shown before the refusal, in the same batch, when the refusal needs explaining.</param>
+    /// <param name="closeConnection">False when the client's own Quit, which it sends on the refusal, closes it.</param>
     private static async Task RejectEntryAsync(
         IPlayerPresenceGrain playerPresence,
         IComposer error,
         CancellationToken ct,
-        IComposer? notice = null
+        IComposer? notice = null,
+        bool closeConnection = true
     )
     {
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
-        await playerPresence
-            .SendComposerAsync(
-                notice is null
-                    ? [error, new CloseConnectionMessageComposer()]
-                    : [notice, error, new CloseConnectionMessageComposer()],
-                ct
-            )
-            .ConfigureAwait(false);
+
+        List<IComposer> composers = notice is null ? [error] : [notice, error];
+
+        if (closeConnection)
+            composers.Add(new CloseConnectionMessageComposer());
+
+        await playerPresence.SendComposerAsync(composers, ct).ConfigureAwait(false);
     }
 
     /// <summary>
