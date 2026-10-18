@@ -26,6 +26,10 @@ public class UpdateRoomCategoryAndTradeSettingsMessageHandler(
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
+        // Asked before the room grain, whose activation would fail on a missing room.
+        if (!await _navigatorService.RoomExistsAsync(message.RoomId, ct).ConfigureAwait(false))
+            return;
+
         var categoryId = await _navigatorService
             .ResolvePlayerFlatCategoryAsync(ctx.PlayerId, message.CategoryId, ct)
             .ConfigureAwait(false);

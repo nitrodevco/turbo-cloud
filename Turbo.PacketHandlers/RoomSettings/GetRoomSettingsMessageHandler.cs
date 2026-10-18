@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -14,10 +15,13 @@ namespace Turbo.PacketHandlers.RoomSettings;
 /// settings data for the requested room id arrives; a refused asker gets the settings error and
 /// NoSuchFlat, so the client stops waiting.
 /// </summary>
-public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<GetRoomSettingsMessage>
+public class GetRoomSettingsMessageHandler(
+    IGrainFactory grainFactory,
+    INavigatorService navigatorService
+) : IMessageHandler<GetRoomSettingsMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         GetRoomSettingsMessage message,
@@ -26,6 +30,10 @@ public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
     )
     {
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+            return;
+
+        // Asked before the room grain, whose activation would fail on a missing room.
+        if (!await _navigatorService.RoomExistsAsync(message.RoomId, ct).ConfigureAwait(false))
             return;
 
         var settings = await _grainFactory
