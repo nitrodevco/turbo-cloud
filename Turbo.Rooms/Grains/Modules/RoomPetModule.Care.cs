@@ -188,19 +188,27 @@ public sealed partial class RoomPetModule
             return false;
         }
 
+        var harvestedBefore = pet.HarvestedAtUtc;
+
+        pet.SetHarvestedAt(DateTime.UtcNow);
+        Persist(pet);
+        await PersistNowAsync(ct);
+
         var seed = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
             .GrantFurnitureAsync(definition.Id, null, ct);
 
         if (seed is null)
-            return false;
+        {
+            pet.SetHarvestedAt(harvestedBefore);
+            Persist(pet);
 
-        pet.SetHarvestedAt(DateTime.UtcNow);
+            return false;
+        }
 
         RefreshFlags(pet);
 
         await BroadcastStatusAsync(pet, ct);
-        Persist(pet);
 
         return true;
     }

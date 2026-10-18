@@ -52,6 +52,31 @@ public class CreditFurniRedeemTests
         room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeFalse();
     }
 
+    // The wallet writes the credits at once; the furni's row was only queued for the next flush.
+    // r36 rig (CF_5_coin_silver, agent4 room): the row went 2204 ms after the client saw the coin
+    // go, and the server killed 374 ms after the redeem left the row with the credits kept, so
+    // the coin came back to be redeemed again.
+    [Fact]
+    public async Task The_redeemed_furni_is_deleted_from_the_database_before_the_redeem_returns()
+    {
+        var room = CreateRoomWith("CF_5_coin_silver");
+        AddPlayer(room, OWNER);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ => Task.FromResult(true);
+
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            ITEM,
+            new RedeemCreditsInteraction(),
+            Ct
+        );
+
+        room.Fakes.Log.Of("WriteUseAsync")
+            .Select(x => x.Args[1])
+            .Should()
+            .Equal((RoomObjectId)ITEM);
+        room.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Someone_else_cannot_redeem_it()
     {

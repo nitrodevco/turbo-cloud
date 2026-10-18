@@ -282,6 +282,7 @@ public sealed partial class RoomPetModule
             );
 
         await SetSaddleAsync(pet, false, null, ct);
+        await PersistNowAsync(ct);
 
         await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)

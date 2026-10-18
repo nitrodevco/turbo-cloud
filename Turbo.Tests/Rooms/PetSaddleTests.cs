@@ -126,6 +126,49 @@ public sealed class PetSaddleTests
         ClientFigure().Should().Be("15 3 FFFFFF 2 2 -1 1 3 -1 1");
     }
 
+    // The used saddle's row and the saddled horse were both left for the next flush, so a crash
+    // could undo the use; they are written together, at once.
+    [Fact]
+    public async Task Strapping_a_saddle_on_writes_its_deletion_together_with_the_saddled_horse()
+    {
+        await PlaceAsync();
+
+        (await SaddleAsync(SADDLE2_DEFINITION, SADDLE2)).Should().BeTrue();
+
+        var write = _room.Harness.Fakes.Log.Of("WriteUseAsync").Should().ContainSingle().Subject;
+        write.Args[1].Should().Be((RoomObjectId)SADDLE);
+        ((List<PetSnapshot>)write.Args[2]!)
+            .Should()
+            .ContainSingle(x =>
+                x.Id == PET && x.HasSaddle && x.SaddleDefinitionId == SADDLE2_DEFINITION
+            );
+        _room.Harness.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
+    }
+
+    // The saddle given back is written at once by the inventory; the bare horse waited for the
+    // next hand-over, so a crash in between left the horse saddled with its saddle back in the
+    // inventory, to be taken off again.
+    [Fact]
+    public async Task Taking_the_saddle_off_writes_the_bare_horse_before_the_saddle_is_given_back()
+    {
+        await PlaceAsync();
+        (await SaddleAsync(SADDLE2_DEFINITION, SADDLE2)).Should().BeTrue();
+
+        (await Pets.RemovePetSaddleAsync(Owner, PET, Ct)).Should().BeTrue();
+
+        var calls = _room.Harness.Fakes.Log.Calls.ToList();
+        var bare = calls.FindLastIndex(x =>
+            x.Method == "WriteUseAsync"
+            && x.Args[2] is List<PetSnapshot> pets
+            && pets.Any(p => p.Id == PET && !p.HasSaddle)
+        );
+        bare.Should().BeGreaterThanOrEqualTo(0, "the bare horse is written at once");
+        bare.Should()
+            .BeLessThan(
+                calls.FindIndex(x => x.Method == nameof(IInventoryGrain.GrantFurnitureAsync))
+            );
+    }
+
     [Fact]
     public async Task A_horse_keeps_which_saddle_it_wears_when_picked_up_and_placed_again()
     {
