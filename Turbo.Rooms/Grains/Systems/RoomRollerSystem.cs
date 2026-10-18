@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -24,7 +26,8 @@ namespace Turbo.Rooms.Grains.Systems;
 
 public sealed class RoomRollerSystem(RoomGrain roomGrain)
     : RoomGrainComponent(roomGrain),
-        IRoomEventListener
+        IRoomEventListener,
+        IRoomPlacementLimit
 {
     private readonly List<List<int>> _rollerIdSets = [];
 
@@ -283,8 +286,25 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
+    /// A room takes <c>RoomConfig.MaxRollerSpeedControls</c> Roller Speed Controllers: Habbo
+    /// refuses a second with <c>room.error.type_limit</c> (official client capture, 2026-10-18,
+    /// 1/1), so two speeds never stand in one room.
+    /// </summary>
+    public void EnsureCanPlace(IRoomItem item)
+    {
+        if (
+            item.Logic is FurnitureRollerSpeedControlLogic
+            && FurniModule.Items.Count(x =>
+                x.ObjectId != item.ObjectId && x.Logic is FurnitureRollerSpeedControlLogic
+            ) >= _roomGrain._roomConfig.MaxRollerSpeedControls
+        )
+            throw new TurboException(TurboErrorCodeEnum.FurniTypeLimitReached);
+    }
+
+    /// <summary>
     /// How often the rollers move: at the speed of the room's Roller Speed Controller, the one
-    /// placed first when there are several, or <c>RoomConfig.RollerTickMs</c> without one.
+    /// placed first when a room holds more than one (placed before the limit, or with a higher
+    /// <c>RoomConfig.MaxRollerSpeedControls</c>), or <c>RoomConfig.RollerTickMs</c> without one.
     /// </summary>
     private int GetRollerTickMs() =>
         _speedControlIds.Count > 0

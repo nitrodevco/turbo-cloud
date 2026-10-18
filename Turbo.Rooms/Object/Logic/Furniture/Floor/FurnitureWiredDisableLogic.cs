@@ -14,7 +14,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// it is on lets wired fire again at once. Switching it answers with its new state only: it is
 /// not a flag of <c>ConfigurationItemStates</c>, and the boxes are told nothing (official client
 /// capture, 2026-10-18: states 0 and 1, a walk-on trigger fired 3 of 3 times while off and 0 of
-/// 3 while on). Rights holders switch it; off is the default state.
+/// 3 while on). Rights holders switch it; it is placed off.
 /// </summary>
 [RoomObjectLogic("wired_disable")]
 public class FurnitureWiredDisableLogic(
@@ -36,6 +36,18 @@ public class FurnitureWiredDisableLogic(
 
         // Two states whatever the definition counts: it is a switch.
         await SetStateAsync(IsOn ? OFF : ON);
+    }
+
+    public override async Task OnPlaceAsync(ActionContext ctx, CancellationToken ct)
+    {
+        // Placed off, whatever it was when picked up (official client capture, 2026-10-18: one
+        // picked up while on came back "0", 1/1), before the room is told of it. It was
+        // attached first, with the state it was picked up in.
+        StuffData.SetState(OFF.ToString());
+        PersistStuffData(false);
+        WiredSystem.SetDisabledBy(_ctx.ObjectId, false);
+
+        await base.OnPlaceAsync(ctx, ct);
     }
 
     public override async Task OnStateChangedAsync(CancellationToken ct)

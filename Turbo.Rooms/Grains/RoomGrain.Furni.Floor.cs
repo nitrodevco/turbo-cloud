@@ -43,6 +43,10 @@ public sealed partial class RoomGrain
         {
             return FurniturePlacementResultType.NotAllowed;
         }
+        catch (TurboException ex) when (ex.ErrorCode == TurboErrorCodeEnum.FurniTypeLimitReached)
+        {
+            return FurniturePlacementResultType.TypeLimit;
+        }
         catch (Exception ex)
         {
             _logger.LogError(

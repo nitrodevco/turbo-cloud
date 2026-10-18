@@ -19,4 +19,11 @@ public static class FurniturePlacementNotifications
     /// plain room rights (official client capture, PlaceObject 2026-10-13).
     /// </summary>
     public const string CANT_SET_NOT_OWNER_MESSAGE = "${room.error.cant_set_not_owner}";
+
+    /// <summary>
+    /// The <c>message</c> parameter when the room already holds as many of the furni's kind as it
+    /// may: "You have reached the limit of this type of item per room.", Habbo's answer to a
+    /// second Roller Speed Controller (official client capture, 2026-10-18, 1/1).
+    /// </summary>
+    public const string TYPE_LIMIT_MESSAGE = "${room.error.type_limit}";
 }

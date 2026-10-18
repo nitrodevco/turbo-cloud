@@ -125,9 +125,14 @@ internal sealed partial class RoomService
                     NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
                     Parameters = ImmutableDictionary<string, string>.Empty.Add(
                         "message",
-                        result == FurniturePlacementResultType.NotAllowed
-                            ? FurniturePlacementNotifications.CANT_SET_NOT_OWNER_MESSAGE
-                            : FurniturePlacementNotifications.CANT_SET_ITEM_MESSAGE
+                        result switch
+                        {
+                            FurniturePlacementResultType.NotAllowed =>
+                                FurniturePlacementNotifications.CANT_SET_NOT_OWNER_MESSAGE,
+                            FurniturePlacementResultType.TypeLimit =>
+                                FurniturePlacementNotifications.TYPE_LIMIT_MESSAGE,
+                            _ => FurniturePlacementNotifications.CANT_SET_ITEM_MESSAGE,
+                        }
                     ),
                 },
                 ct

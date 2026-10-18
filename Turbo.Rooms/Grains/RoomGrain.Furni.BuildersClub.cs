@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
@@ -39,6 +43,25 @@ public sealed partial class RoomGrain
                 confirmedHideRoom,
                 ct
             );
+        }
+        catch (TurboException ex) when (ex.ErrorCode == TurboErrorCodeEnum.FurniTypeLimitReached)
+        {
+            // Habbo tells the player, as for an item from the inventory (official client
+            // capture, 2026-10-18: a second Roller Speed Controller borrowed, 1/1).
+            await _grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new NotificationDialogMessageComposer
+                {
+                    NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
+                    Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                        "message",
+                        FurniturePlacementNotifications.TYPE_LIMIT_MESSAGE
+                    ),
+                },
+                ct
+            );
+
+            return false;
         }
         catch (Exception ex)
         {
