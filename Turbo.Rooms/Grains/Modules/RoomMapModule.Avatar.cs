@@ -7,6 +7,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -23,11 +24,16 @@ public sealed partial class RoomMapModule
 
             var canSit = false;
             var canLay = false;
+            var inNest = false;
 
             if (TryGetHighestFloorItem(ToIdx(avatar.X, avatar.Y), out var floorItem))
             {
                 canSit = floorItem.Logic.CanSit();
                 canLay = floorItem.Logic.CanLay();
+                // A pet lies in its breeding nest until it leaves, also when the other parent
+                // steps in beside it.
+                inNest =
+                    floorItem.Logic is FurniturePetBreedingNestLogic nest && nest.Holds(avatar);
 
                 if (canSit)
                     avatar.Sit(true, floorItem.Logic.GetPostureOffset(), floorItem.Rotation);
@@ -40,7 +46,7 @@ public sealed partial class RoomMapModule
             if (!canSit && avatar.HasStatus(AvatarStatusType.Sit))
                 avatar.Sit(false);
 
-            if (!canLay && avatar.HasStatus(AvatarStatusType.Lay))
+            if (!canLay && !inNest && avatar.HasStatus(AvatarStatusType.Lay))
                 avatar.Lay(false);
 
             UpdateHeightForAvatar(avatar);
@@ -82,7 +88,10 @@ public sealed partial class RoomMapModule
             if (_roomGrain._state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
                 return true;
 
-            if (isGoal || _roomGrain._state.RoomSnapshot.AllowBlocking)
+            if (
+                (isGoal || _roomGrain._state.RoomSnapshot.AllowBlocking)
+                && !PetModule.CanJoinNestOn(avatar, tileIdx)
+            )
                 return false;
         }
 

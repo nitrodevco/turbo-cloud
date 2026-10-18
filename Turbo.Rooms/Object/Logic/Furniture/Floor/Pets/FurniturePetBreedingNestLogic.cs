@@ -61,6 +61,10 @@ public class FurniturePetBreedingNestLogic(
 
     public void RemoveOccupant(int petId) => _occupantPetIds.Remove(petId);
 
+    /// <summary>Whether this avatar is one of the pets in the nest.</summary>
+    public bool Holds(IRoomAvatar avatar) =>
+        avatar is IRoomPet pet && _occupantPetIds.Contains(pet.PetId);
+
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
         await PetModule.OnNestRemovedAsync(_ctx.ObjectId, ct);
