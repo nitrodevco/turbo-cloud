@@ -3073,6 +3073,12 @@ public class Revision20260909 : IRevision
                 new ItemRemoveMessageComposerSerializer(MessageComposer.ItemRemoveMessageComposer)
             },
             {
+                typeof(ItemRemoveMultipleMessageComposer),
+                new ItemRemoveMultipleMessageComposerSerializer(
+                    MessageComposer.ItemRemoveMultipleMessageComposer
+                )
+            },
+            {
                 typeof(ItemsMessageComposer),
                 new ItemsMessageComposerSerializer(MessageComposer.ItemsMessageComposer)
             },
@@ -3201,12 +3207,6 @@ public class Revision20260909 : IRevision
                 typeof(AreaHideMessageComposer),
                 new AreaHideMessageComposerSerializer(MessageComposer.AreaHideMessageComposer)
             },
-            /* {
-                typeof(CustomStackingHeightUpdateMessageComposer),
-                new CustomStackingHeightUpdateMessageComposerSerializer(
-                    MessageComposer.CustomStackingHeightUpdateMessageComposer
-                )
-            }, */
             {
                 typeof(CustomUserNotificationMessageComposer),
                 new CustomUserNotificationMessageComposerSerializer(

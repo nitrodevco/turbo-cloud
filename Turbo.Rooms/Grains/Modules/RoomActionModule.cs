@@ -21,6 +21,7 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -181,8 +182,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     /// <summary>
     /// Sends many items home at once: the room lets go of all of them first, then each owner's
     /// inventory takes its share in one call, owners side by side. The room is told once per
-    /// owner for floor items (the client removes them together); wall items have no such
-    /// message and go one by one.
+    /// owner, floor items in one ObjectRemoveMultiple and wall items in one ItemRemoveMultiple
+    /// (the client removes each list together), borrowed and temporary furni included.
     /// </summary>
     public async Task ReturnItemsToOwnersAsync(
         IReadOnlyCollection<IRoomItem> items,
@@ -194,23 +195,27 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
+        var removed = new Dictionary<PlayerId, List<IRoomItem>>();
         var borrowsGivenBack = new Dictionary<PlayerId, int>();
 
         foreach (var item in items)
         {
-            var isFloorItem = item is IRoomFloorItem;
-
             if (
                 !await ObjectModule.RemoveObjectAsync(
                     ctx,
                     item,
                     ct,
                     item.OwnerId,
-                    announce: !isFloorItem,
+                    announce: false,
                     reportBorrow: false
                 )
             )
                 continue;
+
+            if (!removed.TryGetValue(item.OwnerId, out var gone))
+                removed[item.OwnerId] = gone = [];
+
+            gone.Add(item);
 
             // A borrowed furni goes back to the club rather than to anybody's inventory. They
             // are counted up here so each borrower is told their new total once.
@@ -232,10 +237,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             owned.Add(item);
         }
 
-        foreach (var (ownerId, owned) in returned)
+        foreach (var (ownerId, gone) in removed)
         {
-            var floorIds = owned
-                .Where(x => x is IRoomFloorItem)
+            var floorIds = gone.Where(x => x is IRoomFloorItem)
+                .Select(x => (long)x.ObjectId.Value)
+                .ToList();
+            var wallIds = gone.Where(x => x is IRoomWallItem)
                 .Select(x => (long)x.ObjectId.Value)
                 .ToList();
 
@@ -244,6 +251,17 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     new ObjectRemoveMultipleMessageComposer
                     {
                         ObjectIdsToRemove = [.. floorIds],
+                        PickerId = ownerId,
+                        ByInvisibleFurniManager = false,
+                    },
+                    ct
+                );
+
+            if (wallIds.Count > 0)
+                await _roomGrain.SendComposerToRoomAsync(
+                    new ItemRemoveMultipleMessageComposer
+                    {
+                        ObjectIdsToRemove = [.. wallIds],
                         PickerId = ownerId,
                         ByInvisibleFurniManager = false,
                     },

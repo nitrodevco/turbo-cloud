@@ -285,6 +285,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         var avatarStack = _roomGrain._state.TileAvatarStacks[id];
 
         IRoomFloorItem? nextHighestItem = null;
+        IRoomFloorItem? stackHelper = null;
 
         if (avatarStack.Count > 0)
         {
@@ -315,7 +316,11 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
                     nextFlags = nextFlags.Add(RoomTileFlags.TileClickListener);
                 }
 
-                // special logic if stack helper
+                if (
+                    item.Logic is FurnitureStackTileLogic
+                    && (stackHelper is null || item.Z.Value > stackHelper.Z.Value)
+                )
+                    stackHelper = (IRoomFloorItem)item;
 
                 if (height < nextHeight)
                     continue;
@@ -323,6 +328,15 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
                 nextHeight = height;
                 nextHighestItem = (IRoomFloorItem)item;
             }
+        }
+
+        // A stacking or walking helper decides its tiles' height whatever else stands there:
+        // "Adjust the height of stacking helper as you want, then move the other furni on top of
+        // it", "All users on this tile will stand on this height" (widget.custom.stack|walk.height.text).
+        if (stackHelper is not null)
+        {
+            nextHeight = stackHelper.Height;
+            nextHighestItem = stackHelper;
         }
 
         if (nextHighestItem is not null)
