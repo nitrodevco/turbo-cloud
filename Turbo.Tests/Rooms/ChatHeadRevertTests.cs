@@ -57,12 +57,12 @@ public sealed class ChatHeadRevertTests
         var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
         var start = Now();
 
-        await SayAsync(chatType, "listener");
+        var said = await SayAsync(chatType, "listener");
         await TickAsync(start + 4_000);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.SouthEast, Rotation.East));
 
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.East, Rotation.East));
         listener.HeadRotation.Should().Be(Rotation.East);
@@ -95,12 +95,12 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 4_000);
 
         Updates().Should().HaveCount(before);
 
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.North, Rotation.North));
         Updates().Should().HaveCount(before + 1);
@@ -115,7 +115,7 @@ public sealed class ChatHeadRevertTests
         var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
         var start = Now();
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
         listener.HeadRotation.Should().Be(Rotation.SouthWest);
 
@@ -129,7 +129,7 @@ public sealed class ChatHeadRevertTests
         LastUpdateOf(LISTENER).Should().Be((Rotation.South, Rotation.South));
         var before = Updates().Count;
 
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         Updates().Should().HaveCount(before);
     }
@@ -144,9 +144,9 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         listener.HeadRotation.Should().Be(Rotation.South);
         listener.IsIdle.Should().BeTrue();
@@ -160,10 +160,10 @@ public sealed class ChatHeadRevertTests
         var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
         var start = Now();
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
         listener.SetIdle(true);
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.South, Rotation.South));
     }
@@ -178,9 +178,9 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 4_000);
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         listener.HeadRotation.Should().Be(Rotation.East);
         Updates().Should().HaveCount(before);
@@ -264,7 +264,7 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
 
         Updates().Should().HaveCount(before + 1);
@@ -274,8 +274,8 @@ public sealed class ChatHeadRevertTests
             .Should()
             .BeTrue();
 
-        await TickAsync(start + 5_600);
-        await TickAsync(start + 7_000);
+        await TickAsync(said + 5_600);
+        await TickAsync(said + 7_000);
 
         Updates().Should().HaveCount(before + 1);
     }
@@ -317,9 +317,9 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
-        await TickAsync(start + 5_600);
+        await TickAsync(said + 5_600);
 
         listener.HeadRotation.Should().Be(body);
         listener.Rotation.Should().Be(body);
@@ -338,10 +338,10 @@ public sealed class ChatHeadRevertTests
         await TickAsync(start);
         var before = Updates().Count;
 
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
-        await TickAsync(start + 5_600);
-        await TickAsync(start + 7_000);
+        await TickAsync(said + 5_600);
+        await TickAsync(said + 7_000);
 
         Updates().Should().HaveCount(before);
     }
@@ -370,17 +370,17 @@ public sealed class ChatHeadRevertTests
     {
         Enter(SPEAKER, "speaker", 7, 7, Rotation.North);
         var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
-        var start = Now();
 
         await SayAsync(RoomChatType.Chat);
         await Task.Delay(1_500);
         var second = Now();
-        await SayAsync(RoomChatType.Chat);
+        var said = await SayAsync(RoomChatType.Chat);
 
-        await TickAsync(start + 5_600);
+        // Past the first line's 5 s (at most 3.5 s after the second began), short of the second's.
+        await TickAsync(second + 4_000);
         listener.HeadRotation.Should().Be(Rotation.SouthEast);
 
-        await TickAsync(second + 5_600);
+        await TickAsync(said + 5_600);
         listener.HeadRotation.Should().Be(Rotation.East);
     }
 
@@ -433,8 +433,13 @@ public sealed class ChatHeadRevertTests
     /// <summary>The room's clock, as the room grain reads it.</summary>
     private static long Now() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
-    private Task SayAsync(RoomChatType type, string? recipient = null) =>
-        _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
+    /// <summary>
+    /// The speaker's line, and the room's clock once it is said: the room stamps the look-back
+    /// between a <see cref="Now"/> taken before and this, however long a loaded machine took.
+    /// </summary>
+    private async Task<long> SayAsync(RoomChatType type, string? recipient = null)
+    {
+        await _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
             ActionContext.CreateForPlayer(100 + SPEAKER, _room.Harness.Room.RoomId),
             type,
             "hello",
@@ -443,6 +448,9 @@ public sealed class ChatHeadRevertTests
             type == RoomChatType.Whisper ? recipient : null,
             CancellationToken.None
         );
+
+        return Now();
+    }
 
     private Task TickAsync(long now) =>
         _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(now, CancellationToken.None);
