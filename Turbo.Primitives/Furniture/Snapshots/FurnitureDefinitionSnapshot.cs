@@ -71,6 +71,14 @@ public sealed record FurnitureDefinitionSnapshot
     /// </summary>
     public bool IsSellable => CanSell && CanTrade && !CreditFurniValue.TryParse(Name, out _);
 
+    /// <summary>
+    /// The inventory's recyclable flag (Flash <c>FurniData</c>): furni this hotel lets be
+    /// recycled (<see cref="CanRecycle"/>) that can be traded. Every official inventory recorded
+    /// (69 kinds) follows it; the recyclable but untradeable ones (bed_silo_two_notrd,
+    /// usva_nt_shelf, guild_forum, ...) arrive as not recyclable.
+    /// </summary>
+    public bool IsRecyclable => CanRecycle && CanTrade;
+
     [Id(18)]
     public required FurnitureUsageType UsagePolicy { get; init; }
 
