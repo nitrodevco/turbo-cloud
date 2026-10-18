@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -282,17 +283,78 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
     /// </summary>
     private async Task<bool> GoToSupplyAsync(IRoomPet pet, PetSupplyType type, CancellationToken ct)
     {
-        if (!await PetModule.WalkToSupplyAsync(pet, type, ct))
+        if (!Config.SmileOnTheWayTo.Contains(type))
+            return await PetModule.WalkToSupplyAsync(pet, type, ct);
+
+        var item = PetModule.FindSupplyItem(type);
+
+        if (item is null)
             return false;
 
-        if (Config.SmileOnTheWayTo.Contains(type))
-        {
-            PetModule.ClearActionStatuses(pet);
-            pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
-        }
+        PetModule.ClearActionStatuses(pet);
+        PetModule.StandOrStaySeated(pet);
+        pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
+
+        if (Config.SetOffLeadInMs <= 0)
+            return await SetOffAsync(pet, item, ct);
+
+        // It smiles where it stands, turns to the item halfway through and then sets off; the
+        // timer is the pet's own, so a command or a pickup in between stops it (see IsLeadingIn).
+        pet.MarkDirty();
+
+        TimerSystem.Schedule(
+            pet.ObjectId,
+            Config.SetOffLeadInMs / 2,
+            turnCt =>
+            {
+                if (IsLeadingIn(pet) && (pet.X != item.X || pet.Y != item.Y))
+                {
+                    pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, item.X, item.Y));
+                    pet.MarkDirty();
+                }
+
+                TimerSystem.Schedule(
+                    pet.ObjectId,
+                    Config.SetOffLeadInMs - Config.SetOffLeadInMs / 2,
+                    setOffCt =>
+                        IsLeadingIn(pet) && FurniModule.TryGetItem(item.ObjectId, out _)
+                            ? SetOffAsync(pet, item, setOffCt)
+                            : Task.CompletedTask
+                );
+
+                return Task.CompletedTask;
+            }
+        );
 
         return true;
     }
+
+    /// <summary>
+    /// Walks to the item with the smile it set off with, kept until it gets there; a pet with no
+    /// way there stops smiling.
+    /// </summary>
+    private async Task<bool> SetOffAsync(IRoomPet pet, IRoomObject item, CancellationToken ct)
+    {
+        if (await PetModule.WalkToSupplyItemAsync(pet, item, ct))
+            return true;
+
+        PetModule.ClearActionStatuses(pet);
+        pet.MarkDirty();
+
+        return false;
+    }
+
+    // Still standing where it decided to go, smiling, and nothing has sent it elsewhere.
+    private bool IsLeadingIn(IRoomPet pet) =>
+        PetModule.TryGetPet(pet.PetId, out var current)
+        && ReferenceEquals(current, pet)
+        && pet.IsFreeRoaming
+        && !pet.IsWalking
+        && !pet.IsRiding
+        && pet.PendingRiderObjectId <= 0
+        && pet.TargetItemId <= 0
+        && pet.FollowObjectId <= 0
+        && pet.HasStatus(AvatarStatusType.Gesture);
 
     /// <summary>
     /// Shows the pet's icon for a need it has no supply for in the room (the horse's drop, house,

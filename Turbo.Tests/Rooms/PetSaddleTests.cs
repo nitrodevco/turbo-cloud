@@ -336,8 +336,14 @@ public sealed class PetSaddleTests
             createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx)
         );
 
+        _room.Harness.Fakes.Handlers["ApplyPetNutritionOperationAsync"] = _ =>
+            Task.FromResult(new PetNutritionOperationResult { Nutrition = 1, ActualGain = 1 });
+
         await SayAsync("Rex drink");
         await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(1_000_000L, Ct);
+
+        // Official horses stand at the drink a moment before they drink and say it.
+        await _room.Harness.Room.TimerSystem.ProcessTimersAsync(long.MaxValue, Ct);
 
         _room
             .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)

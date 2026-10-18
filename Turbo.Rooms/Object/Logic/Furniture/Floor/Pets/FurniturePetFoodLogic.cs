@@ -10,7 +10,10 @@ using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 
-/// <summary>A food bowl: each serving restores nutrition and empties the bowl a little.</summary>
+/// <summary>
+/// A food bowl: each serving restores nutrition and empties the bowl a level (shown at once; no
+/// official pet was recorded eating from one).
+/// </summary>
 [RoomObjectLogic("pet_food")]
 public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurniturePetSupplyLogic(stuffDataFactory, ctx)
@@ -19,7 +22,7 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
     protected override bool IsConsumable => true;
 
-    protected override async Task ServeAsync(IRoomPet pet, CancellationToken ct)
+    protected override async Task ServeAsync(IRoomPet pet, int left, CancellationToken ct)
     {
         var config = _roomGrain._petConfig;
         var operationId = Guid.NewGuid().ToString("N");
@@ -33,6 +36,7 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
 
+        await ShowLeftAsync(left);
         await PetModule.SayVocalAsync(pet, "EATING", ct);
     }
 }

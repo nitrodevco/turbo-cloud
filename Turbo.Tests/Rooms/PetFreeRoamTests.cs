@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
@@ -8,6 +10,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
@@ -61,6 +64,23 @@ public sealed class PetFreeRoamTests
 
         harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(_pet);
+        harness.Fakes.Handlers["ApplyPetNutritionOperationAsync"] = call =>
+        {
+            var (current, requested, max) = (
+                (int)call.Args[4]!,
+                (int)call.Args[5]!,
+                (int)call.Args[6]!
+            );
+            var nutrition = Math.Min(max, current + requested);
+
+            return Task.FromResult(
+                new PetNutritionOperationResult
+                {
+                    Nutrition = nutrition,
+                    ActualGain = nutrition - current,
+                }
+            );
+        };
     }
 
     [Fact]
@@ -122,6 +142,7 @@ public sealed class PetFreeRoamTests
         await PlaceFreeAsync();
 
         await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
         await WalkAsync();
         await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
 
@@ -144,8 +165,10 @@ public sealed class PetFreeRoamTests
         await PlaceFreeAsync();
 
         await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
         await WalkAsync();
         await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
+        await RunTimersAsync();
 
         var pet = Pet();
         (Math.Abs(pet.X - 5) + Math.Abs(pet.Y - 5))
@@ -162,8 +185,10 @@ public sealed class PetFreeRoamTests
         await PlaceFreeAsync();
 
         await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
         await WalkAsync();
         await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
+        await RunTimersAsync();
 
         (Pet().X, Pet().Y)
             .Should()
@@ -180,6 +205,7 @@ public sealed class PetFreeRoamTests
         await PlaceFreeAsync();
 
         await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
         _now += 1_000;
         await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(_now, Ct);
 
@@ -225,6 +251,124 @@ public sealed class PetFreeRoamTests
     }
 
     [Fact]
+    public async Task A_drink_counts_down_from_full_and_stays_in_the_room_once_empty()
+    {
+        // Official troughs went 4, 3, 2, 1 with the drinks (the first from 4 and from 2 alike)
+        // and none was removed; ours counted up and deleted the trough at its last state.
+        var drink = AddDrink(5, 5, canWalk: true, totalStates: 6);
+        await drink.Logic.SetStateAsync(2);
+        await PlaceFreeAsync();
+
+        var shown = new List<int>();
+
+        for (var serving = 0; serving < 5; serving++)
+        {
+            await DrinkOnceAsync();
+            shown.Add(drink.Logic.GetState());
+        }
+
+        shown
+            .Should()
+            .Equal([4, 3, 2, 1, 0], "full (5) less one at the first drink, then one less each");
+        ((IDictionary)Member("ItemsById"))
+            .Contains((RoomObjectId)DRINK)
+            .Should()
+            .BeTrue("an empty drink stays where it is");
+        _room.Harness.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
+
+        await DecideAsync(new ScriptedRandom(step: 1));
+
+        Status().Should().Contain("/gst thr", "an empty drink is no drink: the horse is thirsty");
+    }
+
+    [Fact]
+    public async Task A_drink_feeds_the_horse_one_nutrition_and_leaves_its_energy()
+    {
+        _pet = _pet with { Energy = 50, Nutrition = 0 };
+        AddDrink(5, 5, canWalk: true, totalStates: 6);
+        await PlaceFreeAsync();
+
+        await DrinkOnceAsync();
+
+        Pet().Nutrition.Should().Be(1, "official drinks raised nutrition by one each");
+        Pet().Energy.Should().Be(50, "and left energy as it was");
+    }
+
+    [Fact]
+    public async Task A_horse_stands_smiling_drinks_without_it_then_smiles_as_the_drink_goes_down()
+    {
+        var drink = AddDrink(5, 5, canWalk: true, totalStates: 6);
+        await PlaceFreeAsync();
+
+        await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
+        await WalkAsync();
+        await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
+
+        Status()
+            .Should()
+            .Contain("/gst sml")
+            .And.NotContain("/eat", "it stands at the drink first");
+
+        await RunTimersAsync();
+
+        Status().Should().Contain("/eat").And.NotContain("/gst", "it drinks without a gesture");
+        drink.Logic.GetState().Should().Be(0, "the drink goes down only when it is done");
+
+        await RunTimersAsync();
+
+        Status().Should().Contain("/eat").And.Contain("/gst sml");
+        drink.Logic.GetState().Should().Be(4);
+    }
+
+    [Fact]
+    public async Task A_horse_stays_at_its_drink_until_it_is_done()
+    {
+        AddDrink(5, 5, canWalk: true, totalStates: 6);
+        await PlaceFreeAsync();
+
+        // On the room's own clock, which the drink is timed on.
+        _now = RoomClockMs();
+        var decidedAt = _now;
+        RoomHarness.SetField(Pets, "_random", new ScriptedRandom(step: 1));
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(_now, Ct);
+        await SetOffAsync();
+        await WalkAsync();
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(_now, Ct);
+        await RunTimersAsync();
+
+        // Its next decision falls due mid-drink (4 s after the last); the drink is not done.
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(decidedAt + 4_500, Ct);
+
+        Status()
+            .Should()
+            .Contain("/eat", "it drinks on")
+            .And.NotContain("thr", "ours turned from its own drink, busy with it, and was thirsty");
+    }
+
+    [Fact]
+    public async Task A_horse_smiles_and_turns_to_its_drink_before_it_sets_off()
+    {
+        AddDrink(4, 8, canWalk: true);
+        await PlaceFreeAsync();
+        Pet().SetRotation(Rotation.East);
+
+        await DecideAsync(new ScriptedRandom(step: 1));
+
+        Pet().IsWalking.Should().BeFalse("official horses stood smiling for 2 s first");
+        Status().Should().Contain("/gst sml");
+
+        await RunTimersAsync();
+
+        Pet().Rotation.Should().Be(Rotation.South, "it turns to the drink halfway through");
+        Pet().IsWalking.Should().BeFalse();
+
+        await RunTimersAsync();
+
+        Pet().IsWalking.Should().BeTrue("then it sets off");
+    }
+
+    [Fact]
     public async Task A_hungry_horse_keeps_its_smile_as_no_official_pet_showed_hunger()
     {
         _pet = _pet with { Nutrition = 0 };
@@ -245,14 +389,15 @@ public sealed class PetFreeRoamTests
             new PetConfig { DrinkChancePercent = 0, ToyPlayChancePercent = toyEither ? 0 : 5 }
         );
 
-    private void AddDrink(int x, int y, bool canWalk) =>
+    private IRoomFloorItem AddDrink(int x, int y, bool canWalk, int totalStates = 2) =>
         _room.AddFloorItem(
             DRINK,
             x,
             y,
             "pet_drink",
             canWalk: canWalk,
-            createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx)
+            createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx),
+            totalStates: totalStates
         );
 
     private object Member(string name) => RoomHarness.GetMember(_room.Harness.State, name)!;
@@ -288,10 +433,43 @@ public sealed class PetFreeRoamTests
     private Task DecideAsync(Random random)
     {
         RoomHarness.SetField(Pets, "_random", random);
-        _now += 1_000_000L;
+        // Well past anything the room timed on its own clock too (a drink holds the pet till done).
+        _now = Math.Max(_now, RoomClockMs()) + 1_000_000L;
 
         return _room.Harness.Room.PetTickSystem.ProcessPetsAsync(_now, Ct);
     }
+
+    /// <summary>
+    /// One whole drink: the pet decides, leads in, walks there (once), is served, drinks and is
+    /// done.
+    /// </summary>
+    private async Task DrinkOnceAsync()
+    {
+        await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
+        await WalkAsync();
+        await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
+        await RunTimersAsync();
+        await RunTimersAsync();
+    }
+
+    /// <summary>The pet's lead-in: it turns to the item, then sets off.</summary>
+    private async Task SetOffAsync()
+    {
+        await RunTimersAsync();
+        await RunTimersAsync();
+    }
+
+    /// <summary>
+    /// One pass of the room's timers on the room clock: every one due by then runs, while one a
+    /// callback schedules waits for the next pass.
+    /// </summary>
+    private Task RunTimersAsync() =>
+        _room.Harness.Room.TimerSystem.ProcessTimersAsync(long.MaxValue, Ct);
+
+    /// <summary>The room clock (RoomGrain.NowMs) that timed actions are set on.</summary>
+    private static long RoomClockMs() =>
+        (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     private async Task WalkAsync()
     {

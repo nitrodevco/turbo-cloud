@@ -111,7 +111,8 @@ public sealed class WiredRoom
         FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody,
         bool canSit = false,
         bool canLay = false,
-        string? customParams = null
+        string? customParams = null,
+        int totalStates = 2
     )
     {
         var item = new RoomFloorItem
@@ -127,7 +128,7 @@ public sealed class WiredRoom
                 ProductType = ProductType.Floor,
                 FurniCategory = FurnitureCategory.Default,
                 LogicName = logicName,
-                TotalStates = 2,
+                TotalStates = totalStates,
                 Width = 1,
                 Length = 1,
                 StackHeight = Altitude.FromInt(100),

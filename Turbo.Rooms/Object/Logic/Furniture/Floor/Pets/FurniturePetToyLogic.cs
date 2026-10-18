@@ -25,7 +25,7 @@ public class FurniturePetToyLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
 
     public override PetSupplyType SupplyType => PetSupplyType.Toy;
 
-    protected override async Task ServeAsync(IRoomPet pet, CancellationToken ct)
+    protected override async Task ServeAsync(IRoomPet pet, int left, CancellationToken ct)
     {
         var config = _roomGrain._petConfig;
 
