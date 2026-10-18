@@ -24,6 +24,8 @@ public class WiredAddonFurniNamePlaceholder(
 {
     public override int WiredCode => (int)WiredAddonType.FURNI_NAME_PLACEHOLDER;
 
+    protected override bool AllowsWallFurni => true;
+
     // The triggering furni first: what the placeholder named before it had a source of its own.
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

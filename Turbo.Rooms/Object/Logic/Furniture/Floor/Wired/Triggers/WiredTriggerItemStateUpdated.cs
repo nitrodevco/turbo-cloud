@@ -32,6 +32,8 @@ public class WiredTriggerItemStateUpdated(
 {
     public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
 
+    protected override bool AllowsWallFurni => true;
+
     /// <summary>
     /// The box remembers the states its picked furni were in when it was saved (or when "apply
     /// snapshot" was pressed): what "trigger for the current state" compares with.

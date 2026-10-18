@@ -50,6 +50,8 @@ public class WiredAddonCustomContract(
 
     public override int WiredCode => (int)WiredAddonType.CUSTOM_CONTRACT;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override bool HasPositionalVariableIds => true;
 
     public override int GetMaxVariableIds() => 2;

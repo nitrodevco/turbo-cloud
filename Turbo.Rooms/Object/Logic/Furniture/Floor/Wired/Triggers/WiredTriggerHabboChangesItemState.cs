@@ -21,5 +21,7 @@ public class WiredTriggerHabboChangesItemState(
 {
     public override int WiredCode => (int)WiredTriggerType.USE_STUFF;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override RoomObjectId GetFurniId(RoomItemUsedEvent evt) => evt.ObjectId;
 }

@@ -21,6 +21,8 @@ public class WiredConditionItemHeightMatch(
 {
     public override int WiredCode => (int)WiredConditionType.FURNI_HAS_ALTITUDE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 8000, 0), new WiredRangeParamRule(0, 2, 1)];
 

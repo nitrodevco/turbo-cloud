@@ -38,6 +38,8 @@ public class WiredAddonChestItemTypeScanner(
 
     public override int WiredCode => (int)WiredAddonType.CHEST_ITEM_TYPE_SCANNER;
 
+    protected override bool AllowsWallFurni => true;
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(0, 1, 0)];

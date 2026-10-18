@@ -19,6 +19,8 @@ public class WiredActionGiveFurniFromChest(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_FURNI_FROM_CHEST;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override WiredChestKind Kind => WiredChestKind.Furni;
 
     protected override IWiredParamRule KindParamRule =>

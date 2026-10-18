@@ -25,6 +25,8 @@ public class WiredSelectorSelectedItems(
 {
     public override int WiredCode => (int)WiredSelectorType.SELECTED_FURNIS;
 
+    protected override bool AllowsWallFurni => true;
+
     public override bool SupportsAdvancedMode() => false;
 
     public override Task<IWiredSelectionSet> SelectAsync(

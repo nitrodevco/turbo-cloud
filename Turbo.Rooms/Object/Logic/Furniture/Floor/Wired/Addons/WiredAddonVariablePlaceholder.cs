@@ -34,6 +34,8 @@ public class WiredAddonVariablePlaceholder(
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_PLACEHOLDER;
 
+    protected override bool AllowsWallFurni => true;
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>

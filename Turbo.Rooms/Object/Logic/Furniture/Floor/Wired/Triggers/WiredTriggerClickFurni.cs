@@ -17,5 +17,7 @@ public class WiredTriggerClickFurni(
 {
     public override int WiredCode => (int)WiredTriggerType.AVATAR_CLICKS_FURNI;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override RoomObjectId GetFurniId(RoomItemClickedEvent evt) => evt.ObjectId;
 }

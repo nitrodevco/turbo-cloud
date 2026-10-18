@@ -25,6 +25,8 @@ public class WiredActionRelativeMove(
 {
     public override int WiredCode => (int)WiredActionType.RELATIVE_FURNI_MOVE;
 
+    protected override bool AllowsWallFurni => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(-20, 20, 0), new WiredRangeParamRule(-20, 20, 0)];
 

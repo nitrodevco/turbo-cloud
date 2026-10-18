@@ -82,6 +82,8 @@ public class WiredActionPlaceFurni(
 
     public override int WiredCode => (int)WiredActionType.PLACE_FURNI;
 
+    protected override bool AllowsWallFurni => true;
+
     protected override bool KeepsFurniSnapshot => true;
 
     protected override bool HasPositionalVariableIds => true;
