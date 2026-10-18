@@ -86,9 +86,19 @@ public static class ServiceCollectionExtensions
         HostApplicationBuilder builder
     )
     {
-        services.Configure<MovementsConfig>(
-            builder.Configuration.GetSection(MovementsConfig.SECTION_NAME)
-        );
+        services
+            .AddOptions<MovementsConfig>()
+            .Bind(builder.Configuration.GetSection(MovementsConfig.SECTION_NAME))
+            .Validate(
+                x =>
+                    x.PollMs > 0
+                    && x.BatchSize > 0
+                    && x.OutboxRetentionHours >= 0
+                    && x.SettleMs >= 0
+                    && x.ReReadWindowMs >= 0,
+                "Turbo:Movements limits must be positive."
+            )
+            .ValidateOnStart();
 
         services.AddSingleton<AssetMovementRecorder>();
         services.AddSingleton<IAssetMovementRecorder>(sp =>

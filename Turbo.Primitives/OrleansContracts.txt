@@ -215,6 +215,9 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IPlayerUnseenIt
   02C2B72F: ResetCategoryAsync(Turbo.Primitives.Inventory.UnseenItemCategory, System.Threading.CancellationToken) -> Task
   D002037A: ResetItemsAsync(Turbo.Primitives.Inventory.UnseenItemCategory, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task
 
+interface [GrainInterfaceType("Turbo.Primitives.Movements.Grains.IAssetMovementDispatcherGrain")] Turbo.Primitives.Movements.Grains.IAssetMovementDispatcherGrain [Version(0)]
+  46E2651A: WakeAsync(System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Orleans.Observers.ISessionContextObserver")] Turbo.Primitives.Orleans.Observers.ISessionContextObserver [Version(0)]
   CACA24F4: SendComposersAsync(System.Collections.Generic.IReadOnlyList<Turbo.Primitives.Networking.IComposer>, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
 

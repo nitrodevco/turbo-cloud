@@ -12,7 +12,8 @@ namespace Turbo.Database.Entities.Movements;
 /// <summary>
 /// One <see cref="AssetMovement"/>, written in the same save as the change it describes, so the
 /// outbox never holds a change that did not commit nor misses one that did. Read in id order by
-/// whatever consumes it; append-only, and without foreign keys or a unique key: it outlives the
+/// whatever consumes it; append-only but for pruning (which deletes the oldest rows and turns the
+/// newest of them into an <c>outbox.pruned</c> marker), and without foreign keys or a unique key: it outlives the
 /// players, rooms and items it names, and a retried save writes its rows again (consumers drop a
 /// repeated operation and seq). See <c>docs/movements.md</c>.
 /// </summary>

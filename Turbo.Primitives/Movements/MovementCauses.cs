@@ -17,6 +17,13 @@ public static class MovementCauses
     /// <summary>A marker's cause ref: <c>Turbo:Movements:Enabled</c> was changed while the server ran.</summary>
     public const string MARKER_REF_SETTING = "setting";
 
+    /// <summary>
+    /// The marker pruning leaves in place of the newest row it removed: every id up to and
+    /// including its own is gone. The dispatcher reports it to a consumer as an
+    /// <see cref="OutboxGap"/> and never delivers it as a row.
+    /// </summary>
+    public const string OUTBOX_PRUNED = "outbox.pruned";
+
     public const string CATALOG_PURCHASE = "catalog.purchase";
     public const string CATALOG_GIFT = "catalog.gift";
     public const string CATALOG_CLUB_GIFT = "catalog.club_gift";
