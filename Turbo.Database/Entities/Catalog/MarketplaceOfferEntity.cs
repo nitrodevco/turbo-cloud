@@ -26,6 +26,14 @@ public class MarketplaceOfferEntity : TurboEntity
     [Column("definition_id")]
     public int FurnitureDefinitionEntityId { get; set; }
 
+    /// <summary>
+    /// The id the item's furniture row had when it was listed (the row is gone; no foreign key), so
+    /// the movement that takes it off the offer names the asset the listing put there. Null for an
+    /// offer listed before it was kept.
+    /// </summary>
+    [Column("furniture_id")]
+    public int? ListedFurnitureId { get; set; }
+
     /// <summary>The item's extra data as its furniture row held it (stuff data, serial).</summary>
     [Column("extra_data", TypeName = "longtext")]
     public string? ExtraData { get; set; }

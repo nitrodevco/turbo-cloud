@@ -1358,6 +1358,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("history_cleared");
 
+                    b.Property<int?>("ListedFurnitureId")
+                        .HasColumnType("int")
+                        .HasColumnName("furniture_id");
+
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");

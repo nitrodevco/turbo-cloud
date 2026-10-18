@@ -59,6 +59,9 @@ public sealed class MarketplaceService(
     /// <summary>The wallet reference a sale's revenue is paid under: one receipt per offer.</summary>
     public const string REDEEM_REFERENCE_PREFIX = "marketplace:";
 
+    /// <summary>A sale's revenue: credits, held on its offer between the sale and the redeem.</summary>
+    private static readonly AssetRef REVENUE = new(AssetKind.Currency, 0, 0, CurrencyKind.Credits);
+
     private readonly MarketplaceConfig _config = config.Value.Marketplace;
 
     public async Task<MarketplaceOfferPage> SearchOffersAsync(
@@ -369,6 +372,7 @@ public sealed class MarketplaceService(
                 {
                     PlayerEntityId = player.Value,
                     FurnitureDefinitionEntityId = consumed.Definition.Id,
+                    ListedFurnitureId = consumed.ItemId.Value,
                     ExtraData = consumed.ExtraData,
                     Price = price,
                     State = MarketplaceOfferEntity.STATE_OPEN,
@@ -508,23 +512,36 @@ public sealed class MarketplaceService(
         if (row is null)
             return false;
 
-        // The delete is the claim: a buyer who got there first leaves nothing to delete.
-        var deleted = await dbCtx
-            .MarketplaceOffers.Where(x =>
-                x.Id == offerId && x.State == MarketplaceOfferEntity.STATE_OPEN
+        var cause = MovementCause.New(MovementCauses.MARKET_CANCEL, player.Value, offerId);
+
+        // The delete is the claim: a buyer who got there first leaves nothing to delete. The
+        // item leaves its offer with it (seq 0).
+        var deleted = await dbCtxFactory
+            .InTransactionAsync(
+                async claimCtx =>
+                {
+                    var count = await claimCtx
+                        .MarketplaceOffers.Where(x =>
+                            x.Id == offerId && x.State == MarketplaceOfferEntity.STATE_OPEN
+                        )
+                        .ExecuteDeleteAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+
+                    if (count == 0)
+                        return UnitOfWork.Rollback(false);
+
+                    movements.Record(claimCtx, Claimed(cause, row, 0, Now()));
+
+                    return UnitOfWork.Commit(true);
+                },
+                CancellationToken.None
             )
-            .ExecuteDeleteAsync(CancellationToken.None)
             .ConfigureAwait(false);
 
-        if (deleted == 0)
+        if (!deleted)
             return false;
 
-        await GiveItemAsync(
-                player,
-                row,
-                MovementCause.New(MovementCauses.MARKET_CANCEL, player.Value, offerId)
-            )
-            .ConfigureAwait(false);
+        await GiveItemAsync(player, row, cause.StartingAt(1)).ConfigureAwait(false);
 
         return true;
     }
@@ -569,21 +586,42 @@ public sealed class MarketplaceService(
                 offerId
             );
 
-        var claimed = await dbCtx
-            .MarketplaceOffers.Where(x =>
-                x.Id == offerId && x.State == MarketplaceOfferEntity.STATE_OPEN && x.ExpiresAt > now
-            )
-            .ExecuteUpdateAsync(
-                u =>
-                    u.SetProperty(x => x.State, MarketplaceOfferEntity.STATE_SOLD)
-                        .SetProperty(x => x.BuyerPlayerEntityId, player.Value)
-                        .SetProperty(x => x.SoldAt, now)
-                        .SetProperty(x => x.Revenue, Revenue(row.Price)),
+        var revenue = Revenue(row.Price);
+
+        // The claim, with what it moves after the price (seq 0): the item off its offer (seq 1)
+        // and the seller's revenue onto it (seq 2), held there until redeemed.
+        var claimed = await dbCtxFactory
+            .InTransactionAsync(
+                async claimCtx =>
+                {
+                    var count = await claimCtx
+                        .MarketplaceOffers.Where(x =>
+                            x.Id == offerId
+                            && x.State == MarketplaceOfferEntity.STATE_OPEN
+                            && x.ExpiresAt > now
+                        )
+                        .ExecuteUpdateAsync(
+                            u =>
+                                u.SetProperty(x => x.State, MarketplaceOfferEntity.STATE_SOLD)
+                                    .SetProperty(x => x.BuyerPlayerEntityId, player.Value)
+                                    .SetProperty(x => x.SoldAt, now)
+                                    .SetProperty(x => x.Revenue, revenue),
+                            CancellationToken.None
+                        )
+                        .ConfigureAwait(false);
+
+                    if (count == 0)
+                        return UnitOfWork.Rollback(false);
+
+                    movements.Record(claimCtx, Claimed(cause.StartingAt(1), row, revenue, now));
+
+                    return UnitOfWork.Commit(true);
+                },
                 CancellationToken.None
             )
             .ConfigureAwait(false);
 
-        if (claimed == 0)
+        if (!claimed)
         {
             await grainFactory
                 .RefundAsync(player, [debit], cause, logger, $"marketplace offer {offerId}")
@@ -592,8 +630,8 @@ public sealed class MarketplaceService(
             return await NextOfferAsync(dbCtx, row, now, ct).ConfigureAwait(false);
         }
 
-        // The price took seq 0.
-        await GiveItemAsync(player, row, cause.StartingAt(1)).ConfigureAwait(false);
+        // The price and the claim took seqs 0 to 2.
+        await GiveItemAsync(player, row, cause.StartingAt(3)).ConfigureAwait(false);
 
         // The seller's revenue now waits in the earnings vault; an online seller gets Flash's
         // "notification.earning.new" (VaultController.as:139). Inference: the official client
@@ -738,8 +776,11 @@ public sealed class MarketplaceService(
         // Sale by sale, each paid before it is marked, under a credit referenced by its offer: a
         // credit that fails leaves the sale waiting for the next redeem, and a redeem that stops
         // between the two (or runs at the same moment as another) pays nothing twice.
+        // The revenue leaves its offer (seq 0) with the mark, the wallet's credit is seq 1.
         foreach (var offer in sold)
         {
+            var cause = MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value, offer.Id);
+
             if (offer.Revenue > 0)
             {
                 var credited = await wallet
@@ -747,7 +788,7 @@ public sealed class MarketplaceService(
                         CurrencyKind.Credits,
                         offer.Revenue,
                         RedeemReference(offer.Id),
-                        MovementCause.New(MovementCauses.MARKET_REDEEM, player.Value, offer.Id),
+                        cause.StartingAt(1),
                         CancellationToken.None
                     )
                     .ConfigureAwait(false);
@@ -765,15 +806,42 @@ public sealed class MarketplaceService(
                 }
             }
 
-            var marked = await dbCtx
-                .MarketplaceOffers.Where(x => x.Id == offer.Id && !x.CreditsRedeemed)
-                .ExecuteUpdateAsync(
-                    u => u.SetProperty(x => x.CreditsRedeemed, true),
+            var marked = await dbCtxFactory
+                .InTransactionAsync(
+                    async markCtx =>
+                    {
+                        var count = await markCtx
+                            .MarketplaceOffers.Where(x => x.Id == offer.Id && !x.CreditsRedeemed)
+                            .ExecuteUpdateAsync(
+                                u => u.SetProperty(x => x.CreditsRedeemed, true),
+                                CancellationToken.None
+                            )
+                            .ConfigureAwait(false);
+
+                        if (count == 0)
+                            return UnitOfWork.Rollback(false);
+
+                        if (offer.Revenue > 0)
+                            movements.Record(
+                                markCtx,
+                                AssetMovement.For(
+                                    cause,
+                                    0,
+                                    Now(),
+                                    REVENUE,
+                                    OfferPlace(player.Value, offer.Id),
+                                    AssetPlace.Nowhere,
+                                    offer.Revenue
+                                )
+                            );
+
+                        return UnitOfWork.Commit(true);
+                    },
                     CancellationToken.None
                 )
                 .ConfigureAwait(false);
 
-            if (marked > 0)
+            if (marked)
                 total += offer.Revenue;
         }
 
@@ -935,16 +1003,59 @@ public sealed class MarketplaceService(
                             null
                         ),
                         AssetPlace.Nowhere,
-                        new AssetPlace(
-                            row.PlayerEntityId,
-                            PlaceKind.MarketplaceOffer,
-                            row.Id,
-                            null
-                        ),
+                        OfferPlace(row.PlayerEntityId, row.Id),
                         snapshot: new AssetSnapshot(row.FurnitureDefinitionEntityId, row.ExtraData)
                     )
             ),
         ];
+
+    /// <summary>
+    /// The movements of an offer's claim, from <paramref name="cause"/>'s first seq: its item off
+    /// the offer (its listing made it there; an offer listed before the item's id was kept has
+    /// none), then, on a sale, the seller's <paramref name="revenue"/> onto the offer, where it is
+    /// held until redeemed.
+    /// </summary>
+    private static List<AssetMovement> Claimed(
+        MovementCause cause,
+        MarketplaceOfferEntity row,
+        int revenue,
+        DateTime now
+    )
+    {
+        var claimed = new List<AssetMovement>(2);
+        var offer = OfferPlace(row.PlayerEntityId, row.Id);
+
+        if (row.ListedFurnitureId is { } itemId)
+            claimed.Add(
+                AssetMovement.For(
+                    cause,
+                    cause.FirstSeq,
+                    now,
+                    new AssetRef(AssetKind.Furni, itemId, row.FurnitureDefinitionEntityId, null),
+                    offer,
+                    AssetPlace.Nowhere,
+                    snapshot: new AssetSnapshot(row.FurnitureDefinitionEntityId, row.ExtraData)
+                )
+            );
+
+        if (revenue > 0)
+            claimed.Add(
+                AssetMovement.For(
+                    cause,
+                    checked((short)(cause.FirstSeq + 1)),
+                    now,
+                    REVENUE,
+                    AssetPlace.Nowhere,
+                    offer,
+                    revenue
+                )
+            );
+
+        return claimed;
+    }
+
+    private static AssetPlace OfferPlace(int sellerId, int offerId) =>
+        new(sellerId, PlaceKind.MarketplaceOffer, offerId, null);
 
     private async Task GiveItemAsync(
         PlayerId player,

@@ -7,12 +7,18 @@ namespace Turbo.Tests.Support;
 /// <summary>
 /// What a compiled method body loads and calls, read from its IL. A byte-level scan rather than a
 /// full decoder: an <c>ldstr</c> (0x72) or <c>call</c>/<c>callvirt</c> (0x28/0x6F) byte followed by
-/// a token of the right table is taken as that instruction. A stray match can only add to what is
-/// found, never hide what is there, which is the safe way round for the tests that use it.
+/// a token of the right table is taken as that instruction (with <c>constructors</c>, a <c>newobj</c>
+/// (0x73) too). A stray match can only add to what is found, never hide what is there, which is the
+/// safe way round for the tests that use it.
 /// </summary>
 internal static class IlScanner
 {
-    public static void Scan(MethodBase method, ISet<string> strings, ISet<MethodBase>? calls = null)
+    public static void Scan(
+        MethodBase method,
+        ISet<string> strings,
+        ISet<MethodBase>? calls = null,
+        bool constructors = false
+    )
     {
         byte[]? il;
 
@@ -45,13 +51,22 @@ internal static class IlScanner
             }
             else if (
                 calls is not null
-                && (il[i] == 0x28 || il[i] == 0x6F)
+                && (il[i] == 0x28 || il[i] == 0x6F || (constructors && il[i] == 0x73))
                 && table is 0x06 or 0x0A or 0x2B
             )
             {
                 try
                 {
-                    if (module.ResolveMethod(token) is { } called)
+                    // The generic context of the method lets calls made inside a generic type or
+                    // method resolve.
+                    if (
+                        module.ResolveMethod(
+                            token,
+                            method.DeclaringType?.GetGenericArguments(),
+                            method.IsGenericMethod ? method.GetGenericArguments() : null
+                        ) is
+                        { } called
+                    )
                         calls.Add(called);
                 }
                 catch (ArgumentException) { }

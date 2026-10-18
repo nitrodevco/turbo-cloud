@@ -3,9 +3,12 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Turbo.Contracts.Plugins;
+using Turbo.Operations.Movements;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Tests.Support;
@@ -69,6 +72,77 @@ public sealed class PluginApiVersionTests : IDisposable
             .Contain($"built for plugin API {api} (turbo-cloud abc1234)")
             .And.Contain($"this server has plugin API {PluginApi.VERSION}");
     }
+
+    [Fact]
+    public async Task A_plugin_built_for_api_3_consumes_movements_through_the_host()
+    {
+        PluginApi.VERSION.Should().Be(3);
+        PluginBuilder.Write(_folder, "ledger", CONSUMER, 3);
+
+        var registry = new AssetMovementConsumerRegistry(
+            new Fakes().Create<IGrainFactory>(),
+            NullLogger<AssetMovementConsumerRegistry>.Instance
+        );
+        var manager = new PluginManager(
+            new ServiceCollection()
+                .AddSingleton<IAssetMovementConsumerRegistry>(registry)
+                .BuildServiceProvider(),
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            NullLogger<PluginManager>.Instance
+        );
+
+        await manager.LoadAllAsync(ct: TestContext.Current.CancellationToken);
+
+        var status = manager.Snapshot().Single();
+        status.State.Should().Be(PluginStateType.Loaded, status.Error);
+        registry.Current.Select(x => x.Consumer.Name).Should().Equal("ledger");
+
+        await manager.UnloadAllAsync(TestContext.Current.CancellationToken);
+
+        registry.Current.Should().BeEmpty("the plugin disposed its registration when it stopped");
+    }
+
+    private const string CONSUMER = """
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Primitives.Movements;
+
+        public sealed class LedgerPlugin : ITurboPlugin, IAssetMovementConsumer
+        {
+            private IDisposable _consumer;
+
+            public string Key => "ledger";
+            public string Version => "1.0.0";
+            public string Name => "ledger";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+
+            public Task StartAsync(IServiceProvider services, CancellationToken ct)
+            {
+                _consumer = services.GetRequiredService<IHostServices>()
+                    .GetRequiredService<IAssetMovementConsumerRegistry>()
+                    .Register(this);
+
+                return Task.CompletedTask;
+            }
+
+            public Task StopAsync(CancellationToken ct)
+            {
+                _consumer?.Dispose();
+
+                return Task.CompletedTask;
+            }
+
+            public Task<long> GetCursorAsync(CancellationToken ct) => Task.FromResult(0L);
+            public Task HandleAsync(AssetMovementBatch batch, CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+        """;
 
     private const string SOURCE = """
         using System;

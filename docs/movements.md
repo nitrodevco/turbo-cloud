@@ -80,6 +80,32 @@ than one call (a voucher paying credits and another currency, a vault claim of s
 gives each later call its own range of seqs with `cause.StartingAt(n)`, so no two of its movements
 share an (operation, seq) pair. The codes core writes are the constants in `MovementCauses`.
 
+## Who writes the rows
+
+Only the primitives below write a furniture, pet, bot or balance row, so nothing changes owner,
+place or existence without its movement. `AssetWriteGuardTests` (`Turbo.Tests/Database`) reads
+the compiled server and fails when any other type adds, updates, deletes or builds one of those
+rows, sets one of their properties (or a pet's or bot's through `IInventoryUnitEntity`), or
+writes `furniture`, `pets`, `bots` or `player_currencies` in SQL, naming the type, the method
+and the write. A lambda, an async method or a local function counts as the type it is in.
+
+| Writer | Why it may |
+| --- | --- |
+| `FurnitureCustody` | The only writer of who holds a furni and where; each transition with its movements. |
+| `InventoryUnitModule<TEntity,TSnapshot>`, `InventoryPetModule`, `InventoryBotModule` | The only writer of where a pet or a bot is; the two modules write the rows of its create and return. |
+| `PlayerWalletGrain` | The only writer of balances, each change with its movement and receipt (the pending reward amount is an announcement, not a balance). |
+| `RoomPersistenceGrain` | A room's buffered furni position and data (on a row that names no owner or room), its pets' stats and its bots' settings: moves inside a room are not movements. |
+| `RoomGrain` | A room deletion's backstop for the pets and bots still in it, sent home with their movements. |
+| `JukeboxGrain` | A disk's place in the playlist, in the unit of work of the custody move that put it there. |
+| `BotProvisioner` (`Turbo.LoadBots`) | Load-test accounts' starting credits: not players of the hotel, so not recorded. |
+
+A new writer moves its change through one of these, or records its movement itself and joins the
+list with why; a listed type that stops writing has to leave it (the test says which). Not
+checked: migrations and the model snapshot, which change the schema and its data before the hotel
+opens, and what the compiled code does not tie to these rows (a row handed to the untyped
+`DbContext.Remove(object)`, a setter of `TurboEntity`, SQL built from pieces that never spell the
+table).
+
 ## The wallet
 
 Every `IPlayerWalletGrain` method that moves a balance takes the caller's `MovementCause`:
@@ -234,9 +260,13 @@ Every move names its offer:
 | Cause | Movements |
 | --- | --- |
 | `market.list` | one operation per listing: each item `Inventory` -> `None` (with its snapshot), then, once the offer rows exist, each item `None` -> `MarketplaceOffer` (the offer's id) under the offer's id as cause ref. A listing that cannot be saved gives the items back under the listing's refund cause. |
-| `market.buy` | the price (seq 0), then the item made again `None` -> `Inventory` for the buyer (seq 1), both under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. |
-| `market.cancel` | an offer taken back (or expired) made again in the seller's inventory, under the offer's id. |
-| `market.redeem` | one operation per sale: its revenue credited to the seller under the wallet reference `marketplace:<offer>`, then the sale marked redeemed. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once). |
+| `market.buy` | the price (seq 0); with the claim that marks the offer sold, the item off its offer `MarketplaceOffer` -> `None` (seq 1, with its snapshot) and the seller's revenue onto it, credits `None` -> `MarketplaceOffer` (seq 2, none for a revenue of 0); then the item made again `None` -> `Inventory` for the buyer (seq 3). All under the offer's id. The item is a new row: the offer id and the snapshot link it to the listing. A buyer who lost the race writes no claim. |
+| `market.cancel` | an offer taken back (or expired): the item off its offer (seq 0), with the delete that claims it, then made again in the seller's inventory (seq 1), under the offer's id. |
+| `market.redeem` | one operation per sale: the revenue off its offer `MarketplaceOffer` -> `None` (seq 0), written with the sale marked redeemed, and the wallet's credit (seq 1) under the reference `marketplace:<offer>`, credited first. A credit that fails leaves the sale waiting for the next redeem; a redeem stopped between the two pays nothing twice (the reference is paid once), and the next writes the revenue off the offer under its own operation. |
+
+What an offer holds therefore always comes off it again: its item when it is sold or taken back,
+its revenue when it is redeemed. The offer keeps the listed item's id for this
+(`marketplace_offers.furniture_id`); an offer listed before it was kept records no item leaving it.
 
 ## Consuming movements
 
@@ -368,6 +398,18 @@ var result = await reversals.MoveAsync(
 - **Permission.** The actor must hold `items.reverse`, which no wildcard grants (`docs/permissions.md`
   §7). A plugin is trusted server code already, so this is attribution and defence in depth; the
   plugin adds its own node on top.
+
+## The plugin API
+
+A plugin that registers a consumer or moves assets back through `IAssetReversalService` declares
+plugin API 3 (`"ApiVersion": 3` in its manifest, `PluginApi.VERSION`), which servers from this one
+on load. A server still loads plugins built for 1 and 2, but one thing changed under them: every `IPlayerWalletGrain` and `IInventoryGrain` method
+that moves an asset (`TryDebitAsync`, `CreditAsync`, `GrantFurnitureAsync`,
+`ConsumeFurnitureAsync`, `TransferFurnitureAsync`, the present, pet and bot methods) now takes a
+`MovementCause`. A plugin built before that calls one fails when it calls it, and must be rebuilt
+against this server, passing a cause of its own (`MovementCause.New(code, actor, causeRef)`, a code
+of at most 48 characters; core's are in `MovementCauses`). A plugin that calls none of them, one
+that only adds packets, settings or admin pages, loads as it is.
 
 ## Decided for now
 
