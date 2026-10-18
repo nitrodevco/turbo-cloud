@@ -207,7 +207,11 @@ internal sealed class GamedataEndpoints(
             .MapGroup("/product-data")
             .AddEndpointFilter(RequireCatalogOrGamedataAsync)
             .MapGet("/", ProductLookupAsync);
-        group.MapGet("/history", (int? page, CancellationToken ct) => HistoryAsync(page, ct));
+        group.MapGet(
+            "/history",
+            (int? page, GamedataRecordType[]? type, CancellationToken ct) =>
+                HistoryAsync(page, type, ct)
+        );
         group.MapGet("/history/{id:int}", ChangesAsync);
         group.MapPost("/history/{id:int}/rollback", RollbackAsync);
     }
@@ -1091,8 +1095,11 @@ internal sealed class GamedataEndpoints(
             }
         );
 
-    private async Task<IResult> HistoryAsync(int? page, CancellationToken ct) =>
-        Results.Ok(await history.ListAsync(page ?? 0, ct).ConfigureAwait(false));
+    private async Task<IResult> HistoryAsync(
+        int? page,
+        GamedataRecordType[]? types,
+        CancellationToken ct
+    ) => Results.Ok(await history.ListAsync(page ?? 0, types ?? [], ct).ConfigureAwait(false));
 
     private async Task<IResult> ChangesAsync(int id, CancellationToken ct) =>
         await history.GetChangesAsync(id, ct).ConfigureAwait(false) is { } changes

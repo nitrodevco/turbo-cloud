@@ -44,8 +44,14 @@ internal sealed class GamedataHistoryService(
 {
     private readonly GamedataConfig _config = config.Value;
 
+    public Task<ImmutableArray<GamedataChangeSetSnapshot>> ListAsync(
+        int page,
+        CancellationToken ct
+    ) => ListAsync(page, [], ct);
+
     public async Task<ImmutableArray<GamedataChangeSetSnapshot>> ListAsync(
         int page,
+        IReadOnlyCollection<GamedataRecordType> recordTypes,
         CancellationToken ct
     )
     {
@@ -55,8 +61,13 @@ internal sealed class GamedataHistoryService(
 
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var sets = await dbCtx
-            .GamedataChangeSets.AsNoTracking()
+        var query = dbCtx.GamedataChangeSets.AsNoTracking();
+
+        // A seek on the (change set, record type) index for each set.
+        if (recordTypes.Count > 0)
+            query = query.Where(x => x.Changes!.Any(c => recordTypes.Contains(c.RecordType)));
+
+        var sets = await query
             .OrderByDescending(x => x.Id)
             .Skip(Math.Max(0, page) * size)
             .Take(size)

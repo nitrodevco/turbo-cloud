@@ -1996,7 +1996,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChangeSetEntityId");
+                    b.HasIndex("ChangeSetEntityId", "RecordType");
 
                     b.ToTable("gamedata_changes");
                 });

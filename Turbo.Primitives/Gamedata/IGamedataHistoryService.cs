@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -14,6 +16,16 @@ public interface IGamedataHistoryService
 {
     public Task<ImmutableArray<GamedataChangeSetSnapshot>> ListAsync(
         int page,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A page of the sets that changed a record of one of the types given, newest first; every set
+    /// when none is given.
+    /// </summary>
+    public Task<ImmutableArray<GamedataChangeSetSnapshot>> ListAsync(
+        int page,
+        IReadOnlyCollection<GamedataRecordType> recordTypes,
         CancellationToken ct
     );
 

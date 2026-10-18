@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// whole. A row the set made has no <see cref="Before"/>, and a row it removed no <see cref="After"/>.
 /// </summary>
 [Table("gamedata_changes")]
-[Index(nameof(ChangeSetEntityId))]
+[Index(nameof(ChangeSetEntityId), nameof(RecordType))]
 public class GamedataChangeEntity : TurboEntity
 {
     public const int LABEL_MAX_LENGTH = 128;

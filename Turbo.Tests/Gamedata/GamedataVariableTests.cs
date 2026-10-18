@@ -18,6 +18,7 @@ using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Catalog;
 using Turbo.Tests.Support;
@@ -671,6 +672,27 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             .GetValue<string>()
             .Should()
             .Be("Own name");
+    }
+
+    [Fact]
+    public async Task the_history_lists_only_the_sets_that_changed_the_record_types_asked_for()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("socket.url", "\"wss://hotel.example/ws\"", STAFF, Ct);
+        await hotel.Texts.SaveAsync("hello", "Hello", STAFF, Ct);
+
+        var all = await hotel.History.ListAsync(0, Ct);
+        var variables = await hotel.History.ListAsync(0, [GamedataRecordType.Variable], Ct);
+        var others = await hotel.History.ListAsync(
+            0,
+            [.. Enum.GetValues<GamedataRecordType>().Where(x => x != GamedataRecordType.Variable)],
+            Ct
+        );
+
+        all.Should().HaveCount(2);
+        variables.Should().ContainSingle().Which.Id.Should().Be(all[1].Id);
+        others.Should().ContainSingle().Which.Id.Should().Be(all[0].Id);
     }
 
     private HotelGamedata Hotel(string publicUrl = "", int previewLimit = 500)
