@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Sound;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
-using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Sound;
@@ -38,7 +37,8 @@ public class GetSoundSettingsMessageHandler(IGrainFactory grainFactory)
                     GenericVolume = settings.GenericVolume,
                     FurniVolume = settings.FurniVolume,
                     TraxVolume = settings.TraxVolume,
-                    FreeFlowChatDisabled = settings.ChatMode == ChatModeType.Old,
+                    // Read and discarded by the client; line-by-line chat is ChatMode below.
+                    FreeFlowChatDisabled = false,
                     RoomInvitesIgnored = settings.RoomInvitesIgnored,
                     RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled,
                     UIFlags = settings.UIFlags,

@@ -5,6 +5,7 @@ using Turbo.PacketHandlers.Users;
 using Turbo.Primitives.Messages.Incoming.Sound;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Snapshots.Settings;
 using Turbo.Tests.Support;
@@ -38,6 +39,33 @@ public sealed class AccountPreferencesRequestTests
         Assert.IsType<AccountPreferencesEventMessageComposer>(
             _fakes.Log.Of("SendComposerAsync").Single().Args[0]
         );
+    }
+
+    // Flash reads the boolean after the volumes and discards it (AccountPreferencesParser.parse); the
+    // line-by-line chat mode is the chatMode int, and the official preferences carry chatMode 1 with
+    // that boolean false. Sent true, our client hid the room chat.
+    [Fact]
+    public async Task line_by_line_chat_mode_does_not_set_the_discarded_boolean()
+    {
+        _fakes.Handlers["GetSettingsAsync"] = _ =>
+            Task.FromResult(
+                Activator.CreateInstance<PlayerSettingsSnapshot>() with
+                {
+                    ChatMode = ChatModeType.Old,
+                }
+            );
+
+        await new GetSoundSettingsMessageHandler(_fakes.Create<IGrainFactory>()).HandleAsync(
+            new GetSoundSettingsMessage(),
+            Context(),
+            Ct
+        );
+
+        var sent = Assert.IsType<AccountPreferencesEventMessageComposer>(
+            _fakes.Log.Of("SendComposerAsync").Single().Args[0]
+        );
+        Assert.Equal(ChatModeType.Old, sent.ChatMode);
+        Assert.False(sent.FreeFlowChatDisabled);
     }
 
     [Fact]
