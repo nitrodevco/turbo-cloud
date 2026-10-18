@@ -81,11 +81,16 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
         await _server.StopAsync(CancellationToken.None);
     }
 
-    /// <summary>The stream, once it has said it is ready.</summary>
-    private async Task<StreamReader> OpenAsync()
+    /// <summary>
+    /// The stream, once it has said it is ready. Without <paramref name="beat"/> the feed's beat
+    /// never runs and the test flushes it itself.
+    /// </summary>
+    private async Task<StreamReader> OpenAsync(bool beat = true)
     {
         await _server.StartAsync(Ct);
-        await _feed.StartAsync(Ct);
+
+        if (beat)
+            await _feed.StartAsync(Ct);
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{_port}/api/live");
 
@@ -180,9 +185,11 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
     [Fact]
     public async Task WhatTheHotelAnnounces_ReachesTheStream_AsOneMessage()
     {
-        using var reader = await OpenAsync();
+        // The beat is the test's: a timed one can fall between two announcements and split them.
+        using var reader = await OpenAsync(beat: false);
 
         await AnnounceAsync();
+        _feed.Flush();
 
         var changes = await NextChangesAsync(reader);
 
