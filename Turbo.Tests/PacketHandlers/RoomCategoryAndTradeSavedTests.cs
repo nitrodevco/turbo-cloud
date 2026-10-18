@@ -38,6 +38,7 @@ public sealed class RoomCategoryAndTradeSavedTests
         _fakes.Handlers["GetFlatCategoriesForPlayerAsync"] = _ =>
             Task.FromResult(ImmutableArray<NavigatorFlatCategorySnapshot>.Empty);
         _fakes.Handlers["UpdateCategoryAndTradeSettingsAsync"] = _ => Task.FromResult(result);
+        _fakes.Handlers["RoomExistsAsync"] = _ => Task.FromResult(true);
 
         return new UpdateRoomCategoryAndTradeSettingsMessageHandler(
             _fakes.Create<Orleans.IGrainFactory>(),

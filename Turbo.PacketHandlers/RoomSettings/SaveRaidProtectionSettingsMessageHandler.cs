@@ -4,14 +4,18 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.RoomSettings;
 
-public class SaveRaidProtectionSettingsMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<SaveRaidProtectionSettingsMessage>
+public class SaveRaidProtectionSettingsMessageHandler(
+    IGrainFactory grainFactory,
+    INavigatorService navigatorService
+) : IMessageHandler<SaveRaidProtectionSettingsMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         SaveRaidProtectionSettingsMessage message,
@@ -20,6 +24,10 @@ public class SaveRaidProtectionSettingsMessageHandler(IGrainFactory grainFactory
     )
     {
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+            return;
+
+        // Asked before the room grain, whose activation would fail on a missing room.
+        if (!await _navigatorService.RoomExistsAsync(message.RoomId, ct).ConfigureAwait(false))
             return;
 
         var result = await _grainFactory

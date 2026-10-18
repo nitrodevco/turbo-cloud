@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.RoomSettings;
@@ -11,10 +12,13 @@ namespace Turbo.PacketHandlers.RoomSettings;
 /// <summary>
 /// The ban list tab of room settings.
 /// </summary>
-public class GetBannedUsersFromRoomMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<GetBannedUsersFromRoomMessage>
+public class GetBannedUsersFromRoomMessageHandler(
+    IGrainFactory grainFactory,
+    INavigatorService navigatorService
+) : IMessageHandler<GetBannedUsersFromRoomMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         GetBannedUsersFromRoomMessage message,
@@ -23,6 +27,10 @@ public class GetBannedUsersFromRoomMessageHandler(IGrainFactory grainFactory)
     )
     {
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+            return;
+
+        // Asked before the room grain, whose activation would fail on a missing room.
+        if (!await _navigatorService.RoomExistsAsync(message.RoomId, ct).ConfigureAwait(false))
             return;
 
         var players = await _grainFactory
