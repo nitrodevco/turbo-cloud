@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
@@ -8,7 +10,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Migrations;
+using Turbo.Plugins.Data;
 using Turbo.Plugins.Exceptions;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Plugins;
 
 namespace Turbo.Plugins;
@@ -20,10 +26,20 @@ namespace Turbo.Plugins;
 /// </summary>
 internal sealed partial class PluginAdministration(
     PluginManager manager,
+    PluginTables tables,
+    IEnumerable<IPluginDataOwner> owners,
     ILogger<PluginAdministration> logger
 ) : IPluginAdministration
 {
     private const string MANIFEST = "manifest.json";
+
+    /// <summary>The first segments core's nodes and meta keys use: never a plugin's, whatever its key.</summary>
+    private static readonly FrozenSet<string> CORE_NODE_ROOTS = CoreRoots();
+
+    private readonly IPluginDataOwner[] _owners = [.. owners];
+
+    /// <summary>Held while a package is put in place or a plugin taken away: one at a time.</summary>
+    private readonly SemaphoreSlim _changes = new(1, 1);
 
     /// <summary>Beside the plugins: the earlier versions kept, a zip each. Discovery skips dot-folders.</summary>
     public const string VERSIONS = ".versions";
@@ -174,6 +190,294 @@ internal sealed partial class PluginAdministration(
         };
     }
 
+    public async Task<PluginUninstallPlan?> PlanUninstallAsync(string key, CancellationToken ct)
+    {
+        manager.Refresh();
+
+        return Find(key) is { } plugin
+            ? (await SurveyAsync(plugin, ct).ConfigureAwait(false)).Plan
+            : null;
+    }
+
+    public async Task<PluginActionResult?> UninstallAsync(
+        string key,
+        PluginUninstallMode mode,
+        PlayerId actor,
+        CancellationToken ct
+    )
+    {
+        // Refused rather than waited for: the install running may be this plugin's own update.
+        if (!await _changes.WaitAsync(0, ct).ConfigureAwait(false))
+            return Find(key) is { } busy
+                ? new PluginActionResult(
+                    false,
+                    $"A plugin is being installed. Uninstall {busy.Name} when that is done.",
+                    busy
+                )
+                : null;
+
+        try
+        {
+            manager.Refresh();
+
+            if (Find(key) is not { } plugin)
+                return null;
+
+            var survey = await SurveyAsync(plugin, ct).ConfigureAwait(false);
+
+            if (survey.Plan.Refusal is { } refusal)
+                return new PluginActionResult(false, refusal, plugin);
+
+            if (mode == PluginUninstallMode.DeleteData && !survey.Complete)
+                return new PluginActionResult(
+                    false,
+                    $"Not all of {plugin.Name}'s data could be looked at (see the dry run), so it was not uninstalled.",
+                    plugin
+                );
+
+            try
+            {
+                if (!await manager.TryRemoveAsync(plugin.Key, ct).ConfigureAwait(false))
+                    return new PluginActionResult(
+                        false,
+                        $"{plugin.Name} is loading or reloading. Uninstall it when that is done.",
+                        plugin
+                    );
+            }
+            catch (PluginDependencyException ex)
+            {
+                return new PluginActionResult(false, ex.Message, Find(plugin.Key));
+            }
+
+            // Its code is gone: what follows runs to its end whatever the caller does.
+            if (VersionFolder(plugin.Key) is { } versions && Directory.Exists(versions))
+                Directory.Delete(versions, recursive: true);
+
+            manager.State.EditSources(sources =>
+                sources.RemoveAll(x =>
+                    string.Equals(x.Key, plugin.Key, StringComparison.OrdinalIgnoreCase)
+                )
+            );
+            manager.State.SetDisabled(plugin.Key, false);
+
+            logger.LogWarning(
+                "Plugin {Key}@{Version} uninstalled from the admin panel by player {PlayerId} ({Mode})",
+                plugin.Key,
+                plugin.Version,
+                actor.Value,
+                mode
+            );
+
+            if (mode == PluginUninstallMode.KeepData)
+                return new PluginActionResult(
+                    true,
+                    $"Uninstalled {plugin.Name}. Its data is kept: installing it again picks it up.",
+                    null
+                );
+
+            var failures = new List<string>();
+
+            foreach (var (owner, items) in survey.Found.Where(x => !x.Items.IsEmpty))
+            {
+                try
+                {
+                    await owner
+                        .RemoveAsync(survey.Scope, items, actor, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Deleting the data of the plugin {Key} failed", plugin.Key);
+                    failures.Add(ex.Message);
+                }
+            }
+
+            if (failures.Count > 0)
+                return new PluginActionResult(
+                    false,
+                    $"Uninstalled {plugin.Name}, but deleting some of its data failed: {string.Join(" ", failures)}",
+                    null
+                );
+
+            return new PluginActionResult(
+                true,
+                survey.Plan.Data.IsEmpty
+                    ? $"Uninstalled {plugin.Name}. It had no data to delete."
+                    : $"Uninstalled {plugin.Name} and deleted its data: {Summary(survey.Plan.Data)}.",
+                null
+            );
+        }
+        finally
+        {
+            _changes.Release();
+        }
+    }
+
+    public async Task<bool> ExportDataAsync(string key, Stream output, CancellationToken ct)
+    {
+        manager.Refresh();
+
+        if (Find(key) is not { } plugin)
+            return false;
+
+        await tables.ExportAsync(ScopeOf(plugin.Key), output, ct).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
+    /// What uninstalling the plugin would take away, from each <see cref="IPluginDataOwner"/>;
+    /// <see cref="Survey.Complete"/> is false when one of them could not be asked.
+    /// </summary>
+    private async Task<Survey> SurveyAsync(PluginSnapshot plugin, CancellationToken ct)
+    {
+        var scope = ScopeOf(plugin.Key);
+        var notes = ImmutableArray.CreateBuilder<string>();
+        var found = new List<(IPluginDataOwner Owner, ImmutableArray<PluginDataItem> Items)>();
+        var complete = true;
+
+        foreach (var owner in _owners)
+        {
+            try
+            {
+                found.Add((owner, await owner.FindAsync(scope, ct).ConfigureAwait(false)));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Listing the data of the plugin {Key} failed", plugin.Key);
+                notes.Add($"Part of its data could not be looked at: {ex.Message}");
+                complete = false;
+            }
+        }
+
+        if (plugin.State != PluginStateType.Loaded)
+            notes.Add(
+                "It is not loaded, so its settings overridden in the panel can't be listed: turn it on first to have them deleted too."
+            );
+
+        if (scope.TablePrefix is { } prefix && !MigrationHelper.IsPlainTablePrefix(prefix))
+            notes.Add(
+                $"Its table prefix \"{prefix}\" is not only letters, digits and '_', so its tables can't be told apart from the hotel's and none are listed."
+            );
+
+        return new Survey(
+            new PluginUninstallPlan(
+                plugin,
+                FilesOf(plugin),
+                [
+                    .. manager
+                        .State.Sources.Where(x =>
+                            string.Equals(x.Key, plugin.Key, StringComparison.OrdinalIgnoreCase)
+                        )
+                        .Select(x => x.Repository),
+                ],
+                [.. found.SelectMany(x => x.Items)],
+                notes.ToImmutable(),
+                RefusalOf(plugin)
+            ),
+            scope,
+            found,
+            complete
+        );
+    }
+
+    /// <summary>Why the plugin can't be uninstalled now; null when it can.</summary>
+    private string? RefusalOf(PluginSnapshot plugin)
+    {
+        if (plugin.Dev)
+            return $"{plugin.Name} is a development plugin, loaded from its own folder. Take it out of Turbo:Plugin:DevPluginPaths instead.";
+
+        var dependents = manager
+            .Manifests()
+            .Where(m =>
+                !string.Equals(m.Key, plugin.Key, StringComparison.OrdinalIgnoreCase)
+                && m.Dependencies.Any(d =>
+                    string.Equals(d.Key, plugin.Key, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+            .Select(m => m.Name)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return dependents.Count > 0
+            ? $"{string.Join(", ", dependents)} depend on {plugin.Name}. Uninstall those first."
+            : null;
+    }
+
+    /// <summary>Its folder and the earlier versions kept of it, as the plugin folder names them.</summary>
+    private ImmutableArray<string> FilesOf(PluginSnapshot plugin)
+    {
+        var versions = VersionFolder(plugin.Key);
+        var kept =
+            versions is not null && Directory.Exists(versions)
+                ? new DirectoryInfo(versions)
+                    .EnumerateFiles("*.zip")
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Select(f => $"{VERSIONS}/{plugin.Key}/{f.Name}")
+                : [];
+
+        return [plugin.Folder + "/", .. kept];
+    }
+
+    /// <summary>
+    /// Whose data is the plugin's: its table prefix, those of the other plugins known, and the
+    /// roots of its nodes, <c>plugin.&lt;key&gt;</c> and its key, unless core uses that root.
+    /// </summary>
+    private PluginDataScope ScopeOf(string key)
+    {
+        var manifests = manager.Manifests();
+        var manifest = manifests.FirstOrDefault(m =>
+            string.Equals(m.Key, key, StringComparison.OrdinalIgnoreCase)
+        );
+        var root = key.ToLowerInvariant();
+        var roots = ImmutableArray.Create($"{PluginAdminRoutes.NODE_ROOT}.{root}");
+
+        if (
+            PermissionNodeFormat.IsValidSegment(root)
+            && root != PluginAdminRoutes.NODE_ROOT
+            && !CORE_NODE_ROOTS.Contains(root)
+        )
+            roots = roots.Add(root);
+
+        return new PluginDataScope(
+            manifest?.Key ?? key,
+            manifest?.TablePrefix,
+            [
+                .. manifests
+                    .Where(m => !ReferenceEquals(m, manifest))
+                    .Select(m => m.TablePrefix)
+                    .OfType<string>(),
+            ],
+            roots
+        );
+    }
+
+    private static FrozenSet<string> CoreRoots()
+    {
+        var core = new CorePermissionNodeSource();
+
+        return core
+            .Nodes.Select(x => x.Node)
+            .Concat(core.MetaKeys.Select(x => x.Key))
+            .Select(PermissionNodeFormat.RootOf)
+            .ToFrozenSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>"2 tables (14 rows), 1 setting, 3 grants".</summary>
+    private static string Summary(ImmutableArray<PluginDataItem> data)
+    {
+        string Count(PluginDataKind kind, string one, string many)
+        {
+            var n = data.Count(x => x.Kind == kind);
+
+            return n == 1 ? $"1 {one}" : $"{n} {many}";
+        }
+
+        var rows = data.Where(x => x.Kind == PluginDataKind.Table).Sum(x => x.Count);
+
+        return $"{Count(PluginDataKind.Table, "table", "tables")} ({rows} rows), {Count(PluginDataKind.Setting, "setting", "settings")}, {Count(PluginDataKind.Grant, "grant", "grants")}";
+    }
+
     /// <summary>
     /// <see cref="InstallAsync(Stream, CancellationToken)"/>; with <paramref name="expectedKey"/>,
     /// a package holding another plugin is refused. The version replaced is kept (see
@@ -188,6 +492,24 @@ internal sealed partial class PluginAdministration(
         if (!UploadEnabled)
             return new PluginActionResult(false, "Installing plugins from the panel is off.", null);
 
+        await _changes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            return await InstallHeldAsync(package, expectedKey, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _changes.Release();
+        }
+    }
+
+    private async Task<PluginActionResult> InstallHeldAsync(
+        Stream package,
+        string? expectedKey,
+        CancellationToken ct
+    )
+    {
         var staging = Path.Combine(
             Path.GetTempPath(),
             "turbo-plugin-" + Guid.NewGuid().ToString("N")
@@ -486,7 +808,7 @@ internal sealed partial class PluginAdministration(
     }
 
     /// <summary>"" when manifest.json is at the zip's root, "top/" when it is in its one top folder.</summary>
-    private static string? RootOf(System.Collections.Generic.List<ZipArchiveEntry> files)
+    private static string? RootOf(List<ZipArchiveEntry> files)
     {
         var names = files.Select(e => e.FullName.Replace('\\', '/')).ToList();
 
@@ -538,4 +860,12 @@ internal sealed partial class PluginAdministration(
 
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")]
     private static partial Regex KeyPattern();
+
+    /// <summary>A dry run, with what each owner answered, for the uninstall that follows it.</summary>
+    private sealed record Survey(
+        PluginUninstallPlan Plan,
+        PluginDataScope Scope,
+        List<(IPluginDataOwner Owner, ImmutableArray<PluginDataItem> Items)> Found,
+        bool Complete
+    );
 }

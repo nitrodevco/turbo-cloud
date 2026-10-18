@@ -3,13 +3,14 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Plugins;
 
 /// <summary>
 /// The plugins this server knows of, for the admin panel: what each is, whether it loaded and
 /// what it added, and the operator's hand on them - reload one, scan the folder again, turn one
-/// off or on (remembered across restarts) and install a package. Who may do which is the
+/// off or on (remembered across restarts), install a package and uninstall one. Who may do which is the
 /// caller's to check; every change here is the server's whole plugin set.
 /// </summary>
 public interface IPluginAdministration
@@ -64,7 +65,59 @@ public interface IPluginAdministration
         string version,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The dry run of <see cref="UninstallAsync"/>: what uninstalling the plugin would take away,
+    /// and why it can't be uninstalled now, if it can't. Changes nothing. Null when no plugin has
+    /// the key.
+    /// </summary>
+    public Task<PluginUninstallPlan?> PlanUninstallAsync(string key, CancellationToken ct);
+
+    /// <summary>
+    /// Unloads the plugin, then deletes its folder, the earlier versions kept of it and the GitHub
+    /// links it was installed from. With <see cref="PluginUninstallMode.DeleteData"/> its data goes
+    /// too (<see cref="IPluginDataOwner"/>); kept, a reinstall picks it up again. Refused while
+    /// the plugin is loading, an install is running, another installed plugin depends on it, or it
+    /// is a development plugin. Null when no plugin has the key.
+    /// </summary>
+    public Task<PluginActionResult?> UninstallAsync(
+        string key,
+        PluginUninstallMode mode,
+        PlayerId actor,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Writes the plugin's tables, their definitions and rows, as SQL to <paramref name="output"/>,
+    /// to keep before deleting its data. False when no plugin has the key.
+    /// </summary>
+    public Task<bool> ExportDataAsync(string key, Stream output, CancellationToken ct);
 }
+
+/// <summary>What uninstalling a plugin takes away besides its code.</summary>
+public enum PluginUninstallMode
+{
+    /// <summary>Its folder, kept versions and links; its tables, settings and grants stay for a reinstall.</summary>
+    KeepData,
+
+    /// <summary>Everything <see cref="KeepData"/> does, and its tables, settings and grants.</summary>
+    DeleteData,
+}
+
+/// <summary>
+/// What uninstalling <see cref="Plugin"/> would take away: <see cref="Files"/> (its folder and the
+/// earlier versions kept, as the plugin folder names them), <see cref="Sources"/> (the GitHub
+/// repositories linked to it) and, with its data, <see cref="Data"/>. <see cref="Notes"/> say what
+/// could not be looked at; <see cref="Refusal"/> is why it can't be uninstalled now, null when it can.
+/// </summary>
+public sealed record PluginUninstallPlan(
+    PluginSnapshot Plugin,
+    ImmutableArray<string> Files,
+    ImmutableArray<string> Sources,
+    ImmutableArray<PluginDataItem> Data,
+    ImmutableArray<string> Notes,
+    string? Refusal
+);
 
 /// <summary>How a plugin stands right now.</summary>
 public enum PluginStateType

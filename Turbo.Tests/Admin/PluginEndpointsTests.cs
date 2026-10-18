@@ -13,8 +13,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Data;
 using Turbo.Plugins.Sources;
 using Turbo.Primitives.Admin.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
@@ -89,6 +91,17 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         _fakes.Handlers["SetEnabledAsync"] = call =>
             _plugins.SetEnabledAsync((string)call.Args[0]!, (bool)call.Args[1]!, Ct);
         _fakes.Handlers["InstallAsync"] = call => _plugins.InstallAsync((Stream)call.Args[0]!, Ct);
+        _fakes.Handlers["PlanUninstallAsync"] = call =>
+            _plugins.PlanUninstallAsync((string)call.Args[0]!, Ct);
+        _fakes.Handlers["UninstallAsync"] = call =>
+            _plugins.UninstallAsync(
+                (string)call.Args[0]!,
+                (PluginUninstallMode)call.Args[1]!,
+                (PlayerId)call.Args[2]!,
+                Ct
+            );
+        _fakes.Handlers["ExportDataAsync"] = call =>
+            _plugins.ExportDataAsync((string)call.Args[0]!, (Stream)call.Args[1]!, Ct);
 
         (_server, _, _) = AdminApiServerTests.Build(
             $"http://127.0.0.1:{_port}",
@@ -389,6 +402,72 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Uninstalling_needs_the_uninstall_node_and_the_key_typed_again()
+    {
+        WritePlugin("sample", "Sample Plugin");
+        await _plugins.RescanAsync(Ct);
+        _holds = node => node != PermissionNodes.Admin.PLUGINS_UNINSTALL;
+        await _server.StartAsync(Ct);
+
+        (await JsonAsync(await SendAsync(HttpMethod.Get, "/api/plugins")))
+            .GetProperty("canUninstall")
+            .GetBoolean()
+            .Should()
+            .BeFalse();
+        (await SendAsync(HttpMethod.Get, "/api/plugins/sample/uninstall"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        (
+            await SendJsonAsync(
+                HttpMethod.Post,
+                "/api/plugins/sample/uninstall",
+                new { mode = "keep-data", confirm = "sample" }
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+
+        _holds = _ => true;
+
+        var plan = await JsonAsync(
+            await SendAsync(HttpMethod.Get, "/api/plugins/sample/uninstall")
+        );
+
+        plan.GetProperty("files")
+            .EnumerateArray()
+            .Select(x => x.GetString())
+            .Should()
+            .Equal("sample/");
+        plan.GetProperty("refusal").ValueKind.Should().Be(JsonValueKind.Null);
+        (
+            await SendJsonAsync(
+                HttpMethod.Post,
+                "/api/plugins/sample/uninstall",
+                new { mode = "keep-data", confirm = "Sample" }
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.BadRequest);
+        Directory.Exists(Path.Combine(_folder, "sample")).Should().BeTrue();
+
+        var response = await SendJsonAsync(
+            HttpMethod.Post,
+            "/api/plugins/sample/uninstall",
+            new { mode = "keep-data", confirm = "sample" }
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        Directory.Exists(Path.Combine(_folder, "sample")).Should().BeFalse();
+        Log()
+            .Should()
+            .Equal([
+                ("uninstall plan sample", "refused"),
+                ("uninstall sample keep-data", "refused"),
+                ("uninstall sample keep-data", "completed"),
+            ]);
+    }
+
+    [Fact]
     public async Task Linking_a_repository_needs_the_install_node_and_the_refusal_is_logged()
     {
         _holds = node => node != PermissionNodes.Admin.PLUGINS_INSTALL;
@@ -463,7 +542,13 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             NullLogger<PluginManager>.Instance
         );
 
-        var plugins = new PluginAdministration(manager, NullLogger<PluginAdministration>.Instance);
+        var tables = new PluginTables(_db, NullLogger<PluginTables>.Instance);
+        var plugins = new PluginAdministration(
+            manager,
+            tables,
+            [tables],
+            NullLogger<PluginAdministration>.Instance
+        );
 
         // GitHub is not asked here (PluginSourcesTests asks a stand-in): every request fails.
         _sources = new PluginSources(

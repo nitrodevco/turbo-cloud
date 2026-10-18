@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
 
 namespace Turbo.Main.Settings;
@@ -36,6 +37,7 @@ internal static class ServerSettingsHostExtensions
         builder.Services.AddSingleton<IPluginSettingSections>(sp =>
             sp.GetRequiredService<ServerSettingsService>()
         );
+        builder.Services.AddSingleton<IPluginDataOwner, PluginSettingData>();
 
         return builder;
     }

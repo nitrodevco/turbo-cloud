@@ -23,7 +23,9 @@ namespace Turbo.Admin.Api;
 /// needs <c>admin.plugins.install</c>, named on purpose, and <c>Turbo:Plugin:UploadEnabled</c>.
 /// So do linking a GitHub repository, updating from it and rolling back to a kept version: each
 /// puts server code in place. Checking a link for a new release needs <c>admin.plugins.manage</c>.
-/// Every action, refused ones too, goes to the command log (<see cref="AdminPluginAudit"/>).
+/// Uninstalling one, its dry run and the SQL export of its tables need <c>admin.plugins.uninstall</c>
+/// as well, and the plugin's key typed again. Every action, refused ones too, goes to the command
+/// log (<see cref="AdminPluginAudit"/>).
 /// </summary>
 internal sealed class PluginEndpoints(
     IGrainFactory grainFactory,
@@ -35,6 +37,8 @@ internal sealed class PluginEndpoints(
     private const string NO_ACCESS = "You can't see the server's plugins.";
     private const string NO_MANAGE = "You can't change the server's plugins.";
     private const string NO_INSTALL = "You can't install plugins.";
+    private const string NO_UNINSTALL = "You can't uninstall plugins.";
+    private const string NO_PLUGIN = "There is no plugin with that key.";
     private const string UPLOAD_OFF =
         "Installing plugins from the panel is off. Turn on Turbo:Plugin:UploadEnabled to allow it.";
 
@@ -66,6 +70,9 @@ internal sealed class PluginEndpoints(
         );
         group.MapPost("/sources/{id}/update", UpdateAsync);
         group.MapPost("/{key}/rollback", RollbackAsync);
+        group.MapGet("/{key}/uninstall", PlanUninstallAsync);
+        group.MapPost("/{key}/uninstall", UninstallAsync);
+        group.MapGet("/{key}/export", ExportAsync);
         group.MapPost("/{key}/reload", ReloadAsync);
         group.MapPost(
             "/{key}/enable",
@@ -96,9 +103,126 @@ internal sealed class PluginEndpoints(
                 [.. sources.List().Select(PluginSourceView.From)],
                 sources.Job is { } job ? PluginJobView.From(job) : null,
                 [.. sources.AllowedOwners],
-                sources.CheckMinutes
+                sources.CheckMinutes,
+                canManage
+                    && await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_UNINSTALL, ct)
+                        .ConfigureAwait(false)
             )
         );
+    }
+
+    private async Task<IResult> PlanUninstallAsync(
+        string key,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (
+            await RefuseUninstallAsync(http, $"uninstall plan {key}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        return await plugins.PlanUninstallAsync(key, ct).ConfigureAwait(false) is { } plan
+            ? Results.Ok(PluginUninstallPlanView.From(plan))
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
+    }
+
+    private async Task<IResult> UninstallAsync(
+        string key,
+        PluginUninstallRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var arguments = $"uninstall {key} {request.Mode}".TrimEnd();
+
+        if (await RefuseUninstallAsync(http, arguments, ct).ConfigureAwait(false) is { } refused)
+            return refused;
+
+        if (request.ParsedMode is not { } mode)
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                $"Choose {PluginUninstallRequest.KEEP_DATA} or {PluginUninstallRequest.DELETE_DATA}."
+            );
+
+        if (!string.Equals(request.Confirm?.Trim(), key, StringComparison.Ordinal))
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                $"Type the plugin's key, {key}, to uninstall it."
+            );
+
+        // Not the request's token: a plugin half taken away would be neither installed nor gone.
+        var result = await plugins
+            .UninstallAsync(key, mode, AdminIdentity.Of(http).PlayerId, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        await audit
+            .WriteAsync(
+                AdminIdentity.Of(http).PlayerId,
+                arguments,
+                result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        return result is null
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+            : Answer(result);
+    }
+
+    private async Task<IResult> ExportAsync(string key, HttpContext http, CancellationToken ct)
+    {
+        if (
+            await RefuseUninstallAsync(http, $"export {key}", ct).ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        if (!plugins.List().Any(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)))
+            return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
+
+        // Written whole before it is sent: a failure is an error, not a cut-off file.
+        var sql = new MemoryStream();
+
+        await plugins.ExportDataAsync(key, sql, ct).ConfigureAwait(false);
+
+        await audit
+            .WriteAsync(
+                AdminIdentity.Of(http).PlayerId,
+                $"export {key}",
+                CommandOutcome.Completed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        sql.Position = 0;
+
+        return Results.File(sql, "application/sql", $"{key}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.sql");
+    }
+
+    /// <summary>
+    /// A refusal, written to the command log, unless the staff member may uninstall plugins:
+    /// <c>admin.plugins.manage</c> and <c>admin.plugins.uninstall</c>.
+    /// </summary>
+    private async Task<IResult?> RefuseUninstallAsync(
+        HttpContext http,
+        string arguments,
+        CancellationToken ct
+    )
+    {
+        if (
+            await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false)
+            && await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_UNINSTALL, ct)
+                .ConfigureAwait(false)
+        )
+            return null;
+
+        await audit
+            .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+            .ConfigureAwait(false);
+
+        return AdminResults.Error(StatusCodes.Status403Forbidden, NO_UNINSTALL);
     }
 
     private Task<IResult> RescanAsync(HttpContext http, CancellationToken ct) =>
@@ -488,7 +612,7 @@ internal sealed class PluginEndpoints(
             .ConfigureAwait(false);
 
         return result is null
-            ? AdminResults.Error(StatusCodes.Status404NotFound, "There is no plugin with that key.")
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
             : Answer(result);
     }
 

@@ -233,6 +233,101 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         };
     }
 
+    /// <summary>
+    /// The settings at <paramref name="paths"/> the panel overrides, with the value kept for each.
+    /// </summary>
+    internal async Task<IReadOnlyList<(string Path, string Value)>> OverridesAsync(
+        IReadOnlyCollection<string> paths,
+        CancellationToken ct
+    )
+    {
+        if (paths.Count == 0)
+            return [];
+
+        var names = paths.ToList();
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var rows = await dbCtx
+            .ServerSettings.AsNoTracking()
+            .Where(x => names.Contains(x.Path))
+            .OrderBy(x => x.Path)
+            .Select(x => new { x.Path, x.Value })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return [.. rows.Select(x => (x.Path, x.Value))];
+    }
+
+    /// <summary>
+    /// Takes the panel's overrides at the paths away whether a setting is registered there now or
+    /// not (a plugin's, uninstalled after it was unloaded), each written to the history as put
+    /// back, its value left out where <c>Secret</c>. Returns how many there were.
+    /// </summary>
+    internal async Task<int> ForgetAsync(
+        IReadOnlyCollection<(string Path, bool Secret)> paths,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var secret = paths
+            .Where(x => x.Secret)
+            .Select(x => x.Path)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = paths.Select(x => x.Path).ToList();
+        int removed;
+
+        await _writes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+            var rows = await dbCtx
+                .ServerSettings.Where(x => names.Contains(x.Path))
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            foreach (var row in rows)
+            {
+                var hidden = secret.Contains(row.Path);
+
+                dbCtx.ServerSettings.Remove(row);
+                dbCtx.ServerSettingChanges.Add(
+                    new ServerSettingChangeEntity
+                    {
+                        Path = row.Path,
+                        Before = hidden ? null : row.Value,
+                        After = null,
+                        Secret = hidden,
+                        PlayerEntityId = player.Value,
+                    }
+                );
+            }
+
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+            removed = rows.Count;
+        }
+        finally
+        {
+            _writes.Release();
+        }
+
+        if (removed > 0)
+        {
+            _logger.LogInformation(
+                "Player {PlayerId} took away {Count} server settings of an uninstalled plugin",
+                player.Value,
+                removed
+            );
+
+            Refresh();
+        }
+
+        return removed;
+    }
+
     public IDisposable Add(
         string plugin,
         IReadOnlyList<Type> types,

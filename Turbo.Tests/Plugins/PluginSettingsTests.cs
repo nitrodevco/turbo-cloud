@@ -4,8 +4,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Main.Settings;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Data;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
@@ -173,6 +175,66 @@ public sealed class PluginSettingsTests : IDisposable
 
         _settings.Settings.Get("Sample:Plugin:Greeting")!.Plugin.Should().Be(owner);
         _settings.Settings.Get("Test:Hotel:MaxUsers")!.Plugin.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task uninstalling_a_plugin_with_its_data_puts_its_panel_settings_back_and_keeping_it_does_not()
+    {
+        PluginBuilder.Write(_folder, "sample", Source("sample", "Sample:Plugin"));
+        PluginBuilder.Write(_folder, "kept", Source("kept", "Kept:Plugin"));
+        await _manager.LoadAllAsync(ct: Ct);
+
+        await _settings.Settings.SaveAsync("Sample:Plugin:Greeting", "\"hi\"", STAFF, Ct);
+        await _settings.Settings.SaveAsync(
+            "Sample:Plugin:WebhookUrl",
+            "\"https://discord.test/hook\"",
+            STAFF,
+            Ct
+        );
+        await _settings.Settings.SaveAsync("Kept:Plugin:Greeting", "\"stay\"", STAFF, Ct);
+
+        var plugins = new PluginAdministration(
+            _manager,
+            new PluginTables(_db, NullLogger<PluginTables>.Instance),
+            [new PluginSettingData(_settings.Settings)],
+            NullLogger<PluginAdministration>.Instance
+        );
+
+        // The dry run shows a setting's value, never a secret's.
+        (await plugins.PlanUninstallAsync("sample", Ct))!
+            .Data.Select(x => (x.Kind, x.Name, x.Detail))
+            .Should()
+            .Equal(
+                (PluginDataKind.Setting, "Sample:Plugin:Greeting", "\"hi\""),
+                (PluginDataKind.Setting, "Sample:Plugin:WebhookUrl", null)
+            );
+
+        int saved;
+
+        using (var before = _db.CreateDbContext())
+            saved = before.ServerSettingChanges.Count();
+
+        (await plugins.UninstallAsync("sample", PluginUninstallMode.DeleteData, STAFF, Ct))!
+            .Ok.Should()
+            .BeTrue();
+        (await plugins.UninstallAsync("kept", PluginUninstallMode.KeepData, STAFF, Ct))!
+            .Ok.Should()
+            .BeTrue();
+
+        using var db = _db.CreateDbContext();
+
+        db.ServerSettings.Select(x => x.Path).Should().Equal("Kept:Plugin:Greeting");
+
+        // Each written to the history as put back, a secret's value left out.
+        var history = db.ServerSettingChanges.OrderBy(x => x.Id).Skip(saved).ToList();
+
+        history
+            .Select(x => (x.Path, x.Before, x.After, x.Secret, x.PlayerEntityId))
+            .Should()
+            .Equal(
+                ("Sample:Plugin:Greeting", "\"hi\"", (string?)null, false, (int?)STAFF.Value),
+                ("Sample:Plugin:WebhookUrl", null, null, true, (int?)STAFF.Value)
+            );
     }
 
     private PluginStateType State(string key) =>
