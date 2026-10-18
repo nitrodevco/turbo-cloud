@@ -242,7 +242,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
             _state.EpochMs = now;
             _state.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
-            _state.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
+            _state.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerStepMs);
             _state.NextWiredBoundaryMs = AlignToNextBoundary(now, _wiredConfig.TickMs);
             _state.NextPersistenceBoundaryMs = AlignToNextBoundary(
                 now,

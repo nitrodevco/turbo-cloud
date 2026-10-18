@@ -128,6 +128,9 @@ internal sealed class RoomLiveState
     public long EpochMs { get; set; } = 0;
     public long NextAvatarBoundaryMs { get; set; } = 0;
     public long NextRollerBoundaryMs { get; set; } = 0;
+
+    /// <summary>The roller cycle the rollers last moved on.</summary>
+    public long LastRollerMoveMs { get; set; } = 0;
     public long NextWiredBoundaryMs { get; set; } = 0;
 
     /// <summary>When each player was last told a wired placement failed (Place Temporary Furni).</summary>

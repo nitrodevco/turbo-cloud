@@ -13,6 +13,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.RoomItem;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -27,6 +28,9 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 {
     private readonly List<List<int>> _rollerIdSets = [];
 
+    // The room's Roller Speed Controllers, the one placed first first.
+    private readonly List<RoomObjectId> _speedControlIds = [];
+
     // Per-tick scratch, reused: the tiles taken this tick, the tiles avatars are stepping onto,
     // and what one roller carries.
     private readonly HashSet<int> _reservedTileIdxs = [];
@@ -38,14 +42,32 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 
     public Task ProcessRollersAsync(long now, CancellationToken ct)
     {
-        if (now < _roomGrain._state.NextRollerBoundaryMs)
+        var state = _roomGrain._state;
+
+        if (now < state.NextRollerBoundaryMs)
             return Task.CompletedTask;
-        while (now >= _roomGrain._state.NextRollerBoundaryMs)
-            _roomGrain._state.NextRollerBoundaryMs += _roomGrain._roomConfig.RollerTickMs;
+
+        // Moves fall on the cycle; the speed says how many cycles apart, so a new speed takes
+        // over from the next move and picking the controller up slows the rollers at once.
+        var step = Math.Max(1, _roomGrain._roomConfig.RollerStepMs);
+        var boundary =
+            state.NextRollerBoundaryMs + (now - state.NextRollerBoundaryMs) / step * step;
+
+        state.NextRollerBoundaryMs = boundary + step;
         ComputeRollers();
 
-        if (_rollerIdSets.Count == 0)
+        if (boundary - state.LastRollerMoveMs < GetRollerTickMs())
             return Task.CompletedTask;
+
+        state.LastRollerMoveMs = boundary;
+
+        if (_rollerIdSets.Count == 0)
+        {
+            SendControllerStates(ImmutableArray.CreateBuilder<IComposer>());
+
+            return Task.CompletedTask;
+        }
+
         var currentPlans = new List<RollerMovePlanSnapshot>();
 
         _reservedTileIdxs.Clear();
@@ -181,7 +203,12 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
         }
 
         if (currentPlans.Count == 0)
+        {
+            SendControllerStates(ImmutableArray.CreateBuilder<IComposer>());
+
             return Task.CompletedTask;
+        }
+
         var composers = ImmutableArray.CreateBuilder<IComposer>();
         var hiddenChanges = new List<IComposer>();
 
@@ -251,8 +278,39 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
         // Every slide of the tick as one room message, in the order the moves were made; what
         // rolled into or out of a hidden area goes or comes back after the slides.
         composers.AddRange(hiddenChanges);
-        _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
+        SendControllerStates(composers);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// How often the rollers move: at the speed of the room's Roller Speed Controller, the one
+    /// placed first when there are several, or <c>RoomConfig.RollerTickMs</c> without one.
+    /// </summary>
+    private int GetRollerTickMs() =>
+        _speedControlIds.Count > 0
+        && FurniModule.TryGetItem(_speedControlIds[0], out var item)
+        && item.Logic is FurnitureRollerSpeedControlLogic control
+            ? control.TickMs
+            : _roomGrain._roomConfig.RollerTickMs;
+
+    /// <summary>
+    /// Sends one move's slides with the controllers' new states after them, in one room message
+    /// (official client capture, 2026-10-18: the controller's ObjectDataUpdate in the same ms as
+    /// the move's SlideObjectBundles on every move, also when nothing rode the rollers).
+    /// </summary>
+    private void SendControllerStates(ImmutableArray<IComposer>.Builder composers)
+    {
+        foreach (var id in _speedControlIds)
+        {
+            if (
+                FurniModule.TryGetItem(id, out var item)
+                && item.Logic is FurnitureRollerSpeedControlLogic control
+            )
+                composers.Add(control.OnRollersMoved());
+        }
+
+        if (composers.Count > 0)
+            _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
     }
 
     /// <summary>One slide packet of a roller's move: its furni when asked for, and one avatar or none.</summary>
@@ -295,6 +353,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
         // Clean before the room is known to have none: a room without rollers used to return
         // early, stay dirty, and scan every item again on every roller tick for good.
         _isDirtyRollers = false;
+
+        _speedControlIds.Clear();
+        _speedControlIds.AddRange(
+            FurniModule
+                .Items.Where(x => x.Logic is FurnitureRollerSpeedControlLogic)
+                .Select(x => x.ObjectId)
+                .Order()
+        );
 
         var rollers = FurniModule.Items.Where(x => x.Logic is FurnitureRollerLogic).ToList();
 

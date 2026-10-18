@@ -60,7 +60,26 @@ public class RoomConfig
     public int RoomStateReturnDelayMs { get; init; } = 2000;
     public int RoomTickMs { get; init; } = 50;
     public int AvatarTickMs { get; init; } = 500;
+
+    /// <summary>
+    /// How often rollers move in a room without a Roller Speed Controller (official client
+    /// capture, 2026-10-18: 2000 ms, n=6, the controller's slowest speed).
+    /// </summary>
     public int RollerTickMs { get; init; } = 2000;
+
+    /// <summary>
+    /// The cycle roller moves fall on: a room's rollers move on every cycle, or every few, at the
+    /// speed it runs at, so a new speed takes over from the next move (official client capture,
+    /// 2026-10-18: every move 500 ms apart or a multiple of it).
+    /// </summary>
+    public int RollerStepMs { get; init; } = 500;
+
+    /// <summary>
+    /// How often rollers move at each speed of a Roller Speed Controller (<c>conf_queue_speed</c>),
+    /// from the speed it is placed at (official client capture, 2026-10-18: 500, 1000, 1500 and
+    /// 2000 ms, n=45/27/5/4).
+    /// </summary>
+    public int[] RollerSpeedControlTickMs { get; init; } = [500, 1000, 1500, 2000];
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
 

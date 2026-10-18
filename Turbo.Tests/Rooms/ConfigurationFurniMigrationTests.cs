@@ -19,6 +19,10 @@ public sealed class ConfigurationFurniMigrationTests
         typeof(MapConfigurationControllerLogic),
         new[] { "conf_handitem_block", "conf_chooser_disable" }
     )]
+    [InlineData(
+        typeof(MapRollerSpeedAndWiredDisableLogic),
+        new[] { "conf_queue_speed", "conf_wired_disable" }
+    )]
     public void The_configuration_furni_get_logics_the_room_registers(
         Type migration,
         string[] names
