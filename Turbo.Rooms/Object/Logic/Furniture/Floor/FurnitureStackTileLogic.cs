@@ -45,6 +45,7 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         if (!await HasRightsAsync(ctx))
             return Reject(ctx, interaction, "no rights");
 
+        // A move that goes nowhere is still answered with the helper where it is (lab49).
         Altitude? target = interaction switch
         {
             SetStackHeightInteraction set => Resolve(set.Height),
@@ -83,17 +84,44 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         return Math.Min(Altitude.FromInt(height).Value, max);
     }
 
-    /// <summary>The next item top above (or below) the tile's current height, if any.</summary>
-    private Altitude? Adjacent(bool down)
+    /// <summary>
+    /// Move up / Move down (official client capture lab49, build 1745, 26/26 clicks answered by the
+    /// helper's ObjectUpdate alone): up stacks it one furni higher, by the height of what rests on
+    /// its tile (a 1-high table at 0: 1, 2, 3), and not at all with nothing of any height there
+    /// (alone or on a rug: stays). Down goes to the next lower top of what rests there, then the
+    /// floor (3, 1, 0, 0). Furni on the neighbouring tiles and other helpers play no part.
+    /// Inference: with furni of different heights on the tile the tallest sets the step (only
+    /// 1-high furni were tried).
+    /// </summary>
+    private Altitude Adjacent(bool down)
     {
         var current = _ctx.RoomObject.Z.Value;
-        var tops = OtherTops().Select(x => x.Value);
+        var others = FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Where(other => other.ObjectId != _ctx.ObjectId)
+            .ToList();
 
-        var candidates = down
-            ? tops.Where(x => x < current).OrderByDescending(x => x)
-            : tops.Where(x => x > current).OrderBy(x => x);
+        if (!down)
+        {
+            var step = others
+                .Select(x => x.GetStackHeight().Value)
+                .Where(x => x > 0)
+                .DefaultIfEmpty(0)
+                .Max();
 
-        return candidates.Cast<double?>().FirstOrDefault() is { } next ? next : null;
+            return step > 0
+                ? Math.Min(current + step, _roomGrain._roomConfig.MaxStackHeight.Value)
+                : current;
+        }
+
+        var floor = _roomGrain._state.Model?.BaseHeights[_ctx.GetTileIdx()].Value ?? 0;
+        var below = others
+            .Select(x => x.Z.Value + x.GetStackHeight().Value)
+            .Where(x => x < current && x > floor)
+            .DefaultIfEmpty(floor)
+            .Max();
+
+        return Math.Min(below, current);
     }
 
     /// <summary>Top surfaces of every other floor item sharing this tile.</summary>

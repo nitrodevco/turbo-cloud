@@ -84,24 +84,55 @@ public sealed class StackHelperTests
                 .SelectMany(x => x.Composers),
         ];
 
-    [Fact]
-    public async Task Move_up_and_down_go_to_the_next_top_on_the_helpers_tile()
+    private async Task<List<double>> ClicksAsync(IRoomFloorItem helper, params bool[] downs)
     {
+        var seen = new List<double>();
+
+        foreach (var down in downs)
+        {
+            (await MoveAsync(down)).Should().BeTrue("every click is answered");
+            seen.Add(helper.Z.Value);
+        }
+
+        return seen;
+    }
+
+    [Fact]
+    public async Task Move_up_stacks_one_furni_higher_and_move_down_goes_to_the_next_top_then_the_floor()
+    {
+        // lab49 B: a 1-high table at 0 on the helper's tile, up x3 then down x3 (2 runs identical).
         var helper = AddHelper(2, 2);
         AddBlock(LOW, 2, 2, 0);
-        AddBlock(HIGH, 2, 2, 1.5);
 
-        (await MoveAsync(down: false)).Should().BeTrue();
-        helper.Z.Value.Should().Be(1.0, "the low block's top");
+        (await ClicksAsync(helper, false, false, false, true, true, true))
+            .Should()
+            .Equal(1, 2, 3, 1, 0, 0);
+    }
 
-        (await MoveAsync(down: false)).Should().BeTrue();
-        helper.Z.Value.Should().Be(2.5, "the high block's top");
+    [Fact]
+    public async Task With_nothing_of_any_height_on_its_tile_the_helper_stays_and_is_sent_anyway()
+    {
+        // lab49 A (alone, 4/4) and B (a rug, 4/4); C: furni on the neighbouring tile play no part.
+        var helper = AddHelper(2, 2);
+        AddBlock(HIGH, 3, 2, 0);
 
-        (await MoveAsync(down: false)).Should().BeFalse("nothing is higher");
-        helper.Z.Value.Should().Be(2.5);
+        (await ClicksAsync(helper, false, false, true, true)).Should().Equal(0, 0, 0, 0);
+        SentToRoom()
+            .OfType<ObjectUpdateMessageComposer>()
+            .Should()
+            .HaveCount(4, "each click is answered with the helper's ObjectUpdate");
 
-        (await MoveAsync(down: true)).Should().BeTrue();
-        helper.Z.Value.Should().Be(1.0);
+        var rug = _room.AddFloorItem(LOW, 2, 2, canWalk: true);
+        RoomHarness.SetMember(
+            rug,
+            "Definition",
+            rug.Definition with
+            {
+                StackHeight = Altitude.Zero,
+            }
+        );
+
+        (await ClicksAsync(helper, false)).Should().Equal(0);
     }
 
     [Fact]
