@@ -53,6 +53,10 @@ public sealed partial class RoomPetModule
         );
         var (x, y) = (seed.X, seed.Y);
 
+        // Used up before the plant is created: the plant is written at once, so a seed deleted
+        // after it outlived it by a write and a crash in between left both.
+        await ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, ct);
+
         var plant = await _roomGrain
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
             .CreatePetAsync(
@@ -70,9 +74,11 @@ public sealed partial class RoomPetModule
             );
 
         if (plant is null)
-            return false;
+        {
+            await ActionModule.GiveBackUsedItemAsync(seed, ct);
 
-        await ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, ct);
+            return false;
+        }
 
         return await PlacePetAsync(ctx, plant.Id, x, y, ct);
     }

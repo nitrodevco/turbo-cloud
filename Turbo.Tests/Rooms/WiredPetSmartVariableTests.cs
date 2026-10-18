@@ -213,13 +213,6 @@ public sealed class WiredPetSmartVariableTests
     [Fact]
     public async Task A_planted_seed_grows_into_a_plant_of_one_of_the_twelve_shapes()
     {
-        var seed = _room.AddFloorItem(
-            60,
-            3,
-            3,
-            "mnstr_seed",
-            createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
-        );
         var shapes = new HashSet<int>();
         ImmutableArray<PetBreedSnapshot> palettes =
         [
@@ -253,12 +246,23 @@ public sealed class WiredPetSmartVariableTests
             return Task.FromResult<PetSnapshot?>(null);
         };
 
+        // The seed is used up before the plant is created, so each use plants a new one.
         for (var i = 0; i < 300; i++)
+        {
+            var seed = _room.AddFloorItem(
+                60,
+                3,
+                3,
+                "mnstr_seed",
+                createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+            );
+
             await seed.Logic.OnUseAsync(
-                ActionContext.CreateForPlayer((PlayerId)77, (RoomId)1),
+                ActionContext.CreateForPlayer((PlayerId)1, (RoomId)1),
                 0,
                 Ct
             );
+        }
 
         shapes.Should().BeEquivalentTo(Enumerable.Range(1, 12));
     }
