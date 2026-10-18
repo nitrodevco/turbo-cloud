@@ -642,14 +642,20 @@ public sealed partial class RoomWiredSystem
     /// <summary>
     /// One page of holders (page from 1, size 50 by default and at most 100). The items carry
     /// the entity's id beside the value and its times (inference: the document leaves the item
-    /// shape open); ordered by creation time unless <c>order_by</c> says otherwise.
+    /// shape open); ordered by creation time unless <c>order_by</c> says otherwise. A page below
+    /// 1 is refused: Habbo answered page 0 with a 400. Only the status was observed; the error
+    /// code is the document's code for a bad value (inference).
     /// </summary>
     private WiredWebApiResponse ListHolders(
         FurnitureWiredVariableLogic variable,
         WiredWebApiRequest request
     )
     {
-        var page = Math.Max(1, request.Page ?? 1);
+        var page = request.Page ?? 1;
+
+        if (page < 1)
+            return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
+
         var size = Math.Clamp(request.Size ?? DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
         var descending = string.Equals(
             request.OrderDir,
