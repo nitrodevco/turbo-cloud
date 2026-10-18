@@ -12,6 +12,7 @@ using Turbo.Database.Entities.Habbicons;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Moderation;
+using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Pets;
@@ -258,6 +259,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerPermissionNodeEntity> PlayerPermissionNodes { get; init; }
     public DbSet<PlayerPermissionMetaEntity> PlayerPermissionMeta { get; init; }
     public DbSet<PermissionAuditEntity> PermissionAudit { get; init; }
+
+    public DbSet<AssetMovementOutboxEntity> AssetMovementOutbox { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

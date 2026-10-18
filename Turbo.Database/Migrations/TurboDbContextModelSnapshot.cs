@@ -3946,6 +3946,128 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_sanctions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Movements.AssetMovementOutboxEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int?>("ActivityPointType")
+                        .HasColumnType("int")
+                        .HasColumnName("activity_point_type");
+
+                    b.Property<int>("Actor")
+                        .HasColumnType("int")
+                        .HasColumnName("actor");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("AssetId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("asset_id");
+
+                    b.Property<byte>("AssetKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("asset_kind");
+
+                    b.Property<string>("Cause")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("cause");
+
+                    b.Property<string>("CauseRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("cause_ref");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CurrencyType")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_type");
+
+                    b.Property<int>("DefinitionId")
+                        .HasColumnType("int")
+                        .HasColumnName("definition_id");
+
+                    b.Property<byte>("FromKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("from_kind");
+
+                    b.Property<int>("FromOwner")
+                        .HasColumnType("int")
+                        .HasColumnName("from_owner");
+
+                    b.Property<long>("FromPlace")
+                        .HasColumnType("bigint")
+                        .HasColumnName("from_place");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)")
+                        .HasColumnName("operation_id");
+
+                    b.Property<int?>("Rotation")
+                        .HasColumnType("int")
+                        .HasColumnName("rot");
+
+                    b.Property<short>("Seq")
+                        .HasColumnType("smallint")
+                        .HasColumnName("seq");
+
+                    b.Property<string>("SnapshotExtraData")
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext")
+                        .HasColumnName("snapshot_extra_data");
+
+                    b.Property<byte>("ToKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("to_kind");
+
+                    b.Property<int>("ToOwner")
+                        .HasColumnType("int")
+                        .HasColumnName("to_owner");
+
+                    b.Property<long>("ToPlace")
+                        .HasColumnType("bigint")
+                        .HasColumnName("to_place");
+
+                    b.Property<int?>("WallOffset")
+                        .HasColumnType("int")
+                        .HasColumnName("wall_offset");
+
+                    b.Property<int?>("X")
+                        .HasColumnType("int")
+                        .HasColumnName("x");
+
+                    b.Property<int?>("Y")
+                        .HasColumnType("int")
+                        .HasColumnName("y");
+
+                    b.Property<double?>("Z")
+                        .HasColumnType("double")
+                        .HasColumnName("z");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("asset_movement_outbox");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorEventCategoryEntity", b =>
                 {
                     b.Property<int>("Id")

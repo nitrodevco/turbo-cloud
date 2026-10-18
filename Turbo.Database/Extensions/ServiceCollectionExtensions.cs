@@ -12,6 +12,7 @@ using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Delegates;
 using Turbo.Database.Migrations;
+using Turbo.Database.Movements;
 
 namespace Turbo.Database.Extensions;
 
@@ -72,6 +73,28 @@ public static class ServiceCollectionExtensions
                     mysql => mysql.MigrationsAssembly("Turbo.Database")
                 )
         );
+
+        return services;
+    }
+
+    /// <summary>
+    /// The asset movement recorder (<c>Turbo:Movements</c>, <c>docs/movements.md</c>); also the
+    /// hosted service that writes its marker rows.
+    /// </summary>
+    public static IServiceCollection AddTurboMovements(
+        this IServiceCollection services,
+        HostApplicationBuilder builder
+    )
+    {
+        services.Configure<MovementsConfig>(
+            builder.Configuration.GetSection(MovementsConfig.SECTION_NAME)
+        );
+
+        services.AddSingleton<AssetMovementRecorder>();
+        services.AddSingleton<IAssetMovementRecorder>(sp =>
+            sp.GetRequiredService<AssetMovementRecorder>()
+        );
+        services.AddHostedService(sp => sp.GetRequiredService<AssetMovementRecorder>());
 
         return services;
     }
