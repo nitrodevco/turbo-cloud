@@ -504,7 +504,7 @@ public class RoomEntryPreparationTests
 
     private static PacketHarness CreateHarness(RoomEntryAccessType access)
     {
-        var harness = new PacketHarness();
+        var harness = new PacketHarness().WithRoomsExisting();
         harness.Fakes.Handlers["GetPendingRoomAsync"] = _ =>
             Task.FromResult(new RoomPendingSnapshot { RoomId = -1, State = RoomEntryState.None });
         harness.Fakes.Handlers["GetPendingRoomEntryAsync"] = _ =>

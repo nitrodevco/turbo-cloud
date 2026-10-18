@@ -45,6 +45,18 @@ public sealed class PacketHarness
     }
 
     /// <summary>An incoming header id by its constant name in the revision's Headers.cs.</summary>
+    /// <summary>
+    /// Every room id names a room: a room entry asks the navigator's room cache first, which is
+    /// not built here.
+    /// </summary>
+    public PacketHarness WithRoomsExisting()
+    {
+        Resolver.Overrides[typeof(Turbo.Primitives.Navigator.INavigatorService)] =
+            Fakes.Create<Turbo.Primitives.Navigator.INavigatorService>();
+        Fakes.Handlers["RoomExistsAsync"] = _ => Task.FromResult(true);
+        return this;
+    }
+
     public static int Incoming(string name) => Header("MessageEvent", name);
 
     /// <summary>An outgoing header id by its constant name in the revision's Headers.cs.</summary>

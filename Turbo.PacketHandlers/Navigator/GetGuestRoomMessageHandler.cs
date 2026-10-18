@@ -6,6 +6,7 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -17,13 +18,20 @@ namespace Turbo.PacketHandlers.Navigator;
 /// picked the room in the navigator. <c>OpeningConnection</c> tells the client whether the server
 /// is opening the room on its behalf; when false the client shows the doorbell or password prompt,
 /// or sends OpenFlatConnection itself. With <c>enterRoom = true</c> the client is already inside
-/// and only wants the info.
+/// and only wants the info. A room id with no room behind it (deleted, or never there) gets no
+/// answer at all, as on Habbo (official client capture 2026-10-18, 7 of 7 requests silent): every
+/// client entry path asks for the room first and enters only on its result, so the player stays
+/// where they are.
 /// </summary>
-public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory grainFactory)
-    : IMessageHandler<GetGuestRoomMessage>
+public class GetGuestRoomMessageHandler(
+    IRoomService roomService,
+    IGrainFactory grainFactory,
+    INavigatorService navigatorService
+) : IMessageHandler<GetGuestRoomMessage>
 {
     private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly INavigatorService _navigatorService = navigatorService;
 
     public ValueTask HandleAsync(
         GetGuestRoomMessage message,
@@ -47,6 +55,10 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
     )
     {
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+            return;
+
+        // Asked before the room grain, whose activation would fail on the missing row.
+        if (!await _navigatorService.RoomExistsAsync(message.RoomId, ct).ConfigureAwait(false))
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(message.RoomId);

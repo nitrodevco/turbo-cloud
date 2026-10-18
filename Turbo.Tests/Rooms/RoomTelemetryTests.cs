@@ -16,7 +16,7 @@ public class RoomTelemetryTests
     [Fact]
     public async Task DirectEntry_DeniedByRoomServiceKeepsProtocolOrderAndNestsAccessSpans()
     {
-        var harness = new PacketHarness();
+        var harness = new PacketHarness().WithRoomsExisting();
         var activities = new List<Activity>();
         using var listener = Listen(activities);
         harness.Fakes.Handlers["GetPendingRoomAsync"] = _ =>
@@ -64,7 +64,7 @@ public class RoomTelemetryTests
     [Fact]
     public async Task DirectEntry_WhenAccessIsCanceledRethrowsAndMarksCanceled()
     {
-        var harness = new PacketHarness();
+        var harness = new PacketHarness().WithRoomsExisting();
         var activities = new List<Activity>();
         using var listener = Listen(activities);
         harness.Fakes.Handlers["GetPendingRoomAsync"] = _ =>
