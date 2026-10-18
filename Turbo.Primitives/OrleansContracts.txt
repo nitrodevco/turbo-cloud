@@ -278,7 +278,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
   6758D5B2: ReleaseHoldAsync(Turbo.Primitives.Players.OutboundHold, System.Threading.CancellationToken) -> Task
   504F327F: SendComposerAsync(System.Collections.Generic.IReadOnlyList<Turbo.Primitives.Networking.IComposer>, System.Threading.CancellationToken) -> Task
   2FF5A313: SendComposerAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task
-  F69CCEBC: SetActiveRoomAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
+  B4C2665B: SetActiveRoomAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   40D8DA12: SetClientCapabilitiesAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Networking.Capabilities.ClientCapabilitySnapshot>, System.Threading.CancellationToken) -> Task
   BD98A891: SetPendingRoomAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Enums.RoomEntryState, System.Threading.CancellationToken) -> Task
   8C30BF4D: TrySendComposerAsync(Turbo.Primitives.Networking.IComposer, System.Threading.CancellationToken) -> Task<bool>
