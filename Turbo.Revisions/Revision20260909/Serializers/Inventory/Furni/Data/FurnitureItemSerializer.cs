@@ -22,7 +22,7 @@ internal class FurnitureItemSerializer
             .WriteBoolean(item.Definition.CanRecycle)
             .WriteBoolean(item.Definition.CanTrade)
             .WriteBoolean(item.Definition.CanGroup)
-            .WriteBoolean(item.Definition.CanSell)
+            .WriteBoolean(item.Definition.IsSellable)
             .WriteInteger(item.SecondsToExpiration)
             .WriteBoolean(item.HasRentPeriodStarted)
             .WriteInteger(item.RoomId);

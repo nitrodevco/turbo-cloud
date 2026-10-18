@@ -332,7 +332,7 @@ public sealed class MarketplaceService(
         // One posting is one kind of furni (Flash offers the items of one inventory group).
         if (
             items.Length != itemIds.Count
-            || items.Any(x => !x.Definition.CanSell || x.Definition.Id != items[0].Definition.Id)
+            || items.Any(x => !x.Definition.IsSellable || x.Definition.Id != items[0].Definition.Id)
         )
             return MarketplaceMakeOfferCode.TechnicalError;
 
