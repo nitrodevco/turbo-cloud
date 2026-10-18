@@ -39,7 +39,21 @@ public sealed partial class RoomMapModule
                 inNest =
                     floorItem.Logic is FurniturePetBreedingNestLogic nest && nest.Holds(avatar);
 
-                if (canSit)
+                // A pet sits lower than a player on the same seat, and a saddled one not at all.
+                var pet = avatar as IRoomPet;
+
+                if (pet is not null)
+                    canSit = canSit && PetModule.CanRest(pet);
+
+                if (canSit && pet is not null)
+                {
+                    // One lying down on the seat (an idle "lay") stays lying there.
+                    if (pet.HasStatus(AvatarStatusType.Lay))
+                        canLay = true;
+                    else if (!pet.HasStatus(AvatarStatusType.Sit))
+                        pet.Sit(true, _roomGrain._petConfig.PetSeatHeight, floorItem.Rotation);
+                }
+                else if (canSit)
                     avatar.Sit(true, floorItem.Logic.GetPostureOffset(), floorItem.Rotation);
                 else if (canLay)
                     avatar.Lay(true, floorItem.Logic.GetPostureOffset(), floorItem.Rotation);

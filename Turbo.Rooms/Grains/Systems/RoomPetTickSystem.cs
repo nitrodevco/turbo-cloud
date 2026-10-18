@@ -134,6 +134,13 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         )
             return;
 
+        // Official pets go and play with a toy in the room on their own now and then.
+        if (
+            module.Chance(Config.ToyPlayChancePercent)
+            && await module.WalkToSupplyAsync(pet, PetSupplyType.Toy, ct)
+        )
+            return;
+
         if (module.Chance(Config.FreeRoamWalkChancePercent))
         {
             await WanderAsync(pet, ct);
@@ -291,7 +298,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             if (!map.InBounds(x, y) || (x == pet.X && y == pet.Y))
                 continue;
 
-            if (!module.IsTileFreeForNpc(map.ToIdx(x, y)))
+            if (!module.IsTileFreeForPetWalk(pet, map.ToIdx(x, y)))
                 continue;
 
             pet.Sit(false);
@@ -308,22 +315,21 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (Config.IdleActionsByType.TryGetValue(pet.TypeId, out var actions) && actions.Length > 0)
         {
-            ShowIdleAction(pet, actions[module.NextRandom(0, actions.Length)]);
+            ShowIdleAction(pet, PickWeighted(actions));
 
             return;
         }
 
         switch (module.NextRandom(0, 6))
         {
-            case 0 when module.CanRest(pet):
+            case 0 when module.CanRest(pet) && !module.TryGetSeat(pet, out _):
                 pet.Sit(true);
                 break;
             case 1 when module.CanRest(pet):
-                pet.Lay(true);
+                pet.Lay(true, module.TryGetSeat(pet, out _) ? Config.PetSeatHeight : null);
                 break;
             case 2:
-                pet.Sit(false);
-                pet.Lay(false);
+                module.StandOrStaySeated(pet);
                 pet.AddStatus(AvatarStatusType.WagTail, string.Empty);
                 pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.ActionDurationMs;
                 break;
@@ -331,8 +337,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
                 await module.SpeakAsync(pet, ct);
                 break;
             default:
-                pet.Sit(false);
-                pet.Lay(false);
+                module.StandOrStaySeated(pet);
                 // Looking round turns the whole pet, head with body, as an avatar turns.
                 pet.SetRotation((Rotation)module.NextRandom(0, 8));
                 break;
@@ -340,30 +345,79 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
     }
 
     /// <summary>
-    /// One of the type's own idle actions: "sit" / "lay" to rest (a saddled pet stays standing),
-    /// otherwise a posture or "gst &lt;gesture&gt;" shown on its feet for a moment.
+    /// One of the actions, each as likely as its ":&lt;weight&gt;" suffix says (1 without one);
+    /// the action is returned without its weight.
+    /// </summary>
+    private string PickWeighted(string[] actions)
+    {
+        var total = 0;
+
+        foreach (var action in actions)
+            total += Weight(action).Weight;
+
+        var roll = PetModule.NextRandom(0, Math.Max(1, total));
+
+        foreach (var action in actions)
+        {
+            var (name, weight) = Weight(action);
+
+            if (roll < weight)
+                return name;
+
+            roll -= weight;
+        }
+
+        return Weight(actions[^1]).Name;
+
+        static (string Name, int Weight) Weight(string action)
+        {
+            var colon = action.LastIndexOf(':');
+
+            return colon > 0 && int.TryParse(action[(colon + 1)..], out var weight)
+                ? (action[..colon], Math.Max(0, weight))
+                : (action, 1);
+        }
+    }
+
+    /// <summary>
+    /// One of the type's own idle actions: "std" to just stand, "sit" / "lay" to rest (a saddled
+    /// pet stays standing), otherwise a posture or "gst &lt;gesture&gt;" shown for a moment. A
+    /// pet on a seat stays seated through all of them and lies down at its seat height there.
     /// </summary>
     private void ShowIdleAction(IRoomPet pet, string action)
     {
         var parts = action.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length == 0 || !STATUS_BY_CODE.TryGetValue(parts[0], out var status))
+        if (parts.Length == 0)
+            return;
+
+        var standOnly = parts[0].Equals("std", StringComparison.OrdinalIgnoreCase);
+
+        if (!standOnly && !STATUS_BY_CODE.TryGetValue(parts[0], out _))
             return;
 
         PetModule.ClearActionStatuses(pet);
+        PetModule.StandOrStaySeated(pet);
+
+        if (standOnly)
+            return;
+
+        var status = STATUS_BY_CODE[parts[0]];
 
         if (status is AvatarStatusType.Sit or AvatarStatusType.Lay)
         {
-            var rest = PetModule.CanRest(pet);
+            if (!PetModule.CanRest(pet))
+                return;
 
-            pet.Sit(rest && status == AvatarStatusType.Sit);
-            pet.Lay(rest && status == AvatarStatusType.Lay);
+            var onSeat = PetModule.TryGetSeat(pet, out _);
+
+            if (status == AvatarStatusType.Lay)
+                pet.Lay(true, onSeat ? Config.PetSeatHeight : null);
+            else if (!onSeat)
+                pet.Sit(true);
 
             return;
         }
-
-        pet.Sit(false);
-        pet.Lay(false);
 
         pet.AddStatus(status, parts.Length > 1 ? parts[1] : string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
