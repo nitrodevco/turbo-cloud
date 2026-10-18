@@ -30,11 +30,13 @@ internal sealed class CatalogEndpoints(
     AdminCatalogQueries catalog,
     ICatalogEditService editor,
     AdminCatalogBuilder builder,
-    AdminCatalogAudit audit
+    AdminCatalogAudit audit,
+    AdminCatalogImport importer
 )
 {
     private const string NO_ACCESS = "You can't see the catalog.";
     private const string NO_MANAGE = "You can't change the catalog.";
+    private const string NO_IMPORT = "You can't import a catalog.";
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -88,6 +90,8 @@ internal sealed class CatalogEndpoints(
         );
         group.MapPost("/generate/preview", PreviewGenerateAsync);
         group.MapPost("/generate", GenerateAsync);
+        group.MapPost("/import/preview", PreviewImportAsync);
+        group.MapPost("/import", ImportAsync);
     }
 
     private async Task<IResult> TreeAsync(HttpContext http, CancellationToken ct) =>
@@ -565,6 +569,46 @@ internal sealed class CatalogEndpoints(
                 .ConfigureAwait(false)
         );
     }
+
+    /// <summary>What importing a capture would add and change; nothing is changed.</summary>
+    private async Task<IResult> PreviewImportAsync(
+        CatalogImportRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!await CanImportAsync(http, false, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
+
+        return Built(await importer.PlanAsync(request, ct).ConfigureAwait(false));
+    }
+
+    private async Task<IResult> ImportAsync(
+        CatalogImportRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!await CanImportAsync(http, true, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
+
+        return Built(
+            await importer
+                .ApplyAsync(AdminIdentity.Of(http).PlayerId, request, ct)
+                .ConfigureAwait(false)
+        );
+    }
+
+    /// <summary>Whether the staff member holds <c>admin.catalog.import</c>, and to make it <c>catalog.manage</c> too.</summary>
+    private async Task<bool> CanImportAsync(HttpContext http, bool apply, CancellationToken ct) =>
+        await grainFactory
+            .HasPermissionAsync(
+                AdminIdentity.Of(http).PlayerId,
+                PermissionNodes.Admin.CATALOG_IMPORT,
+                ct
+            )
+            .ConfigureAwait(false)
+        && (!apply || await CanManageAsync(http, ct).ConfigureAwait(false));
 
     /// <summary>A page builder's plan or result, or why there is none.</summary>
     private static IResult Built<T>(CatalogBuildOutcome<T> outcome)
