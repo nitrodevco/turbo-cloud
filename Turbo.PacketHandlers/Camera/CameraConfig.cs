@@ -61,6 +61,9 @@ public sealed class CameraConfig
     /// <summary>The effect map naming each avatar effect's library (the client's <c>effectmap.url</c>); empty uses the script's default.</summary>
     public string RendererEffectMapUrl { get; init; } = "";
 
+    /// <summary>The pet libraries a pet's sprites and palettes are drawn from (the client's <c>asset.bundles.pets</c>); empty uses the script's default.</summary>
+    public string RendererPetUrl { get; init; } = "";
+
     /// <summary>
     /// Where the photo lab's composite and frame pictures are, <c>&lt;name&gt;.png</c> under it (the
     /// client's <c>image.library.url</c> + <c>Habbo-Stories/</c>); empty uses the script's default.
