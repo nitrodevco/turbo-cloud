@@ -160,7 +160,12 @@ internal sealed partial class PlayerAchievementGrain
                 }
                 await _grains
                     .GetPlayerBadgeGrain(_state.PlayerId)
-                    .GrantAchievementAsync(progress.AchievementId, open.Level, level.BadgeCode, ct);
+                    .GrantAchievementAsync(
+                        progress.AchievementId,
+                        open.Level,
+                        [.. definition.Levels.Select(x => x.BadgeCode)],
+                        ct
+                    );
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 // The earned-level total moves by the levels this completion adds to the
                 // achievement's highest completed level; the score by the frozen level score.

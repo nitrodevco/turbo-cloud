@@ -58,16 +58,18 @@ public static class AchievementDefaults
     }.ToImmutableDictionary(StringComparer.Ordinal);
 
     /// <summary>
-    /// Badge prefixes Habbo uses for a record whose name ends in a digit: bazaar17's level 1 is
-    /// <c>ACH_bazaar171</c> (official client capture, Achievements list 2026-10-15) and its hotel
-    /// texts name <c>ACH_bazaar171</c> .. <c>ACH_bazaar1710</c>. Profile1 and Profile2 are not
-    /// here: Habbo gives their single level <c>ACH_Profile1</c> / <c>ACH_Profile2</c>, which read
-    /// as two levels of one badge, so they keep the underscore.
+    /// Habbo's own level codes for records whose name ends in a digit (official client capture,
+    /// Achievements list 2026-10-15; hotel texts name each of them): bazaar17 is
+    /// <c>ACH_bazaar171</c> .. <c>ACH_bazaar1710</c>, and the single levels of Profile1 and
+    /// Profile2 are <c>ACH_Profile1</c> and <c>ACH_Profile2</c>. A level's family is its
+    /// achievement's list of codes, so those two stay separate badges.
     /// </summary>
-    private static readonly ImmutableDictionary<string, string> OfficialBadgePrefixes =
-        new Dictionary<string, string>(StringComparer.Ordinal)
+    private static readonly ImmutableDictionary<string, ImmutableArray<string>> OfficialBadgeCodes =
+        new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal)
         {
-            ["bazaar17"] = "ACH_bazaar17",
+            ["bazaar17"] = [.. Enumerable.Range(1, 10).Select(x => "ACH_bazaar17" + x)],
+            ["Profile1"] = ["ACH_Profile1"],
+            ["Profile2"] = ["ACH_Profile2"],
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     public static ImmutableArray<AchievementDefinition> Definitions { get; } =
@@ -313,29 +315,38 @@ public static class AchievementDefaults
         var achievement = published.GetProperty("achievement");
         var id = UNHOOKED_ID_START + achievement.GetProperty("id").GetInt32();
         // A name that ends in a digit takes an underscore before the level, unless Habbo's own
-        // codes for it are known (OfficialBadgePrefixes).
-        var badgePrefix = OfficialBadgePrefixes.TryGetValue(name, out var official)
-            ? official
-            : "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
+        // codes for it are known (OfficialBadgeCodes).
+        var badgePrefix = "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
+        var requirements = published
+            .GetProperty("levelRequirements")
+            .EnumerateArray()
+            .Select(x => x.GetProperty("requiredScore").GetInt32())
+            .ToArray();
+
+        var created = Create(
+            id,
+            KeyOf(name),
+            achievement.GetProperty("category").GetString()!,
+            AchievementSources.UNHOOKED,
+            AchievementReducer.Counter,
+            1,
+            requirements,
+            badgePrefix,
+            false,
+            0
+        );
+        if (
+            OfficialBadgeCodes.TryGetValue(name, out var official)
+            && official.Length == created.Levels.Length
+        )
+            created = created with
+            {
+                Levels = [.. created.Levels.Select((x, i) => x with { BadgeCode = official[i] })],
+            };
 
         return Rewarded(
             name,
-            Create(
-                id,
-                KeyOf(name),
-                achievement.GetProperty("category").GetString()!,
-                AchievementSources.UNHOOKED,
-                AchievementReducer.Counter,
-                1,
-                published
-                    .GetProperty("levelRequirements")
-                    .EnumerateArray()
-                    .Select(x => x.GetProperty("requiredScore").GetInt32())
-                    .ToArray(),
-                badgePrefix,
-                false,
-                0
-            ) with
+            created with
             {
                 Revision = 1,
                 State =

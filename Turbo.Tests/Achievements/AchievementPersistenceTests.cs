@@ -117,9 +117,9 @@ public sealed class AchievementPersistenceTests : IDisposable
     {
         var (_, badgeGrain) = await NewBadgeGrainAsync();
 
-        await badgeGrain.GrantAchievementAsync(10, 1, "ACH_Upgrade1", Ct);
-        await badgeGrain.GrantAchievementAsync(20, 1, "ACH_Other1", Ct);
-        await badgeGrain.GrantAchievementAsync(10, 2, "ACH_Upgrade2", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 1, Levels("ACH_Upgrade", 10), Ct);
+        await badgeGrain.GrantAchievementAsync(20, 1, Levels("ACH_Other", 10), Ct);
+        await badgeGrain.GrantAchievementAsync(10, 2, Levels("ACH_Upgrade", 10), Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.PlayerBadges.Select(x => x.BadgeCode).OrderBy(x => x).ToListAsync(Ct))
@@ -131,18 +131,19 @@ public sealed class AchievementPersistenceTests : IDisposable
     public async Task ABadgePrefixEndingInADigitStillReplacesItsLowerLevels()
     {
         var (_, badgeGrain) = await NewBadgeGrainAsync();
+        var bazaar17 = Levels("ACH_bazaar17", 10);
 
         // Habbo's bazaar17: ACH_bazaar171 .. ACH_bazaar1710 (not ACH_bazaar + 171).
-        await badgeGrain.GrantAchievementAsync(10, 1, "ACH_bazaar171", Ct);
-        await badgeGrain.GrantAchievementAsync(10, 2, "ACH_bazaar172", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 1, bazaar17, Ct);
+        await badgeGrain.GrantAchievementAsync(10, 2, bazaar17, Ct);
 
         await using (var db = await _db.CreateDbContextAsync(Ct))
             (await db.PlayerBadges.Select(x => x.BadgeCode).ToListAsync(Ct))
                 .Should()
                 .Equal("ACH_bazaar172");
 
-        await badgeGrain.GrantAchievementAsync(10, 10, "ACH_bazaar1710", Ct);
-        await badgeGrain.GrantAchievementAsync(10, 3, "ACH_bazaar173", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 10, bazaar17, Ct);
+        await badgeGrain.GrantAchievementAsync(10, 3, bazaar17, Ct);
 
         await using (var db = await _db.CreateDbContextAsync(Ct))
             (await db.PlayerBadges.Select(x => x.BadgeCode).ToListAsync(Ct))
@@ -151,10 +152,56 @@ public sealed class AchievementPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task TwoAchievementsWhoseCodesReadAsLevelsOfOneBadgeKeepBothBadges()
+    {
+        var (_, badgeGrain) = await NewBadgeGrainAsync();
+
+        // Habbo's Profile1 and Profile2 have one level each, ACH_Profile1 and ACH_Profile2
+        // (official client capture, Achievements list 2026-10-15): not levels 1 and 2 of one badge.
+        await badgeGrain.GrantAchievementAsync(10282, 1, ["ACH_Profile1"], Ct);
+        await badgeGrain.GrantAchievementAsync(10283, 1, ["ACH_Profile2"], Ct);
+        await badgeGrain.NormalizeAchievementBadgesAsync(
+            [
+                ["ACH_Profile1"],
+                ["ACH_Profile2"],
+            ],
+            Ct
+        );
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.PlayerBadges.Select(x => x.BadgeCode).OrderBy(x => x).ToListAsync(Ct))
+            .Should()
+            .Equal("ACH_Profile1", "ACH_Profile2");
+    }
+
+    [Fact]
+    public async Task ALevelReplacesTheAchievementsOwnLowerLevelCodesWhateverTheyEndIn()
+    {
+        _db.Insert(
+            new PlayerBadgeEntity
+            {
+                PlayerEntityId = PLAYER_ID,
+                BadgeCode = "ACH_Profile1",
+                SlotId = 2,
+                PlayerEntity = null!,
+            }
+        );
+        var (_, badgeGrain) = await NewBadgeGrainAsync();
+        ImmutableArray<string> levels = ["ACH_Profile1", "ACH_ProfileGold"];
+
+        await badgeGrain.GrantAchievementAsync(10, 2, levels, Ct);
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var badge = await db.PlayerBadges.SingleAsync(Ct);
+        badge.BadgeCode.Should().Be("ACH_ProfileGold");
+        badge.SlotId.Should().Be(2);
+    }
+
+    [Fact]
     public async Task RemovingAnAchievementBadgeRemovesItLikeAnyOtherBadge()
     {
         var (_, badgeGrain) = await NewBadgeGrainAsync();
-        await badgeGrain.GrantAchievementAsync(30, 1, "ACH_Earned1", Ct);
+        await badgeGrain.GrantAchievementAsync(30, 1, Levels("ACH_Earned", 10), Ct);
 
         (await badgeGrain.RemoveBadgeAsync("ACH_Earned1", Ct)).Should().BeTrue();
 
@@ -180,6 +227,10 @@ public sealed class AchievementPersistenceTests : IDisposable
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
         return ((IPlayerWalletGrain)grain, grain);
     }
+
+    /// <summary>An achievement's level codes: the prefix plus each level number.</summary>
+    private static ImmutableArray<string> Levels(string prefix, int count) =>
+        [.. Enumerable.Range(1, count).Select(x => prefix + x)];
 
     private async Task<(object Grain, IPlayerBadgeGrain Badges)> NewBadgeGrainAsync()
     {

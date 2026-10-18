@@ -24,15 +24,23 @@ public sealed class HabboAchievementPackTests
     }
 
     /// <summary>
-    /// The published name behind a definition. A name that ends in a digit has an underscore added
-    /// before the level, which is not part of the name; one that really ends in an underscore keeps it.
+    /// The published name behind a definition: the record whose API id it was given, else (the
+    /// hand-mapped ones) its first code without the level. A name that ends in a digit has an
+    /// underscore added before the level, which is not part of the name; one that really ends in
+    /// an underscore keeps it.
     /// </summary>
     private static string NameOf(
         AchievementDefinition definition,
         Dictionary<string, JsonElement> snapshot
     )
     {
-        // Every first level's code is its prefix plus "1" (ACH_bazaar171 is bazaar17's).
+        var published = snapshot.FirstOrDefault(x =>
+            AchievementDefaults.UNHOOKED_ID_START
+                + x.Value.GetProperty("achievement").GetProperty("id").GetInt32()
+            == definition.Id
+        );
+        if (published.Key is not null)
+            return published.Key;
         var name = definition.Levels[0].BadgeCode["ACH_".Length..^1];
 
         return snapshot.ContainsKey(name) ? name : name[..^1];
@@ -42,15 +50,11 @@ public sealed class HabboAchievementPackTests
     public void EveryPublishedRecordIsInThePackOrListedAsNotRepresentable()
     {
         var snapshot = Snapshot();
-        var shipped = Pack
-            .Definitions.Select(x => x.Levels[0].BadgeCode["ACH_".Length..^1])
-            .ToHashSet();
+        var shipped = Pack.Definitions.Select(x => NameOf(x, snapshot)).ToHashSet();
         var skipped = AchievementDefaults.NotRepresentable.Select(x => x.Name).ToHashSet();
 
         var missing = snapshot
-            .Keys.Where(name =>
-                !shipped.Contains(name) && !shipped.Contains(name + "_") && !skipped.Contains(name)
-            )
+            .Keys.Where(name => !shipped.Contains(name) && !skipped.Contains(name))
             .ToList();
 
         missing.Should().BeEmpty();
@@ -64,7 +68,7 @@ public sealed class HabboAchievementPackTests
         AchievementDefaults.Crackables.Should().HaveCount(9);
         AchievementDefaults.Unhooked.Should().HaveCount(141);
         Pack.Definitions.Should().HaveCount(168);
-        Pack.Version.Should().Be(5);
+        Pack.Version.Should().Be(6);
     }
 
     [Fact]
@@ -225,8 +229,9 @@ public sealed class HabboAchievementPackTests
             .Levels.Select(x => x.BadgeCode)
             .Should()
             .Equal(Enumerable.Range(1, 10).Select(x => $"ACH_bazaar17{x}"));
-        byName["Profile1"].Levels[0].BadgeCode.Should().Be("ACH_Profile1_1");
-        byName["Profile2"].Levels[0].BadgeCode.Should().Be("ACH_Profile2_1");
+        // The single levels of Profile1 and Profile2 (same capture, texts ACH_Profile1/2).
+        byName["Profile1"].Levels.Select(x => x.BadgeCode).Should().Equal("ACH_Profile1");
+        byName["Profile2"].Levels.Select(x => x.BadgeCode).Should().Equal("ACH_Profile2");
     }
 
     [Fact]

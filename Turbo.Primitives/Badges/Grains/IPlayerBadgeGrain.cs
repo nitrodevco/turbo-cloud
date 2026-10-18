@@ -37,22 +37,23 @@ public interface IPlayerBadgeGrain : IGrainWithIntegerKey
     public Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct);
 
     /// <summary>
-    /// The level's badge replaces every lower level of the achievement, worn or not; a worn level
-    /// hands its slot to the new one. A higher level already owned is kept instead.
+    /// The level's badge (<paramref name="levelCodes"/>[level - 1]) replaces every lower level of
+    /// the achievement, worn or not; a worn level hands its slot to the new one. A higher level
+    /// already owned is kept instead. The levels are the achievement's own codes in level order.
     /// </summary>
     public Task GrantAchievementAsync(
         int achievementId,
         int level,
-        string badgeCode,
+        ImmutableArray<string> levelCodes,
         CancellationToken ct
     );
 
     /// <summary>
-    /// Collapses each achievement family (badge base without its level number) to the highest
-    /// level the player owns. Cleans up badges granted before levels replaced one another.
+    /// Collapses each achievement family (one achievement's level codes in level order) to the
+    /// highest level the player owns. Cleans up badges granted before levels replaced one another.
     /// </summary>
     public Task NormalizeAchievementBadgesAsync(
-        ImmutableArray<string> badgeBases,
+        ImmutableArray<ImmutableArray<string>> families,
         CancellationToken ct
     );
 
