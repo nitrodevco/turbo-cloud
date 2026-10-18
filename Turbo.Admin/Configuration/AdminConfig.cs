@@ -173,4 +173,10 @@ public sealed class AdminConfig
     /// signed in and allowed the panel. Under the 100 seconds Cloudflare lets a quiet response sit.
     /// </summary>
     public int LiveHeartbeatSeconds { get; init; } = 25;
+
+    /// <summary>The largest body a plugin's admin endpoint is sent, in bytes; a larger one is refused.</summary>
+    public int PluginMaxBodyBytes { get; init; } = 1024 * 1024;
+
+    /// <summary>How long a plugin's admin endpoint has to answer, in seconds, before the panel is told it timed out.</summary>
+    public int PluginTimeoutSeconds { get; init; } = 30;
 }

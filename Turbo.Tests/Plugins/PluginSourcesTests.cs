@@ -390,17 +390,10 @@ public sealed class PluginSourcesTests : IDisposable
             }
             """;
 
-        _ = typeof(ITurboPlugin);
-        _ = typeof(IServiceCollection);
-
-        var references = AppDomain
-            .CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-            .Select(a => MetadataReference.CreateFromFile(a.Location));
         var compilation = CSharpCompilation.Create(
             "Sample",
             [CSharpSyntaxTree.ParseText(source)],
-            references,
+            PluginBuilder.References(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 

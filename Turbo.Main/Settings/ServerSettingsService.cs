@@ -27,9 +27,10 @@ namespace Turbo.Main.Settings;
 /// classes (<see cref="ServerSettingRegistry"/>) and the configuration, and overridden in
 /// <c>server_settings</c>, which <see cref="ServerSettingsConfigurationProvider"/> reads back.
 /// What is shown is worked out again whenever the configuration reloads - an override saved, or
-/// <c>appsettings.json</c> changed on disk - and <see cref="Version"/> goes up with it.
+/// <c>appsettings.json</c> changed on disk, a plugin's sections added or taken away - and
+/// <see cref="Version"/> goes up with it.
 /// </summary>
-internal sealed class ServerSettingsService : IServerSettings, IDisposable
+internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSections, IDisposable
 {
     private const string ENVIRONMENT_SEPARATOR = "__";
     private const string COMMAND_LINE = "command line";
@@ -44,8 +45,11 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
     private readonly SemaphoreSlim _writes = new(1, 1);
     private readonly IDisposable _reloads;
 
+    private readonly Lock _plugins = new();
+
     private int _version;
     private Read? _read;
+    private ImmutableArray<PluginSection> _pluginSections = [];
 
     public ServerSettingsService(
         IConfiguration configuration,
@@ -207,6 +211,66 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
         };
     }
 
+    public IDisposable Add(
+        string plugin,
+        IReadOnlyList<Type> types,
+        Func<Type, object?> running,
+        string? docsFile
+    )
+    {
+        var summary = SettingDocs.From(docsFile);
+        var added = types
+            .Select(type => ServerSettingRegistry.PluginSection(type, plugin, summary))
+            .OfType<ServerSettingRegistry.Section>()
+            .Select(section => new PluginSection(section, running))
+            .ToList();
+
+        lock (_plugins)
+        {
+            var taken = _registry
+                .Sections.Select(x =>
+                    (x.Name, Paths: x.Settings.Select(y => y.Path), Owner: "the server")
+                )
+                .Concat(
+                    _pluginSections.Select(x =>
+                        (
+                            x.Section.Name,
+                            Paths: x.Section.Settings.Select(y => y.Path),
+                            Owner: $"the plugin {x.Section.Plugin}"
+                        )
+                    )
+                )
+                .ToList();
+
+            foreach (var section in added.Select(x => x.Section))
+            {
+                var owner = taken
+                    .Where(x =>
+                        string.Equals(x.Name, section.Name, StringComparison.OrdinalIgnoreCase)
+                        || x.Paths.Intersect(
+                                section.Settings.Select(y => y.Path),
+                                StringComparer.OrdinalIgnoreCase
+                            )
+                            .Any()
+                    )
+                    .Select(x => x.Owner)
+                    .FirstOrDefault();
+
+                if (owner is not null)
+                    throw new ArgumentException(
+                        $"The plugin {plugin}'s settings {section.Name} are {owner}'s already.",
+                        nameof(types)
+                    );
+            }
+
+            _pluginSections = _pluginSections.AddRange(added);
+        }
+
+        Changed();
+
+        return new Removal(this, added);
+    }
+
     public void Dispose()
     {
         _reloads.Dispose();
@@ -280,6 +344,24 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
         }
     }
 
+    private void Remove(IReadOnlyList<PluginSection> sections)
+    {
+        lock (_plugins)
+            _pluginSections = _pluginSections.RemoveRange(sections);
+
+        Changed();
+    }
+
+    /// <summary>
+    /// What is shown is built again; the last read is let go at once, as it holds the plugin's
+    /// types, which would keep a plugin taken away from unloading.
+    /// </summary>
+    private void Changed()
+    {
+        _read = null;
+        Interlocked.Increment(ref _version);
+    }
+
     private Read Current()
     {
         var version = Version;
@@ -302,15 +384,26 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
         var panel = ServerSettingsConfiguration.Find(_configuration);
         var providers = (_configuration as IConfigurationRoot)?.Providers.Reverse().ToList() ?? [];
 
-        foreach (var section in _registry.Sections)
+        var plugins = _pluginSections;
+
+        foreach (
+            var (section, plugin) in _registry
+                .Sections.Select(x => (x, (PluginSection?)null))
+                .Concat(plugins.Select(x => (x.Section, (PluginSection?)x)))
+        )
         {
             var defaults = Instance(section, () => Activator.CreateInstance(section.Type));
             var configured =
                 Instance(section, () => _configuration.GetSection(section.Name).Get(section.Type))
                 ?? defaults;
-            var running = Instance(section, () => Running(section.Type));
-            var live = section.Settings.Any(x => x.Live)
-                ? Instance(section, () => Live(section.Type))
+            // A plugin's own value is what it reads through its monitor: running and live alike.
+            var running = Instance(
+                section,
+                () => plugin is null ? Running(section.Type) : plugin.Running(section.Type)
+            );
+            var live =
+                plugin is not null ? running
+                : section.Settings.Any(x => x.Live) ? Instance(section, () => Live(section.Type))
                 : null;
 
             foreach (var setting in section.Settings)
@@ -350,6 +443,7 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
                         Source = source,
                         SourceName = name,
                         PendingRestart = value != now,
+                        Plugin = section.Plugin,
                     }
                 );
             }
@@ -467,6 +561,23 @@ internal sealed class ServerSettingsService : IServerSettings, IDisposable
                 return candidate;
 
         return ANY_VARIABLE;
+    }
+
+    private sealed record PluginSection(
+        ServerSettingRegistry.Section Section,
+        Func<Type, object?> Running
+    );
+
+    private sealed class Removal(ServerSettingsService owner, IReadOnlyList<PluginSection> sections)
+        : IDisposable
+    {
+        private int _done;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0)
+                owner.Remove(sections);
+        }
     }
 
     private sealed record Read(

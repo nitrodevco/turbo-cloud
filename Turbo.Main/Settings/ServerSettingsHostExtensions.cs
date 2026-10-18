@@ -33,6 +33,9 @@ internal static class ServerSettingsHostExtensions
         builder.Services.AddSingleton<IServerSettings>(sp =>
             sp.GetRequiredService<ServerSettingsService>()
         );
+        builder.Services.AddSingleton<IPluginSettingSections>(sp =>
+            sp.GetRequiredService<ServerSettingsService>()
+        );
 
         return builder;
     }

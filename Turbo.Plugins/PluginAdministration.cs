@@ -227,12 +227,8 @@ internal sealed partial class PluginAdministration(
                     null
                 );
 
-            if (manifest.ApiVersion is { } api && api != PluginApi.VERSION)
-                return new PluginActionResult(
-                    false,
-                    $"{manifest.Name} {manifest.Version} was built for plugin API {api}{(manifest.BuiltAgainst is { } built ? $" (turbo-cloud {built})" : "")}; this server has plugin API {PluginApi.VERSION}. Install a build made for it.",
-                    null
-                );
+            if (PluginApi.Refusal(manifest) is { } apiRefusal)
+                return new PluginActionResult(false, apiRefusal, null);
 
             manager.Refresh();
 

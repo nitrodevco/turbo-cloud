@@ -19,14 +19,29 @@ internal static partial class SettingDocs
 {
     private static readonly ConcurrentDictionary<Assembly, XDocument?> FILES = new();
 
-    public static string Summary(PropertyInfo property)
+    public static string Summary(PropertyInfo property) =>
+        property.DeclaringType is { } type
+            ? Summary(FILES.GetOrAdd(type.Assembly, Read), property)
+            : string.Empty;
+
+    /// <summary>
+    /// The summaries of a plugin's settings, from the documentation file beside its assembly. A
+    /// plugin is loaded from bytes and unloaded again, so its file is read here, not kept by assembly.
+    /// </summary>
+    public static Func<PropertyInfo, string> From(string? docsFile)
+    {
+        var file = docsFile is null ? null : Load(docsFile);
+
+        return property => Summary(file, property);
+    }
+
+    private static string Summary(XDocument? file, PropertyInfo property)
     {
         var type = property.DeclaringType;
 
         if (type is null)
             return string.Empty;
 
-        var file = FILES.GetOrAdd(type.Assembly, Read);
         var member = $"P:{type.FullName?.Replace('+', '.')}.{property.Name}";
         var summary = file
             ?.Root?.Element("members")
@@ -42,8 +57,11 @@ internal static partial class SettingDocs
         if (string.IsNullOrEmpty(assembly.Location))
             return null;
 
-        var path = Path.ChangeExtension(assembly.Location, ".xml");
+        return Load(Path.ChangeExtension(assembly.Location, ".xml"));
+    }
 
+    private static XDocument? Load(string path)
+    {
         try
         {
             return File.Exists(path) ? XDocument.Load(path) : null;

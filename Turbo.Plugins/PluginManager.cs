@@ -8,17 +8,21 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
+using Turbo.Contracts.Plugins.Admin;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Settings;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -56,6 +60,9 @@ public sealed class PluginManager(
     internal PluginStateFile State { get; } = new(config.Value.PluginFolderPath);
 
     internal PluginConfig Config => _config;
+
+    /// <summary>The admin endpoints and pages of the live plugins; none in a host without them.</summary>
+    private PluginAdminRoutes? Routes => host.GetService<PluginAdminRoutes>();
 
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
@@ -329,6 +336,10 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
+        // A folder copied in by hand is held to the API as an installed package is.
+        if (PluginApi.Refusal(m) is { } refusal)
+            throw new InvalidOperationException(refusal);
+
         var inactive = m.Dependencies.Select(d => d.Key).Where(k => !_live.ContainsKey(k)).ToList();
 
         if (inactive.Count > 0)
@@ -357,6 +368,8 @@ public sealed class PluginManager(
         if (current is not null)
         {
             // Until the new version is up, nothing of the plugin is registered: not "loaded".
+            Routes?.Reloading(m.Key);
+
             if (_status.TryGetValue(m.Key, out var was))
                 _status[m.Key] = was with
                 {
@@ -475,10 +488,45 @@ public sealed class PluginManager(
             );
 
         var extensions = new PluginExtensions();
-        var (sp, contexts) = CreatePluginServiceProvider(inst, m, extensions);
+        var (sp, contexts, settings) = CreatePluginServiceProvider(inst, m, extensions);
+        var disposables = new List<object> { sp };
 
-        await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
-        await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
+        try
+        {
+            // Its settings are listed while it is live, from before it starts reading them.
+            if (settings.Count > 0 && host.GetService<IPluginSettingSections>() is { } sections)
+                disposables.Insert(
+                    0,
+                    sections.Add(
+                        m.Key,
+                        settings,
+                        type => RunningOptions(sp, type),
+                        Path.ChangeExtension(PluginHelpers.GetAssemblyPath(folder, m), ".xml")
+                    )
+                );
+
+            // Its admin nodes are registered before it starts; its endpoints and pages go live
+            // once it has, and are taken away first when it stops.
+            var admin = sp.GetService<IPluginAdmin>() is { } extension
+                ? PluginAdminRoutes.Build(m.Key, m.Name, m.Version, extension)
+                : null;
+
+            if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
+                disposables.Insert(0, nodes.Register(admin.Nodes));
+
+            await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
+            await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
+
+            if (admin is not null && Routes is { } routes)
+                disposables.Insert(0, routes.Live(m.Key, admin));
+        }
+        catch
+        {
+            foreach (var disposable in disposables.OfType<IDisposable>())
+                disposable.Dispose();
+
+            throw;
+        }
 
         _status[m.Key] = new PluginStatus(
             m,
@@ -499,7 +547,7 @@ public sealed class PluginManager(
             Folder = folder,
             Instance = inst,
             ServiceProvider = sp,
-            Disposables = [sp],
+            Disposables = disposables,
         };
     }
 
@@ -534,10 +582,16 @@ public sealed class PluginManager(
     }
 
     /// <summary>
-    /// The plugin's own container, and the database contexts it registered, whose applied
-    /// migrations the admin panel lists.
+    /// The plugin's own container, the database contexts it registered, whose applied migrations
+    /// the admin panel lists, and the config classes it binds, whose settings the panel shows. The
+    /// host's configuration is in the container, so a plugin binds a class to its section as a
+    /// module does (<c>services.AddOptions&lt;T&gt;().BindConfiguration(T.SECTION_NAME)</c>).
     /// </summary>
-    private (ServiceProvider Services, List<Type> Contexts) CreatePluginServiceProvider(
+    private (
+        ServiceProvider Services,
+        List<Type> Contexts,
+        List<Type> Settings
+    ) CreatePluginServiceProvider(
         ITurboPlugin plugin,
         PluginManifest manifest,
         PluginExtensions extensions
@@ -550,6 +604,9 @@ public sealed class PluginManager(
         services.AddSingleton<IHostServices>(new HostServices(host, extensions));
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
+        if (host.GetService<IConfiguration>() is { } configuration)
+            services.AddSingleton(configuration);
+
         plugin.ConfigureServices(services, manifest);
 
         var contexts = services
@@ -558,7 +615,40 @@ public sealed class PluginManager(
             .Distinct()
             .ToList();
 
-        return (services.BuildServiceProvider(SP_OPTIONS), contexts);
+        var settings = services
+            .Select(d => d.ServiceType)
+            .Where(t =>
+                t.IsGenericType
+                && t.GetGenericTypeDefinition() == typeof(IOptionsChangeTokenSource<>)
+            )
+            .Select(t => t.GetGenericArguments()[0])
+            .Distinct()
+            .ToList();
+
+        return (services.BuildServiceProvider(SP_OPTIONS), contexts, settings);
+    }
+
+    /// <summary>
+    /// The plugin's value of a config class now (<see cref="IOptionsMonitor{TOptions}"/>, which
+    /// follows the configuration); null when it can't be read.
+    /// </summary>
+    private object? RunningOptions(IServiceProvider sp, Type type)
+    {
+        try
+        {
+            var monitor = sp.GetService(typeof(IOptionsMonitor<>).MakeGenericType(type));
+
+            return monitor
+                ?.GetType()
+                .GetProperty(nameof(IOptionsMonitor<object>.CurrentValue))
+                ?.GetValue(monitor);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read a plugin's {Type} settings", type.Name);
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -718,8 +808,14 @@ public sealed class PluginManager(
         }
     }
 
-    private void SetStatus(PluginManifest m, string folder, PluginStateType state, string? error) =>
+    private void SetStatus(PluginManifest m, string folder, PluginStateType state, string? error)
+    {
+        // Turned off or failed: what it served in the panel answers "off" until it is back.
+        if (state != PluginStateType.Loaded)
+            Routes?.Off(m.Key);
+
         _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
+    }
 
     /// <summary>Forgets plugins whose folder is gone and that are not live.</summary>
     private void ForgetGone(IEnumerable<(PluginManifest Manifest, string Folder)> plugins)
