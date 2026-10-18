@@ -280,6 +280,52 @@ public sealed class ChatHeadRevertTests
         Updates().Should().HaveCount(before + 1);
     }
 
+    /// <summary>
+    /// Every line of the seated and lying samples (official client capture, 2026-10-18, lab52 Q3:
+    /// a chair facing south, a bed facing east, 10 speaker positions): the head and body never
+    /// change; where a standing listener would turn, one unchanged update, else none.
+    /// </summary>
+    [Theory]
+    [InlineData("chair", Rotation.South, 0, -2, false)]
+    [InlineData("chair", Rotation.South, -2, -2, false)]
+    [InlineData("chair", Rotation.South, -3, 0, true)]
+    [InlineData("chair", Rotation.South, -2, 2, true)]
+    [InlineData("chair", Rotation.South, -1, 3, true)]
+    [InlineData("bed", Rotation.East, 4, 0, false)]
+    [InlineData("bed", Rotation.East, 3, 2, true)]
+    [InlineData("bed", Rotation.East, 0, 2, true)]
+    [InlineData("bed", Rotation.East, 3, -2, false)]
+    [InlineData("bed", Rotation.East, 0, -1, true)]
+    public async Task A_seated_or_lying_listener_keeps_head_and_body_for_each_recorded_speaker_position(
+        string seat,
+        Rotation body,
+        int dx,
+        int dy,
+        bool updated
+    )
+    {
+        _room
+            .AddFloorItem(50, 8, 8, canSit: seat == "chair", canLay: seat == "bed")
+            .SetRotation(body);
+        Enter(SPEAKER, "speaker", 8 + dx, 8 + dy, Rotation.North);
+        var listener = Enter(LISTENER, "listener", 8, 8, body);
+        if (seat == "chair")
+            listener.Sit(true, rot: body);
+        else
+            listener.Lay(true, rot: body);
+        var start = Now();
+        await TickAsync(start);
+        var before = Updates().Count;
+
+        await SayAsync(RoomChatType.Chat);
+        await TickAsync(start + 1_000);
+        await TickAsync(start + 5_600);
+
+        listener.HeadRotation.Should().Be(body);
+        listener.Rotation.Should().Be(body);
+        Updates().Should().HaveCount(updated ? before + 1 : before);
+    }
+
     [Fact]
     public async Task A_listener_held_by_a_seat_gets_nothing_where_it_would_not_turn()
     {

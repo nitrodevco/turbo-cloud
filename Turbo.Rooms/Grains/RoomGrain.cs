@@ -230,6 +230,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule.Register(VariableLeaderboardSystem);
         FurniModule.RegisterPlacementLimit(WiredSystem);
         FurniModule.RegisterPlacementLimit(VariableFxSystem);
+        FurniModule.RegisterPlacementLimit(RollerSystem);
         EventModule.Register(ChatSystem);
         EventModule.Register(WiredChestSystem);
     }

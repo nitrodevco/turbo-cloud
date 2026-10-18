@@ -80,6 +80,12 @@ public class RoomConfig
     /// 2000 ms, n=45/27/5/4).
     /// </summary>
     public int[] RollerSpeedControlTickMs { get; init; } = [500, 1000, 1500, 2000];
+
+    /// <summary>
+    /// How many Roller Speed Controllers a room takes (official client capture, 2026-10-18: a
+    /// second is refused with <c>room.error.type_limit</c>, 1/1).
+    /// </summary>
+    public int MaxRollerSpeedControls { get; init; } = 1;
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
 

@@ -13,4 +13,7 @@ public enum FurniturePlacementResultType
 
     /// <summary>The player may not build here: "You don't have rights to put furniture in here!"</summary>
     NotAllowed = 2,
+
+    /// <summary>The room holds as many of its kind as it may: "You have reached the limit of this type of item per room."</summary>
+    TypeLimit = 3,
 }

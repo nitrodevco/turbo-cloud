@@ -1,15 +1,19 @@
 using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -85,6 +89,34 @@ public sealed class WiredDisableTests
 
         await ClickAsync();
         pad.Logic.GetState().Should().Be(1, "the switched-on disabler left the room");
+    }
+
+    [Fact]
+    public async Task One_picked_up_while_on_is_placed_again_off_and_wired_fires()
+    {
+        var pad = await BuildStackAsync();
+        var disabler = await AddDisablerAsync();
+        await disabler.Logic.OnUseAsync(Owner, 0, Ct);
+        await _room.Harness.Module<RoomObjectModule>().RemoveObjectAsync(Owner, disabler, Ct, 1);
+        var addsBefore = SentToRoom<ObjectAddMessageComposer>().Count();
+
+        (
+            await _room
+                .Harness.Module<RoomFurniModule>()
+                .PlaceFloorItemAsync(Owner, disabler, 6, 6, Rotation.North, Ct)
+        )
+            .Should()
+            .BeTrue();
+
+        disabler.Logic.GetState().Should().Be(0);
+        (
+            (LegacyStuffSnapshot)
+                SentToRoom<ObjectAddMessageComposer>().Skip(addsBefore).Single().FloorItem.StuffData
+        )
+            .Data.Should()
+            .Be("0", "the room is told of it off");
+        await ClickAsync();
+        pad.Logic.GetState().Should().Be(1, "wired fires with the re-placed disabler");
     }
 
     [Fact]

@@ -1,5 +1,7 @@
 using System.Collections;
 using FluentAssertions;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -10,6 +12,7 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -106,6 +109,34 @@ public sealed class RollerSpeedControlTests
         await RescanAsync();
 
         (await MovesOverAsync(4_000)).Should().Equal(13_000, 15_000);
+    }
+
+    [Fact]
+    public async Task A_second_controller_is_refused_with_the_type_limit()
+    {
+        await PlaceControllerAsync();
+        var second = _room.AddFloorItem(
+            CONTROLLER + 1,
+            6,
+            6,
+            "roller_speed_control",
+            createLogic: (factory, ctx) => new FurnitureRollerSpeedControlLogic(factory, ctx)
+        );
+        await _room.Harness.Module<RoomObjectModule>().RemoveObjectAsync(Owner, second, Ct, 1);
+
+        var place = () =>
+            _room
+                .Harness.Module<RoomFurniModule>()
+                .PlaceFloorItemAsync(Owner, second, 6, 6, Rotation.North, Ct);
+
+        (await place.Should().ThrowAsync<TurboException>())
+            .Which.ErrorCode.Should()
+            .Be(TurboErrorCodeEnum.FurniTypeLimitReached);
+        _room
+            .Harness.Module<RoomFurniModule>()
+            .TryGetItem(CONTROLLER + 1, out _)
+            .Should()
+            .BeFalse();
     }
 
     [Fact]
