@@ -87,6 +87,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Moderator
         ),
         new(
+            PermissionNodes.Items.REVERSE,
+            "Move a furni or a currency back to where it was before a movement, through a plugin that undoes it.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Catalog.BUILDERS_CLUB_WITHOUT_MEMBERSHIP,
             "Open the Builders Club catalog without a membership.",
             SecurityLevelType.Moderator

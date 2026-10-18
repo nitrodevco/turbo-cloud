@@ -47,5 +47,8 @@ public sealed class OperationsModule : IHostPluginModule
             sp.GetRequiredService<AssetMovementConsumerRegistry>()
         );
         services.AddTransient<AssetMovementDispatcher>();
+
+        // A plugin that undoes movements moves assets back through this (docs/movements.md).
+        services.AddSingleton<IAssetReversalService, AssetReversalService>();
     }
 }

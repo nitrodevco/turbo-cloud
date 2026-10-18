@@ -89,10 +89,14 @@ recording, each currency it moves is one movement (`Wallet` -> `None` for a debi
 balance. Every call is one transaction (`InTransactionAsync`) with a receipt in
 `wallet_credit_receipts`: the plugin's reference for a referenced credit, the award key for an
 achievement credit, and otherwise the cause's operation id and first seq (`#op:<seq>:<operation>`,
-hashed when too long). The same call made again under the same cause, a retry, changes nothing:
+hashed when too long); a debit's receipt is its key behind `#debit:`, so a credit and a debit under one
+reference or cause never answer for each other. The same call made again under the same cause, a retry, changes nothing:
 a debit answers success, a credit true. A debit of several currencies is one operation, numbered
 from the cause's first seq, and takes all of them or none. A debit the balance cannot cover, a
-refused credit and a replayed credit write nothing, and a refused one keeps no receipt.
+refused credit and a replayed credit write nothing, and a refused one keeps no receipt. A
+referenced debit (`TryDebitAsync(requests, reference, cause, ct)`) keeps the plugin's reference
+behind `#debit:` as its receipt, in the same table as the referenced credits, and answers a repeat as succeeded
+with `AlreadyApplied` set.
 
 A refund (`GrainFactoryExtensions.RefundAsync`) is given the charge's cause and credits under
 `cause.ForRefund()`: the same cause code and actor, an operation of its own whose id is the
@@ -310,6 +314,60 @@ plugins it loads.
 | `ReReadWindowMs` | 300000 | How long skipped ids are looked for; 0 stops looking. |
 
 These apply after a restart; `Enabled` alone is live.
+
+## Reversing a movement
+
+A plugin that undoes movements (a ledger rolling back a duped trade) moves assets back through
+`IAssetReversalService` (`Turbo.Primitives/Movements`), taken from the host services like the
+consumer registry. Core decides nothing about *what* to undo; it guarantees that a reversal
+cannot make an item that is also somewhere else, nor take what is not there.
+
+```csharp
+var reversals = services.GetRequiredService<IHostServices>()
+    .GetRequiredService<IAssetReversalService>();
+
+var result = await reversals.MoveAsync(
+    new ReversalRequest
+    {
+        OperationId = $"ledger:plan-{plan.Id}-{step.Seq}", // this reversal's idempotency key
+        ReversedOperationId = movement.OperationId,      // the operation it undoes
+        ActorPlayerId = staffId,                         // must hold items.reverse
+        Reason = "duped trade",
+        Asset = movement.Asset,
+        Expected = movement.To,   // where the movement left it
+        Target = movement.From,   // where it was before
+    },
+    ct
+);
+```
+
+| Expected -> Target | Done by |
+| --- | --- |
+| furni: inventory(P) -> inventory(Q) | `IInventoryGrain(P).TransferFurnitureAsync` |
+| furni: inventory(P) -> none (a dupe taken back) | `IInventoryGrain(P).ConsumeFurnitureAsync` |
+| furni: none -> inventory(Q) (made again from `Recreate`) | `IInventoryGrain(Q).GrantFurnitureAsync`, under a **new id** |
+| currency: wallet(P) -> none (taken back) | `IPlayerWalletGrain(P).TryDebitAsync(requests, reference, ...)` |
+| currency: none -> wallet(Q) (given back) | `IPlayerWalletGrain(Q).CreditAsync(kind, amount, reference, ...)` |
+| a borrowed furni, a pet or a bot; a furni in or into a room, a holder or the marketplace | refused: `Unsupported` |
+
+- **Compare and set.** Only the owner, kind and place id of `Expected` are compared. The grain's
+  own guarded write refuses an item no longer held where the request says (`NotWhereExpected`);
+  a balance too short to take back is `NotWhereExpected` too. A target that is the same place, a
+  player that does not exist or a definition that does not is `TargetInvalid`.
+- **Once per operation.** A receipt in `asset_reversal_receipts` (operation id unique, the
+  operation undone, actor, reason, asset, outcome) is claimed before the move and settled after
+  it: the same operation asked again answers `AlreadyApplied` and moves nothing. A call that finds
+  an unsettled receipt (a crash, or a call still under way) answers `AlreadyApplied` when the furni
+  already stands at the target and moves it otherwise; for a furni made again it cannot tell, so
+  it answers `NotWhereExpected` and keeps the receipt rather than make a second one. A currency
+  goes through the wallet's referenced debit or credit (reference `#rev:<operation>`), so the
+  wallet pays a retry once. A refused reversal keeps no receipt and can be asked again.
+- **A movement of its own.** While recording, the move is written like any other: the request's
+  operation id, cause `reversal`, the operation undone as its cause ref, the actor as its actor.
+  With recording off the reversal moves the asset all the same and writes no movement.
+- **Permission.** The actor must hold `items.reverse`, which no wildcard grants (`docs/permissions.md`
+  §7). A plugin is trusted server code already, so this is attribution and defence in depth; the
+  plugin adds its own node on top.
 
 ## Decided for now
 

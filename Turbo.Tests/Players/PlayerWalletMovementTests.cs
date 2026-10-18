@@ -333,6 +333,192 @@ public sealed class PlayerWalletMovementTests : IDisposable
     }
 
     [Fact]
+    public async Task ReferencedDebit_Retried_UnderANewCause_TakesOnce_AndSaysSo()
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+
+        var first = await wallet.TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 30)],
+            "ledger:take-1",
+            Cause(),
+            Ct
+        );
+        var retry = await wallet.TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 30)],
+            "ledger:take-1",
+            Cause(),
+            Ct
+        );
+
+        (first.Succeeded, first.AlreadyApplied).Should().Be((true, false));
+        (retry.Succeeded, retry.AlreadyApplied).Should().Be((true, true));
+        Balance(CREDITS_TYPE_ID).Should().Be(70);
+        Movements().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ReferencedDebit_Refused_KeepsNoReceipt_SoTheReferenceCanStillGoThrough()
+    {
+        Seed(credits: 20);
+        var wallet = await NewWalletAsync();
+
+        (
+            await wallet.TryDebitAsync(
+                [Debit(CurrencyKind.Credits, 30)],
+                "ledger:take-1",
+                Cause(),
+                Ct
+            )
+        )
+            .Succeeded.Should()
+            .BeFalse();
+        (await wallet.CreditAsync(CurrencyKind.Credits, 10, Cause(), Ct)).Should().BeTrue();
+        var later = await wallet.TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 30)],
+            "ledger:take-1",
+            Cause(),
+            Ct
+        );
+
+        (later.Succeeded, later.AlreadyApplied).Should().Be((true, false));
+        Balance(CREDITS_TYPE_ID).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReferencedDebit_UnderTheReferenceOfAnEarlierCredit_TakesTheMoney_ThenOnce()
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+
+        (await wallet.CreditAsync(CurrencyKind.Credits, 30, "ledger:grant-1", Cause(), Ct))
+            .Should()
+            .Be(WalletCreditResult.Applied);
+        var takeBack = await wallet.TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 30)],
+            "ledger:grant-1",
+            Cause(),
+            Ct
+        );
+        var again = await wallet.TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 30)],
+            "ledger:grant-1",
+            Cause(),
+            Ct
+        );
+
+        (takeBack.Succeeded, takeBack.AlreadyApplied).Should().Be((true, false));
+        (again.Succeeded, again.AlreadyApplied).Should().Be((true, true));
+        Balance(CREDITS_TYPE_ID).Should().Be(100);
+    }
+
+    [Fact]
+    public async Task ACreditAndADebit_UnderOneCause_AreTwoChanges_NotARepeat()
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+        var cause = Cause();
+
+        (await wallet.CreditAsync(CurrencyKind.Credits, 10, cause, Ct)).Should().BeTrue();
+        var debit = await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 10)], cause, Ct);
+
+        (debit.Succeeded, debit.AlreadyApplied).Should().Be((true, false));
+        Balance(CREDITS_TYPE_ID).Should().Be(100);
+    }
+
+    [Theory]
+    [InlineData("#op:0:0199f0aa000070008000000000000003")]
+    [InlineData("#debit:ledger:grant-1")]
+    [InlineData("#DEBIT:ledger:grant-1")]
+    public async Task AReferenceInTheWalletsOwnReceiptKeys_IsRefused_BothWays(string reference)
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+
+        await FluentActions
+            .Awaiting(() => wallet.CreditAsync(CurrencyKind.Credits, 10, reference, Cause(), Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>();
+        await FluentActions
+            .Awaiting(() =>
+                wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 10)], reference, Cause(), Ct)
+            )
+            .Should()
+            .ThrowAsync<ArgumentException>();
+        Balance(CREDITS_TYPE_ID).Should().Be(100);
+    }
+
+    [Fact]
+    public async Task Reversal_TakingBackCredits_AskedTwice_TakesThemOnce_AsAReversalMovement()
+    {
+        Seed(credits: 100);
+        var factory = WalletFactory(await NewWalletAsync());
+        _fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        var service = new Turbo.Operations.Movements.AssetReversalService(
+            factory,
+            _db,
+            NullLogger<Turbo.Operations.Movements.AssetReversalService>.Instance
+        );
+        var request = new ReversalRequest
+        {
+            OperationId = "rev-1",
+            ReversedOperationId = "0199f0aa000070008000000000000002",
+            ActorPlayerId = 9,
+            Reason = "credits paid twice",
+            Asset = new AssetRef(AssetKind.Currency, 0, 0, CurrencyKind.Credits),
+            Expected = new AssetPlace(PLAYER_ID, PlaceKind.Wallet, 0, null),
+            Target = AssetPlace.Nowhere,
+            Amount = 40,
+        };
+
+        var first = await service.MoveAsync(request, Ct);
+        var again = await service.MoveAsync(request, Ct);
+
+        first.Outcome.Should().Be(ReversalOutcome.Applied);
+        again.Outcome.Should().Be(ReversalOutcome.AlreadyApplied);
+        Balance(CREDITS_TYPE_ID).Should().Be(60);
+        var row = Movements().Should().ContainSingle().Subject;
+        (row.Cause, row.CauseRef, row.OperationId, row.Actor, row.Amount)
+            .Should()
+            .Be((MovementCauses.REVERSAL, request.ReversedOperationId, "rev-1", 9, 40L));
+        (row.FromOwner, row.FromKind, row.ToKind)
+            .Should()
+            .Be((PLAYER_ID, PlaceKind.Wallet, PlaceKind.None));
+    }
+
+    [Fact]
+    public async Task Reversal_TakingBackMoreThanTheBalance_IsNotWhereExpected_AndTakesNothing()
+    {
+        Seed(credits: 10);
+        var factory = WalletFactory(await NewWalletAsync());
+        _fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        var service = new Turbo.Operations.Movements.AssetReversalService(
+            factory,
+            _db,
+            NullLogger<Turbo.Operations.Movements.AssetReversalService>.Instance
+        );
+
+        var result = await service.MoveAsync(
+            new ReversalRequest
+            {
+                OperationId = "rev-1",
+                ReversedOperationId = "0199f0aa000070008000000000000002",
+                ActorPlayerId = 9,
+                Reason = "credits paid twice",
+                Asset = new AssetRef(AssetKind.Currency, 0, 0, CurrencyKind.Credits),
+                Expected = new AssetPlace(PLAYER_ID, PlaceKind.Wallet, 0, null),
+                Target = AssetPlace.Nowhere,
+                Amount = 40,
+            },
+            Ct
+        );
+
+        result.Outcome.Should().Be(ReversalOutcome.NotWhereExpected);
+        Balance(CREDITS_TYPE_ID).Should().Be(10);
+        Movements().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Credits_UnderOneOperationAtDifferentSeqs_AreEachApplied()
     {
         Seed(credits: 100);

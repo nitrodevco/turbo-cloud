@@ -19,6 +19,22 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
         MovementCause cause,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Debits at most once per <paramref name="reference"/> for this player, as the referenced
+    /// <see cref="CreditAsync(CurrencyKind, int, string, MovementCause, CancellationToken)"/>
+    /// credits: a retry takes nothing and answers success with
+    /// <see cref="WalletDebitResult.AlreadyApplied"/>. Debits and credits keep apart receipts, so
+    /// a debit under the reference of an earlier credit (taking back a grant) takes the money. A
+    /// refused debit keeps no receipt. The reference follows the credit's rules, otherwise this
+    /// throws.
+    /// </summary>
+    public Task<WalletDebitResult> TryDebitAsync(
+        List<WalletDebitRequest> requests,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    );
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct);
 
     /// <summary>Adds to a balance and tells the player. False when the currency does not exist.</summary>
@@ -32,8 +48,9 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
     /// <summary>
     /// Credits at most once per <paramref name="reference"/> for this player, so a caller that
     /// retries after a crash cannot double-credit. The reference is opaque and compared case-insensitively on MySQL;
-    /// by convention it is <c>&lt;plugin-key&gt;:&lt;id&gt;</c>. It must be non-blank and at most
-    /// <see cref="WalletCreditReference.MaxLength"/> characters, otherwise this throws.
+    /// by convention it is <c>&lt;plugin-key&gt;:&lt;id&gt;</c>. It must be non-blank, at most
+    /// <see cref="WalletCreditReference.MaxLength"/> characters and not start with the wallet's own
+    /// <c>#op:</c> or <c>#debit:</c>, otherwise this throws.
     /// </summary>
     public Task<WalletCreditResult> CreditAsync(
         CurrencyKind kind,

@@ -4068,6 +4068,61 @@ namespace Turbo.Database.Migrations
                     b.ToTable("asset_movement_outbox");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Movements.AssetReversalReceiptEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Actor")
+                        .HasColumnType("int")
+                        .HasColumnName("actor");
+
+                    b.Property<long>("AssetId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("asset_id");
+
+                    b.Property<byte>("AssetKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("asset_kind");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)")
+                        .HasColumnName("operation_id");
+
+                    b.Property<byte?>("Outcome")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ReversedOperationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("reversed_operation_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.ToTable("asset_reversal_receipts");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorEventCategoryEntity", b =>
                 {
                     b.Property<int>("Id")

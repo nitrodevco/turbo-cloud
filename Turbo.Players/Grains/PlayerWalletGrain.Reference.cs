@@ -21,11 +21,7 @@ internal sealed partial class PlayerWalletGrain
         CancellationToken ct
     )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reference);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(
-            reference.Length,
-            WalletCreditReference.MaxLength
-        );
+        ThrowIfNotAReference(reference);
 
         var (result, balance) = await CreditOnceAsync(
             kind,

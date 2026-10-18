@@ -30,6 +30,16 @@ public static class PermissionNodes
         public const string FURNI_VIMEO_EDIT = "room.furni.vimeo_edit";
     }
 
+    public static class Items
+    {
+        /// <summary>
+        /// Undo a movement through <c>IAssetReversalService</c>: move a furni or a currency back
+        /// to where it was, if it is still where the caller says. Server code (a plugin) asks it
+        /// for the player it acts for, so the node is explicit only: no wildcard grants it.
+        /// </summary>
+        public const string REVERSE = "items.reverse";
+    }
+
     public static class Catalog
     {
         public const string BUILDERS_CLUB_WITHOUT_MEMBERSHIP =

@@ -39,6 +39,46 @@ internal sealed partial class PlayerWalletGrain
                 + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
     }
 
+    // A debit's receipts have their own prefix, so a credit under a reference and a debit under
+    // the same one (a plugin taking back its own grant) are two receipts, not a repeat.
+    private const string DEBIT_RECEIPT_PREFIX = "#debit:";
+
+    /// <summary>
+    /// The receipt of a debit under <paramref name="key"/>: the plugin's reference or the cause's
+    /// <see cref="OperationReceipt"/>, behind the debit prefix; kept as its hash when too long.
+    /// </summary>
+    private static string DebitReceipt(string key)
+    {
+        var receipt = DEBIT_RECEIPT_PREFIX + key;
+
+        return receipt.Length <= WalletCreditReference.MaxLength
+            ? receipt
+            : DEBIT_RECEIPT_PREFIX
+                + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+    }
+
+    /// <summary>
+    /// A plugin's reference: non-blank, short enough for a receipt, and not in the wallet's own
+    /// receipt keys, which it could otherwise repeat or block.
+    /// </summary>
+    private static void ThrowIfNotAReference(string reference)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reference);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            reference.Length,
+            WalletCreditReference.MaxLength
+        );
+
+        if (
+            reference.StartsWith(OPERATION_RECEIPT_PREFIX, StringComparison.OrdinalIgnoreCase)
+            || reference.StartsWith(DEBIT_RECEIPT_PREFIX, StringComparison.OrdinalIgnoreCase)
+        )
+            throw new ArgumentException(
+                $"A wallet reference cannot start with {OPERATION_RECEIPT_PREFIX} or {DEBIT_RECEIPT_PREFIX}",
+                nameof(reference)
+            );
+    }
+
     /// <summary>
     /// Runs one balance change with its receipt, in one transaction. The receipt is written first,
     /// so its primary key answers a repeat, from this activation or another. Applied when
