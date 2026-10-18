@@ -39,20 +39,42 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                 .Where(x => x.Name is not null)
                 .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.Type.FullName, StringComparer.Ordinal)
-                .Select(x => new Section(
-                    x.Name!,
-                    x.Type,
-                    [
-                        .. Walk(
-                            x.Type,
-                            x.Name!,
-                            [],
-                            x.Type.IsDefined(typeof(StartupSettingAttribute)),
-                            x.Type.IsDefined(typeof(LiveSettingAttribute))
-                        ),
-                    ]
-                )),
+                .Select(x => Build(x.Type, x.Name!, null, SettingDocs.Summary)),
         ]);
+
+    /// <summary>
+    /// The section of a plugin's config class, its summaries read with <paramref name="summary"/>;
+    /// null for a class that names no section.
+    /// </summary>
+    public static Section? PluginSection(
+        Type type,
+        string plugin,
+        Func<PropertyInfo, string> summary
+    ) => SectionOf(type) is { } name ? Build(type, name, plugin, summary) : null;
+
+    private static Section Build(
+        Type type,
+        string name,
+        string? plugin,
+        Func<PropertyInfo, string> summary
+    ) =>
+        new(
+            name,
+            type,
+            [
+                .. Walk(
+                    type,
+                    name,
+                    [],
+                    type.IsDefined(typeof(StartupSettingAttribute)),
+                    // A plugin reads its settings through IOptionsMonitor: a change applies at once.
+                    plugin is not null
+                        || type.IsDefined(typeof(LiveSettingAttribute)),
+                    summary
+                ),
+            ],
+            plugin
+        );
 
     private static string? SectionOf(Type type) =>
         type.GetField(SECTION_NAME, BindingFlags.Public | BindingFlags.Static)
@@ -65,7 +87,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
         string path,
         ImmutableArray<PropertyInfo> chain,
         bool startup,
-        bool live
+        bool live,
+        Func<PropertyInfo, string> summary
     )
     {
         foreach (
@@ -93,7 +116,8 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                         at,
                         isStartup
                             || property.PropertyType.IsDefined(typeof(StartupSettingAttribute)),
-                        isLive || property.PropertyType.IsDefined(typeof(LiveSettingAttribute))
+                        isLive || property.PropertyType.IsDefined(typeof(LiveSettingAttribute)),
+                        summary
                     )
                 )
                     yield return nested;
@@ -112,7 +136,7 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
                 property.IsDefined(typeof(SecretSettingAttribute)),
                 isStartup,
                 isLive,
-                SettingDocs.Summary(property)
+                summary(property)
             );
         }
     }
@@ -159,8 +183,13 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
         return type.IsClass && !type.IsAbstract ? null : "json";
     }
 
-    /// <summary>A config class and the section it is bound to.</summary>
-    public sealed record Section(string Name, Type Type, ImmutableArray<Setting> Settings);
+    /// <summary>A config class and the section it is bound to; <paramref name="Plugin"/> is the key of the plugin it is from.</summary>
+    public sealed record Section(
+        string Name,
+        Type Type,
+        ImmutableArray<Setting> Settings,
+        string? Plugin = null
+    );
 
     /// <summary>One setting: its path, and the properties that lead to it from its section's class.</summary>
     public sealed record Setting(

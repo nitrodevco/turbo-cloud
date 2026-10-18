@@ -80,4 +80,8 @@ public sealed record ServerSettingSnapshot
     /// </summary>
     [Id(14)]
     public bool Live { get; init; }
+
+    /// <summary>The key of the plugin whose setting it is; null for the host's own.</summary>
+    [Id(15)]
+    public string? Plugin { get; init; }
 }
