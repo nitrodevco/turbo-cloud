@@ -35,6 +35,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     /// update altogether (a wired door someone stands in).
     /// </summary>
     public bool CanChangeState();
+
+    /// <summary>
+    /// Whether the Toggle Furni State effect switches this item to its next state. False leaves
+    /// it out of what the effect changes (a floor switch).
+    /// </summary>
+    public bool CanWiredToggle();
     public Altitude GetStackHeight();
     public int GetState();
     public string GetLegacyString();
