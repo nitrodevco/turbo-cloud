@@ -41,6 +41,13 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     /// it out of what the effect changes (a floor switch).
     /// </summary>
     public bool CanWiredToggle();
+
+    /// <summary>
+    /// Whether the item tells the room itself when a use happened, instead of the use request
+    /// counting as one: a use that first walks the avatar over happens on arrival, or not at all
+    /// (a floor switch).
+    /// </summary>
+    public bool ReportsOwnUse();
     public Altitude GetStackHeight();
     public int GetState();
     public string GetLegacyString();

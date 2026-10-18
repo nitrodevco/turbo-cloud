@@ -20,6 +20,14 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// pointed at and left both switches out of its state update, whether the triggering user stood
 /// beside the switch or not, 4 of 4 each (official client capture, 2026-10-18).
 /// </para>
+/// <para>
+/// The use is the flip, so it counts for "Furni Is Used" (and the furniture toggle achievement)
+/// when the switch flips and not at the request: Habbo toggled a lamp from such a trigger in the
+/// switch's own state update tick (0-1 ms after it) and nothing at the double-click, 3 of 3, and
+/// an avatar that walked off before arriving flipped nothing and toggled nothing, 2 of 2. The
+/// flip came ~300 ms after the avatar's last step update, 4 of 4 (official client capture,
+/// 2026-10-18, build WIN63-202610151745).
+/// </para>
 /// </summary>
 [RoomObjectLogic("wf_floor_switch1")]
 public class FurnitureFloorSwitchLogic(
@@ -31,18 +39,38 @@ public class FurnitureFloorSwitchLogic(
 
     protected override int WalkTimeoutMs => _roomGrain._roomConfig.FloorSwitchWalkTimeoutMs;
 
+    protected override int UseAfterLastStepMs =>
+        _roomGrain._roomConfig.FloorSwitchUseAfterLastStepMs;
+
+    public override bool ReportsOwnUse() => true;
+
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         if (GetAvatar(ctx) is not { } avatar)
             return Task.CompletedTask;
 
         return WalkToUseAsync(
+            ctx,
             avatar,
             StandsBeside(avatar) ? [MapModule.ToIdx(avatar.X, avatar.Y)] : TilesBeside(avatar),
             ct
         );
     }
 
-    protected override Task UseFromTileAsync(IRoomAvatar avatar, CancellationToken ct) =>
-        SetStateAsync(GetNextToggleableState());
+    protected override async Task UseFromTileAsync(
+        ActionContext ctx,
+        IRoomAvatar avatar,
+        CancellationToken ct
+    )
+    {
+        var previousState = GetState();
+
+        await SetStateAsync(GetNextToggleableState());
+        await _roomGrain.ActionModule.ReportItemUsedAsync(
+            ctx,
+            _ctx.ObjectId,
+            previousState != GetState(),
+            ct
+        );
+    }
 }

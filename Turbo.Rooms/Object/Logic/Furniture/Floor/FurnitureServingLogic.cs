@@ -49,7 +49,7 @@ public abstract class FurnitureServingLogic : FurnitureWalkToUseLogic
         if (!CanServe || GetAvatar(ctx) is not { } avatar)
             return;
 
-        await WalkToUseAsync(avatar, ServingTiles(avatar), ct);
+        await WalkToUseAsync(ctx, avatar, ServingTiles(avatar), ct);
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
@@ -59,8 +59,11 @@ public abstract class FurnitureServingLogic : FurnitureWalkToUseLogic
         return base.OnPickupAsync(ctx, ct);
     }
 
-    protected override Task UseFromTileAsync(IRoomAvatar avatar, CancellationToken ct) =>
-        ServeAsync(avatar, ct);
+    protected override Task UseFromTileAsync(
+        ActionContext ctx,
+        IRoomAvatar avatar,
+        CancellationToken ct
+    ) => ServeAsync(avatar, ct);
 
     /// <summary>
     /// Where an avatar is served from, best first: the tile in front of the furni, then the free

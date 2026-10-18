@@ -404,8 +404,31 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         var previousState = item.Logic.GetState();
         await item.Logic.OnUseAsync(ctx, param, ct);
+
+        if (!item.Logic.ReportsOwnUse())
+            await ReportItemUsedAsync(
+                ctx,
+                item.ObjectId,
+                previousState != item.Logic.GetState(),
+                ct
+            );
+
+        return true;
+    }
+
+    /// <summary>
+    /// What a use of the item counts for once it has happened: the furniture toggle achievement
+    /// when it changed the item's state, and the room's used event ("Furni Is Used" triggers).
+    /// </summary>
+    public async Task ReportItemUsedAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        bool stateChanged,
+        CancellationToken ct
+    )
+    {
         // A rejected gate use and an action with no state change are not qualifying toggles.
-        if (ctx.Origin == ActionOrigin.Player && previousState != item.Logic.GetState())
+        if (ctx.Origin == ActionOrigin.Player && stateChanged)
         {
             await using var db = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
             _roomGrain._achievementFacts.Record(
@@ -426,12 +449,10 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             {
                 RoomId = _roomGrain.RoomId,
                 CausedBy = ctx,
-                ObjectId = item.ObjectId,
+                ObjectId = itemId,
             },
             ct
         );
-
-        return true;
     }
 
     /// <summary>
