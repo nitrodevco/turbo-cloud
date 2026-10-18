@@ -113,6 +113,43 @@ public class PetConfig
     /// </summary>
     public Dictionary<int, string> ToyPlayPostureByType { get; init; } = new() { [15] = "kck" };
 
+    /// <summary>
+    /// Chance in percent that a free-roaming pet, when it next decides what to do, goes for a
+    /// drink however rested it is. Two official horses at two troughs and a water bowl drank 9
+    /// times in 9 minutes, 45-150 s apart, with their energy above its maximum the whole visit
+    /// (official client capture 2026-10-17, room "saddle club"): about one decision in twelve at
+    /// this pace.
+    /// </summary>
+    public int DrinkChancePercent { get; init; } = 8;
+
+    /// <summary>
+    /// Supplies a free pet walks to with a smile ("gst sml"), held from the moment it sets off
+    /// until it gets there: official horses did on the way to every drink (9 of 9) and every toy
+    /// (6 of 6).
+    /// </summary>
+    public PetSupplyType[] SmileOnTheWayTo { get; init; } =
+    [PetSupplyType.Drink, PetSupplyType.Toy];
+
+    /// <summary>
+    /// The icon ("gst &lt;code&gt;") a pet shows for a need nothing in the room answers: thirsty
+    /// when it goes for a drink and there is none, playful when it goes to play and there is no
+    /// toy, tired (instead of its smile) while it is tired with no nest or drink to go to, and
+    /// hungry (instead of its smile) while it is hungry with no food. Empty or missing: no icon.
+    /// The horse draws these as a water drop, a ball, a house and a knife and fork. Official
+    /// horses showed thr, plf and trd in rooms where they never drank, and none in 9 minutes in
+    /// a stable with troughs, a water bowl and a ball (official client captures 2026-10-17). No
+    /// recording has ever shown hng, while every official pet looked at had 0-7 of 100 nutrition,
+    /// so hungry has no icon by default.
+    /// </summary>
+    public Dictionary<PetNeed, string> NeedGestures { get; init; } =
+        new()
+        {
+            [PetNeed.Thirsty] = "thr",
+            [PetNeed.Playful] = "plf",
+            [PetNeed.Tired] = "trd",
+            [PetNeed.Hungry] = "",
+        };
+
     public int FreeRoamMaxDistance { get; init; } = 6;
     public int EnergyDecayMs { get; init; } = 120000;
     public int NutritionDecayMs { get; init; } = 180000;

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -117,29 +118,36 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (
             pet.Nutrition < Config.HungryNutrition
-            && await module.WalkToSupplyAsync(pet, PetSupplyType.Food, ct)
+            && await GoToSupplyAsync(pet, PetSupplyType.Food, ct)
         )
             return;
 
         if (
             pet.Energy < Config.TiredEnergy
             && module.CanRest(pet)
-            && await module.WalkToSupplyAsync(pet, PetSupplyType.Nest, ct)
+            && await GoToSupplyAsync(pet, PetSupplyType.Nest, ct)
         )
             return;
 
-        if (
-            pet.Energy < Config.TiredEnergy
-            && await module.WalkToSupplyAsync(pet, PetSupplyType.Drink, ct)
-        )
+        if (pet.Energy < Config.TiredEnergy && await GoToSupplyAsync(pet, PetSupplyType.Drink, ct))
             return;
 
-        // Official pets go and play with a toy in the room on their own now and then.
-        if (
-            module.Chance(Config.ToyPlayChancePercent)
-            && await module.WalkToSupplyAsync(pet, PetSupplyType.Toy, ct)
-        )
-            return;
+        // Official pets go for a drink and play with a toy in the room on their own now and then,
+        // whether or not they are tired; with none in the room they show they would like one.
+        if (module.Chance(Config.DrinkChancePercent))
+        {
+            if (
+                await GoToSupplyAsync(pet, PetSupplyType.Drink, ct)
+                || ShowNeed(pet, PetNeed.Thirsty)
+            )
+                return;
+        }
+
+        if (module.Chance(Config.ToyPlayChancePercent))
+        {
+            if (await GoToSupplyAsync(pet, PetSupplyType.Toy, ct) || ShowNeed(pet, PetNeed.Playful))
+                return;
+        }
 
         if (module.Chance(Config.FreeRoamWalkChancePercent))
         {
@@ -241,19 +249,66 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         if (!FurniModule.TryGetItem(pet.TargetItemId, out var item))
         {
             pet.TargetItemId = -1;
+            PetModule.ClearActionStatuses(pet);
 
             return;
         }
 
-        if (pet.X == item.X && pet.Y == item.Y)
+        if (PetModule.IsAtItem(pet, item))
         {
+            // Beside an item it cannot stand on, the pet turns to it (official: 4,1 facing 4,2).
+            if (pet.X != item.X || pet.Y != item.Y)
+                pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, item.X, item.Y));
+
             await PetModule.OnPetReachedItemAsync(pet, ct);
 
+            // Nothing was served (the bowl ran dry on the way): the smile ends with the walk.
+            if (pet.ActionExpiresAtMs == 0)
+                pet.RemoveStatus(AvatarStatusType.Gesture);
+
             return;
         }
 
-        // The walk ended short of the item (blocked or unreachable); give up on it.
+        // The walk ended short of the item (blocked or unreachable); give up on it, and on the
+        // smile it walked there with.
         pet.TargetItemId = -1;
+        PetModule.ClearActionStatuses(pet);
+    }
+
+    /// <summary>
+    /// Sends the pet to a supply of the kind; one the official horses look forward to (a drink,
+    /// a toy) it walks to with a smile, held until it gets there (official: "gst sml" from the
+    /// moment it sets off, through every step, 9 of 9 drinks and 6 of 6 plays).
+    /// </summary>
+    private async Task<bool> GoToSupplyAsync(IRoomPet pet, PetSupplyType type, CancellationToken ct)
+    {
+        if (!await PetModule.WalkToSupplyAsync(pet, type, ct))
+            return false;
+
+        if (Config.SmileOnTheWayTo.Contains(type))
+        {
+            PetModule.ClearActionStatuses(pet);
+            pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Shows the pet's icon for a need it has no supply for in the room (the horse's drop, house,
+    /// ball or cutlery), for an idle action's time; false when the need has no icon set.
+    /// </summary>
+    private bool ShowNeed(IRoomPet pet, PetNeed need)
+    {
+        if (!TryGetNeedGesture(need, out var gesture))
+            return false;
+
+        PetModule.ClearActionStatuses(pet);
+        PetModule.StandOrStaySeated(pet);
+        pet.AddStatus(AvatarStatusType.Gesture, gesture);
+        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
+
+        return true;
     }
 
     private async Task FollowAsync(IRoomPet pet, long now, CancellationToken ct)
@@ -419,7 +474,40 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             return;
         }
 
-        pet.AddStatus(status, parts.Length > 1 ? parts[1] : string.Empty);
+        var value = parts.Length > 1 ? parts[1] : string.Empty;
+
+        // A pet in need does not smile: it shows what it lacks instead.
+        if (
+            status == AvatarStatusType.Gesture
+            && value == PetGestures.SMILE
+            && TryGetUnmetNeedGesture(pet, out var need)
+        )
+            value = need;
+
+        pet.AddStatus(status, value);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
     }
+
+    /// <summary>
+    /// The icon of a need the pet has right now with an icon set: tired before hungry. Only an
+    /// idle pet asks, and a pet only idles once nothing in the room was there to answer it.
+    /// </summary>
+    private bool TryGetUnmetNeedGesture(IRoomPet pet, out string gesture)
+    {
+        if (pet.Energy < Config.TiredEnergy && TryGetNeedGesture(PetNeed.Tired, out gesture))
+            return true;
+
+        if (
+            pet.Nutrition < Config.HungryNutrition
+            && TryGetNeedGesture(PetNeed.Hungry, out gesture)
+        )
+            return true;
+
+        gesture = string.Empty;
+
+        return false;
+    }
+
+    private bool TryGetNeedGesture(PetNeed need, out string gesture) =>
+        Config.NeedGestures.TryGetValue(need, out gesture!) && !string.IsNullOrEmpty(gesture);
 }

@@ -14,4 +14,10 @@ public static class PetGestures
     public const string WINGS = "wng";
     public const string FLAME = "flm";
     public const string SURPRISED = "srp";
+
+    // Need icons: the horse draws a water drop, a house, a ball and a knife and fork for them.
+    public const string THIRSTY = "thr";
+    public const string TIRED = "trd";
+    public const string PLAYFUL = "plf";
+    public const string HUNGRY = "hng";
 }
