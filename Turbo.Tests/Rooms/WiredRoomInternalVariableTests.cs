@@ -37,12 +37,14 @@ public class WiredRoomInternalVariableTests
         var wired = room.Harness.Room.WiredSystem;
         var now = NowMs();
 
-        // Ten seconds ago, so the clock has been running: twenty pulses.
+        // Ten seconds ago, so the clock has been running: twenty pulses, and one more for every
+        // 500 ms a loaded test host took to read them.
         wired.ResetTimers(now - 10_000);
-        Read(variable).Should().BeInRange(20, 21);
+        Read(variable).Should().BeInRange(20, 21 + PulsesSince(now));
 
-        wired.ResetTimers(NowMs());
-        Read(variable).Should().Be(0);
+        var reset = NowMs();
+        wired.ResetTimers(reset);
+        Read(variable).Should().BeInRange(0, PulsesSince(reset));
     }
 
     [Fact]
@@ -67,6 +69,8 @@ public class WiredRoomInternalVariableTests
 
     /// <summary>The room's clock (<c>RoomGrain.NowMs</c>, internal there).</summary>
     private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+
+    private static int PulsesSince(long ms) => (int)((NowMs() - ms) / 500);
 
     private static int Read(WiredInternalVariable variable)
     {
