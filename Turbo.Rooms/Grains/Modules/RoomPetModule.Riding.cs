@@ -156,16 +156,20 @@ public sealed partial class RoomPetModule
     }
 
     /// <summary>How far <paramref name="avatar"/> stands above the floor for riding a pet: zero when not riding.</summary>
-    internal Altitude GetRiderLift(IRoomAvatar avatar)
+    internal Altitude GetRiderLift(IRoomAvatar avatar) =>
+        IsRiding(avatar) ? Config.RiderHeight : Altitude.Zero;
+
+    /// <summary>Whether <paramref name="avatar"/> sits on a pet's back.</summary>
+    internal bool IsRiding(IRoomAvatar avatar)
     {
         // Asked on every step of every avatar, so no allocation.
         for (var i = 0; i < Pets.Count; i++)
         {
             if (Pets[i].RiderObjectId == avatar.ObjectId)
-                return Config.RiderHeight;
+                return true;
         }
 
-        return Altitude.Zero;
+        return false;
     }
 
     /// <summary>

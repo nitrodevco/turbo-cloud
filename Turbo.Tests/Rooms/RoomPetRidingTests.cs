@@ -7,6 +7,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -30,14 +31,17 @@ public sealed class RoomPetRidingTests
     private const int PET = 40;
     private const int HORSE = 15;
 
-    private readonly LiveRoomHarness _harness = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10);
+    private readonly LiveRoomHarness _harness;
     private readonly RoomPlayerAvatar _owner = new() { ObjectId = 5, PlayerId = OWNER };
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public RoomPetRidingTests()
     {
+        _harness = _room.Harness;
         _owner.SetPosition(3, 4);
+        _owner.SetLogic(_harness.Fakes.Create<IRoomPlayerLogic>(5));
         ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
         ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
         _harness.Module<RoomMapModule>().AddAvatar(_owner, false);
@@ -126,6 +130,67 @@ public sealed class RoomPetRidingTests
         (pet.X, pet.Y).Should().Be((4, 4), "it waited where it stood");
         pet.RiderObjectId.Should().Be(_owner.ObjectId);
         RiderSnapshot().Z.Value.Should().Be(RiderHeight);
+    }
+
+    [Fact]
+    public async Task ARiderRidingOntoASeat_StaysInTheSaddle_AndSitsOnOneAfterGettingOff()
+    {
+        // Official client capture (2026-10-18): free pets walk onto sofas, so a horse may too.
+        _room.AddFloorItem(50, 6, 4, canWalk: false, canSit: true);
+        _room.AddFloorItem(51, 6, 7, canWalk: false, canSit: true);
+        await MountAsync();
+
+        var avatars = _harness.Module<RoomAvatarModule>();
+
+        (await avatars.WalkAvatarToAsync(_owner, 6, 4, Ct)).Should().BeTrue();
+
+        for (var tick = 1; tick <= 10 && (_owner.X, _owner.Y) != (6, 4); tick++)
+            await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(tick * 10_000L, Ct);
+        await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(200_000L, Ct);
+
+        (_owner.X, _owner.Y).Should().Be((6, 4));
+        (HorseSnapshot().X, HorseSnapshot().Y).Should().Be((6, 4));
+        RiderSnapshot().Status.Should().NotContain("sit", "a rider is never seated");
+
+        (await Pets.MountPetAsync(Owner, PET, false, Ct)).Should().BeTrue();
+        (await avatars.WalkAvatarToAsync(_owner, 6, 7, Ct)).Should().BeTrue();
+
+        for (var tick = 21; tick <= 30 && (_owner.X, _owner.Y) != (6, 7); tick++)
+            await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(tick * 10_000L, Ct);
+        await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(400_000L, Ct);
+
+        RiderSnapshot().Status.Should().Contain("sit", "off the horse a chair seats as before");
+    }
+
+    [Fact]
+    public async Task ARiderPutOnASeat_StaysInTheSaddle()
+    {
+        _room.AddFloorItem(50, 6, 4, canWalk: false, canSit: true);
+        await MountAsync();
+
+        await _harness
+            .Module<RoomAvatarModule>()
+            .RelocateAvatarAsync(_owner, _harness.Module<RoomMapModule>().ToIdx(6, 4), Ct);
+        await _harness.Room.AvatarTickSystem.ProcessAvatarsAsync(10_000L, Ct);
+
+        (_owner.X, _owner.Y).Should().Be((6, 4));
+        RiderSnapshot().Status.Should().NotContain("sit");
+        _owner.HasStatus(AvatarStatusType.Sit).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ARider_CannotSitDown()
+    {
+        await MountAsync();
+
+        (
+            await _harness
+                .Module<RoomAvatarModule>()
+                .SetAvatarPostureAsync(_owner.ObjectId, AvatarPostureType.Sit, Ct)
+        )
+            .Should()
+            .BeFalse();
+        _owner.HasStatus(AvatarStatusType.Sit).Should().BeFalse();
     }
 
     private async Task MountAsync()

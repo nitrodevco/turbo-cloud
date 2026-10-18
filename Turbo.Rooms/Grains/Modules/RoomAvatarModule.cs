@@ -1335,6 +1335,10 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
+        // Flash hides sit and stand from a rider (OwnAvatarMenuView.as:181-185).
+        if (PetModule.IsRiding(avatar))
+            return Task.FromResult(false);
+
         switch (postureType)
         {
             case AvatarPostureType.Sit:

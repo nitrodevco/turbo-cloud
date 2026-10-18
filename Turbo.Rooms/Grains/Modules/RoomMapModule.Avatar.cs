@@ -28,8 +28,12 @@ public sealed partial class RoomMapModule
 
             if (TryGetHighestFloorItem(ToIdx(avatar.X, avatar.Y), out var floorItem))
             {
-                canSit = floorItem.Logic.CanSit();
-                canLay = floorItem.Logic.CanLay();
+                // A rider stays in the saddle: Flash offers a rider no sit or stand at all
+                // (OwnAvatarMenuView.as:181-185), so a seat or bed under the horse holds no one.
+                var isRiding = PetModule.IsRiding(avatar);
+
+                canSit = !isRiding && floorItem.Logic.CanSit();
+                canLay = !isRiding && floorItem.Logic.CanLay();
                 // A pet lies in its breeding nest until it leaves, also when the other parent
                 // steps in beside it.
                 inNest =
