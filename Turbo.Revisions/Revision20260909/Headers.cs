@@ -576,6 +576,12 @@ internal static class MessageEvent
     public const int WiredGetUserPermanentVariablesMessageEvent = 2669;
     public const int WiredGetVariableOwnersPageMessageEvent = 2818;
     public const int WiredGetVariablesForObjectMessageEvent = 3737;
+    public const int WiredLinkCreateNetworkMessageEvent = 3220;
+    public const int WiredLinkDeleteNetworkMessageEvent = 2355;
+    public const int WiredLinkGetConfigurationMessageEvent = 1176;
+    public const int WiredLinkGetConnectionsMessageEvent = 2950;
+    public const int WiredLinkRenameNetworkMessageEvent = 1669;
+    public const int WiredLinkSaveConfigurationMessageEvent = 9;
     public const int WiredOpenContractMessageEvent = 3514;
     public const int WiredSetObjectVariableValueMessageEvent = 611;
     public const int WiredSetPreferencesMessageEvent = 2856;
@@ -1183,6 +1189,7 @@ internal static class MessageComposer
     public const int WiredFurniSelectorMessageComposer = 215;
     public const int WiredFurniTriggerMessageComposer = 354;
     public const int WiredFurniVariableMessageComposer = 3437;
+    public const int WiredLinkOperationResultMessageComposer = 3261;
     public const int WiredMenuErrorMessageComposer = 913;
     public const int WiredMovementsMessageComposer = 1959;
     public const int WiredOpenContractMessageComposer = 1267;

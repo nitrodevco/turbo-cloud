@@ -129,6 +129,7 @@ using Turbo.Revisions.Revision20260909.Parsers.Tracking;
 using Turbo.Revisions.Revision20260909.Parsers.Turbo;
 using Turbo.Revisions.Revision20260909.Parsers.Userclassification;
 using Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents;
+using Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents.Wiredlink;
 using Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents.Wiredmenu;
 using Turbo.Revisions.Revision20260909.Parsers.Users;
 using Turbo.Revisions.Revision20260909.Parsers.Vault;
@@ -1480,6 +1481,32 @@ public class Revision20260909 : IRevision
             { MessageEvent.UpdateSelectorMessageEvent, new UpdateSelectorMessageParser() },
             { MessageEvent.UpdateTriggerMessageEvent, new UpdateTriggerMessageParser() },
             { MessageEvent.UpdateVariableMessageEvent, new UpdateVariableMessageParser() },
+            #region Userdefinedroomevents Wiredlink
+            {
+                MessageEvent.WiredLinkCreateNetworkMessageEvent,
+                new WiredLinkCreateNetworkMessageParser()
+            },
+            {
+                MessageEvent.WiredLinkDeleteNetworkMessageEvent,
+                new WiredLinkDeleteNetworkMessageParser()
+            },
+            {
+                MessageEvent.WiredLinkGetConfigurationMessageEvent,
+                new WiredLinkGetConfigurationMessageParser()
+            },
+            {
+                MessageEvent.WiredLinkGetConnectionsMessageEvent,
+                new WiredLinkGetConnectionsMessageParser()
+            },
+            {
+                MessageEvent.WiredLinkRenameNetworkMessageEvent,
+                new WiredLinkRenameNetworkMessageParser()
+            },
+            {
+                MessageEvent.WiredLinkSaveConfigurationMessageEvent,
+                new WiredLinkSaveConfigurationMessageParser()
+            },
+            #endregion
             #region Userdefinedroomevents Wiredtrading
             { MessageEvent.WiredOpenContractMessageEvent, new WiredOpenContractMessageParser() },
             {
@@ -3651,6 +3678,12 @@ public class Revision20260909 : IRevision
                 typeof(WiredContractUpdateResultMessageComposer),
                 new WiredContractUpdateResultMessageComposerSerializer(
                     MessageComposer.WiredContractUpdateResultMessageComposer
+                )
+            },
+            {
+                typeof(WiredLinkOperationResultMessageComposer),
+                new WiredLinkOperationResultMessageComposerSerializer(
+                    MessageComposer.WiredLinkOperationResultMessageComposer
                 )
             },
             {
