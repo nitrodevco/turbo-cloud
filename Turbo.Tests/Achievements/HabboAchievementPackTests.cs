@@ -32,7 +32,8 @@ public sealed class HabboAchievementPackTests
         Dictionary<string, JsonElement> snapshot
     )
     {
-        var name = AchievementBadgeCodes.BaseOf(definition.Levels[0].BadgeCode)["ACH_".Length..];
+        // Every first level's code is its prefix plus "1" (ACH_bazaar171 is bazaar17's).
+        var name = definition.Levels[0].BadgeCode["ACH_".Length..^1];
 
         return snapshot.ContainsKey(name) ? name : name[..^1];
     }
@@ -42,8 +43,7 @@ public sealed class HabboAchievementPackTests
     {
         var snapshot = Snapshot();
         var shipped = Pack
-            .Definitions.Select(x => AchievementBadgeCodes.BaseOf(x.Levels[0].BadgeCode))
-            .Select(x => x["ACH_".Length..])
+            .Definitions.Select(x => x.Levels[0].BadgeCode["ACH_".Length..^1])
             .ToHashSet();
         var skipped = AchievementDefaults.NotRepresentable.Select(x => x.Name).ToHashSet();
 
@@ -64,7 +64,7 @@ public sealed class HabboAchievementPackTests
         AchievementDefaults.Crackables.Should().HaveCount(9);
         AchievementDefaults.Unhooked.Should().HaveCount(141);
         Pack.Definitions.Should().HaveCount(168);
-        Pack.Version.Should().Be(4);
+        Pack.Version.Should().Be(5);
     }
 
     [Fact]
@@ -215,18 +215,18 @@ public sealed class HabboAchievementPackTests
     }
 
     [Fact]
-    public void ANameEndingInADigitTakesAnUnderscoreBeforeTheLevel()
+    public void ANameEndingInADigitTakesHabbosCodesWhenKnownElseAnUnderscoreBeforeTheLevel()
     {
         var snapshot = Snapshot();
         var byName = AchievementDefaults.Unhooked.ToDictionary(x => NameOf(x, snapshot));
 
-        byName["bazaar17"].Levels[0].BadgeCode.Should().Be("ACH_bazaar17_1");
+        // Official client capture: bazaar17 level 1 is ACH_bazaar171; hotel texts ACH_bazaar171..1710.
+        byName["bazaar17"]
+            .Levels.Select(x => x.BadgeCode)
+            .Should()
+            .Equal(Enumerable.Range(1, 10).Select(x => $"ACH_bazaar17{x}"));
         byName["Profile1"].Levels[0].BadgeCode.Should().Be("ACH_Profile1_1");
         byName["Profile2"].Levels[0].BadgeCode.Should().Be("ACH_Profile2_1");
-        byName["bazaar17"]
-            .Levels.Select(x => AchievementBadgeCodes.LevelOf(x.BadgeCode))
-            .Should()
-            .Equal(Enumerable.Range(1, byName["bazaar17"].Levels.Length));
     }
 
     [Fact]
