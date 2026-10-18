@@ -66,6 +66,12 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         _registry = registry;
         _config = config.Value;
         _logger = logger;
+
+        // Read as the server started, before there was a logger: the server runs without its
+        // panel overrides, so say why.
+        if (ServerSettingsConfiguration.Find(configuration)?.LoadError is { } error)
+            _logger.LogWarning("Reading the panel's server settings: {Error}", error);
+
         _reloads = ChangeToken.OnChange(
             configuration.GetReloadToken,
             () => Interlocked.Increment(ref _version)
@@ -405,6 +411,12 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                 plugin is not null ? running
                 : section.Settings.Any(x => x.Live) ? Instance(section, () => Live(section.Type))
                 : null;
+            // What a restart would run with: the configuration as it is now, built the way the
+            // server builds its options, so what a module fills in (an empty list given its
+            // defaults) is no change waiting on one.
+            var next = plugin is null
+                ? Instance(section, () => Fresh(section.Type)) ?? configured
+                : configured;
 
             foreach (var setting in section.Settings)
             {
@@ -417,6 +429,7 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                 // server took as it started.
                 var reads = setting.Live ? live : running;
                 var now = reads is null ? value : Json(setting, setting.ReadFrom(reads));
+                var restarted = reads is null ? value : Json(setting, setting.ReadFrom(next));
                 var (source, name) = SourceOf(setting, providers, panel);
 
                 settings.Add(
@@ -442,7 +455,7 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                                     and not "{}",
                         Source = source,
                         SourceName = name,
-                        PendingRestart = value != now,
+                        PendingRestart = restarted != now,
                         Plugin = section.Plugin,
                     }
                 );
@@ -465,6 +478,29 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         var options = _services.GetService(typeof(IOptions<>).MakeGenericType(type));
 
         return options?.GetType().GetProperty(nameof(IOptions<object>.Value))?.GetValue(options);
+    }
+
+    /// <summary>
+    /// The options built afresh from the configuration as it is now, through every step the
+    /// server's own go through (binding, then what modules configure after it); null when they
+    /// don't validate, as a restart would refuse them.
+    /// </summary>
+    private object? Fresh(Type type)
+    {
+        var factory = _services.GetService(typeof(IOptionsFactory<>).MakeGenericType(type));
+
+        try
+        {
+            return factory
+                ?.GetType()
+                .GetMethod(nameof(IOptionsFactory<object>.Create))
+                ?.Invoke(factory, [Options.DefaultName]);
+        }
+        catch (System.Reflection.TargetInvocationException ex)
+            when (ex.InnerException is OptionsValidationException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The options as a reader that reads them as it uses them gets them now.</summary>
