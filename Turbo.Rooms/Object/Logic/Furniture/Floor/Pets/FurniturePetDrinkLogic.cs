@@ -29,6 +29,6 @@ public class FurniturePetDrinkLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         PetModule.Persist(pet);
 
-        return Task.CompletedTask;
+        return PetModule.SayVocalAsync(pet, "DRINKING", ct);
     }
 }

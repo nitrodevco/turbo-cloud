@@ -5,6 +5,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
@@ -13,7 +14,9 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -295,6 +298,46 @@ public sealed class PetSaddleTests
             seen.Should().NotContain(x => x.Contains("/lay"));
         else
             seen.Should().Contain(x => x.Contains("/lay "));
+    }
+
+    /// <summary>
+    /// Habbo's texts carry what a horse says while it drinks (pet.vocals.15.DRINKING.0 "Ah, that's
+    /// the good stuff.", user 2026-10-18 in official room 30598515); the client never reads them, so
+    /// the room says them. Ours drank in silence.
+    /// </summary>
+    [Fact]
+    public async Task A_horse_drinking_says_the_hotels_drinking_line()
+    {
+        const string LINE = "Ah, that's the good stuff.";
+        _room.Harness.Fakes.Handlers["GetTextsByPrefixAsync"] = call =>
+            Task.FromResult(
+                (string)call.Args[0]! == "pet.vocals.15.DRINKING."
+                    ? new HotelTexts(
+                        new Dictionary<string, string> { ["pet.vocals.15.DRINKING.0"] = LINE }
+                    )
+                    : HotelTexts.Empty
+            );
+        await PlaceAsync();
+        _room.AddFloorItem(
+            ROLLER,
+            4,
+            4,
+            "pet_drink",
+            createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx)
+        );
+
+        await SayAsync("Rex drink");
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(1_000_000L, Ct);
+
+        _room
+            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
+            .OfType<RoomOutboundSnapshot>()
+            .SelectMany(x => x.Composers)
+            .OfType<ChatMessageComposer>()
+            .Where(x => x.ObjectId != _owner.ObjectId)
+            .Select(x => x.Text)
+            .Should()
+            .Equal(LINE);
     }
 
     private string Status() => ((RoomPetAvatarSnapshot)Pet().GetSnapshot()).Status;

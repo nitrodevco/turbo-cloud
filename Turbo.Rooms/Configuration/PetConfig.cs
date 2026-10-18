@@ -75,6 +75,12 @@ public class PetConfig
     /// never did (0 of ~330 updates) and the horse has no saddle drawn lying down.
     /// </summary>
     public bool SaddledPetsRest { get; init; } = false;
+
+    /// <summary>
+    /// Chance in percent that a pet drinking, eating or playing with a toy says one of the
+    /// hotel's <c>pet.vocals.&lt;type&gt;.DRINKING</c> / <c>EATING</c> / <c>PLAYING</c> lines.
+    /// </summary>
+    public int VocalChancePercent { get; init; } = 100;
     public int FreeRoamMaxDistance { get; init; } = 6;
     public int EnergyDecayMs { get; init; } = 120000;
     public int NutritionDecayMs { get; init; } = 180000;
