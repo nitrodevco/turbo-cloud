@@ -3207,12 +3207,6 @@ public class Revision20260909 : IRevision
                 typeof(AreaHideMessageComposer),
                 new AreaHideMessageComposerSerializer(MessageComposer.AreaHideMessageComposer)
             },
-            /* {
-                typeof(CustomStackingHeightUpdateMessageComposer),
-                new CustomStackingHeightUpdateMessageComposerSerializer(
-                    MessageComposer.CustomStackingHeightUpdateMessageComposer
-                )
-            }, */
             {
                 typeof(CustomUserNotificationMessageComposer),
                 new CustomUserNotificationMessageComposerSerializer(

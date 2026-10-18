@@ -7,7 +7,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -24,6 +23,12 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
     : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
+
+    /// <summary>
+    /// "Adjust the height of stacking helper as you want, then move the other furni on top of
+    /// it" (widget.custom.stack.height.text): whatever its definition says, furni go on it.
+    /// </summary>
+    public override bool CanStack() => true;
 
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
@@ -52,28 +57,17 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         var item = _ctx.RoomObject;
 
-        if (
-            !await FurniModule.MoveFloorItemByIdAsync(
-                ctx,
-                item.ObjectId,
-                item.X,
-                item.Y,
-                z,
-                null,
-                ct
-            )
-        )
-            return false;
-
-        await _ctx.SendComposerToRoomAsync(
-            new CustomStackingHeightUpdateMessageComposer
-            {
-                FurniId = _ctx.ObjectId,
-                Height = z.ToInt(),
-            }
+        // The move's ObjectUpdate is the answer: the helper reads the tile's height from where it
+        // stands (FurnitureCustomStackHeightWidgetHandler.update), and Flash has no message of its own for it.
+        return await FurniModule.MoveFloorItemByIdAsync(
+            ctx,
+            item.ObjectId,
+            item.X,
+            item.Y,
+            z,
+            null,
+            ct
         );
-
-        return true;
     }
 
     private Altitude? Resolve(int height)
