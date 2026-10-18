@@ -13,6 +13,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Bots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
@@ -121,6 +122,8 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
         }
 
+        var placeCause = MovementCause.New(MovementCauses.BOT_PLACE, ctx.PlayerId, botId);
+
         var placed = await PetModule.PlaceFromInventoryAsync(
             ctx,
             "bot",
@@ -130,11 +133,11 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             () =>
                 _roomGrain
                     ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                    .TryCheckOutBotAsync(botId, _roomGrain.RoomId, ct),
+                    .TryCheckOutBotAsync(botId, _roomGrain.RoomId, placeCause, ct),
             snapshot =>
                 _roomGrain
                     ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                    .ReturnBotAsync(snapshot, ct),
+                    .ReturnBotAsync(snapshot, placeCause.ForRefund(), ct),
             (snapshot, tileIdx, z) =>
             {
                 var (tileX, tileY) = MapModule.GetTileXY(tileIdx);
@@ -314,7 +317,11 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         if (
             !await _roomGrain
                 ._grainFactory.GetInventoryGrain(bot.OwnerId)
-                .ReturnBotAsync(bot.GetBotSnapshot(), ct)
+                .ReturnBotAsync(
+                    bot.GetBotSnapshot(),
+                    MovementCause.New(MovementCauses.BOT_PICKUP, ctx.PlayerId, botId),
+                    ct
+                )
         )
         {
             _roomGrain._logger.LogError(
@@ -600,7 +607,9 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
         foreach (var bot in bots)
         {
-            if (!await inventory.ReturnBotAsync(bot.GetBotSnapshot(), ct))
+            var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
+
+            if (!await inventory.ReturnBotAsync(bot.GetBotSnapshot(), cause, ct))
                 _roomGrain._logger.LogError(
                     "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
                     bot.BotId,

@@ -9,9 +9,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
+using Turbo.Furniture.Custody;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -45,6 +48,7 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
     private readonly IGrainFactory _grainFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider;
     private readonly IInventoryFurnitureLoader _furnitureLoader;
+    private readonly IFurnitureCustody _custody;
     private readonly ILogger<IJukeboxGrain> _logger;
 
     private readonly JukeboxLiveState _state;
@@ -55,6 +59,7 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider defsProvider,
         IInventoryFurnitureLoader furnitureLoader,
+        IFurnitureCustody custody,
         ILogger<IJukeboxGrain> logger
     )
     {
@@ -63,6 +68,7 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
         _grainFactory = grainFactory;
         _defsProvider = defsProvider;
         _furnitureLoader = furnitureLoader;
+        _custody = custody;
         _logger = logger;
 
         _state = new() { JukeboxId = RoomObjectId.Parse((int)this.GetPrimaryKeyLong()) };
@@ -126,7 +132,16 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
 
         order.Insert(Math.Clamp(slot, 0, order.Count), disk);
 
-        if (!await SaveOrderAsync(order, taken: disk, given: null, playerId, ct))
+        if (
+            !await SaveOrderAsync(
+                order,
+                taken: disk,
+                given: null,
+                playerId,
+                MovementCause.New(MovementCauses.JUKEBOX_ADD, playerId, _state.JukeboxId.Value),
+                ct
+            )
+        )
             return Refused(JukeboxChangeResultType.DiskNotHeld);
 
         _state.Disks.Clear();
@@ -145,7 +160,17 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
         var disk = _state.Disks[slot];
         var order = _state.Disks.Where((_, index) => index != slot).ToList();
 
-        if (!await SaveOrderAsync(order, taken: null, given: disk, disk.OwnerId, ct))
+        if (
+            !await SaveOrderAsync(
+                order,
+                taken: null,
+                given: disk,
+                disk.OwnerId,
+                // The jukebox gives the disk back to its owner; who asked is not known here.
+                MovementCause.New(MovementCauses.JUKEBOX_REMOVE, 0, _state.JukeboxId.Value),
+                ct
+            )
+        )
         {
             // The rows and the list disagree; read the rows again rather than go on with it.
             _state.Disks.Clear();
@@ -163,70 +188,72 @@ internal sealed class JukeboxGrain : Grain, IJukeboxGrain
     }
 
     /// <summary>
-    /// Writes the playlist as <paramref name="order"/> in one save: the disk taken from
-    /// <paramref name="ownerId"/>'s inventory comes in, the one given back goes out, and every
-    /// disk held is numbered by its place. False when a row is not where the list says it is
-    /// (the disk to take was placed or traded meanwhile, the one to give back is gone).
+    /// Writes the playlist as <paramref name="order"/> in one unit of work: the disk taken from
+    /// <paramref name="ownerId"/>'s inventory comes in and the one given back goes out, through
+    /// the furniture custody under <paramref name="cause"/>, and every disk held is numbered by
+    /// its place. False when a row is not where the list says it is (the disk to take was placed
+    /// or traded meanwhile, the one to give back is gone).
     /// </summary>
-    private async Task<bool> SaveOrderAsync(
+    private Task<bool> SaveOrderAsync(
         List<FurnitureItemSnapshot> order,
         FurnitureItemSnapshot? taken,
         FurnitureItemSnapshot? given,
         PlayerId ownerId,
+        MovementCause cause,
         CancellationToken ct
     )
     {
         var jukeboxId = _state.JukeboxId.Value;
-        var takenId = taken?.ItemId.Value;
-        var givenId = given?.ItemId.Value;
-        var owner = ownerId.Value;
 
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        // A disk in a jukebox stays its owner's.
+        var holder = new FurniHolder(jukeboxId, ownerId);
 
-        var rows = await dbCtx
-            .Furnitures.Where(x =>
-                x.ChestItemEntityId == jukeboxId
-                || (
-                    x.Id == takenId
-                    && x.PlayerEntityId == owner
-                    && x.RoomEntityId == null
-                    && x.ChestItemEntityId == null
-                )
-            )
-            .ToDictionaryAsync(x => x.Id, ct);
-
-        if (takenId is { } id && !rows.ContainsKey(id))
-            return false;
-
-        if (givenId is { } returned)
-        {
-            if (!rows.Remove(returned, out var row))
-                return false;
-
-            row.ChestItemEntityId = null;
-            row.HeldPosition = null;
-        }
-
-        for (var position = 0; position < order.Count; position++)
-        {
-            if (!rows.TryGetValue(order[position].ItemId.Value, out var row))
+        return _dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
             {
-                _logger.LogError(
-                    "Disk {DiskId} is in jukebox {JukeboxId}'s playlist but its row is not held by it",
-                    order[position].ItemId,
-                    _state.JukeboxId
-                );
+                if (
+                    taken is not null
+                    && !await _custody.PutInHolderAsync(dbCtx, ownerId, [taken], holder, cause, ct)
+                )
+                    return UnitOfWork.Rollback(false);
 
-                return false;
-            }
+                if (
+                    given is not null
+                    && !await _custody.TakeOutOfHolderAsync(
+                        dbCtx,
+                        holder,
+                        [given],
+                        ownerId,
+                        cause,
+                        ct
+                    )
+                )
+                    return UnitOfWork.Rollback(false);
 
-            row.ChestItemEntityId = jukeboxId;
-            row.HeldPosition = position;
-        }
+                var rows = await dbCtx
+                    .Furnitures.Where(x => x.ChestItemEntityId == jukeboxId)
+                    .ToDictionaryAsync(x => x.Id, ct);
 
-        await dbCtx.SaveChangesAsync(ct);
+                for (var position = 0; position < order.Count; position++)
+                {
+                    if (!rows.TryGetValue(order[position].ItemId.Value, out var row))
+                    {
+                        _logger.LogError(
+                            "Disk {DiskId} is in jukebox {JukeboxId}'s playlist but its row is not held by it",
+                            order[position].ItemId,
+                            _state.JukeboxId
+                        );
 
-        return true;
+                        return UnitOfWork.Rollback(false);
+                    }
+
+                    row.HeldPosition = position;
+                }
+
+                return UnitOfWork.Commit(true);
+            },
+            ct
+        );
     }
 
     private async Task HydrateAsync(CancellationToken ct)

@@ -701,6 +701,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _fakes.Create<INavigatorService>(),
             _fakes.Create<IFurnitureDefinitionProvider>(),
             _db,
+            TestCustody.Over(_db),
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
             Directory(),

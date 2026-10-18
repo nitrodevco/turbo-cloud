@@ -35,29 +35,294 @@ public sealed class FurnitureCustody(
     ) =>
         dbCtxFactory.InTransactionAsync(
             async dbCtx =>
-            {
-                var deleted = await InInventory(dbCtx, owner, [item.ItemId.Value])
-                    .ExecuteDeleteAsync(ct);
+                await DestroyInInventoryAsync(dbCtx, owner, [item], cause, ct)
+                    ? UnitOfWork.Commit(true)
+                    : UnitOfWork.Rollback(false),
+            ct
+        );
 
-                if (deleted == 0)
-                    return UnitOfWork.Rollback(false);
+    public async Task<bool> DestroyInInventoryAsync(
+        TurboDbContext dbCtx,
+        PlayerId owner,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var deleted = await InInventory(dbCtx, owner, IdsOf(items)).ExecuteDeleteAsync(ct);
+
+        if (deleted != items.Count)
+            return false;
+
+        var at = DateTime.UtcNow;
+
+        movements.Record(
+            dbCtx,
+            [
+                .. items.Select(
+                    (item, i) =>
+                        Movement(
+                            cause,
+                            i,
+                            Furni(item.ItemId.Value, item.Definition.Id),
+                            Inventory(owner),
+                            AssetPlace.Nowhere,
+                            new AssetSnapshot(item.Definition.Id, item.ExtraData),
+                            at
+                        )
+                ),
+            ]
+        );
+
+        return true;
+    }
+
+    public async Task<bool> PutInHolderAsync(
+        TurboDbContext dbCtx,
+        PlayerId from,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        FurniHolder holder,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var moved = await InInventory(dbCtx, from, IdsOf(items))
+            .ExecuteUpdateAsync(
+                up =>
+                    up.SetProperty(x => x.ChestItemEntityId, holder.ItemId)
+                        .SetProperty(x => x.PlayerEntityId, holder.HeldFor.Value)
+                        .SetProperty(x => x.ChestTransactionId, holder.TransactionId),
+                ct
+            );
+
+        if (moved != items.Count)
+            return false;
+
+        movements.Record(dbCtx, Moved(cause, items, Inventory(from), Holder(holder)));
+
+        return true;
+    }
+
+    public async Task<bool> TakeOutOfHolderAsync(
+        TurboDbContext dbCtx,
+        FurniHolder holder,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        PlayerId to,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var ids = IdsOf(items);
+        var moved = await dbCtx
+            .Furnitures.Where(x => ids.Contains(x.Id) && x.ChestItemEntityId == holder.ItemId)
+            .ExecuteUpdateAsync(
+                up =>
+                    up.SetProperty(x => x.ChestItemEntityId, (int?)null)
+                        .SetProperty(x => x.ChestTransactionId, (long?)null)
+                        .SetProperty(x => x.HeldPosition, (int?)null)
+                        .SetProperty(x => x.PlayerEntityId, to.Value),
+                ct
+            );
+
+        if (moved != items.Count)
+            return false;
+
+        movements.Record(dbCtx, Moved(cause, items, Holder(holder), Inventory(to)));
+
+        return true;
+    }
+
+    public Task<IReadOnlyList<CustodyFurni>> CreateInRoomAsync(
+        RoomId roomId,
+        PlayerId owner,
+        IReadOnlyList<FurniToPlace> furni,
+        MovementCause cause,
+        CancellationToken ct
+    ) =>
+        dbCtxFactory.InTransactionAsync(
+            async dbCtx =>
+                UnitOfWork.Commit(await CreateInRoomAsync(dbCtx, roomId, owner, furni, cause, ct)),
+            ct
+        );
+
+    public async Task<IReadOnlyList<CustodyFurni>> CreateInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        PlayerId owner,
+        IReadOnlyList<FurniToPlace> furni,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (furni.Count == 0)
+            return [];
+
+        var rows = furni
+            .Select(x =>
+            {
+                var row = NewRow(owner, x.Furni);
+
+                row.RoomEntityId = roomId.Value;
+                row.X = x.Position.X;
+                row.Y = x.Position.Y;
+                row.Z = x.Position.Z;
+                row.Rotation = x.Position.Rotation;
+                row.WallOffset = x.Position.WallOffset ?? 0;
+
+                return row;
+            })
+            .ToList();
+
+        dbCtx.AddRange(rows);
+
+        // The ids the movements name exist once the rows are inserted.
+        await dbCtx.SaveChangesAsync(ct);
+
+        var positions = rows.Select((row, i) => (row, furni[i].Position)).ToDictionary();
+
+        movements.Record(dbCtx, Created(cause, rows, row => InRoom(owner, roomId, positions[row])));
+
+        return [.. rows.Select(ToCustody)];
+    }
+
+    public async Task<int> SendHomeLeftInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var inRoom = dbCtx.Furnitures.Where(x => x.RoomEntityId == roomId.Value);
+
+        // Read only while recording: otherwise this stays the one statement it always was.
+        var left = movements.IsRecording
+            ? await inRoom
+                .OrderBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.FurnitureDefinitionEntityId,
+                    x.PlayerEntityId,
+                    Position = new RoomPosition(x.X, x.Y, x.Z, x.Rotation, x.WallOffset),
+                })
+                .ToListAsync(ct)
+            : [];
+
+        var sent = await inRoom.ExecuteUpdateAsync(
+            up => up.SetProperty(x => x.RoomEntityId, (int?)null),
+            ct
+        );
+
+        var at = DateTime.UtcNow;
+
+        movements.Record(
+            dbCtx,
+            [
+                .. left.Select(
+                    (row, i) =>
+                        Movement(
+                            cause,
+                            i,
+                            Furni(row.Id, row.FurnitureDefinitionEntityId),
+                            InRoom((PlayerId)row.PlayerEntityId, roomId, row.Position),
+                            Inventory((PlayerId)row.PlayerEntityId),
+                            at: at
+                        )
+                ),
+            ]
+        );
+
+        return sent;
+    }
+
+    public Task BorrowIntoRoomAsync(
+        RoomId roomId,
+        RoomItemSnapshot item,
+        int offerId,
+        MovementCause cause,
+        CancellationToken ct
+    ) =>
+        dbCtxFactory.InTransactionAsync(
+            dbCtx =>
+            {
+                dbCtx.BuildersClubFurnitures.Add(
+                    new BuildersClubFurnitureEntity
+                    {
+                        RoomEntityId = roomId.Value,
+                        RoomObjectId = item.ObjectId.Value,
+                        FurnitureDefinitionEntityId = item.DefinitionId,
+                        PlacedByPlayerEntityId = item.OwnerId.Value,
+                        CatalogOfferEntityId = offerId,
+                        X = item.X,
+                        Y = item.Y,
+                        Z = item.Z,
+                        Rotation = item.Rotation,
+                        WallOffset = WallOffsetOf(item) ?? 0,
+                        ExtraData = item.ExtraData,
+                    }
+                );
 
                 movements.Record(
                     dbCtx,
                     Movement(
                         cause,
                         0,
-                        Furni(item.ItemId.Value, item.Definition.Id),
-                        Inventory(owner),
+                        Borrowed(item),
                         AssetPlace.Nowhere,
-                        new AssetSnapshot(item.Definition.Id, item.ExtraData)
+                        InRoom(NOBODY, roomId, item)
                     )
                 );
 
-                return UnitOfWork.Commit(true);
+                return Task.FromResult(UnitOfWork.Commit(true));
             },
             ct
         );
+
+    public async Task<int> GiveBackBorrowedAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        IReadOnlyList<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (items.Count == 0)
+            return 0;
+
+        var ids = items.Select(x => x.ObjectId.Value).ToList();
+        var rows = dbCtx.BuildersClubFurnitures.Where(x =>
+            x.RoomEntityId == roomId.Value && ids.Contains(x.RoomObjectId)
+        );
+
+        // Read only while recording: otherwise this stays the one statement it always was.
+        var present = movements.IsRecording
+            ? (await rows.Select(x => x.RoomObjectId).ToListAsync(ct)).ToHashSet()
+            : [];
+
+        var given = await rows.ExecuteDeleteAsync(ct);
+
+        var at = DateTime.UtcNow;
+        var moved = new List<AssetMovement>(present.Count);
+
+        foreach (var item in items)
+        {
+            if (present.Contains(item.ObjectId.Value))
+                moved.Add(
+                    Movement(
+                        cause,
+                        moved.Count,
+                        Borrowed(item),
+                        InRoom(NOBODY, roomId, item),
+                        AssetPlace.Nowhere,
+                        at: at
+                    )
+                );
+        }
+
+        movements.Record(dbCtx, moved);
+
+        return given;
+    }
 
     public async Task<IReadOnlyList<CustodyFurni>> CreateInInventoryAsync(
         PlayerId owner,
@@ -215,7 +480,7 @@ public sealed class FurnitureCustody(
         CancellationToken ct
     )
     {
-        var ids = items.Select(x => x.ItemId.Value).ToList();
+        var ids = IdsOf(items);
 
         return dbCtxFactory.InTransactionAsync(
             async dbCtx =>
@@ -236,24 +501,7 @@ public sealed class FurnitureCustody(
                     return UnitOfWork.Rollback(false);
                 }
 
-                var at = DateTime.UtcNow;
-
-                movements.Record(
-                    dbCtx,
-                    [
-                        .. items.Select(
-                            (item, i) =>
-                                Movement(
-                                    cause,
-                                    i,
-                                    Furni(item.ItemId.Value, item.Definition.Id),
-                                    Inventory(from),
-                                    Inventory(to),
-                                    at: at
-                                )
-                        ),
-                    ]
-                );
+                movements.Record(dbCtx, Moved(cause, items, Inventory(from), Inventory(to)));
 
                 return UnitOfWork.Commit(true);
             },
@@ -485,17 +733,57 @@ public sealed class FurnitureCustody(
     private static AssetPlace Inventory(PlayerId owner) =>
         new(owner.Value, PlaceKind.Inventory, 0, null);
 
+    /// <summary>A borrowed furni is known by its room and the id the room gave it.</summary>
+    private static AssetRef Borrowed(RoomItemSnapshot item) =>
+        new(AssetKind.BorrowedFurni, item.ObjectId.Value, item.DefinitionId, null);
+
     private static AssetPlace InRoom(PlayerId owner, RoomId roomId, RoomItemSnapshot item) =>
-        new(
-            owner.Value,
-            PlaceKind.Room,
-            roomId.Value,
+        InRoom(
+            owner,
+            roomId,
             new RoomPosition(item.X, item.Y, item.Z, item.Rotation, WallOffsetOf(item))
         );
+
+    private static AssetPlace InRoom(PlayerId owner, RoomId roomId, RoomPosition position) =>
+        new(owner.Value, PlaceKind.Room, roomId.Value, position);
 
     private static int? WallOffsetOf(RoomItemSnapshot item) =>
         item is RoomWallItemSnapshot wallItem ? wallItem.WallOffset : null;
 
     private static AssetPlace Holder(PlayerId owner, int holderId) =>
         new(owner.Value, PlaceKind.Holder, holderId, null);
+
+    private static AssetPlace Holder(FurniHolder holder) => Holder(holder.HeldFor, holder.ItemId);
+
+    private static List<int> IdsOf(IReadOnlyList<FurnitureItemSnapshot> items) =>
+        [.. items.Select(x => x.ItemId.Value)];
+
+    /// <summary>Furni that keep their row and change place, one movement each, in order.</summary>
+    private static List<AssetMovement> Moved(
+        MovementCause cause,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        AssetPlace from,
+        AssetPlace to
+    )
+    {
+        var at = DateTime.UtcNow;
+
+        return
+        [
+            .. items.Select(
+                (item, i) =>
+                    Movement(
+                        cause,
+                        i,
+                        Furni(item.ItemId.Value, item.Definition.Id),
+                        from,
+                        to,
+                        at: at
+                    )
+            ),
+        ];
+    }
+
+    /// <summary>Whom a borrowed furni belongs to: nobody, it is the club's.</summary>
+    private static readonly PlayerId NOBODY = new(0);
 }

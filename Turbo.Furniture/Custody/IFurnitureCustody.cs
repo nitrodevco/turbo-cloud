@@ -15,6 +15,15 @@ namespace Turbo.Furniture.Custody;
 /// <summary>A furni to make: its definition and the extra data it starts with.</summary>
 public readonly record struct FurniToMake(int DefinitionId, string? ExtraDataJson);
 
+/// <summary>A furni to make straight into a room: what it is and where it stands.</summary>
+public readonly record struct FurniToPlace(FurniToMake Furni, RoomPosition Position);
+
+/// <summary>
+/// A furni that holds others (a wired chest, a jukebox) and whom what it holds is kept for. A
+/// wired chest also stamps each furni with the transaction that put it there.
+/// </summary>
+public readonly record struct FurniHolder(int ItemId, PlayerId HeldFor, long? TransactionId = null);
+
 /// <summary>A furni row the custody wrote, as the inventory lists it.</summary>
 public sealed record CustodyFurni(
     int Id,
@@ -39,6 +48,110 @@ public interface IFurnitureCustody
     Task<bool> DestroyInInventoryAsync(
         PlayerId owner,
         FurnitureItemSnapshot item,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Inventory -> none, in the caller's unit of work (a chest that turns credit furni into its
+    /// balance): the rows of all of <paramref name="items"/>, held by <paramref name="owner"/> in
+    /// no room and no holder, are deleted. False when one is not there: the caller rolls back.
+    /// </summary>
+    Task<bool> DestroyInInventoryAsync(
+        TurboDbContext dbCtx,
+        PlayerId owner,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Inventory -> holder, in the caller's unit of work: all of <paramref name="items"/>, held by
+    /// <paramref name="from"/> in no room and no holder, go into <paramref name="holder"/>, kept for
+    /// its <see cref="FurniHolder.HeldFor"/>. False when one is not there: the caller rolls back.
+    /// </summary>
+    Task<bool> PutInHolderAsync(
+        TurboDbContext dbCtx,
+        PlayerId from,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        FurniHolder holder,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Holder -> inventory, in the caller's unit of work: all of <paramref name="items"/> held by
+    /// <paramref name="holder"/> go to <paramref name="to"/>. False when one is not held there:
+    /// the caller rolls back.
+    /// </summary>
+    Task<bool> TakeOutOfHolderAsync(
+        TurboDbContext dbCtx,
+        FurniHolder holder,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        PlayerId to,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// None -> room: one row per furni, owned by <paramref name="owner"/> and standing in
+    /// <paramref name="roomId"/> where it says, in order (a note pinned to a post-it wall).
+    /// </summary>
+    Task<IReadOnlyList<CustodyFurni>> CreateInRoomAsync(
+        RoomId roomId,
+        PlayerId owner,
+        IReadOnlyList<FurniToPlace> furni,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// <see cref="CreateInRoomAsync(RoomId, PlayerId, IReadOnlyList{FurniToPlace}, MovementCause, CancellationToken)"/>
+    /// in the caller's unit of work (a starter room painted and furnished in one write). The rows
+    /// are saved, so their ids exist, when it answers; the caller commits.
+    /// </summary>
+    Task<IReadOnlyList<CustodyFurni>> CreateInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        PlayerId owner,
+        IReadOnlyList<FurniToPlace> furni,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Room -> inventory for every furni row still standing in <paramref name="roomId"/>, in the
+    /// caller's unit of work: the backstop of a room deletion for a furni whose hand-over home
+    /// failed. Answers how many there were.
+    /// </summary>
+    Task<int> SendHomeLeftInRoomAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// None -> room for a borrowed furni already standing in <paramref name="roomId"/>: its row in
+    /// the Builders Club's own table, lent under <paramref name="offerId"/>. Nobody owns it.
+    /// </summary>
+    Task BorrowIntoRoomAsync(
+        RoomId roomId,
+        RoomItemSnapshot item,
+        int offerId,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Room -> none for borrowed furni, in the caller's unit of work: the rows of
+    /// <paramref name="items"/> in <paramref name="roomId"/> go back to the club. A row already
+    /// gone is skipped; answers how many went.
+    /// </summary>
+    Task<int> GiveBackBorrowedAsync(
+        TurboDbContext dbCtx,
+        RoomId roomId,
+        IReadOnlyList<RoomItemSnapshot> items,
         MovementCause cause,
         CancellationToken ct
     );

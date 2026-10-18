@@ -56,7 +56,14 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             if (!confirmed && await AskToConfirmPickupAsync(ctx, item, ct))
                 return false;
 
-            return await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
+            if (!await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId))
+                return false;
+
+            await _roomGrain
+                ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                .EnqueueGiveBackAsync(_roomGrain.RoomId, [item.GetSnapshot()], cause, ct);
+
+            return true;
         }
 
         var pickupType = await SecurityModule.GetFurniPickupTypeAsync(ctx);
@@ -217,6 +224,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
         var removed = new Dictionary<PlayerId, List<IRoomItem>>();
         var borrowsGivenBack = new Dictionary<PlayerId, List<string>>();
+        var borrowed = new List<RoomItemSnapshot>();
 
         foreach (var item in items)
         {
@@ -245,6 +253,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     borrowsGivenBack[item.OwnerId] = logicNames = [];
 
                 logicNames.Add(item.Definition.LogicName);
+                borrowed.Add(item.GetSnapshot());
 
                 continue;
             }
@@ -290,6 +299,17 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     ct
                 );
         }
+
+        // The borrowed ones are numbered after the furni that go home, under the same cause.
+        if (borrowed.Count > 0)
+            await _roomGrain
+                ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                .EnqueueGiveBackAsync(
+                    _roomGrain.RoomId,
+                    borrowed,
+                    cause.StartingAt(cause.FirstSeq + returned.Values.Sum(x => x.Count)),
+                    ct
+                );
 
         var buildersClub = _roomGrain._grainFactory.GetBuildersClubGrain();
 

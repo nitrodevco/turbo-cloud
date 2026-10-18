@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms;
@@ -281,7 +282,13 @@ public sealed partial class RoomFurniModule
     {
         var written = await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .InsertBuildersClubItemAsync(_roomGrain.RoomId, item.GetSnapshot(), offerId, ct);
+            .InsertBuildersClubItemAsync(
+                _roomGrain.RoomId,
+                item.GetSnapshot(),
+                offerId,
+                MovementCause.New(MovementCauses.ROOM_BC_BORROW, ctx.PlayerId, offerId),
+                ct
+            );
 
         if (!written)
         {

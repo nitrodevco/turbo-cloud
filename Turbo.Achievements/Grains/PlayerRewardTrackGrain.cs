@@ -566,6 +566,11 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                             pet.Color,
                             pet.RarityLevel,
                             [],
+                            MovementCause.New(
+                                MovementCauses.REWARD_TRACK,
+                                _state.PlayerId.Value,
+                                $"{track.Id}:{prize.Id}"
+                            ),
                             ct
                         )
                             is not null,
@@ -597,6 +602,11 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
                             string.Empty,
                             prize.ExtraParams,
                             AvatarGenderType.Male,
+                            MovementCause.New(
+                                MovementCauses.REWARD_TRACK,
+                                _state.PlayerId.Value,
+                                $"{track.Id}:{prize.Id}"
+                            ),
                             ct
                         )
                             is not null,

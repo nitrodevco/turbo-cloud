@@ -73,9 +73,18 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// </summary>
     public Task FlushNowAsync(CancellationToken ct);
 
-    /// <summary>Deletes the item's row on the next flush instead of updating it.</summary>
+    /// <summary>
+    /// Gives borrowed furni that left the room back to the club on the next flush, in the order
+    /// of the room's other changes of who holds what: their rows go, with their movements under
+    /// <paramref name="cause"/>.
+    /// </summary>
     [AlwaysInterleave]
-    public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct);
+    public Task EnqueueGiveBackAsync(
+        RoomId roomId,
+        List<RoomItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Writes a use now rather than on the next flush: the used-up item's row (none when
@@ -102,6 +111,7 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
         RoomId roomId,
         RoomItemSnapshot snapshot,
         int offerId,
+        MovementCause cause,
         CancellationToken ct
     );
 

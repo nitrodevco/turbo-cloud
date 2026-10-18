@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -97,6 +98,11 @@ public class FurnitureSpamWallLogic(
             position,
             extraDataJson,
             stuffData.GetSnapshot(),
+            MovementCause.New(
+                MovementCauses.ROOM_POST_IT,
+                ctx.PlayerId,
+                _ctx.RoomObject.ObjectId.Value
+            ),
             ct
         );
     }

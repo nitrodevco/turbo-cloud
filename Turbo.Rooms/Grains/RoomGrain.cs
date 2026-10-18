@@ -15,7 +15,9 @@ using Turbo.Catalog.Configuration;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
+using Turbo.Database.Movements;
 using Turbo.Events;
+using Turbo.Furniture.Custody;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
@@ -90,6 +92,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
+    internal readonly IFurnitureCustody _custody;
+    internal readonly IAssetMovementRecorder _movements;
 
     internal readonly RoomLiveState _state;
 
@@ -158,6 +162,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
         IPlayerOnboardingService onboarding,
+        IFurnitureCustody custody,
+        IAssetMovementRecorder movements,
         ILogger<IRoomGrain> logger
     )
     {
@@ -190,6 +196,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _eventSystem = eventSystem;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _custody = custody;
+        _movements = movements;
 
         _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);

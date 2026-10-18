@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Snapshots;
@@ -18,11 +19,18 @@ internal sealed partial class InventoryGrain
     public Task<PetSnapshot?> GetPetSnapshotAsync(int petId, CancellationToken ct) =>
         PetModule.GetAsync(petId, ct);
 
-    public Task<PetSnapshot?> TryCheckOutPetAsync(int petId, RoomId roomId, CancellationToken ct) =>
-        PetModule.TryCheckOutAsync(petId, roomId, ct);
+    public Task<PetSnapshot?> TryCheckOutPetAsync(
+        int petId,
+        RoomId roomId,
+        MovementCause cause,
+        CancellationToken ct
+    ) => PetModule.TryCheckOutAsync(petId, roomId, cause, ct);
 
-    public Task<bool> ReturnPetAsync(PetSnapshot snapshot, CancellationToken ct) =>
-        PetModule.ReturnAsync(snapshot, ct);
+    public Task<bool> ReturnPetAsync(
+        PetSnapshot snapshot,
+        MovementCause cause,
+        CancellationToken ct
+    ) => PetModule.ReturnAsync(snapshot, cause, ct);
 
     public Task<PetSnapshot?> CreatePetAsync(
         string name,
@@ -32,6 +40,7 @@ internal sealed partial class InventoryGrain
         string color,
         int rarityLevel,
         ImmutableArray<int> customParts,
+        MovementCause cause,
         CancellationToken ct
     ) =>
         PetModule.CreateAsync(
@@ -42,11 +51,12 @@ internal sealed partial class InventoryGrain
             color,
             rarityLevel,
             customParts,
+            cause,
             ct
         );
 
-    public Task<bool> DeletePetAsync(int petId, CancellationToken ct) =>
-        PetModule.DeleteAsync(petId, ct);
+    public Task<bool> DeletePetAsync(int petId, MovementCause cause, CancellationToken ct) =>
+        PetModule.DeleteAsync(petId, cause, ct);
 
     public Task SendPetNameApprovalAsync(string name, CancellationToken ct)
     {

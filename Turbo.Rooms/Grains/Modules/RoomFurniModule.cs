@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Extensions;
+using Turbo.Furniture.Custody;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -144,8 +147,9 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
 
     /// <summary>
     /// Creates a brand-new wall item directly in the room, for furniture the room produces
-    /// itself (a note pinned to a post-it wall). The row is written first so the object id is the
-    /// database id; the persistence grain keeps it updated from then on like any other item.
+    /// itself (a note pinned to a post-it wall), through the furniture custody under
+    /// <paramref name="cause"/>. The row is written first so the object id is the database id;
+    /// the persistence grain keeps it updated from then on like any other item.
     /// </summary>
     public async Task<bool> CreateWallItemAsync(
         ActionContext ctx,
@@ -154,39 +158,52 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         WallPosition position,
         string extraDataJson,
         StuffDataSnapshot stuffData,
+        MovementCause cause,
         CancellationToken ct
     )
     {
-        await using var dbCtx = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
-
-        var entity = new FurnitureEntity
-        {
-            PlayerEntityId = ownerId.Value,
-            FurnitureDefinitionEntityId = definition.Id,
-            RoomEntityId = _roomGrain.RoomId.Value,
-            X = position.X,
-            Y = position.Y,
-            Z = position.Z,
-            Rotation = position.Rotation,
-            WallOffset = position.WallOffset,
-            ExtraData = extraDataJson,
-        };
-
-        dbCtx.Add(entity);
-
-        await dbCtx.SaveChangesAsync(ct);
+        var created = (
+            await _roomGrain._custody.CreateInRoomAsync(
+                _roomGrain.RoomId,
+                ownerId,
+                [
+                    new FurniToPlace(
+                        new FurniToMake(definition.Id, extraDataJson),
+                        new RoomPosition(
+                            position.X,
+                            position.Y,
+                            position.Z,
+                            position.Rotation,
+                            position.WallOffset
+                        )
+                    ),
+                ],
+                cause,
+                ct
+            )
+        )[0];
 
         // No owner name: the room fills it in from its own table as the item attaches.
-        var snapshot = entity.ToItemSnapshot(definition, stuffData, string.Empty);
+        var snapshot = new FurnitureItemSnapshot
+        {
+            ItemId = created.Id,
+            SpriteId = definition.SpriteId,
+            OwnerId = ownerId,
+            OwnerName = string.Empty,
+            Definition = definition,
+            StuffData = stuffData,
+            ExtraData = created.ExtraDataJson ?? string.Empty,
+            SecondsToExpiration = -1,
+            HasRentPeriodStarted = false,
+            RoomId = _roomGrain.RoomId,
+        };
 
+        var made = _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
         var placed = false;
 
         try
         {
-            if (
-                _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot)
-                is not IRoomWallItem item
-            )
+            if (made is not IRoomWallItem item)
                 return false;
 
             placed = await PlaceWallItemAsync(
@@ -205,11 +222,17 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         finally
         {
             // The row already says the item is in this room, so an item the room refused (a
-            // placement limit, a bad spot) would appear on the next load. It goes again.
+            // placement limit, a bad spot) would appear on the next load. It goes again, under
+            // the same cause after its creation.
             if (!placed)
                 await _roomGrain
                     ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-                    .EnqueueDeletedItemAsync(_roomGrain.RoomId, entity.Id, ct);
+                    .WriteUseAsync(
+                        _roomGrain.RoomId,
+                        new UsedUpItem(made.GetSnapshot(), cause.StartingAt(cause.FirstSeq + 1)),
+                        [],
+                        ct
+                    );
         }
     }
 

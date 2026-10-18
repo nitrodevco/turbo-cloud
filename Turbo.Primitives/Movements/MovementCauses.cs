@@ -60,6 +60,8 @@ public static class MovementCauses
     public const string ROOM_DELETE_ITEM = "room.delete_item";
     public const string GROUP_FURNI_REMOVED = "group.furni_removed";
     public const string ROOM_GIVE_BACK_USED = "room.give_back_used";
+    public const string ROOM_BC_BORROW = "room.bc_borrow";
+    public const string ROOM_POST_IT = "room.post_it";
     public const string USE_CREDIT_FURNI = "use.credit_furni";
     public const string USE_CRACKABLE = "use.crackable";
     public const string USE_PRESENT = "use.present";
@@ -74,12 +76,24 @@ public static class MovementCauses
 
     public const string PET_BREED = "pet.breed";
     public const string PET_HARVEST = "pet.harvest";
+    public const string PET_PLACE = "pet.place";
+    public const string PET_PICKUP = "pet.pickup";
     public const string PET_UNSADDLE = "pet.unsaddle";
+    public const string PET_COMPOST = "pet.compost";
+    public const string BOT_PLACE = "bot.place";
+    public const string BOT_PICKUP = "bot.pickup";
+    public const string PRODUCT_CLAIM = "product.claim";
 
     public const string WIRED_GIVE_REWARD = "wired.give_reward";
 
     public const string WIRED_CHEST_UPGRADE = "wired.chest_upgrade";
+    public const string WIRED_CHEST_DEPOSIT = "wired.chest_deposit";
     public const string WIRED_CHEST_WITHDRAW = "wired.chest_withdraw";
+
+    public const string JUKEBOX_ADD = "jukebox.add";
+    public const string JUKEBOX_REMOVE = "jukebox.remove";
+
+    public const string ONBOARDING_STARTER_ROOM = "onboarding.starter_room";
 
     public const string REWARD_TRACK = "reward.track";
     public const string REWARD_QUEST = "reward.quest";
@@ -89,4 +103,5 @@ public static class MovementCauses
     public const string STAFF_GIVE_CURRENCY = "staff.give_currency";
     public const string STAFF_GIVE_ITEM = "staff.give_item";
     public const string STAFF_GIFT = "staff.gift";
+    public const string STAFF_DELETE_BOT = "staff.delete_bot";
 }
