@@ -24,6 +24,10 @@ namespace Turbo.Admin.Api.Contracts;
 /// The avatar imager's address (<c>Turbo:Admin:ImagerUrl</c>), without its trailing slash; empty
 /// without one.
 /// </param>
+/// <param name="Preview">
+/// The client's preview host (<c>Turbo:Admin:ClientPreviewUrl</c>, else the page of
+/// <c>ClientLoginUrl</c>, with <c>?preview</c>); empty without either.
+/// </param>
 public sealed record ClientAssetsResponse(
     string CatalogIcon,
     string CatalogImage,
@@ -31,8 +35,9 @@ public sealed record ClientAssetsResponse(
     string Badge,
     string ImageLibrary,
     string Templates,
-    string Imager
+    string Imager,
+    string Preview
 )
 {
-    public static readonly ClientAssetsResponse NONE = new("", "", "", "", "", "", "");
+    public static readonly ClientAssetsResponse NONE = new("", "", "", "", "", "", "", "");
 }

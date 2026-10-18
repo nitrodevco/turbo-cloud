@@ -131,6 +131,14 @@ public sealed class AdminConfig
     public string ClientLoginUrl { get; init; } = "";
 
     /// <summary>
+    /// The client page the panel draws its previews in, the game's own windows (the client's
+    /// <c>?preview</c> host), such as <c>https://hotel.example.com/client</c>. Empty means the page of
+    /// <see cref="ClientLoginUrl"/>. The client only takes a preview from an origin its
+    /// <c>preview.allowed_origins</c> external variable names: the panel's.
+    /// </summary>
+    public string ClientPreviewUrl { get; init; } = "";
+
+    /// <summary>
     /// The avatar imager the panel draws avatars, heads and badges with (nitro-imager, or any
     /// server answering Habbo's <c>/avatar?figure=...&amp;headonly=1</c>), as its address:
     /// <c>https://imager.example.com</c>. It must send CORS headers for previews drawn on a

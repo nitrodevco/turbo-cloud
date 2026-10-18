@@ -1123,6 +1123,7 @@ them.
 | `CatalogFurnitureSearchLimit` | `25` | | Items the catalog editor's item picker lists at once. |
 | `CatalogBuilderItemLimit` | `500` | | Items a catalog page builder's preview lists at once. |
 | `ClientLoginUrl` | empty | `TURBO_ADMIN_CLIENT_LOGIN_URL` | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link, and an image address in the external variables that names no host is read under it. |
+| `ClientPreviewUrl` | empty | `TURBO_ADMIN_CLIENT_PREVIEW_URL` | The client page the panel draws previews in with the game's own windows (the client's `?preview` host), e.g. `https://hotel.example.com/client`. Empty uses the page of `ClientLoginUrl`. The client takes a preview only from an origin its `preview.allowed_origins` external variable names: set it to the panel's origin (`PanelUrl`). |
 | `ImagerUrl` | empty | `TURBO_ADMIN_IMAGER_URL` | The nitro-imager the panel draws avatars with, e.g. `https://imager.example.com`: the speakers' heads in the chat style previews. It must serve images to other sites (nitro-imager does). Empty, previews draw no avatars. |
 | `TicketMaxLifetimeDays` | `365` | | The longest a ticket from the panel can work for, short of never. |
 | `RoomAlertMaxLength` | `500` | | The longest room alert the panel sends. |

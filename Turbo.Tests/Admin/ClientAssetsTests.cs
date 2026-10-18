@@ -53,7 +53,8 @@ public sealed class ClientAssetsTests
                     "https://hotel.example/play/badges/%badgename%.gif",
                     "https://images.example/c_images/",
                     "https://images.example/c_images/bundled/templates/%libname%.nitro",
-                    "https://imager.example"
+                    "https://imager.example",
+                    "https://hotel.example/play/client?preview"
                 )
             );
     }
@@ -118,14 +119,49 @@ public sealed class ClientAssetsTests
         log.AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning).Should().NotBeEmpty();
     }
 
+    [Fact]
+    public async Task ThePreviewHost_IsTheConfiguredPage_ElseTheLoginPage_WithPreviewForItsQuery()
+    {
+        _variables.Json = "{}";
+
+        (await Assets().GetAsync(Ct))
+            .Preview.Should()
+            .Be("https://hotel.example/play/client?preview");
+        (await Assets(previewPage: "https://client.example/nitro/?socket.url=x#top").GetAsync(Ct))
+            .Preview.Should()
+            .Be("https://client.example/nitro/?preview");
+        (await Assets(clientPage: "").GetAsync(Ct)).Preview.Should().BeEmpty();
+        (await Assets(clientPage: "", previewPage: "javascript:alert(1)").GetAsync(Ct))
+            .Preview.Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public async Task ThePreviewHost_IsKnown_WhenTheVariablesCannotBeRead()
+    {
+        _variables.Unreadable = true;
+
+        (await Assets().GetAsync(Ct))
+            .Preview.Should()
+            .Be("https://hotel.example/play/client?preview");
+    }
+
     private ClientAssets Assets(
         string clientPage = CLIENT_PAGE,
         CapturingLogger<ClientAssets>? log = null,
-        string imager = ""
+        string imager = "",
+        string previewPage = ""
     ) =>
         new(
             _variables,
-            Options.Create(new AdminConfig { ClientLoginUrl = clientPage, ImagerUrl = imager }),
+            Options.Create(
+                new AdminConfig
+                {
+                    ClientLoginUrl = clientPage,
+                    ImagerUrl = imager,
+                    ClientPreviewUrl = previewPage,
+                }
+            ),
             log ?? new CapturingLogger<ClientAssets>()
         );
 
