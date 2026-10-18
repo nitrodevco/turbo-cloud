@@ -17,6 +17,7 @@ using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Vault;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Messages.Outgoing.Marketplace;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Players.Enums;
@@ -45,6 +46,8 @@ public sealed class MarketplaceTests : IDisposable
     private const int BUYER = 8;
     private const int OTHER = 9;
     private const int LAMP = 20;
+    private const int COIN = 21;
+    private const int BED = 22;
 
     private static readonly DateTime NOW = new(2026, 10, 13, 12, 0, 0, DateTimeKind.Utc);
 
@@ -361,6 +364,72 @@ public sealed class MarketplaceTests : IDisposable
         (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
             .Should()
             .Be(new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.Allowed, 0));
+    }
+
+    [Fact]
+    public void Only_tradeable_furni_that_is_not_credit_furni_is_listed_as_sellable()
+    {
+        // Official client capture, every inventory recorded (72 kinds): Hutch.'s CF_1_coin_bronze
+        // tradeable but not sellable, an untradeable item (bed_silo_two_notrd) neither, a
+        // gift_joystick both.
+        _catalog.AddDefinition(COIN, "CF_1_coin_bronze");
+        _catalog.AddDefinition(BED, "bed_silo_two_notrd", set: x => x.CanTrade = false);
+
+        var packet = PacketHarness.Encode(
+            new FurniListAddOrUpdateEventMessageComposer
+            {
+                Items = [Snapshot(1, (CHAIR, "")), Snapshot(2, (COIN, "")), Snapshot(3, (BED, ""))],
+            }
+        );
+        var sellable = new List<bool>();
+
+        packet.PopInt().Should().Be(3);
+
+        for (var i = 0; i < 3; i++)
+        {
+            // FurniData: id, type, ref, type id, category, stuff data, then recyclable,
+            // tradeable, groupable and sellable (FurniData.as:55-64 @1745).
+            packet.PopInt();
+            packet.PopString();
+            packet.PopInt();
+            packet.PopInt();
+            packet.PopInt();
+            packet.PopInt();
+            packet.PopString();
+            packet.PopBoolean();
+            packet.PopBoolean();
+            packet.PopBoolean();
+            sellable.Add(packet.PopBoolean());
+            packet.PopInt();
+            packet.PopBoolean();
+            packet.PopInt();
+            packet.PopString();
+            packet.PopInt();
+        }
+
+        sellable.Should().Equal(true, false, false);
+    }
+
+    [Fact]
+    public async Task Credit_furni_and_untradeable_furni_are_refused_and_keep_their_items()
+    {
+        _catalog.AddDefinition(COIN, "CF_1_coin_bronze");
+        _catalog.AddDefinition(BED, "bed_silo_two_notrd", set: x => x.CanTrade = false);
+        var coin = Give(SELLER, COIN);
+        var bed = Give(SELLER, BED);
+        var chair = Give(SELLER, CHAIR);
+
+        (await _marketplace.MakeOfferAsync(SELLER, 10, [-coin], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.TechnicalError);
+        (await _marketplace.MakeOfferAsync(SELLER, 10, [-bed], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.TechnicalError);
+        (await _marketplace.MakeOfferAsync(SELLER, 10, [-chair], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.Success);
+
+        _inventories[SELLER].Keys.Should().BeEquivalentTo([coin, bed]);
     }
 
     [Fact]

@@ -62,6 +62,15 @@ public sealed record FurnitureDefinitionSnapshot
     [Id(17)]
     public required bool CanSell { get; init; }
 
+    /// <summary>
+    /// The inventory's sellable flag (Flash <c>FurniView</c> shows "Sell in Marketplace" only
+    /// for it) and what the marketplace takes: furni this hotel lets be sold
+    /// (<see cref="CanSell"/>) that can be traded and is not credit furni. Every official
+    /// inventory recorded (72 kinds) sends an untradeable item as unsellable (18 of 18) and of
+    /// the tradeable ones only the credit furni (the bronze coin) as unsellable.
+    /// </summary>
+    public bool IsSellable => CanSell && CanTrade && !CreditFurniValue.TryParse(Name, out _);
+
     [Id(18)]
     public required FurnitureUsageType UsagePolicy { get; init; }
 
