@@ -340,6 +340,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Change the catalog in the admin panel and publish it to players."
         ),
         new(
+            PermissionNodes.Admin.CATALOG_IMPORT,
+            "Import Habbo's Builders Club catalogue from a capture in the admin panel."
+        ),
+        new(
             PermissionNodes.Admin.GAMEDATA_VIEW,
             "See the hotel's gamedata in the admin panel: Habbo's releases, pending updates, the client's files and their history."
         ),

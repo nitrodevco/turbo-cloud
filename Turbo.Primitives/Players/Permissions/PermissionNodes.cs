@@ -277,6 +277,13 @@ public static class PermissionNodes
         public const string CATALOG_VIEW = "admin.catalog.view";
 
         /// <summary>
+        /// Take Habbo's Builders Club catalogue in from a capture in the panel: see what it would
+        /// add and change, and make it. Needs <see cref="CATALOG_VIEW"/> and
+        /// <see cref="Catalog.MANAGE"/> as well.
+        /// </summary>
+        public const string CATALOG_IMPORT = "admin.catalog.import";
+
+        /// <summary>
         /// See the hotel's gamedata in the panel: Habbo's releases, what an update would change,
         /// the files the client loads and the history of changes. Changing it needs
         /// <see cref="Gamedata.MANAGE"/> as well.

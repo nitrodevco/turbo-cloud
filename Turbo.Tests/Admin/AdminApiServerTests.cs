@@ -229,6 +229,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
+        services.AddSingleton<AdminCatalogImport>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminGroupQueries>();
