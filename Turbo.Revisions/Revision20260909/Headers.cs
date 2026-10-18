@@ -714,6 +714,7 @@ internal static class MessageComposer
     public const int CraftingRecipesAvailableMessageComposer = 2174;
     public const int CraftingResultMessageComposer = 1108;
     public const int CreditBalanceMessageComposer = 367;
+    public const int CreditVaultStatusMessageComposer = 1227;
     public const int CurrentTimingCodeMessageComposer = 1877;
     public const int CustomUserNotificationMessageComposer = 1258;
     public const int DailyTasksActiveListMessageComposer = 1220;
@@ -1120,7 +1121,6 @@ internal static class MessageComposer
     public const int UnknownIncoming_PZMessageComposer = 864;
     public const int UnknownIncoming_Q1BMessageComposer = 3110;
     public const int UnknownIncoming_roMessageComposer = 3372;
-    public const int UnknownIncoming_S29MessageComposer = 1227;
     public const int UnknownIncoming_U1dMessageComposer = 3600;
     public const int UnknownIncoming_W1AMessageComposer = 132;
     public const int UnknownIncoming_Z1vMessageComposer = 3248;
