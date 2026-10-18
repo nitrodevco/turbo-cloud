@@ -166,7 +166,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                     if (reportBorrow)
                         await _roomGrain
                             ._grainFactory.GetBuildersClubGrain()
-                            .OnReturnedAsync(item.OwnerId, 1, ct);
+                            .OnReturnedAsync(item.OwnerId, [item.Definition.LogicName], ct);
                 }
                 else if (!item.IsTemporary)
                 {

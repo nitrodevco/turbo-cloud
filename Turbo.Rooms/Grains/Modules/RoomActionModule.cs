@@ -196,7 +196,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
         var removed = new Dictionary<PlayerId, List<IRoomItem>>();
-        var borrowsGivenBack = new Dictionary<PlayerId, int>();
+        var borrowsGivenBack = new Dictionary<PlayerId, List<string>>();
 
         foreach (var item in items)
         {
@@ -218,11 +218,13 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             gone.Add(item);
 
             // A borrowed furni goes back to the club rather than to anybody's inventory. They
-            // are counted up here so each borrower is told their new total once.
+            // are gathered up here so each borrower is told their new total once.
             if (item.IsBuildersClub)
             {
-                borrowsGivenBack[item.OwnerId] =
-                    borrowsGivenBack.GetValueOrDefault(item.OwnerId) + 1;
+                if (!borrowsGivenBack.TryGetValue(item.OwnerId, out var logicNames))
+                    borrowsGivenBack[item.OwnerId] = logicNames = [];
+
+                logicNames.Add(item.Definition.LogicName);
 
                 continue;
             }
@@ -271,8 +273,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
         var buildersClub = _roomGrain._grainFactory.GetBuildersClubGrain();
 
-        foreach (var (playerId, count) in borrowsGivenBack)
-            await buildersClub.OnReturnedAsync(playerId, count, ct);
+        foreach (var (playerId, logicNames) in borrowsGivenBack)
+            await buildersClub.OnReturnedAsync(playerId, [.. logicNames], ct);
 
         await Task.WhenAll(
             returned.Select(entry =>
