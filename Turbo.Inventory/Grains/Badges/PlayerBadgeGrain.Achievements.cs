@@ -34,13 +34,18 @@ internal sealed partial class PlayerBadgeGrain
             .PlayerBadges.Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .ToListAsync(ct);
         var newBadge = owned.SingleOrDefault(x => x.BadgeCode == code);
-        var familyOwned = AchievementBadgeCodes.TryGetBase(code, out var badgeBase)
+        // The family is the code without the granted level's number (ACH_bazaar172 at level 2 is
+        // ACH_bazaar17), not without every trailing digit.
+        var badgeBase =
+            AchievementBadgeCodes.PrefixOf(code, level)
+            ?? (AchievementBadgeCodes.TryGetBase(code, out var digitBase) ? digitBase : null);
+        var familyOwned = badgeBase is not null
             ? owned.Where(x => AchievementBadgeCodes.IsLevelOf(badgeBase, x.BadgeCode)).ToList()
             : [];
         // A higher level already owned is the one that stays; the granted level is not added.
         var higher = familyOwned
-            .Where(x => AchievementBadgeCodes.LevelOf(x.BadgeCode) > level)
-            .MaxBy(x => AchievementBadgeCodes.LevelOf(x.BadgeCode));
+            .Where(x => AchievementBadgeCodes.LevelOf(badgeBase!, x.BadgeCode) > level)
+            .MaxBy(x => AchievementBadgeCodes.LevelOf(badgeBase!, x.BadgeCode));
         PlayerBadgeEntity kept;
         var added = false;
         if (higher is not null)
@@ -139,7 +144,7 @@ internal sealed partial class PlayerBadgeGrain
                 .ToList();
             if (members.Count < 2)
                 continue;
-            var kept = members.MaxBy(x => AchievementBadgeCodes.LevelOf(x.BadgeCode))!;
+            var kept = members.MaxBy(x => AchievementBadgeCodes.LevelOf(badgeBase, x.BadgeCode))!;
             var removed = members.Where(x => x != kept).ToList();
             TransferSlot(kept, removed);
             db.PlayerBadges.RemoveRange(removed);

@@ -128,6 +128,29 @@ public sealed class AchievementPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task ABadgePrefixEndingInADigitStillReplacesItsLowerLevels()
+    {
+        var (_, badgeGrain) = await NewBadgeGrainAsync();
+
+        // Habbo's bazaar17: ACH_bazaar171 .. ACH_bazaar1710 (not ACH_bazaar + 171).
+        await badgeGrain.GrantAchievementAsync(10, 1, "ACH_bazaar171", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 2, "ACH_bazaar172", Ct);
+
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            (await db.PlayerBadges.Select(x => x.BadgeCode).ToListAsync(Ct))
+                .Should()
+                .Equal("ACH_bazaar172");
+
+        await badgeGrain.GrantAchievementAsync(10, 10, "ACH_bazaar1710", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 3, "ACH_bazaar173", Ct);
+
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            (await db.PlayerBadges.Select(x => x.BadgeCode).ToListAsync(Ct))
+                .Should()
+                .Equal("ACH_bazaar1710");
+    }
+
+    [Fact]
     public async Task RemovingAnAchievementBadgeRemovesItLikeAnyOtherBadge()
     {
         var (_, badgeGrain) = await NewBadgeGrainAsync();

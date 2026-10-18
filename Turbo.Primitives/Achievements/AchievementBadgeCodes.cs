@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Turbo.Primitives.Achievements;
 
@@ -29,6 +30,30 @@ public static class AchievementBadgeCodes
     /// <summary>The trailing level number; zero when the code has none or it does not fit.</summary>
     public static int LevelOf(string code) =>
         int.TryParse(code.AsSpan(LevelStart(code)), out var level) ? level : 0;
+
+    /// <summary>
+    /// The level number after a known prefix: <c>ACH_bazaar1710</c> under <c>ACH_bazaar17</c> is
+    /// level 10. Zero when the code is not a level of that prefix.
+    /// </summary>
+    public static int LevelOf(string badgePrefix, string code) =>
+        IsLevelOf(badgePrefix, code) && int.TryParse(code.AsSpan(badgePrefix.Length), out var level)
+            ? level
+            : 0;
+
+    /// <summary>
+    /// The prefix of a level's code: the code without that level's number at its end. A name that
+    /// ends in a digit keeps it (Habbo's <c>ACH_bazaar171</c> at level 1 is <c>ACH_bazaar17</c>),
+    /// which stripping every trailing digit would not. Null when the code does not end in the level.
+    /// </summary>
+    public static string? PrefixOf(string code, int level)
+    {
+        if (level <= 0)
+            return null;
+        var suffix = level.ToString(CultureInfo.InvariantCulture);
+        return code.Length > suffix.Length && code.EndsWith(suffix, StringComparison.Ordinal)
+            ? code[..^suffix.Length]
+            : null;
+    }
 
     private static int LevelStart(string code)
     {

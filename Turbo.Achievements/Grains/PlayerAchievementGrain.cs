@@ -201,7 +201,10 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
                         [
                             .. _catalog
                                 .Current.Where(x => x.Levels.Length > 0)
-                                .Select(x => AchievementBadgeCodes.BaseOf(x.Levels[0].BadgeCode))
+                                .Select(x =>
+                                    AchievementBadgeCodes.PrefixOf(x.Levels[0].BadgeCode, 1)
+                                    ?? AchievementBadgeCodes.BaseOf(x.Levels[0].BadgeCode)
+                                )
                                 .Distinct(),
                         ],
                         ct

@@ -57,6 +57,19 @@ public static class AchievementDefaults
         ["flamingknight"] = AchievementSources.CRACKABLE_CRACKED,
     }.ToImmutableDictionary(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Badge prefixes Habbo uses for a record whose name ends in a digit: bazaar17's level 1 is
+    /// <c>ACH_bazaar171</c> (official client capture, Achievements list 2026-10-15) and its hotel
+    /// texts name <c>ACH_bazaar171</c> .. <c>ACH_bazaar1710</c>. Profile1 and Profile2 are not
+    /// here: Habbo gives their single level <c>ACH_Profile1</c> / <c>ACH_Profile2</c>, which read
+    /// as two levels of one badge, so they keep the underscore.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, string> OfficialBadgePrefixes =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["bazaar17"] = "ACH_bazaar17",
+        }.ToImmutableDictionary(StringComparer.Ordinal);
+
     public static ImmutableArray<AchievementDefinition> Definitions { get; } =
     [
         Published(
@@ -299,9 +312,11 @@ public static class AchievementDefaults
     {
         var achievement = published.GetProperty("achievement");
         var id = UNHOOKED_ID_START + achievement.GetProperty("id").GetInt32();
-        // A name that ends in a digit would run into the level number (bazaar17 level 1 would
-        // read as level 171), so those take an underscore before it.
-        var badgePrefix = "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
+        // A name that ends in a digit takes an underscore before the level, unless Habbo's own
+        // codes for it are known (OfficialBadgePrefixes).
+        var badgePrefix = OfficialBadgePrefixes.TryGetValue(name, out var official)
+            ? official
+            : "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
 
         return Rewarded(
             name,
