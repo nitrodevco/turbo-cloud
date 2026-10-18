@@ -31,6 +31,7 @@ public sealed partial class RoomPetModule
         AvatarStatusType.Eat,
         AvatarStatusType.Gesture,
         AvatarStatusType.WagTail,
+        AvatarStatusType.EyeBlink,
     ];
 
     public async Task<bool> RequestPetCommandsAsync(
@@ -147,6 +148,12 @@ public sealed partial class RoomPetModule
 
             return false;
         }
+
+        if (
+            command is PetCommandType.Sit or PetCommandType.LieDown or PetCommandType.Nest
+            && !CanRest(pet)
+        )
+            return false;
 
         AvatarModule.TryGetPlayer(pet.OwnerId, out var owner);
 

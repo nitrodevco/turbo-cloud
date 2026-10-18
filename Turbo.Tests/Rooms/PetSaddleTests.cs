@@ -231,6 +231,95 @@ public sealed class PetSaddleTests
         (_owner.Z.Value - Pet().Z.Value).Should().Be(lift).And.BeGreaterThan(0);
     }
 
+    /// <summary>
+    /// Official saddled horses never sit or lie down (official client captures 2026-10-17/18: 13
+    /// saddled horses, ~330 updates, 0 sit / 0 lay) and the horse has no saddle drawn lying. Told
+    /// to, ours did.
+    /// </summary>
+    [Theory]
+    [InlineData("Rex lie down")]
+    [InlineData("Rex down")]
+    [InlineData("Rex sit")]
+    public async Task A_saddled_horse_told_to_sit_or_lie_down_stays_on_its_feet(string command)
+    {
+        _horse = _horse with { HasSaddle = true };
+        await PlaceAsync();
+
+        await SayAsync(command);
+
+        Status().Should().NotContain("/lay").And.NotContain("/sit");
+    }
+
+    [Fact]
+    public async Task A_horse_lying_down_gets_up_when_it_is_saddled()
+    {
+        await PlaceAsync();
+        await SayAsync("Rex lie down");
+        Status().Should().Contain("/lay ", "an unsaddled horse lies down when told");
+
+        (await SaddleAsync(SADDLE1_DEFINITION, SADDLE1)).Should().BeTrue();
+
+        Status().Should().NotContain("/lay");
+    }
+
+    /// <summary>
+    /// Left to itself an official horse blinks, wags, paws with a front leg ("kck") and shows
+    /// gestures (gst sml / thr / plf), each for about a second; it lies down only unsaddled and
+    /// never sits (no sit posture). Ours sat, lay and wagged, whatever it wore.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_free_horse_on_its_own_paws_blinks_and_smiles_and_rests_only_unsaddled(
+        bool saddled
+    )
+    {
+        _horse = _horse with { HasSaddle = saddled };
+        await PlaceAsync();
+        await SayAsync("Rex free");
+        var seen = new List<string>();
+
+        for (var pick = 0; pick < 10; pick++)
+        {
+            RoomHarness.SetField(Pets, "_random", new FixedRandom(pick));
+            await _room.Harness.Room.PetTickSystem.ProcessPetsAsync((pick + 1) * 1_000_000L, Ct);
+            seen.Add(Status());
+        }
+
+        seen.Should().Contain(x => x.Contains("/eyb"));
+        seen.Should().Contain(x => x.Contains("/kck"));
+        seen.Should().Contain(x => x.Contains("/gst sml/"));
+        seen.Should().NotContain(x => x.Contains("/sit"));
+
+        if (saddled)
+            seen.Should().NotContain(x => x.Contains("/lay"));
+        else
+            seen.Should().Contain(x => x.Contains("/lay "));
+    }
+
+    private string Status() => ((RoomPetAvatarSnapshot)Pet().GetSnapshot()).Status;
+
+    private Task SayAsync(string text) =>
+        _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
+            Owner,
+            RoomChatType.Chat,
+            text,
+            0,
+            0,
+            null,
+            Ct
+        );
+
+    /// <summary>Never walks (a percent chance draws 99) and otherwise picks the given value, kept in range.</summary>
+    private sealed class FixedRandom(int pick) : Random
+    {
+        public override int Next(int maxValue) =>
+            maxValue == 100 ? 99 : Math.Min(pick, maxValue - 1);
+
+        public override int Next(int minValue, int maxValue) =>
+            Math.Clamp(minValue + pick, minValue, Math.Max(minValue, maxValue - 1));
+    }
+
     private async Task PlaceAsync() =>
         (await Pets.PlacePetAsync(Owner, PET, 4, 4, Ct)).Should().BeTrue();
 
