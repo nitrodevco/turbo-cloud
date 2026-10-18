@@ -24,10 +24,12 @@ public static class TeleportFurniture
     public static bool IsTeleport(string? logicName) =>
         string.Equals(logicName, LOGIC_NAME, StringComparison.Ordinal);
 
+    public static bool IsRoomLinker(string? classname) =>
+        string.Equals(classname, ROOM_LINKER_CLASSNAME, StringComparison.Ordinal);
+
     /// <summary>Whether a furni comes as a linked pair: a teleporter, or a room linker by its classname.</summary>
     public static bool IsLinkedPair(string? logicName, string? classname) =>
-        IsTeleport(logicName)
-        || string.Equals(classname, ROOM_LINKER_CLASSNAME, StringComparison.Ordinal);
+        IsTeleport(logicName) || IsRoomLinker(classname);
 
     /// <summary>
     /// The extra data one half of a new pair starts with: a <see cref="RoomLinkerData"/> naming

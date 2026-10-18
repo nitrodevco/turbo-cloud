@@ -26,7 +26,9 @@ namespace Turbo.Tests.Inventory;
 /// Furni bought as what a parameter names keeps it on the item: a paper's pattern, a poster's
 /// id and a song disc's song as the product names them, a badge display's badge as the buyer
 /// picked it. The inventory lists it so before and after the row is read back, and a paper used
-/// in a room is used up.
+/// in a room is used up. A room linker comes as a pair, each half naming the other in the extra
+/// number the client reads (official client capture 2026-10-18: one purchase of offer 31667 listed
+/// 924611506 with extra 924611507 and 924611507 with extra 924611506).
 /// </summary>
 public sealed class ProductFurniGrantTests : IDisposable
 {
@@ -68,6 +70,12 @@ public sealed class ProductFurniGrantTests : IDisposable
             BadgeDisplayData.LOGIC_NAME
         );
         AddDefinition(7, "chair", ProductType.Floor, FurnitureCategory.Default);
+        AddDefinition(
+            8,
+            TeleportFurniture.ROOM_LINKER_CLASSNAME,
+            ProductType.Floor,
+            FurnitureCategory.Default
+        );
 
         _fakes.Handlers["TryGetDefinition"] = call =>
             _definitions.FirstOrDefault(x => x.Id == (int)call.Args[0]!)?.ToSnapshot(0.01);
@@ -182,6 +190,20 @@ public sealed class ProductFurniGrantTests : IDisposable
         (await inventory.ConsumeFurnitureAsync(paper.ItemId, Ct))
             .Should()
             .BeNull("it is not held any more");
+    }
+
+    [Fact]
+    public async Task ARoomLinker_IsAPair_EachHalfNamingTheOther()
+    {
+        var granted = await NewInventory()
+            .GrantCatalogOfferAsync(Offer(8, null), string.Empty, 1, Ct);
+
+        foreach (var items in new[] { granted, await NewInventory().GetAllItemSnapshotsAsync(Ct) })
+        {
+            items.Should().HaveCount(2);
+            items[0].Extra.Should().Be(items[1].ItemId.Value);
+            items[1].Extra.Should().Be(items[0].ItemId.Value);
+        }
     }
 
     private void AddDefinition(

@@ -20,6 +20,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 public class FurnitureRoomLinkerLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureTeleportLogic(stuffDataFactory, ctx)
 {
+    // The client is told each half's partner, as the live hotel does in the inventory and room.
+    public override int GetObjectExtra() => PartnerItemId;
+
     // Using it does nothing of its own: clicks are for the wired that reads it.
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;

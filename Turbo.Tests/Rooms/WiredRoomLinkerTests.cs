@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -11,7 +12,9 @@ namespace Turbo.Tests.Rooms;
 /// "WIRED Room Linker" (<c>wf_room_linker</c>, Wired Faculty tutorial 30/04/2025): bought as a
 /// linked pair like a teleporter, and a room linker whatever its definition's logic column says.
 /// On the test hotel its definition named no logic, so a bought linker was one unlinked furni
-/// and "Teleport to Room" had nowhere to send anyone.
+/// and "Teleport to Room" had nowhere to send anyone. The live hotel tells the client each
+/// half's partner in the item's extra number (official client capture 2026-10-18: ObjectAdd of
+/// 924611506 with extra 924611507).
 /// </summary>
 public sealed class WiredRoomLinkerTests
 {
@@ -42,5 +45,22 @@ public sealed class WiredRoomLinkerTests
             )
             .Should()
             .BeOfType<FurnitureRoomLinkerLogic>();
+    }
+
+    [Fact]
+    public void A_placed_linker_tells_the_client_its_partner()
+    {
+        var room = new WiredRoom();
+        var item = room.AddFloorItem(
+            40,
+            1,
+            1,
+            TeleportFurniture.ROOM_LINKER_CLASSNAME,
+            createLogic: (stuffData, ctx) => new FurnitureRoomLinkerLogic(stuffData, ctx)
+        );
+
+        item.SetExtraData(TeleportFurniture.PairExtraData(41));
+
+        ((RoomFloorItemSnapshot)item.GetSnapshot()).Extra.Should().Be(41);
     }
 }
