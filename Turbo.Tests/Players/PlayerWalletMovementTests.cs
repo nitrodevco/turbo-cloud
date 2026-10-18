@@ -274,6 +274,111 @@ public sealed class PlayerWalletMovementTests : IDisposable
         Outbox().Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("credit", true)]
+    [InlineData("credit", false)]
+    [InlineData("reward", true)]
+    [InlineData("reward", false)]
+    public async Task Credit_RepeatedUnderTheSameOperation_PaysOnce(string method, bool recording)
+    {
+        _config.Set(new() { Enabled = recording });
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+        var cause = Cause();
+
+        (await CreditAsync(wallet, method, 25, cause)).Should().BeTrue();
+        (await CreditAsync(wallet, method, 25, cause)).Should().BeTrue();
+
+        Balance(CREDITS_TYPE_ID).Should().Be(125);
+        (await wallet.GetAmountForCurrencyAsync(CurrencyKind.Credits, Ct)).Should().Be(125);
+        Movements().Should().HaveCount(recording ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Debit_RepeatedUnderTheSameOperation_ChargesOnce(bool recording)
+    {
+        _config.Set(new() { Enabled = recording });
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+        var cause = Cause();
+
+        for (var i = 0; i < 2; i++)
+            (await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 30)], cause, Ct))
+                .Succeeded.Should()
+                .BeTrue();
+
+        Balance(CREDITS_TYPE_ID).Should().Be(70);
+        (await wallet.GetAmountForCurrencyAsync(CurrencyKind.Credits, Ct)).Should().Be(70);
+        Movements().Should().HaveCount(recording ? 1 : 0);
+    }
+
+    [Fact]
+    public async Task Debit_Refused_KeepsNoReceipt_SoTheSameOperationCanStillGoThrough()
+    {
+        Seed(credits: 20);
+        var wallet = await NewWalletAsync();
+        var cause = Cause();
+
+        (await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 30)], cause, Ct))
+            .Succeeded.Should()
+            .BeFalse();
+        (await wallet.CreditAsync(CurrencyKind.Credits, 10, Cause(), Ct)).Should().BeTrue();
+        (await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 30)], cause, Ct))
+            .Succeeded.Should()
+            .BeTrue();
+
+        Balance(CREDITS_TYPE_ID).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Credits_UnderOneOperationAtDifferentSeqs_AreEachApplied()
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+        var cause = Cause();
+
+        (await wallet.CreditAsync(CurrencyKind.Credits, 5, cause, Ct)).Should().BeTrue();
+        (await wallet.CreditAsync(CurrencyKind.Credits, 5, cause.StartingAt(1), Ct))
+            .Should()
+            .BeTrue();
+
+        Balance(CREDITS_TYPE_ID).Should().Be(110);
+    }
+
+    [Fact]
+    public async Task Refund_RepeatedForTheSameCharge_PaysOnce_EveryCurrencyAtItsOwnSeq()
+    {
+        Seed(credits: 100, diamonds: 10);
+        var wallet = await NewWalletAsync();
+        var factory = WalletFactory(wallet);
+        var charge = MovementCause.New(MovementCauses.GROUP_CREATE, PLAYER_ID, 12);
+        WalletDebit[] debits = [Debit(CurrencyKind.Credits, 10), Debit(Diamonds, 2)];
+
+        (await wallet.TryDebitAsync([.. debits.Cast<WalletDebitRequest>()], charge, Ct))
+            .Succeeded.Should()
+            .BeTrue();
+        for (var i = 0; i < 2; i++)
+            await factory.RefundAsync(
+                (PlayerId)PLAYER_ID,
+                debits,
+                charge,
+                NullLogger.Instance,
+                "a test"
+            );
+
+        (Balance(CREDITS_TYPE_ID), Balance(DIAMONDS_TYPE_ID)).Should().Be((100, 10));
+        var refunds = Movements().Where(x => x.CauseRef == charge.OperationId).ToList();
+        refunds
+            .Select(x => (x.Seq, x.CurrencyType, x.Amount))
+            .Should()
+            .Equal(
+                ((short)0, CurrencyType.Credits, 10L),
+                ((short)1, CurrencyType.ActivityPoints, 2L)
+            );
+    }
+
     [Fact]
     public async Task Refund_CreditsUnderTheChargesCause_AsAnOperationThatNamesIt()
     {
@@ -293,7 +398,9 @@ public sealed class PlayerWalletMovementTests : IDisposable
             .Select(x => (MovementCause)x.Args[2]!)
             .ToList();
         refunds.Should().HaveCount(2);
-        refunds.Should().AllSatisfy(x => x.Should().Be(refunds[0]));
+        refunds.Should().AllSatisfy(x => x.OperationId.Should().Be(refunds[0].OperationId));
+        refunds.Select(x => x.FirstSeq).Should().Equal(0, 1);
+        refunds[0].OperationId.Should().Be(charge.ForRefund().OperationId);
         refunds[0].Cause.Should().Be(MovementCauses.GROUP_CREATE);
         refunds[0].ActorPlayerId.Should().Be(PLAYER_ID);
         refunds[0].CauseRef.Should().Be(charge.OperationId);
@@ -327,6 +434,14 @@ public sealed class PlayerWalletMovementTests : IDisposable
         await credit is WalletCreditResult.Applied or WalletCreditResult.AlreadyApplied;
 
     private static MovementCause Cause() => MovementCause.New("test", PLAYER_ID);
+
+    // A grain factory whose wallet for the player is the real one.
+    private IGrainFactory WalletFactory(IPlayerWalletGrain wallet)
+    {
+        _fakes.Instances[(typeof(IPlayerWalletGrain), (long)PLAYER_ID)] = wallet;
+
+        return _fakes.Create<IGrainFactory>();
+    }
 
     private static WalletDebitRequest Debit(CurrencyKind kind, int amount) =>
         new() { CurrencyKind = kind, Amount = amount };

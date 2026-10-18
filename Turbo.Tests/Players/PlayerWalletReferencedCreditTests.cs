@@ -26,7 +26,9 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     private readonly Fakes _fakes = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-    private static readonly MovementCause Cause = MovementCause.New("test", 0);
+
+    // A fresh operation per call, as every production caller makes one per action.
+    private static MovementCause Cause => MovementCause.New("test", 0);
 
     public PlayerWalletReferencedCreditTests()
     {
@@ -221,7 +223,7 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingCreditOverloadIsUnchangedAndLeavesNoReceipt()
+    public async Task UnreferencedCredit_KeepsAReceiptOfItsOperation_ThatNoPluginReferenceCanBe()
     {
         var wallet = await NewWalletAsync(PLAYER_ID);
 
@@ -230,7 +232,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
 
         (await BalanceAsync(PLAYER_ID)).Should().Be(20);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.WalletCreditReceipts.CountAsync(Ct)).Should().Be(0);
+        (await db.WalletCreditReceipts.Select(x => x.Reference).ToListAsync(Ct))
+            .Should()
+            .HaveCount(2)
+            .And.AllSatisfy(x => x.Should().StartWith("#op:0:"));
+    }
+
+    [Fact]
+    public async Task UnreferencedCredit_UnderAnOperationIdTooLongForAReceipt_StillPaysOnce()
+    {
+        var wallet = await NewWalletAsync(PLAYER_ID);
+        var cause = new MovementCause(new string('a', 160), "test", null, 0);
+
+        (await wallet.CreditAsync(CurrencyKind.Credits, 10, cause, Ct)).Should().BeTrue();
+        (await wallet.CreditAsync(CurrencyKind.Credits, 10, cause, Ct)).Should().BeTrue();
+
+        (await BalanceAsync(PLAYER_ID)).Should().Be(10);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.WalletCreditReceipts.SingleAsync(Ct))
+            .Reference.Length.Should()
+            .BeLessThanOrEqualTo(WalletCreditReference.MaxLength);
     }
 
     private async Task<int> BalanceAsync(int playerId)
