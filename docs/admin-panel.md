@@ -1059,7 +1059,9 @@ Every install keeps the version it replaces, zipped, in `<plugin folder>/.versio
 through the same checks, and the version rolled back from is kept in turn. A new version that does
 not load is taken out again and the one it replaced put back, with why it failed. A manifest may
 say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
-people to read); a server with another `PluginApi.VERSION` refuses it, saying both.
+people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` (1 to 3: 2 added plugin
+settings and admin pages, 3 asset movement consumers and reversals, `docs/movements.md`) and
+refuses any other, saying both.
 
 **Linked from GitHub**: a plugin can be installed from a GitHub repository's releases and kept up
 to date. Link one by its URL (`https://github.com/owner/repo`) or `owner/repo`, following its

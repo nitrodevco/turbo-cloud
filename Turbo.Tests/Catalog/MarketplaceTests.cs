@@ -371,7 +371,9 @@ public sealed class MarketplaceTests : IDisposable
         sale.FirstSeq.Should().Be(3, "the item made for the buyer follows the claim");
 
         // The redeem takes the revenue off the offer (seq 0) and credits it (seq 1).
-        (await marketplace.RedeemCreditsAsync(SELLER, Ct)).Should().Be(97);
+        (await marketplace.RedeemCreditsAsync(SELLER, Ct))
+            .Should()
+            .Be(97);
         var credit = _creditCauses.Should().ContainSingle().Subject;
         credit.FirstSeq.Should().Be(1);
         var redeemed = Movements()
