@@ -49,6 +49,11 @@ public sealed class OperationsModule : IHostPluginModule
         );
         services.AddTransient<AssetMovementDispatcher>();
 
+        // The server's own consumer: every change to a wallet, kept while movements are recorded.
+        services.AddSingleton<CurrencyLedger>();
+        services.AddSingleton<CurrencyLedgerService>();
+        services.AddHostedService(sp => sp.GetRequiredService<CurrencyLedgerService>());
+
         // A plugin that undoes movements moves assets back through this (docs/movements.md).
         services.AddSingleton<IAssetReversalService, AssetReversalService>();
     }

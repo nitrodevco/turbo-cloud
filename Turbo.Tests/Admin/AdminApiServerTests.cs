@@ -214,6 +214,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Plugins.IPluginSources),
                 typeof(Turbo.Primitives.Moderation.IModerationIssueService),
                 typeof(Turbo.Primitives.Moderation.IWordFilter),
+                typeof(IOptionsMonitor<Turbo.Database.Configuration.MovementsConfig>),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -234,6 +235,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminChatlogQueries>();
         services.AddSingleton<Turbo.Admin.Players.AdminMessageQueries>();
+        services.AddSingleton<Turbo.Admin.Players.AdminCurrencyLog>();
         services.AddSingleton<Turbo.Admin.Moderation.AdminReportQueries>();
         services.AddSingleton<Turbo.Admin.Moderation.AdminWordFilter>();
         services.AddSingleton<AdminPerformanceRecorder>();

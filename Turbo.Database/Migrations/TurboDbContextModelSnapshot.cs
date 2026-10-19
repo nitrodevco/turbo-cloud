@@ -4127,6 +4127,102 @@ namespace Turbo.Database.Migrations
                     b.ToTable("asset_reversal_receipts");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Movements.CurrencyLedgerEntryEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int?>("ActivityPointType")
+                        .HasColumnType("int")
+                        .HasColumnName("activity_point_type");
+
+                    b.Property<int>("ActorPlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("actor_id");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Cause")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)")
+                        .HasColumnName("cause");
+
+                    b.Property<string>("CauseRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("cause_ref");
+
+                    b.Property<int>("CurrencyType")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_type");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)")
+                        .HasColumnName("operation_id");
+
+                    b.Property<byte>("OtherKind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("other_kind");
+
+                    b.Property<int>("OtherOwnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("other_owner_id");
+
+                    b.Property<long>("OtherPlaceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("other_place_id");
+
+                    b.Property<long>("OutboxId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outbox_id");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<short>("Seq")
+                        .HasColumnType("smallint")
+                        .HasColumnName("seq");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "Id");
+
+                    b.HasIndex("OperationId", "Seq", "PlayerId")
+                        .IsUnique();
+
+                    b.ToTable("currency_ledger");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Movements.MovementConsumerCursorEntity", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("Cursor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outbox_id");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("movement_consumer_cursors");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorEventCategoryEntity", b =>
                 {
                     b.Property<int>("Id")

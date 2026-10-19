@@ -50,7 +50,7 @@ and show as tabs along its header:
 | World | **Hotel view**, **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
-| Staff | **Logs** | Command log, Chat log, Messages, Room visits, Permission log |
+| Staff | **Logs** | Command log, Chat log, Messages, Currency, Room visits, Permission log |
 | Server | **Settings**, **Console** | |
 
 You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
@@ -925,6 +925,22 @@ as the friend saw it. Group chats in the messenger are not kept, so they are not
 group holds the node through its `*`; give it to anyone else on purpose, as private messages are
 private.
 
+## Currency log
+
+Staff with `admin.players.view` get a **Currency** tab under Logs: every change to a player's
+wallet, newest first, with the amount in or out, the cause (`catalog.purchase`, `market.redeem`,
+`staff.give_currency`, ...) and what it names, who did it, and the other side (spent or given, to
+or from another player, onto or off a marketplace offer, into or out of a wired chest). Narrow it
+to a player (exact name or id), a currency, or a cause: a cause's start takes in its kin, so
+`market` is every marketplace cause, and clicking a cause narrows to it. With a player, the top
+shows what came in and went out of each currency across the filter. A player's page links to
+their own. It pages like the chat log (`CurrencyLogPageSize`).
+
+It reads the server's currency ledger ([movements.md](movements.md#the-servers-currency-ledger)),
+which grows only while movements are recorded: turn `Turbo:Movements:Enabled` on in the settings
+(it applies at once). The page says when the ledger is not being kept. Changes from before
+recording was on are not there.
+
 ## Room visits
 
 Staff with `admin.players.view` get a **Room visits** page under Logs: who went into which room,
@@ -1261,6 +1277,7 @@ them.
 | `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
 | `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
 | `MessagesPageSize` | `100` | | Messages per page on the Messages page. |
+| `CurrencyLogPageSize` | `100` | | Changes per page on the Currency log. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
 | `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
 | `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |

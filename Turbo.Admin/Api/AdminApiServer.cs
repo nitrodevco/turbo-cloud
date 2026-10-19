@@ -112,6 +112,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<CommandLogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ChatlogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<MessageLogEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<CurrencyLogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ReportEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<WordFilterEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<RoomVisitEndpoints>(services).Map(secured);

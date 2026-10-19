@@ -385,8 +385,24 @@ plugins it loads.
 | `OutboxRetentionHours` | 72 | How long a row is kept; 0 keeps every row. |
 | `SettleMs` | 2000 | How old a row must be before it is delivered. |
 | `ReReadWindowMs` | 300000 | How long skipped ids are looked for; 0 stops looking. |
+| `CurrencyLedger` | true | Whether the server keeps its own currency ledger while recording (below). |
 
-These apply after a restart; `Enabled` alone is live.
+These apply after a restart; `Enabled` and `CurrencyLedger` are live.
+
+### The server's currency ledger
+
+The server is a consumer itself: `core.currency-ledger` keeps every currency movement that leaves
+or reaches a player's wallet in `currency_ledger`, for good, which the outbox is not. A row holds
+the player, the currency, the amount (negative when it left), the cause and its ref, the actor,
+and the other side of the move (nowhere, another wallet, an offer, a chest); a movement between
+two wallets is a row for each. Its cursor is in `movement_consumer_cursors`, written in the same
+save as its rows, and `(operation_id, seq, player_id)` is unique, so a batch delivered twice is
+kept once. The admin panel's **Currency** log reads it.
+
+It is registered only while `Enabled` and `CurrencyLedger` are both on, so a hotel that does not
+record reads nothing, as before. While it is registered the dispatcher runs, and so prunes the
+outbox after `OutboxRetentionHours`: the ledger is where currency history is kept. A plugin's own
+ledger still works beside it. Furni, pets and bots are not in it.
 
 ## Reversing a movement
 

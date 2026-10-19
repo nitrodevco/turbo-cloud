@@ -21,6 +21,14 @@ public class MovementsConfig
     public bool Enabled { get; init; } = false;
 
     /// <summary>
+    /// Whether the server keeps its own currency ledger (<c>currency_ledger</c>) from the outbox
+    /// while movements are recorded: every change to a wallet, kept for good, which the admin
+    /// panel's Currency log reads. Off, nothing reads the outbox unless a plugin does.
+    /// </summary>
+    [LiveSetting]
+    public bool CurrencyLedger { get; init; } = true;
+
+    /// <summary>
     /// How often, in milliseconds, the dispatcher reads the outbox for its consumers. It reads
     /// only while a plugin has a consumer registered, whatever <see cref="Enabled"/> says.
     /// </summary>
