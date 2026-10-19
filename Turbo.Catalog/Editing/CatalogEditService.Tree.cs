@@ -359,30 +359,40 @@ public sealed partial class CatalogEditService
     {
         foreach (var (_, offer) in draft.Offers)
         {
-            if (Gives(offer) is not { } gives)
-                return "Say what each offer gives.";
-
-            if (
-                offer.ClubGiftDaysRequired is not null
-                || gives.Any(x => x.Type == ProductType.HabboClub)
-            )
-                return "Memberships and club gifts are made one at a time.";
-
-            if (CheckProducts(gives) is { } refused)
-                return $"{offer.LocalizationId}: {refused.Error}";
-
-            if (offer.LocalizationId.Trim().Length > LOCALIZATION_ID_MAX_LENGTH)
-                return $"The name key is up to {LOCALIZATION_ID_MAX_LENGTH} characters.";
-
-            if (offer.CostCredits is < 0 or > PRICE_MAX || offer.CostCurrency is < 0 or > PRICE_MAX)
-                return "A price is 0 or more.";
-
-            if (offer.ClubLevel is < 0 or > CLUB_LEVEL_MAX)
-                return "The club level is none, club or VIP.";
-
-            if (offer.CostCurrency > 0 && offer.CurrencyTypeId is null)
-                return "Say which currency the second price is in.";
+            if (CheckNewOffer(offer) is { } refused)
+                return refused;
         }
+
+        return null;
+    }
+
+    public string? CheckNewPage(CatalogPageDraft page) => CheckPage(page)?.Error;
+
+    public string? CheckNewOffer(CatalogOfferDraft offer)
+    {
+        if (Gives(offer) is not { } gives)
+            return "Say what each offer gives.";
+
+        if (
+            offer.ClubGiftDaysRequired is not null
+            || gives.Any(x => x.Type == ProductType.HabboClub)
+        )
+            return "Memberships and club gifts are made one at a time.";
+
+        if (CheckProducts(gives) is { } refused)
+            return $"{offer.LocalizationId}: {refused.Error}";
+
+        if (offer.LocalizationId.Trim().Length > LOCALIZATION_ID_MAX_LENGTH)
+            return $"The name key is up to {LOCALIZATION_ID_MAX_LENGTH} characters.";
+
+        if (offer.CostCredits is < 0 or > PRICE_MAX || offer.CostCurrency is < 0 or > PRICE_MAX)
+            return "A price is 0 or more.";
+
+        if (offer.ClubLevel is < 0 or > CLUB_LEVEL_MAX)
+            return "The club level is none, club or VIP.";
+
+        if (offer.CostCurrency > 0 && offer.CurrencyTypeId is null)
+            return "Say which currency the second price is in.";
 
         return null;
     }

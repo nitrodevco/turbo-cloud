@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,24 +16,30 @@ using Turbo.Primitives.Players;
 namespace Turbo.Admin.Catalog;
 
 /// <summary>
-/// Takes Habbo's Builders Club catalogue in from a capture of what its client was sent: the index
-/// and every page. A plan says what that would add and change and changes nothing; applying works
-/// the plan out again and makes it through <see cref="ICatalogEditService"/>, as one step of its
+/// Takes Habbo's catalogues in from a capture of what its client was sent: a catalogue's index
+/// and its pages, from a JSON capture of the Builders Club or from packet logs of either
+/// catalogue. A plan says what that would add and change and changes nothing; applying works the
+/// plan out again and makes it through <see cref="ICatalogEditService"/>, as one step of its
 /// history, so every check an edit by hand gets applies.
 /// <list type="bullet">
-/// <item>A page of the capture is a Builders Club page here by its name (the one the client opens
-/// it by); one with none is added, shown only in the Builders Club, in the capture's order.
-/// Habbo's root and its one category are not pages to take in: the category here is the tab the
-/// Builders Club opens on now, as the catalogue cuts it.</item>
-/// <item>An offer is the same one on its page when it gives the same item (a poster by its
+/// <item>A page of the capture is a page here by its name (the one the client opens it by), the
+/// second of a name the second here: in the Builders Club a page shown only there, in the normal
+/// catalogue one shown only in it or hidden. One with none is added, in the capture's order.
+/// Habbo's root is not a page to take in: the normal catalogue's tabs are its root's pages, and
+/// the Builders Club's pages, under Habbo's one category, go under the tab the Builders Club
+/// opens on now, as the catalogue cuts it.</item>
+/// <item>An offer is the same one on its page when it gives the same items (a poster by its
 /// number); offers come from the pages, never from the furnidata, which names many offers no page
-/// sells.</item>
-/// <item>A page hidden in Habbo's Builders Club is left out: a page here is either shown there or
-/// not in it. So is an item whose class name no furniture here has, an item that is not a floor or
-/// wall item, and credit furni, which Habbo never lends.</item>
-/// <item>Pages shown in the normal catalogue too are never changed, nor is any page the capture
-/// does not have, unless <see cref="CatalogImportRequest.TakeOthersOut"/> takes the Builders Club
-/// pages it lacks out of the Builders Club.</item>
+/// sells. An item is the furniture here of its class name (a JSON capture's) or of its sprite (a
+/// packet log's, whose sprites are Habbo's furnidata ids, as this hotel's are).</item>
+/// <item>A page hidden in Habbo's normal catalogue is hidden here, so a link still opens it; one
+/// hidden in its Builders Club is left out, a page here being shown there or not in it. Left out
+/// too: what this hotel has no item for, rented and limited editions (a series is set up here by
+/// hand), memberships (sold from the club pages), and in the Builders Club anything but one floor
+/// or wall item, and credit furni, which Habbo never lends.</item>
+/// <item>Pages shown in both catalogues are never changed, nor is any page the capture does not
+/// have, unless <c>TakeOthersOut</c> takes the pages it lacks out of that catalogue (in the
+/// normal catalogue, hides them, but for those that lead to Builders Club pages).</item>
 /// </list>
 /// </summary>
 public sealed class AdminCatalogImport(
@@ -47,9 +54,19 @@ public sealed class AdminCatalogImport(
     /// <summary>The layout a page the capture has no page for (a heading) gets.</summary>
     public const string HEADING_LAYOUT = "default_3x3";
 
-    private const string FLOOR = "s";
-    private const string WALL = "i";
-    private const string LABEL = "imported the Builders Club catalogue from a capture";
+    /// <summary>The largest packet log taken in; Habbo's whole normal catalogue logs to some tens of MB.</summary>
+    public const long LOG_MAX_BYTES = 256L * 1024 * 1024;
+
+    private const string CAPTURE_LABEL = "imported the Builders Club catalogue from a capture";
+    private const string LOGS_LABEL = "imported the catalogue from packet logs";
+    private const string NO_CAPTURE_INDEX = "That is not a capture: it has no Builders Club index.";
+
+    /// <summary>How many pages a note names before the rest are counted.</summary>
+    private const int LISTED_MAX = 10;
+
+    /// <summary>The product types by the letter the client knows them by.</summary>
+    private static readonly Dictionary<string, ProductType> ProductTypes =
+        Enum.GetValues<ProductType>().ToDictionary(x => x.ToLegacyString(), StringComparer.Ordinal);
 
     /// <summary>What the capture would add and change; nothing is changed.</summary>
     public async Task<CatalogBuildOutcome<CatalogImportPlan>> PlanAsync(
@@ -57,7 +74,10 @@ public sealed class AdminCatalogImport(
         CancellationToken ct
     )
     {
-        var work = await PlanWorkAsync(request, ct).ConfigureAwait(false);
+        if (CaptureSource(request) is not { } source)
+            return CatalogBuildOutcome<CatalogImportPlan>.Refused(NO_CAPTURE_INDEX);
+
+        var work = await PlanWorkAsync(source, request.TakeOthersOut, ct).ConfigureAwait(false);
 
         return work.Error is { } error
             ? CatalogBuildOutcome<CatalogImportPlan>.Refused(error)
@@ -78,55 +98,224 @@ public sealed class AdminCatalogImport(
         CancellationToken ct
     )
     {
-        var work = await PlanWorkAsync(request, ct).ConfigureAwait(false);
+        if (CaptureSource(request) is not { } source)
+            return CatalogBuildOutcome<CatalogImportPlan>.Refused(NO_CAPTURE_INDEX);
 
-        if (work.Error is { } refused)
-            return CatalogBuildOutcome<CatalogImportPlan>.Refused(refused);
+        var (error, plans) = await ApplySourcesAsync(
+                editorId,
+                CAPTURE_LABEL,
+                [source],
+                request.TakeOthersOut,
+                request.Publish,
+                ct
+            )
+            .ConfigureAwait(false);
 
-        if (!work.Changes)
-            return CatalogBuildOutcome<CatalogImportPlan>.Done(
-                work.Describe(false, false, editor.UnpublishedChanges)
+        return error is not null
+            ? CatalogBuildOutcome<CatalogImportPlan>.Refused(error)
+            : CatalogBuildOutcome<CatalogImportPlan>.Done(plans[0]);
+    }
+
+    /// <summary>What the packet logs would add and change, each catalogue planned as it is now; nothing is changed.</summary>
+    public async Task<CatalogBuildOutcome<CatalogLogImportPlan>> PlanLogsAsync(
+        CatalogLogImportRequest request,
+        CancellationToken ct
+    )
+    {
+        var (refused, sources) = LogSources(request);
+
+        if (refused is not null)
+            return CatalogBuildOutcome<CatalogLogImportPlan>.Refused(refused);
+
+        var plans = new List<CatalogImportPlan>();
+
+        foreach (var source in sources)
+        {
+            var work = await PlanWorkAsync(source, request.TakeOthersOut, ct).ConfigureAwait(false);
+
+            if (work.Error is { } error)
+                return CatalogBuildOutcome<CatalogLogImportPlan>.Refused(error);
+
+            plans.Add(work.Describe(false, false, editor.UnpublishedChanges));
+        }
+
+        return CatalogBuildOutcome<CatalogLogImportPlan>.Done(LogPlan(sources, plans));
+    }
+
+    /// <summary>
+    /// Makes both logs' plans as one step to undo, the normal catalogue's first: the Builders
+    /// Club's is worked out once it is made, so its pages go under the tab it opens on then.
+    /// </summary>
+    public async Task<CatalogBuildOutcome<CatalogLogImportPlan>> ApplyLogsAsync(
+        PlayerId editorId,
+        CatalogLogImportRequest request,
+        CancellationToken ct
+    )
+    {
+        var (refused, sources) = LogSources(request);
+
+        if (refused is not null)
+            return CatalogBuildOutcome<CatalogLogImportPlan>.Refused(refused);
+
+        var (error, plans) = await ApplySourcesAsync(
+                editorId,
+                LOGS_LABEL,
+                sources,
+                request.TakeOthersOut,
+                request.Publish,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return error is not null
+            ? CatalogBuildOutcome<CatalogLogImportPlan>.Refused(error)
+            : CatalogBuildOutcome<CatalogLogImportPlan>.Done(LogPlan(sources, plans));
+    }
+
+    private static Source? CaptureSource(CatalogImportRequest request)
+    {
+        if (request.Capture?.BcIndex?.Root is not { } root)
+            return null;
+
+        var pages = new Dictionary<int, CatalogCapturePage>();
+
+        foreach (var (_, entry) in request.Capture.BcPages ?? [])
+            if (entry.Page is { } page)
+                pages[page.PageId] = page;
+
+        return new Source(CatalogType.BuildersClub, root, pages, []);
+    }
+
+    /// <summary>Each log given, read for its catalogue: the normal one first. A log with no index of it is refused.</summary>
+    private static (string? Error, List<Source> Sources) LogSources(CatalogLogImportRequest request)
+    {
+        var sources = new List<Source>();
+
+        foreach (
+            var (type, text) in new[]
+            {
+                (CatalogType.Normal, request.NormalLog),
+                (CatalogType.BuildersClub, request.BuildersClubLog),
+            }
+        )
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            var capture = CatalogPacketLogReader.Read(PacketLog.Read(text), type);
+            var name = type == CatalogType.BuildersClub ? "Builders Club" : "normal";
+
+            if (capture.Root is not { } root)
+                return (
+                    $"The {name} catalogue's log has no index of it (a CatalogIndex packet): log the client opening that catalogue, then each page (CatalogPage). {string.Join(' ', capture.Notes)}".TrimEnd(),
+                    []
+                );
+
+            sources.Add(new Source(type, root, capture.Pages, capture.Notes));
+        }
+
+        return sources.Count == 0
+            ? ("Give the normal catalogue's log, the Builders Club's, or both.", [])
+            : (null, sources);
+    }
+
+    private static CatalogLogImportPlan LogPlan(List<Source> sources, List<CatalogImportPlan> plans)
+    {
+        CatalogImportPlan? Of(CatalogType type) =>
+            sources.FindIndex(x => x.Type == type) is >= 0 and var i ? plans[i] : null;
+
+        return new CatalogLogImportPlan(Of(CatalogType.Normal), Of(CatalogType.BuildersClub));
+    }
+
+    /// <summary>
+    /// Makes each source's plan in turn, as one step: each worked out as the catalogue is once
+    /// those before it are made, its new pages and offers saved together, then its changes, then
+    /// its rows put in the capture's order. When anything is refused, what was saved is undone.
+    /// </summary>
+    private async Task<(string? Error, List<CatalogImportPlan> Plans)> ApplySourcesAsync(
+        PlayerId editorId,
+        string label,
+        List<Source> sources,
+        bool takeOthersOut,
+        bool publish,
+        CancellationToken ct
+    )
+    {
+        // Each plan is worked out before anything is made, so one that is refused leaves the
+        // catalogue as it was.
+        var works = new List<Work>();
+
+        foreach (var source in sources)
+        {
+            var work = await PlanWorkAsync(source, takeOthersOut, ct).ConfigureAwait(false);
+
+            if (work.Error is { } refused)
+                return (refused, []);
+
+            works.Add(work);
+        }
+
+        if (!works.Any(x => x.Changes))
+            return (
+                null,
+                [.. works.Select(x => x.Describe(false, false, editor.UnpublishedChanges))]
             );
 
         var saved = false;
         var error = await editor
             .GroupAsync(
                 editorId,
-                LABEL,
+                label,
                 async () =>
                 {
-                    if (work.HasNew)
+                    for (var i = 0; i < sources.Count; i++)
                     {
-                        var built = await editor
-                            .BuildTreeAsync(editorId, LABEL, work.Draft(), ct)
+                        // A later catalogue is planned against what the earlier ones made.
+                        var work =
+                            i == 0
+                                ? works[0]
+                                : await PlanWorkAsync(sources[i], takeOthersOut, ct)
+                                    .ConfigureAwait(false);
+
+                        if (work.Error is { } refused)
+                            return refused;
+
+                        works[i] = work;
+
+                        if (work.HasNew)
+                        {
+                            var built = await editor
+                                .BuildTreeAsync(editorId, label, work.Draft(), ct)
+                                .ConfigureAwait(false);
+
+                            if (!built.Saved)
+                                return built.Error;
+
+                            saved = true;
+                        }
+
+                        foreach (var edit in work.Edits)
+                        {
+                            var result = await edit(editorId, ct).ConfigureAwait(false);
+
+                            if (!result.Saved)
+                                return result.Error ?? "Not saved.";
+
+                            saved = true;
+                        }
+
+                        // Made and moved, the rows are put in the capture's order, which only
+                        // the saved catalogue can say now that the new ones have ids.
+                        var ordered = await PlanWorkAsync(sources[i], takeOthersOut, ct)
                             .ConfigureAwait(false);
 
-                        if (!built.Saved)
-                            return built.Error;
+                        foreach (var edit in ordered.Order)
+                        {
+                            var result = await edit(editorId, ct).ConfigureAwait(false);
 
-                        saved = true;
-                    }
-
-                    foreach (var edit in work.Edits)
-                    {
-                        var result = await edit(editorId, ct).ConfigureAwait(false);
-
-                        if (!result.Saved)
-                            return result.Error ?? "Not saved.";
-
-                        saved = true;
-                    }
-
-                    // Made and moved, the rows are put in the capture's order, which only the
-                    // saved catalogue can say now that the new ones have ids.
-                    var ordered = await PlanWorkAsync(request, ct).ConfigureAwait(false);
-
-                    foreach (var edit in ordered.Order)
-                    {
-                        var result = await edit(editorId, ct).ConfigureAwait(false);
-
-                        if (!result.Saved)
-                            return result.Error ?? "Not saved.";
+                            if (!result.Saved)
+                                return result.Error ?? "Not saved.";
+                        }
                     }
 
                     return null;
@@ -139,45 +328,42 @@ public sealed class AdminCatalogImport(
             if (saved)
                 await editor.UndoAsync(editorId, ct).ConfigureAwait(false);
 
-            return CatalogBuildOutcome<CatalogImportPlan>.Refused(error);
+            return (error, []);
         }
 
         var published = false;
 
-        if (request.Publish)
+        if (publish)
         {
             await editor.PublishAsync(editorId, ct).ConfigureAwait(false);
             published = true;
         }
 
-        var plan = work.Describe(true, published, editor.UnpublishedChanges);
+        var plans = works
+            .Select(x => x.Describe(true, published, editor.UnpublishedChanges))
+            .ToList();
 
-        logger.LogInformation(
-            "Player {PlayerId} imported the Builders Club catalogue from a capture: {PagesAdded} pages added, {PagesChanged} changed, {PagesOut} taken out, {OffersAdded} offers added, {OffersChanged} changed, {Skipped} parts left out, published {Published}",
-            editorId,
-            plan.Pages.Count(x => x.Action == CatalogImportPageChange.ADD),
-            plan.Pages.Count(x => x.Action == CatalogImportPageChange.UPDATE),
-            plan.PagesTakenOut.Length,
-            plan.OffersAdded,
-            plan.OffersChanged,
-            plan.Skipped.Length,
-            published
-        );
+        foreach (var plan in plans)
+            logger.LogInformation(
+                "Player {PlayerId} {Label}, {Catalog}: {PagesAdded} pages added, {PagesChanged} changed, {PagesOut} taken out, {OffersAdded} offers added, {OffersChanged} changed, {Skipped} parts left out, published {Published}",
+                editorId,
+                label,
+                plan.Catalog,
+                plan.Pages.Count(x => x.Action == CatalogImportPageChange.ADD),
+                plan.Pages.Count(x => x.Action == CatalogImportPageChange.UPDATE),
+                plan.PagesTakenOut.Length,
+                plan.OffersAdded,
+                plan.OffersChanged,
+                plan.Skipped.Length,
+                published
+            );
 
-        return CatalogBuildOutcome<CatalogImportPlan>.Done(plan);
+        return (null, plans);
     }
 
-    private async Task<Work> PlanWorkAsync(CatalogImportRequest request, CancellationToken ct)
+    private async Task<Work> PlanWorkAsync(Source source, bool takeOthersOut, CancellationToken ct)
     {
-        if (request.Capture?.BcIndex?.Root is not { } root)
-            return Work.Refused("That is not a capture: it has no Builders Club index.");
-
-        var capturedPages = new Dictionary<int, CatalogCapturePage>();
-
-        foreach (var (_, entry) in request.Capture.BcPages ?? [])
-            if (entry.Page is { } page)
-                capturedPages[page.PageId] = page;
-
+        var builders = source.Type == CatalogType.BuildersClub;
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
@@ -201,6 +387,7 @@ public sealed class AdminCatalogImport(
         if (pages.Where(x => x.ParentId is null).MinBy(x => x.Id) is not { } ourRoot)
             return Work.Refused("This catalog has no root page.");
 
+        var pagesById = pages.ToDictionary(x => x.Id);
         var byParent = pages.Where(x => x.ParentId is not null).ToLookup(x => x.ParentId!.Value);
 
         List<SavedPage> Children(int id) =>
@@ -215,47 +402,65 @@ public sealed class AdminCatalogImport(
             page.Display.IsInBuildersClub() || Children(page.Id).Any(LeadsToBuildersClub);
 
         // The Builders Club opens on the first tab that leads to its pages, as the catalogue cuts
-        // it; with none yet, the first tab there is.
-        var tabs = Children(ourRoot.Id)
-            .Where(x => x.Display != CatalogPageDisplay.Invisible)
-            .ToList();
-        var category = tabs.FirstOrDefault(LeadsToBuildersClub) ?? tabs.FirstOrDefault();
+        // it; with none yet, the first tab there is. The normal catalogue's tabs are its root's.
+        var under = ourRoot;
 
-        if (category is null)
-            return Work.Refused("This catalog has no tab to put the Builders Club pages under.");
+        if (builders)
+        {
+            var tabs = Children(ourRoot.Id)
+                .Where(x => x.Display != CatalogPageDisplay.Invisible)
+                .ToList();
 
-        var bcOnlyByName = pages
+            if (
+                (tabs.FirstOrDefault(LeadsToBuildersClub) ?? tabs.FirstOrDefault())
+                is not { } category
+            )
+                return Work.Refused(
+                    "This catalog has no tab to put the Builders Club pages under."
+                );
+
+            under = category;
+        }
+
+        // The pages this catalogue's import brings in line: the second of a name in the capture
+        // is the second here, so a capture that has a name twice takes in the same pages again.
+        bool Takes(CatalogPageDisplay display) =>
+            builders
+                ? display == CatalogPageDisplay.BuildersClubOnly
+                : display is CatalogPageDisplay.Regular or CatalogPageDisplay.Invisible;
+
+        var ownByName = pages
             .Where(x =>
-                x.Display == CatalogPageDisplay.BuildersClubOnly
-                && !string.IsNullOrWhiteSpace(x.Name)
+                x.ParentId is not null && Takes(x.Display) && !string.IsNullOrWhiteSpace(x.Name)
             )
             .GroupBy(x => x.Name!.Trim(), StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.MinBy(x => x.Id)!, StringComparer.Ordinal);
+            .ToDictionary(
+                g => g.Key,
+                g => new Queue<SavedPage>(g.OrderBy(x => x.Id)),
+                StringComparer.Ordinal
+            );
         var sharedNames = pages
             .Where(x => x.Display == CatalogPageDisplay.Both && !string.IsNullOrWhiteSpace(x.Name))
             .Select(x => x.Name!.Trim())
             .ToHashSet(StringComparer.Ordinal);
 
-        var classNames = capturedPages
-            .Values.SelectMany(x => x.Offers ?? [])
-            .SelectMany(x => x.Products ?? [])
-            .Select(x => x.ClassName)
-            .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        var definitions = (
-            await db
-                .FurnitureDefinitions.AsNoTracking()
-                .Where(x => classNames.Contains(x.Name))
-                .Select(x => new
-                {
-                    x.Id,
-                    x.Name,
-                    x.ProductType,
-                })
-                .ToListAsync(ct)
-                .ConfigureAwait(false)
-        ).Where(x => classNames.Contains(x.Name, StringComparer.Ordinal)).GroupBy(x => (x.Name, x.ProductType)).ToDictionary(g => g.Key, g => g.Min(x => x.Id));
+        var definitions = await db
+            .FurnitureDefinitions.AsNoTracking()
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.ProductType,
+                x.SpriteId,
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var byClass = definitions
+            .GroupBy(x => (x.Name, x.ProductType))
+            .ToDictionary(g => g.Key, g => g.Min(x => x.Id));
+        var bySprite = definitions
+            .GroupBy(x => (x.ProductType, x.SpriteId))
+            .ToDictionary(g => g.Key, g => g.Min(x => x.Id));
         var currencies = (
             await db
                 .CurrencyTypes.AsNoTracking()
@@ -267,14 +472,11 @@ public sealed class AdminCatalogImport(
             .GroupBy(x => x.ActivityPointType!.Value)
             .ToDictionary(g => g.Key, g => g.Min(x => x.Id));
 
-        var bcPageIds = pages
-            .Where(x => x.Display == CatalogPageDisplay.BuildersClubOnly)
-            .Select(x => x.Id)
-            .ToList();
+        var ownPageIds = pages.Where(x => Takes(x.Display)).Select(x => x.Id).ToList();
         var offers = (
             await db
                 .CatalogOffers.AsNoTracking()
-                .Where(x => bcPageIds.Contains(x.CatalogPageEntityId))
+                .Where(x => ownPageIds.Contains(x.CatalogPageEntityId))
                 .Select(x => new SavedOffer(
                     x.Id,
                     x.CatalogPageEntityId,
@@ -287,7 +489,8 @@ public sealed class AdminCatalogImport(
                     x.ClubLevel,
                     x.Visible,
                     x.SortOrder,
-                    x.Products!.Select(p => new SavedProduct(
+                    x.Products!.OrderBy(p => p.Id)
+                        .Select(p => new SavedProduct(
                             p.ProductType,
                             p.FurnitureDefinitionEntityId,
                             p.ExtraParam,
@@ -299,26 +502,52 @@ public sealed class AdminCatalogImport(
                 .ConfigureAwait(false)
         ).ToLookup(x => x.PageId);
 
-        var work = new Work(category, editor);
+        var work = new Work(source.Type, builders ? under.Localization : string.Empty, editor);
         var missing = new SortedSet<string>(StringComparer.Ordinal);
         var unpriced = new SortedDictionary<int, int>();
+        var unopened = new List<string>();
         var matched = new HashSet<int>();
+        var matchedNodes = new Dictionary<CatalogCaptureNode, int>(
+            ReferenceEqualityComparer.Instance
+        );
+        var silvered = 0;
 
-        foreach (var heading in root.Children ?? [])
-        foreach (var node in heading.Children ?? [])
-            Visit(node, CatalogPageRef.Saved(category.Id), $"/{heading.PageName}");
+        // Habbo's Builders Club tree is its root, its one category, then the pages; the normal
+        // catalogue's is its root, then the tabs.
+        var top = builders
+            ? (source.Root.Children ?? [])
+                .SelectMany(heading =>
+                    (heading.Children ?? []).Select(node =>
+                        (Node: node, Above: $"/{heading.PageName}")
+                    )
+                )
+                .ToList()
+            : [.. (source.Root.Children ?? []).Select(node => (Node: node, Above: string.Empty))];
 
-        if (request.TakeOthersOut)
+        foreach (var (node, above) in top)
+            Visit(node, CatalogPageRef.Saved(under.Id), above, false);
+
+        OrderChildren(under.Id, top.Select(x => x.Node));
+
+        if (takeOthersOut)
             foreach (
                 var page in pages.Where(x =>
-                    x.Display.IsInBuildersClub() && !matched.Contains(x.Id)
+                    x.ParentId is not null
+                    && !matched.Contains(x.Id)
+                    && (
+                        builders
+                            ? x.Display.IsInBuildersClub()
+                            // Hiding a tab or heading that leads to Builders Club pages would
+                            // take them out of the Builders Club too.
+                            : x.Display == CatalogPageDisplay.Regular && !LeadsToBuildersClub(x)
+                    )
                 )
             )
                 work.TakeOut(page);
 
         foreach (var name in sharedNames.Where(x => work.Names.Contains(x)))
             work.Warnings.Add(
-                $"{name}: a page shown in both catalogues has this name, so it is left as it is and a Builders Club page is made beside it."
+                $"{name}: a page shown in both catalogues has this name, so it is left as it is and a page is made beside it."
             );
 
         foreach (var (type, count) in unpriced)
@@ -326,18 +555,30 @@ public sealed class AdminCatalogImport(
                 $"{count} offers are priced in activity points of type {type}, which this hotel has no currency for: they cost their credits only."
             );
 
+        if (silvered > 0)
+            work.Warnings.Add(
+                $"{silvered} offers have a silver price as well, which is not taken in: they cost their other prices only."
+            );
+
+        if (unopened.Count > 0)
+            work.Warnings.Add(
+                $"{unopened.Count} pages of the index were never opened in the capture, so they sell nothing: {string.Join(", ", unopened.Take(LISTED_MAX))}{(unopened.Count > LISTED_MAX ? $" and {unopened.Count - LISTED_MAX} more" : string.Empty)}."
+            );
+
+        work.Warnings.AddRange(source.Notes);
         work.MissingClasses.AddRange(missing);
 
         return work;
 
-        void Visit(CatalogCaptureNode node, CatalogPageRef parent, string above)
+        void Visit(CatalogCaptureNode node, CatalogPageRef parent, string above, bool hiddenAbove)
         {
             var name = node.PageName?.Trim() ?? string.Empty;
             var path = $"{above}/{name}";
-            capturedPages.TryGetValue(node.PageId, out var captured);
+            source.Pages.TryGetValue(node.PageId, out var captured);
             var capturedOffers = Distinct(captured?.Offers ?? []);
+            var hidden = hiddenAbove || !node.Visible;
 
-            if (!node.Visible)
+            if (builders && !node.Visible)
             {
                 work.Skipped.Add(
                     new CatalogImportSkip(
@@ -351,7 +592,7 @@ public sealed class AdminCatalogImport(
             }
 
             if (node.PageId > 0 && captured is null)
-                work.Warnings.Add($"{path}: the capture has no page for it, so it sells nothing.");
+                unopened.Add(path);
 
             var draft = new CatalogPageDraft(
                 (node.Localization ?? name).Trim(),
@@ -360,89 +601,123 @@ public sealed class AdminCatalogImport(
                 captured?.Layout is { Length: > 0 } layout ? layout : HEADING_LAYOUT,
                 [.. captured?.Localization?.ImageDatas ?? []],
                 [.. captured?.Localization?.TextDatas ?? []],
-                CatalogPageDisplay.BuildersClubOnly
+                builders ? CatalogPageDisplay.BuildersClubOnly
+                    : hidden ? CatalogPageDisplay.Invisible
+                    : CatalogPageDisplay.Regular
             );
-            var wanted = new List<(CatalogCaptureOffer Offer, CatalogOfferDraft Draft)>();
+
+            if (editor.CheckNewPage(draft) is { } refusedPage)
+            {
+                work.Skipped.Add(
+                    new CatalogImportSkip(path, refusedPage, capturedOffers.Count + Below(node))
+                );
+
+                return;
+            }
+
+            var wanted = new List<CatalogOfferDraft>();
 
             foreach (var offer in capturedOffers)
                 if (OfferDraft(offer, path) is { } offerDraft)
-                    wanted.Add((offer, offerDraft));
+                    wanted.Add(offerDraft);
 
             work.Names.Add(name);
 
-            if (name.Length > 0 && bcOnlyByName.TryGetValue(name, out var existing))
+            if (
+                name.Length > 0
+                && ownByName.TryGetValue(name, out var same)
+                && same.TryDequeue(out var existing)
+            )
             {
                 matched.Add(existing.Id);
+                matchedNodes[node] = existing.Id;
                 var page = work.Keep(existing, draft, path, parent);
                 var have = offers[existing.Id].OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
                 var used = new HashSet<int>();
                 var order = new List<int>();
 
-                foreach (var (_, offerDraft) in wanted)
-                {
-                    var same = have.FirstOrDefault(x =>
-                        !used.Contains(x.Id) && SameItem(x, offerDraft.Product!)
-                    );
+                // An offer already as the capture has it first, then the first left that gives
+                // the same: a page selling one item several ways pairs them up alike each time.
+                var pairs = new SavedOffer?[wanted.Count];
 
-                    if (same is null)
+                foreach (var exact in new[] { true, false })
+                    for (var i = 0; i < wanted.Count; i++)
+                    {
+                        if (pairs[i] is not null)
+                            continue;
+
+                        pairs[i] = have.FirstOrDefault(x =>
+                            !used.Contains(x.Id)
+                            && SameItems(x, wanted[i])
+                            && (!exact || !Differs(x, wanted[i]))
+                        );
+
+                        if (pairs[i] is { } paired)
+                            used.Add(paired.Id);
+                    }
+
+                for (var i = 0; i < wanted.Count; i++)
+                {
+                    var offerDraft = wanted[i];
+                    var saved = pairs[i];
+
+                    if (saved is null)
                     {
                         work.AddOffer(page, CatalogPageRef.Saved(existing.Id), offerDraft);
                         continue;
                     }
 
-                    used.Add(same.Id);
-                    order.Add(same.Id);
+                    order.Add(saved.Id);
 
-                    if (Differs(same, offerDraft))
-                        work.ChangeOffer(page, same.Id, offerDraft with { PageId = existing.Id });
+                    if (Differs(saved, offerDraft))
+                        work.ChangeOffer(page, saved.Id, offerDraft with { PageId = existing.Id });
                     else
                         work.UnchangedOffers++;
                 }
 
                 work.KeptOffers += have.Count - used.Count;
 
-                // The capture's offers in its order, after what it does not have.
+                // The capture's offers in its order, after what it does not have: each moved to
+                // the end in turn, as a move takes the offer out before putting it back.
                 var positions = have.Select((x, i) => (x.Id, i)).ToDictionary(x => x.Id, x => x.i);
                 var kept = have.Count - used.Count;
 
                 if (order.Where((id, i) => positions[id] != kept + i).Any())
-                    for (var i = 0; i < order.Count; i++)
-                    {
-                        var offerId = order[i];
-                        var index = kept + i;
+                    foreach (var offerId in order)
                         work.Order.Add(
                             (who, token) =>
-                                editor.MoveOfferAsync(who, offerId, existing.Id, index, token)
+                                editor.MoveOfferAsync(
+                                    who,
+                                    offerId,
+                                    existing.Id,
+                                    int.MaxValue,
+                                    token
+                                )
                         );
-                    }
 
                 foreach (var child in node.Children ?? [])
-                    Visit(child, CatalogPageRef.Saved(existing.Id), path);
+                    Visit(child, CatalogPageRef.Saved(existing.Id), path, hidden);
 
                 // The capture's pages under this one, in its order, after those it does not have.
-                OrderChildren(existing.Id, node);
+                OrderChildren(existing.Id, node.Children ?? []);
             }
             else
             {
                 var made = work.AddPage(parent, draft, path);
 
-                foreach (var (_, offerDraft) in wanted)
+                foreach (var offerDraft in wanted)
                     work.AddOffer(made, made.Ref, offerDraft);
 
                 foreach (var child in node.Children ?? [])
-                    Visit(child, made.Ref, path);
+                    Visit(child, made.Ref, path, hidden);
             }
         }
 
-        void OrderChildren(int parentId, CatalogCaptureNode node)
+        void OrderChildren(int parentId, IEnumerable<CatalogCaptureNode> nodes)
         {
-            var mine = (node.Children ?? [])
-                .Where(x => x.Visible)
-                .Select(x => x.PageName?.Trim() ?? string.Empty)
-                .Select(x => bcOnlyByName.GetValueOrDefault(x))
-                .OfType<SavedPage>()
-                .Where(x => x.ParentId == parentId)
-                .Select(x => x.Id)
+            var mine = nodes
+                .Select(x => matchedNodes.GetValueOrDefault(x))
+                .Where(x => x != 0 && pagesById[x].ParentId == parentId)
                 .ToList();
             var siblings = Children(parentId).Select(x => x.Id).ToList();
             var others = siblings.Count(x => !mine.Contains(x));
@@ -460,48 +735,23 @@ public sealed class AdminCatalogImport(
         {
             var what = $"{path}: offer {offer.Id} {offer.LocalizationId}";
 
-            if (offer.Products is not [var product])
-            {
-                work.Skipped.Add(
-                    new CatalogImportSkip(what, "it gives more or less than one item", 1)
-                );
-                return null;
-            }
+            if (builders && offer.Products is not [_])
+                return Skip("it gives more or less than one item");
 
-            var type = product.ProductType switch
-            {
-                FLOOR => ProductType.Floor,
-                WALL => ProductType.Wall,
-                _ => (ProductType?)null,
-            };
+            if (offer.Products is not { Length: > 0 } products)
+                return Skip("it gives nothing");
 
-            if (type is null)
-            {
-                work.Skipped.Add(new CatalogImportSkip(what, "it gives no floor or wall item", 1));
-                return null;
-            }
+            if (offer.IsRent)
+                return Skip("it is rented, and this hotel sells furni outright");
 
-            if (product.ClassName is not { Length: > 0 } className)
-            {
-                work.Skipped.Add(
-                    new CatalogImportSkip(what, "the capture names no class for it", 1)
-                );
-                return null;
-            }
+            var gives = new List<CatalogProductDraft>(products.Length);
 
-            if (className.StartsWith(CREDIT_FURNI_PREFIX, StringComparison.OrdinalIgnoreCase))
+            foreach (var product in products)
             {
-                work.Skipped.Add(new CatalogImportSkip(what, "credit furni are never lent", 1));
-                return null;
-            }
+                if (ProductDraft(product, offer, what) is not { } productDraft)
+                    return null;
 
-            if (!definitions.TryGetValue((className, type.Value), out var definitionId))
-            {
-                missing.Add(className);
-                work.Skipped.Add(
-                    new CatalogImportSkip(what, $"no furniture here is {className}", 1)
-                );
-                return null;
+                gives.Add(productDraft);
             }
 
             var costCurrency = Math.Max(0, offer.CostCurrency);
@@ -519,33 +769,162 @@ public sealed class AdminCatalogImport(
                 }
             }
 
-            return new CatalogOfferDraft(
+            // A badge, a bot or a pet is given once per purchase, so the editor never lets one be
+            // bought in bulk; asking for it would differ from what is saved every time.
+            var oncePerPurchase = gives.Any(x =>
+                x.Type is ProductType.Badge or ProductType.Robot or ProductType.Pet
+            );
+            var draft = new CatalogOfferDraft(
                 0,
-                (offer.LocalizationId ?? className).Trim(),
+                (
+                    offer.LocalizationId is { Length: > 0 } localization
+                        ? localization
+                        : products[0].ClassName ?? string.Empty
+                ).Trim(),
                 Math.Max(0, offer.CostCredits),
                 costCurrency,
                 currencyId,
                 offer.CanGift,
-                offer.CanBundle,
+                offer.CanBundle && !oncePerPurchase,
                 Math.Clamp(offer.ClubLevel, 0, 2),
                 true,
-                new CatalogProductDraft(
-                    type.Value,
-                    definitionId,
-                    product.ExtraParam is { Length: > 0 } extra ? extra : null,
-                    Math.Max(1, product.Quantity)
-                )
+                gives.Count == 1 ? gives[0] : null,
+                null,
+                gives.Count == 1 ? null : gives
             );
+
+            if (editor.CheckNewOffer(draft) is { } refused)
+                return Skip(refused);
+
+            if (offer.CostSilver > 0)
+                silvered++;
+
+            return draft;
+
+            CatalogOfferDraft? Skip(string reason)
+            {
+                work.Skipped.Add(new CatalogImportSkip(what, reason, 1));
+
+                return null;
+            }
+        }
+
+        CatalogProductDraft? ProductDraft(
+            CatalogCaptureProduct product,
+            CatalogCaptureOffer offer,
+            string what
+        )
+        {
+            if (!ProductTypes.TryGetValue(product.ProductType ?? string.Empty, out var type))
+                return Skip(
+                    $"it gives a kind of product this hotel has none of ({product.ProductType})"
+                );
+
+            if (product.LimitedSize > 0)
+                return Skip("it is a limited edition; set a limited series up here by hand");
+
+            var quantity = Math.Max(1, product.Quantity);
+            var extraParam = product.ExtraParam is { Length: > 0 } extra ? extra : null;
+
+            if (type is ProductType.Floor or ProductType.Wall)
+            {
+                var className = product.ClassName is { Length: > 0 } named ? named : null;
+
+                if (
+                    builders
+                    && className?.StartsWith(
+                        CREDIT_FURNI_PREFIX,
+                        StringComparison.OrdinalIgnoreCase
+                    ) == true
+                )
+                    return Skip("credit furni are never lent");
+
+                if (className is null && product.SpriteId <= 0)
+                    return Skip("the capture names no class for it");
+
+                var found = className is not null
+                    ? byClass.TryGetValue((className, type), out var byName)
+                        ? byName
+                        : (int?)null
+                    : bySprite.TryGetValue((type, product.SpriteId), out var sprite)
+                        ? sprite
+                        : null;
+
+                if (found is not { } definitionId)
+                {
+                    var item =
+                        className
+                        ?? $"{(type == ProductType.Floor ? "floor" : "wall")} sprite {product.SpriteId}";
+                    missing.Add(item);
+
+                    return Skip($"no furniture here is {item}");
+                }
+
+                return new CatalogProductDraft(type, definitionId, extraParam, quantity);
+            }
+
+            if (builders)
+                return Skip("it gives no floor or wall item");
+
+            switch (type)
+            {
+                // The client knows an effect by the sprite it sends; the editor keeps the id as
+                // the extra parameter.
+                case ProductType.Effect:
+                    return new CatalogProductDraft(
+                        type,
+                        null,
+                        product.SpriteId.ToString(CultureInfo.InvariantCulture),
+                        quantity
+                    );
+                case ProductType.Badge:
+                case ProductType.Robot:
+                    return new CatalogProductDraft(type, null, extraParam, 1);
+                // A pet's type is its extra parameter, or the digits the offer's name ends in
+                // (a0 pet3), which the pet page reads too.
+                case ProductType.Pet:
+                    var petType = extraParam ?? TrailingDigits(offer.LocalizationId);
+
+                    return petType is null
+                        ? Skip("it names no pet type")
+                        : new CatalogProductDraft(type, null, petType, 1);
+                case ProductType.HabboClub:
+                    return Skip("it is a membership, which this hotel sells from its club pages");
+                default:
+                    return Skip(
+                        $"it gives a kind of product this hotel has none of ({product.ProductType})"
+                    );
+            }
+
+            CatalogProductDraft? Skip(string reason)
+            {
+                work.Skipped.Add(new CatalogImportSkip(what, reason, 1));
+
+                return null;
+            }
         }
 
         int Below(CatalogCaptureNode node) =>
             (node.Children ?? []).Sum(x =>
                 (
-                    capturedPages.TryGetValue(x.PageId, out var page)
+                    source.Pages.TryGetValue(x.PageId, out var page)
                         ? Distinct(page.Offers ?? []).Count
                         : 0
                 ) + Below(x)
             );
+    }
+
+    private static string? TrailingDigits(string? text)
+    {
+        if (text is null)
+            return null;
+
+        var start = text.Length;
+
+        while (start > 0 && char.IsAsciiDigit(text[start - 1]))
+            start--;
+
+        return start < text.Length ? text[start..] : null;
     }
 
     /// <summary>
@@ -559,14 +938,25 @@ public sealed class AdminCatalogImport(
         return [.. offers.Where(x => seen.Add(x.Id))];
     }
 
-    private static bool SameItem(SavedOffer offer, CatalogProductDraft product) =>
-        offer.Products is [var saved]
-        && saved.Type == product.Type
-        && saved.DefinitionId == product.DefinitionId
-        && (saved.ExtraParam ?? string.Empty) == (product.ExtraParam ?? string.Empty);
+    private static IReadOnlyList<CatalogProductDraft> Gives(CatalogOfferDraft draft) =>
+        draft.Products ?? [draft.Product!];
+
+    private static bool SameItems(SavedOffer offer, CatalogOfferDraft draft)
+    {
+        var gives = Gives(draft);
+
+        return offer.Products.Count == gives.Count
+            && offer
+                .Products.Zip(gives)
+                .All(x =>
+                    x.First.Type == x.Second.Type
+                    && x.First.DefinitionId == x.Second.DefinitionId
+                    && (x.First.ExtraParam ?? string.Empty) == (x.Second.ExtraParam ?? string.Empty)
+                );
+    }
 
     private static bool Differs(SavedOffer offer, CatalogOfferDraft draft) =>
-        offer.LocalizationId != draft.LocalizationId
+        (draft.LocalizationId.Length > 0 && offer.LocalizationId != draft.LocalizationId)
         || offer.CostCredits != draft.CostCredits
         || offer.CostCurrency != draft.CostCurrency
         || (draft.CostCurrency > 0 && offer.CurrencyTypeId != draft.CurrencyTypeId)
@@ -574,7 +964,17 @@ public sealed class AdminCatalogImport(
         || offer.CanBundle != draft.CanBundle
         || offer.ClubLevel != draft.ClubLevel
         || !offer.Visible
-        || offer.Products[0].Quantity != draft.Product!.Quantity;
+        || !offer
+            .Products.Select(x => x.Quantity)
+            .SequenceEqual(Gives(draft).Select(x => x.Quantity));
+
+    /// <summary>A catalogue's capture: its index's root, its pages by id, and notes on reading it.</summary>
+    private sealed record Source(
+        CatalogType Type,
+        CatalogCaptureNode Root,
+        IReadOnlyDictionary<int, CatalogCapturePage> Pages,
+        IReadOnlyList<string> Notes
+    );
 
     private sealed record SavedPage(
         int Id,
@@ -647,7 +1047,7 @@ public sealed class AdminCatalogImport(
             );
     }
 
-    private sealed class Work(SavedPage? category, ICatalogEditService? editor)
+    private sealed class Work(CatalogType catalog, string category, ICatalogEditService? editor)
     {
         private readonly List<CatalogNewPage> _newPages = [];
         private readonly List<CatalogNewOffer> _newOffers = [];
@@ -678,7 +1078,8 @@ public sealed class AdminCatalogImport(
 
         public bool Changes => HasNew || Edits.Count > 0 || Order.Count > 0;
 
-        public static Work Refused(string error) => new(null, null) { Error = error };
+        public static Work Refused(string error) =>
+            new(CatalogType.Normal, string.Empty, null) { Error = error };
 
         public CatalogTreeDraft Draft() => new(_newPages, _newOffers, [], _pageMoves);
 
@@ -731,6 +1132,9 @@ public sealed class AdminCatalogImport(
             if (!(saved.TextData ?? []).SequenceEqual(draft.TextData))
                 page.Fields.Add("texts");
 
+            if (saved.Display != draft.Display)
+                page.Fields.Add(draft.Display.ToName());
+
             if (page.Fields.Count > 0)
             {
                 var id = saved.Id;
@@ -774,10 +1178,14 @@ public sealed class AdminCatalogImport(
             _offersChanged++;
         }
 
+        /// <summary>
+        /// Out of this catalogue: out of the Builders Club, a page in both stays in the normal
+        /// catalogue and one only there is hidden; out of the normal catalogue, a page is hidden.
+        /// </summary>
         public void TakeOut(SavedPage page)
         {
             var display =
-                page.Display == CatalogPageDisplay.Both
+                catalog == CatalogType.BuildersClub && page.Display == CatalogPageDisplay.Both
                     ? CatalogPageDisplay.Regular
                     : CatalogPageDisplay.Invisible;
             var draft = new CatalogPageDraft(
@@ -808,7 +1216,8 @@ public sealed class AdminCatalogImport(
 
         public CatalogImportPlan Describe(bool saved, bool published, int unpublished) =>
             new(
-                category?.Localization ?? string.Empty,
+                catalog.ToLegacyString(),
+                category,
                 [.. _pages.Select(x => x.Describe())],
                 [.. _out.Select(x => x.Describe())],
                 _newOffers.Count,

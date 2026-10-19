@@ -59,6 +59,18 @@ public interface ICatalogEditService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Why <see cref="BuildTreeAsync"/> would refuse this new page, or null; the checks that need
+    /// no database, so a caller putting a tree together can leave out what would refuse all of it.
+    /// </summary>
+    string? CheckNewPage(CatalogPageDraft page);
+
+    /// <summary>
+    /// Why <see cref="BuildTreeAsync"/> would refuse this new offer, or null; the checks that need
+    /// no database (what it gives, its name key, prices and club level), not its currency.
+    /// </summary>
+    string? CheckNewOffer(CatalogOfferDraft offer);
+
     Task<CatalogEditResult> CreatePageAsync(
         PlayerId editor,
         int parentId,

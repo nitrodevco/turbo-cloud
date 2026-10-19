@@ -50,6 +50,10 @@ public sealed record CatalogCapturePage(
 
 public sealed record CatalogCapturePageTexts(string[]? ImageDatas, string[]? TextDatas);
 
+/// <summary>
+/// An offer as the page lists it. <see cref="IsRent"/> and <see cref="CostSilver"/> are read
+/// from a packet log; a JSON capture leaves them out.
+/// </summary>
 public sealed record CatalogCaptureOffer(
     int Id,
     string? LocalizationId,
@@ -59,24 +63,55 @@ public sealed record CatalogCaptureOffer(
     bool CanGift,
     bool CanBundle,
     int ClubLevel,
-    CatalogCaptureProduct[]? Products
+    CatalogCaptureProduct[]? Products,
+    bool IsRent = false,
+    int CostSilver = 0
 );
 
-/// <summary>A product as the page lists it, with the class name its sprite has in Habbo's furnidata.</summary>
+/// <summary>
+/// A product as the page lists it: a JSON capture names its class as Habbo's furnidata has it,
+/// a packet log only its sprite. <see cref="LimitedSize"/> is the series a limited edition is
+/// one of, 0 for anything else.
+/// </summary>
 public sealed record CatalogCaptureProduct(
     string? ProductType,
     int SpriteId,
     string? ExtraParam,
     int Quantity,
-    [property: JsonPropertyName("classname")] string? ClassName
+    [property: JsonPropertyName("classname")] string? ClassName,
+    int LimitedSize = 0
 );
 
 /// <summary>
-/// What taking the capture in does, or did: the pages added, changed (what of them), moved and
-/// taken out of the Builders Club, the offers added and changed, and what was left out and why.
-/// Nothing to add, change or take out is a catalogue already in line with the capture.
+/// The catalogue to take in from packet logs of Habbo's client: <see cref="NormalLog"/> the
+/// normal catalogue's index and pages as it was sent them, <see cref="BuildersClubLog"/> the
+/// Builders Club's, either one left out. Made together, the normal catalogue first, as one step.
+/// </summary>
+public sealed record CatalogLogImportRequest(
+    string? NormalLog,
+    string? BuildersClubLog,
+    bool TakeOthersOut,
+    bool Publish
+);
+
+/// <summary>What taking each log in does, or did; null for a catalogue no log was given for.</summary>
+public sealed record CatalogLogImportPlan(
+    CatalogImportPlan? Normal,
+    CatalogImportPlan? BuildersClub
+)
+{
+    public bool Changes => Normal?.Changes == true || BuildersClub?.Changes == true;
+}
+
+/// <summary>
+/// What taking the capture in does, or did, to <see cref="Catalog"/> (<c>NORMAL</c> or
+/// <c>BUILDERS_CLUB</c>): the pages added, changed (what of them), moved and taken out of that
+/// catalogue, the offers added and changed, and what was left out and why. Nothing to add,
+/// change or take out is a catalogue already in line with the capture. <see cref="Category"/> is
+/// the tab the Builders Club's pages go under; the normal catalogue's tabs are its own.
 /// </summary>
 public sealed record CatalogImportPlan(
+    string Catalog,
     string Category,
     CatalogImportPageChange[] Pages,
     CatalogImportPageChange[] PagesTakenOut,
@@ -101,7 +136,7 @@ public sealed record CatalogImportPlan(
 
 /// <summary>
 /// One page of the capture and what happens to it: <c>add</c>, <c>update</c> (<see cref="Fields"/>
-/// names what), <c>unchanged</c>, or <c>out</c> for a page taken out of the Builders Club.
+/// names what), <c>unchanged</c>, or <c>out</c> for a page taken out of the catalogue.
 /// </summary>
 public sealed record CatalogImportPageChange(
     string Name,

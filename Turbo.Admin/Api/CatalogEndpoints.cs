@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
@@ -35,12 +38,19 @@ internal sealed class CatalogEndpoints(
     AdminCatalogAudit audit,
     AdminCatalogImport importer,
     IFurnitureDefinitionProvider definitions,
-    IRecolorablePalettes palettes
+    IRecolorablePalettes palettes,
+    ILogger<CatalogEndpoints> logger
 )
 {
     private const string NO_ACCESS = "You can't see the catalog.";
     private const string NO_MANAGE = "You can't change the catalog.";
     private const string NO_IMPORT = "You can't import a catalog.";
+
+    /// <summary>The form's files an import takes its logs from: the normal catalogue's, then the Builders Club's.</summary>
+    private static readonly string[] LogFields = ["normal", "buildersClub"];
+
+    /// <summary>What a form carries besides its files.</summary>
+    private const long FORM_OVERHEAD_BYTES = 64 * 1024;
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -100,6 +110,8 @@ internal sealed class CatalogEndpoints(
         group.MapPost("/generate", GenerateAsync);
         group.MapPost("/import/preview", PreviewImportAsync);
         group.MapPost("/import", ImportAsync);
+        group.MapPost("/import/logs/preview", PreviewLogImportAsync);
+        group.MapPost("/import/logs", LogImportAsync);
     }
 
     /// <summary>
@@ -635,6 +647,105 @@ internal sealed class CatalogEndpoints(
             await importer
                 .ApplyAsync(AdminIdentity.Of(http).PlayerId, request, ct)
                 .ConfigureAwait(false)
+        );
+    }
+
+    /// <summary>What importing the packet logs would add and change; nothing is changed.</summary>
+    private async Task<IResult> PreviewLogImportAsync(HttpContext http, CancellationToken ct)
+    {
+        if (!await CanImportAsync(http, false, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
+
+        var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
+
+        return request is null
+            ? AdminResults.Error(StatusCodes.Status400BadRequest, error!)
+            : Built(await importer.PlanLogsAsync(request, ct).ConfigureAwait(false));
+    }
+
+    private async Task<IResult> LogImportAsync(HttpContext http, CancellationToken ct)
+    {
+        if (!await CanImportAsync(http, true, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
+
+        var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
+
+        return request is null
+            ? AdminResults.Error(StatusCodes.Status400BadRequest, error!)
+            : Built(
+                await importer
+                    .ApplyLogsAsync(AdminIdentity.Of(http).PlayerId, request, ct)
+                    .ConfigureAwait(false)
+            );
+    }
+
+    /// <summary>
+    /// The packet logs of a form: <c>normal</c> and <c>buildersClub</c> files, either left out,
+    /// with <c>takeOthersOut</c> and <c>publish</c> as <c>true</c> or not.
+    /// </summary>
+    private async Task<(string? Error, CatalogLogImportRequest? Request)> ReadLogsAsync(
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!http.Request.HasFormContentType)
+            return ("Send the packet logs as a form.", null);
+
+        var tooLarge =
+            $"A packet log is at most {AdminCatalogImport.LOG_MAX_BYTES / (1024 * 1024)} MB.";
+
+        if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+            limit.MaxRequestBodySize =
+                LogFields.Length * AdminCatalogImport.LOG_MAX_BYTES + FORM_OVERHEAD_BYTES;
+
+        IFormCollection form;
+
+        try
+        {
+            form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+        }
+        catch (BadHttpRequestException ex)
+            when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            return (tooLarge, null);
+        }
+        catch (InvalidDataException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "A catalogue import's packet logs could not be read from the form"
+            );
+
+            return ($"The form could not be read: {ex.Message}", null);
+        }
+
+        var logs = new string?[LogFields.Length];
+
+        for (var i = 0; i < LogFields.Length; i++)
+        {
+            if (form.Files.GetFile(LogFields[i]) is not { } file)
+                continue;
+
+            if (file.Length > AdminCatalogImport.LOG_MAX_BYTES)
+                return (tooLarge, null);
+
+            using var memory = new MemoryStream((int)file.Length);
+            var stream = file.OpenReadStream();
+
+            await using (stream.ConfigureAwait(false))
+                await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
+
+            logs[i] = PacketLog.TextOf(memory.ToArray());
+        }
+
+        return (
+            null,
+            new CatalogLogImportRequest(
+                logs[0],
+                logs[1],
+                form["takeOthersOut"] == "true",
+                form["publish"] == "true"
+            )
         );
     }
 

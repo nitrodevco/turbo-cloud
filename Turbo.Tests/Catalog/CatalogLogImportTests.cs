@@ -1,0 +1,370 @@
+using System.Text;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Orleans;
+using Turbo.Admin.Api.Contracts;
+using Turbo.Admin.Catalog;
+using Turbo.Catalog.Editing;
+using Turbo.Database.Entities.Catalog;
+using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Editing;
+using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
+using Turbo.Tests.Support;
+using Xunit;
+using static Turbo.Tests.Catalog.CatalogFixture;
+
+namespace Turbo.Tests.Catalog;
+
+/// <summary>
+/// Taking Habbo's catalogues in from packet logs of its client. "Habbo" here is a second hotel,
+/// whose index and pages are sent by the real serializers and logged as G-Earth logs them, its
+/// client opening the catalogue and then each page. Taken in, the normal catalogue's new page
+/// comes with its bundle, badge and effect, and a page hidden there comes hidden; furni this
+/// hotel has none of is left out by its sprite; once in, the same log has nothing left to do.
+/// Both catalogues' logs are taken in as one step, and a log of the wrong catalogue is refused.
+/// </summary>
+public sealed class CatalogLogImportTests : IDisposable
+{
+    private static readonly PlayerId Editor = 1;
+
+    private const int ONLY_AT_HABBO = 40;
+    private const int NOVELTIES = 50;
+    private const int VAULT = 51;
+    private const int BUNDLE = 200;
+    private const int BADGE = 201;
+    private const int EFFECT = 202;
+    private const int UNKNOWN_FURNI = 203;
+    private const int IN_VAULT = 204;
+    private const int BC_CHAIR = 205;
+
+    private readonly CatalogFixture _habbo = new();
+    private readonly CatalogFixture _hotel = new();
+    private readonly CatalogEditService _service;
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    public CatalogLogImportTests()
+    {
+        _service = new CatalogEditService(
+            _hotel.Db,
+            _hotel.Definitions,
+            _hotel.NormalProvider(),
+            _hotel.BuildersClubProvider(),
+            _hotel.Fakes.Create<ISessionGateway>(),
+            _hotel.Fakes.Create<IGrainFactory>(),
+            new CapturingLogger<ICatalogEditService>()
+        );
+
+        _habbo.AddDefinition(ONLY_AT_HABBO, "habbo_only");
+        _habbo.Db.Insert(Page(NOVELTIES, FURNITURE, "Novelties", sort: 5));
+        _habbo.Db.Insert(Page(VAULT, ROOT, "Vault", CatalogPageDisplay.Invisible, sort: 5));
+        HabboOffer(
+            BUNDLE,
+            NOVELTIES,
+            "bundle",
+            (ProductType.Floor, CHAIR, null),
+            (ProductType.Wall, POSTER, "7")
+        );
+        HabboOffer(BADGE, NOVELTIES, "badge", (ProductType.Badge, null, "ACH_Test1"));
+        HabboOffer(EFFECT, NOVELTIES, "effect", (ProductType.Effect, null, "5"));
+        HabboOffer(
+            UNKNOWN_FURNI,
+            NOVELTIES,
+            "habbo_only",
+            (ProductType.Floor, ONLY_AT_HABBO, null)
+        );
+        HabboOffer(IN_VAULT, VAULT, "vaulted", (ProductType.Floor, CHAIR, null));
+        HabboOffer(BC_CHAIR, BUILDERS_PAGE, "bc_chair", (ProductType.Floor, CHAIR, null));
+    }
+
+    public void Dispose()
+    {
+        _habbo.Dispose();
+        _hotel.Dispose();
+    }
+
+    private AdminCatalogImport Importer =>
+        new(_hotel.Db, _service, new CapturingLogger<AdminCatalogImport>());
+
+    private void HabboOffer(
+        int id,
+        int pageId,
+        string name,
+        params (ProductType Type, int? Definition, string? Extra)[] products
+    )
+    {
+        _habbo.Db.Insert(
+            new CatalogOfferEntity
+            {
+                Id = id,
+                CatalogPageEntityId = pageId,
+                LocalizationId = name,
+                CostCredits = 3,
+                CostCurrency = 0,
+                ClubLevel = 0,
+                CanGift = true,
+                CanBundle = true,
+                Visible = true,
+                SortOrder = id,
+                Page = null!,
+            }
+        );
+
+        for (var i = 0; i < products.Length; i++)
+            _habbo.Db.Insert(
+                new CatalogProductEntity
+                {
+                    Id = id * 10 + i,
+                    CatalogOfferEntityId = id,
+                    ProductType = products[i].Type,
+                    FurnitureDefinitionEntityId = products[i].Definition,
+                    ExtraParam = products[i].Extra,
+                    Quantity = 1,
+                    Offer = null!,
+                }
+            );
+    }
+
+    /// <summary>Habbo's client opening the catalogue, then each page of it, as G-Earth logs it.</summary>
+    private async Task<string> HabboLogAsync(CatalogType type)
+    {
+        CatalogSnapshot snapshot;
+
+        if (type == CatalogType.BuildersClub)
+        {
+            var provider = _habbo.BuildersClubProvider();
+            await provider.ReloadAsync(Ct);
+            snapshot = provider.Current;
+        }
+        else
+        {
+            var provider = _habbo.NormalProvider();
+            await provider.ReloadAsync(Ct);
+            snapshot = provider.Current;
+        }
+
+        var log = new StringBuilder();
+        Logged(log, "CatalogIndex", new CatalogIndexMessageComposer { Catalog = snapshot });
+
+        var harness = new PacketHarness();
+        harness.Fakes.Handlers["GetCatalogSnapshot"] = _ => snapshot;
+        harness.Resolver.Overrides[typeof(ICatalogService)] =
+            harness.Fakes.Create<ICatalogService>();
+
+        foreach (var pageId in snapshot.PagesById.Keys.Where(x => x != snapshot.RootPageId).Order())
+        {
+            await harness.SendAsync(
+                PacketHarness.Incoming("GetCatalogPageMessageEvent"),
+                PacketHarness.Payload(w => w.Int(pageId).Int(-1).String(type.ToLegacyString()))
+            );
+
+            while (harness.Sent.TryDequeue(out var sent))
+                if (sent is CatalogPageMessageComposer)
+                    Logged(log, "CatalogPage", sent);
+        }
+
+        return log.ToString();
+    }
+
+    /// <summary>A packet as G-Earth logs it: its name, then its bytes, a byte below 32, 127 and the brackets and braces as <c>[n]</c>.</summary>
+    private static void Logged(StringBuilder log, string name, IComposer composer)
+    {
+        var serializer = PacketHarness.Revision.Serializers[composer.GetType()];
+        var packet = serializer.Serialize(composer);
+        byte[] framed;
+
+        try
+        {
+            framed = packet.ToArray();
+        }
+        finally
+        {
+            (packet as IDisposable)?.Dispose();
+        }
+
+        log.Append('[').Append(name).AppendLine("]");
+        log.Append("Incoming[").Append(serializer.Header).Append("] -> ");
+
+        foreach (var b in framed)
+        {
+            if (b < 32 || b is (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or 127)
+                log.Append('[').Append(b).Append(']');
+            else
+                log.Append((char)b);
+        }
+
+        log.AppendLine();
+    }
+
+    private static string Gives(CatalogOfferEntity offer) =>
+        string.Join(
+            ',',
+            offer
+                .Products!.OrderBy(p => p.Id)
+                .Select(p => $"{p.ProductType}:{p.FurnitureDefinitionEntityId}:{p.ExtraParam}")
+        );
+
+    [Fact]
+    public async Task ThePlan_AddsWhatThisHotelLacks_LeavesOutFurniItHasNoneOf_AndChangesNothing()
+    {
+        var log = await HabboLogAsync(CatalogType.Normal);
+        var before = _hotel.Rows();
+
+        var outcome = await Importer.PlanLogsAsync(
+            new CatalogLogImportRequest(log, null, false, false),
+            Ct
+        );
+
+        outcome.Error.Should().BeNull();
+        outcome.Value!.BuildersClub.Should().BeNull();
+        var plan = outcome.Value.Normal!;
+
+        plan.Catalog.Should().Be("NORMAL");
+        plan.Pages.Single(x => x.Name == "novelties")
+            .Should()
+            .Match<CatalogImportPageChange>(x =>
+                x.Action == CatalogImportPageChange.ADD
+                && x.Path == "/furniture/novelties"
+                && x.OffersAdded == 3
+            );
+        plan.Pages.Single(x => x.Name == "vault").Action.Should().Be(CatalogImportPageChange.ADD);
+        plan.Pages.Single(x => x.Name == "secret")
+            .Action.Should()
+            .Be(CatalogImportPageChange.UNCHANGED);
+        plan.MissingClasses.Should().Equal("floor sprite 40");
+        plan.Skipped.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(
+                new CatalogImportSkip(
+                    $"/furniture/novelties: offer {UNKNOWN_FURNI} habbo_only",
+                    "no furniture here is floor sprite 40",
+                    1
+                )
+            );
+        plan.Saved.Should().BeFalse();
+        _hotel.Rows().Should().Be(before);
+    }
+
+    [Fact]
+    public async Task Applying_MakesTheNewPages_WithEveryKindOfOffer_AsOneStep_AndAgainHasNothingToDo()
+    {
+        var log = await HabboLogAsync(CatalogType.Normal);
+        var request = new CatalogLogImportRequest(log, null, false, false);
+
+        var outcome = await Importer.ApplyLogsAsync(Editor, request, Ct);
+
+        outcome.Error.Should().BeNull();
+        outcome.Value!.Normal!.Saved.Should().BeTrue();
+        _service.History.Undo.Should().ContainSingle();
+
+        await using (var db = await _hotel.Db.CreateDbContextAsync(Ct))
+        {
+            var novelties = await db.CatalogPages.SingleAsync(x => x.Name == "novelties", Ct);
+            var vault = await db.CatalogPages.SingleAsync(x => x.Name == "vault", Ct);
+
+            novelties.ParentEntityId.Should().Be(FURNITURE);
+            novelties.Display.Should().Be(CatalogPageDisplay.Regular);
+            vault.ParentEntityId.Should().Be(ROOT);
+            vault
+                .Display.Should()
+                .Be(CatalogPageDisplay.Invisible, "it is hidden in Habbo's catalogue");
+
+            var onNovelties = await db
+                .CatalogOffers.Include(x => x.Products)
+                .Where(x => x.CatalogPageEntityId == novelties.Id)
+                .OrderBy(x => x.SortOrder)
+                .ToListAsync(Ct);
+            onNovelties
+                .Select(Gives)
+                .Should()
+                .Equal($"Floor:{CHAIR}:,Wall:{POSTER}:7", "Badge::ACH_Test1", "Effect::5");
+            onNovelties.Select(x => x.CanBundle).Should().Equal(true, false, true);
+
+            // The page here sells the chair as Habbo's does, priced four ways, in Habbo's order
+            // after the one Habbo does not show; the credits row is sent as activity points 0.
+            (
+                await db
+                    .CatalogOffers.Where(x => x.CatalogPageEntityId == FURNITURE)
+                    .OrderBy(x => x.SortOrder)
+                    .Select(x => $"{x.CostCredits}:{x.CostCurrency}:{x.CurrencyTypeId}")
+                    .ToListAsync(Ct)
+            )
+                .Skip(1)
+                .Should()
+                .Equal("5:0:", $"0:3:{DUCKETS_ROW}", $"0:2:{DIAMONDS_ROW}", $"0:7:{DUCKETS_ROW}");
+        }
+
+        var again = (await Importer.PlanLogsAsync(request, Ct)).Value!;
+        again.Changes.Should().BeFalse();
+        again
+            .Normal!.Pages.Should()
+            .OnlyContain(x => x.Action == CatalogImportPageChange.UNCHANGED);
+        (await Importer.ApplyLogsAsync(Editor, request, Ct))
+            .Value!.Normal!.Saved.Should()
+            .BeFalse();
+        _service.History.Undo.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task BothLogs_AreTakenInAsOneStep()
+    {
+        var request = new CatalogLogImportRequest(
+            await HabboLogAsync(CatalogType.Normal),
+            await HabboLogAsync(CatalogType.BuildersClub),
+            false,
+            false
+        );
+
+        var plan = (await Importer.ApplyLogsAsync(Editor, request, Ct)).Value!;
+
+        plan.Normal!.Saved.Should().BeTrue();
+        plan.BuildersClub!.Catalog.Should().Be("BUILDERS_CLUB");
+        plan.BuildersClub.Pages.Single(x => x.Name == "builders")
+            .Should()
+            .Match<CatalogImportPageChange>(x =>
+                x.Action == CatalogImportPageChange.UPDATE && x.OffersAdded == 1
+            );
+        _service.History.Undo.Should().ContainSingle();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        (await db.CatalogOffers.CountAsync(x => x.CatalogPageEntityId == BUILDERS_PAGE, Ct))
+            .Should()
+            .Be(1);
+    }
+
+    [Fact]
+    public async Task ALogOfTheOtherCatalogue_IsRefusedWithWhy()
+    {
+        var builders = await HabboLogAsync(CatalogType.BuildersClub);
+
+        var outcome = await Importer.PlanLogsAsync(
+            new CatalogLogImportRequest(builders, null, false, false),
+            Ct
+        );
+
+        outcome.Value.Should().BeNull();
+        outcome.Error.Should().Contain("normal catalogue's log has no index of it");
+        outcome.Error.Should().Contain("give them as the Builders Club catalogue's log");
+    }
+
+    [Fact]
+    public async Task APageLaidOutAsThisHotelDoesNotReadIt_IsLeftOutWithANote()
+    {
+        var packets = PacketLog.Read(await HabboLogAsync(CatalogType.Normal)).ToList();
+        var page = packets.FindIndex(x => x.Name == "CatalogPage");
+        var pageId = BitConverter.ToInt32(packets[page].Payload!.Take(4).Reverse().ToArray());
+        packets[page] = packets[page] with { Payload = [.. packets[page].Payload!, 0, 0, 0, 0] };
+
+        var capture = CatalogPacketLogReader.Read(packets, CatalogType.Normal);
+
+        capture.Root.Should().NotBeNull();
+        capture.Pages.Should().NotContainKey(pageId);
+        capture.Notes.Should().ContainSingle().Which.Should().Contain("4 bytes are left over");
+    }
+}
