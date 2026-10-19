@@ -17,6 +17,12 @@ public interface IPlayerDailyTaskGrain : IGrainWithIntegerKey
     /// </summary>
     Task<bool> ClaimAsync(long taskId, CancellationToken ct);
 
+    /// <summary>
+    /// Reads the definitions and the player's tasks again at the next call: staff changed the
+    /// definitions. The day's tasks given already stay.
+    /// </summary>
+    Task ReloadAsync(CancellationToken ct);
+
     /// <summary>Counts something the player did towards the day's tasks it fits.</summary>
     Task RecordActivityAsync(DailyTaskActivity activity, string value, CancellationToken ct);
 }

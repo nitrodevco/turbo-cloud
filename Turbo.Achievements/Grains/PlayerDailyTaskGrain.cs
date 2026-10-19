@@ -74,6 +74,14 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
         );
     }
 
+    public Task ReloadAsync(CancellationToken ct)
+    {
+        // The next call reads the day again; the tasks are saved as they change, so none is lost.
+        _state.DayStartsAt = null;
+
+        return Task.CompletedTask;
+    }
+
     public async Task<bool> ClaimAsync(long taskId, CancellationToken ct)
     {
         var now = Now;
@@ -198,7 +206,7 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
                 return true;
             }
             case DailyTaskTypes.FIND_FURNI when activity == DailyTaskActivity.FurniUse:
-                if (!Targets(definition).Contains(value, StringComparer.OrdinalIgnoreCase))
+                if (!definition.Targets().Contains(value, StringComparer.OrdinalIgnoreCase))
                     return false;
 
                 task.Repeats++;
@@ -209,42 +217,10 @@ internal sealed class PlayerDailyTaskGrain : Grain, IPlayerDailyTaskGrain
         }
     }
 
-    private static string[] Targets(DailyTaskDefinitionEntity definition) =>
-        definition.Target.Split(
-            ',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-        );
-
-    /// <summary>
-    /// Whether a definition can be given: a kind the server counts, a target for a find task,
-    /// an explore count its counted rooms fit in, and a reward it can grant.
-    /// </summary>
+    /// <summary>Whether a definition can be given (<see cref="DailyTaskDefinitionEntity.Problem"/>).</summary>
     private bool CanGive(DailyTaskDefinitionEntity definition)
     {
-        var countable = definition.QuestType switch
-        {
-            // Each counted room takes its id and a comma.
-            DailyTaskTypes.EXPLORE => definition.RequiredRepeats
-                * (int.MaxValue.ToString(CultureInfo.InvariantCulture).Length + 1)
-                <= PlayerDailyTaskEntity.COUNTED_MAX_LENGTH,
-            DailyTaskTypes.FIND_FURNI => Targets(definition).Length > 0,
-            _ => false,
-        };
-        var grantable =
-            definition.RewardAmount == 0
-            || definition.RewardProductType switch
-            {
-                ProductDisplayType.ActivityPoints => int.TryParse(
-                    definition.RewardTypeId,
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out _
-                ),
-                ProductDisplayType.Badge => definition.RewardTypeId.Length > 0,
-                _ => false,
-            };
-
-        if (!countable || !grantable || definition.RequiredRepeats < 1)
+        if (definition.Problem() is not null)
         {
             _logger.LogWarning(
                 "Daily task definition {DefinitionId} ({Code}) is enabled but cannot be given: type {QuestType}, {RequiredRepeats} repeats, reward {RewardProductType} {RewardTypeId}",

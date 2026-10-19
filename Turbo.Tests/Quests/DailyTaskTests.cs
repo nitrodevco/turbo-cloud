@@ -220,6 +220,34 @@ public sealed class DailyTaskTests : IDisposable
         (await grain.ClaimAsync(completed, Ct)).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task A_definition_staff_changed_counts_once_the_tasks_are_read_again()
+    {
+        var grain = Grain();
+
+        await grain.SendTasksAsync(Ct);
+
+        await using (var db = _db.CreateDbContext())
+        {
+            (await db.DailyTaskDefinitions.FindAsync([FIND_BBQ], Ct))!.Target = "rubber_duck";
+            await db.SaveChangesAsync(Ct);
+        }
+
+        // The day's definitions are kept until they are read again.
+        await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "rubber_duck", Ct);
+        Sent<DailyTasksTaskUpdateMessageComposer>().Should().BeEmpty();
+
+        await grain.ReloadAsync(Ct);
+        await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "rubber_duck", Ct);
+
+        Sent<DailyTasksTaskUpdateMessageComposer>().Should().ContainSingle();
+
+        // The day's tasks are the same ones: nothing is given again.
+        await grain.SendTasksAsync(Ct);
+        var lists = Sent<DailyTasksActiveListMessageComposer>().ToList();
+        lists[1].Tasks.Select(x => x.TaskId).Should().Equal(lists[0].Tasks.Select(x => x.TaskId));
+    }
+
     private IPlayerDailyTaskGrain Grain()
     {
         var grain = GrainHarness.Create(

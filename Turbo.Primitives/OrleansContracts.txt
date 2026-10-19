@@ -441,6 +441,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Wardrobe.IPlayerW
 interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGrain")] Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGrain [Version(0)]
   24E43A1E: ClaimAsync(long, System.Threading.CancellationToken) -> Task<bool>
   9A2D11D4: RecordActivityAsync(Turbo.Primitives.Quests.Enums.DailyTaskActivity, string, System.Threading.CancellationToken) -> Task
+  8B0C470F: ReloadAsync(System.Threading.CancellationToken) -> Task
   EC2FD848: SendTasksAsync(System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerQuestGrain")] Turbo.Primitives.Quests.Grains.IPlayerQuestGrain [Version(0)]

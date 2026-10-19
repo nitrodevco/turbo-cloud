@@ -1095,6 +1095,18 @@ The **Content** page is the game's content, each change made at once and on reco
   to its owner's inventory. A bot in an inventory can only be deleted.
 - **Chat styles**: every chat bubble the hotel has, built as Nitro Studio builds them (see
   [Chat styles](#chat-styles)).
+- **Daily tasks**: the tasks a player is given a few of each day at random (`Turbo:DailyTasks`),
+  and the bonus ones once those are done. Each is an explore task (rooms other players own, each
+  counted once) or a find task (using one of the furni named), rewarding points or a badge. A task
+  is checked as the hotel checks it before giving it: one it would skip is refused with why, or
+  can be saved off to finish later, and one already on that can't be given is marked. A change
+  has the players online read the tasks again at their next one; tasks already given that day
+  stay. Deleting one takes the players' tasks of it, unclaimed rewards with them.
+- **Quests**: the campaigns and their quests, done in order, one at a time; a campaign with an
+  end date is seasonal. The server counts `WEAR_BADGE`, `PET_EAT` and `FRIEND_REQUEST` quests; one
+  of any other type is marked, as players can take it but it never moves. Quests are read on
+  every use, so a change reaches players at once. Deleting a quest or a campaign takes the
+  players' progress on it.
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
 

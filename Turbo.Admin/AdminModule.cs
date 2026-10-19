@@ -62,6 +62,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminGroupQueries>();
         services.AddSingleton<AdminPetBotEditor>();
         services.AddSingleton<AdminCurrencyEditor>();
+        services.AddSingleton<AdminQuestEditor>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
