@@ -183,6 +183,8 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IGamedataHistoryService),
                 typeof(IGamedataImportJobs),
                 typeof(IAssetBundleService),
+                typeof(IAssetBundleStore),
+                typeof(Turbo.Primitives.Furniture.IRecolorablePalettes),
                 typeof(IAssetSyncService),
                 typeof(IAssetJobs),
                 typeof(IGamedataFigureService),
@@ -234,6 +236,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminCatalogImport>();
+        services.AddSingleton<AdminCatalogImages>();
         services.AddSingleton<Turbo.Admin.Content.AdminRewardTracks>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();

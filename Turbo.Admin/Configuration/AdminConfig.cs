@@ -113,6 +113,7 @@ public sealed class AdminConfig
         "pets2",
         "pets3",
         "pixeleffects",
+        "recolorable_furniture",
         "recycler",
         "recycler_info",
         "recycler_prizes",

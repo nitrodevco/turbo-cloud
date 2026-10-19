@@ -12,6 +12,8 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -31,7 +33,9 @@ internal sealed class CatalogEndpoints(
     ICatalogEditService editor,
     AdminCatalogBuilder builder,
     AdminCatalogAudit audit,
-    AdminCatalogImport importer
+    AdminCatalogImport importer,
+    IFurnitureDefinitionProvider definitions,
+    IRecolorablePalettes palettes
 )
 {
     private const string NO_ACCESS = "You can't see the catalog.";
@@ -45,6 +49,10 @@ internal sealed class CatalogEndpoints(
         group.MapGet("/", TreeAsync);
         group.MapGet("/pages/{id:int}", PageAsync);
         group.MapGet("/furniture", (string? q) => Results.Ok(catalog.SearchFurniture(q)));
+        group.MapGet(
+            "/recolorable-palettes",
+            (string? names) => Results.Ok(RecolorablePalettes(names))
+        );
         group.MapPost("/pages", CreatePageAsync);
         group.MapPut("/pages/{id:int}", UpdatePageAsync);
         group.MapPost("/pages/{id:int}/move", MovePageAsync);
@@ -92,6 +100,37 @@ internal sealed class CatalogEndpoints(
         group.MapPost("/generate", GenerateAsync);
         group.MapPost("/import/preview", PreviewImportAsync);
         group.MapPost("/import", ImportAsync);
+    }
+
+    /// <summary>
+    /// The colours each named furni may be placed in from a <c>recolorable_furniture</c> page, as
+    /// <c>RRGGBB</c> in palette order, for those of the names that are recolorable (by their
+    /// logic or their <c>*_recolorable</c> class); the others are left out.
+    /// </summary>
+    private Dictionary<string, string[]> RecolorablePalettes(string? names)
+    {
+        var found = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        foreach (var name in (names ?? string.Empty).Split(',', StringSplitOptions.TrimEntries))
+        {
+            if (name.Length == 0 || found.ContainsKey(name))
+                continue;
+
+            var recolorable =
+                RecolorableData.IsRecolorableClass(name)
+                || definitions.TryGetDefinitionByName(name)?.LogicName
+                    == RecolorableData.LOGIC_NAME;
+
+            if (recolorable)
+                found[name] =
+                [
+                    .. palettes
+                        .PaletteOf(name)
+                        .Select(x => x.ToString("X6", CultureInfo.InvariantCulture)),
+                ];
+        }
+
+        return found;
     }
 
     private async Task<IResult> TreeAsync(HttpContext http, CancellationToken ct) =>

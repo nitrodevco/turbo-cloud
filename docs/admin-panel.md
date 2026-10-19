@@ -687,6 +687,25 @@ reaches the editor at once. The layout picker describes every layout the Flash c
 a template for (as nitro-next mirrors them); codes in `CatalogLayouts`, or used by a page, that it
 doesn't describe are listed under "Other", and any code can be typed.
 
+A `recolorable_furniture` page (Builders Club) has no buy button: builders place its furni from
+the Builders Club in the colour they pick from its palette, which the server applies on placing
+(the palettes are `Turbo:Rooms:RecolorablePaletteToFurni` and `RecolorablePalettes`). Its preview draws the picked offer's palette, warns while the page isn't
+in the Builders Club catalog, and names the offers whose furni takes no colour.
+`GET /api/catalog/recolorable-palettes?names=a,b` (`admin.catalog.view`) answers each named furni
+that is recolorable (by its logic or its `*_recolorable` class) with its colours as `RRGGBB`.
+
+### Catalog pictures
+
+The **Images** tab lists the pictures the catalog's pages show (headers and teasers), as this server
+keeps them in `images/catalog` (`docs/asset-bundles.md`): those a sync took from Habbo, the uploads,
+and the names a page gives with no file behind them (**Missing**), each with the pages that show it.
+Staff with `catalog.manage` upload a GIF or PNG (at most 4 MB), named as typed or as its file, kept
+as `<name>.gif`, the file the client asks for; replace one; or delete one. Players see an upload once
+the assets are published. In a page's settings each picture is picked by typing, among the same
+pictures, drawn beside their names, or uploaded from there. `GET /api/catalog/images?q=&show=all|missing|unused|uploaded&page=&size=`
+and `GET /api/catalog/images/{name}/file` need `admin.catalog.view`; `POST /api/catalog/images`
+(a form with `file` and `name`) and `DELETE /api/catalog/images/{name}` need `catalog.manage`.
+
 ### Page builders
 
 A page builder fills a page with the offers a kind of page sells, named the way its layout reads

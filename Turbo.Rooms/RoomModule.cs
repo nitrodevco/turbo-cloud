@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
@@ -39,6 +40,7 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IRoomWiredVariablesProvider, RoomWiredVariablesProvider>();
         services.AddSingleton<IPetBreedProvider, PetBreedProvider>();
         services.AddSingleton<IPetSpeechProvider, PetSpeechProvider>();
+        services.AddSingleton<IRecolorablePalettes, RecolorablePalettes>();
 
         services.AddSingleton<IAssemblyFeatureProcessor, RoomObjectLogicFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, RoomEventListenerFeatureProcessor>();
