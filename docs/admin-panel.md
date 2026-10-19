@@ -50,7 +50,7 @@ and show as tabs along its header:
 | World | **Hotel view**, **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
-| Staff | **Logs** | Command log, Chat log, Room visits, Permission log |
+| Staff | **Logs** | Command log, Chat log, Messages, Room visits, Permission log |
 | Server | **Settings**, **Console** | |
 
 You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
@@ -908,6 +908,23 @@ What is logged is the hotel's rule: lines players type into a room's chat, when
 and room notices are not chat and are not logged. Rooms write chat in batches, so a line can take
 a few seconds to appear; the newest page asks again every 30 seconds.
 
+## Messages
+
+Staff with `admin.messages.view` get a **Messages** tab under Logs: what friends sent each other
+in the messenger, newest first, with who sent it to whom and when. A Habbicon sent instead of text
+shows as one, and a message still waiting for its friend to log in is marked **waiting**. A
+player's page links to their own messages.
+
+Narrow it to one player (exact name or id: what they sent and what was sent to them), add
+**With** for the conversation between two, or words in the message (case is ignored). Any
+message's **Conversation** button opens the conversation it is in. Like the chat log, it goes
+**Older** and **Newer** a page at a time (`MessagesPageSize`) and shows no total.
+
+The hotel keeps every message sent to a friend, online or not (`messenger_messages`), word-filtered
+as the friend saw it. Group chats in the messenger are not kept, so they are not here. The admin
+group holds the node through its `*`; give it to anyone else on purpose, as private messages are
+private.
+
 ## Room visits
 
 Staff with `admin.players.view` get a **Room visits** page under Logs: who went into which room,
@@ -1243,6 +1260,7 @@ them.
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
 | `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
 | `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
+| `MessagesPageSize` | `100` | | Messages per page on the Messages page. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
 | `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
 | `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |

@@ -436,6 +436,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Read the room chat log in the admin panel: what players said in rooms, whispers included."
         ),
         new(
+            PermissionNodes.Admin.MESSAGES_VIEW,
+            "Read players' private messages in the admin panel: what friends sent each other in the messenger."
+        ),
+        new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,
             "See groups, players' permissions and the permission log in the admin panel."
         ),

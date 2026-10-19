@@ -233,6 +233,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminChatlogQueries>();
+        services.AddSingleton<Turbo.Admin.Players.AdminMessageQueries>();
         services.AddSingleton<Turbo.Admin.Moderation.AdminReportQueries>();
         services.AddSingleton<Turbo.Admin.Moderation.AdminWordFilter>();
         services.AddSingleton<AdminPerformanceRecorder>();

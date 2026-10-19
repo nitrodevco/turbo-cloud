@@ -78,6 +78,9 @@ public sealed class AdminConfig
     /// <summary>Visits per page in the panel's room visits log.</summary>
     public int RoomVisitsPageSize { get; init; } = 100;
 
+    /// <summary>Messages per page in the panel's private messages log.</summary>
+    public int MessagesPageSize { get; init; } = 100;
+
     /// <summary>Calls for help per page on the panel's Reports page.</summary>
     public int ReportsPageSize { get; init; } = 50;
 

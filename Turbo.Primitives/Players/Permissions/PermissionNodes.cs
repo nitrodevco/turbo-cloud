@@ -287,6 +287,12 @@ public static class PermissionNodes
         public const string CHATLOG_VIEW = "admin.chatlog.view";
 
         /// <summary>
+        /// Read players' private messages in the panel: what friends sent each other in the
+        /// messenger, who to and when, one player's or a conversation between two.
+        /// </summary>
+        public const string MESSAGES_VIEW = "admin.messages.view";
+
+        /// <summary>
         /// See the catalog in the panel: its pages, offers and prices. Changing it needs
         /// <see cref="Catalog.MANAGE"/> as well.
         /// </summary>
