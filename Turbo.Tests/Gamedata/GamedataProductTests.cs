@@ -157,6 +157,36 @@ public sealed class GamedataProductTests : IDisposable
     }
 
     [Fact]
+    public async Task a_preview_is_worked_out_once_until_what_it_is_made_from_changes()
+    {
+        await _products.ImportAsync(Version(1, ("chair", "Chair", "Sit")), STAFF, Ct);
+
+        var next = Version(2, ("chair", "Seat", "Sit"));
+        var first = await _products.PreviewImportAsync(null, Ct);
+
+        // Asked again (the updates page asks for every kind on each visit) it is the same, not read anew.
+        (await _products.PreviewImportAsync(null, Ct))
+            .Should()
+            .BeSameAs(first);
+        first!.Version.Id.Should().Be(next);
+        first.Updated.Should().Be(1);
+
+        // The hotel's product edited: the preview is worked out again and says so.
+        await _products.SaveAsync("chair", "Throne", "Sit", STAFF, Ct);
+
+        var edited = await _products.PreviewImportAsync(null, Ct);
+
+        edited.Should().NotBeSameAs(first);
+        edited!.Updated.Should().Be(0);
+        edited.Kept.Should().Be(1);
+
+        // A newer version found: worked out again for it.
+        var third = Version(3, ("chair", "Stool", "Sit"));
+
+        (await _products.PreviewImportAsync(null, Ct))!.Version.Id.Should().Be(third);
+    }
+
+    [Fact]
     public async Task an_import_rolls_back_as_a_whole()
     {
         await _products.ImportAsync(Version(1, ("chair", "Chair", "Sit")), STAFF, Ct);

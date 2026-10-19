@@ -259,6 +259,50 @@ public sealed class GamedataFigureTests : IDisposable
     }
 
     [Fact]
+    public async Task a_preview_is_worked_out_once_until_what_it_is_made_from_changes()
+    {
+        await _figures.ImportAsync(Version(1, FILE), STAFF, Ct);
+
+        var next = Version(
+            2,
+            FILE.Replace(
+                """<set id="210" gender="U" club="0" colorable="1" selectable="1" preselectable="0" sellable="0">""",
+                """<set id="210" gender="U" club="2" colorable="1" selectable="1" preselectable="0" sellable="0">"""
+            )
+        );
+        var first = await _figures.PreviewImportAsync(null, Ct);
+
+        // Asked again (the updates page asks for every kind on each visit) it is the same, not read anew.
+        (await _figures.PreviewImportAsync(null, Ct))
+            .Should()
+            .BeSameAs(first);
+        first!.Version.Id.Should().Be(next);
+        first.Updated.Should().Be(1);
+
+        // The hotel makes the piece club-only itself: worked out again, nothing left to take in.
+        var own = Set(210);
+
+        own[FigureRecords.CLUB] = 2;
+        await _figures.SaveAsync(FigureRecordKind.Set, own.ToJsonString(), STAFF, Ct);
+
+        var edited = await _figures.PreviewImportAsync(null, Ct);
+
+        edited.Should().NotBeSameAs(first);
+        edited!.Updated.Should().Be(0);
+
+        // A newer version found: worked out again for it.
+        var third = Version(
+            3,
+            FILE.Replace(
+                """<set id="210" gender="U" club="0" colorable="1" selectable="1" preselectable="0" sellable="0">""",
+                """<set id="210" gender="U" club="1" colorable="1" selectable="1" preselectable="0" sellable="0">"""
+            )
+        );
+
+        (await _figures.PreviewImportAsync(null, Ct))!.Version.Id.Should().Be(third);
+    }
+
+    [Fact]
     public async Task an_edit_rolls_back_and_a_removed_record_comes_back()
     {
         await _figures.ImportAsync(Version(1, FILE), STAFF, Ct);

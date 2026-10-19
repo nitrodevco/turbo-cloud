@@ -159,22 +159,32 @@ internal sealed class HabboFurnitureFiles(
     public static JsonObject Enrich(
         JsonObject item,
         IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
-    )
+    ) => FileOf(item, files) is { } file ? WithStates((JsonObject)item.DeepClone(), file) : item;
+
+    /// <summary>
+    /// As <see cref="Enrich"/>, the item itself given the extra fields: for an item nothing else
+    /// holds, as one parsed for the caller alone, which a copy of would only double.
+    /// </summary>
+    public static JsonObject EnrichInPlace(
+        JsonObject item,
+        IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
+    ) => FileOf(item, files) is { } file ? WithStates(item, file) : item;
+
+    private static HabboFurnitureAssetEntity? FileOf(
+        JsonObject item,
+        IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
+    ) =>
+        item["classname"]?.GetValue<string>() is { } className
+        && files.TryGetValue((AssetName(className), Revision(item)), out var file)
+        && file.Error is null
+            ? file
+            : null;
+
+    private static JsonObject WithStates(JsonObject item, HabboFurnitureAssetEntity file)
     {
-        var className = item["classname"]?.GetValue<string>();
+        item[STATES_KEY] = file.States;
 
-        if (
-            className is null
-            || !files.TryGetValue((AssetName(className), Revision(item)), out var file)
-            || file.Error is not null
-        )
-            return item;
-
-        var enriched = (JsonObject)item.DeepClone();
-
-        enriched[STATES_KEY] = file.States;
-
-        return enriched;
+        return item;
     }
 
     private async Task<HabboFurnitureAssetEntity> ReadAsync(

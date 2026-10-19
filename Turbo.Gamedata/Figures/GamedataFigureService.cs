@@ -41,6 +41,8 @@ internal sealed class GamedataFigureService(
 ) : IGamedataFigureService
 {
     private readonly GamedataConfig _config = config.Value;
+    private readonly GamedataPreviewCache<GamedataDataVersion, FigureImportPreview> _previews =
+        new();
 
     public async Task<HabboFigureVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct)
     {
@@ -60,6 +62,33 @@ internal sealed class GamedataFigureService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
+        var latest = await LatestQuery(dbCtx)
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.ImportedAt })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+        var data = await GamedataDataVersion
+            .ReadAsync(
+                dbCtx,
+                latest?.Id,
+                latest?.ImportedAt,
+                dbCtx.GamedataFigures.Select(x => x.Id),
+                dbCtx.HabboFigures.Select(x => x.Id),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return await _previews
+            .GetAsync(data, versionId, () => WorkOutPreviewAsync(dbCtx, versionId, ct), ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<FigureImportPreview?> WorkOutPreviewAsync(
+        TurboDbContext dbCtx,
+        int? versionId,
+        CancellationToken ct
+    )
+    {
         var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
 
         if (version is null)

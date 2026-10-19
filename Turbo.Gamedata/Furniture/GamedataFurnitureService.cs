@@ -48,8 +48,8 @@ internal sealed class GamedataFurnitureService(
     private const string SPECIAL_TYPE_KEY = "specialtype";
 
     private readonly GamedataConfig _config = config.Value;
-    private readonly SemaphoreSlim _previewing = new(1, 1);
-    private KeptPreview? _preview;
+    private readonly GamedataPreviewCache<FurnitureDataVersion, FurnitureImportPreview> _previews =
+        new();
 
     public async Task<FurnitureImportPreview?> PreviewImportAsync(
         int? releaseId,
@@ -59,33 +59,13 @@ internal sealed class GamedataFurnitureService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        // Working a preview out reads every definition and the whole release, a few hundred MB
-        // for a full hotel: it is kept, and worked out again only once what it is made from has
-        // changed. One at a time, so the panel's tabs asking together work it out once.
         var version = await FurnitureDataVersion
             .ReadAsync(dbCtx, _config.HabboDomain, ct)
             .ConfigureAwait(false);
 
-        if (_preview is { } kept && kept.Version == version && kept.Asked == releaseId)
-            return kept.Preview;
-
-        await _previewing.WaitAsync(ct).ConfigureAwait(false);
-
-        try
-        {
-            if (_preview is { } done && done.Version == version && done.Asked == releaseId)
-                return done.Preview;
-
-            var preview = await WorkOutPreviewAsync(dbCtx, releaseId, ct).ConfigureAwait(false);
-
-            _preview = preview is null ? null : new KeptPreview(version, releaseId, preview);
-
-            return preview;
-        }
-        finally
-        {
-            _previewing.Release();
-        }
+        return await _previews
+            .GetAsync(version, releaseId, () => WorkOutPreviewAsync(dbCtx, releaseId, ct), ct)
+            .ConfigureAwait(false);
     }
 
     private async Task<FurnitureImportPreview?> WorkOutPreviewAsync(
@@ -814,8 +794,9 @@ internal sealed class GamedataFurnitureService(
                 )
                     continue;
 
-                // With what its asset file said (its states), when the file was read.
-                var habbo = HabboFurnitureFiles.Enrich(item, files);
+                // With what its asset file said (its states), when the file was read. The release
+                // was parsed for this plan alone, so its items take that as they are, uncopied.
+                var habbo = HabboFurnitureFiles.EnrichInPlace(item, files);
                 var spriteId = FurnitureValues.ToInt(habbo["id"], "id");
 
                 plan.HabboSpriteIds(type).Add(spriteId);
@@ -823,12 +804,16 @@ internal sealed class GamedataFurnitureService(
                 byName.TryGetValue((type, className), out var definition);
                 bases.TryGetValue((type, className), out var known);
 
+                // Habbo's last version is read only for an item whose fields differ.
                 var fields = definition is null
                     ? []
-                    : FurnitureMerge.Compare(
+                    : FurnitureMerge.CompareLazily(
                         definition,
                         habbo,
-                        known is null ? null : JsonNode.Parse(known.Data) as JsonObject
+                        new Lazy<JsonObject?>(
+                            () => known is null ? null : JsonNode.Parse(known.Data) as JsonObject,
+                            LazyThreadSafetyMode.None
+                        )
                     );
                 FurnitureImportAction? action =
                     definition is null ? FurnitureImportAction.Add
@@ -934,11 +919,4 @@ internal sealed class GamedataFurnitureService(
             return id;
         }
     }
-
-    /// <summary>A preview, the release it was asked for (null: the newest), and what it was worked out from.</summary>
-    private sealed record KeptPreview(
-        FurnitureDataVersion Version,
-        int? Asked,
-        FurnitureImportPreview Preview
-    );
 }

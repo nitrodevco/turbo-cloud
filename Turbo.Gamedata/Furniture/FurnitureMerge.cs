@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
@@ -28,6 +29,13 @@ internal static class FurnitureMerge
         FurnitureDefinitionEntity definition,
         JsonObject habbo,
         JsonObject? @base
+    ) => CompareLazily(definition, habbo, new Lazy<JsonObject?>(@base));
+
+    /// <summary>As <see cref="Compare"/>, the base read only once a field differs: most items have none that do.</summary>
+    public static ImmutableArray<FurnitureFieldChange> CompareLazily(
+        FurnitureDefinitionEntity definition,
+        JsonObject habbo,
+        Lazy<JsonObject?> lazyBase
     )
     {
         var isWall = definition.ProductType == ProductType.Wall;
@@ -45,6 +53,7 @@ internal static class FurnitureMerge
                 continue;
 
             bool kept;
+            var @base = lazyBase.Value;
 
             // A base taken in before its file was read says nothing of what comes from the file.
             if (@base is not null && field.IsIn(@base))

@@ -42,6 +42,8 @@ internal sealed class GamedataProductService(
     public const string CODE = "code";
 
     private readonly GamedataConfig _config = config.Value;
+    private readonly GamedataPreviewCache<GamedataDataVersion, ProductImportPreview> _previews =
+        new();
 
     public async Task<HabboProductVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct)
     {
@@ -64,6 +66,33 @@ internal sealed class GamedataProductService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
+        var latest = await LatestQuery(dbCtx)
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.ImportedAt })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+        var data = await GamedataDataVersion
+            .ReadAsync(
+                dbCtx,
+                latest?.Id,
+                latest?.ImportedAt,
+                dbCtx.GamedataProducts.Select(x => x.Id),
+                dbCtx.HabboProducts.Select(x => x.Id),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return await _previews
+            .GetAsync(data, versionId, () => WorkOutPreviewAsync(dbCtx, versionId, ct), ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<ProductImportPreview?> WorkOutPreviewAsync(
+        TurboDbContext dbCtx,
+        int? versionId,
+        CancellationToken ct
+    )
+    {
         var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
 
         if (version is null)

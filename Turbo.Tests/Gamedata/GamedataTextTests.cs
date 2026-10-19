@@ -141,6 +141,36 @@ public sealed class GamedataTextTests : IDisposable
     }
 
     [Fact]
+    public async Task a_preview_is_worked_out_once_until_what_it_is_made_from_changes()
+    {
+        await _texts.ImportAsync(Version(1, "a=One\nb=Two\n"), STAFF, Ct);
+
+        var next = Version(2, "a=One again\nb=Two\n");
+        var first = await _texts.PreviewImportAsync(null, Ct);
+
+        // Asked again (the updates page asks for every kind on each visit) it is the same, not read anew.
+        (await _texts.PreviewImportAsync(null, Ct))
+            .Should()
+            .BeSameAs(first);
+        first!.Version.Id.Should().Be(next);
+        first.Updated.Should().Be(1);
+
+        // The hotel's text edited: the preview is worked out again and says so.
+        await _texts.SaveAsync("a", "Mine", STAFF, Ct);
+
+        var edited = await _texts.PreviewImportAsync(null, Ct);
+
+        edited.Should().NotBeSameAs(first);
+        edited!.Updated.Should().Be(0);
+        edited.Kept.Should().Be(1);
+
+        // A newer version found: worked out again for it.
+        var third = Version(3, "a=Three\n");
+
+        (await _texts.PreviewImportAsync(null, Ct))!.Version.Id.Should().Be(third);
+    }
+
+    [Fact]
     public async Task keys_that_differ_only_in_case_are_two_texts()
     {
         await _texts.ImportAsync(
