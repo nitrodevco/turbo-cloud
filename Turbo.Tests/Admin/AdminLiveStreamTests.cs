@@ -233,6 +233,28 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
         Ids(changes, "players").Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ACallForHelpChange_TellsTheBell_AndTheReportsOnlyToModerators(bool moderator)
+    {
+        _holds = node =>
+            node == PermissionNodes.Admin.PANEL
+            || (moderator && node == PermissionNodes.Moderation.TOOL);
+        using var reader = await OpenAsync();
+
+        await new CallForHelpChangedHandler(_feed).HandleAsync(
+            new CallForHelpChangedEvent { IssueIds = [3] },
+            new EventContext(),
+            Ct
+        );
+
+        var changes = await NextChangesAsync(reader);
+
+        changes.GetProperty("notifications").GetBoolean().Should().BeTrue();
+        changes.GetProperty("reports").GetBoolean().Should().Be(moderator);
+    }
+
     [Fact]
     public async Task AStreamWhoseSessionIsGone_EndsAtTheNextKeepAlive()
     {

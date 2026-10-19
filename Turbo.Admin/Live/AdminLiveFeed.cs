@@ -36,6 +36,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
 
     private bool _dashboard;
     private bool _notifications;
+    private bool _reports;
     private HotelAvailabilitySnapshot? _availability;
 
     /// <summary>A stream of what changes from now on; disposing it stops the stream.</summary>
@@ -53,14 +54,15 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
 
     /// <summary>
     /// Notes a change, for the next beat. Ids are left out when not given; <paramref name="notifications"/>
-    /// is something new for the panel's bell.
+    /// is something new for the panel's bell, <paramref name="reports"/> calls for help changed.
     /// </summary>
     internal void Note(
         bool dashboard = false,
         int? room = null,
         int? player = null,
         int? permissions = null,
-        bool notifications = false
+        bool notifications = false,
+        bool reports = false
     )
     {
         lock (_gate)
@@ -70,6 +72,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
 
             _dashboard |= dashboard;
             _notifications |= notifications;
+            _reports |= reports;
 
             if (room is { } roomId)
                 _rooms.Add(roomId);
@@ -106,6 +109,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
                 || (
                     !_dashboard
                     && !_notifications
+                    && !_reports
                     && _rooms.Count == 0
                     && _players.Count == 0
                     && _permissions.Count == 0
@@ -118,11 +122,13 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
                 [.. _rooms],
                 [.. _players],
                 [.. _permissions],
-                _notifications
+                _notifications,
+                _reports
             );
             streams = [.. _streams];
             _dashboard = false;
             _notifications = false;
+            _reports = false;
             _rooms.Clear();
             _players.Clear();
             _permissions.Clear();

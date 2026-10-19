@@ -696,13 +696,14 @@ that is recolorable (by its logic or its `*_recolorable` class) with its colours
 
 ### Catalog pictures
 
-The **Images** tab lists the pictures the catalog's pages show (headers and teasers), as this server
-keeps them in `images/catalog` (`docs/asset-bundles.md`): those a sync took from Habbo, the uploads,
-and the names a page gives with no file behind them (**Missing**), each with the pages that show it.
-Staff with `catalog.manage` upload a GIF or PNG (at most 4 MB), named as typed or as its file, kept
-as `<name>.gif`, the file the client asks for; replace one; or delete one. Players see an upload once
-the assets are published. In a page's settings each picture is picked by typing, among the same
-pictures, drawn beside their names, or uploaded from there. `GET /api/catalog/images?q=&show=all|missing|unused|uploaded&page=&size=`
+The **Images** tab lists the catalog's pictures (the headers and teasers its pages show) as the files
+in `images/catalog` (`docs/asset-bundles.md`), however they got there, each with the pages that
+show it; **Not used** narrows it to those no page shows. Staff with `catalog.manage` upload a GIF or
+PNG (at most 4 MB), named as typed or as its file, written into the folder as `<name>.gif`, the file
+the client asks for; replace one; or delete one. An upload is also recorded in `asset_bundles`, so a
+publish sends it, and players see it once the assets are published. In a page's settings each
+picture is picked by typing, among the same list, drawn beside their names, or uploaded from there.
+`GET /api/catalog/images?q=&show=all|unused&page=&size=`
 and `GET /api/catalog/images/{name}/file` need `admin.catalog.view`; `POST /api/catalog/images`
 (a form with `file` and `name`) and `DELETE /api/catalog/images/{name}` need `catalog.manage`.
 
@@ -853,8 +854,10 @@ Staff with `moderation.tool`, the node the client's mod tool needs, get **Modera
 calls for help players send, newest first, the open ones by default (**Closed** and **All** show
 the rest). Each shows its topic, where it was sent from (the help window, the messenger, a photo
 or a group forum), who it is about, who sent it, and whether a moderator holds it. Narrow it to a
-player (exact name or id) to see the reports they sent or that are about them. The open ones are
-asked again every 20 seconds.
+player (exact name or id) to see the reports they sent or that are about them. The list and a
+report's page are fetched again the moment one changes, in the panel or in the hotel ([Live
+updates](#live-updates)). The bell lists the week's reports still open, each going to its page,
+until a moderator closes them.
 
 A report's page shows what the sender wrote, the chat they sent with it with the reported player's
 lines marked, the room (with a link to its chat log), and both players' histories: how many
@@ -1272,6 +1275,7 @@ data again when the hotel says it changed, instead of asking every few seconds:
 | A player is banned or their ban is lifted | That player's page, and any player list showing them |
 | Maintenance or a shutdown is scheduled, starts or is called off | The dashboard |
 | What a player holds changes | Their permissions page, and the staff list |
+| A call for help is sent, picked, let go, closed or taken back | The bell, and for staff with `moderation.tool` the reports and the report open |
 
 Changes are gathered for a second (`LiveBatchMs`), so a busy hotel sends one message a beat rather
 than one per footstep. Staff are only told the room and player ids they may see: someone without

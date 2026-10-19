@@ -112,6 +112,30 @@ public sealed class AdminNotificationQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task TheOpenCallsForHelp_AreForModerators_UntilClosed()
+    {
+        _db.Insert(Report(20, ALICE, MOD, "they are rude", NOW.AddMinutes(-5), closed: null));
+        _db.Insert(Report(21, ALICE, null, "", NOW.AddMinutes(-4), closed: null));
+        _db.Insert(Report(22, ALICE, MOD, "closed already", NOW.AddMinutes(-3), closed: NOW));
+        _db.Insert(Report(23, ALICE, MOD, "too long ago", NOW.AddDays(-8), closed: null));
+
+        var items = (
+            await Queries().GetAsync(new NotificationScope(false, false, Reports: true), Ct)
+        ).Items;
+
+        items
+            .Select(x => (x.Id, x.Title, x.Detail, x.PlayerId))
+            .Should()
+            .Equal(
+                ("report:21", "alice called for help", null, null),
+                ("report:20", "alice reported moderator", "they are rude", MOD)
+            );
+        (await Queries().GetAsync(EVERYTHING, Ct))
+            .Items.Should()
+            .NotContain(x => x.Kind == "report");
+    }
+
+    [Fact]
     public async Task AScheduledRestart_IsCalledARestart_NotAShutdown()
     {
         _availability = new HotelAvailabilitySnapshot(
@@ -160,6 +184,25 @@ public sealed class AdminNotificationQueriesTests : IDisposable
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
+        };
+
+    private static CfhReportEntity Report(
+        int id,
+        int reporter,
+        int? reported,
+        string message,
+        DateTime at,
+        DateTime? closed
+    ) =>
+        new()
+        {
+            Id = id,
+            ReporterEntityId = reporter,
+            ReportedEntityId = reported,
+            TopicId = 1,
+            Message = message,
+            CreatedAt = at,
+            ClosedAt = closed,
         };
 
     private static PlayerSanctionEntity Ban(

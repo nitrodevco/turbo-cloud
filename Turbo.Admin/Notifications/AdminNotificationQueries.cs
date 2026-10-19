@@ -17,15 +17,17 @@ namespace Turbo.Admin.Notifications;
 
 /// <summary>
 /// Which kinds of notification a staff member may be shown: bans with <c>admin.players.view</c>,
-/// refused commands with <c>admin.commandlog.view</c>. Maintenance and shutdowns are everyone's.
+/// refused commands with <c>admin.commandlog.view</c>, open calls for help with
+/// <c>moderation.tool</c>. Maintenance and shutdowns are everyone's.
 /// </summary>
-public sealed record NotificationScope(bool Bans, bool RefusedCommands);
+public sealed record NotificationScope(bool Bans, bool RefusedCommands, bool Reports = false);
 
 /// <summary>
 /// The panel's bell: what staff should know of lately. Maintenance or a shutdown, coming or under
 /// way; the bans of the last few days (<see cref="AdminConfig.NotificationDays"/>), who issued
-/// each and why; and the commands refused for want of a permission or room rights, which is
-/// someone trying what they may not. Read-only, off the rows the hotel already keeps.
+/// each and why; the commands refused for want of a permission or room rights, which is
+/// someone trying what they may not; and the calls for help of those days still open, until a
+/// moderator closes them. Read-only, off the rows the hotel already keeps.
 /// </summary>
 public sealed class AdminNotificationQueries(
     IDbContextFactory<TurboDbContext> database,
@@ -123,6 +125,44 @@ public sealed class AdminNotificationQueries(
                     $"{Name(names, x.PlayerEntityId, "The console")} was refused :{x.Command}",
                     x.Arguments.Length > 0 ? $":{x.Command} {x.Arguments}" : null,
                     x.PlayerEntityId == 0 ? null : x.PlayerEntityId
+                ))
+            );
+        }
+
+        if (scope.Reports)
+        {
+            var reports = await db
+                .CfhReports.AsNoTracking()
+                .Where(x => x.ClosedAt == null && x.CreatedAt >= since)
+                .OrderByDescending(x => x.Id)
+                .Take(take)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.ReporterEntityId,
+                    x.ReportedEntityId,
+                    x.Message,
+                    x.CreatedAt,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            var names = await NamesAsync(
+                    db,
+                    reports.SelectMany(x => new[] { x.ReporterEntityId, x.ReportedEntityId ?? 0 }),
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            items.AddRange(
+                reports.Select(x => new NotificationItem(
+                    $"report:{x.Id}",
+                    "report",
+                    x.CreatedAt,
+                    x.ReportedEntityId is { } reported
+                        ? $"{Name(names, x.ReporterEntityId, $"player #{x.ReporterEntityId}")} reported {Name(names, reported, $"player #{reported}")}"
+                        : $"{Name(names, x.ReporterEntityId, $"player #{x.ReporterEntityId}")} called for help",
+                    x.Message.Length > 0 ? x.Message : null,
+                    x.ReportedEntityId
                 ))
             );
         }

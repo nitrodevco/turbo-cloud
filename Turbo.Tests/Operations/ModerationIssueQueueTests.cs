@@ -566,7 +566,8 @@ public sealed class ModerationIssueQueueTests : IDisposable
             new ManualTimeProvider(new DateTimeOffset(NOW)),
             Options.Create(config ?? new OperationsConfig()),
             ToolService(config),
-            _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>()
+            _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>(),
+            new TestEventBus().System
         );
 
     private ModerationToolService ToolService(OperationsConfig? config = null) =>

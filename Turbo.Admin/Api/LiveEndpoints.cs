@@ -113,7 +113,8 @@ internal sealed class LiveEndpoints(
         return new LiveAccess(
             await HoldsAsync(PermissionNodes.Admin.ROOMS_VIEW).ConfigureAwait(false),
             await HoldsAsync(PermissionNodes.Admin.PLAYERS_VIEW).ConfigureAwait(false),
-            await HoldsAsync(PermissionNodes.Admin.PERMISSIONS_VIEW).ConfigureAwait(false)
+            await HoldsAsync(PermissionNodes.Admin.PERMISSIONS_VIEW).ConfigureAwait(false),
+            await HoldsAsync(PermissionNodes.Moderation.TOOL).ConfigureAwait(false)
         );
 
         Task<bool> HoldsAsync(string node) =>
@@ -127,7 +128,7 @@ internal sealed class LiveEndpoints(
     }
 
     /// <summary>Which of a message's ids the staff member may be told about.</summary>
-    private sealed record LiveAccess(bool Rooms, bool Players, bool Permissions)
+    private sealed record LiveAccess(bool Rooms, bool Players, bool Permissions, bool Reports)
     {
         /// <summary>The message with only what they may see, or null if that leaves nothing.</summary>
         public LiveChangesMessage? Filter(LiveChangesMessage message)
@@ -137,12 +138,14 @@ internal sealed class LiveEndpoints(
                 Rooms ? message.Rooms : [],
                 Players ? message.Players : [],
                 Permissions ? message.Permissions : [],
-                message.Notifications
+                message.Notifications,
+                Reports && message.Reports
             );
 
             return
                 visible.Dashboard
                 || visible.Notifications
+                || visible.Reports
                 || visible.Rooms.Length > 0
                 || visible.Players.Length > 0
                 || visible.Permissions.Length > 0

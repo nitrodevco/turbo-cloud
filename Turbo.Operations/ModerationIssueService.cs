@@ -10,11 +10,13 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Moderation;
+using Turbo.Events;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Help;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Moderation.Events;
 using Turbo.Primitives.Moderation.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -37,6 +39,7 @@ namespace Turbo.Operations;
 /// <item>grouping 1 for a report naming a player, 0 otherwise, so reports about the same player are
 /// one bundle (<c>IssueBundle.matches</c>) and the rest stand alone.</item>
 /// </list>
+/// Every change raises <see cref="CallForHelpChangedEvent"/>, for the admin panel.
 /// </summary>
 public sealed class ModerationIssueService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -45,7 +48,8 @@ public sealed class ModerationIssueService(
     TimeProvider timeProvider,
     IOptions<OperationsConfig> config,
     IModerationToolService moderationTool,
-    IHotelTextProvider texts
+    IHotelTextProvider texts,
+    EventSystem eventSystem
 ) : IModerationIssueService
 {
     public const string ALERT = "ALERT";
@@ -132,6 +136,8 @@ public sealed class ModerationIssueService(
                 new IssueDeletedMessageComposer { IssueId = issueId },
                 ct
             );
+
+        await eventSystem.PublishAsync(new CallForHelpChangedEvent { IssueIds = issueIds }, ct);
     }
 
     public async Task<ImmutableArray<ModIssuePickFailureSnapshot>> PickAsync(
@@ -523,6 +529,11 @@ public sealed class ModerationIssueService(
                 new IssueInfoMessageComposer { Issue = issue },
                 ct
             );
+
+        await eventSystem.PublishAsync(
+            new CallForHelpChangedEvent { IssueIds = [.. issues.Select(x => x.IssueId)] },
+            ct
+        );
     }
 
     private async Task<List<PlayerId>> ModeratorsOnlineAsync(CancellationToken ct)

@@ -29,7 +29,8 @@ internal sealed class NotificationEndpoints(
             .ConfigureAwait(false);
         var scope = new NotificationScope(
             resolved.Has(PermissionNodes.Admin.PLAYERS_VIEW),
-            resolved.Has(PermissionNodes.Admin.COMMAND_LOG_VIEW)
+            resolved.Has(PermissionNodes.Admin.COMMAND_LOG_VIEW),
+            resolved.Has(PermissionNodes.Moderation.TOOL)
         );
 
         return Results.Ok(await notifications.GetAsync(scope, ct).ConfigureAwait(false));

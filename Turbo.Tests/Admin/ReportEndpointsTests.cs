@@ -15,6 +15,7 @@ using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Help;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Moderation.Events;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -40,6 +41,7 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
     private const int OTHER_MODERATOR = 4;
 
     private readonly Fakes _fakes = new();
+    private readonly TestEventBus _events = new();
     private readonly SqliteDb _db = new();
     private readonly HttpClient _client = new();
     private readonly int _port;
@@ -73,8 +75,10 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
             TimeProvider.System,
             Options.Create(new OperationsConfig()),
             _fakes.Create<IModerationToolService>(),
-            _fakes.Create<IHotelTextProvider>()
+            _fakes.Create<IHotelTextProvider>(),
+            _events.System
         );
+        _events.Record<CallForHelpChangedEvent>();
 
         _db.Insert(Player(STAFF, "Staff"));
         _db.Insert(Player(REPORTER, "Sender"));
@@ -147,6 +151,9 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
             .ContainSingle()
             .Which.CloseReason.Should()
             .Be(CfhCloseReasonType.Resolved);
+        // The panel's own stream hears of it, as it does of a close in the hotel.
+        await _events.WhenPublishedAsync<CallForHelpChangedEvent>(2);
+        _events.Of<CallForHelpChangedEvent>().Select(x => x.IssueIds.Single()).Should().Equal(1, 1);
         (await JsonAsync(await SendAsync(HttpMethod.Get, "/api/reports")))
             .GetProperty("entries")
             .GetArrayLength()
