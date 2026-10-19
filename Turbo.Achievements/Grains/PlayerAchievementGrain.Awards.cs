@@ -9,9 +9,11 @@ using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Vault.Enums;
 
@@ -207,6 +209,7 @@ internal sealed partial class PlayerAchievementGrain
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
                 NotifyObservers(definition, open, level);
+                TellFriends(definition, level);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -276,6 +279,47 @@ internal sealed partial class PlayerAchievementGrain
                 "Achievement observers were not notified of achievement {AchievementId} level {Level}",
                 definition.Id,
                 award.Level
+            );
+        }
+    }
+
+    /// <summary>
+    /// Tells the player's online friends the level, for their friend bar: FriendNotification type
+    /// 1 carries the level's badge code, which the AS3 <c>AchievementToken</c> shows by its badge
+    /// name. A disabled achievement is hidden from everyone, so it is not announced. Told, not
+    /// awaited, after the commit: the award stands whatever the messenger does, and this grain
+    /// awaits nothing that may be waiting on it. Guarded like <see cref="NotifyObservers"/>, so a
+    /// failure here cannot block the next award.
+    /// </summary>
+    private void TellFriends(AchievementDefinition definition, AchievementLevelDefinition level)
+    {
+        if (definition.State == AchievementState.Disabled)
+            return;
+
+        try
+        {
+            _grains
+                .GetPlayerMessengerGrain(_state.PlayerId)
+                .NotifyFriendsAsync(
+                    FriendNotificationCodeType.AchievementCompleted,
+                    level.BadgeCode,
+                    CancellationToken.None
+                )
+                .LogAndForget(
+                    _logger,
+                    "tell the friends of player {PlayerId} about badge {BadgeCode}",
+                    _state.PlayerId,
+                    level.BadgeCode
+                );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Friends of player {PlayerId} were not told of achievement {AchievementId} badge {BadgeCode}",
+                _state.PlayerId,
+                definition.Id,
+                level.BadgeCode
             );
         }
     }

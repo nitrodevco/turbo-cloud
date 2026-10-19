@@ -34,6 +34,7 @@ public sealed class ProductFurniGrantTests : IDisposable
 {
     private const int BUYER = 7;
     private const int OFFER_ID = 900;
+    private const int POST_IT = 9;
 
     private static readonly BindingFlags All =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -76,6 +77,7 @@ public sealed class ProductFurniGrantTests : IDisposable
             ProductType.Floor,
             FurnitureCategory.Default
         );
+        AddDefinition(POST_IT, "post_it", ProductType.Wall, FurnitureCategory.PostIt, "stickie");
 
         _fakes.Handlers["TryGetDefinition"] = call =>
             _definitions.FirstOrDefault(x => x.Id == (int)call.Args[0]!)?.ToSnapshot(0.01);
@@ -201,6 +203,38 @@ public sealed class ProductFurniGrantTests : IDisposable
             .BeNull("it is not held any more");
     }
 
+    /// <summary>
+    /// A post-it pad is bought holding its sheets, which the client reads as the count of its
+    /// stack (Flash <c>GroupItem.getTotalCount</c>, category 5): the product's quantity when the
+    /// offer sells a pad of more than one, else the hotel's pad size (Habbo's 20). Each pad bought
+    /// is one item.
+    /// </summary>
+    [Theory]
+    [InlineData(1, "20")]
+    [InlineData(50, "50")]
+    public async Task APostItPad_IsBoughtHoldingItsSheets(int productQuantity, string sheets)
+    {
+        await NewInventory()
+            .GrantCatalogOfferAsync(
+                Offer(POST_IT, null, productQuantity),
+                "999",
+                2,
+                TestCustody.Cause(),
+                Ct
+            );
+
+        var listed = await NewInventory().GetAllItemSnapshotsAsync(Ct);
+
+        listed.Should().HaveCount(2);
+        listed
+            .Select(x => x.StuffData)
+            .Should()
+            .AllBeOfType<LegacyStuffSnapshot>()
+            .Which.Select(x => x.Data)
+            .Should()
+            .AllBe(sheets);
+    }
+
     [Fact]
     public async Task ARoomLinker_IsAPair_EachHalfNamingTheOther()
     {
@@ -248,17 +282,21 @@ public sealed class ProductFurniGrantTests : IDisposable
         _db.Insert(definition);
     }
 
-    private static CatalogOfferSnapshot Offer(int definitionId, string? productParam)
+    private static CatalogOfferSnapshot Offer(
+        int definitionId,
+        string? productParam,
+        int productQuantity = 1
+    )
     {
         var product = new CatalogProductSnapshot
         {
             Id = OFFER_ID,
             OfferId = OFFER_ID,
-            ProductType = definitionId <= 4 ? ProductType.Wall : ProductType.Floor,
+            ProductType = definitionId is <= 4 or POST_IT ? ProductType.Wall : ProductType.Floor,
             FurniDefinitionId = definitionId,
             SpriteId = definitionId,
             ExtraParam = productParam,
-            Quantity = 1,
+            Quantity = productQuantity,
             UniqueSize = 0,
             UniqueRemaining = 0,
             ClassName = null,

@@ -7,7 +7,9 @@ using Turbo.Primitives.Rooms;
 namespace Turbo.PacketHandlers.Room.Furniture;
 
 /// <summary>
-/// A post-it dragged out of the inventory onto a wall; the location string is the usual wall format.
+/// A post-it pad dragged out of the inventory onto a wall (Flash sends it for a stickie in place
+/// of <c>PlaceObject</c>): one sheet of the pad becomes a note there. The location string is the
+/// usual wall format; the room reads it.
 /// </summary>
 public class PlacePostItMessageHandler(IRoomService roomService)
     : IMessageHandler<PlacePostItMessage>
@@ -23,20 +25,8 @@ public class PlacePostItMessageHandler(IRoomService roomService)
         if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ItemId <= 0)
             return;
 
-        if (!WallPosition.TryParse(message.Location, out var position))
-            return;
-
         await _roomService
-            .PlaceWallItemInRoomAsync(
-                ctx.AsActionContext(),
-                message.ItemId,
-                position.X,
-                position.Y,
-                position.Z,
-                position.WallOffset,
-                position.Rotation,
-                ct
-            )
+            .PlacePostItInRoomAsync(ctx.AsActionContext(), message.ItemId, message.Location, ct)
             .ConfigureAwait(false);
     }
 }

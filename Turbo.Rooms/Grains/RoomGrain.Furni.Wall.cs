@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -46,6 +47,68 @@ public sealed partial class RoomGrain
             );
 
             return FurniturePlacementResultType.Refused;
+        }
+    }
+
+    public async Task<FurniturePlacementResultType> PlacePostItAsync(
+        ActionContext ctx,
+        RoomObjectId padId,
+        string location,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.PlacePostItAsync(ctx, padId, location, ct)
+                ? FurniturePlacementResultType.Done
+                : FurniturePlacementResultType.Refused;
+        }
+        catch (TurboException ex) when (IsBuildRefusal(ex))
+        {
+            return FurniturePlacementResultType.NotAllowed;
+        }
+        catch (TurboException ex) when (ex.ErrorCode == TurboErrorCodeEnum.FurniTypeLimitReached)
+        {
+            return FurniturePlacementResultType.TypeLimit;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to place a sheet of post-it pad {ItemId} in room {RoomId} for player {PlayerId}",
+                padId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return FurniturePlacementResultType.Refused;
+        }
+    }
+
+    public async Task<bool> AddSpamWallPostItAsync(
+        ActionContext ctx,
+        RoomObjectId padId,
+        string location,
+        string color,
+        string text,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.AddSpamWallPostItAsync(ctx, padId, location, color, text, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to pin a note from post-it pad {ItemId} in room {RoomId} for player {PlayerId}",
+                padId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
         }
     }
 

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Userclassification;
 
 internal class RoomUsersClassificationMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RoomUsersClassificationMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RoomUsersClassificationMessage { Classification = packet.PopString() };
 }

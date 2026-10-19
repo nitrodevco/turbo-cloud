@@ -38,6 +38,12 @@ public sealed record FurnitureItemSnapshot
     [Id(8)]
     public required bool HasRentPeriodStarted { get; init; }
 
+    /// <summary>
+    /// Whether the item is rented rather than owned: a rental carries its expiry, an owned item
+    /// -1. Flash's <c>FurniData</c> reads it the same way (<c>secondsToExpiration &gt; -1</c>).
+    /// </summary>
+    public bool IsRented => SecondsToExpiration > -1;
+
     [Id(9)]
     public required RoomId RoomId { get; init; }
 

@@ -27,6 +27,13 @@ public class InventoryConfig
     /// would otherwise grow the list forever; past this, the oldest stop being new.
     /// </summary>
     public int MaxUnseenItemsPerCategory { get; init; } = 500;
+
+    /// <summary>
+    /// Sheets in a post-it pad bought from the catalogue, when its product does not sell a pad of
+    /// more than one; Habbo's pads hold 20. Each sheet stuck to a wall is one note.
+    /// </summary>
+    public int PostItPadSheets { get; init; } = 20;
+
     public int PetStartEnergy { get; init; } = 100;
     public int PetStartNutrition { get; init; } = 100;
     public int PetNameMinLength { get; init; } = 1;

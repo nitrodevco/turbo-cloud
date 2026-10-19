@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -80,4 +81,17 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
     public Task<bool> CancelNestBreedingAsync(ActionContext ctx, int nestId, CancellationToken ct);
+
+    /// <summary>
+    /// Uses a pet product (a saddle, a dye, a revival potion) from the acting player's inventory
+    /// on one of their pets in this room, as the inventory's use button does. The same rules
+    /// hold as for one standing in the room; a rented item is refused. The item is used up when
+    /// the product takes effect, and given back when it then has none. False when it was refused.
+    /// </summary>
+    public Task<bool> UsePetProductFromInventoryAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        int petId,
+        CancellationToken ct
+    );
 }

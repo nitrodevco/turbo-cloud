@@ -57,6 +57,7 @@ public sealed record ModeratorUserInfoSnapshot
     [Id(15)]
     public required string PrimaryEmailAddress { get; init; }
 
+    /// <summary>One of <see cref="UserClassifications"/>, as <c>:uc</c> lists the player.</summary>
     [Id(16)]
     public required string UserClassification { get; init; }
 

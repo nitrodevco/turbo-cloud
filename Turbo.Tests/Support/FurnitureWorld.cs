@@ -125,15 +125,21 @@ public sealed class FurnitureWorld : IDisposable
             }
         );
 
-    public void AddDefinition(int id, string name, string logic)
+    public void AddDefinition(
+        int id,
+        string name,
+        string logic,
+        ProductType productType = ProductType.Floor,
+        FurnitureCategory category = FurnitureCategory.Default
+    )
     {
         var definition = new FurnitureDefinitionEntity
         {
             Id = id,
             SpriteId = id,
             Name = name,
-            ProductType = ProductType.Floor,
-            FurniCategory = FurnitureCategory.Default,
+            ProductType = productType,
+            FurniCategory = category,
             Logic = logic,
             Width = 1,
             Length = 1,

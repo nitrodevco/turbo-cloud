@@ -484,8 +484,10 @@ depths.
 
    Gated so far: the 21 moderation packets (`moderation.tool`; still stubs, so the gate is in place
    before the tool is), `ToggleStaffPick` (`navigator.staff_pick`, replacing
-   `NavigatorConfig.StaffPickPlayerIds`, which is gone), and the ambassador alert (replacing its
-   "moderator-level controller" stand-in).
+   `NavigatorConfig.StaffPickPlayerIds`, which is gone), the ambassador alert (replacing its
+   "moderator-level controller" stand-in), and the user classification lists: `:uc hotel` on
+   `room.moderate.any`, the room's list (`:uc`, `:anew`) on that or `role.ambassador` like the
+   alert, where `UserClassificationService` gives an ambassador only the new users `:anew` asks for.
 2. **Inside a grain, asynchronously** — `RoomModerationModule.CanModerateAsync`, catalog
    purchases. One call to `IPlayerPermissionGrain.HasAsync`.
 

@@ -329,9 +329,6 @@ public class RoomConfig
     /// <summary>How long both sides of a love lock have to confirm before it is cancelled.</summary>
     public int FriendFurniLockTimeoutMs { get; init; } = 60000;
 
-    /// <summary>Definition (class) name of the note a post-it wall creates.</summary>
-    public string SpamWallPostItDefinitionName { get; init; } = "post_it";
-
     /// <summary>Items one side may offer in a trade.</summary>
     public int TradeMaxItemsPerSide { get; init; } = 50;
 

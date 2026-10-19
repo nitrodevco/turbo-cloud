@@ -6,6 +6,8 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
+using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Quests.Grains;
@@ -299,6 +301,63 @@ public sealed class QuestTests : IDisposable
             .Equal($"quest:{PET_FOOD}", $"quest:{PET_FOOD}");
     }
 
+    /// <summary>
+    /// The friend bar's quest token (AS3 <c>QuestToken</c>) shows `${quests.&lt;message&gt;.name}`,
+    /// the completed quest's <c>QuestMessageData.getQuestLocalizationKey</c> without "quests.".
+    /// </summary>
+    [Fact]
+    public async Task Friends_are_told_of_a_completed_quest_by_its_localization_key()
+    {
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        FriendTells().Should().BeEmpty("a step is not a completed quest");
+
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        var completed = Single<QuestCompletedMessageComposer>().Quest;
+        var told = FriendTells().Should().ContainSingle().Subject;
+        told.Key.Should().Be((long)PLAYER);
+        ((FriendNotificationCodeType)told.Args[0]!, (string)told.Args[1]!)
+            .Should()
+            .Be(
+                (
+                    FriendNotificationCodeType.QuestCompleted,
+                    $"{completed.CampaignCode}.{completed.LocalizationCode}"
+                )
+            );
+        told.Args[1].Should().Be("connect_dots26.q20");
+    }
+
+    [Fact]
+    public async Task A_quest_left_on_its_last_step_tells_no_friends()
+    {
+        _fakes.Handlers["CreditAsync"] = _ => Task.FromResult(WalletCreditResult.Rejected);
+
+        await Grain().AcceptAsync(PET_FOOD, Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+        await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
+
+        FriendTells().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_failed_friend_tell_does_not_stop_the_quest_completing()
+    {
+        _fakes.Handlers[nameof(IPlayerMessengerGrain.NotifyFriendsAsync)] = _ =>
+            Task.FromException(new InvalidOperationException("messenger failure"));
+
+        await Grain().AcceptAsync(FIRST_BADGE, Ct);
+        await Grain().RecordAsync(QuestTypes.WEAR_BADGE, "W2601", Ct);
+
+        Single<QuestCompletedMessageComposer>().Quest.Id.Should().Be(FIRST_BADGE);
+        _db.CreateDbContext()
+            .PlayerQuests.Single()
+            .Should()
+            .Match<PlayerQuestEntity>(x => !x.Accepted && x.CompletedAt != null);
+        FriendTells().Should().ContainSingle();
+    }
+
     [Fact]
     public async Task The_tracker_asking_after_a_quest_is_done_gets_the_campaigns_next_quest()
     {
@@ -435,6 +494,11 @@ public sealed class QuestTests : IDisposable
                 }
             )
             .OfType<T>();
+
+    private IEnumerable<FakeCall> FriendTells() =>
+        _fakes
+            .Log.On<IPlayerMessengerGrain>()
+            .Where(x => x.Method == nameof(IPlayerMessengerGrain.NotifyFriendsAsync));
 
     private IEnumerable<string> SentNames() =>
         _fakes

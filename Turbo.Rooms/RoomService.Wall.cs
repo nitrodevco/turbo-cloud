@@ -59,6 +59,25 @@ internal sealed partial class RoomService
         }
     }
 
+    public async Task PlacePostItInRoomAsync(
+        ActionContext ctx,
+        RoomObjectId padId,
+        string location,
+        CancellationToken ct
+    )
+    {
+        if (ctx.Origin != ActionOrigin.Player || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+            return;
+
+        var result = await _grainFactory
+            .GetRoomGrain(ctx.RoomId)
+            .PlacePostItAsync(ctx, padId, location, ct)
+            .ConfigureAwait(false);
+
+        // A refused sheet stays on its pad, and the player is told why.
+        await SendPlacementErrorAsync(ctx.PlayerId, result, ct).ConfigureAwait(false);
+    }
+
     public async Task MoveWallItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId itemId,

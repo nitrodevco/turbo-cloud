@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Userclassification;
 
 internal class PeerUsersClassificationMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new PeerUsersClassificationMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new PeerUsersClassificationMessage { Classification = packet.PopString() };
 }

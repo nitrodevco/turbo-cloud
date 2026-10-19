@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Quests.Snapshots;
@@ -333,13 +334,30 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         row.CompletedAt = now;
         await dbCtx.SaveChangesAsync(ct);
 
+        var completed = data.Snapshot(quest, now, completing: true);
+
+        // The player's online friends see it on their friend bar: FriendNotification type 2,
+        // whose message the AS3 QuestToken shows as `${quests.<message>.name}` - the quest's own
+        // QuestMessageData.getQuestLocalizationKey without its "quests." prefix, so it is built
+        // from the codes the quest below carries. Told, not awaited: the quest is done and paid
+        // whatever the messenger does.
+        _grainFactory
+            .GetPlayerMessengerGrain(_playerId)
+            .NotifyFriendsAsync(
+                FriendNotificationCodeType.QuestCompleted,
+                $"{completed.CampaignCode}.{completed.LocalizationCode}",
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _logger,
+                "tell the friends of player {PlayerId} about quest {QuestId}",
+                _playerId,
+                quest.Id
+            );
+
         await _grainFactory.SendComposerToPlayerAsync(
             _playerId,
-            new QuestCompletedMessageComposer
-            {
-                Quest = data.Snapshot(quest, now, completing: true),
-                ShowDialog = true,
-            },
+            new QuestCompletedMessageComposer { Quest = completed, ShowDialog = true },
             ct
         );
     }

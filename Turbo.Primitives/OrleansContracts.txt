@@ -193,10 +193,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   5E4C6106: RemoveFurnitureAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   215E5981: ReturnBotAsync(Turbo.Primitives.Bots.Snapshots.BotSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
   47F88FB1: ReturnPetAsync(Turbo.Primitives.Pets.Snapshots.PetSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
+  F1C33953: ReturnPostItSheetAsync(Turbo.Primitives.Inventory.Snapshots.PostItSheetTakenSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
   AEE5660A: SendBotInventoryAsync(System.Threading.CancellationToken) -> Task
   D78A0626: SendFurnitureInventoryAsync(Turbo.Primitives.Networking.SessionKey, System.Threading.CancellationToken) -> Task
   012A55F6: SendPetInventoryAsync(System.Threading.CancellationToken) -> Task
   09C016D6: SendPetNameApprovalAsync(string, System.Threading.CancellationToken) -> Task
+  13BC084B: TakePostItSheetAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.PostItSheetTakenSnapshot?>
   C4C488EE: TransferFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
   17F37AE0: TryCheckOutBotAsync(int, Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
   4B4CB490: TryCheckOutPetAsync(int, Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
@@ -477,6 +479,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo.Primitives.Rooms.Grains.IRoomGrain [Version(0)]
   1D7EC93C: AddItemAsync(Turbo.Primitives.Rooms.Object.Furniture.IRoomItem, System.Threading.CancellationToken) -> Task<bool>
+  014DF90A: AddSpamWallPostItAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, string, string, string, System.Threading.CancellationToken) -> Task<bool>
   9445BFAA: AnswerDoorbellAsync(Turbo.Primitives.Action.ActionContext, string, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
   49926E24: AnswerWordQuizAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   D6AA9ED0: ApplyDecorationAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
@@ -574,6 +577,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   37639288: PlaceBuildersClubWallItemAsync(Turbo.Primitives.Action.ActionContext, int, int, string, string, bool, System.Threading.CancellationToken) -> Task<bool>
   6E6657FA: PlaceFloorItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   347654B7: PlacePetAsync(Turbo.Primitives.Action.ActionContext, int, int, int, System.Threading.CancellationToken) -> Task<bool>
+  2F4B225B: PlacePostItAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   8D0D0C2C: PlaceWallItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot, int, int, Turbo.Primitives.Rooms.Object.Altitude, int, Turbo.Primitives.Rooms.Enums.Rotation, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.FurniturePlacementResultType>
   73BBEBF5: PrepareRoomDeletionAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   78525494: PublishRoomEventAsync(Turbo.Primitives.Rooms.Events.RoomEvent, System.Threading.CancellationToken) -> Task
@@ -643,6 +647,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   68F3B6B7: UpdateRoomFilterAsync(Turbo.Primitives.Action.ActionContext, bool, string, System.Threading.CancellationToken) -> Task<bool>
   31ADE087: UpdateWiredRoomStateAsync(Turbo.Primitives.Action.ActionContext, bool, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>>
   F14128EE: UseItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken, int) -> Task<bool>
+  ADD2CDB6: UsePetProductFromInventoryAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, int, System.Threading.CancellationToken) -> Task<bool>
   1728DE5E: WalkAvatarToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>
   647C59A3: WhisperToPlayerAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
   D8D03AB5: WiredClickAvatarAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task

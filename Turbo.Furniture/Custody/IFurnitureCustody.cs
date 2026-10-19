@@ -66,6 +66,19 @@ public interface IFurnitureCustody
     );
 
     /// <summary>
+    /// No transition: the extra data of <paramref name="itemId"/>, held by <paramref name="owner"/>
+    /// in no room and no holder, becomes <paramref name="extraDataJson"/> (a post-it pad's sheets
+    /// left). Nothing changes hands, so nothing is recorded; the guard is the custody's, so a row
+    /// that has left the inventory is not written. False when there is no such row.
+    /// </summary>
+    Task<bool> SetExtraDataInInventoryAsync(
+        PlayerId owner,
+        RoomObjectId itemId,
+        string extraDataJson,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Inventory -> holder, in the caller's unit of work: all of <paramref name="items"/>, held by
     /// <paramref name="from"/> in no room and no holder, go into <paramref name="holder"/>, kept for
     /// its <see cref="FurniHolder.HeldFor"/>. False when one is not there: the caller rolls back.

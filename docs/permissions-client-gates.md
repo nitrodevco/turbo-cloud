@@ -53,7 +53,7 @@ already stands (`Partner = 2`, `Employee = 4`, `Moderator = 5`, `Community = 7`)
 | Gated | Where | Passing it |
 | --- | --- | --- |
 | `:kick` and `:mute` go to the **server** instead of being handled locally | `ChatInputWidgetHandler:247,262` | Without security 4 the client kicks/mutes by itself and needs `roomControllerLevel >= 1`. With it, the command text falls through to the server's own parser. |
-| `:uc` — classify room or hotel users | `:404` | security 4 only |
+| `:uc` — classify room or hotel users | `:404` | security 4 only. The server answers on `room.moderate.any`, the node that gives 4 |
 | `:anew`, `:avisit`, `:aalert` — ambassador tools | `:417,423,436` | `isAmbassador` **or** security 4 |
 | `:csmm` — force a checksum mismatch | `:237` | security 4 only |
 | Saving a floor plan, and its import/export dialog | `BCFloorPlanEditor:189,248`, `ImportExportDialog:36` | Builders Club seconds left **or** security 4 |

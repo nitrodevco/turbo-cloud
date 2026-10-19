@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Rooms.Grains;
 
@@ -173,5 +174,18 @@ public sealed partial class RoomGrain
             "cancel the breeding in nest",
             nestId,
             () => PetModule.CancelNestBreedingAsync(ctx, nestId, ct)
+        );
+
+    public Task<bool> UsePetProductFromInventoryAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        int petId,
+        CancellationToken ct
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "use a pet product from the inventory on pet",
+            petId,
+            () => PetModule.UsePetProductFromInventoryAsync(ctx, itemId, petId, ct)
         );
 }

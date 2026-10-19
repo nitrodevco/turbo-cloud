@@ -150,10 +150,23 @@ public sealed class ModerationToolTests : IDisposable
         reply.PopInt().Should().Be(0);
         reply.PopInt().Should().Be(0);
         reply.PopString().Should().BeEmpty("no email shown");
-        reply.PopString().Should().BeEmpty();
+        reply.PopString().Should().Be(UserClassifications.NEW, "registered two days ago");
         reply.PopString().Should().BeEmpty("never sanctioned");
         reply.PopInt().Should().Be(int.MaxValue);
         reply.End.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task User_info_classes_a_club_member_past_the_new_user_window_as_paying()
+    {
+        _fakes.Handlers["HasActiveAsync"] = call =>
+            Task.FromResult(Convert.ToInt32(call.Key) == MODERATOR);
+
+        var member = await Service().GetUserInfoAsync(MODERATOR, CancellationToken.None);
+        var newbie = await Service().GetUserInfoAsync(PLAYER, CancellationToken.None);
+
+        member!.UserClassification.Should().Be(UserClassifications.PAYING);
+        newbie!.UserClassification.Should().Be(UserClassifications.NEW);
     }
 
     [Fact]

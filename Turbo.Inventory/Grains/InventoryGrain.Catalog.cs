@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Inventory.Configuration;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture;
@@ -143,7 +144,8 @@ internal sealed partial class InventoryGrain
     /// purchase grain has already checked and filtered.
     /// A badge display shows the badge the buyer chose, which the purchase grain has checked
     /// they own. A paper, poster or song disc is what its product names, never what the client
-    /// sent.
+    /// sent. A post-it pad holds its sheets: the product's quantity when the offer sells a pad of
+    /// more than one, else the hotel's pad size (<see cref="InventoryConfig.PostItPadSheets"/>).
     /// </summary>
     private async Task<string?> BuildCatalogExtraDataAsync(
         FurnitureDefinitionSnapshot definition,
@@ -164,6 +166,12 @@ internal sealed partial class InventoryGrain
             )
         : ProductStuffData.IsNamedByProduct(definition.FurniCategory)
             ? ProductStuffData.ExtraData(product.ExtraParam ?? string.Empty)
+        : PostItPads.IsPad(definition)
+            ? PostItPads.ExtraData(
+                product.Quantity > 1
+                    ? product.Quantity
+                    : Math.Max(1, _inventoryConfig.PostItPadSheets)
+            )
         : null;
 
     /// <summary>The extra data a newly bought trophy carries: its engraving, as a legacy state.</summary>

@@ -188,8 +188,9 @@ caller's `MovementCause`.
 | `CreateTeleportPairsInInventoryAsync` | `None` -> `Inventory` per half, linked, with a snapshot | `GrantCatalogOfferAsync` (after the plain furni of the offer) |
 | `CreatePresentInInventoryAsync` | the present `None` -> `Inventory`, then its content `None` -> `Holder` (the present) | `ReceivePresentAsync`, `ReceiveStaffPresentAsync` |
 | `TakeOutOfPresentAsync` | `Holder` (whom it was wrapped for) -> `Inventory` (the opener) | `UnwrapPresentAsync` |
-| `DestroyInInventoryAsync` | `Inventory` -> `None`, with a snapshot | `ConsumeFurnitureAsync` |
+| `DestroyInInventoryAsync` | `Inventory` -> `None`, with a snapshot | `ConsumeFurnitureAsync`, `TakePostItSheetAsync` (a pad's last sheet) |
 | `TransferBetweenInventoriesAsync` | `Inventory` -> `Inventory`, all or none | `TransferFurnitureAsync` |
+| `SetExtraDataInInventoryAsync` | none: nothing changes hands; the row is written only while the inventory holds it | `TakePostItSheetAsync`, `ReturnPostItSheetAsync` (a pad's sheets left) |
 
 A grant that follows a debit of the same action starts after the debit's seqs
 (`cause.StartingAt(debits.Count)`): a purchase is one operation, its price then its furni.
@@ -243,7 +244,7 @@ writes its transaction row with the move):
 | `PutInHolderAsync` | `Inventory` -> `Holder` (the holder's id, held for its owner; a chest stamps its transaction) | a chest deposit, a disk put in a jukebox |
 | `TakeOutOfHolderAsync` | `Holder` -> `Inventory` | a chest withdrawal, a disk taken out |
 | `DestroyInInventoryAsync` (in the caller's unit of work, all or none) | `Inventory` -> `None`, with a snapshot | credit furni a chest turns into its balance |
-| `CreateInRoomAsync` | `None` -> `Room` (where it stands), with a snapshot | a note pinned to a post-it wall, a starter room's furni |
+| `CreateInRoomAsync` | `None` -> `Room` (where it stands), with a snapshot | a note stuck to a wall from a post-it pad, a starter room's furni |
 | `SendHomeLeftInRoomAsync` | `Room` -> `Inventory` for every row still in the room | a room deletion's backstop |
 | `BorrowIntoRoomAsync`, `GiveBackBorrowedAsync` | a `BorrowedFurni` (known by its room and the id the room gave it; owner 0) `None` -> `Room`, then `Room` -> `None` | a Builders Club borrow; its pickup, a bulk return, a use |
 
@@ -257,7 +258,7 @@ the withdrawal's refund cause.
 | --- | --- |
 | `wired.chest_deposit`, `wired.chest_withdraw` | chest moves (actor 0; cause ref: the chest transaction) |
 | `jukebox.add`, `jukebox.remove` | a disk in or out (cause ref: the jukebox; `jukebox.remove` actor 0) |
-| `room.post_it` | a note made on a post-it wall (cause ref: the wall), and destroyed at the next seq when the room refuses it |
+| `room.post_it` | a sheet of a post-it pad stuck to a wall, by a builder or on a room's post-it wall (actor: the player; cause ref: the pad; owner: the room's owner): the note made in the room, destroyed at the next seq when the room refuses it. A pad's other sheets are its sheet count, not furni, so they move nothing; its last sheet is the pad itself, used up at seq 0 before the note. A sheet no note came of is given back under the operation's refund (`ForRefund`): a pad used up comes back as a new pad of one sheet |
 | `onboarding.starter_room` | a new player's starter room furnished (actor: the player; cause ref: the room) |
 | `room.bc_borrow` | a borrow (cause ref: the offer); the give-back carries the cause of what removed it |
 | `room.delete` | the backstop, an operation of its own after the hand-overs: furni, then pets, then bots |

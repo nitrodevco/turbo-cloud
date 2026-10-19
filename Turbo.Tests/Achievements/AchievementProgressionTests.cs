@@ -23,7 +23,9 @@ using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
@@ -331,6 +333,83 @@ public sealed class AchievementProgressionTests : IDisposable
         await Task.Delay(100, Ct);
         Assert.Equal([1], observer.Heard.Select(x => x.Level));
     }
+
+    /// <summary>
+    /// The friend bar's achievement token (AS3 <c>AchievementToken</c>) shows the message by its
+    /// badge name, so FriendNotification type 1 carries each completed level's badge code.
+    /// </summary>
+    [Fact]
+    public async Task FriendsAreToldOfEachCompletedLevelByItsBadgeOnceAndNeverAgainOnReplay()
+    {
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("friends-1", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await NewGrain().ProcessAsync(Ct);
+        await NewGrain().RetryAsync(Ct);
+
+        var told = FriendTells().ToList();
+        Assert.Equal(
+            [
+                (FriendNotificationCodeType.AchievementCompleted, "ACH_Test1"),
+                (FriendNotificationCodeType.AchievementCompleted, "ACH_Test2"),
+                (FriendNotificationCodeType.AchievementCompleted, "ACH_Test3"),
+            ],
+            told.Select(x => ((FriendNotificationCodeType)x.Args[0]!, (string)x.Args[1]!))
+        );
+        Assert.All(told, x => Assert.Equal(1L, x.Key));
+    }
+
+    [Fact]
+    public async Task FriendsAreNotToldOfALevelWhoseAwardIsBlocked()
+    {
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GrantAchievementAsync)] = call =>
+            (int)call.Args[1]! == 2
+                ? Task.FromException(new IOException("badge failure"))
+                : Task.CompletedTask;
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("friends-2", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+
+        Assert.Equal(["ACH_Test1"], FriendTells().Select(x => (string)x.Args[1]!));
+    }
+
+    /// <summary>A disabled achievement is hidden from everyone, so an operator's advance of one is not announced.</summary>
+    [Fact]
+    public async Task FriendsAreNotToldOfAHiddenAchievement()
+    {
+        _catalog.Current = [Definition(100000) with { State = AchievementState.Disabled }];
+        await NewGrain().AdvanceAsync(100000, 3, "tester", "hidden", "op-hidden", Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal(3, (await db.AchievementProgress.SingleAsync(Ct)).CompletedLevel);
+        Assert.Empty(FriendTells());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AFailedFriendTellNeitherBlocksTheAwardNorTheNextLevel(bool throwsAtOnce)
+    {
+        _fakes.Handlers[nameof(IPlayerMessengerGrain.NotifyFriendsAsync)] = _ =>
+            throwsAtOnce
+                ? throw new InvalidOperationException("messenger failure")
+                : Task.FromException(new InvalidOperationException("messenger failure"));
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("friends-3", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(3, progress.CompletedLevel);
+        Assert.All(progress.ReadOpenAwards(), x => Assert.Null(x.BlockedReason));
+        Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+        Assert.Equal(3, FriendTells().Count());
+    }
+
+    private IEnumerable<FakeCall> FriendTells() =>
+        _fakes
+            .Log.On<IPlayerMessengerGrain>()
+            .Where(x => x.Method == nameof(IPlayerMessengerGrain.NotifyFriendsAsync));
 
     [Fact]
     public async Task ALevelUpIsToldBeforeTheNewScoreAndTheScoreBeforeTheAchievement()

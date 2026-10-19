@@ -420,6 +420,15 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   (`SongDisks`), its song id its legacy stuff data, and the client reads that id only from the
   item's extras. This client has no trax editor, so nothing composes or burns songs
   ([Songs and jukeboxes](docs/sound.md)).
+- A post-it pad is a stack of sheets: its legacy stuff data is the count (`PostItPads`), bought
+  as the product's quantity when above one, else `InventoryConfig.PostItPadSheets`. `PlacePostIt`
+  and `AddSpamWallPostIt` name the player's pad, not a room item, so they go to
+  `IRoomGrain.PlacePostItAsync` / `AddSpamWallPostItAsync`: the room checks rights and the spot,
+  takes a sheet (`IInventoryGrain.TakePostItSheetAsync`: `PostItPlaced`, or the pad used up
+  with its last), makes a note of the pad's own kind owned by the room's owner, and gives the
+  sheet back when no note came of it. Without building rights a placement in a room with a
+  post-it wall is answered with the note editor (`RequestSpamWallPostIt` with the pad's id); the
+  wall itself does nothing on a double-click.
 - Which client packets the server still lacks is measured, not guessed:
   `python scripts/packetgap.py Room` (nitro-next is found through `NITRO_NEXT`) compares the
   composers nitro-next constructs and the messages it listens to with the handlers that do
@@ -641,6 +650,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `UseWithPetInteraction` on the item; what an item applies (package contents, a hair part) is
   a JSON section read with `FurnitureExtraDataSections.Read` from the item's extra data, with
   the definition's extra data as the per-type default.
+- A pet product can also be used straight from the inventory: Flash's use button sends
+  `CustomizePetWithFurni` with the item's inventory ref, a floor item's id negated, so a
+  negative id goes to `IRoomGrain.UsePetProductFromInventoryAsync`. The room gives the item its
+  logic without placing it (`RoomObjectModule.EnsureLogic`) and asks the same
+  `FurniturePetProductLogic.TryGetPetToTake` / `TryApplyAsync` as the room's own flow; it
+  consumes the item from the inventory before applying it and gives it back when the product
+  then has no effect. Only the room flow checks `IsOwnedOutrightBy`; the inventory flow refuses
+  rented items (`FurnitureItemSnapshot.IsRented`) instead.
 - Wire shapes (pet figure struct, `PetInfo` field order, bot skill ids, chatter string) come
   from the Flash client and are recorded on the enums and helpers under
   `Turbo.Primitives/Pets` and `Turbo.Primitives/Bots`; verify against the client before changing.

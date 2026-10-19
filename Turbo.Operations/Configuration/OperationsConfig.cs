@@ -124,4 +124,17 @@ public class OperationsConfig
 
     /// <summary>How many calls for help still open (or picked) a moderator's issue queue gets at login, oldest first.</summary>
     public int ModerationIssuesListed { get; init; } = 200;
+
+    /// <summary>
+    /// For how many days after registering a player is classed as a new user, by <c>:uc</c>,
+    /// <c>:anew</c> and the moderation tool's user info. After that a Habbo Club member is classed
+    /// as paying and anyone else as regular.
+    /// </summary>
+    public int UserClassificationNewUserDays { get; init; } = 7;
+
+    /// <summary>
+    /// The most players one <c>:uc</c> or <c>:anew</c> list names. The client's classification
+    /// window keeps 200 rows for reuse.
+    /// </summary>
+    public int UserClassificationMaxUsers { get; init; } = 200;
 }

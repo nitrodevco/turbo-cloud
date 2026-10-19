@@ -18,6 +18,17 @@ public partial interface IRoomService
         Rotation rot,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// A sheet of the player's post-it pad stuck to a wall in the room they are in; a refusal is
+    /// told as a placement's is.
+    /// </summary>
+    public Task PlacePostItInRoomAsync(
+        ActionContext ctx,
+        RoomObjectId padId,
+        string location,
+        CancellationToken ct
+    );
     public Task MoveWallItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId itemId,

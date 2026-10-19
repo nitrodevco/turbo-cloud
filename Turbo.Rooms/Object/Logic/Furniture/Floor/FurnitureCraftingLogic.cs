@@ -118,7 +118,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
 
         foreach (var ingredient in recipe.Ingredients)
         {
-            var items = held.Where(x => x.Definition.Name == ingredient.Furni && !IsRented(x))
+            var items = held.Where(x => x.Definition.Name == ingredient.Furni && !x.IsRented)
                 .Where(x => !used.Contains(x))
                 .Take(ingredient.Amount)
                 .ToList();
@@ -143,7 +143,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
             ._grainFactory.GetInventoryGrain(ctx.PlayerId)
             .GetItemSnapshotsAsync(ids, ct);
 
-        if (items.Length != ids.Length || items.Any(IsRented))
+        if (items.Length != ids.Length || items.Any(x => x.IsRented))
             items = [];
 
         var mixed = Counts(items.Select(x => x.Definition.Name));
@@ -263,9 +263,6 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
                 : recipe.ProductCode,
             FurnitureClassName = recipe.Product,
         };
-
-    /// <summary>Rental furni carry their expiry; owned ones -1.</summary>
-    private static bool IsRented(FurnitureItemSnapshot item) => item.SecondsToExpiration >= 0;
 
     private static Dictionary<string, int> Counts(IEnumerable<string> classes) =>
         classes.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());

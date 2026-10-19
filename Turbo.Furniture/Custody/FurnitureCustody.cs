@@ -77,6 +77,23 @@ public sealed class FurnitureCustody(
         return true;
     }
 
+    public async Task<bool> SetExtraDataInInventoryAsync(
+        PlayerId owner,
+        RoomObjectId itemId,
+        string extraDataJson,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        await using (dbCtx.ConfigureAwait(false))
+        {
+            return await InInventory(dbCtx, owner, [itemId.Value])
+                    .ExecuteUpdateAsync(up => up.SetProperty(x => x.ExtraData, extraDataJson), ct)
+                    .ConfigureAwait(false) == 1;
+        }
+    }
+
     public async Task<bool> PutInHolderAsync(
         TurboDbContext dbCtx,
         PlayerId from,

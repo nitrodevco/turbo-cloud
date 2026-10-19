@@ -32,7 +32,7 @@ namespace Turbo.Inventory.Grains.Modules;
 /// The furniture a player keeps in the inventory (rows in no room). Same rules as the pet and
 /// bot modules: the section loads on first use, the row is written before the list changes,
 /// and the presence is told once per change, not once per item. The furniture custody writes
-/// every row, under the cause the caller gives.
+/// every row, under the cause the caller gives, a post-it pad's sheet count included.
 /// </summary>
 internal sealed class InventoryFurniModule(
     InventoryGrain inventoryGrain,
@@ -205,6 +205,116 @@ internal sealed class InventoryFurniModule(
         await SendRemovedAsync([itemId], ct);
 
         return snapshot;
+    }
+
+    /// <summary>
+    /// One sheet off a post-it pad held here. A pad of several sheets keeps one fewer: its row
+    /// first, then its item, and the client sets the count it is told (Flash
+    /// <c>IncomingMessages.onPostItPlaced</c> -> <c>FurniModel.updatePostItCount</c>), which it
+    /// applies itself, so no list update goes with it. The last sheet is the pad itself, used up
+    /// as a room paper is (<see cref="ConsumeAsync"/>). Null when no pad of that id is held here.
+    /// </summary>
+    public async Task<PostItSheetTakenSnapshot?> TakePostItSheetAsync(
+        RoomObjectId padId,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        await EnsureReadyAsync(ct);
+
+        if (
+            !_state.FurnitureById.TryGetValue(padId, out var item)
+            || !PostItPads.IsPad(item.Definition)
+        )
+        {
+            _logger.LogWarning(
+                "Player {PlayerId} holds no post-it pad {ItemId}; no sheet taken",
+                PlayerId,
+                padId
+            );
+
+            return null;
+        }
+
+        var pad = item.GetSnapshot();
+        var sheets = PostItPads.SheetsOf(pad.StuffData);
+
+        if (sheets <= 1)
+            return await ConsumeAsync(padId, cause, ct) is null
+                ? null
+                : new PostItSheetTakenSnapshot { Pad = pad, SheetsLeft = 0 };
+
+        return await SetPostItSheetsAsync(item, sheets - 1, ct)
+            ? new PostItSheetTakenSnapshot { Pad = pad, SheetsLeft = sheets - 1 }
+            : null;
+    }
+
+    /// <summary>
+    /// A sheet <see cref="TakePostItSheetAsync"/> took, given back: the pad counts it again while it
+    /// is still here, and otherwise (it went with its last sheet, or was traded or placed since) a
+    /// pad of one sheet of its kind is made in its place.
+    /// </summary>
+    public async Task ReturnPostItSheetAsync(
+        PostItSheetTakenSnapshot taken,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        await EnsureReadyAsync(ct);
+
+        if (
+            !taken.UsedUpPad
+            && _state.FurnitureById.TryGetValue(taken.Pad.ItemId, out var item)
+            && PostItPads.IsPad(item.Definition)
+            && await SetPostItSheetsAsync(
+                item,
+                PostItPads.SheetsOf(item.GetSnapshot().StuffData) + 1,
+                ct
+            )
+        )
+            return;
+
+        await GrantAsync([(taken.Pad.Definition, PostItPads.ExtraData(1))], cause, ct);
+    }
+
+    /// <summary>
+    /// A pad now has <paramref name="sheets"/> left: written to its row, then to its item, then
+    /// told to the client. False when the row is no longer this inventory's.
+    /// </summary>
+    private async Task<bool> SetPostItSheetsAsync(
+        IFurnitureItem item,
+        int sheets,
+        CancellationToken ct
+    )
+    {
+        var extraDataJson = PostItPads.ExtraData(sheets);
+
+        if (!await _custody.SetExtraDataInInventoryAsync(PlayerId, item.ItemId, extraDataJson, ct))
+        {
+            _logger.LogWarning(
+                "Post-it pad {ItemId} is listed in the inventory of player {PlayerId} but has no row there; its sheets were not counted",
+                item.ItemId,
+                PlayerId
+            );
+
+            return false;
+        }
+
+        _state.FurnitureById[item.ItemId] = _furnitureLoader.Create(
+            item.ItemId,
+            PlayerId,
+            item.OwnerName,
+            item.Definition,
+            extraDataJson,
+            item.GetSnapshot().CreatedAtUtc
+        );
+
+        await Presence.SendComposerAsync(
+            new PostItPlacedEventMessageComposer { ItemId = item.ItemId, ItemsLeft = sheets },
+            ct
+        );
+
+        return true;
     }
 
     /// <summary>

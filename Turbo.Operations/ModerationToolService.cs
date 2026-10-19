@@ -159,6 +159,12 @@ public sealed class ModerationToolService(
                 ct
             );
         var online = sessionGateway.GetOnlinePlayerIds().Contains(target);
+        var classification = UserClassifications.Classify(
+            player.CreatedAt,
+            await grainFactory.HasActiveClubAsync(target, ct),
+            now,
+            TimeSpan.FromDays(config.Value.UserClassificationNewUserDays)
+        );
 
         return new ModeratorUserInfoSnapshot
         {
@@ -178,7 +184,7 @@ public sealed class ModerationToolService(
             IdentityId = 0,
             IdentityRelatedBanCount = 0,
             PrimaryEmailAddress = string.Empty,
-            UserClassification = string.Empty,
+            UserClassification = classification,
             LastSanctionTime = lastSanction is { } at
                 ? at.ToString(DATE_FORMAT, CultureInfo.InvariantCulture)
                 : string.Empty,

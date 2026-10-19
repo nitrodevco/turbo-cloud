@@ -1,16 +1,24 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Quests;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -100,6 +108,138 @@ public sealed partial class RoomPetModule
         );
 
         return true;
+    }
+
+    /// <summary>
+    /// A pet product used from the inventory (Flash's use button, <c>FurniModel.showUseProductSelection</c>):
+    /// the room gives the item its logic without placing it and asks the product what it asks
+    /// one standing in the room (<see cref="FurniturePetProductLogic.TryGetPetToTake"/>). The
+    /// item is used up first, so one traded or placed meanwhile changes no pet for nothing, and
+    /// is given back when the product then has no effect. A rented item is never used up: it is
+    /// not the player's for good, the rule the room holds for borrowed and temporary furni.
+    /// </summary>
+    internal async Task<bool> UsePetProductFromInventoryAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        int petId,
+        CancellationToken ct
+    )
+    {
+        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
+        var snapshot = await inventory.GetItemSnapshotAsync(itemId, ct);
+
+        if (snapshot is null)
+            return RejectInventoryProduct(ctx, itemId, petId, "not in their inventory");
+
+        if (snapshot.IsRented)
+            return RejectInventoryProduct(ctx, itemId, petId, "rented");
+
+        // Never placed and never attached: the logic only reads the item's definition and
+        // extra data and the room's pets, so nothing hears of it and the room does not change.
+        if (
+            snapshot.Definition.ProductType != ProductType.Floor
+            || _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot)
+                is not IRoomFloorItem item
+            || !ObjectModule.EnsureLogic(item)
+            || item.Logic is not FurniturePetProductLogic product
+        )
+            return RejectInventoryProduct(ctx, itemId, petId, "not a pet product");
+
+        var use = new UseWithPetInteraction { PetId = petId };
+
+        if (!product.TryGetPetToTake(ctx, use, out var pet))
+            return false;
+
+        var cause = MovementCause.New(MovementCauses.USE_PET_PRODUCT, ctx.PlayerId, itemId.Value);
+        var consumed = await inventory.ConsumeFurnitureAsync(itemId, cause, ct);
+
+        if (consumed is null)
+            return RejectInventoryProduct(ctx, itemId, petId, "the inventory no longer holds it");
+
+        bool applied;
+
+        try
+        {
+            applied = await product.TryApplyAsync(ctx, use, pet, ct);
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to use item {ItemId} of player {PlayerId} on pet {PetId} in room {RoomId}; giving it back",
+                itemId,
+                ctx.PlayerId,
+                petId,
+                _roomGrain.RoomId
+            );
+
+            applied = false;
+        }
+
+        if (!applied)
+        {
+            await GiveBackConsumedAsync(inventory, consumed, cause, ct);
+
+            return false;
+        }
+
+        // The item's row went with the inventory's answer; the pet it changed is written now
+        // too, rather than on the next hand-over, as a use in the room writes both at once.
+        await PersistNowAsync(ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Puts an inventory item that was used up on a pet that then took nothing back where it
+    /// was. Nowhere else to put it: a failed give-back is logged with what was lost.
+    /// </summary>
+    private async Task GiveBackConsumedAsync(
+        IInventoryGrain inventory,
+        FurnitureItemSnapshot consumed,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await inventory.GrantFurnitureAsync(
+                consumed.Definition.Id,
+                consumed.ExtraData,
+                cause.ForRefund(),
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to give player {PlayerId} back definition {DefinitionId} with {ExtraData}",
+                consumed.OwnerId,
+                consumed.Definition.Id,
+                consumed.ExtraData
+            );
+        }
+    }
+
+    /// <summary>Logs a refused inventory pet product with the ids that identify it, and yields false.</summary>
+    private bool RejectInventoryProduct(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        int petId,
+        string reason
+    )
+    {
+        _roomGrain._logger.LogWarning(
+            "Rejected using inventory item {ItemId} on pet {PetId} in room {RoomId} by player {PlayerId}: {Reason}",
+            itemId,
+            petId,
+            _roomGrain.RoomId,
+            ctx.PlayerId,
+            reason
+        );
+
+        return false;
     }
 
     /// <summary>Replaces the custom part on one layer of the pet's figure (a new mane, a dye).</summary>

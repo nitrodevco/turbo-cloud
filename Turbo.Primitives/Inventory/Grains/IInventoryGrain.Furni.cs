@@ -40,6 +40,30 @@ public partial interface IInventoryGrain
     );
 
     /// <summary>
+    /// Takes one sheet off a post-it pad held here, for a note about to be stuck to a wall. A pad
+    /// of several sheets keeps one fewer, written to its row, and the client is told how many are
+    /// left (<c>PostItPlaced</c>); the last sheet is the pad itself, which is used up under
+    /// <paramref name="cause"/> and leaves the list (<c>FurniListRemove</c>). Null when no pad of
+    /// that id is held here.
+    /// </summary>
+    public Task<PostItSheetTakenSnapshot?> TakePostItSheetAsync(
+        RoomObjectId padId,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Gives back a sheet <see cref="TakePostItSheetAsync"/> took when no note came of it: the
+    /// pad counts it again, or, when the pad went with it or has gone since, a pad of one sheet of
+    /// the same kind is made under <paramref name="cause"/>.
+    /// </summary>
+    public Task ReturnPostItSheetAsync(
+        PostItSheetTakenSnapshot taken,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Items whose rows another grain has already taken out of this inventory (put into a wired
     /// chest). Memory only: drops them from the list and tells the client once. Ids not held are
     /// ignored.
