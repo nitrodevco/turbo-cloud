@@ -48,6 +48,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminChatlogQueries>();
         services.AddSingleton<AdminReportQueries>();
+        services.AddSingleton<AdminWordFilter>();
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();

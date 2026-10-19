@@ -45,7 +45,7 @@ and show as tabs along its header:
 | Section | Place | Its tabs |
 | --- | --- | --- |
 |  | **Overview** | the dashboard, Performance |
-| Community | **Players**, **Reports**, **Rooms** | |
+| Community | **Players**, **Moderation**, **Rooms** | Moderation: Reports, Word filter |
 | Shop | **Catalog** | Editor, Audit (furni not sold, furni sold twice), Generate, Backups, Vouchers, Songs |
 | World | **Hotel view**, **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
@@ -848,7 +848,8 @@ page works without them, just more slowly on a large log.
 
 ## Reports
 
-Staff with `moderation.tool`, the node the client's mod tool needs, get a **Reports** page: the
+Staff with `moderation.tool`, the node the client's mod tool needs, get **Moderation**, whose
+**Reports** tab lists the
 calls for help players send, newest first, the open ones by default (**Closed** and **All** show
 the rest). Each shows its topic, where it was sent from (the help window, the messenger, a photo
 or a group forum), who it is about, who sent it, and whether a moderator holds it. Narrow it to a
@@ -869,6 +870,21 @@ which the page names before you give it. A sanction is refused for staff, or whe
 it, and the report is closed without one. Tick **Close the other open reports about** the player
 to close them in one go; the sanction is given once. Closing picks the report for you first; a
 report another moderator holds stays theirs, and if one of a batch is theirs none is closed.
+
+## Word filter
+
+The **Word filter** tab under Moderation lists the hotel's filter (`filter_words`): the words kept
+out of everything players type that others see, each shown as `Turbo:Operations:WordFilterReplacement`.
+A word is matched whole and ignoring case among the letters and digits of a line, so "heck" filters
+"HECK!" but not "heckle". Anyone with `moderation.tool` sees the list and can **Try a line** to see
+what players would be shown.
+
+Staff with `moderation.filter.manage` as well add words, several at once with spaces, commas or new
+lines between them, and take them off. Words are kept in lower case; one already on the list is
+skipped, and one with anything but letters and digits in it is refused, as it could never match.
+The hotel filters by the new list at once (it is `:reload filter`), and each change is in the
+command log as `wordfilter`. A room owner's own list and a player's own list are theirs, in the
+client.
 
 ## Chat log
 

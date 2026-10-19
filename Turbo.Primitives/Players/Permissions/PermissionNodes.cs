@@ -114,6 +114,12 @@ public static class PermissionNodes
     public static class Moderation
     {
         public const string TOOL = "moderation.tool";
+
+        /// <summary>
+        /// Change the hotel's word filter in the admin panel: add words and take them off. Seeing
+        /// the list needs <see cref="TOOL"/>. Every change is in the command log.
+        /// </summary>
+        public const string FILTER_MANAGE = "moderation.filter.manage";
     }
 
     public static class Wired

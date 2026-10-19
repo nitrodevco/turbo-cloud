@@ -121,6 +121,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use the moderation tool.",
             SecurityLevelType.Moderator
         ),
+        new(
+            PermissionNodes.Moderation.FILTER_MANAGE,
+            "Change the hotel's word filter in the admin panel: add words and take them off."
+        ),
         new(PermissionNodes.Wired.MENU, "Open the wired menu.", SecurityLevelType.Employee),
         new(
             PermissionNodes.Guild.DELETE_ANY,
