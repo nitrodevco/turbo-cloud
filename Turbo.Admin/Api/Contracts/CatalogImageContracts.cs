@@ -6,17 +6,13 @@ namespace Turbo.Admin.Api.Contracts;
 public sealed record CatalogImagePage(int Id, string Title);
 
 /// <summary>
-/// A catalog picture: <see cref="Name"/> as a page gives it (its <c>image_data</c>), the file the
-/// client loads it from (<c>images/catalog/&lt;name&gt;.gif</c>), where the file came from
-/// (<c>habbo</c>, <c>upload</c>) and the pages that show it. A picture a page names that this
-/// server has no file for has <see cref="HasFile"/> false, and no source when nothing ever
-/// fetched it.
+/// A catalog picture: a file in <c>images/catalog</c>, <see cref="Name"/> as a page gives it (its
+/// <c>image_data</c>, the file without <c>.gif</c>), its size and when it was written, and the
+/// pages that show it.
 /// </summary>
 public sealed record CatalogImageItem(
     string Name,
     string File,
-    string? Source,
-    bool HasFile,
     long Size,
     DateTime? UpdatedAtUtc,
     CatalogImagePage[] Pages

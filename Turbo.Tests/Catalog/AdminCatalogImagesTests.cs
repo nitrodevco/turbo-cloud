@@ -61,8 +61,7 @@ public sealed class AdminCatalogImagesTests : IDisposable
 
         item.Name.Should().Be("catalog_header_furni");
         item.File.Should().Be("catalog_header_furni.gif");
-        item.Source.Should().Be("upload");
-        item.HasFile.Should().BeTrue();
+        item.Size.Should().Be(Gif.Length);
         item.Pages.Select(x => x.Title).Should().Equal("Furniture", "Rares");
         File.ReadAllBytes(
                 Path.Combine(_folder.Store.Root, "images/catalog/catalog_header_furni.gif")
@@ -110,9 +109,14 @@ public sealed class AdminCatalogImagesTests : IDisposable
     }
 
     [Fact]
-    public async Task List_HasThePicturesKept_AndThoseAPageNamesWithoutAFile()
+    public async Task List_IsThePicturesInTheFolder_HoweverTheyGotThere()
     {
         await Images.UploadAsync("unused_one", "a.gif", Gif, PlayerId.Parse(1), Ct);
+        var folder = Path.Combine(_folder.Store.Root, "images/catalog");
+        File.WriteAllBytes(Path.Combine(folder, "catalog_header_furni.gif"), Gif);
+        File.WriteAllBytes(Path.Combine(folder, "hand_placed.png"), Png);
+        File.WriteAllText(Path.Combine(folder, "notes.txt"), "not a picture");
+        // Recorded with no file (Habbo had none): not a picture the folder holds.
         _db.Insert(
             new AssetBundleEntity
             {
@@ -124,22 +128,20 @@ public sealed class AdminCatalogImagesTests : IDisposable
         );
 
         var all = await Images.ListAsync(null, null, 0, 50, Ct);
-        var missing = await Images.ListAsync(null, "missing", 0, 50, Ct);
         var unused = await Images.ListAsync(null, "unused", 0, 50, Ct);
-        var found = await Images.ListAsync("SOFA", null, 0, 50, Ct);
+        var found = await Images.ListAsync("HEADER", null, 0, 50, Ct);
 
         all!
-            .Items.Select(x => (x.Name, x.HasFile, x.Source))
+            .Items.Select(x => (x.Name, x.Size, x.Pages.Length))
             .Should()
             .Equal(
-                ("catalog_header_furni", false, null),
-                ("teaser_sofa", false, "habbo"),
-                ("unused_one", true, "upload")
+                ("catalog_header_furni", Gif.Length, 2),
+                ("hand_placed.png", Png.Length, 0),
+                ("unused_one", Gif.Length, 0)
             );
-        missing!.Items.Select(x => x.Name).Should().Equal("catalog_header_furni", "teaser_sofa");
-        unused!.Items.Select(x => x.Name).Should().Equal("unused_one");
-        found!.Items.Select(x => x.Name).Should().Equal("teaser_sofa");
-        (await Images.ListAsync(null, "sideways", 0, 50, Ct)).Should().BeNull();
+        unused!.Items.Select(x => x.Name).Should().Equal("hand_placed.png", "unused_one");
+        found!.Items.Select(x => x.Name).Should().Equal("catalog_header_furni");
+        (await Images.ListAsync(null, "missing", 0, 50, Ct)).Should().BeNull();
     }
 
     [Fact]

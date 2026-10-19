@@ -53,10 +53,7 @@ internal sealed class CatalogImageEndpoints(
     ) =>
         await images.ListAsync(q, show, page ?? 0, size ?? 60, ct).ConfigureAwait(false) is { } list
             ? Results.Ok(list)
-            : AdminResults.Error(
-                StatusCodes.Status400BadRequest,
-                "Show is all, missing, unused or uploaded."
-            );
+            : AdminResults.Error(StatusCodes.Status400BadRequest, "Show is all or unused.");
 
     private async Task<IResult> FileAsync(string name, CancellationToken ct)
     {

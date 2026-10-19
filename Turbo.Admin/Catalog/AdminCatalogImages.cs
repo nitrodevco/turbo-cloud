@@ -16,11 +16,11 @@ using Turbo.Primitives.Players;
 namespace Turbo.Admin.Catalog;
 
 /// <summary>
-/// The catalog's pictures - the headers and teasers its pages show - as this server keeps them:
-/// the files under <c>images/catalog</c> (<c>docs/asset-bundles.md</c>), whether a sync took them
-/// from Habbo or staff uploaded them, with the pages that show each, and the names pages give that
-/// have no file. An upload is a GIF or a PNG, kept as <c>&lt;name&gt;.gif</c>, the file the client
-/// asks for; players see it once the assets are published.
+/// The catalog's pictures - the headers and teasers its pages show - as the files in
+/// <c>images/catalog</c> (<c>docs/asset-bundles.md</c>), however they got there, each with the
+/// pages that show it. The Images tab and a page's picture picker both list them from here. An
+/// upload is a GIF or a PNG, written into the folder as <c>&lt;name&gt;.gif</c>, the file the
+/// client asks for, and recorded so a publish sends it; players see it once the assets are published.
 /// </summary>
 public sealed class AdminCatalogImages(
     IDbContextFactory<TurboDbContext> database,
@@ -38,14 +38,8 @@ public sealed class AdminCatalogImages(
     /// <summary>Every picture.</summary>
     public const string SHOW_ALL = "all";
 
-    /// <summary>Pictures a page names that this server has no file for.</summary>
-    public const string SHOW_MISSING = "missing";
-
     /// <summary>Pictures no page shows.</summary>
     public const string SHOW_UNUSED = "unused";
-
-    /// <summary>Pictures staff uploaded.</summary>
-    public const string SHOW_UPLOADED = "uploaded";
 
     private const string GIF = ".gif";
     private const string PNG = ".png";
@@ -62,11 +56,7 @@ public sealed class AdminCatalogImages(
     {
         var trimmed = name.Trim();
 
-        return
-            trimmed.EndsWith(GIF, StringComparison.OrdinalIgnoreCase)
-            || trimmed.EndsWith(PNG, StringComparison.OrdinalIgnoreCase)
-            ? trimmed
-            : trimmed + GIF;
+        return IsPictureFile(trimmed) ? trimmed : trimmed + GIF;
     }
 
     /// <summary>The name a page gives for a file: without its <c>.gif</c>.</summary>
@@ -74,8 +64,8 @@ public sealed class AdminCatalogImages(
         file.EndsWith(GIF, StringComparison.OrdinalIgnoreCase) ? file[..^GIF.Length] : file;
 
     /// <summary>
-    /// A page (from 0) of the pictures whose name holds <paramref name="query"/>, of those
-    /// <paramref name="show"/> picks, by name; null when <paramref name="show"/> is none of them.
+    /// A page (from 0) of the pictures in the folder whose name holds <paramref name="query"/>, of
+    /// those <paramref name="show"/> picks, by name; null when <paramref name="show"/> is neither.
     /// </summary>
     public async Task<CatalogImagesResponse?> ListAsync(
         string? query,
@@ -87,44 +77,23 @@ public sealed class AdminCatalogImages(
     {
         show = string.IsNullOrWhiteSpace(show) ? SHOW_ALL : show.Trim().ToLowerInvariant();
 
-        if (show is not (SHOW_ALL or SHOW_MISSING or SHOW_UNUSED or SHOW_UPLOADED))
+        if (show is not (SHOW_ALL or SHOW_UNUSED))
             return null;
 
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var rows = await db
-            .AssetBundles.AsNoTracking()
-            .Where(x => x.Kind == KIND)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
         var usage = await UsageAsync(db, ct).ConfigureAwait(false);
-        var items = new Dictionary<string, CatalogImageItem>(StringComparer.Ordinal);
-
-        foreach (var row in rows)
-            items[row.Name] = ItemOf(row, usage);
-
-        // Named by a page, never fetched: missing, with nothing known of it.
-        foreach (var (file, pages) in usage)
-        {
-            if (!items.ContainsKey(file))
-                items[file] = new CatalogImageItem(NameOf(file), file, null, false, 0, null, pages);
-        }
-
         var words = query?.Trim() ?? string.Empty;
-        var matches = items
-            .Values.Where(x =>
-                words.Length == 0 || x.Name.Contains(words, StringComparison.OrdinalIgnoreCase)
+        var matches = store
+            .NamesOnDisk(KIND)
+            .Where(file => IsPictureFile(file) && store.IsValidName(file))
+            .Where(file =>
+                words.Length == 0
+                || NameOf(file).Contains(words, StringComparison.OrdinalIgnoreCase)
             )
-            .Where(x =>
-                show switch
-                {
-                    SHOW_MISSING => !x.HasFile,
-                    SHOW_UNUSED => x.Pages.Length == 0,
-                    SHOW_UPLOADED => x.Source == AssetContractNames.Of(AssetBundleSource.Upload),
-                    _ => true,
-                }
-            )
+            .Select(file => ItemOf(file, usage))
+            .Where(x => show != SHOW_UNUSED || x.Pages.Length == 0)
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -154,9 +123,9 @@ public sealed class AdminCatalogImages(
         head.StartsWith(PngSignature) ? "image/png" : "image/gif";
 
     /// <summary>
-    /// Keeps an uploaded GIF or PNG as the picture <paramref name="name"/> (the file's name when
-    /// none is given), replacing one of the name. Throws <see cref="ArgumentException"/>, with why,
-    /// for a name, file or size it can't take.
+    /// Writes an uploaded GIF or PNG into the folder as the picture <paramref name="name"/> (the
+    /// file's name when none is given), replacing one of the name. Throws
+    /// <see cref="ArgumentException"/>, with why, for a name, file or size it can't take.
     /// </summary>
     public async Task<CatalogImageItem> UploadAsync(
         string? name,
@@ -182,10 +151,7 @@ public sealed class AdminCatalogImages(
             : name.Trim();
 
         // The client asks for <name>.gif, so that is the file, whichever the picture is.
-        if (
-            given.EndsWith(GIF, StringComparison.OrdinalIgnoreCase)
-            || given.EndsWith(PNG, StringComparison.OrdinalIgnoreCase)
-        )
+        if (IsPictureFile(given))
             given = given[..^GIF.Length];
 
         var file = given + GIF;
@@ -200,6 +166,7 @@ public sealed class AdminCatalogImages(
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
+        // What a publish sends: the files recorded with their hash.
         var row = await db
             .AssetBundles.FirstOrDefaultAsync(x => x.Kind == KIND && x.Name == file, ct)
             .ConfigureAwait(false);
@@ -232,10 +199,10 @@ public sealed class AdminCatalogImages(
             hash
         );
 
-        return ItemOf(row, await UsageAsync(db, ct).ConfigureAwait(false));
+        return ItemOf(file, await UsageAsync(db, ct).ConfigureAwait(false));
     }
 
-    /// <summary>Deletes a picture's file and row; false when it had neither.</summary>
+    /// <summary>Deletes a picture's file, and its record when it has one; false when it had neither.</summary>
     public async Task<bool> DeleteAsync(string name, PlayerId player, CancellationToken ct)
     {
         var file = FileOf(name);
@@ -270,21 +237,26 @@ public sealed class AdminCatalogImages(
     private static bool IsGif(ReadOnlySpan<byte> data) =>
         data.StartsWith("GIF87a"u8) || data.StartsWith("GIF89a"u8);
 
+    private static bool IsPictureFile(string file) =>
+        file.EndsWith(GIF, StringComparison.OrdinalIgnoreCase)
+        || file.EndsWith(PNG, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>A file in the folder, as the file says, with the pages that show it.</summary>
     private CatalogImageItem ItemOf(
-        AssetBundleEntity row,
+        string file,
         IReadOnlyDictionary<string, CatalogImagePage[]> usage
-    ) =>
-        new(
-            NameOf(row.Name),
-            row.Name,
-            AssetContractNames.Of(row.Source),
-            row.Hash is not null
-                && row.Error is null
-                && File.Exists(store.FullPathOf(KIND, row.Name)),
-            row.Size,
-            DateTime.SpecifyKind(row.UpdatedAt, DateTimeKind.Utc),
-            usage.TryGetValue(row.Name, out var pages) ? pages : []
+    )
+    {
+        var info = new FileInfo(store.FullPathOf(KIND, file));
+
+        return new(
+            NameOf(file),
+            file,
+            info.Exists ? info.Length : 0,
+            info.Exists ? info.LastWriteTimeUtc : null,
+            usage.TryGetValue(file, out var pages) ? pages : []
         );
+    }
 
     /// <summary>The pages that show each picture, by its file.</summary>
     private async Task<Dictionary<string, CatalogImagePage[]>> UsageAsync(
