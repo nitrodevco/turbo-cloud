@@ -50,7 +50,7 @@ and show as tabs along its header:
 | World | **Hotel view**, **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
-| Staff | **Logs** | Command log, Chat log |
+| Staff | **Logs** | Command log, Chat log, Room visits, Permission log |
 | Server | **Settings**, **Console** | |
 
 You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
@@ -379,7 +379,8 @@ rights and bans, not its furniture), as visiting its settings in the hotel would
 
 Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it.
 
-Chat and visit logs, deleting rooms and changing owners aren't in the panel yet.
+A room's **Visitors** tab links to every visit in the [Room visits](#room-visits) log. Deleting
+rooms and changing owners aren't in the panel yet.
 
 ## Players
 
@@ -390,13 +391,19 @@ acting on them with the matching command permissions.
   Discord username they sign in to the [public site](public-site.md) with. Players with a
   Discord account have a **Discord** badge. Results come 25 to a page, most recently logged in first; players who have never logged in come last. **Online
   only** shows just the players connected right now. The page also says how many are online.
-- **A player's page** shows:
-  - whether they're online, and if so which room they're in;
-  - their balances (credits, duckets, diamonds, ...) and respect;
-  - their sanctions, newest first: active, ended or lifted, why, by whom, and until when;
-  - the rooms they own, most recently active first, with a link to all of them on the Rooms page;
-  - their profile: motto, last login, when they joined, gender and figure;
-  - a link to their permissions, for staff with `admin.permissions.view`.
+- **A player's page** (`/players/<id>`) has their card on top: their face, motto, where they
+  are and what holds on them now (banned, muted, trade locked), with the **Actions** row under
+  it. Under the card are two tabs:
+  - **Overview**: their balances, each with Give and Take; their profile (status, room, last
+    login, when they joined, gender, respect, how many rooms they own, figure); their standing
+    (the ban, mute and trade lock that hold now) with their sanctions under it, newest first:
+    active, ended or lifted, why, by whom, and until when; their login ticket and Discord account;
+    and links to the rooms they own (the Rooms page, searched by owner id) and to the Room
+    visits, Chat log and Command log pages narrowed to them, each for staff who may open it.
+  - **Inventory**: how much furniture they have in their inventory and placed in rooms, their
+    badges, pets and bots; their furniture by kind and their badges (worn ones first), each with
+    a filter, an **Add** button, and on each badge a button to take it.
+  - The header links to their permissions, for staff with `admin.permissions.view`.
 - People in a room link to their player pages.
 
 Looking at a player starts nothing for them: who is online comes from the open sessions, and only
@@ -404,7 +411,9 @@ an online player is asked which room they're in. Everything else is read from th
 
 ### Acting on a player
 
-A player's page has an **Actions** card. Each action is the hotel's own operator command, run as
+A player's card has an **Actions** row (alert, sanction, mute, trade lock, disconnect), each in
+a sheet that also lifts the one that holds; balances are given and taken on the overview, and
+furniture and badges added on the inventory. Each action is the hotel's own operator command, run as
 you, exactly as if you typed it in the hotel: it needs that command's permission, the command's
 own guards apply (you can't ban or silence someone who outranks you), the player gets the same
 notice, and it's written to the command log under your name. Only what you may do is shown.
@@ -413,10 +422,17 @@ notice, and it's written to the command log under your name. Only what you may d
 | --- | --- | --- |
 | Moderator warning, or a pop-up | `:warn`, `:alert` | `command.warn`, `command.alert` |
 | Ban from the hotel (1 hour, 1 day, 7 days, for good, with a reason), lift a ban | `:ban`, `:unban` | `command.ban`, `command.unban` |
-| Silence everywhere (10 min to 7 days), unsilence | `:silence`, `:unsilence` | `command.silence` |
+| Mute everywhere (10 min to 7 days), unmute | `:silence`, `:unsilence` | `command.silence` |
 | Trade lock (1 day to for good), unlock | `:tradelock`, `:untradelock` | `command.tradelock` |
 | Give or take credits, duckets, diamonds, ... | `:give` | `command.give` |
+| Put furniture in their inventory (by class name, a count) | `:giveitem` | `command.giveitem` |
+| Send furniture as a gift: one present from the hotel, with a note on its tag and a badge inside if wanted | `:gift` | `command.gift` |
+| Give a badge, take a badge | `:givebadge`, `:takebadge` | `command.givebadge`, `command.takebadge` |
 | Disconnect (online players only) | `:disconnect` | `command.disconnect` |
+
+A mute and a trade lock are denials of `chat.speak` and `trade` on the player, not sanctions, so
+the page reads them from the player's own permission rows: the one that holds now, and until
+when.
 
 The command's answer is shown under the card. A command that asks to be confirmed gets a
 **Confirm** button. Messages need the player online, as in the hotel. A player whose name starts
@@ -830,6 +846,17 @@ What is logged is the hotel's rule: lines players type into a room's chat, when
 and room notices are not chat and are not logged. Rooms write chat in batches, so a line can take
 a few seconds to appear; the newest page asks again every 30 seconds.
 
+## Room visits
+
+Staff with `admin.players.view` get a **Room visits** page under Logs: who went into which room,
+newest first, from the entry log the navigator's history keeps. Narrow it to one player (exact
+name or id) or one room (by id). A player's page and a room's **Visitors** tab each link to their
+own visits.
+
+Like the chat log, the page goes **Older** and **Newer** a page at a time and shows no total: the
+log grows with every room entered. Paging follows the visit id, so no migration is needed. A
+player or room that is gone shows by its id.
+
 ## Permission editor
 
 Staff with `admin.permissions.view` get a **Permissions** page: the panel's version of the `perm`
@@ -912,7 +939,7 @@ passkey; they add more while signed in instead.
 | `admin.panel` | Signing in to the panel. Checked on every request, so removing it locks the person out at once. |
 | `admin.passkeys.reset` | Making setup and reset links for other players (Access → Staff passkeys, `:adminsetup <name>`), within the rule above. |
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
-| `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions. |
+| `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
@@ -1152,6 +1179,7 @@ them.
 | `PlayerSearchPageSize` | `25` | | Players per page on the Players page. |
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
+| `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
 | `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
 | `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |

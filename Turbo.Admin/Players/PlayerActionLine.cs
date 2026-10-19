@@ -55,6 +55,7 @@ public static class PlayerActionLine
             "givebadge" => WithBadge("givebadge", playerName, request.Badge),
             "takebadge" => WithBadge("takebadge", playerName, request.Badge),
             "giveitem" => GiveItem(playerName, request.Furni, request.Amount),
+            "gift" => Gift(playerName, request.Furni, request.Note, request.Badge),
             _ => (null, $"'{request.Action}' is not something the panel can do to a player."),
         };
     }
@@ -82,28 +83,62 @@ public static class PlayerActionLine
             ? ($"{command} {name} {text}", null)
             : (null, "Write the message to send.");
 
-    private static (string?, string?) WithBadge(string command, string name, string? badge)
+    private const string BAD_BADGE =
+        "Write a badge code of letters, digits and _, like ADM or ACH_Login1.";
+
+    private const string BAD_FURNI =
+        "Write the furniture's class name, like throne or rare_dragonlamp*4.";
+
+    private static (string?, string?) WithBadge(string command, string name, string? badge) =>
+        IsBadgeCode(badge, out var code) ? ($"{command} {name} {code}", null) : (null, BAD_BADGE);
+
+    /// <summary>One word of letters, digits and _, as badge codes are, so it cannot add arguments.</summary>
+    private static bool IsBadgeCode(string? badge, out string code)
     {
-        var code = (badge ?? string.Empty).Trim();
+        code = (badge ?? string.Empty).Trim();
 
-        // One word of letters, digits and _, as badge codes are, so it cannot add arguments.
-        if (code.Length == 0 || !code.All(x => char.IsAsciiLetterOrDigit(x) || x == '_'))
-            return (null, "Write a badge code of letters, digits and _, like ADM or ACH_Login1.");
+        return code.Length > 0 && code.All(x => char.IsAsciiLetterOrDigit(x) || x == '_');
+    }
 
-        return ($"{command} {name} {code}", null);
+    /// <summary>
+    /// A class name as the furniture data has it (throne, rare_dragonlamp*4), one word, so it
+    /// cannot add arguments or name a selector.
+    /// </summary>
+    private static bool IsClassName(string? furni, out string className)
+    {
+        className = (furni ?? string.Empty).Trim();
+
+        return className.Length > 0
+            && className.All(x => char.IsAsciiLetterOrDigit(x) || x is '_' or '*' or '-' or '.');
+    }
+
+    /// <summary>
+    /// <c>gift alice throne "note" [BADGE]</c>: one present from the hotel. The note is one line in
+    /// double quotes, a quote or backslash in it escaped as the command line reads them, so it
+    /// cannot end early and add arguments.
+    /// </summary>
+    private static (string?, string?) Gift(string name, string? furni, string? note, string? badge)
+    {
+        if (!IsClassName(furni, out var className))
+            return (null, BAD_FURNI);
+
+        if (CommandText.OneLine(note) is not { } text)
+            return (null, "Write the note on the present's tag.");
+
+        var quoted = text.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+        var line = $"gift {name} {className} \"{quoted}\"";
+
+        if (string.IsNullOrWhiteSpace(badge))
+            return (line, null);
+
+        return IsBadgeCode(badge, out var code) ? ($"{line} {code}", null) : (null, BAD_BADGE);
     }
 
     private static (string?, string?) GiveItem(string name, string? furni, int? count)
     {
-        var className = (furni ?? string.Empty).Trim();
-
-        // A class name as the furniture data has it (throne, rare_dragonlamp*4), one word, so it
-        // cannot add arguments or name a selector.
-        if (
-            className.Length == 0
-            || !className.All(x => char.IsAsciiLetterOrDigit(x) || x is '_' or '*' or '-' or '.')
-        )
-            return (null, "Write the furniture's class name, like throne or rare_dragonlamp*4.");
+        if (!IsClassName(furni, out var className))
+            return (null, BAD_FURNI);
 
         if (count is not { } value || value < 1)
             return (null, "Give at least one.");

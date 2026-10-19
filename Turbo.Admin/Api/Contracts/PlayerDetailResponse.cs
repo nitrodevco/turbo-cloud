@@ -4,8 +4,10 @@ using System.Collections.Generic;
 namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
-/// One player as staff look them up: profile, where they are now, wallet, rooms and sanctions, and
-/// the Discord account they sign in to the public site with, when they have one.
+/// One player as staff look them up: profile, where they are now, wallet, how many rooms they own,
+/// sanctions, and the Discord account they sign in to the public site with, when they have one. A
+/// silence and a trade lock are not sanctions but denials of a node on the player;
+/// <c>Silenced</c> and <c>TradeLocked</c> are the ones that hold now, null when none does.
 /// </summary>
 public sealed record PlayerDetailResponse(
     int Id,
@@ -20,7 +22,8 @@ public sealed record PlayerDetailResponse(
     int RespectPoints,
     IReadOnlyList<PlayerCurrencyItem> Currencies,
     int RoomsOwned,
-    IReadOnlyList<PlayerRoomRef> RecentRooms,
     IReadOnlyList<PlayerSanctionItem> Sanctions,
-    PlayerDiscordInfo? Discord
+    PlayerDiscordInfo? Discord,
+    PlayerRestrictionItem? Silenced,
+    PlayerRestrictionItem? TradeLocked
 );

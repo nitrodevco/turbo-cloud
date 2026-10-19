@@ -75,6 +75,9 @@ public sealed class AdminConfig
     /// <summary>Lines per page in the panel's chat log, and on each side of a line in context.</summary>
     public int ChatlogPageSize { get; init; } = 100;
 
+    /// <summary>Visits per page in the panel's room visits log.</summary>
+    public int RoomVisitsPageSize { get; init; } = 100;
+
     /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the
     /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as

@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Players;
-using Turbo.Admin.Rooms;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -24,7 +23,6 @@ namespace Turbo.Admin.Api;
 internal sealed class PlayerEndpoints(
     IGrainFactory grainFactory,
     AdminPlayerQueries players,
-    AdminRoomVisits visits,
     ICommandRegistryProvider registryProvider,
     IOperatorCommandRunner runner
 )
@@ -39,7 +37,6 @@ internal sealed class PlayerEndpoints(
         group.MapGet("/abilities", AbilitiesAsync);
         group.MapGet("/{id:int}", GetAsync);
         group.MapGet("/{id:int}/inventory", InventoryAsync);
-        group.MapGet("/{id:int}/visits", VisitsAsync);
         group.MapPost("/{id:int}/actions", ActAsync);
     }
 
@@ -63,6 +60,7 @@ internal sealed class PlayerEndpoints(
                 resolved.Has(PermissionNodes.Command.GIVEBADGE),
                 resolved.Has(PermissionNodes.Command.TAKEBADGE),
                 resolved.Has(PermissionNodes.Command.GIVEITEM),
+                resolved.Has(PermissionNodes.Command.GIFT),
                 resolved.Has(PermissionNodes.Admin.PLAYERS_CREATE),
                 resolved.Has(PermissionNodes.Admin.TICKETS_ISSUE),
                 resolved.Has(PermissionNodes.Admin.ACCOUNTS_MANAGE)
@@ -122,9 +120,6 @@ internal sealed class PlayerEndpoints(
         await players.GetInventoryAsync(id, ct).ConfigureAwait(false) is { } inventory
             ? Results.Ok(inventory)
             : AdminResults.Error(StatusCodes.Status404NotFound, $"There is no player {id}.");
-
-    private async Task<IResult> VisitsAsync(int id, CancellationToken ct) =>
-        Results.Ok(await visits.ForPlayerAsync(id, ct).ConfigureAwait(false));
 
     private static PlayerSearchMode ModeOf(string? by) =>
         Enum.TryParse<PlayerSearchMode>(by, ignoreCase: true, out var mode)

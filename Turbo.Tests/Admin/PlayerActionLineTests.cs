@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Players;
+using Turbo.Primitives.Commands;
 using Xunit;
 
 namespace Turbo.Tests.Admin;
@@ -107,6 +108,46 @@ public sealed class PlayerActionLineTests
     }
 
     [Fact]
+    public void Gift_SendsOnePresent_WithItsNoteQuoted_AndABadgeWhenGiven()
+    {
+        PlayerActionLine
+            .Build("alice", Gift("rare_dragonlamp*4", "Thanks for playing!", null))
+            .Line.Should()
+            .Be("gift alice rare_dragonlamp*4 \"Thanks for playing!\"");
+        PlayerActionLine
+            .Build("alice", Gift("throne", "Enjoy", " ADM "))
+            .Line.Should()
+            .Be("gift alice throne \"Enjoy\" ADM");
+    }
+
+    [Fact]
+    public void AGiftNote_CannotEndItsQuotesEarly_SoItCannotAddArguments()
+    {
+        var line = PlayerActionLine.Build("alice", Gift("throne", "Hi\" @online \\", null)).Line;
+
+        line.Should().Be("gift alice throne \"Hi\\\" @online \\\\\"");
+
+        // Read back as the command line reads it, the note is one argument holding what was typed.
+        var cursor = "gift alice throne ".Length;
+
+        CommandTextReader.Read(line!, ref cursor).Text.Should().Be("Hi\" @online \\");
+        cursor.Should().Be(line!.Length);
+    }
+
+    [Theory]
+    [InlineData("throne", "   ", null)]
+    [InlineData("throne @room", "Hi", null)]
+    [InlineData("throne", "Hi", "ADM @online")]
+    public void AGift_NeedsAClassNameANote_AndABadgeCodeOrNone(
+        string furni,
+        string note,
+        string? badge
+    )
+    {
+        PlayerActionLine.Build("alice", Gift(furni, note, badge)).Line.Should().BeNull();
+    }
+
+    [Fact]
     public void AReason_IsOneLine_SoItCannotStartAnotherCommand()
     {
         var line = PlayerActionLine.Build(
@@ -162,4 +203,7 @@ public sealed class PlayerActionLineTests
 
     private static PlayerActionRequest Request(string action, string? duration, string? text) =>
         new(action, duration, text, null, null);
+
+    private static PlayerActionRequest Gift(string furni, string note, string? badge) =>
+        new("gift", null, null, null, null, badge, furni, note);
 }

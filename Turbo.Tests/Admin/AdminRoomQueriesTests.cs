@@ -133,6 +133,21 @@ public sealed class AdminRoomQueriesTests : IDisposable
         result.Rooms.Should().ContainSingle().Which.OwnerName.Should().Be("bob");
     }
 
+    [Fact]
+    public async Task AnOwnerIdSearch_FindsThatPlayersRoomsOnly()
+    {
+        // A player's page links to their rooms by id: "bob" by name would find bobby's too.
+        _db.Insert(Player(4, "bobby"));
+        _db.Insert(Room(13, "Bobby's Den", 4, RoomDoorModeType.Open, lastActiveDaysAgo: 1));
+
+        (await Queries().SearchAsync("bob", RoomSearchMode.Owner, 1, Ct)).Total.Should().Be(2);
+        (await Queries().SearchAsync("2", RoomSearchMode.OwnerId, 1, Ct)) // bob
+            .Rooms.Select(x => x.Id)
+            .Should()
+            .Equal(12);
+        (await Queries().SearchAsync("bob", RoomSearchMode.OwnerId, 1, Ct)).Total.Should().Be(0);
+    }
+
     [Theory]
     [InlineData("12", 1)]
     [InlineData("99", 0)]

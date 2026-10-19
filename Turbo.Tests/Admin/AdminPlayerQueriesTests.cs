@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Orleans;
@@ -7,6 +8,7 @@ using Turbo.Admin.Rooms;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Moderation;
+using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Furniture.Enums;
@@ -17,6 +19,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -182,7 +185,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     }
 
     [Fact]
-    public async Task APlayersPage_ShowsTheirWalletRoomsAndSanctions()
+    public async Task APlayersPage_ShowsTheirWalletRoomCountAndSanctions()
     {
         var alice = (await Queries().GetAsync(ALICE, Ct))!;
 
@@ -191,7 +194,6 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             .Should()
             .Equal(("Credits", 1500), ("Emeralds", 30));
         alice.RoomsOwned.Should().Be(2);
-        alice.RecentRooms.Select(x => x.Id).Should().BeEquivalentTo([CAFE, 11]);
 
         var sanctions = alice.Sanctions.ToDictionary(x => x.Reason);
 
@@ -200,6 +202,31 @@ public sealed class AdminPlayerQueriesTests : IDisposable
         sanctions["an old one"].IsActive.Should().BeFalse("it has run out");
         sanctions["a mistake"].IsActive.Should().BeFalse("it was lifted");
         sanctions["a mistake"].RevokedByName.Should().Be("moderator");
+    }
+
+    [Fact]
+    public async Task APlayersPage_ShowsTheSilenceAndTradeLockThatHoldNow()
+    {
+        // As :silence and :tradelock leave them: a denial of the node, for a time or for good.
+        _db.Insert(Node(1, ALICE, PermissionNodes.Chat.SPEAK, false, NOW.AddHours(1)));
+        _db.Insert(Node(2, ALICE, PermissionNodes.TRADE, false, null));
+        // Bob's silence has run out, and a grant of trading is not a lock.
+        _db.Insert(Node(3, BOB, PermissionNodes.Chat.SPEAK, false, NOW.AddHours(-1)));
+        _db.Insert(Node(4, BOB, PermissionNodes.TRADE, true, null));
+        // Carol is locked for good, but a temporary grant beats it while it lasts.
+        _db.Insert(Node(5, CAROL, PermissionNodes.TRADE, false, null));
+        _db.Insert(Node(6, CAROL, PermissionNodes.TRADE, true, NOW.AddDays(1)));
+
+        var alice = (await Queries().GetAsync(ALICE, Ct))!;
+        var bob = (await Queries().GetAsync(BOB, Ct))!;
+        var carol = (await Queries().GetAsync(CAROL, Ct))!;
+
+        alice.Silenced!.UntilUtc.Should().Be(NOW.AddHours(1));
+        alice.TradeLocked.Should().NotBeNull();
+        alice.TradeLocked!.UntilUtc.Should().BeNull("it is for good");
+        bob.Silenced.Should().BeNull();
+        bob.TradeLocked.Should().BeNull();
+        carol.TradeLocked.Should().BeNull();
     }
 
     [Fact]
@@ -289,10 +316,18 @@ public sealed class AdminPlayerQueriesTests : IDisposable
         _db.Insert(Visit(2, BOB, CAFE, NOW.AddHours(-2)));
         _db.Insert(Visit(3, ALICE, 11, NOW.AddHours(-1)));
 
-        var visits = new AdminRoomVisits(_db);
+        var visits = Visits();
 
-        (await visits.ForPlayerAsync(ALICE, Ct))
-            .Select(x => (x.RoomName, x.EnteredUtc))
+        (
+            await visits.SearchAsync(
+                ALICE.ToString(CultureInfo.InvariantCulture),
+                null,
+                null,
+                null,
+                Ct
+            )
+        )
+            .Entries.Select(x => (x.RoomName, x.AtUtc))
             .Should()
             .Equal(("Alice's Attic", NOW.AddHours(-1)), ("Alice's Café", NOW.AddHours(-3)));
         (await visits.ForRoomAsync(CAFE, Ct))
@@ -300,6 +335,65 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             .Should()
             .Equal("bob_100%", "alice");
     }
+
+    [Fact]
+    public async Task TheVisitsLog_IsNarrowedByPlayerNameOrId_AndByRoom()
+    {
+        _db.Insert(Visit(1, ALICE, CAFE, NOW.AddHours(-3)));
+        _db.Insert(Visit(2, BOB, CAFE, NOW.AddHours(-2)));
+        _db.Insert(Visit(3, ALICE, 11, NOW.AddHours(-1)));
+
+        var visits = Visits();
+
+        (await visits.SearchAsync(null, null, null, null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(3, 2, 1);
+        (await visits.SearchAsync("ALICE", null, null, null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(3, 1);
+        (await visits.SearchAsync(null, CAFE, null, null, Ct))
+            .Entries.Select(x => x.PlayerName)
+            .Should()
+            .Equal("bob_100%", "alice");
+        (await visits.SearchAsync("alice", CAFE, null, null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1);
+        (await visits.SearchAsync("nobody", null, null, null, Ct)).Entries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheVisitsLog_GoesOlderAndNewerAPageAtATime()
+    {
+        for (var id = 1; id <= 5; id++)
+            _db.Insert(Visit(id, ALICE, CAFE, NOW.AddMinutes(-10 + id)));
+
+        var visits = Visits(pageSize: 2);
+        var newest = await visits.SearchAsync(null, null, null, null, Ct);
+
+        newest.Entries.Select(x => x.Id).Should().Equal(5, 4);
+        (newest.HasOlder, newest.HasNewer).Should().Be((true, false));
+
+        var older = await visits.SearchAsync(null, null, 4, null, Ct);
+
+        older.Entries.Select(x => x.Id).Should().Equal(3, 2);
+        (older.HasOlder, older.HasNewer).Should().Be((true, true));
+
+        var oldest = await visits.SearchAsync(null, null, 2, null, Ct);
+
+        oldest.Entries.Select(x => x.Id).Should().Equal(1);
+        (oldest.HasOlder, oldest.HasNewer).Should().Be((false, true));
+
+        var back = await visits.SearchAsync(null, null, null, 1, Ct);
+
+        back.Entries.Select(x => x.Id).Should().Equal(3, 2);
+        (back.HasOlder, back.HasNewer).Should().Be((true, true));
+    }
+
+    private AdminRoomVisits Visits(int pageSize = 100) =>
+        new(_db, Options.Create(new AdminConfig { RoomVisitsPageSize = pageSize }));
 
     private AdminPlayerQueries Queries() =>
         new(
@@ -319,6 +413,23 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
             LastLoginAt = lastLogin,
+        };
+
+    private static PlayerPermissionNodeEntity Node(
+        int id,
+        int playerId,
+        string node,
+        bool value,
+        DateTime? expiresAt
+    ) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = playerId,
+            Node = node,
+            Value = value,
+            ExpiresAt = expiresAt,
+            IsTemporary = expiresAt is not null,
         };
 
     private static PlayerBadgeEntity Badge(int id, string code, int? slot) =>

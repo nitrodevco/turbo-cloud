@@ -17,6 +17,7 @@ public sealed record PlayerAbilities(
     bool GiveBadge,
     bool TakeBadge,
     bool GiveItem,
+    bool Gift,
     bool CreatePlayers,
     bool IssueTickets,
     bool ManageAccounts

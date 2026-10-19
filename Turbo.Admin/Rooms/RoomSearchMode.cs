@@ -11,4 +11,10 @@ public enum RoomSearchMode
 
     /// <summary>The room with that id.</summary>
     Id,
+
+    /// <summary>
+    /// Rooms whose owner has that id: one player's rooms, where a name would also match the
+    /// names that start like it.
+    /// </summary>
+    OwnerId,
 }

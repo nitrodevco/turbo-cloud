@@ -64,6 +64,9 @@ public sealed class AdminRoomQueries(
                 RoomSearchMode.Id => int.TryParse(term, out var id)
                     ? rooms.Where(x => x.Id == id)
                     : rooms.Where(x => false),
+                RoomSearchMode.OwnerId => int.TryParse(term, out var ownerId)
+                    ? rooms.Where(x => x.PlayerEntityId == ownerId)
+                    : rooms.Where(x => false),
                 RoomSearchMode.Owner => rooms.Where(x =>
                     EF.Functions.Like(x.PlayerEntity.Name, like + "%", ESCAPE)
                 ),

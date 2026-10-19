@@ -9,9 +9,11 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Permissions;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Players;
 
@@ -30,9 +32,6 @@ public sealed class AdminPlayerQueries(
 )
 {
     private const string ESCAPE = "\\";
-
-    /// <summary>The rooms a player's page lists, most recently active first.</summary>
-    private const int RECENT_ROOMS = 8;
 
     /// <summary>The sanctions a player's page lists, newest first.</summary>
     private const int RECENT_SANCTIONS = 20;
@@ -179,15 +178,6 @@ public sealed class AdminPlayerQueries(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var recentRooms = await db
-            .Rooms.AsNoTracking()
-            .Where(x => x.PlayerEntityId == playerId)
-            .OrderByDescending(x => x.LastActive)
-            .Take(RECENT_ROOMS)
-            .Select(x => new PlayerRoomRef(x.Id, x.Name))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
         var sanctions = await db
             .PlayerSanctions.AsNoTracking()
             .Where(x => x.PlayerEntityId == playerId)
@@ -226,6 +216,16 @@ public sealed class AdminPlayerQueries(
                 .WebSessions.CountAsync(x => x.PlayerEntityId == playerId && x.ExpiresAt > now, ct)
                 .ConfigureAwait(false);
 
+        // A silence and a trade lock are denials of one node on the player, as the commands set them.
+        var restrictions = await db
+            .PlayerPermissionNodes.AsNoTracking()
+            .Where(x =>
+                x.PlayerEntityId == playerId
+                && (x.Node == PermissionNodes.Chat.SPEAK || x.Node == PermissionNodes.TRADE)
+            )
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
         var isOnline = sessions.GetOnlinePlayerIds().Any(x => x.Value == playerId);
         var currentRoom = isOnline
             ? await CurrentRoomAsync(db, playerId, ct).ConfigureAwait(false)
@@ -250,7 +250,6 @@ public sealed class AdminPlayerQueries(
                 )),
             ],
             player.RoomsOwned,
-            recentRooms,
             [
                 .. sanctions.Select(x => new PlayerSanctionItem(
                     x.Kind.ToString(),
@@ -270,8 +269,33 @@ public sealed class AdminPlayerQueries(
                     discord.DiscordUsername,
                     discord.CreatedAt,
                     signIns
-                )
+                ),
+            RestrictionOf(restrictions, PermissionNodes.Chat.SPEAK, now),
+            RestrictionOf(restrictions, PermissionNodes.TRADE, now)
         );
+    }
+
+    /// <summary>
+    /// Whether the player's own rows deny <paramref name="node"/> now, and until when: a temporary
+    /// row wins while it lasts, as the permission grain resolves them; past its expiry the
+    /// permanent row, if any, says.
+    /// </summary>
+    private static PlayerRestrictionItem? RestrictionOf(
+        List<PlayerPermissionNodeEntity> rows,
+        string node,
+        DateTime now
+    )
+    {
+        var temporary = rows.FirstOrDefault(x =>
+            x.Node == node && x.IsTemporary && x.ExpiresAt > now
+        );
+
+        if (temporary is not null)
+            return temporary.Value ? null : new PlayerRestrictionItem(temporary.ExpiresAt);
+
+        return rows.Any(x => x.Node == node && !x.IsTemporary && !x.Value)
+            ? new PlayerRestrictionItem(null)
+            : null;
     }
 
     /// <summary>
