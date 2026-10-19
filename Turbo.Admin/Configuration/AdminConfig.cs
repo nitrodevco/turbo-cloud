@@ -78,6 +78,9 @@ public sealed class AdminConfig
     /// <summary>Visits per page in the panel's room visits log.</summary>
     public int RoomVisitsPageSize { get; init; } = 100;
 
+    /// <summary>Calls for help per page on the panel's Reports page.</summary>
+    public int ReportsPageSize { get; init; } = 50;
+
     /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the
     /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as

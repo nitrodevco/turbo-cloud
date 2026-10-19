@@ -45,7 +45,7 @@ and show as tabs along its header:
 | Section | Place | Its tabs |
 | --- | --- | --- |
 |  | **Overview** | the dashboard, Performance |
-| Community | **Players**, **Rooms** | |
+| Community | **Players**, **Reports**, **Rooms** | |
 | Shop | **Catalog** | Editor, Audit (furni not sold, furni sold twice), Generate, Backups, Vouchers, Songs |
 | World | **Hotel view**, **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
@@ -846,6 +846,30 @@ The log is indexed by player and by command (migration `IndexCommandLogs`). The
 server migrates itself when it starts ([database.md](database.md)), which adds them; the
 page works without them, just more slowly on a large log.
 
+## Reports
+
+Staff with `moderation.tool`, the node the client's mod tool needs, get a **Reports** page: the
+calls for help players send, newest first, the open ones by default (**Closed** and **All** show
+the rest). Each shows its topic, where it was sent from (the help window, the messenger, a photo
+or a group forum), who it is about, who sent it, and whether a moderator holds it. Narrow it to a
+player (exact name or id) to see the reports they sent or that are about them. The open ones are
+asked again every 20 seconds.
+
+A report's page shows what the sender wrote, the chat they sent with it with the reported player's
+lines marked, the room (with a link to its chat log), and both players' histories: how many
+reports were about the reported player and how many of those were closed with a sanction, and how
+many the sender has sent and how many were closed as abusive or useless. The other open reports
+about the same player are listed under it.
+
+Picking a report, letting it go and closing it are the mod tool's own, done as you: moderators in
+the hotel see the change at once, and the sender is told how it was closed. Close it as
+**Resolved**, **Useless** or **Abusive**, or **Resolve with** the next sanction of the hotel's
+ladder (`Turbo:Operations:CfhDefaultSanctions`, the mod tool's "close with default sanction"),
+which the page names before you give it. A sanction is refused for staff, or when you may not give
+it, and the report is closed without one. Tick **Close the other open reports about** the player
+to close them in one go; the sanction is given once. Closing picks the report for you first; a
+report another moderator holds stays theirs, and if one of a batch is theirs none is closed.
+
 ## Chat log
 
 Staff with `admin.chatlog.view` get a **Chat log** page: what players said in rooms, newest first,
@@ -1199,6 +1223,7 @@ them.
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
 | `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
+| `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
 | `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
 | `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |

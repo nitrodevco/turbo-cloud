@@ -212,6 +212,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(ILoginTicketService),
                 typeof(Turbo.Primitives.Plugins.IPluginAdministration),
                 typeof(Turbo.Primitives.Plugins.IPluginSources),
+                typeof(Turbo.Primitives.Moderation.IModerationIssueService),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -231,6 +232,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminChatlogQueries>();
+        services.AddSingleton<Turbo.Admin.Moderation.AdminReportQueries>();
         services.AddSingleton<AdminPerformanceRecorder>();
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<AdminCatalogBuilder>();
