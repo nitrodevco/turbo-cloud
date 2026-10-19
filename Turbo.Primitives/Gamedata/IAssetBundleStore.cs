@@ -30,6 +30,12 @@ public interface IAssetBundleStore
     /// <summary>Writes a bundle's file whole, replacing any before it; returns its SHA-1 in lowercase hex.</summary>
     Task<string> WriteAsync(AssetBundleKind kind, string name, byte[] bundle, CancellationToken ct);
 
+    /// <summary>
+    /// The names of the bundles of a kind whose file the folder holds, read in one listing of its
+    /// folder: what asking each bundle's file would say, without a disk lookup for every one.
+    /// </summary>
+    IReadOnlySet<string> NamesOnDisk(AssetBundleKind kind);
+
     /// <summary>Removes a bundle's file, when there is one.</summary>
     void Delete(AssetBundleKind kind, string name);
 

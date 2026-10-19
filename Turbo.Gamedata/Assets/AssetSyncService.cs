@@ -282,18 +282,27 @@ internal sealed class AssetSyncService(
         };
     }
 
-    /// <summary>Habbo's lists as last read; read again when asked, or once older than the preview keeps them.</summary>
+    /// <summary>
+    /// Habbo's lists as last read; read again when asked. Once older than the preview keeps them
+    /// they are still answered with, and read again behind it: a visit doesn't wait on Habbo
+    /// unless nothing was read yet.
+    /// </summary>
     private async Task<HabboLists> CachedListsAsync(bool relist, CancellationToken ct)
     {
-        if (!relist && Fresh(_lists) is { } cached)
+        if (!relist && _lists is { } cached)
+        {
+            if (IsStale(cached))
+                RelistBehind();
+
             return cached;
+        }
 
         await _listing.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
             // Another request may have read them while this one waited.
-            if (!relist && Fresh(_lists) is { } done)
+            if (!relist && _lists is { } done)
                 return done;
 
             // The numbered files and badge levels are asked for by a sync alone: the preview lists
@@ -306,12 +315,37 @@ internal sealed class AssetSyncService(
         }
     }
 
-    private HabboLists? Fresh(HabboLists? lists) =>
-        lists is not null
-        && time.GetUtcNow().UtcDateTime - lists.ListedAt
-            < TimeSpan.FromMinutes(Math.Max(0, config.Value.SyncPreviewMinutes))
-            ? lists
-            : null;
+    /// <summary>Reads Habbo's lists again in the background, unless a listing is under way.</summary>
+    private void RelistBehind()
+    {
+        if (!_listing.Wait(0))
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ListHabboAsync(_ => { }, probe: false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Reading Habbo's lists again for the sync preview failed: {Message}",
+                    ex.Message
+                );
+            }
+            finally
+            {
+                _listing.Release();
+            }
+        });
+    }
+
+    private bool IsStale(HabboLists lists) =>
+        time.GetUtcNow().UtcDateTime - lists.ListedAt
+        >= TimeSpan.FromMinutes(Math.Max(0, config.Value.SyncPreviewMinutes));
 
     /// <summary>
     /// Every library Habbo serves now, by kind, kept for the preview. A map Habbo has not, or that
@@ -1151,14 +1185,14 @@ internal sealed class AssetSyncService(
 
         // A row's file, not its hash alone: a bundle whose file went (a folder lost, or moved
         // away) is downloaded again rather than counted as had.
+        var onDisk = rows.Select(x => x.Kind).Distinct().ToDictionary(x => x, store.NamesOnDisk);
+
         return rows.ToDictionary(
             x => (x.Kind, x.Name),
             x => new AssetSyncPlan.Known(
                 x.Revision,
                 x.Source,
-                x.HasHash
-                    && store.IsValidName(x.Name)
-                    && File.Exists(store.FullPathOf(x.Kind, x.Name)),
+                x.HasHash && store.IsValidName(x.Name) && onDisk[x.Kind].Contains(x.Name),
                 x.Error,
                 x.Retry,
                 x.Ids

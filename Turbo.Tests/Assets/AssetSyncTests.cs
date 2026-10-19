@@ -350,6 +350,37 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_stale_preview_answers_at_once_and_reads_Habbo_again_behind_it()
+    {
+        var sync = Sync(new AssetBundleConfig { SyncPreviewMinutes = 0 });
+        async Task<bool> ListsSofaAsync() =>
+            (await sync.PreviewAsync(relist: false, Ct)).Kinds[0].Items.Any(x => x.Name == "sofa");
+
+        (await ListsSofaAsync()).Should().BeFalse();
+
+        _habbo.Serve(
+            FURNIDATA,
+            """{ "roomitemtypes": { "furnitype": [ { "classname": "sofa", "revision": 1 } ] } }"""
+        );
+
+        // The lists read before, though stale, answer without waiting on Habbo.
+        (await ListsSofaAsync())
+            .Should()
+            .BeFalse();
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var relisted = false;
+
+        while (!relisted && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20, Ct);
+            relisted = await ListsSofaAsync();
+        }
+
+        relisted.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task The_room_libraries_badges_catalog_pictures_and_trax_samples_come_laid_out_as_nitro_studio_has_them()
     {
         const string IMAGES = "https://images.habbo.com/c_images";

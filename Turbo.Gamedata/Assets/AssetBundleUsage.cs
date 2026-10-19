@@ -31,20 +31,33 @@ internal sealed class AssetBundleUsage
     /// <summary>The pet types with breeds.</summary>
     public HashSet<int> PetTypes { get; }
 
-    public static async Task<AssetBundleUsage> LoadAsync(TurboDbContext dbCtx, CancellationToken ct)
+    /// <summary>
+    /// What the hotel names of the bundles of <paramref name="kind"/>, or of every kind when null:
+    /// a list of effects reads neither the definitions nor the breeds. The names are told apart
+    /// here, exactly: the database's <c>DISTINCT</c> takes a temporary table and its collation folds
+    /// case, merging names the bundles keep apart.
+    /// </summary>
+    public static async Task<AssetBundleUsage> LoadAsync(
+        TurboDbContext dbCtx,
+        AssetBundleKind? kind,
+        CancellationToken ct
+    )
     {
-        var names = await dbCtx
-            .FurnitureDefinitions.AsNoTracking()
-            .Select(x => x.Name)
-            .Distinct()
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-        var petTypes = await dbCtx
-            .PetBreeds.AsNoTracking()
-            .Select(x => x.TypeId)
-            .Distinct()
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+        var names = kind is null or AssetBundleKind.Furniture
+            ? await dbCtx
+                .FurnitureDefinitions.AsNoTracking()
+                .Select(x => x.Name)
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+            : [];
+        var petTypes = kind is null or AssetBundleKind.Pet
+            ? await dbCtx
+                .PetBreeds.AsNoTracking()
+                .Select(x => x.TypeId)
+                .Distinct()
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+            : [];
 
         return new AssetBundleUsage(
             names.Select(FurnitureAssetNames.BundleNameOf).ToHashSet(StringComparer.Ordinal),

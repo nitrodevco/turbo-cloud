@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,7 +50,7 @@ internal sealed class AssetBundleChecks(
         var bundles = rows.OrderBy(x => x.Kind)
             .ThenBy(x => x.Name, StringComparer.Ordinal)
             .ToList();
-        var usage = await AssetBundleUsage.LoadAsync(dbCtx, ct).ConfigureAwait(false);
+        var usage = await AssetBundleUsage.LoadAsync(dbCtx, null, ct).ConfigureAwait(false);
         var effectParams = await dbCtx
             .CatalogProducts.AsNoTracking()
             .Where(x => x.ProductType == ProductType.Effect && x.ExtraParam != null)
@@ -61,6 +60,10 @@ internal sealed class AssetBundleChecks(
             .ConfigureAwait(false);
 
         var withFile = bundles.Where(x => x.HasFile).ToList();
+        var onDisk = withFile
+            .Select(x => x.Kind)
+            .Distinct()
+            .ToDictionary(x => x, store.NamesOnDisk);
         var furnitureWithFile = withFile
             .Where(x => x.Kind == AssetBundleKind.Furniture)
             .Select(x => x.Name)
@@ -95,9 +98,7 @@ internal sealed class AssetBundleChecks(
                 "Bundles whose file is gone",
                 "Their row says they have a file that the bundle folder does not have. Delete them, and a sync takes Habbo's again.",
                 withFile
-                    .Where(x =>
-                        !store.IsValidName(x.Name) || !File.Exists(store.FullPathOf(x.Kind, x.Name))
-                    )
+                    .Where(x => !store.IsValidName(x.Name) || !onDisk[x.Kind].Contains(x.Name))
                     .Select(x => Label(x.Kind, x.Name))
             ),
             Check(

@@ -122,7 +122,7 @@ internal sealed class AssetBundleService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var usage = await AssetBundleUsage.LoadAsync(dbCtx, ct).ConfigureAwait(false);
+        var usage = await AssetBundleUsage.LoadAsync(dbCtx, kind, ct).ConfigureAwait(false);
         var rows = Filter(dbCtx.AssetBundles.AsNoTracking(), kind, query, status);
         List<AssetBundleEntity> items;
         int total;

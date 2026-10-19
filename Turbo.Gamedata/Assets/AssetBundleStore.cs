@@ -100,6 +100,33 @@ internal sealed partial class AssetBundleStore(
             File.Delete(path);
     }
 
+    public IReadOnlySet<string> NamesOnDisk(AssetBundleKind kind)
+    {
+        var folder = Path.Combine(Root, FolderOf(kind));
+        var extension = kind.IsBundle() ? EXTENSION : "";
+        // As the file system tells names apart: where it ignores case, so does a lookup here.
+        var names = new HashSet<string>(
+            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal
+        );
+
+        if (!Directory.Exists(folder))
+            return names;
+
+        foreach (var path in Directory.EnumerateFiles(folder))
+        {
+            var file = Path.GetFileName(path);
+
+            if (extension.Length == 0)
+                names.Add(file);
+            else if (file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                names.Add(file[..^extension.Length]);
+        }
+
+        return names;
+    }
+
     public async Task<IReadOnlyList<AssetBundleFile>> ListFilesAsync(CancellationToken ct)
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
