@@ -128,6 +128,7 @@ internal sealed class AdminApiServer(
         var contentAccess = ActivatorUtilities.CreateInstance<ContentAccess>(services);
 
         ActivatorUtilities.CreateInstance<QuestEndpoints>(services, contentAccess).Map(secured);
+        ActivatorUtilities.CreateInstance<PollEndpoints>(services, contentAccess).Map(secured);
         ActivatorUtilities.CreateInstance<VoucherEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<RewardTrackEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<SettingsEndpoints>(services).Map(secured);

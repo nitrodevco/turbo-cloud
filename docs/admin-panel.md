@@ -1107,6 +1107,14 @@ The **Content** page is the game's content, each change made at once and on reco
   of any other type is marked, as players can take it but it never moves. Quests are read on
   every use, so a change reaches players at once. Deleting a quest or a campaign takes the
   players' progress on it.
+- **Room polls**: a poll is a room's, offered to everyone who enters it until they finish it or
+  say no (no is final). Its questions are answered with one choice, several, a line or a text; a
+  score poll's choice decides which follow-up comes next (a follow-up names its question, and asks
+  after a choice whose category matches). Beside each question is what players answered: each
+  choice's count, or the newest texts with who wrote them. Saving keeps a question by its id, and
+  its answers with it; a question taken out loses its answers. Polls are read on every entry, so
+  a change reaches players at once. A choice question needs two choices, each with a value of its
+  own.
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
 

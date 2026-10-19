@@ -251,6 +251,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<Turbo.Admin.Content.AdminPetBotEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminCurrencyEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminQuestEditor>();
+        services.AddSingleton<Turbo.Admin.Content.AdminPollEditor>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
