@@ -669,8 +669,9 @@ internal sealed partial class ContentEndpoints(
         var arguments = $"delete {id}";
 
         if (
-            !await grainFactory
-                .HasPermissionAsync(staff, PermissionNodes.Guild.DELETE_ANY, ct)
+            !await AdminIdentity
+                .Of(http)
+                .HoldsAsync(grainFactory, PermissionNodes.Guild.DELETE_ANY, ct)
                 .ConfigureAwait(false)
         )
         {

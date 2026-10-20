@@ -107,5 +107,5 @@ internal static class AdminAccessExtensions
         HttpContext http,
         string node,
         CancellationToken ct
-    ) => grainFactory.HasPermissionAsync(AdminIdentity.Of(http).PlayerId, node, ct);
+    ) => AdminIdentity.Of(http).HoldsAsync(grainFactory, node, ct);
 }

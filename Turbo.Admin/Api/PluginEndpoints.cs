@@ -665,5 +665,5 @@ internal sealed class PluginEndpoints(
             );
 
     private Task<bool> HoldsAsync(HttpContext http, string node, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(AdminIdentity.Of(http).PlayerId, node, ct);
+        AdminIdentity.Of(http).HoldsAsync(grainFactory, node, ct);
 }

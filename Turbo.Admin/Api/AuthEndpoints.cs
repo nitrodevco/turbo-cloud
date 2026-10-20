@@ -42,62 +42,50 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
                 identity.PlayerId.Value,
                 identity.Name,
                 identity.ExpiresAtUtc,
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Permissions.MANAGE, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Permissions.MANAGE, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.PASSKEYS_RESET, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.PASSKEYS_RESET, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.ROOMS_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.ROOMS_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(
-                        identity.PlayerId,
-                        PermissionNodes.Admin.PERMISSIONS_VIEW,
-                        ct
-                    )
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.PERMISSIONS_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.PLAYERS_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.PLAYERS_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(
-                        identity.PlayerId,
-                        PermissionNodes.Admin.COMMAND_LOG_VIEW,
-                        ct
-                    )
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.COMMAND_LOG_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.CATALOG_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.CATALOG_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.CHATLOG_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.CHATLOG_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.GAMEDATA_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.GAMEDATA_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.SETTINGS_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.SETTINGS_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.CONTENT_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.CONTENT_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.PLUGINS_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.PLUGINS_VIEW, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(
-                        identity.PlayerId,
-                        PermissionNodes.Admin.REWARD_TRACKS_MANAGE,
-                        ct
-                    )
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.REWARD_TRACKS_MANAGE, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Moderation.TOOL, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Moderation.TOOL, ct)
                     .ConfigureAwait(false),
-                await grainFactory
-                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.MESSAGES_VIEW, ct)
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.MESSAGES_VIEW, ct)
                     .ConfigureAwait(false)
             )
         );

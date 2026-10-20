@@ -15,6 +15,7 @@ using Turbo.Plugins.Configuration;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Tests.Support;
@@ -65,6 +66,14 @@ public sealed class PluginAdminEndpointsTests : IAsyncDisposable
                 }
             );
         _fakes.Handlers["HasAsync"] = call => Task.FromResult(_holds((string)call.Args[0]!));
+        // The panel reads what a staff member holds once a request: the plugins' nodes too.
+        _fakes.Handlers["GetResolvedAsync"] = _ =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = [.. _permissions.Current.Nodes.Keys.Where(_holds)],
+                }
+            );
         _fakes.Handlers["CreateDbContextAsync"] = _ => _db.CreateDbContextAsync();
 
         _manager = new PluginManager(

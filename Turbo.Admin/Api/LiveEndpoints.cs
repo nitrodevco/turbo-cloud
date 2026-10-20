@@ -110,7 +110,20 @@ internal sealed class LiveEndpoints(
             .GetSessionAsync(identity.SessionToken, ct)
             .ConfigureAwait(false);
 
-        if (session is null || !await HoldsAsync(PermissionNodes.Admin.PANEL).ConfigureAwait(false))
+        if (session is null)
+            return null;
+
+        // Read again on every heartbeat, once: the stream outlives the request that opened it,
+        // and taking a node away stops what it shows.
+        var now = identity with
+        {
+            Permissions = await grainFactory
+                .GetPlayerPermissionGrain(identity.PlayerId)
+                .GetResolvedAsync(ct)
+                .ConfigureAwait(false),
+        };
+
+        if (!await HoldsAsync(PermissionNodes.Admin.PANEL).ConfigureAwait(false))
             return null;
 
         return new LiveAccess(
@@ -120,8 +133,7 @@ internal sealed class LiveEndpoints(
             await HoldsAsync(PermissionNodes.Moderation.TOOL).ConfigureAwait(false)
         );
 
-        Task<bool> HoldsAsync(string node) =>
-            grainFactory.HasPermissionAsync(identity.PlayerId, node, ct);
+        Task<bool> HoldsAsync(string node) => now.HoldsAsync(grainFactory, node, ct);
     }
 
     private static async Task WriteAsync(HttpResponse response, string text, CancellationToken ct)

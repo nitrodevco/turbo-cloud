@@ -536,16 +536,12 @@ public sealed class ModerationIssueService(
         );
     }
 
-    private async Task<List<PlayerId>> ModeratorsOnlineAsync(CancellationToken ct)
-    {
-        var moderators = new List<PlayerId>();
-
-        foreach (var player in sessionGateway.GetOnlinePlayerIds())
-            if (await grainFactory.HasPermissionAsync(player, PermissionNodes.Moderation.TOOL, ct))
-                moderators.Add(player);
-
-        return moderators;
-    }
+    private Task<List<PlayerId>> ModeratorsOnlineAsync(CancellationToken ct) =>
+        grainFactory.WhoHoldsAsync(
+            sessionGateway.GetOnlinePlayerIds(),
+            PermissionNodes.Moderation.TOOL,
+            ct
+        );
 
     private async Task<ImmutableArray<ModIssueSnapshot>> SnapshotsAsync(
         TurboDbContext dbCtx,

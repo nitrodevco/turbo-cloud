@@ -324,9 +324,10 @@ internal sealed class RoomEndpoints(
         // Either node shows the switch (RoomAbilities.MuteRoom), but each way needs its own, as
         // :roommute and :roomunmute do in the hotel.
         if (
-            !await grainFactory
-                .HasPermissionAsync(
-                    AdminIdentity.Of(http).PlayerId,
+            !await AdminIdentity
+                .Of(http)
+                .HoldsAsync(
+                    grainFactory,
                     request.Muted
                         ? PermissionNodes.Command.ROOMMUTE
                         : PermissionNodes.Command.ROOMUNMUTE,

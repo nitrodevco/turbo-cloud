@@ -1079,7 +1079,10 @@ group.MapPost("/test", TestAsync).ViewIsEnough("Trying a line changes nothing.")
   command log).
 
 `AdminAccessGuardTests` fails for a route that declares none of these, and for a change that does
-not say what changing needs. A handler still asks `grainFactory.HoldsAsync(http, node, ct)` for
+not say what changing needs. The session reads what the staff member holds once a request
+(`GetResolvedAsync`), and the declarations and `HoldsAsync` answer from that rather than asking
+the permission grain node by node; a node watched with verbose permission logging is still asked
+of the grain, so it still shows in that log. A handler still asks `grainFactory.HoldsAsync(http, node, ct)` for
 what it shows (a list that says whether it may be changed), never to decide who may call it.
 
 The dashboard needs only `admin.panel`, although it shows the figures `:status` reports in the

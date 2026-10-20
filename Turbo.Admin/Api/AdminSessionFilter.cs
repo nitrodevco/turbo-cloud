@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Orleans;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
@@ -40,9 +39,23 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
         if (session is null)
             return Results.Unauthorized();
 
+        // Read once for the request: the panel node, the route's declarations and the handler's
+        // own questions all answer from it rather than each asking the grain.
+        var permissions = await grainFactory
+            .GetPlayerPermissionGrain(session.PlayerId)
+            .GetResolvedAsync(ct)
+            .ConfigureAwait(false);
+        var identity = new AdminIdentity(
+            session.PlayerId,
+            string.Empty,
+            token,
+            session.ExpiresAtUtc,
+            permissions
+        );
+
         if (
-            !await grainFactory
-                .HasPermissionAsync(session.PlayerId, PermissionNodes.Admin.PANEL, ct)
+            !await identity
+                .HoldsAsync(grainFactory, PermissionNodes.Admin.PANEL, ct)
                 .ConfigureAwait(false)
         )
             return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -52,9 +65,10 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
             .GetPlayerNameAsync(session.PlayerId, ct)
             .ConfigureAwait(false);
 
-        new AdminIdentity(session.PlayerId, name, token, session.ExpiresAtUtc).AttachTo(http);
+        identity = identity with { Name = name };
+        identity.AttachTo(http);
 
-        if (await RefusalAsync(http, session.PlayerId, ct).ConfigureAwait(false) is { } refusal)
+        if (await RefusalAsync(identity, http, ct).ConfigureAwait(false) is { } refusal)
             return AdminResults.Error(StatusCodes.Status403Forbidden, refusal);
 
         return await next(context).ConfigureAwait(false);
@@ -66,8 +80,8 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
     /// that rather than that they may not change it.
     /// </summary>
     private async Task<string?> RefusalAsync(
+        AdminIdentity identity,
         HttpContext http,
-        PlayerId playerId,
         CancellationToken ct
     )
     {
@@ -90,7 +104,7 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
             if (access.ChangesOnly && (!changes || exempt))
                 continue;
 
-            if (!await HoldsAnyAsync(playerId, access, ct).ConfigureAwait(false))
+            if (!await HoldsAnyAsync(identity, access, ct).ConfigureAwait(false))
                 return access.Refusal;
         }
 
@@ -98,13 +112,13 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
     }
 
     private async Task<bool> HoldsAnyAsync(
-        PlayerId playerId,
+        AdminIdentity identity,
         AdminAccess access,
         CancellationToken ct
     )
     {
         foreach (var node in access.AnyOf)
-            if (await grainFactory.HasPermissionAsync(playerId, node, ct).ConfigureAwait(false))
+            if (await identity.HoldsAsync(grainFactory, node, ct).ConfigureAwait(false))
                 return true;
 
         return false;

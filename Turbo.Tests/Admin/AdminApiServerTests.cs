@@ -33,9 +33,11 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Accounts;
+using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
@@ -137,6 +139,44 @@ public sealed class AdminApiServerTests : IDisposable
     }
 
     /// <summary>
+    /// The panel reads a staff member's resolved permissions once a request. A test that says what
+    /// they hold through <c>HasAsync</c> (most do) gets the same answer from <c>GetResolvedAsync</c>,
+    /// asked of its stub as the request is made, unless it stubs that itself.
+    /// </summary>
+    private static void ResolveFromHasAsync(Fakes fakes)
+    {
+        if (fakes.Handlers.ContainsKey("GetResolvedAsync"))
+            return;
+
+        string[] nodes = [.. new CorePermissionNodeSource().Nodes.Select(x => x.Node)];
+
+        fakes.Handlers["GetResolvedAsync"] = call =>
+        {
+            if (!fakes.Handlers.TryGetValue("HasAsync", out var has))
+                return Task.FromResult(ResolvedPermissionsSnapshot.EMPTY);
+
+            bool Holds(string node) =>
+                has(
+                    new FakeCall(
+                        typeof(IPlayerPermissionGrain),
+                        "HasAsync",
+                        [node, CancellationToken.None],
+                        call.Key
+                    )
+                )
+                    is Task<bool> held
+                && held.GetAwaiter().GetResult();
+
+            return Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = [.. nodes.Where(Holds)],
+                }
+            );
+        };
+    }
+
+    /// <summary>
     /// The server as the host builds it, over fakes of the hotel it reaches, and the services it
     /// was built from (the live feed among them). <paramref name="options"/>, when given, is the
     /// whole config, its address included. <paramref name="pluginRoutes"/> are the plugins' admin
@@ -156,6 +196,8 @@ public sealed class AdminApiServerTests : IDisposable
     {
         var config = Options.Create(options ?? new AdminConfig { Enabled = true, Url = url });
         var services = new ServiceCollection();
+
+        ResolveFromHasAsync(fakes);
 
         foreach (
             var iface in new[]
