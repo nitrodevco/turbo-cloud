@@ -37,5 +37,12 @@ public sealed record PlayerChatEvent : PlayerEvent
     [Id(7)]
     public bool IsCancelled { get; private set; }
 
+    /// <summary>
+    /// Whether wired may react to the line: always for talk and shouts; for a whisper, unless the
+    /// whisperer opted out of whispering to wired or the hotel turned whisper reading off.
+    /// </summary>
+    [Id(8)]
+    public bool WiredMayRead { get; init; } = true;
+
     public void Cancel() => IsCancelled = true;
 }

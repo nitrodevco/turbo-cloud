@@ -11,7 +11,8 @@ namespace Turbo.Rooms.Wired.VariableFx;
 /// </summary>
 internal sealed record VariableFxBinding(
     FurnitureWiredVariableFxLogic Box,
-    VariableFxConfigSnapshot Config
+    VariableFxConfigSnapshot Config,
+    bool OverLimit = false
 )
 {
     public string Signature { get; } =

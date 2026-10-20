@@ -193,12 +193,53 @@ public class WiredConfig
     public int PlacementFailureNotificationCooldownMs { get; init; } = 5000;
 
     /// <summary>
+    /// Who gets the <c>wired.error</c> bubble when a room hits a wired limit Habbo has a text for
+    /// (<c>room.error.wired.execution_cap</c>, <c>delayed_events_cap</c>, <c>executor_overload</c>,
+    /// <c>marked_as_heavy</c>, <c>too_many_variables</c>, <c>transaction_failure</c>; official texts,
+    /// <c>notification.wired.error={"display":"BUBBLE"}</c> official external variables). Habbo
+    /// told the room's owner of the usage cap (official client capture 2026-10-20, the owner alone
+    /// in the room, timer-driven load); whether others in the room are told too is not known.
+    /// </summary>
+    public WiredErrorNoticeRecipients ErrorNoticeRecipients { get; init; } =
+        WiredErrorNoticeRecipients.Owner;
+
+    /// <summary>
+    /// How long one room does not repeat the bubble for the same error. Habbo repeated the usage
+    /// cap's every 20.0 s while the room stayed over the cap (official client capture 2026-10-20,
+    /// 5 of 5 intervals), and counted EXECUTION_CAP once per bubble; the other errors' interval is
+    /// inferred from it.
+    /// </summary>
+    public int ErrorNoticeCooldownMs { get; init; } = 20000;
+
+    /// <summary>
+    /// The bubble's image; empty lets the client pick its default for the type. Habbo's carries
+    /// <c>album1584/WIRD2.png</c> (usage cap and placement failure, recorded).
+    /// </summary>
+    public string ErrorNoticeImage { get; init; } = "${image.library.url}album1584/WIRD2.png";
+
+    /// <summary>
     /// Whether a player entering a room whose wired writes <c>$(trigger_text)</c> is told that the
     /// room can use the full text of what they say, as Habbo does (official client captures,
     /// WIN63-202610121709 and 202610131318: on every entry while a Show Message text held it, on
     /// none once it was saved without).
     /// </summary>
     public bool NotifyTriggerTextCaptureOnEntry { get; init; } = true;
+
+    /// <summary>
+    /// Whether Says Keyword reads whispers, unless the whisperer ticked "Disable whispering to
+    /// Wired" (<c>memenu.settings.wired_whisper_read_disable</c>, AccountPreferences
+    /// wiredWhisperDisabled). Habbo's does (official client capture 2026-10-20: 5 of 5 whispers
+    /// fired, to an absent name and to oneself alike; 0 of 2 with the box ticked, chat still firing).
+    /// </summary>
+    public bool ReadWhispers { get; init; } = true;
+
+    /// <summary>
+    /// Whether a player whose whisper fired a Says Keyword box is told so
+    /// (<c>room.error.wired.whisper_read</c>, "Wired detected your whisper message"). Off as Habbo
+    /// sent none to a room owner whispering (official client capture 2026-10-20, 0 of 7); whether a
+    /// visitor is told is not known.
+    /// </summary>
+    public bool NotifyWhisperRead { get; init; }
 
     /// <summary>
     /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
@@ -287,8 +328,21 @@ public class WiredConfig
     /// <summary>The most a wired counter shows: 99:59.5, counted in half seconds.</summary>
     public int ClockMaxHalfSeconds { get; init; } = 11999;
 
-    /// <summary>Variable fx addons a room may hold; each one is drawn over every holder of its variable.</summary>
+    /// <summary>
+    /// Variable fx addons a room may hold; each one is drawn over every holder of its variable.
+    /// A bound of ours on the room's work, not Habbo's: Habbo limits fx per variable box
+    /// (<see cref="VariableFxMaxPerVariable"/>) and drew 7 over 3 boxes in one room.
+    /// </summary>
     public int VariableFxMaxBoxes { get; init; } = 25;
+
+    /// <summary>
+    /// Variable fx one variable box shows. Habbo's is 5 (official client capture 2026-10-20, 2 of
+    /// 2): a 6th fx on the same variable box saves and its config is sent, but it is never drawn
+    /// (no status), the owner gets a <c>wired.error</c> bubble
+    /// (<c>room.error.wired.variable_fx_limit</c>) and VARIABLE_FX_LIMIT counts once; fx on other
+    /// variable boxes still draw. 0 or less shows them all.
+    /// </summary>
+    public int VariableFxMaxPerVariable { get; init; } = 5;
 
     /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
     public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
@@ -321,4 +375,12 @@ public class WiredConfig
     /// limit), so this default is ours. 0 turns the cap off.
     /// </summary>
     public int MaxVariablesPerHolder { get; init; } = 500;
+}
+
+/// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>
+public enum WiredErrorNoticeRecipients
+{
+    None,
+    Owner,
+    Room,
 }

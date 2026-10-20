@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -329,6 +330,119 @@ public sealed class WiredExecutionModelTests
         Wired.GetErrorLogs(_now)[1].ErrorName.Should().Be("DELAYED_EVENTS_CAP");
         Wired.GetErrorLogs(_now)[1].ThrowCount.Should().Be(2);
     }
+
+    /// <summary>
+    /// A limit Habbo has a bubble text for (room.error.wired.delayed_events_cap) is told as a
+    /// wired.error bubble, once per cooldown however often it is hit, to the room's owner.
+    /// </summary>
+    [Fact]
+    public async Task Hitting_a_limit_tells_the_room_owner_once_per_cooldown()
+    {
+        Configure(new WiredConfig { MaxDelayedEvents = 3 });
+
+        await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("later", delayPulses: 2)]);
+        await StartAsync();
+
+        for (var i = 0; i < 5; i++)
+            await ClickAsync();
+
+        await TickAsync(4);
+
+        Wired.GetErrorLogs(_now)[1].ThrowCount.Should().Be(2);
+        // Filtered by its text: on a loaded machine the room may also be marked heavy.
+        var notice = ErrorNotices()
+            .Where(x => x.Notice.Parameters["message"] == "${room.error.wired.delayed_events_cap}")
+            .Should()
+            .ContainSingle()
+            .Subject;
+        notice.Owner.Should().Be(1);
+        notice.Notice.NotificationType.Should().Be("wired.error");
+    }
+
+    /// <summary>
+    /// Over the usage cap Habbo told the owner once, then every 20 s while the room stayed over
+    /// it, and counted EXECUTION_CAP once per bubble (official client capture 2026-10-20).
+    /// </summary>
+    [Fact]
+    public async Task The_usage_cap_is_told_and_counted_once_per_20_seconds()
+    {
+        Configure(
+            new WiredConfig
+            {
+                ExecutionCostCap = 5,
+                ExecutionCostPerStack = 0,
+                ExecutionCostPerAction = 1,
+                ExecutionCostPerTarget = 0,
+                HeavyBusyMsPerWindow = 1_000_000,
+            }
+        );
+
+        await BuildStackAsync(
+            0,
+            0,
+            clickTrigger: true,
+            actions: [.. Enumerable.Range(1, 8).Select(i => Log($"step {i}"))]
+        );
+        await StartAsync();
+
+        for (var round = 0; round < 3; round++)
+        {
+            await ClickAsync();
+            await TickAsync(10);
+        }
+
+        Wired.GetErrorLogs(_now)[0].ThrowCount.Should().Be(2);
+        ErrorNotices()
+            .Select(x => x.Notice.Parameters["message"])
+            .Should()
+            .Equal("${room.error.wired.execution_cap}", "${room.error.wired.execution_cap}");
+        ErrorNotices()
+            .Should()
+            .OnlyContain(x =>
+                x.Notice.Parameters["image"] == "${image.library.url}album1584/WIRD2.png"
+            );
+    }
+
+    [Fact]
+    public async Task No_one_is_told_when_the_hotel_turns_the_bubbles_off()
+    {
+        Configure(
+            new WiredConfig
+            {
+                MaxDelayedEvents = 3,
+                ErrorNoticeRecipients = WiredErrorNoticeRecipients.None,
+            }
+        );
+
+        await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("later", delayPulses: 2)]);
+        await StartAsync();
+
+        for (var i = 0; i < 5; i++)
+            await ClickAsync();
+
+        await TickAsync(4);
+
+        Wired.GetErrorLogs(_now)[1].ThrowCount.Should().Be(2);
+        ErrorNotices().Should().BeEmpty();
+    }
+
+    private List<(object? Owner, NotificationDialogMessageComposer Notice)> ErrorNotices() =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Of("SendComposerAsync")
+                .SelectMany(c =>
+                    c.Args.OfType<NotificationDialogMessageComposer>()
+                        .Select(n => (Owner: Key(c.Key), Notice: n))
+                ),
+        ];
+
+    private static object? Key(object? key) =>
+        key switch
+        {
+            PlayerId p => p.Value,
+            long n => (int)n,
+            _ => key,
+        };
 
     [Fact]
     public async Task A_signal_chain_running_too_long_is_stopped_as_a_recursion_timeout()

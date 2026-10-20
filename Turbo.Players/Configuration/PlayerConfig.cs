@@ -21,6 +21,13 @@ public class PlayerConfig
     /// <summary>Maximum wait for a best-effort player notice, in milliseconds.</summary>
     public int NoticeTimeoutMs { get; init; } = 5000;
 
+    /// <summary>
+    /// The most persistent notifications (the wired chests' ones) kept for an offline player and
+    /// shown at their next login; older ones are dropped. Habbo's chest help says "up to a maximum
+    /// of 5" (<c>wiredchests.notification_settings.notification_info.desc</c>). 0 keeps none.
+    /// </summary>
+    public int PersistentNoticeLimit { get; init; } = 5;
+
     /// <summary>Habbo Club and Builders Club membership tunables.</summary>
     public SubscriptionConfig Subscriptions { get; init; } = new();
 

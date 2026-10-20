@@ -285,7 +285,12 @@ public sealed class WiredPlaceFurniTests
         [
             .. _room
                 .Harness.Fakes.Log.Of("SendComposerAsync")
-                .Where(x => x.Args[0] is NotificationDialogMessageComposer)
+                // The placement failure's own: a room this busy on a loaded machine may also be
+                // marked heavy, which tells its owner too.
+                .Where(x =>
+                    x.Args[0] is NotificationDialogMessageComposer dialog
+                    && dialog.Parameters["message"] == "${room.error.wired.placement_failure}"
+                )
                 .Select(x => Convert.ToInt32(x.Key)),
         ];
 
