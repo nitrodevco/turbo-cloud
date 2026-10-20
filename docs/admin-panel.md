@@ -1082,6 +1082,12 @@ group.MapPost("/test", TestAsync).ViewIsEnough("Trying a line changes nothing.")
 not say what changing needs. A handler still asks `grainFactory.HoldsAsync(http, node, ct)` for
 what it shows (a list that says whether it may be changed), never to decide who may call it.
 
+The dashboard needs only `admin.panel`, although it shows the figures `:status` reports in the
+hotel (uptime, players online, rooms loaded, silos, memory, a coming maintenance or shutdown) and
+`:status` needs `command.status`. That is on purpose: it is the panel's front page, its figures
+are counts with no player data in them, and its busiest rooms are in the navigator anyway, so
+every staff member who may open the panel sees it.
+
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
 commands typed in the hotel. Room commands (`kick`, `mute`, ...) need a room, so the console
