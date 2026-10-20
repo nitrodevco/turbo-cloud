@@ -140,9 +140,24 @@ internal sealed class GamedataEndpoints(
         );
         group.MapPut("/texts", SaveTextAsync);
         group.MapDelete("/texts", DeleteTextAsync);
+        group
+            .MapPost(
+                "/texts/habbo",
+                async (HotelViewTextsRequest request, CancellationToken ct) =>
+                    Results.Ok(
+                        await hotelView
+                            .GetHabboTextsAsync(request.Keys ?? [], ct)
+                            .ConfigureAwait(false)
+                    )
+            )
+            .ViewIsEnough("It reads Habbo's texts of the keys named, and changes nothing.");
         group.MapGet(
             "/variables",
             (string? q, int? page, CancellationToken ct) => VariableSearchAsync(q, page, ct)
+        );
+        group.MapGet(
+            "/variables/habbo",
+            (string? prefix, CancellationToken ct) => HabboVariablesAsync(prefix, ct)
         );
         group.MapPut("/variables", SaveVariableAsync);
         group.MapPut("/variables/link", LinkVariableAsync);
@@ -761,6 +776,30 @@ internal sealed class GamedataEndpoints(
 
     private async Task<IResult> VariableSearchAsync(string? q, int? page, CancellationToken ct) =>
         Results.Ok(await variables.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
+
+    /// <summary>Habbo's variables under a prefix now, beside the hotel's; 502 when Habbo can't be read.</summary>
+    private async Task<IResult> HabboVariablesAsync(string? prefix, CancellationToken ct)
+    {
+        try
+        {
+            return Results.Ok(
+                await variables.PreviewHabboAsync(prefix ?? string.Empty, ct).ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Habbo's variables could not be read for the panel");
+
+            return AdminResults.Error(
+                StatusCodes.Status502BadGateway,
+                $"Habbo could not be read: {ex.Message}"
+            );
+        }
+    }
 
     private async Task<IResult> SaveVariableAsync(
         VariableSaveRequest request,

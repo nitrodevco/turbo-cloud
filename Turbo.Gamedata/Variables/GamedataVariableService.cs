@@ -12,6 +12,7 @@ using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.HotelView;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
@@ -35,6 +36,7 @@ internal sealed class GamedataVariableService(
     IGamedataFileService files,
     GamedataWriteLock writes,
     IServerSettings settings,
+    HabboGamedataClient habbo,
     ILogger<GamedataVariableService> logger
 ) : IGamedataVariableService
 {
@@ -389,6 +391,54 @@ internal sealed class GamedataVariableService(
             : row.Value;
         row.SettingPath = null;
         row.LinkedFile = null;
+    }
+
+    public async Task<HabboVariablesPreview> PreviewHabboAsync(string prefix, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+            throw new ArgumentException("Name the start of the keys to read from Habbo.");
+
+        var domain = _config.HabboDomain;
+        var theirs = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var ours = await dbCtx
+            .GamedataVariables.AsNoTracking()
+            .Where(x => x.Key.StartsWith(prefix))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+
+        return new HabboVariablesPreview
+        {
+            Domain = domain,
+            Prefix = prefix,
+            Variables =
+            [
+                .. theirs
+                    .Where(x => x.Key.StartsWith(prefix, StringComparison.Ordinal))
+                    .OrderBy(x => x.Key, StringComparer.Ordinal)
+                    .Select(x =>
+                    {
+                        var current = ours.GetValueOrDefault(x.Key);
+
+                        return new HotelViewHabboEntry
+                        {
+                            Key = x.Key,
+                            Value = HotelViewService.JsonOf(x.Value, current),
+                            Current = current,
+                        };
+                    }),
+            ],
+            Missing =
+            [
+                .. ours
+                    .Keys.Where(x =>
+                        x.StartsWith(prefix, StringComparison.Ordinal) && !theirs.ContainsKey(x)
+                    )
+                    .Order(StringComparer.Ordinal),
+            ],
+        };
     }
 
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct) =>

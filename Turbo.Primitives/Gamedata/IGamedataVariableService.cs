@@ -67,6 +67,15 @@ public interface IGamedataVariableService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Habbo's variables whose key starts with the prefix (<c>notifications.new_feature.</c>), read
+    /// from Habbo now, each written as JSON the way the hotel's is, beside the hotel's; and the
+    /// hotel's under the prefix Habbo has none of. Changes nothing. Throws
+    /// <see cref="System.ArgumentException"/> for an empty prefix, and
+    /// <see cref="System.Net.Http.HttpRequestException"/> when Habbo can't be read.
+    /// </summary>
+    public Task<HabboVariablesPreview> PreviewHabboAsync(string prefix, CancellationToken ct);
+
     /// <summary>Removes a variable; false when there is none.</summary>
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct);
 
