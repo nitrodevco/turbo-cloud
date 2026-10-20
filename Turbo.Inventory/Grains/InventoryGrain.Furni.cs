@@ -45,6 +45,12 @@ internal sealed partial class InventoryGrain
         CancellationToken ct
     ) => FurniModule.ConsumeAsync(itemId, cause, ct);
 
+    public Task<ImmutableArray<FurnitureItemSnapshot>> ConsumeAllFurnitureAsync(
+        ImmutableArray<RoomObjectId> itemIds,
+        MovementCause cause,
+        CancellationToken ct
+    ) => FurniModule.ConsumeAllAsync(itemIds, cause, ct);
+
     public Task<PostItSheetTakenSnapshot?> TakePostItSheetAsync(
         RoomObjectId padId,
         MovementCause cause,

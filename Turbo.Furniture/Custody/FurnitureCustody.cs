@@ -32,10 +32,17 @@ public sealed class FurnitureCustody(
         FurnitureItemSnapshot item,
         MovementCause cause,
         CancellationToken ct
+    ) => DestroyInInventoryAsync(owner, [item], cause, ct);
+
+    public Task<bool> DestroyInInventoryAsync(
+        PlayerId owner,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
     ) =>
         dbCtxFactory.InTransactionAsync(
             async dbCtx =>
-                await DestroyInInventoryAsync(dbCtx, owner, [item], cause, ct)
+                await DestroyInInventoryAsync(dbCtx, owner, items, cause, ct)
                     ? UnitOfWork.Commit(true)
                     : UnitOfWork.Rollback(false),
             ct

@@ -53,6 +53,17 @@ public interface IFurnitureCustody
     );
 
     /// <summary>
+    /// Inventory -> none for all of <paramref name="items"/> in one transaction, or for none: the
+    /// ingredients of one craft. False when one is not there, and then nothing is deleted.
+    /// </summary>
+    Task<bool> DestroyInInventoryAsync(
+        PlayerId owner,
+        IReadOnlyList<FurnitureItemSnapshot> items,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Inventory -> none, in the caller's unit of work (a chest that turns credit furni into its
     /// balance): the rows of all of <paramref name="items"/>, held by <paramref name="owner"/> in
     /// no room and no holder, are deleted. False when one is not there: the caller rolls back.

@@ -40,6 +40,17 @@ public partial interface IInventoryGrain
     );
 
     /// <summary>
+    /// Uses up all of <paramref name="itemIds"/> at once, or none (a craft's ingredients): their
+    /// rows are deleted in one transaction and they leave the list. Returns what was used up, in
+    /// the order asked for, or an empty array when one of them is not held here or has no row.
+    /// </summary>
+    public Task<ImmutableArray<FurnitureItemSnapshot>> ConsumeAllFurnitureAsync(
+        ImmutableArray<RoomObjectId> itemIds,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Takes one sheet off a post-it pad held here, for a note about to be stuck to a wall. A pad
     /// of several sheets keeps one fewer, written to its row, and the client is told how many are
     /// left (<c>PostItPlaced</c>); the last sheet is the pad itself, which is used up under
