@@ -3570,6 +3570,18 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(WiredFurniTransparencyMessageComposer),
+                new WiredFurniTransparencyMessageComposerSerializer(
+                    MessageComposer.WiredFurniTransparencyMessageComposer
+                )
+            },
+            {
+                typeof(WiredUserTransparencyMessageComposer),
+                new WiredUserTransparencyMessageComposerSerializer(
+                    MessageComposer.WiredUserTransparencyMessageComposer
+                )
+            },
+            {
                 typeof(WiredClickSettingsMessageComposer),
                 new WiredClickSettingsMessageComposerSerializer(
                     MessageComposer.WiredClickSettingsMessageComposer

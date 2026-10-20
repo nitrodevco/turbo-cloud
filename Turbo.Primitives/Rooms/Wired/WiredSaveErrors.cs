@@ -24,6 +24,13 @@ public static class WiredSaveErrors
     /// </summary>
     public const string FURNI_CAN_NOT_BE_CLONED = "wiredfurni.error.furni_can_not_be_cloned";
 
+    /// <summary>
+    /// Set Visibility saved with a transparency other than 0 or 100. The hotel texts have no
+    /// entry for it, so Habbo's editor shows the raw key (official client capture 2026-10-20).
+    /// </summary>
+    public const string SET_FURNI_TRANSPARENCY_INVALID_TRANSPARENCY =
+        "wiredfurni.error.set_furni_transparency.invalid_transparency";
+
     /// <summary>"Variable name length must be between 1 and 40 characters."</summary>
     public const string VARIABLE_NAME_LENGTH = "wiredfurni.error.variables.name_length";
 
