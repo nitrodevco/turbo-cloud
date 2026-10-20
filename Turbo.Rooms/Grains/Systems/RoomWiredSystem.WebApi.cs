@@ -705,7 +705,9 @@ public sealed partial class RoomWiredSystem
     /// the entity's id beside the value and its times (inference: the document leaves the item
     /// shape open); ordered by creation time unless <c>order_by</c> says otherwise. A page below
     /// 1 is refused: Habbo answered page 0 with a 400. Only the status was observed; the error
-    /// code is the document's code for a bad value (inference).
+    /// code is the document's code for a bad value (inference). So is a size outside 1-100 and
+    /// an <c>order_by</c> or <c>order_dir</c> the document does not list (inference: only page 0
+    /// was tried on Habbo).
     /// </summary>
     private WiredWebApiResponse ListHolders(
         FurnitureWiredVariableLogic variable,
@@ -714,15 +716,17 @@ public sealed partial class RoomWiredSystem
     {
         var page = request.Page ?? 1;
 
-        if (page < 1)
+        var size = request.Size ?? DEFAULT_PAGE_SIZE;
+
+        if (
+            page < 1
+            || size is < 1 or > MAX_PAGE_SIZE
+            || request.OrderBy is not (null or "value" or "creation_time" or "update_time")
+            || request.OrderDir is not (null or "asc" or "desc")
+        )
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
 
-        var size = Math.Clamp(request.Size ?? DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
-        var descending = string.Equals(
-            request.OrderDir,
-            "desc",
-            StringComparison.OrdinalIgnoreCase
-        );
+        var descending = request.OrderDir == "desc";
         var holders = HoldersOf(variable, request.TargetKind);
         Func<
             (int ApiId, WiredVariableValue Value, long CreatedAtMs, long UpdatedAtMs),
@@ -845,7 +849,9 @@ public sealed partial class RoomWiredSystem
                 "DELETE" => WiredWebApiOperation.DeleteValue,
                 _ => (WiredWebApiOperation?)null,
             };
-            var path = (WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "path")) ?? string.Empty).Split('/');
+            var path = (
+                WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "path")) ?? string.Empty
+            ).Split('/');
             var response =
                 operation is null || path.Length != 2
                     ? WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET)
@@ -983,10 +989,7 @@ public sealed partial class RoomWiredSystem
 
                 foreach (var variable in held)
                 {
-                    if (
-                        RemoveWebApiValue(variable, entity, WebApiFlags(variable)) is
-                        { } outcome
-                    )
+                    if (RemoveWebApiValue(variable, entity, WebApiFlags(variable)) is { } outcome)
                         return WiredWebApiJson.Error(WiredWebApiErrors.StatusOf(outcome), outcome);
                 }
 
@@ -996,10 +999,7 @@ public sealed partial class RoomWiredSystem
             case WiredWebApiOperation.PatchFurniProfile:
             case WiredWebApiOperation.PatchGlobalProfile:
             {
-                if (
-                    WiredWebApiJson.BodyMember(request.Body, "variables")
-                    is not JsonObject changes
-                )
+                if (WiredWebApiJson.BodyMember(request.Body, "variables") is not JsonObject changes)
                     return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
 
                 var planned =

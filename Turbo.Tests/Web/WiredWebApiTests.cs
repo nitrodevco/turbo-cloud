@@ -257,6 +257,28 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .Be((400, "wired.variables.invalid_value"));
     }
 
+    [Theory]
+    [InlineData("size=0")]
+    [InlineData("size=101")]
+    [InlineData("size=ten")]
+    [InlineData("page=one")]
+    [InlineData("order_by=name")]
+    [InlineData("order_dir=up")]
+    public async Task A_list_with_a_query_the_document_does_not_allow_is_refused(string query)
+    {
+        var (read, _) = await SetUpAsync();
+
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                $"/api/public/rooms/1/variables/furni/hp/furni?{query}",
+                read: read
+            )
+        )
+            .Should()
+            .Be((400, "wired.variables.invalid_value"));
+    }
+
     [Fact]
     public async Task Wall_items_go_by_their_positive_id_and_globals_are_patched()
     {

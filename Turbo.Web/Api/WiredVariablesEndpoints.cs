@@ -155,8 +155,8 @@ internal sealed class WiredVariablesEndpoints(
             TargetKind = route["targetKind"] as string ?? string.Empty,
             EntityId = route["entityId"] as string ?? string.Empty,
             Body = await ReadBodyAsync(http, ct).ConfigureAwait(false),
-            Page = int.TryParse(query["page"], out var page) ? page : null,
-            Size = int.TryParse(query["size"], out var size) ? size : null,
+            Page = Number(query["page"]),
+            Size = Number(query["size"]),
             OrderBy = query["order_by"],
             OrderDir = query["order_dir"],
             Name = query["name"],
@@ -288,6 +288,13 @@ internal sealed class WiredVariablesEndpoints(
 
         return player is null ? (null, null) : (player.Id, player.Name);
     }
+
+    /// <summary>A query number; one that is sent but is not a number reads as 0, which no list takes.</summary>
+    private static int? Number(string? value) =>
+        value is null ? null
+        : int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+            ? number
+        : 0;
 
     private static string? Header(HttpContext http, string name) =>
         http.Request.Headers.TryGetValue(name, out var value) ? value.ToString() : null;
