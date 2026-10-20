@@ -33,7 +33,7 @@ public sealed class CurrencyLedgerTests : IDisposable
     [Fact]
     public async Task Each_wallet_change_is_kept_once_signed_and_nothing_else_is()
     {
-        var ledger = new CurrencyLedger(_db);
+        var ledger = new CurrencyLedger(_db, TimeProvider.System);
         var batch = Batch(
             12,
             // Alice buys from the catalog: credits leave her wallet.
@@ -184,12 +184,56 @@ public sealed class CurrencyLedgerTests : IDisposable
         (await ledger.GetCursorAsync(Ct)).Should().Be(12);
     }
 
+    // Ids pruned before the ledger read them were dropped silently: the ledger kept its history
+    // "for good" with a hole nobody could see.
+    [Fact]
+    public async Task Ids_pruned_before_the_ledger_read_them_are_kept_as_one_gap_row()
+    {
+        var ledger = new CurrencyLedger(_db, TimeProvider.System);
+        var batch = new AssetMovementBatch
+        {
+            Movements = [],
+            Gap = new OutboxGap(3, 40),
+            Cursor = 40,
+        };
+
+        await ledger.HandleAsync(batch, Ct);
+        await ledger.HandleAsync(batch, Ct);
+
+        await using var db = _db.CreateDbContext();
+        db.CurrencyLedger.Select(x => new
+            {
+                x.Cause,
+                x.CauseRef,
+                x.PlayerId,
+                x.Amount,
+                x.OutboxId,
+            })
+            .ToList()
+            .Should()
+            .BeEquivalentTo([
+                new
+                {
+                    Cause = CurrencyLedger.GAP_CAUSE,
+                    CauseRef = "3-40",
+                    PlayerId = 0,
+                    Amount = 0L,
+                    OutboxId = 40L,
+                },
+            ]);
+        (await ledger.GetCursorAsync(Ct)).Should().Be(40);
+    }
+
     [Fact]
     public async Task The_ledger_reads_the_outbox_only_while_movements_are_recorded()
     {
         var registry = new CountingRegistry();
         var config = new LiveMonitor(new MovementsConfig { Enabled = false });
-        using var service = new CurrencyLedgerService(new CurrencyLedger(_db), registry, config);
+        using var service = new CurrencyLedgerService(
+            new CurrencyLedger(_db, TimeProvider.System),
+            registry,
+            config
+        );
 
         await service.StartAsync(Ct);
         registry.Live.Should().Be(0);
