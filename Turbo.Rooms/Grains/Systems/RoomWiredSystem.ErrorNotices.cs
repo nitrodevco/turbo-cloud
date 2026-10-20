@@ -21,6 +21,8 @@ public sealed partial class RoomWiredSystem
             [WiredErrorKind.MarkedAsHeavy] = "${room.error.wired.marked_as_heavy}",
             [WiredErrorKind.TooManyVariables] = "${room.error.wired.too_many_variables}",
             [WiredErrorKind.TransactionFailure] = "${room.error.wired.transaction_failure}",
+            // Recorded as sent (official client capture 2026-10-20); Habbo has no text for it.
+            [WiredErrorKind.VariableFxLimit] = "${room.error.wired.variable_fx_limit}",
         }.ToImmutableDictionary();
 
     private readonly long[] _errorNoticeLastMs = new long[WiredErrors.All.Length];

@@ -328,8 +328,21 @@ public class WiredConfig
     /// <summary>The most a wired counter shows: 99:59.5, counted in half seconds.</summary>
     public int ClockMaxHalfSeconds { get; init; } = 11999;
 
-    /// <summary>Variable fx addons a room may hold; each one is drawn over every holder of its variable.</summary>
+    /// <summary>
+    /// Variable fx addons a room may hold; each one is drawn over every holder of its variable.
+    /// A bound of ours on the room's work, not Habbo's: Habbo limits fx per variable box
+    /// (<see cref="VariableFxMaxPerVariable"/>) and drew 7 over 3 boxes in one room.
+    /// </summary>
     public int VariableFxMaxBoxes { get; init; } = 25;
+
+    /// <summary>
+    /// Variable fx one variable box shows. Habbo's is 5 (official client capture 2026-10-20, 2 of
+    /// 2): a 6th fx on the same variable box saves and its config is sent, but it is never drawn
+    /// (no status), the owner gets a <c>wired.error</c> bubble
+    /// (<c>room.error.wired.variable_fx_limit</c>) and VARIABLE_FX_LIMIT counts once; fx on other
+    /// variable boxes still draw. 0 or less shows them all.
+    /// </summary>
+    public int VariableFxMaxPerVariable { get; init; } = 5;
 
     /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
     public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
