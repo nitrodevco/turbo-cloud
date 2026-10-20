@@ -201,6 +201,22 @@ public class WiredConfig
     public bool NotifyTriggerTextCaptureOnEntry { get; init; } = true;
 
     /// <summary>
+    /// Whether Says Keyword reads whispers, unless the whisperer ticked "Disable whispering to
+    /// Wired" (<c>memenu.settings.wired_whisper_read_disable</c>, AccountPreferences
+    /// wiredWhisperDisabled). Habbo's does (official client capture 2026-10-20: 5 of 5 whispers
+    /// fired, to an absent name and to oneself alike; 0 of 2 with the box ticked, chat still firing).
+    /// </summary>
+    public bool ReadWhispers { get; init; } = true;
+
+    /// <summary>
+    /// Whether a player whose whisper fired a Says Keyword box is told so
+    /// (<c>room.error.wired.whisper_read</c>, "Wired detected your whisper message"). Off as Habbo
+    /// sent none to a room owner whispering (official client capture 2026-10-20, 0 of 7); whether a
+    /// visitor is told is not known.
+    /// </summary>
+    public bool NotifyWhisperRead { get; init; }
+
+    /// <summary>
     /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
     /// that work on any furni's state, position, type or variables may (the editor's
     /// <c>allowWallFurni</c>, per box); off, none may.

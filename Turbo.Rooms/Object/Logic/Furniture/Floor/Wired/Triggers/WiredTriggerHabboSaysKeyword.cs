@@ -91,7 +91,8 @@ public class WiredTriggerHabboSaysKeyword(
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        if (evt is not PlayerChatEvent chatEvt || chatEvt.ChatType == RoomChatType.Whisper)
+        // A whisper counts unless its speaker opted out (RoomChatSystem decides WiredMayRead).
+        if (evt is not PlayerChatEvent chatEvt || !chatEvt.WiredMayRead)
             return Task.FromResult(false);
 
         var mode = GetIntParamOrDefault(MATCH_MODE_PARAM_INDEX, MATCH_CONTAINS);
@@ -242,4 +243,8 @@ public class WiredTriggerHabboSaysKeyword(
         ShouldHideMessage()
         && await MatchesEventAsync(chatEvt, ct)
         && await SpeakerMayTriggerAsync(chatEvt, ct);
+
+    /// <summary>Whether this box fires for <paramref name="chatEvt"/> and its speaker.</summary>
+    public async Task<bool> FiresForAsync(PlayerChatEvent chatEvt, CancellationToken ct) =>
+        await MatchesEventAsync(chatEvt, ct) && await SpeakerMayTriggerAsync(chatEvt, ct);
 }
