@@ -59,6 +59,22 @@ public interface IModerationIssueService
     );
 
     /// <summary>
+    /// The mod action window's "Default sanction" (<c>ModActionCtrl.onDefaultSanctionButton</c>):
+    /// the player gets the default sanction its button showed (<see cref="GetDefaultSanctionAsync"/>),
+    /// told <paramref name="message"/>, or the topic when the moderator wrote nothing. Taken from an
+    /// issue the moderator holds about that player, it is recorded on the issue, which closes as
+    /// resolved. False when there is no default sanction or it was refused.
+    /// </summary>
+    Task<bool> GiveDefaultSanctionAsync(
+        PlayerId moderator,
+        PlayerId player,
+        int topicId,
+        string message,
+        int issueId,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// The default sanction the player would get next, as <c>CfhSanction</c> shows it in the issue
     /// handler (<c>IssueManager.updateSanctionData</c>); null when the hotel configures none.
     /// </summary>
