@@ -585,24 +585,31 @@ public abstract class FurnitureWiredVariableLogic
     /// <summary>The rooms using this shared variable.</summary>
     public IReadOnlyCollection<int> SharedReferrers => Referrers;
 
+    /// <summary>The share add-on on this variable's stack, if any.</summary>
+    public Addons.WiredAddonVariableShare? GetShareAddon() =>
+        FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<Addons.WiredAddonVariableShare>()
+            .FirstOrDefault();
+
     /// <summary>
     /// What a share add-on on this variable's stack passes on to the rooms using it ("Place a Share
-    /// Add-on on top of a permanently shared Variable", Wired Faculty 19/10/2026): the add-ons of
-    /// the categories it ticks. Null without one. Text connectors are passed as this variable
-    /// shows them.
+    /// Add-on on top of a permanently shared Variable", Wired Faculty 19/10/2026): what it took at
+    /// its last Synchronize. Null without one, or before its first Synchronize: Habbo's importing
+    /// room showed a shared text connector only after one, and the one taken then until the next,
+    /// edits and Share ticks in between notwithstanding (official client capture lab61 (c),
+    /// WIN63-202610201032).
     /// </summary>
-    public SharedWiredVariableAddonsSnapshot? GetSharedAddons()
-    {
-        if (
-            FurniModule
-                .GetFloorItemsOnTile(_ctx.GetTileIdx())
-                .Select(item => item.Logic)
-                .OfType<Addons.WiredAddonVariableShare>()
-                .FirstOrDefault()
-            is not { } share
-        )
-            return null;
+    public SharedWiredVariableAddonsSnapshot? GetSharedAddons() => GetShareAddon()?.Synchronized;
 
+    /// <summary>
+    /// The add-ons of the categories <paramref name="share"/> ticks, as they stand on this
+    /// variable's stack now: what a Synchronize takes. Text connectors are passed as this
+    /// variable shows them.
+    /// </summary>
+    public SharedWiredVariableAddonsSnapshot BuildSharedAddons(Addons.WiredAddonVariableShare share)
+    {
         var categories = share.Categories;
         var addons = GetSharedTileAddons(categories);
 
@@ -625,8 +632,7 @@ public abstract class FurnitureWiredVariableLogic
 
     /// <summary>
     /// The subvariable creators and variable fx on this variable's stack, of the ticked
-    /// categories, as saved there. The room loads them before it answers a subscription
-    /// (<see cref="LoadTileAddonsAsync"/>).
+    /// categories, as saved there. A Synchronize loads them first (<see cref="LoadTileAddonsAsync"/>).
     /// </summary>
     private ImmutableArray<SharedWiredVariableAddonSnapshot> GetSharedTileAddons(
         WiredVariableAddonCategories categories

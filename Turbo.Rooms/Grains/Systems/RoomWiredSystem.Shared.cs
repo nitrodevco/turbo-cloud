@@ -74,8 +74,9 @@ public sealed partial class RoomWiredSystem
         if (await GetSharedVariableBoxAsync(variableId, ct) is not { } box)
             return null;
 
-        // What a share add-on passes on is read off the add-ons as saved.
-        await box.LoadTileAddonsAsync(ct);
+        // The share add-on's last Synchronize is kept with it; it must be loaded to read it.
+        if (box.GetShareAddon() is { } share)
+            await share.EnsureWiredLoadedAsync(ct);
 
         return box.SubscribeShared(referrer);
     }
@@ -137,11 +138,14 @@ public sealed partial class RoomWiredSystem
     }
 
     /// <summary>
-    /// "Synchronize" on a share add-on: the loaded rooms using the shared variable it stands on are
-    /// told to read its add-ons again. A room that loads later reads them when it subscribes.
-    /// Inference: what the button sends is known (AS3 <c>VariableAddonShareAddon.synchronize</c>,
-    /// WIN63-202610201032); that a using room otherwise keeps what it read until it reloads is not
-    /// recorded.
+    /// "Synchronize" on a share add-on: it takes what it shares off the stack as it stands now
+    /// (the add-ons of the categories it ticks now) and keeps that until the next Synchronize, and
+    /// the loaded rooms using the shared variable are told to read it again. A room that loads
+    /// later reads it when it subscribes. What the button sends is AS3
+    /// <c>VariableAddonShareAddon.synchronize</c> (WIN63-202610201032); that the importing room
+    /// shows only what the last one took, edits and Share ticks since notwithstanding, is the
+    /// official client capture lab61 (c) (text connectors; the other two categories are taken
+    /// the same way by inference).
     /// </summary>
     public async Task<bool> SynchronizeSharedAddonsAsync(int boxId, CancellationToken ct)
     {
@@ -155,6 +159,9 @@ public sealed partial class RoomWiredSystem
 
         if (share.GetSharedVariable() is not { } variable)
             return false;
+
+        await variable.LoadTileAddonsAsync(ct);
+        share.Synchronize(variable.BuildSharedAddons(share));
 
         await ShareAddonsChangedAsync(
             variable.GetVarSnapshot().VariableId,

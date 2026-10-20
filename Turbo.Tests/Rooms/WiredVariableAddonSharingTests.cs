@@ -120,6 +120,46 @@ public sealed class WiredVariableAddonSharingTests
         snapshot.Flags.Has(WiredVariableFlags.HasTextConnector).Should().BeFalse();
     }
 
+    /// <summary>
+    /// Nothing is shared before the first Synchronize (official client capture lab61 (c),
+    /// WIN63-202610201032: the importing room showed plain "1", no text connector, until then).
+    /// </summary>
+    [Fact]
+    public async Task Nothing_is_shared_before_the_first_synchronize()
+    {
+        await BuildShopAsync(shared: [1, 1, 0], levelUp: true, synchronize: false);
+        var reference = await AddReferenceAsync(imported: [1, 1, 1]);
+        await TickAsync(_other);
+
+        reference.GetVarSnapshot().TextConnectors.Should().BeEmpty();
+        OtherVariable("linked.current_level").Should().BeNull();
+    }
+
+    /// <summary>
+    /// What a Synchronize took holds until the next, also for a room that loads it afresh: the
+    /// connector edited to "1=Uno" and the Share's text connector tick taken off, without a
+    /// Synchronize, a new reference still shows "One" (lab61 (c): "still One" / "untick without
+    /// sync -> still Uno").
+    /// </summary>
+    [Fact]
+    public async Task Edits_and_share_ticks_wait_for_the_next_synchronize()
+    {
+        await BuildShopAsync(shared: [1, 0, 0]);
+
+        (await _shop.SaveAsync<UpdateAddonMessage>(CONNECTOR, stringParam: "1=Uno"))
+            .Should()
+            .BeTrue();
+        (await _shop.SaveAsync<UpdateAddonMessage>(SHARE, intParams: [0, 0, 0])).Should().BeTrue();
+        var reference = await AddReferenceAsync(imported: [1, 0, 0]);
+
+        reference
+            .GetVarSnapshot()
+            .TextConnectors.Should()
+            .ContainKey(1)
+            .WhoseValue.Should()
+            .Be("One");
+    }
+
     [Theory]
     [InlineData(new[] { 0, 1, 1 }, new[] { 1, 1, 1 })]
     [InlineData(new[] { 1, 1, 1 }, new[] { 0, 1, 1 })]
@@ -370,6 +410,7 @@ public sealed class WiredVariableAddonSharingTests
             .Should()
             .BeTrue();
         await hp.LoadWiredAsync(Ct);
+        (await SynchronizeAsync(HP_SHARE)).Should().BeTrue();
 
         var reference = await AddReferenceAsync(imported: [0, 0, 1], source: HP);
         _other.Enter(1, 1, 1);
@@ -416,7 +457,7 @@ public sealed class WiredVariableAddonSharingTests
             .GetAllVariables()
             .FirstOrDefault(x => x.GetVarSnapshot().VariableName == name);
 
-    private async Task BuildShopAsync(int[] shared, bool levelUp = false)
+    private async Task BuildShopAsync(int[] shared, bool levelUp = false, bool synchronize = true)
     {
         var coins = _shop.AddBox<WiredVariableRoom>(COINS, 6, 6, "wf_var_room");
 
@@ -467,7 +508,17 @@ public sealed class WiredVariableAddonSharingTests
             )
                 .Should()
                 .BeTrue();
+
+        if (synchronize)
+            (await SynchronizeAsync(SHARE)).Should().BeTrue();
     }
+
+    private Task<bool> SynchronizeAsync(int shareId) =>
+        _shop.Harness.Room.SynchronizeSharedWiredAddonsAsync(
+            ActionContext.CreateForSystem(1),
+            shareId,
+            Ct
+        );
 
     private async Task<WiredVariableReference> AddReferenceAsync(
         int[]? imported,
