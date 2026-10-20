@@ -1,8 +1,11 @@
 using FluentAssertions;
 using Orleans;
+using Turbo.Admin.Content;
 using Turbo.Database.Entities.Players;
 using Turbo.Players;
+using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
@@ -73,6 +76,29 @@ public sealed class BadgeDirectoryOwnerCountTests : IDisposable
         await directory.OnBadgeRevokedAsync("NEW1", Ct);
 
         (await directory.GetInfoAsync(["NEW1"], Ct))[0].OwnerCount.Should().Be(1);
+    }
+
+    // The directory loads pinned rarities on activation and on its recount timer: a rarity pinned
+    // from the panel showed only after the next recount (OwnerCountRefreshMs).
+    [Fact]
+    public async Task A_rarity_pinned_or_unpinned_in_the_panel_shows_at_once()
+    {
+        Own(1, 1, "NEW1");
+        var directory = await DirectoryAsync();
+        _fakes.Instances[(typeof(IBadgeDirectoryGrain), SingletonGrainId.GLOBAL)] = directory;
+        var panel = new AdminBadgeQueries(_db, _fakes.Create<IGrainFactory>());
+
+        await panel.SetRarityAsync("NEW1", BadgeRarityType.Legendary, Ct);
+
+        (await directory.GetInfoAsync(["NEW1"], Ct))[0]
+            .Rarity.Should()
+            .Be(BadgeRarityType.Legendary);
+
+        await panel.SetRarityAsync("NEW1", null, Ct);
+
+        (await directory.GetInfoAsync(["NEW1"], Ct))[0]
+            .Rarity.Should()
+            .NotBe(BadgeRarityType.Legendary, "counted from its owners again");
     }
 
     private async Task<IBadgeDirectoryGrain> DirectoryAsync()
