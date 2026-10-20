@@ -147,11 +147,7 @@ internal sealed class ServerEndpoints(
     }
 
     private Task<bool> CanRestartAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Admin.SERVER_RESTART,
-            ct
-        );
+        AdminIdentity.Of(http).HoldsAsync(grainFactory, PermissionNodes.Admin.SERVER_RESTART, ct);
 
     private ServerRestartStatus StatusOf(bool canRestart)
     {
