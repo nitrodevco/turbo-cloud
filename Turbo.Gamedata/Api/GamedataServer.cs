@@ -55,7 +55,8 @@ namespace Turbo.Gamedata.Api;
 /// <c>navigator.thumbnail.url_base</c> is this address without the room id, as Habbo's is its
 /// <c>.../navigator-thumbnail/hhus/</c>. Under <c>/gamedata/</c>, so the reverse proxy that passes
 /// the gamedata on passes it too. Its owner can take it again at any time, so the browser asks
-/// again each time it shows it (<c>no-cache</c>, answered 304 while it is the same).</item>
+/// again each time it shows it (<c>no-cache</c>, answered 304 while it is the same), the 404 of a
+/// room without one included.</item>
 /// </list>
 /// Anyone may load them, from any site: they are what every player's client downloads. Its own
 /// small web host beside the silo, off unless <see cref="GamedataConfig.Enabled"/>.
@@ -304,10 +305,12 @@ internal sealed class GamedataServer(
     {
         var file = thumbnails.GetThumbnailFile(new RoomId(roomId));
 
+        // The 404 too: the room info asks for it before the owner takes the first one, and a cache
+        // keeping that answer would hide the picture once it exists.
+        http.Response.Headers.CacheControl = ROOM_THUMBNAIL_CACHE;
+
         if (file is null)
             return Results.NotFound();
-
-        http.Response.Headers.CacheControl = ROOM_THUMBNAIL_CACHE;
 
         return Results.File(
             Path.GetFullPath(file),

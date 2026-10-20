@@ -19,6 +19,14 @@ The steps assume Ubuntu with Ploi's nginx layout. `example.com` stands for your 
 3. **Don't cache the admin panel's pages.** If a Cache Rule caches everything on the domain,
    exclude `admin.example.com` from it. Its `/assets/` files may be cached; they're named after
    their contents.
+4. **Browser Cache TTL: Respect Existing Headers** (Caching > Configuration). Any other value
+   replaces the `Cache-Control` of every picture whose own is shorter, a room's thumbnail and its
+   404 included (`public, max-age=14400` with the default 4 hours), so a thumbnail taken again, or a
+   room's first one, shows in other players' browsers only hours later. The gamedata host already
+   sends each file how long it may be kept.
+5. **Uploads.** Cloudflare refuses a request body over the plan's limit (100 MB on Free and Pro)
+   with its own 413, whatever nginx allows. The panel's packet log import can be larger: upload
+   those through an address that isn't proxied, or split them.
 
 Cloudflare's proxy carries HTTP, HTTPS and WebSockets. A raw TCP game port isn't proxied, so the
 steps below don't cover it.
