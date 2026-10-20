@@ -49,28 +49,84 @@ public sealed class WiredVariablePointerTests
         _room.AddFloorItem(ANTENNA, 6, 1);
     }
 
-    [Fact]
-    public async Task A_pointer_writes_the_variable_whose_box_id_the_context_variable_holds()
+    /// <summary>
+    /// Writes through a pointer change nothing: on Habbo, Change Variable "assign 7" through a
+    /// pointer whose context variable held the target box's furni id left the target as it was,
+    /// for a furni and a global pointer alike, while a direct write from the same box worked
+    /// (official client capture 2026-10-20, lab61 (b) 4/4 and lab60 4/4, NOTES-lab61-20261020.md).
+    /// </summary>
+    [Theory]
+    [InlineData(COINS)]
+    [InlineData(GEMS)]
+    public async Task A_write_through_a_pointer_changes_nothing(int pointsAt)
     {
-        await BuildAsync(pointsAt: COINS);
+        await BuildAsync(pointsAt);
 
         await ClickAsync();
         await TickAsync(6);
 
-        Read(_coins).Should().Be(42);
+        Read(_coins).Should().Be(0);
         Read(_gems).Should().Be(0);
     }
 
+    /// <summary>
+    /// Reads through a pointer reach the variable whose box id the context variable holds (lab61
+    /// (a)/(b): global pointer read 5 of g=5 3/3, furni pointer read 42 2/2): coins holds 5, the
+    /// signalled stack sets gems to the pointer's value.
+    /// </summary>
     [Fact]
-    public async Task A_pointer_follows_the_id_to_another_variable()
+    public async Task A_pointer_reads_the_variable_whose_box_id_the_context_variable_holds()
     {
-        await BuildAsync(pointsAt: GEMS);
+        await BuildAsync(pointsAt: COINS, readIntoGems: true);
+        (
+            await _coins.SetValueAsync(
+                _room.Harness.Fakes.Create<Turbo.Primitives.Rooms.Wired.IWiredExecutionContext>(),
+                new WiredVariableKey(
+                    _coins.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Global,
+                    0
+                ),
+                new WiredVariableValue(5)
+            )
+        )
+            .Should()
+            .BeTrue();
 
         await ClickAsync();
         await TickAsync(6);
 
-        Read(_gems).Should().Be(42);
-        Read(_coins).Should().Be(0);
+        Read(_gems).Should().Be(5);
+        Read(_coins).Should().Be(5);
+    }
+
+    /// <summary>
+    /// A context variable nobody gave holds no value, so Change Variable cannot fill it and the
+    /// pointer reads nothing: on Habbo, with the context variable set by Change Variable instead of
+    /// Give Variable, it read "null" and the pointer's placeholder stayed literal (official client
+    /// capture 2026-10-20, lab61 (a) 3/3, NOTES-lab61-20261020.md).
+    /// </summary>
+    [Fact]
+    public async Task A_pointer_whose_context_variable_was_only_changed_reads_nothing()
+    {
+        await BuildAsync(pointsAt: COINS, readIntoGems: true, fillWithChange: true);
+        (
+            await _coins.SetValueAsync(
+                _room.Harness.Fakes.Create<Turbo.Primitives.Rooms.Wired.IWiredExecutionContext>(),
+                new WiredVariableKey(
+                    _coins.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Global,
+                    0
+                ),
+                new WiredVariableValue(5)
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        await ClickAsync();
+        await TickAsync(6);
+
+        Read(_gems).Should().Be(0);
     }
 
     [Fact]
@@ -134,7 +190,11 @@ public sealed class WiredVariablePointerTests
         return value.Value;
     }
 
-    private async Task BuildAsync(int pointsAt)
+    private async Task BuildAsync(
+        int pointsAt,
+        bool readIntoGems = false,
+        bool fillWithChange = false
+    )
     {
         _coins = await AddGlobalAsync(COINS, 4, 4, "coins");
         _gems = await AddGlobalAsync(GEMS, 5, 5, "gems");
@@ -173,7 +233,10 @@ public sealed class WiredVariablePointerTests
         var pointerId = _pointer.GetVarSnapshot().VariableId.ToString();
 
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
-        _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
+        if (fillWithChange)
+            _room.AddBox<WiredActionChangeVariable>(2, 0, 0, "wf_act_change_var_val");
+        else
+            _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
         _room.AddBox<WiredActionSendSignal>(3, 0, 0, "wf_act_send_signal");
         _room.AddBox<WiredTriggerReceiveSignal>(4, 0, 4, "wf_trg_recv_signal");
         _room.AddBox<WiredActionChangeVariable>(5, 0, 4, "wf_act_change_var_val");
@@ -188,11 +251,21 @@ public sealed class WiredVariablePointerTests
                 ]
             )
         ).Should().BeTrue();
-        // Give the context variable the furni id of the box to point at.
+        // Give the context variable the furni id of the box to point at (or set it, ungiven).
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
-                intParams: [(int)WiredVariableTargetType.Context, 0, pointsAt, 1],
+                intParams: fillWithChange
+                    ?
+                    [
+                        (int)WiredVariableTargetType.Context,
+                        (int)WiredVariableOperationType.Set,
+                        0,
+                        0,
+                        pointsAt,
+                        (int)WiredVariableTargetType.Global,
+                    ]
+                    : [(int)WiredVariableTargetType.Context, 0, pointsAt, 1],
                 definitionSpecifics: [0],
                 variableIds: [contextId]
             )
@@ -226,7 +299,7 @@ public sealed class WiredVariablePointerTests
                 ]
             )
         ).Should().BeTrue();
-        // Set the pointer to 42.
+        // Set the pointer to 42, or gems to the pointer's value.
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 5,
@@ -234,13 +307,15 @@ public sealed class WiredVariablePointerTests
                 [
                     (int)WiredVariableTargetType.Global,
                     (int)WiredVariableOperationType.Set,
+                    readIntoGems ? 1 : 0,
                     0,
-                    0,
-                    42,
+                    readIntoGems ? 0 : 42,
                     (int)WiredVariableTargetType.Global,
                 ],
                 definitionSpecifics: [0],
-                variableIds: [pointerId]
+                variableIds: readIntoGems
+                    ? [_gems.GetVarSnapshot().VariableId.ToString(), pointerId]
+                    : [pointerId]
             )
         )
             .Should()
