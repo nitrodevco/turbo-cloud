@@ -186,6 +186,22 @@ public class WiredConfig
     /// <c>allowWallFurni</c>, per box); off, none may.
     /// </summary>
     public bool AllowWallFurni { get; init; } = true;
+
+    /// <summary>
+    /// Whether a save that picks a temporary furni (placed by wired) is refused with Habbo's
+    /// <c>wiredfurni.error.temp_furni_not_allowed</c> ("Can not select temporary furni in Wired.").
+    /// Temporary ids are handed out again, so a stored pick could later name another furni.
+    /// That every box refuses them is inferred from the text. Off lets them be picked.
+    /// </summary>
+    public bool RefuseTemporaryFurniPicks { get; init; } = true;
+
+    /// <summary>
+    /// The furni logics Send Signal and Receive Signal take as antennas
+    /// (<c>wiredfurni.error.require_antenna_furni</c>, "Can only select antenna furni."); Habbo's
+    /// antennas are <c>wf_antenna1</c> and <c>wf_antenna2</c> (official furnidata 2026-10-13).
+    /// Empty lets any furni be an antenna.
+    /// </summary>
+    public string[] AntennaLogicNames { get; init; } = ["wf_antenna1", "wf_antenna2"];
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;
     public int StringParamMaxLength { get; init; } = 2000;

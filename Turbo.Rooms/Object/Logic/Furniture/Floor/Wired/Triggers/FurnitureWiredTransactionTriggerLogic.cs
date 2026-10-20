@@ -7,8 +7,11 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -29,6 +32,13 @@ public abstract class FurnitureWiredTransactionTriggerLogic<TEvent>(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.PickedFurni];
+
+    // Contracts, or the Initiate Transaction boxes of custom contracts
+    // (wiredfurni.error.require_contracts_or_trade_wired; inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        item.Logic is FurnitureWiredContractLogic or WiredActionInitiateTransaction
+            ? null
+            : WiredSaveErrors.REQUIRE_CONTRACTS_OR_TRADE_WIRED;
 
     protected abstract RoomObjectId SourceOf(TEvent evt);
 

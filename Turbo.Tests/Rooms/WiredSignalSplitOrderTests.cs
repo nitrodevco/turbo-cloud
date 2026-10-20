@@ -34,7 +34,7 @@ public sealed class WiredSignalSplitOrderTests
     public WiredSignalSplitOrderTests()
     {
         _room.AddFloorItem(CLICK_ME, 7, 7);
-        _room.AddFloorItem(ANTENNA, 6, 7);
+        _room.AddFloorItem(ANTENNA, 6, 7, "wf_antenna1");
 
         for (var i = 0; i < 6; i++)
             _room.Enter(5 + i, 1 + i, 1);

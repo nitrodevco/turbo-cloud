@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -51,6 +52,13 @@ public class WiredAddonChestItemTypeScanner(
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
             WiredSources.FurniOrSecondary,
         ];
+
+    // The chests slot takes furni chests (wiredfurni.error.require_furni_chests; which box the
+    // text is for is inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot != SLOT_CHESTS || item.Logic is FurnitureWiredChestLogic { Kind: WiredChestKind.Furni }
+            ? null
+            : WiredSaveErrors.REQUIRE_FURNI_CHESTS;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

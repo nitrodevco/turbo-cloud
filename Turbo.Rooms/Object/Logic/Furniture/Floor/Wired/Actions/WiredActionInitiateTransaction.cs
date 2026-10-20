@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -99,6 +100,18 @@ public class WiredActionInitiateTransaction(
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SecondaryItems),
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
         ];
+
+    // The chests slot takes Wired chests and the contracts slot contracts (require_chests and
+    // its note, require_contracts; which box sends which text is inferred from the wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot switch
+        {
+            SLOT_CHESTS when item.Logic is not FurnitureWiredChestLogic { IsWiredEnabled: true } =>
+                WiredSaveErrors.REQUIRE_CHESTS,
+            SLOT_CONTRACTS when item.Logic is not FurnitureWiredContractLogic =>
+                WiredSaveErrors.REQUIRE_CONTRACTS,
+            _ => null,
+        };
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];

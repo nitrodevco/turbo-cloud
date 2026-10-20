@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -43,6 +44,11 @@ public class WiredActionSendSignal(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
+
+    // The antennas slot takes antennas only (wiredfurni.error.require_antenna_furni; which box
+    // the text is for is inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot == 0 && !IsAntenna(item) ? WiredSaveErrors.REQUIRE_ANTENNA_FURNI : null;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
