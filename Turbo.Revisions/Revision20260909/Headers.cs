@@ -1186,9 +1186,11 @@ internal static class MessageComposer
     public const int WiredFurniActionMessageComposer = 2642;
     public const int WiredFurniAddonMessageComposer = 2823;
     public const int WiredFurniConditionMessageComposer = 3980;
+    public const int WiredFurniHighlightMessageComposer = 7600;
     public const int WiredFurniSelectorMessageComposer = 215;
     public const int WiredFurniTriggerMessageComposer = 354;
     public const int WiredFurniVariableMessageComposer = 3437;
+    public const int WiredFurniVisualizationStateMessageComposer = 7602;
     public const int WiredLinkOperationResultMessageComposer = 3261;
     public const int WiredMenuErrorMessageComposer = 913;
     public const int WiredMovementsMessageComposer = 1959;
@@ -1209,8 +1211,10 @@ internal static class MessageComposer
     public const int WiredTransactionLogDetailsMessageComposer = 114;
     public const int WiredTransactionLogListMessageComposer = 3909;
     public const int WiredTransactionSuccessMessageComposer = 70;
+    public const int WiredUserHighlightMessageComposer = 7601;
     public const int WiredUserPermanentVariablesMessageComposer = 2342;
     public const int WiredUserVariablesListMessageComposer = 2797;
+    public const int WiredUserVisualizationStateMessageComposer = 7603;
     public const int WiredValidationErrorMessageComposer = 940;
     public const int WiredVariablesForObjectMessageComposer = 2945;
     public const int WiredWebApiKeyResultMessageComposer = 59;

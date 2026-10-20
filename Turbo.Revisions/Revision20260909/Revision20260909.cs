@@ -3572,6 +3572,30 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(WiredFurniHighlightMessageComposer),
+                new WiredFurniHighlightMessageComposerSerializer(
+                    MessageComposer.WiredFurniHighlightMessageComposer
+                )
+            },
+            {
+                typeof(WiredUserHighlightMessageComposer),
+                new WiredUserHighlightMessageComposerSerializer(
+                    MessageComposer.WiredUserHighlightMessageComposer
+                )
+            },
+            {
+                typeof(WiredFurniVisualizationStateMessageComposer),
+                new WiredFurniVisualizationStateMessageComposerSerializer(
+                    MessageComposer.WiredFurniVisualizationStateMessageComposer
+                )
+            },
+            {
+                typeof(WiredUserVisualizationStateMessageComposer),
+                new WiredUserVisualizationStateMessageComposerSerializer(
+                    MessageComposer.WiredUserVisualizationStateMessageComposer
+                )
+            },
+            {
                 typeof(WiredClickUserResponseMessageComposer),
                 new WiredClickUserResponseMessageComposerSerializer(
                     MessageComposer.WiredClickUserResponseMessageComposer

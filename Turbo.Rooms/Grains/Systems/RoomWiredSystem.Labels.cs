@@ -33,5 +33,6 @@ public sealed partial class RoomWiredSystem
                         .Select(x => x.GetLabelSnapshot()),
                 ],
             },
+            .. GetVisualizationEntryState(),
         ];
 }
