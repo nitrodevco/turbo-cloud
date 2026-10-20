@@ -1171,6 +1171,14 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         else
             avatar.SetRotation(rotation);
 
+        // A head turned off the body looks back to it a while later, as one turned by chat does;
+        // one left on the body has nothing to look back from, and a chat look-back pending on it
+        // is dropped.
+        avatar.HeadRevertAtMs =
+            avatar.HeadRotation == avatar.Rotation
+                ? 0
+                : _roomGrain.NowMs() + _roomGrain._roomConfig.LookToRevertMs;
+
         return Task.FromResult(true);
     }
 

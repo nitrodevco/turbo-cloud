@@ -349,6 +349,12 @@ public class RoomConfig
     public int ObjectDataMaxValueLength { get; init; } = 512;
     public int ChatLookAtRange { get; init; } = 0;
     public int ChatLookAtRevertMs { get; init; } = 5000;
+
+    /// <summary>
+    /// How long a head turned by a look-to (clicking someone or something) stays turned before it
+    /// looks back to the body. Not recorded on Habbo; it takes the chat look-back's time.
+    /// </summary>
+    public int LookToRevertMs { get; init; } = 5000;
     public int ChatFloodMaxMessagesExtraSensitivity { get; init; } = 4;
     public int ChatFloodMaxMessagesNormalSensitivity { get; init; } = 6;
     public int ChatFloodMaxMessagesMinimalSensitivity { get; init; } = 8;
