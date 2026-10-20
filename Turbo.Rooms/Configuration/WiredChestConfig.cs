@@ -60,6 +60,12 @@ public class WiredChestConfig
     /// <summary>The most transactions one page of the logs window lists.</summary>
     public int MaxLogPageSize { get; init; } = 50;
 
+    /// <summary>
+    /// Transactions one chest's log keeps; each new one past it drops the oldest. The hotel's
+    /// <c>wired.chests_max_logs</c>, which the client does not read. Zero or less keeps them all.
+    /// </summary>
+    public int MaxLogsPerChest { get; init; } = 2000;
+
     /// <summary>Item types one log details window lists before it says there are more.</summary>
     public int MaxLogDetailItemTypes { get; init; } = 100;
 
