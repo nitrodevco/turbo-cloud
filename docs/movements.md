@@ -467,15 +467,13 @@ var result = await reversals.MoveAsync(
 
 ## The plugin API
 
-A plugin that registers a consumer or moves assets back through `IAssetReversalService` declares
-plugin API 3 (`"ApiVersion": 3` in its manifest, `PluginApi.VERSION`), which servers from this one
-on load. A server still loads plugins built for 1 and 2, but one thing changed under them: every `IPlayerWalletGrain` and `IInventoryGrain` method
-that moves an asset (`TryDebitAsync`, `CreditAsync`, `GrantFurnitureAsync`,
-`ConsumeFurnitureAsync`, `TransferFurnitureAsync`, the present, pet and bot methods) now takes a
-`MovementCause`. A plugin built before that calls one fails when it calls it, and must be rebuilt
-against this server, passing a cause of its own (`MovementCause.New(code, actor, causeRef)`, a code
-of at most 48 characters; core's are in `MovementCauses`). A plugin that calls none of them, one
-that only adds packets, settings or admin pages, loads as it is.
+Consumers and `IAssetReversalService` are part of plugin API 1 (`"ApiVersion": 1` in a
+manifest, `PluginApi.VERSION`): no plugin outside this project has been published, so the API
+stays 1 while it changes. Every `IPlayerWalletGrain` and `IInventoryGrain` method that moves an
+asset (`TryDebitAsync`, `CreditAsync`, `GrantFurnitureAsync`, `ConsumeFurnitureAsync`,
+`TransferFurnitureAsync`, the present, pet and bot methods) takes a `MovementCause`: a plugin
+passes one of its own (`MovementCause.New(code, actor, causeRef)`, a code of at most 48
+characters; core's are in `MovementCauses`).
 
 ## Decided for now
 
