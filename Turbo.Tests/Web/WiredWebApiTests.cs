@@ -139,6 +139,40 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Only_the_last_generated_key_saves_and_a_saved_key_revokes_the_old_one()
+    {
+        var (read, write) = await SetUpAsync();
+        var first = await IssueAsync(true);
+        var last = await IssueAsync(true);
+
+        (
+            await _room.SaveWithResultAsync<UpdateAddonMessage>(
+                ADDON,
+                intParams: [1],
+                stringParam: first + "	" + write
+            )
+        )
+            .ErrorKey.Should()
+            .Be(WiredSaveErrors.INVALID_API_KEYS);
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                ADDON,
+                intParams: [1],
+                stringParam: last + "	" + write
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: last))
+            .Status.Should()
+            .Be(200);
+    }
+
+    [Fact]
     public async Task Keys_are_checked_and_values_keep_all_64_bits()
     {
         var (read, write) = await SetUpAsync();

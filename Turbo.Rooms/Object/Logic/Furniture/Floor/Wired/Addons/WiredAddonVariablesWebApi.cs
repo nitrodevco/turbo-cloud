@@ -41,8 +41,10 @@ public class WiredAddonVariablesWebApi(
 
     private const char KEY_SEPARATOR = '\t';
 
-    private readonly HashSet<string> _issuedReadKeys = [];
-    private readonly HashSet<string> _issuedWriteKeys = [];
+    // The key the editor got last for each field; a Generate replaces the one before, which the
+    // editor no longer shows, so pressing it again and again holds no more than two keys.
+    private string? _issuedReadKey;
+    private string? _issuedWriteKey;
 
     public override int WiredCode => (int)WiredAddonType.VARIABLES_WEB_API;
 
@@ -68,7 +70,10 @@ public class WiredAddonVariablesWebApi(
     {
         var key = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(KEY_BYTES));
 
-        (isReadKey ? _issuedReadKeys : _issuedWriteKeys).Add(key);
+        if (isReadKey)
+            _issuedReadKey = key;
+        else
+            _issuedWriteKey = key;
 
         return key;
     }
@@ -83,13 +88,13 @@ public class WiredAddonVariablesWebApi(
         var write = WiredWebApiKeys.WriteKeyOf(update.StringParam);
 
         if (
-            !IsKnownKey(read, ReadKey, _issuedReadKeys)
-            || !IsKnownKey(write, WriteKey, _issuedWriteKeys)
+            !IsKnownKey(read, ReadKey, _issuedReadKey)
+            || !IsKnownKey(write, WriteKey, _issuedWriteKey)
         )
             throw new WiredSaveRefusedException(WiredSaveErrors.INVALID_API_KEYS);
 
-        _issuedReadKeys.Clear();
-        _issuedWriteKeys.Clear();
+        _issuedReadKey = null;
+        _issuedWriteKey = null;
 
         return base.ApplyWiredUpdateAsync(
             ctx,
@@ -104,6 +109,6 @@ public class WiredAddonVariablesWebApi(
     public override FurniturePickupConfirmation? GetPickupConfirmation() =>
         FurniturePickupConfirmation.WiredWebApi;
 
-    private static bool IsKnownKey(string key, string current, HashSet<string> issued) =>
-        key.Length == 0 || key == current || issued.Contains(key);
+    private static bool IsKnownKey(string key, string current, string? issued) =>
+        key.Length == 0 || key == current || key == issued;
 }
