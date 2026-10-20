@@ -70,4 +70,8 @@ public static class WiredSaveErrors
     /// </summary>
     public const string SET_FURNI_HIGHLIGHT_NORMAL_FURNI =
         "wiredfurni.error.set_furni_highlight.normal_furni";
+
+    /// <summary>A Darken strength the hotel does not offer (no text on Habbo: the key shows).</summary>
+    public const string SET_FURNI_HIGHLIGHT_INVALID_STRENGTH =
+        "wiredfurni.error.set_furni_highlight.invalid_strength";
 }

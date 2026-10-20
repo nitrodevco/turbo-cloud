@@ -181,15 +181,16 @@ public sealed class WiredSetHighlightTests
     }
 
     [Fact]
-    public async Task Strength_off_and_a_furni_leaving_the_room_drop_what_was_kept()
+    public async Task Strength_off_stays_kept_and_a_furni_leaving_the_room_drops_it()
     {
-        _room.AddFloorItem(LAMP, 5, 5);
+        // Official client capture (lab60): a strength-0 fire stays in the entry state as an entry;
+        // picking up the target drops its entry.
         Wired.KeepFurniHighlight(
             [LAMP, 21],
             new WiredHighlightSnapshot { Type = 0, Strength = 50 }
         );
-
         Wired.KeepFurniHighlight([21], new WiredHighlightSnapshot { Type = 0, Strength = 0 });
+
         await Wired.OnRoomEventAsync(
             new RoomItemDetachedEvent
             {
@@ -203,8 +204,48 @@ public sealed class WiredSetHighlightTests
         Wired
             .GetEntryState()
             .OfType<WiredFurniVisualizationStateMessageComposer>()
-            .Should()
-            .BeEmpty();
+            .Single()
+            .Highlights.Should()
+            .Equal(
+                new WiredHighlightStateEntry
+                {
+                    Id = 21,
+                    Highlight = new WiredHighlightSnapshot { Type = 0, Strength = 0 },
+                }
+            );
+    }
+
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(50, false)]
+    public async Task Darken_saves_only_the_hotel_darken_levels(int strength, bool saved)
+    {
+        _room.AddFloorItem(LAMP, 5, 5);
+        _room.AddBox<WiredActionSetHighlight>(EFFECT, 0, 0, "wf_act_set_highlight");
+
+        var result = await _room.SaveWithResultAsync<UpdateActionMessage>(
+            EFFECT,
+            intParams: [1, 2, strength, 0, 0, 2, 0],
+            stuffIds: [LAMP],
+            furniSources:
+            [
+                [WiredFurniSourceType.SelectedItems],
+            ],
+            definitionSpecifics: [0]
+        );
+
+        result.IsSaved.Should().Be(saved);
+
+        if (!saved)
+            result.ErrorKey.Should().Be(WiredSaveErrors.SET_FURNI_HIGHLIGHT_INVALID_STRENGTH);
+    }
+
+    [Fact]
+    public void A_new_box_opens_with_the_official_defaults()
+    {
+        var box = _room.AddBox<WiredActionSetHighlight>(EFFECT, 0, 0, "wf_act_set_highlight");
+
+        box.GetDefaultIntParams().Should().Equal(0, 0, 100, 16771584, 0, 4, 0);
     }
 
     [Theory]

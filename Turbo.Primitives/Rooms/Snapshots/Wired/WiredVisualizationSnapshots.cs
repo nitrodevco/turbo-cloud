@@ -25,9 +25,6 @@ public sealed record WiredHighlightSnapshot
 
     [Id(4)]
     public int EasingMode { get; init; }
-
-    /// <summary>Strength 0 takes the highlight away: there is nothing to keep for later.</summary>
-    public bool IsOff => Strength <= 0;
 }
 
 /// <summary>
@@ -45,9 +42,6 @@ public sealed record WiredTransparencySnapshot
 
     [Id(2)]
     public int EasingMode { get; init; }
-
-    /// <summary>Opaque and clickable is how an object is without the box: nothing to keep.</summary>
-    public bool IsOff => Transparency <= 0 && !AllowClickThrough;
 }
 
 /// <summary>

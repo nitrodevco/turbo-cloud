@@ -49,11 +49,15 @@ public class WiredActionSetHighlight(
     private const int PARAM_EASING = 5;
     private const int PARAM_TARGET_USERS = 6;
 
+    private const int TYPE_DARKEN = 2;
     private const int TYPE_COLOR_TINT = 3;
     private const int ANIMATION_STEADY = 0;
 
-    // The editor's first colour (HIGHLIGHT_COLORS[0]), which a new box shows.
-    private const int DEFAULT_COLOR = 0xFFFFFF;
+    // A new box opens as [0, 0, 100, 16771584, 0, 4, 0] on Habbo (official client capture, lab60
+    // 2026-10-20); the editor shows the colour as the palette's first, white.
+    private const int DEFAULT_STRENGTH = 100;
+    private const int DEFAULT_COLOR = 16771584;
+    private const int DEFAULT_EASING = 4;
 
     private const int AUDIENCE_SLOT = 0;
     private const int TARGET_USER_SLOT = 1;
@@ -66,10 +70,10 @@ public class WiredActionSetHighlight(
         [
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(0, 5, 0),
-            new WiredRangeParamRule(0, 100, 0),
+            new WiredRangeParamRule(0, 100, DEFAULT_STRENGTH),
             new WiredRangeParamRule(0, 0xFFFFFF, DEFAULT_COLOR),
             new WiredRangeParamRule(0, 1, ANIMATION_STEADY),
-            new WiredRangeParamRule(0, 4, 0),
+            new WiredRangeParamRule(0, 4, DEFAULT_EASING),
             new WiredBoolParamRule(false),
         ];
 
@@ -79,9 +83,11 @@ public class WiredActionSetHighlight(
         [WiredSources.Users, WiredSources.Users];
 
     /// <summary>
-    /// Refuses a steady Color tint on picked furni that are neither Builders Club nor temporary,
-    /// as the hotel text says (<c>wiredfurni.error.set_furni_highlight.normal_furni</c>; the editor
-    /// warns of it under the type, <c>...normal_furni_warning</c>). Inference: which save checks it.
+    /// Refuses a Darken strength that is not one of the hotel's darken levels
+    /// (<c>wiredfurni.error.set_furni_highlight.invalid_strength</c>: Habbo, whose levels are
+    /// <c>0</c>, refused strength 50 and saved 0) and a steady Color tint on picked furni that are
+    /// neither Builders Club nor temporary (<c>...normal_furni</c>, refused on Habbo for normal furni
+    /// and saved for Builders Club ones; official client capture, lab60 2026-10-20).
     /// </summary>
     public override Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -89,6 +95,16 @@ public class WiredActionSetHighlight(
         CancellationToken ct
     )
     {
+        if (
+            ParamAt(update.IntParams, PARAM_TYPE) == TYPE_DARKEN
+            && !_roomGrain._wiredConfig.FurniHighlightDarkenLevels.Contains(
+                ParamAt(update.IntParams, PARAM_STRENGTH)
+            )
+        )
+            throw new WiredSaveRefusedException(
+                WiredSaveErrors.SET_FURNI_HIGHLIGHT_INVALID_STRENGTH
+            );
+
         if (
             IsSteadyTint(
                 ParamAt(update.IntParams, PARAM_TYPE),
