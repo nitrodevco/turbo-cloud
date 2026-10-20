@@ -21,7 +21,7 @@ turbo_export_app_env
 current="$TURBO_DEPLOY_ROOT/current"
 [ -f "$current/Turbo.Main.dll" ] || turbo_fail "No release at $current. Run a deploy first."
 
-mkdir -p "$TURBO_PLUGIN_PATH" "$TURBO_ASSETS_PATH"
+mkdir -p "$TURBO_PLUGIN_PATH" "$TURBO_ASSETS_PATH" "$TURBO_CAMERA_PATH"
 
 # The host's content root is the working directory, where the release's appsettings live.
 # Resolving the link once keeps this process on its release when a deploy moves current.

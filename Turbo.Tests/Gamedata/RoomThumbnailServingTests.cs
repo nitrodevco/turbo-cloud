@@ -141,6 +141,21 @@ public sealed class RoomThumbnailServingTests : IAsyncDisposable
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task ARoomWithoutAThumbnail_IsAskedForAgain_SoTheFirstOneTakenShows()
+    {
+        // The room info asks for it before the camera opens; a cache keeping that 404 hid the new one.
+        await _server.StartAsync(TestContext.Current.CancellationToken);
+
+        using var response = await _http.GetAsync(
+            "/gamedata/navigator-thumbnail/8.png",
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Headers.CacheControl!.NoCache.Should().BeTrue();
+    }
+
     /// <summary>No gamedata file is asked for here.</summary>
     private sealed class NoBuilds : IGamedataFileService
     {

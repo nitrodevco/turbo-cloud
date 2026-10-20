@@ -149,6 +149,10 @@ Then deploy. The deploy applies the `admin_passkeys` migration, and Turbo starts
    - `root` to the site's `dist` folder, for example `/home/ploi/admin.example.com/dist`;
    - the `/api/` `proxy_pass` to Turbo's API. Use `http://127.0.0.1:8090` when Turbo runs on the
      same server; otherwise use its private address, and set `TURBO_ADMIN_URL` to listen there.
+   - and leave its `client_max_body_size` and `proxy_request_buffering off` as they are. Turbo caps each
+     request itself; a lower nginx limit refuses uploads and large saves first (a catalog picture,
+     a hotel view pulled from Habbo), and the panel says "That is too large to send" or, before
+     it knew, "The server answered 413.".
 
    **Delete Ploi's own `location / { ... }` block**, and its `location ~ \.php$` block if there is
    one. The site must have exactly one `location /`, the one from `nginx.conf`, which sends
