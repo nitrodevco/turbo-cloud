@@ -257,6 +257,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Moderation.IModerationIssueService),
                 typeof(Turbo.Primitives.Moderation.IWordFilter),
                 typeof(IOptionsMonitor<Turbo.Database.Configuration.MovementsConfig>),
+                typeof(IOptionsMonitor<Turbo.Database.Configuration.ClientTelemetryConfig>),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -270,6 +271,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminLinkPolicy>();
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomVisits>();
+        services.AddSingleton<Turbo.Admin.Telemetry.AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
         services.AddSingleton<AdminTicketPolicy>();

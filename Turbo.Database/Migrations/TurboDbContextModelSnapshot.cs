@@ -8317,58 +8317,288 @@ namespace Turbo.Database.Migrations
                     b.ToTable("songs");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Tracking.PerformanceLogEntity", b =>
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientEventLogEntity", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("AverageFrameRate")
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ExtraInt")
                         .HasColumnType("int")
-                        .HasColumnName("average_frame_rate");
+                        .HasColumnName("extra_int");
+
+                    b.Property<string>("ExtraString")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("extra_string");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Category", "CreatedAt");
+
+                    b.HasIndex("PlayerId", "CreatedAt");
+
+                    b.HasIndex("RoomId", "CreatedAt");
+
+                    b.ToTable("client_event_logs");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientLagWarningEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("WarningCount")
+                        .HasColumnType("int")
+                        .HasColumnName("warning_count");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("PlayerId", "CreatedAt");
+
+                    b.HasIndex("RoomId", "CreatedAt");
+
+                    b.ToTable("client_lag_warnings");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientLatencyReportEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AverageMs")
+                        .HasColumnType("int")
+                        .HasColumnName("average_ms");
+
+                    b.Property<string>("BrowserFamily")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("browser_family");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("device_type");
+
+                    b.Property<string>("OsFamily")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("os_family");
+
+                    b.Property<int>("PingCount")
+                        .HasColumnType("int")
+                        .HasColumnName("ping_count");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("ValidAverageMs")
+                        .HasColumnType("int")
+                        .HasColumnName("valid_average_ms");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("PlayerId", "CreatedAt");
+
+                    b.HasIndex("RoomId", "CreatedAt");
+
+                    b.ToTable("client_latency_reports");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientLoginStepEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("MsSinceConnect")
+                        .HasColumnType("int")
+                        .HasColumnName("ms_since_connect");
+
+                    b.Property<int?>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("Session")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("session");
+
+                    b.Property<string>("Step")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("step");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Session");
+
+                    b.ToTable("client_login_steps");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientPerformanceLogEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AverageUpdateIntervalMs")
+                        .HasColumnType("int")
+                        .HasColumnName("average_update_interval_ms");
 
                     b.Property<string>("Browser")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
                         .HasColumnName("browser");
 
-                    b.Property<int>("ElapsedTime")
+                    b.Property<string>("BrowserFamily")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("browser_family");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("device_type");
+
+                    b.Property<int>("ElapsedSeconds")
                         .HasColumnType("int")
-                        .HasColumnName("elapsed_time");
+                        .HasColumnName("elapsed_seconds");
 
                     b.Property<string>("FlashVersion")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
                         .HasColumnName("flash_version");
 
                     b.Property<int>("GarbageCollections")
                         .HasColumnType("int")
                         .HasColumnName("garbage_collections");
 
-                    b.Property<string>("IPAddress")
-                        .IsRequired()
-                        .HasMaxLength(45)
-                        .HasColumnType("varchar(45)")
-                        .HasColumnName("ip_address");
-
                     b.Property<bool>("IsDebugger")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("is_debugger");
 
-                    b.Property<int>("MemoryUsage")
+                    b.Property<int>("MemoryKb")
                         .HasColumnType("int")
-                        .HasColumnName("memory_usage");
+                        .HasColumnName("memory_kb");
 
-                    b.Property<string>("OS")
+                    b.Property<string>("Os")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
                         .HasColumnName("os");
+
+                    b.Property<string>("OsFamily")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("os_family");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("SlowUpdates")
+                        .HasColumnType("int")
+                        .HasColumnName("slow_updates");
 
                     b.Property<string>("UserAgent")
                         .IsRequired()
@@ -8378,11 +8608,82 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ElapsedTime");
+                    b.HasIndex("CreatedAt");
 
-                    b.HasIndex("IPAddress");
+                    b.HasIndex("PlayerId", "CreatedAt");
 
-                    b.ToTable("performance_logs");
+                    b.HasIndex("RoomId", "CreatedAt");
+
+                    b.ToTable("client_performance_logs");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.ClientTelemetryDailyEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<string>("Key1")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("key1");
+
+                    b.Property<string>("Key2")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("key2");
+
+                    b.Property<string>("Key3")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("key3");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("Max")
+                        .HasColumnType("int")
+                        .HasColumnName("max");
+
+                    b.Property<int>("P50")
+                        .HasColumnType("int")
+                        .HasColumnName("p50");
+
+                    b.Property<int>("P95")
+                        .HasColumnType("int")
+                        .HasColumnName("p95");
+
+                    b.Property<int>("Players")
+                        .HasColumnType("int")
+                        .HasColumnName("players");
+
+                    b.Property<int>("Samples")
+                        .HasColumnType("int")
+                        .HasColumnName("samples");
+
+                    b.Property<long>("Sum")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sum");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Day", "Kind", "Key1", "Key2", "Key3")
+                        .IsUnique();
+
+                    b.ToTable("client_telemetry_daily");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
