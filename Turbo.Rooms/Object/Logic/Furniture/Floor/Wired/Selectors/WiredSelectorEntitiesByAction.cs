@@ -27,7 +27,7 @@ public class WiredSelectorEntitiesByAction(
     public override bool SelectsUsers => true;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Sit)];
+        [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Wave)];
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
@@ -35,7 +35,7 @@ public class WiredSelectorEntitiesByAction(
     )
     {
         var output = new WiredSelectionSet();
-        var action = GetIntParamOrDefault(0, WiredAvatarActionType.Sit);
+        var action = GetIntParamOrDefault(0, WiredAvatarActionType.Wave);
 
         foreach (var avatar in AvatarModule.Avatars)
         {

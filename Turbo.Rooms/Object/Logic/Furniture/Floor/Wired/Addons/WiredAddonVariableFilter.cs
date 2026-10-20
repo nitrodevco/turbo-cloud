@@ -50,7 +50,9 @@ public abstract class WiredAddonVariableFilter(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(1, 1000, 1),
+            // A fresh box keeps 10 on the official server (furni and users: defaults [10,0,0,1],
+            // 2026-10-20T17-35-39-Open-wait, 2026-10-14T09-35-43-Open-wait).
+            new WiredRangeParamRule(1, 1000, 10),
             new WiredEnumParamRule<WiredVariableSortType>(WiredVariableSortType.HighestValue),
             new WiredBoolParamRule(false),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
@@ -120,7 +122,7 @@ public abstract class WiredAddonVariableFilter(
     private long ResolveCount(IWiredProcessingContext ctx)
     {
         if (!GetIntParamOrDefault(2, false))
-            return GetIntParamOrDefault(0, 1);
+            return GetIntParamOrDefault(0, 10);
 
         var operand = GetVariable(1);
 

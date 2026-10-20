@@ -147,7 +147,9 @@ public abstract class FurnitureWiredVariableFxLogic(
             ),
             new WiredEnumParamRule<VariableFxVisibilityType>(VariableFxVisibilityType.Everyone),
             new WiredEnumParamRule<VariableFxShowModeType>(VariableFxShowModeType.Always),
-            new WiredRangeParamRule(0, UPDATE_MASK_MAX, 0),
+            // A fresh box of every category updates on mask 7 and leaves width and renderer to
+            // the style (-1) on the official server (2026-10-20T17-35-39-Open-wait).
+            new WiredRangeParamRule(0, UPDATE_MASK_MAX, 7),
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(
                 SHOW_DURATION_MIN_MS,
@@ -156,8 +158,8 @@ public abstract class FurnitureWiredVariableFxLogic(
             ),
             new WiredRangeParamRule(0, STYLE_MAX, 0),
             new WiredRangeParamRule(COLOR_NOT_APPLICABLE, COLOR_MAX, COLOR_NOT_APPLICABLE),
-            new WiredRangeParamRule(WIDTH_NOT_APPLICABLE, WIDTH_MAX, WIDTH_MEDIUM),
-            new WiredRangeParamRule(-1, RENDERER_MAX, 0),
+            new WiredRangeParamRule(WIDTH_NOT_APPLICABLE, WIDTH_MAX, WIDTH_NOT_APPLICABLE),
+            new WiredRangeParamRule(-1, RENDERER_MAX, -1),
             // Default min and max, each a long: the sign word, then the value.
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),

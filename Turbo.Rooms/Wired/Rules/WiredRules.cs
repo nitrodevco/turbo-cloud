@@ -28,7 +28,9 @@ internal static class WiredRules
     /// AS3 WIN63-202610131318), so the server's bound is the only one there is.
     /// </summary>
     public static IWiredParamRule HandItem(WiredConfig config) =>
-        new WiredRangeParamRule(0, config.MaxHandItemId, 0)
+        // A fresh hand item box (selector, condition, bot) holds item 2 on the official server
+        // (2026-10-20T17-33-23 / 17-37-19 / 17-39-35-Open-wait).
+        new WiredRangeParamRule(0, config.MaxHandItemId, 2)
         {
             ErrorKey = "wiredfurni.error.invalid_handitem_type",
         };

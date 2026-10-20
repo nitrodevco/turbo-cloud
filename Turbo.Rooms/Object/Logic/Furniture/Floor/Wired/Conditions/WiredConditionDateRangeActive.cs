@@ -12,7 +12,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
 /// True between two unix timestamps (params 0 and 1, seconds). The client omits a bound it
-/// could not parse, so a missing start means "since forever" and a missing end "until forever".
+/// could not parse, and zero is no bound: a missing or zero start means "since forever", a
+/// missing or zero end "until forever". A fresh box holds both at zero, like the official one
+/// (defaults [0,0], 2026-10-20T17-37-19-Open-wait).
 /// </summary>
 [RoomObjectLogic("wf_cnd_date_rng_active")]
 public class WiredConditionDateRangeActive(
@@ -23,28 +25,17 @@ public class WiredConditionDateRangeActive(
 {
     public override int WiredCode => (int)WiredConditionType.DATE_RANGE_ACTIVE;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [];
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [WiredRules.NonNegative(), WiredRules.NonNegative()];
 
-    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.NonNegative();
+    protected override int GetRequiredIntParamCount() => 0;
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var count = _wiredData.IntParams.Count;
-
-        if (count == 0)
-            return false;
-
         var start = GetIntParamOrDefault(0, 0);
-
-        if (now < start)
-            return false;
-
-        if (count < 2)
-            return true;
-
         var end = GetIntParamOrDefault(1, 0);
 
-        return end <= 0 || now <= end;
+        return now >= start && (end <= 0 || now <= end);
     }
 }

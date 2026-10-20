@@ -34,9 +34,12 @@ public class WiredTriggerPeriodically(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
+            // A fresh box ticks every 0.5 s, the short one every 200 ms (4) and the long one
+            // every 50 s (10) on the official server (2026-10-20T17-31-49-Open-wait).
             PeriodicType switch
             {
-                WiredPeriodicTriggerType.Short => new WiredRangeParamRule(1, 10, 1),
+                WiredPeriodicTriggerType.Short => new WiredRangeParamRule(1, 10, 4),
+                WiredPeriodicTriggerType.Long => new WiredRangeParamRule(1, 120, 10),
                 _ => new WiredRangeParamRule(1, 120, 1),
             },
         ];

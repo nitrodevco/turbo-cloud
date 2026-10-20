@@ -50,14 +50,16 @@ public class WiredAddonConditionsEval(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(COUNTED, MODE_NONE, MODE_ALL),
+            // A fresh box asks for at least one on the official server (defaults [1,0,0],
+            // 2026-10-20T17-35-39-Open-wait).
+            new WiredRangeParamRule(COUNTED, MODE_NONE, MODE_ANY),
             new WiredRangeParamRule(COUNTED_LESS_THAN, COUNTED_MORE_THAN, COUNTED_LESS_THAN),
             new WiredRangeParamRule(0, COUNT_MAX, 0),
         ];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        var mode = GetIntParamOrDefault(PARAM_MODE, MODE_ALL);
+        var mode = GetIntParamOrDefault(PARAM_MODE, MODE_ANY);
 
         ctx.Policy.ConditionMode = mode switch
         {

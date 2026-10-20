@@ -353,7 +353,7 @@ public abstract partial class FurnitureWiredLogic(
         }
     }
 
-    public List<int> GetDefaultIntParams()
+    public virtual List<int> GetDefaultIntParams()
     {
         var ints = new List<int>();
 

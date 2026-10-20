@@ -29,12 +29,12 @@ public class WiredConditionDateMatches(
         [
             new WiredBoolParamRule(false), // use day range
             new WiredBoolParamRule(false), // use year range
-            new WiredRangeParamRule(0, 127, 0), // weekday mask
+            new WiredRangeParamRule(0, 127, 127), // weekday mask
             new WiredRangeParamRule(1, 31, 1),
-            new WiredRangeParamRule(1, 31, 31),
-            new WiredRangeParamRule(0, 4095, 0), // month mask
+            new WiredRangeParamRule(1, 31, 1),
+            new WiredRangeParamRule(0, 4095, 4095), // month mask
             new WiredRangeParamRule(0, 9999, 0),
-            new WiredRangeParamRule(0, 9999, 9999),
+            new WiredRangeParamRule(0, 9999, 0),
         ];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)

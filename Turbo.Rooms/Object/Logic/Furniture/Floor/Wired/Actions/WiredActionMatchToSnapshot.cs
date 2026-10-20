@@ -41,7 +41,15 @@ public class WiredActionMatchToSnapshot(
             new WiredBoolParamRule(false), // direction
             new WiredBoolParamRule(false), // position
             new WiredBoolParamRule(false), // altitude
+            new WiredParamRule(1),
         ];
+
+    // The official server opens a fresh box with a fifth int, 1 (defaults [0,0,0,0,1],
+    // 2026-10-20T17-39-35-Open-wait), that the editor neither reads nor writes (AS3 actiontypes/
+    // _-wy.as:49-66: four checkboxes); a save of the four keeps it at its default.
+    private const int EDITOR_PARAMS = 4;
+
+    protected override int GetRequiredIntParamCount() => EDITOR_PARAMS;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 

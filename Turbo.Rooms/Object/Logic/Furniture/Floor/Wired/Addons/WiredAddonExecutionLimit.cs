@@ -28,7 +28,9 @@ public class WiredAddonExecutionLimit(
     public override int WiredCode => (int)WiredAddonType.EXECUTION_LIMIT;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(1, 100, 1), new WiredRangeParamRule(1, 20, 1)];
+        // A fresh box opens on 100 per pulse on the official server (defaults [100,1],
+        // 2026-10-20T17-35-39-Open-wait).
+        [new WiredRangeParamRule(1, 100, 100), new WiredRangeParamRule(1, 20, 1)];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -41,7 +43,7 @@ public class WiredAddonExecutionLimit(
             _executionsInWindow = 0;
         }
 
-        if (_executionsInWindow >= GetIntParamOrDefault(0, 1))
+        if (_executionsInWindow >= GetIntParamOrDefault(0, 100))
             return Task.FromResult(false);
 
         _executionsInWindow++;

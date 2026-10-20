@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -20,7 +21,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 ///
 /// Int params, as the client's editor writes them: value or variable, the value (one int, not
 /// a long), the variable's target. The one variable id is the variable the height is read
-/// from, on the first selected target that holds it.
+/// from, on the first target of the box's merged furni and user slot that holds it
+/// (<c>sources.merged.title.variables_reference</c>, AS3 wired_setup/addons/_-Z2Q.as:75-82).
 /// </summary>
 [RoomObjectLogic("wf_xtra_mov_curve")]
 public class WiredAddonJumpStrength(
@@ -33,10 +35,13 @@ public class WiredAddonJumpStrength(
     private const int PARAM_VALUE = 1;
     private const int PARAM_TARGET = 2;
 
-    // The bounds and the default of the editor's number input.
+    // The bounds of the editor's number input. A fresh box holds 160 and reads a variable from
+    // the context (official server: defaults [0,160,-20], furni [100], users [0],
+    // 2026-10-20T17-35-39-Open-wait); the editor shows 80 only when it switches to a variable
+    // (_-Z2Q.as:54).
     private const int MIN_STRENGTH = -1000;
     private const int MAX_STRENGTH = 1000;
-    private const int DEFAULT_STRENGTH = 80;
+    private const int DEFAULT_STRENGTH = 160;
 
     public override int WiredCode => (int)WiredAddonType.JUMP_STRENGTH;
 
@@ -46,8 +51,12 @@ public class WiredAddonJumpStrength(
         [
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(MIN_STRENGTH, MAX_STRENGTH, DEFAULT_STRENGTH),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
         ];
+
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -59,7 +68,7 @@ public class WiredAddonJumpStrength(
         // A variable nobody selected holds leaves the movement as it was.
         if (
             GetIntParamOrDefault(PARAM_USE_VARIABLE, false)
-            && !TryReadVariableOperand(0, PARAM_TARGET, ctx.Selected, out strength)
+            && !TryReadVariableOperand(0, PARAM_TARGET, ctx.GetSelection(this), out strength)
         )
             return Task.FromResult(true);
 
