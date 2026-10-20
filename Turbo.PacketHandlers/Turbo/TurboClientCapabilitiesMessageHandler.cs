@@ -38,11 +38,17 @@ public class TurboClientCapabilitiesMessageHandler(
             return;
 
         var accepted = ClientCapabilities.Negotiate(message.Capabilities, _extensions);
-        var presence = _grainFactory.GetPlayerPresenceGrain(ctx.PlayerId);
-
-        await presence.SetClientCapabilitiesAsync(accepted, ct).ConfigureAwait(false);
-        await presence
-            .SendComposerAsync(new TurboServerCapabilitiesMessage { Capabilities = accepted }, ct)
+        await _grainFactory
+            .GetPlayerPresenceGrain(ctx.PlayerId)
+            .SetClientCapabilitiesAsync(accepted, ct)
+            .ConfigureAwait(false);
+        // Through the presence, as what follows is: ctx's queue could let the nodes overtake it.
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new TurboServerCapabilitiesMessage { Capabilities = accepted },
+                ct
+            )
             .ConfigureAwait(false);
 
         if (accepted.Any(x => x.Name == ClientCapabilities.PERMISSION_NODES))
