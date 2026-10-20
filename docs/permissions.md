@@ -238,6 +238,7 @@ client gates from §2. Each names the one place that reads it.
 | `perk.camera`, `perk.mouse_zoom`, `perk.citizen`, `perk.navigator.thumbnail_camera`, `perk.navigator.phase_two`, `perk.navigator.phase_one`, `perk.guide_tool`, `perk.judge_chat_reviews`, `perk.call_on_helpers`, `perk.vote_in_competitions`, `perk.habbo_club_offer_beta` | `PerkAllowances` only | — | the hardcoded block in `SSOTicketMessageHandler` |
 | `permissions.manage` | the admin panel's permission editor, `:group` | — | the console needs no node |
 | `items.reverse` | `IAssetReversalService`: moving a furni or a currency back for a plugin that undoes movements (`docs/movements.md`) | — | explicit only: no wildcard grants it |
+| `room.wired.web_api_keys_any` | `RoomGrain.MaySeeWiredWebApiKeysAsync`: seeing, generating and saving a Web API add-on's keys in a room one does not own | — | explicit only: `room.control.any` used to be enough, though the keys open the room from outside the hotel |
 
 `perk.*` nodes exist because the perk list has to come from somewhere; they gate nothing on the
 server. `trade` and `room.floorplan.large` are real server gates that also project to a perk.

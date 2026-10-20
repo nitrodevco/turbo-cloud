@@ -495,6 +495,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   9057F93F: CancelNestBreedingAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   F8F69E06: ChangeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<bool>
   7B9EDF14: CheckEntryAccessAsync(Turbo.Primitives.Players.PlayerId, string?, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomEntryAccessType>
+  861FF388: CheckWiredWebApiKeysAsync(Turbo.Primitives.Rooms.Wired.WebApi.WiredWebApiOperation, string?, string?, System.Threading.CancellationToken) -> Task<string?>
   984036F1: ClearPlayerEffectIfAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
   C40E984C: ClearRoomBySystemAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<int>
   CF85125F: ClearWiredErrorLogsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>

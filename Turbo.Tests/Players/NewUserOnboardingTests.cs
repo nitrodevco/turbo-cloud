@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +26,7 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -670,6 +672,86 @@ public sealed class NewUserOnboardingTests : IDisposable
             .ExtraData.Should()
             .NotContain("9999");
     }
+
+    [Fact]
+    public async Task AStarterRoomCopy_DoesNotTakeTheSourceRoomsWebApiKeys()
+    {
+        const int SOURCE = 60;
+        const int COPY = 61;
+        const string KEYS = "source-read-key	source-write-key";
+
+        InsertPublicModel();
+        _db.Insert(Room(SOURCE, OTHER_PLAYER, 1, "Starter shop", wall: null));
+        _db.Insert(Room(COPY, NEW_PLAYER, 1, "placeholder", wall: null));
+
+        var addon = Definition(102, "wf_xtra_var_web_api", wall: false);
+        var trigger = Definition(103, "wf_trg_enter_room", wall: false);
+        addon.Logic = "wf_xtra_var_web_api";
+        trigger.Logic = "wf_trg_enter_room";
+        _db.Insert(addon);
+        _db.Insert(trigger);
+        _db.Insert(
+            new FurnitureEntity
+            {
+                Id = 510,
+                PlayerEntityId = OTHER_PLAYER,
+                FurnitureDefinitionEntityId = addon.Id,
+                RoomEntityId = SOURCE,
+                ExtraData = WiredExtraData(KEYS),
+            }
+        );
+        _db.Insert(
+            new FurnitureEntity
+            {
+                Id = 511,
+                PlayerEntityId = OTHER_PLAYER,
+                FurnitureDefinitionEntityId = trigger.Id,
+                RoomEntityId = SOURCE,
+                X = 1,
+                ExtraData = WiredExtraData("hello"),
+            }
+        );
+        _db.Insert(
+            new StarterRoomEntity
+            {
+                Id = 1,
+                RoomEntityId = SOURCE,
+                SortOrder = 1,
+                Name = "%name%'s first shop",
+            }
+        );
+
+        _fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult("Hutch.");
+        _fakes.Handlers["CreateRoomAsync"] = _ => Task.FromResult<RoomId?>(new RoomId(COPY));
+
+        (await StarterRooms().CreateAsync(NEW_PLAYER, SOURCE.ToString(), Ct)).Should().NotBeNull();
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var items = await db.Furnitures.Where(x => x.RoomEntityId == COPY).ToListAsync(Ct);
+
+        // The keys open the source room's variables: the copy's add-on starts with none, as one
+        // picked up and placed again does; other wired boxes keep their settings.
+        WiredWebApiKeys
+            .StoredStringParam(
+                items.Single(x => x.FurnitureDefinitionEntityId == addon.Id).ExtraData
+            )
+            .Should()
+            .BeEmpty();
+        items
+            .Single(x => x.FurnitureDefinitionEntityId == trigger.Id)
+            .ExtraData.Should()
+            .Contain("hello");
+    }
+
+    private static string WiredExtraData(string stringParam) =>
+        new JsonObject
+        {
+            ["wired"] = new JsonObject
+            {
+                ["intParams"] = new JsonArray(),
+                ["stringParam"] = stringParam,
+            },
+        }.ToJsonString();
 
     private void InsertPublicModel() =>
         _db.Insert(

@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -26,11 +27,36 @@ public sealed partial class RoomGrain
         var level = await SecurityModule.GetControllerLevelAsync(ctx);
         var (canModify, _) = WiredSystem.GetPermissions(level);
 
-        if (!canModify || level < addon.MinimumControllerLevelToSave)
+        if (
+            !canModify
+            || level < addon.MinimumControllerLevelToSave
+            || !await MaySeeWiredWebApiKeysAsync(ctx)
+        )
             return null;
 
         return addon.IssueKey(isReadKey);
     }
+
+    /// <summary>
+    /// Whether <paramref name="ctx"/> may see and set a Web API add-on's keys: the room's owner
+    /// ("Nobody else can see the contents of this box", <c>wiredfurni.params.web_api.usage_info</c>),
+    /// the server itself, and staff holding <see cref="PermissionNodes.Room.WIRED_WEB_API_KEYS_ANY"/>.
+    /// Control of every room is not enough: the keys open the room from outside the hotel.
+    /// </summary>
+    internal async Task<bool> MaySeeWiredWebApiKeysAsync(ActionContext ctx) =>
+        ctx.Origin == ActionOrigin.System
+        || SecurityModule.IsOwnedBy(ctx.PlayerId)
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.WIRED_WEB_API_KEYS_ANY
+        );
+
+    public Task<string?> CheckWiredWebApiKeysAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    ) => WiredSystem.CheckWebApiKeysAsync(operation, readKey, writeKey, ct);
 
     public Task<WiredWebApiResponse> HandleWiredWebApiAsync(
         WiredWebApiRequest request,

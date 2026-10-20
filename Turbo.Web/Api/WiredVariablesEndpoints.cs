@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Web.Configuration;
 
@@ -88,10 +90,74 @@ internal sealed class WiredVariablesEndpoints(
         rooms.MapDelete(USER_PROFILE, Handle(WiredWebApiOperation.DeleteUserProfile));
         rooms.MapGet(FURNI_PROFILE, Handle(WiredWebApiOperation.GetFurniProfile));
         rooms.MapPatch(FURNI_PROFILE, Handle(WiredWebApiOperation.PatchFurniProfile));
+
+        // A browser asks before a call with key headers from another site (a CORS preflight).
+        rooms.MapMethods("/variables/{**path}", [HttpMethods.Options], Preflight);
+        rooms.MapMethods("/variables_profile/{**path}", [HttpMethods.Options], Preflight);
     }
 
     private RequestDelegate Handle(WiredWebApiOperation operation) =>
-        http => HandleAsync(http, operation, http.RequestAborted);
+        http =>
+        {
+            AllowOrigin(http);
+
+            return HandleAsync(http, operation, http.RequestAborted);
+        };
+
+    /// <summary>
+    /// Answers a browser's preflight: from an allowed site (<see cref="WiredApiConfig.AllowedOrigins"/>)
+    /// every method and key header of these endpoints; from any other, nothing, so the browser
+    /// does not make the call.
+    /// </summary>
+    private Task Preflight(HttpContext http)
+    {
+        if (AllowOrigin(http))
+        {
+            var headers = http.Response.Headers;
+
+            headers.AccessControlAllowMethods = "GET, PUT, PATCH, DELETE, POST";
+            headers.AccessControlAllowHeaders =
+                $"{READ_KEY_HEADER}, {WRITE_KEY_HEADER}, Content-Type";
+            headers.AccessControlMaxAge = "600";
+        }
+
+        http.Response.StatusCode = StatusCodes.Status204NoContent;
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Lets a page of an allowed site read the answer (<c>Access-Control-Allow-Origin</c>: <c>*</c>
+    /// when any site is, else the site itself), and its <c>Retry-After</c>; never with
+    /// credentials. Whether the request's site is allowed.
+    /// </summary>
+    private bool AllowOrigin(HttpContext http)
+    {
+        var origin = http.Request.Headers.Origin.ToString();
+
+        if (origin.Length == 0)
+            return false;
+
+        var headers = http.Response.Headers;
+
+        if (Api.AllowedOrigins.Contains("*"))
+            headers.AccessControlAllowOrigin = "*";
+        else if (
+            Api.AllowedOrigins.Any(allowed =>
+                string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+        {
+            headers.AccessControlAllowOrigin = origin;
+            headers.Vary = "Origin";
+        }
+        else
+            return false;
+
+        headers.AccessControlExposeHeaders = "Retry-After";
+
+        return true;
+    }
 
     private async Task HandleAsync(
         HttpContext http,
@@ -101,22 +167,43 @@ internal sealed class WiredVariablesEndpoints(
     {
         var route = http.Request.RouteValues;
         var roomId = int.Parse((string)route["roomId"]!);
+        var caller = http.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
 
-        if (!_limits.TryAcquire(roomId, operation))
+        if (_limits.FailureRetryAfter(caller) is { } failuresRetryAfter)
         {
-            await WriteAsync(
-                    http,
-                    WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS),
-                    Error(WiredWebApiErrors.TOO_MANY_REQUESTS)
-                )
+            await TooManyRequestsAsync(http, failuresRetryAfter).ConfigureAwait(false);
+
+            return;
+        }
+
+        var readKey = Header(http, READ_KEY_HEADER);
+        var writeKey = Header(http, WRITE_KEY_HEADER);
+
+        if (
+            await RefusalAsync(roomId, operation, readKey, writeKey, ct).ConfigureAwait(false) is
+            { } refusal
+        )
+        {
+            _limits.CountFailure(caller);
+
+            await WriteAsync(http, WiredWebApiErrors.StatusOf(refusal), Error(refusal))
                 .ConfigureAwait(false);
 
             return;
         }
 
-        if (!await RoomExistsAsync(roomId, ct).ConfigureAwait(false))
+        if (_limits.TryAcquire(roomId, operation) is { } retryAfter)
         {
-            await WriteAsync(http, 404, Error(WiredWebApiErrors.ROOM_NOT_FOUND))
+            await TooManyRequestsAsync(http, retryAfter).ConfigureAwait(false);
+
+            return;
+        }
+
+        var (body, tooLarge) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
+
+        if (tooLarge)
+        {
+            await WriteAsync(http, StatusCodes.Status413PayloadTooLarge, null)
                 .ConfigureAwait(false);
 
             return;
@@ -135,15 +222,15 @@ internal sealed class WiredVariablesEndpoints(
         var request = new WiredWebApiRequest
         {
             Operation = operation,
-            ReadKey = Header(http, READ_KEY_HEADER),
-            WriteKey = Header(http, WRITE_KEY_HEADER),
+            ReadKey = readKey,
+            WriteKey = writeKey,
             Scope = route["scope"] as string ?? string.Empty,
             VariableName = route["variableName"] as string ?? string.Empty,
             TargetKind = route["targetKind"] as string ?? string.Empty,
             EntityId = route["entityId"] as string ?? string.Empty,
-            Body = await ReadBodyAsync(http, ct).ConfigureAwait(false),
-            Page = int.TryParse(query["page"], out var page) ? page : null,
-            Size = int.TryParse(query["size"], out var size) ? size : null,
+            Body = body,
+            Page = Number(query["page"]),
+            Size = Number(query["size"]),
             OrderBy = query["order_by"],
             OrderDir = query["order_dir"],
             Name = query["name"],
@@ -160,15 +247,69 @@ internal sealed class WiredVariablesEndpoints(
         await WriteAsync(http, response.Status, response.Json).ConfigureAwait(false);
     }
 
-    private async Task<bool> RoomExistsAsync(int roomId, CancellationToken ct)
+    /// <summary>
+    /// Why a call is refused before its room answers it (a <see cref="WiredWebApiErrors"/> code),
+    /// null when its keys open the room. A room that is loaded checks the keys itself, as they
+    /// stand this moment; one that is not is only woken for a call carrying its add-on's keys as
+    /// they were stored when it last unloaded, so a caller without them never loads a room.
+    /// </summary>
+    private async Task<string?> RefusalAsync(
+        int roomId,
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    )
     {
         if (roomId <= 0)
-            return false;
+            return WiredWebApiErrors.ROOM_NOT_FOUND;
 
         var db = await dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        return await db.Rooms.AnyAsync(room => room.Id == roomId, ct).ConfigureAwait(false);
+        if (!await db.Rooms.AnyAsync(room => room.Id == roomId, ct).ConfigureAwait(false))
+            return WiredWebApiErrors.ROOM_NOT_FOUND;
+
+        var (reads, writes) = WiredWebApiKeys.KeysNeeded(operation);
+
+        if ((reads && string.IsNullOrEmpty(readKey)) || (writes && string.IsNullOrEmpty(writeKey)))
+            return WiredWebApiErrors.KEY_MISSING;
+
+        var loaded = await grainFactory
+            .GetRoomDirectoryGrain()
+            .GetActiveRoomIdsAsync(ct)
+            .ConfigureAwait(false);
+
+        if (loaded.Contains(new RoomId(roomId)))
+            return await grainFactory
+                .GetRoomGrain(roomId)
+                .CheckWiredWebApiKeysAsync(operation, readKey, writeKey, ct)
+                .ConfigureAwait(false);
+
+        // The add-on placed first answers, as in the room (RoomWiredSystem.OpenWebApiAsync).
+        var stored = await db
+            .Furnitures.AsNoTracking()
+            .Where(item =>
+                item.RoomEntityId == roomId
+                && item.FurnitureDefinitionEntity!.Logic == WiredWebApiKeys.ADDON_LOGIC
+            )
+            .OrderBy(item => item.Id)
+            .Select(item => new { item.ExtraData })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (stored is null)
+            return WiredWebApiErrors.API_DISABLED;
+
+        var keys = WiredWebApiKeys.StoredStringParam(stored.ExtraData);
+
+        if (
+            (reads && !WiredWebApiKeys.Matches(readKey, WiredWebApiKeys.ReadKeyOf(keys)))
+            || (writes && !WiredWebApiKeys.Matches(writeKey, WiredWebApiKeys.WriteKeyOf(keys)))
+        )
+            return WiredWebApiErrors.KEY_INVALID;
+
+        return null;
     }
 
     /// <summary>
@@ -222,10 +363,25 @@ internal sealed class WiredVariablesEndpoints(
         return player is null ? (null, null) : (player.Id, player.Name);
     }
 
+    /// <summary>A query number; one that is sent but is not a number reads as 0, which no list takes.</summary>
+    private static int? Number(string? value) =>
+        value is null ? null
+        : int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+            ? number
+        : 0;
+
     private static string? Header(HttpContext http, string name) =>
         http.Request.Headers.TryGetValue(name, out var value) ? value.ToString() : null;
 
-    private async Task<string?> ReadBodyAsync(HttpContext http, CancellationToken ct)
+    /// <summary>
+    /// The body of a POST, PUT or PATCH, read up to <see cref="WiredApiConfig.MaxBodyBytes"/>
+    /// bytes. A longer one is not cut short (which would leave a different JSON document, or a
+    /// broken one) but refused whole.
+    /// </summary>
+    private async Task<(string? Body, bool TooLarge)> ReadBodyAsync(
+        HttpContext http,
+        CancellationToken ct
+    )
     {
         if (
             http.Request.ContentLength is 0
@@ -235,16 +391,48 @@ internal sealed class WiredVariablesEndpoints(
                 || HttpMethods.IsPatch(http.Request.Method)
             )
         )
-            return null;
+            return (null, false);
 
-        var buffer = new char[Api.MaxBodyBytes];
-        using var reader = new StreamReader(http.Request.Body, Encoding.UTF8);
-        var read = await reader.ReadBlockAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+        var limit = Api.MaxBodyBytes;
 
-        return read == 0 ? null : new string(buffer, 0, read);
+        if (http.Request.ContentLength > limit)
+            return (null, true);
+
+        // One byte past the limit tells a body that is too long from one that just fits.
+        var buffer = new byte[limit + 1];
+        var read = 0;
+
+        while (read < buffer.Length)
+        {
+            var count = await http
+                .Request.Body.ReadAsync(buffer.AsMemory(read), ct)
+                .ConfigureAwait(false);
+
+            if (count == 0)
+                break;
+
+            read += count;
+        }
+
+        if (read > limit)
+            return (null, true);
+
+        return (read == 0 ? null : Encoding.UTF8.GetString(buffer, 0, read), false);
     }
 
     private static string Error(string code) => new JsonObject { ["error"] = code }.ToJsonString();
+
+    private static Task TooManyRequestsAsync(HttpContext http, TimeSpan retryAfter)
+    {
+        http.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+            .ToString(CultureInfo.InvariantCulture);
+
+        return WriteAsync(
+            http,
+            WiredWebApiErrors.StatusOf(WiredWebApiErrors.TOO_MANY_REQUESTS),
+            Error(WiredWebApiErrors.TOO_MANY_REQUESTS)
+        );
+    }
 
     private static async Task WriteAsync(HttpContext http, int status, string? json)
     {
@@ -261,22 +449,41 @@ internal sealed class WiredVariablesEndpoints(
 
 /// <summary>
 /// Each room's limits per kind of call (<see cref="WiredApiConfig"/>): a call needs room in both
-/// the 10-second burst window and the 60-second sustained one.
+/// the 10-second burst window and the 60-second sustained one. Only calls whose keys open the
+/// room count against it, so callers without them cannot use up its owner's allowance; their
+/// refused calls count against their own address instead (<see cref="WiredApiConfig.Failures"/>).
 /// </summary>
 internal sealed class WiredApiRateLimits(WiredApiConfig config)
 {
-    private readonly PartitionedRateLimiter<(int, WiredApiLimit)> _limiter =
-        PartitionedRateLimiter.CreateChained(
-            Window(TimeSpan.FromSeconds(10), limit => limit.Burst),
-            Window(TimeSpan.FromMinutes(1), limit => limit.PerMinute)
-        );
+    private readonly PartitionedRateLimiter<(int, WiredApiLimit)> _limiter = Chained<int>();
 
-    public bool TryAcquire(int roomId, WiredWebApiOperation operation)
+    private readonly PartitionedRateLimiter<(string, WiredApiLimit)> _failures = Chained<string>();
+
+    /// <summary>Null when the room has room for the call, else how long until it has.</summary>
+    public TimeSpan? TryAcquire(int roomId, WiredWebApiOperation operation)
     {
         using var lease = _limiter.AttemptAcquire((roomId, LimitOf(operation)));
 
-        return lease.IsAcquired;
+        return lease.IsAcquired ? null : RetryAfterOf(lease);
     }
+
+    /// <summary>Null while <paramref name="caller"/> may still be refused, else how long until it may.</summary>
+    public TimeSpan? FailureRetryAfter(string caller)
+    {
+        using var lease = _failures.AttemptAcquire((caller, config.Failures), 0);
+
+        return lease.IsAcquired ? null : RetryAfterOf(lease);
+    }
+
+    public void CountFailure(string caller)
+    {
+        using var lease = _failures.AttemptAcquire((caller, config.Failures));
+    }
+
+    private static TimeSpan RetryAfterOf(RateLimitLease lease) =>
+        lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+            ? retryAfter
+            : TimeSpan.FromSeconds(10);
 
     private WiredApiLimit LimitOf(WiredWebApiOperation operation) =>
         operation switch
@@ -299,11 +506,17 @@ internal sealed class WiredApiRateLimits(WiredApiConfig config)
             _ => config.SimpleReads,
         };
 
-    private static PartitionedRateLimiter<(int, WiredApiLimit)> Window(
+    private static PartitionedRateLimiter<(TKey, WiredApiLimit)> Chained<TKey>() =>
+        PartitionedRateLimiter.CreateChained(
+            Window<TKey>(TimeSpan.FromSeconds(10), limit => limit.Burst),
+            Window<TKey>(TimeSpan.FromMinutes(1), limit => limit.PerMinute)
+        );
+
+    private static PartitionedRateLimiter<(TKey, WiredApiLimit)> Window<TKey>(
         TimeSpan window,
         Func<WiredApiLimit, int> permits
     ) =>
-        PartitionedRateLimiter.Create<(int, WiredApiLimit), (int, WiredApiLimit)>(key =>
+        PartitionedRateLimiter.Create<(TKey, WiredApiLimit), (TKey, WiredApiLimit)>(key =>
             RateLimitPartition.GetFixedWindowLimiter(
                 key,
                 _ => new FixedWindowRateLimiterOptions

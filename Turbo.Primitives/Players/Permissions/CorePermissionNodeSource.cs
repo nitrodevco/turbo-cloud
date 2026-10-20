@@ -87,6 +87,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Moderator
         ),
         new(
+            PermissionNodes.Room.WIRED_WEB_API_KEYS_ANY,
+            "See, generate and save the Web API add-on keys of a room one does not own.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Items.REVERSE,
             "Move a furni or a currency back to where it was before a movement, through a plugin that undoes it.",
             ExplicitOnly: true
