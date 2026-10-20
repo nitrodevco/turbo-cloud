@@ -493,6 +493,43 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task With_two_add_ons_the_one_with_the_lowest_id_holds_the_keys()
+    {
+        const int LOWER_ADDON = 1;
+        var (read, _) = await SetUpAsync();
+
+        _room.AddBox<WiredAddonVariablesWebApi>(LOWER_ADDON, 0, 1, "wf_xtra_var_web_api");
+        var lowerRead = (
+            await _room.Harness.Room.GenerateWiredWebApiKeyAsync(
+                ActionContext.CreateForSystem(ROOM),
+                LOWER_ADDON,
+                true,
+                Ct
+            )
+        )!;
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                LOWER_ADDON,
+                intParams: [0],
+                stringParam: lowerRead + "	"
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        // Every call answers with the same box, whichever the room lists first.
+        for (var i = 0; i < 3; i++)
+        {
+            (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: lowerRead))
+                .Status.Should()
+                .Be(200);
+            (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))
+                .Should()
+                .Be((403, "wired.variables.key_invalid"));
+        }
+    }
+
+    [Fact]
     public async Task Refused_calls_count_against_their_caller_not_the_rooms_limit()
     {
         await using var limited = new WiredWebApiTests(

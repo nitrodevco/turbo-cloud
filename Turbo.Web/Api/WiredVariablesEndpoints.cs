@@ -212,6 +212,7 @@ internal sealed class WiredVariablesEndpoints(
                 .CheckWiredWebApiKeysAsync(operation, readKey, writeKey, ct)
                 .ConfigureAwait(false);
 
+        // The add-on placed first answers, as in the room (RoomWiredSystem.OpenWebApiAsync).
         var stored = await db
             .Furnitures.AsNoTracking()
             .Where(item =>

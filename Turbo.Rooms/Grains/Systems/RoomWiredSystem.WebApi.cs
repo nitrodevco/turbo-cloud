@@ -85,7 +85,12 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     ) => (await OpenWebApiAsync(operation, readKey, writeKey, ct)).Refusal;
 
-    /// <summary>The add-on whose keys a call needs, or why the call is refused.</summary>
+    /// <summary>
+    /// The add-on whose keys a call needs, or why the call is refused. A room holding more than
+    /// one add-on answers with the one placed first (lowest item id), so its keys are the same
+    /// on every call (inference: Habbo's rule for a second add-on is not documented; its pickup
+    /// text, "The Web API will stop working for this room", speaks of one per room).
+    /// </summary>
     private async Task<(WiredAddonVariablesWebApi? Addon, string? Refusal)> OpenWebApiAsync(
         WiredWebApiOperation operation,
         string? readKey,
@@ -94,8 +99,9 @@ public sealed partial class RoomWiredSystem
     )
     {
         var addon = FurniModule
-            .Items.Select(item => item.Logic)
-            .OfType<WiredAddonVariablesWebApi>()
+            .Items.Where(item => item.Logic is WiredAddonVariablesWebApi)
+            .OrderBy(item => item.ObjectId.Value)
+            .Select(item => (WiredAddonVariablesWebApi)item.Logic)
             .FirstOrDefault();
 
         if (addon is null)
