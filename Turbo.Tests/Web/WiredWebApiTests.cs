@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -13,11 +14,13 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Authentication;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Players.Accounts;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Authentication;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
@@ -31,6 +34,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -88,6 +92,9 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             WiredApi = wiredApi,
         };
         _room.Harness.Fakes.Instances[(typeof(IRoomGrain), (long)ROOM)] = _room.Harness.Room;
+        // The room under test is loaded; any other room is asleep until a call wakes it.
+        _room.Harness.Fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
+            Task.FromResult(ImmutableArray.Create(new RoomId(ROOM)));
         InsertRoom();
         _server = Build();
         _http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{_port}") };
@@ -439,6 +446,83 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_room_that_is_not_loaded_is_only_woken_by_a_call_with_its_add_ons_key()
+    {
+        const int ASLEEP = 2;
+        const int WITHOUT_ADDON = 3;
+
+        _db.Insert(NewRoom(ASLEEP, "Asleep"));
+        _db.Insert(NewRoom(WITHOUT_ADDON, "No add-on"));
+        _db.Insert(AddonDefinition());
+        _db.Insert(StoredAddon(50, ASLEEP, "stored-read\tstored-write"));
+        _room.Harness.Fakes.Handlers["HandleWiredWebApiAsync"] = _ =>
+            Task.FromResult(new WiredWebApiResponse(200, "{}"));
+        await _server.StartAsync(Ct);
+
+        var asleep = $"/api/public/rooms/{ASLEEP}/variables";
+
+        (await SendAsync(HttpMethod.Get, asleep)).Should().Be((403, "wired.variables.key_missing"));
+        (await SendAsync(HttpMethod.Get, asleep, read: "guessed"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, asleep, read: "stored-write"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (
+            await SendAsync(
+                HttpMethod.Put,
+                $"/api/public/rooms/{ASLEEP}/variables/furni/hp/furni/{CHAIR}",
+                write: "stored-read",
+                body: """{"value":"1"}"""
+            )
+        )
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, $"/api/public/rooms/{WITHOUT_ADDON}/variables", read: "x"))
+            .Should()
+            .Be((403, "wired.variables.api_disabled"));
+        _room.Harness.Fakes.Log.Calls.Should().NotContain(call => call.Interface == typeof(IRoomGrain));
+
+        (await SendAsync(HttpMethod.Get, asleep, read: "stored-read")).Status.Should().Be(200);
+        _room
+            .Harness.Fakes.Log.Of("HandleWiredWebApiAsync")
+            .Should()
+            .ContainSingle()
+            .Which.Interface.Should()
+            .Be(typeof(IRoomGrain));
+    }
+
+    [Fact]
+    public async Task Refused_calls_count_against_their_caller_not_the_rooms_limit()
+    {
+        await using var limited = new WiredWebApiTests(
+            new WiredApiConfig
+            {
+                SimpleReads = new WiredApiLimit { PerMinute = 300, Burst = 2 },
+                Failures = new WiredApiLimit { PerMinute = 60, Burst = 3 },
+            }
+        );
+        var (read, _) = await limited.SetUpAsync();
+        const string PATH = "/api/public/rooms/1/variables";
+
+        for (var i = 0; i < 2; i++)
+            (await limited.SendAsync(HttpMethod.Get, PATH, read: "guessed"))
+                .Should()
+                .Be((403, "wired.variables.key_invalid"));
+
+        // The room's own allowance is untouched by them.
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
+        (await limited.RetryAfterAsync(PATH, read)).Should().Be((429, true));
+
+        // A guesser is slowed down once out of refusals, told when to come back.
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: "guessed"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await limited.RetryAfterAsync(PATH, "guessed")).Should().Be((429, true));
+    }
+
+    [Fact]
     public async Task Batched_writes_share_a_budget_a_minute_and_reads_are_free()
     {
         await using var limited = new WiredWebApiTests(
@@ -779,6 +863,60 @@ public sealed class WiredWebApiTests : IAsyncDisposable
 
         return json;
     }
+
+    /// <summary>A GET's status and whether it says when to try again (<c>Retry-After</c>, in whole seconds).</summary>
+    private async Task<(int Status, bool HasRetryAfter)> RetryAfterAsync(string path, string read)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("X-Wired-Read-Key", read);
+
+        using var response = await _http.SendAsync(request, Ct);
+
+        return (
+            (int)response.StatusCode,
+            response.Headers.RetryAfter?.Delta is { TotalSeconds: >= 1 }
+        );
+    }
+
+    private static FurnitureDefinitionEntity AddonDefinition() =>
+        new()
+        {
+            Id = 1,
+            SpriteId = 1,
+            Name = "wf_xtra_var_web_api",
+            ProductType = ProductType.Floor,
+            FurniCategory = FurnitureCategory.Default,
+            Logic = "wf_xtra_var_web_api",
+            Width = 1,
+            Length = 1,
+            StackHeight = 1,
+            CanStack = true,
+            CanWalk = false,
+            CanSit = false,
+            CanLay = false,
+            CanRecycle = false,
+            CanTrade = false,
+            CanGroup = false,
+            CanSell = false,
+        };
+
+    /// <summary>A Web API add-on as a room that is not loaded keeps it: its keys in its stored wired data.</summary>
+    private static FurnitureEntity StoredAddon(int id, int roomId, string keys) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = 1,
+            FurnitureDefinitionEntityId = 1,
+            RoomEntityId = roomId,
+            ExtraData = new JsonObject
+            {
+                ["wired"] = new JsonObject
+                {
+                    ["intParams"] = new JsonArray(0),
+                    ["stringParam"] = keys,
+                },
+            }.ToJsonString(),
+        };
 
     private async Task<(int, JsonNode?)> RawAsync(
         HttpMethod method,

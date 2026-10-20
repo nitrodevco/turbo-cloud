@@ -51,29 +51,21 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        var addon = FurniModule
-            .Items.Select(item => item.Logic)
-            .OfType<WiredAddonVariablesWebApi>()
-            .FirstOrDefault();
+        var (addon, refusal) = await OpenWebApiAsync(
+            request.Operation,
+            request.ReadKey,
+            request.WriteKey,
+            ct
+        );
 
-        if (addon is null)
-            return WiredWebApiJson.Error(403, WiredWebApiErrors.API_DISABLED);
-
-        await addon.EnsureWiredLoadedAsync(ct);
-
-        var (reads, writes) = WiredWebApiKeys.KeysNeeded(request.Operation);
-
-        if (reads && KeyRefusal(request.ReadKey, addon.ReadKey) is { } readRefusal)
-            return readRefusal;
-
-        if (writes && KeyRefusal(request.WriteKey, addon.WriteKey) is { } writeRefusal)
-            return writeRefusal;
+        if (refusal is not null)
+            return WiredWebApiJson.Error(WiredWebApiErrors.StatusOf(refusal), refusal);
 
         ChangeOrigin = WiredVariableChangeOriginType.External;
 
         try
         {
-            return await DispatchWebApiAsync(request, addon, ct);
+            return await DispatchWebApiAsync(request, addon!, ct);
         }
         catch (JsonException)
         {
@@ -85,14 +77,49 @@ public sealed partial class RoomWiredSystem
         }
     }
 
-    private static WiredWebApiResponse? KeyRefusal(string? sent, string key)
+    /// <summary>Why a call with these keys is refused, null when they open the room's Web API.</summary>
+    public async Task<string?> CheckWebApiKeysAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    ) => (await OpenWebApiAsync(operation, readKey, writeKey, ct)).Refusal;
+
+    /// <summary>The add-on whose keys a call needs, or why the call is refused.</summary>
+    private async Task<(WiredAddonVariablesWebApi? Addon, string? Refusal)> OpenWebApiAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    )
+    {
+        var addon = FurniModule
+            .Items.Select(item => item.Logic)
+            .OfType<WiredAddonVariablesWebApi>()
+            .FirstOrDefault();
+
+        if (addon is null)
+            return (null, WiredWebApiErrors.API_DISABLED);
+
+        await addon.EnsureWiredLoadedAsync(ct);
+
+        var (reads, writes) = WiredWebApiKeys.KeysNeeded(operation);
+
+        if (reads && KeyRefusal(readKey, addon.ReadKey) is { } readRefusal)
+            return (addon, readRefusal);
+
+        if (writes && KeyRefusal(writeKey, addon.WriteKey) is { } writeRefusal)
+            return (addon, writeRefusal);
+
+        return (addon, null);
+    }
+
+    private static string? KeyRefusal(string? sent, string key)
     {
         if (string.IsNullOrEmpty(sent))
-            return WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_MISSING);
+            return WiredWebApiErrors.KEY_MISSING;
 
-        return WiredWebApiKeys.Matches(sent, key)
-            ? null
-            : WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_INVALID);
+        return WiredWebApiKeys.Matches(sent, key) ? null : WiredWebApiErrors.KEY_INVALID;
     }
 
     private async Task<WiredWebApiResponse> DispatchWebApiAsync(

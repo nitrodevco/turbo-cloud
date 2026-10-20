@@ -32,6 +32,13 @@ public sealed partial class RoomGrain
         return addon.IssueKey(isReadKey);
     }
 
+    public Task<string?> CheckWiredWebApiKeysAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    ) => WiredSystem.CheckWebApiKeysAsync(operation, readKey, writeKey, ct);
+
     public Task<WiredWebApiResponse> HandleWiredWebApiAsync(
         WiredWebApiRequest request,
         CancellationToken ct

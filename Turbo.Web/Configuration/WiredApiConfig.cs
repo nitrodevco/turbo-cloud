@@ -31,6 +31,13 @@ public sealed class WiredApiConfig
     /// a batch and each variable a profile PATCH changes costing one; 0 for no limit.
     /// </summary>
     public int BatchWriteBudgetPerMinute { get; init; } = 500;
+
+    /// <summary>
+    /// Refused calls (no such room, a missing or wrong key, no add-on) one address may make,
+    /// counted apart from the rooms' limits so they cannot use up a room's allowance. Habbo
+    /// publishes no such limit; the default only slows down key guessing.
+    /// </summary>
+    public WiredApiLimit Failures { get; init; } = new() { PerMinute = 60, Burst = 20 };
 }
 
 public sealed class WiredApiLimit
