@@ -21,4 +21,10 @@ public sealed record WalletDebitResult
 
     public static WalletDebitResult InsufficientBalance(WalletDebitFailure failure) =>
         new() { Succeeded = false, Failure = failure };
+
+    /// <summary>
+    /// Nothing taken because the debit could not be written (the database failed): no
+    /// <see cref="Failure"/>, so a caller does not tell the player their balance was short.
+    /// </summary>
+    public static WalletDebitResult Failed() => new() { Succeeded = false };
 }

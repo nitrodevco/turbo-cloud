@@ -350,10 +350,12 @@ internal sealed class PlayerHabbiconGrain : Grain, IPlayerHabbiconGrain
                 await SendAsync(
                     new PurchaseErrorMessageComposer
                     {
-                        ErrorCode =
-                            debit.Failure?.CurrencyKind.CurrencyType == CurrencyType.Credits
-                                ? CatalogPurchaseErrorType.NotEnoughCredits
-                                : CatalogPurchaseErrorType.NotEnoughActivityPoints,
+                        ErrorCode = debit.Failure?.CurrencyKind.CurrencyType switch
+                        {
+                            null => CatalogPurchaseErrorType.PurchaseFailed,
+                            CurrencyType.Credits => CatalogPurchaseErrorType.NotEnoughCredits,
+                            _ => CatalogPurchaseErrorType.NotEnoughActivityPoints,
+                        },
                     },
                     ct
                 );
