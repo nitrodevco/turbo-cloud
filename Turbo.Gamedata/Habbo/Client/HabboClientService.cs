@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Assets;
 using Turbo.Assets.Asar;
+using Turbo.Assets.Swf;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -32,6 +33,12 @@ namespace Turbo.Gamedata.Habbo.Client;
 /// <c>release-manifest.json</c> lists, and kept under the bundle folder
 /// (<c>.habbo-client/releases/&lt;version&gt;/</c>) with a <c>release.json</c>; the newest
 /// <see cref="GamedataConfig.ClientKeepReleases"/>, and every one an environment is on, are kept.
+/// <para>
+/// The same clienturls name Habbo's AIR client: <c>flash-windows-version</c> and
+/// <c>flash-windows</c>, a <c>HabboWin.zip</c> holding <c>HabboAir.swf</c>. Its newest release is
+/// downloaded when a build first asks for it (<see cref="ReadAirAsync"/>), and only its
+/// <c>HabboAir.swf</c> kept (<c>.habbo-client/air/&lt;version&gt;/</c>), the newest only.
+/// </para>
 /// </summary>
 internal sealed partial class HabboClientService(
     IHttpClientFactory httpClients,
@@ -51,6 +58,8 @@ internal sealed partial class HabboClientService(
     private const string BUILD_INFO = "habbo-air/launcher-build-info.json";
     private const string ZIP_ASAR = "resources/app.asar";
     private const long MAX_ASAR = 512L * 1024 * 1024;
+    private const string AIR_FOLDER = "air";
+    private const string AIR_SWF = "HabboAir.swf";
 
     private static readonly JsonSerializerOptions JSON = new() { WriteIndented = true };
 
@@ -116,7 +125,7 @@ internal sealed partial class HabboClientService(
 
         foreach (var (name, host) in ENVIRONMENTS)
         {
-            var (version, url, error) = await AskAsync(host, ct).ConfigureAwait(false);
+            var (version, url, air, error) = await AskAsync(host, ct).ConfigureAwait(false);
 
             await UpdateEnvironmentAsync(
                     name,
@@ -127,6 +136,8 @@ internal sealed partial class HabboClientService(
                                 CheckedAt = time.GetUtcNow().UtcDateTime,
                                 LiveVersion = version,
                                 LiveUrl = url,
+                                AirVersion = air?.Version,
+                                AirUrl = air?.Url,
                                 Error = null,
                             }
                             : state with
@@ -232,11 +243,16 @@ internal sealed partial class HabboClientService(
             .FirstOrDefault(x => environments.GetValueOrDefault(x)?.Version is not null);
     }
 
-    /// <summary>What an environment's clienturls name: the release and its address, or why it could not be asked.</summary>
-    private async Task<(string? Version, string? Url, string? Error)> AskAsync(
-        string host,
-        CancellationToken ct
-    )
+    /// <summary>
+    /// What an environment's clienturls name: the release and its address, the AIR client's, or why
+    /// it could not be asked.
+    /// </summary>
+    private async Task<(
+        string? Version,
+        string? Url,
+        (string Version, string Url)? Air,
+        string? Error
+    )> AskAsync(string host, CancellationToken ct)
     {
         var url = $"https://{host}/gamedata/clienturls";
 
@@ -246,12 +262,12 @@ internal sealed partial class HabboClientService(
             using var response = await http.GetAsync(url, ct).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
-                return (null, null, $"{(int)response.StatusCode}: {url}");
+                return (null, null, null, $"{(int)response.StatusCode}: {url}");
 
             var text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
             if (JsonNode.Parse(text) is not JsonObject urls)
-                return (null, null, "clienturls is not an object.");
+                return (null, null, null, "clienturls is not an object.");
 
             string? Read(string key) =>
                 urls[key] is JsonValue value && value.TryGetValue<string>(out var s) && s.Length > 0
@@ -260,21 +276,131 @@ internal sealed partial class HabboClientService(
 
             var version = Read("html-windows-version");
             var address = Read("html-windows");
+            (string Version, string Url)? air =
+                Read("flash-windows-version") is { } airVersion
+                && IsVersion(airVersion)
+                && Read("flash-windows") is { } airAddress
+                    ? (airVersion, airAddress)
+                    : null;
 
             // A version and no address is no client (production's "0").
             if (version is null || address is null)
-                return (null, null, null);
+                return (null, null, air, null);
 
             return IsVersion(version)
-                ? (version, address, null)
-                : (null, null, $"clienturls names a release this server won't keep: {version}");
+                ? (version, address, air, null)
+                : (
+                    null,
+                    null,
+                    air,
+                    $"clienturls names a release this server won't keep: {version}"
+                );
         }
         catch (Exception ex)
             when (ex is HttpRequestException or JsonException or TaskCanceledException
                 && !ct.IsCancellationRequested
             )
         {
-            return (null, null, ex.Message);
+            return (null, null, null, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// The newest release of Habbo's AIR client the environments named when last asked (the highest
+    /// <c>flash-windows-version</c>), and its address; null when none named one.
+    /// </summary>
+    public async Task<(string Version, string Url)?> NewestAirAsync(CancellationToken ct)
+    {
+        var environments = await ReadEnvironmentsAsync(ct).ConfigureAwait(false);
+
+        return environments
+            .Values.Where(x => x.AirVersion is { } v && IsVersion(v) && x.AirUrl is not null)
+            .OrderByDescending(x => long.TryParse(x.AirVersion, out var n) ? n : -1)
+            .ThenByDescending(x => x.AirVersion, StringComparer.Ordinal)
+            .Select(x => ((string Version, string Url)?)(x.AirVersion!, x.AirUrl!))
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Habbo's AIR client's <c>HabboAir.swf</c> of the release: the one kept, else downloaded from
+    /// its <c>HabboWin.zip</c> and kept in place of the one before.
+    /// </summary>
+    public async Task<byte[]> ReadAirAsync(string version, string url, CancellationToken ct)
+    {
+        if (!IsVersion(version))
+            throw new InvalidDataException(
+                $"Habbo's AIR client {version} is not a release this server keeps."
+            );
+
+        var folder = Path.Combine(Root, AIR_FOLDER);
+        var path = Path.Combine(folder, version, AIR_SWF);
+
+        if (File.Exists(path))
+            return await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+
+        var partial = Path.Combine(folder, $"{version}.{Guid.NewGuid():N}.partial");
+
+        Directory.CreateDirectory(partial);
+
+        try
+        {
+            logger.LogInformation(
+                "Downloading Habbo's AIR client {Version} from {Url}",
+                version,
+                url
+            );
+
+            var zipPath = Path.Combine(partial, "client.zip");
+
+            await DownloadToAsync(url, zipPath, null, null, ct).ConfigureAwait(false);
+
+            using (var zip = ZipFile.OpenRead(zipPath))
+            {
+                var entry =
+                    zip.Entries.FirstOrDefault(x => x.FullName.Replace('\\', '/') == AIR_SWF)
+                    ?? throw new InvalidDataException(
+                        $"Habbo's AIR client {version} has no {AIR_SWF}."
+                    );
+
+                if (entry.Length > AssetLimits.MAX_INFLATED_BYTES)
+                    throw new InvalidDataException(
+                        $"Habbo's AIR client {version} has a {AIR_SWF} larger than this server takes."
+                    );
+
+                entry.ExtractToFile(Path.Combine(partial, AIR_SWF));
+            }
+
+            File.Delete(zipPath);
+
+            var data = await File.ReadAllBytesAsync(Path.Combine(partial, AIR_SWF), ct)
+                .ConfigureAwait(false);
+
+            if (!SwfLibrary.IsSwf(data))
+                throw new InvalidDataException(
+                    $"Habbo's AIR client {version} has a {AIR_SWF} that is not an SWF."
+                );
+
+            // Only the newest is kept.
+            foreach (var before in Directory.EnumerateDirectories(folder))
+                if (!before.EndsWith(".partial", StringComparison.Ordinal))
+                    Directory.Delete(before, recursive: true);
+
+            Directory.Move(partial, Path.Combine(folder, version));
+            logger.LogInformation(
+                "Habbo's AIR client {Version} downloaded: {Bytes} bytes of {File}",
+                version,
+                data.Length,
+                AIR_SWF
+            );
+
+            return data;
+        }
+        catch
+        {
+            if (Directory.Exists(partial))
+                Directory.Delete(partial, recursive: true);
+
+            throw;
         }
     }
 
@@ -785,6 +911,8 @@ internal sealed partial class HabboClientService(
         public DateTime? CheckedAt { get; init; }
         public string? LiveVersion { get; init; }
         public string? LiveUrl { get; init; }
+        public string? AirVersion { get; init; }
+        public string? AirUrl { get; init; }
         public string? Error { get; init; }
         public string? Version { get; init; }
     }

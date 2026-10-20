@@ -55,11 +55,14 @@ internal static partial class ClientTemplates
     /// <summary>
     /// Every library's templates and bitmaps packed into its bundle; <paramref name="windowManager"/>
     /// is the library every other one falls back to, among <paramref name="libraries"/> or not.
+    /// <paramref name="extra"/> are bitmaps a library has elsewhere (<see cref="ClientAirImages"/>),
+    /// by library and asset name: found after its own, and packed with them.
     /// </summary>
     public static Packed Pack(
         string version,
         IReadOnlyList<(string Name, HabLibrary Hab)> libraries,
-        HabLibrary windowManager
+        HabLibrary windowManager,
+        IReadOnlyDictionary<string, Dictionary<string, byte[]>>? extra = null
     )
     {
         var skinLayout = SkinLayouts(windowManager);
@@ -131,7 +134,15 @@ internal static partial class ClientTemplates
                     if (held.ContainsKey(assetName))
                         return assetName;
 
-                    if (Bitmap(sourceHab, asset) is { } data)
+                    if (
+                        (
+                            Bitmap(sourceHab, asset)
+                            ?? extra
+                                ?.GetValueOrDefault(source)
+                                ?.GetValueOrDefault(BitmapName(asset))
+                        ) is
+                        { } data
+                    )
                     {
                         held[assetName] = data;
 
@@ -201,6 +212,9 @@ internal static partial class ClientTemplates
                 if (!held.ContainsKey(assetName) && Bitmap(hab, asset) is { } data)
                     held[assetName] = data;
             }
+
+            foreach (var (asset, data) in extra?.GetValueOrDefault(name) ?? [])
+                held.TryAdd(AssetName(name, asset), data);
         }
 
         var bundles = new Dictionary<string, Dictionary<string, byte[]>>(StringComparer.Ordinal);
@@ -313,6 +327,24 @@ internal static partial class ClientTemplates
             if (LayoutTemplateMapper.RootTag(text) == "layout")
                 yield return (entry.Name, text);
         }
+    }
+
+    /// <summary>Whether <see cref="Bitmap"/> finds a bitmap by the asset name, asked by name alone.</summary>
+    public static bool HasBitmap(HabLibrary hab, string asset)
+    {
+        foreach (var name in new[] { asset, $"{asset}_png" })
+        {
+            if (hab.Entries.FirstOrDefault(x => x.Name == name) is { } entry)
+                return entry.MimeType.StartsWith("image/", StringComparison.Ordinal);
+
+            if (
+                hab.Manifest.Aliases?.FirstOrDefault(x => x.Name == name) is { } alias
+                && hab.Entries.Any(x => x.Name == alias.Ref)
+            )
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
