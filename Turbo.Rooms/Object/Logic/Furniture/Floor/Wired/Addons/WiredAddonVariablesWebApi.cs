@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -14,6 +13,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -29,7 +29,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// chosen by hand. Picking the box up drops its wired data, so the keys are different when it is
 /// placed again (<c>wiredfurni.web_api.pickup.body</c>).
 /// </summary>
-[RoomObjectLogic("wf_xtra_var_web_api")]
+[RoomObjectLogic(WiredWebApiKeys.ADDON_LOGIC)]
 public class WiredAddonVariablesWebApi(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
@@ -56,9 +56,9 @@ public class WiredAddonVariablesWebApi(
 
     protected override int GetStringParamMaxLength() => 512;
 
-    public string ReadKey => KeyAt(_wiredData.StringParam, 0);
+    public string ReadKey => WiredWebApiKeys.ReadKeyOf(_wiredData.StringParam);
 
-    public string WriteKey => KeyAt(_wiredData.StringParam, 1);
+    public string WriteKey => WiredWebApiKeys.WriteKeyOf(_wiredData.StringParam);
 
     /// <summary>"Allow mass deletion": the bulk-delete endpoint, never without a write key.</summary>
     public bool AllowsBulkDelete => WriteKey.Length > 0 && GetIntParamOrDefault(0, false);
@@ -79,8 +79,8 @@ public class WiredAddonVariablesWebApi(
         CancellationToken ct
     )
     {
-        var read = KeyAt(update.StringParam, 0);
-        var write = KeyAt(update.StringParam, 1);
+        var read = WiredWebApiKeys.ReadKeyOf(update.StringParam);
+        var write = WiredWebApiKeys.WriteKeyOf(update.StringParam);
 
         if (
             !IsKnownKey(read, ReadKey, _issuedReadKeys)
@@ -95,7 +95,7 @@ public class WiredAddonVariablesWebApi(
             ctx,
             update with
             {
-                StringParam = read + KEY_SEPARATOR + write,
+                StringParam = read + WiredWebApiKeys.SEPARATOR + write,
             },
             ct
         );
@@ -104,22 +104,6 @@ public class WiredAddonVariablesWebApi(
     public override FurniturePickupConfirmation? GetPickupConfirmation() =>
         FurniturePickupConfirmation.WiredWebApi;
 
-    /// <summary>Whether <paramref name="sent"/> matches <paramref name="key"/> (a set key, compared in constant time).</summary>
-    public static bool Matches(string? sent, string key) =>
-        key.Length > 0
-        && sent is not null
-        && CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(sent),
-            Encoding.UTF8.GetBytes(key)
-        );
-
     private static bool IsKnownKey(string key, string current, HashSet<string> issued) =>
         key.Length == 0 || key == current || issued.Contains(key);
-
-    private static string KeyAt(string? stringParam, int index)
-    {
-        var parts = (stringParam ?? string.Empty).Split(KEY_SEPARATOR);
-
-        return index < parts.Length ? parts[index].Trim() : string.Empty;
-    }
 }

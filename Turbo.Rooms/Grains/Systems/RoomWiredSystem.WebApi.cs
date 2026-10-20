@@ -61,7 +61,7 @@ public sealed partial class RoomWiredSystem
 
         await addon.EnsureWiredLoadedAsync(ct);
 
-        var (reads, writes) = KeysNeeded(request.Operation);
+        var (reads, writes) = WiredWebApiKeys.KeysNeeded(request.Operation);
 
         if (reads && KeyRefusal(request.ReadKey, addon.ReadKey) is { } readRefusal)
             return readRefusal;
@@ -85,28 +85,12 @@ public sealed partial class RoomWiredSystem
         }
     }
 
-    private static (bool reads, bool writes) KeysNeeded(WiredWebApiOperation operation) =>
-        operation switch
-        {
-            WiredWebApiOperation.Batch => (true, true),
-            WiredWebApiOperation.PutValue
-            or WiredWebApiOperation.PatchValue
-            or WiredWebApiOperation.DeleteValue
-            or WiredWebApiOperation.BulkDelete
-            or WiredWebApiOperation.PatchGlobal
-            or WiredWebApiOperation.PatchUserProfile
-            or WiredWebApiOperation.DeleteUserProfile
-            or WiredWebApiOperation.PatchFurniProfile
-            or WiredWebApiOperation.PatchGlobalProfile => (false, true),
-            _ => (true, false),
-        };
-
     private static WiredWebApiResponse? KeyRefusal(string? sent, string key)
     {
         if (string.IsNullOrEmpty(sent))
             return WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_MISSING);
 
-        return WiredAddonVariablesWebApi.Matches(sent, key)
+        return WiredWebApiKeys.Matches(sent, key)
             ? null
             : WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_INVALID);
     }
