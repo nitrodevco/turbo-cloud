@@ -351,9 +351,11 @@ public sealed partial class RoomWiredSystem
     }
 
     /// <summary>
-    /// A held value as the menu lists it, its times printed in the room's wired timezone as the
-    /// room log prints its own (inference: no official sample of the text yet); a time the value
-    /// does not know is left blank.
+    /// A held value as the menu lists it, its times also printed as <c>dd-MM-yyyy HH:mm:ss</c>
+    /// (official client capture, WIN63-202610201032: "20-10-2026 22:52:00" for 1792533120544, an
+    /// hour ahead of UTC). Printed in the room's wired timezone, as the room log prints its own
+    /// (inference: which clock Habbo uses is not known); a time the value does not know is left
+    /// blank.
     /// </summary>
     private WiredStoredVariableValueSnapshot StoredValue(
         string variableId,
@@ -376,5 +378,5 @@ public sealed partial class RoomWiredSystem
             ? string.Empty
             : TimeZoneInfo
                 .ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(epochMs), GetRoomTimeZone())
-                .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                .ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
 }

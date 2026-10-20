@@ -140,6 +140,9 @@ public sealed class WiredVariableManagementTests
         page.Owners.Select(x => (x.EntityType, x.EntityId, x.EntityName, x.Value.Value))
             .Should()
             .Equal((USER, BOB, "bob", 9), (USER, ALICE, "alice", 5));
+        // Habbo prints the times as "20-10-2026 22:52:00" (official client capture).
+        page.Owners[0].Value.CreatedAtMs.Should().BeGreaterThan(0);
+        page.Owners[0].Value.CreatedAtText.Should().MatchRegex(@"^\d\d-\d\d-\d{4} \d\d:\d\d:\d\d$");
 
         var lowest = await Wired.GetVariableOwnersPageAsync(coins, 1, 50, 1, -1, Ct);
 
