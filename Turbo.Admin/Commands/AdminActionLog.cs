@@ -13,8 +13,8 @@ namespace Turbo.Admin.Commands;
 /// <summary>
 /// Writes a panel action to the command log as <c>&lt;command&gt; &lt;arguments&gt;</c>, from the
 /// <c>panel</c>, whoever takes it: unlike a command, which is logged only for holders of
-/// <c>command.log</c>, these change the server (a plugin, a restart) or cannot be undone (a group
-/// deleted), so every one is kept, refusals included.
+/// <c>command.log</c>, these change the server (a plugin, a restart), cannot be undone (a group
+/// deleted) or are what a command would do (a badge given or taken), so every one is kept.
 /// </summary>
 public sealed class AdminActionLog(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -29,6 +29,9 @@ public sealed class AdminActionLog(
 
     /// <summary>A group deleted by staff: <c>group delete &lt;id&gt;</c>.</summary>
     public const string GROUP = "group";
+
+    /// <summary>A badge given or taken on the Content page: <c>badge give|take &lt;code&gt; &lt;player id&gt;</c>.</summary>
+    public const string BADGE = "badge";
 
     public const string SOURCE = "panel";
 

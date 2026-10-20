@@ -1049,7 +1049,7 @@ passkey; they add more while signed in instead.
 | `admin.settings.view` | The Settings page: every server setting, where its value comes from and what waits on a restart. Secrets are never shown. |
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 | `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
-| `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity and giving or taking them, and the rest of its tabs. |
+| `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity, giving or taking them (with `command.givebadge` or `command.takebadge` as well, as `:givebadge` and `:takebadge` need, each in the command log), and the rest of its tabs. |
 | `admin.plugins.view` | The Plugins page: each plugin's manifest, whether it loaded and why not, and the capabilities, packet headers and migrations it added. |
 | `admin.plugins.manage` | Reloading a plugin, scanning the plugin folders again, and turning a plugin off or on on that page. |
 | `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
