@@ -318,5 +318,85 @@
                 "ActivityPointType": 5
             }
         ]
+    },
+    {
+        "Id": 9,
+        "Name": "zombie",
+        "RewardHabbiconId": 82,
+        "PriceCredits": 0,
+        "PriceActivityPoints": 0,
+        "ActivityPointType": 0,
+        "Habbicons": [
+            {
+                "Id": 72,
+                "Name": "zombie_zombie",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 73,
+                "Name": "zombie_glee",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 74,
+                "Name": "zombie_dizzy",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 75,
+                "Name": "zombie_hungry",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 76,
+                "Name": "zombie_rage",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 77,
+                "Name": "zombie_terror",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 78,
+                "Name": "zombie_panic",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 79,
+                "Name": "zombie_melt",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 80,
+                "Name": "zombie_nobrain",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            },
+            {
+                "Id": 81,
+                "Name": "zombie_bandage",
+                "PriceCredits": 0,
+                "PriceActivityPoints": 0,
+                "ActivityPointType": 0
+            }
+        ]
     }
 ]

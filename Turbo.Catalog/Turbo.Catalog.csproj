@@ -6,7 +6,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources/habbo-habbicons-2026-10-12.json" />
+    <EmbeddedResource Include="Resources/habbo-habbicons-2026-10-17.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />

@@ -26,15 +26,26 @@ public static class WholeCollectionBinding
     // Deeper than any config nests: a class that holds itself would never end.
     private const int MAX_DEPTH = 8;
 
-    /// <summary>Binds the collections of every config class of the container whole.</summary>
+    /// <summary>
+    /// Binds the collections of every config class of the container whole. The rebind goes
+    /// first among the steps after binding, wherever it is added: a module's own step after
+    /// binding (Habbo's Habbicons for a hotel that lists none) builds on the configured lists,
+    /// and is not undone by them.
+    /// </summary>
     public static IServiceCollection AddWholeCollectionBinding(this IServiceCollection services)
     {
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton(
-                typeof(IPostConfigureOptions<>),
-                typeof(WholeCollectionPostConfigure<>)
-            )
+        var descriptor = ServiceDescriptor.Singleton(
+            typeof(IPostConfigureOptions<>),
+            typeof(WholeCollectionPostConfigure<>)
         );
+
+        if (
+            !services.Any(x =>
+                x.ServiceType == descriptor.ServiceType
+                && x.ImplementationType == descriptor.ImplementationType
+            )
+        )
+            services.Insert(0, descriptor);
 
         return services;
     }
@@ -208,7 +219,7 @@ public static class WholeCollectionBinding
         && type != typeof(Uri)
         && !typeof(IEnumerable).IsAssignableFrom(type);
 
-    /// <summary>Rebinds the options of a class that names its section, after every other step.</summary>
+    /// <summary>Rebinds the options of a class that names its section, after the binder.</summary>
     private sealed class WholeCollectionPostConfigure<T>(IConfiguration configuration)
         : IPostConfigureOptions<T>
         where T : class
