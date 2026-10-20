@@ -4,10 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Badges;
 using Turbo.Primitives.Badges.Enums;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Admin.Content;
 
@@ -16,7 +18,10 @@ namespace Turbo.Admin.Content;
 /// rarity for, with how many hold it, and who. A badge needs no row of its own; a row in
 /// <c>badge_definitions</c> only pins its rarity.
 /// </summary>
-public sealed class AdminBadgeQueries(IDbContextFactory<TurboDbContext> dbCtxFactory)
+public sealed class AdminBadgeQueries(
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IGrainFactory grainFactory
+)
 {
     /// <summary>Badges found at most, and holders listed at most.</summary>
     public const int LIMIT = 100;
@@ -95,7 +100,11 @@ public sealed class AdminBadgeQueries(IDbContextFactory<TurboDbContext> dbCtxFac
             .ConfigureAwait(false);
     }
 
-    /// <summary>Pins a badge's rarity, or with none lets it be counted from how many hold it.</summary>
+    /// <summary>
+    /// Pins a badge's rarity, or with none lets it be counted from how many hold it. The badge
+    /// directory reads it again at once: it kept the pinned rarities it loaded until its next
+    /// recount (<c>BadgeConfig.OwnerCountRefreshMs</c>).
+    /// </summary>
     public async Task SetRarityAsync(string code, BadgeRarityType? rarity, CancellationToken ct)
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -122,5 +131,9 @@ public sealed class AdminBadgeQueries(IDbContextFactory<TurboDbContext> dbCtxFac
         }
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        await grainFactory
+            .GetBadgeDirectoryGrain()
+            .RefreshCodesAsync([code], ct)
+            .ConfigureAwait(false);
     }
 }

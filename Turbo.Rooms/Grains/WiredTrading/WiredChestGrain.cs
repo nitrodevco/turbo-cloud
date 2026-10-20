@@ -236,9 +236,12 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             if (!debit.Succeeded)
                 return (
-                    debit.Failure?.CurrencyKind == credits
-                        ? UpgradeChestResultType.InsufficientCredits
-                        : UpgradeChestResultType.InsufficientDiamonds,
+                    debit.Failure?.CurrencyKind switch
+                    {
+                        null => UpgradeChestResultType.Error4,
+                        var kind when kind == credits => UpgradeChestResultType.InsufficientCredits,
+                        _ => UpgradeChestResultType.InsufficientDiamonds,
+                    },
                     BuildSummary(chest)
                 );
         }
