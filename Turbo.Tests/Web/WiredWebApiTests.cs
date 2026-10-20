@@ -540,6 +540,29 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_body_past_the_limit_in_bytes_is_refused_whole()
+    {
+        await using var limited = new WiredWebApiTests(new WiredApiConfig { MaxBodyBytes = 16 });
+        var (_, write) = await limited.SetUpAsync();
+        var path = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
+
+        // 16 characters but 18 bytes (an é takes two in UTF-8): counted in characters it fitted.
+        (
+            await limited.SendAsync(
+                HttpMethod.Put,
+                path,
+                write: write,
+                body: """{"value":"5"} éé"""
+            )
+        )
+            .Status.Should()
+            .Be(413);
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: """{"value":"5"}   """))
+            .Status.Should()
+            .Be(200);
+    }
+
+    [Fact]
     public async Task Mass_deletion_only_works_when_the_box_allows_it()
     {
         var (_, write) = await SetUpAsync(allowBulkDelete: false);

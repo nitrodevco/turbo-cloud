@@ -135,6 +135,16 @@ internal sealed class WiredVariablesEndpoints(
             return;
         }
 
+        var (body, tooLarge) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
+
+        if (tooLarge)
+        {
+            await WriteAsync(http, StatusCodes.Status413PayloadTooLarge, null)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         var query = http.Request.Query;
         var (playerId, playerName) = await FindPlayerAsync(
                 operation,
@@ -154,7 +164,7 @@ internal sealed class WiredVariablesEndpoints(
             VariableName = route["variableName"] as string ?? string.Empty,
             TargetKind = route["targetKind"] as string ?? string.Empty,
             EntityId = route["entityId"] as string ?? string.Empty,
-            Body = await ReadBodyAsync(http, ct).ConfigureAwait(false),
+            Body = body,
             Page = Number(query["page"]),
             Size = Number(query["size"]),
             OrderBy = query["order_by"],
@@ -299,7 +309,15 @@ internal sealed class WiredVariablesEndpoints(
     private static string? Header(HttpContext http, string name) =>
         http.Request.Headers.TryGetValue(name, out var value) ? value.ToString() : null;
 
-    private async Task<string?> ReadBodyAsync(HttpContext http, CancellationToken ct)
+    /// <summary>
+    /// The body of a POST, PUT or PATCH, read up to <see cref="WiredApiConfig.MaxBodyBytes"/>
+    /// bytes. A longer one is not cut short (which would leave a different JSON document, or a
+    /// broken one) but refused whole.
+    /// </summary>
+    private async Task<(string? Body, bool TooLarge)> ReadBodyAsync(
+        HttpContext http,
+        CancellationToken ct
+    )
     {
         if (
             http.Request.ContentLength is 0
@@ -309,13 +327,33 @@ internal sealed class WiredVariablesEndpoints(
                 || HttpMethods.IsPatch(http.Request.Method)
             )
         )
-            return null;
+            return (null, false);
 
-        var buffer = new char[Api.MaxBodyBytes];
-        using var reader = new StreamReader(http.Request.Body, Encoding.UTF8);
-        var read = await reader.ReadBlockAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+        var limit = Api.MaxBodyBytes;
 
-        return read == 0 ? null : new string(buffer, 0, read);
+        if (http.Request.ContentLength > limit)
+            return (null, true);
+
+        // One byte past the limit tells a body that is too long from one that just fits.
+        var buffer = new byte[limit + 1];
+        var read = 0;
+
+        while (read < buffer.Length)
+        {
+            var count = await http
+                .Request.Body.ReadAsync(buffer.AsMemory(read), ct)
+                .ConfigureAwait(false);
+
+            if (count == 0)
+                break;
+
+            read += count;
+        }
+
+        if (read > limit)
+            return (null, true);
+
+        return (read == 0 ? null : Encoding.UTF8.GetString(buffer, 0, read), false);
     }
 
     private static string Error(string code) => new JsonObject { ["error"] = code }.ToJsonString();
