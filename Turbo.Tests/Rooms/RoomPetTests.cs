@@ -2,9 +2,14 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Bots.Enums;
+using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Messages.Outgoing.Room.Bots;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
@@ -32,6 +37,9 @@ public sealed class RoomPetTests
 {
     private const int OWNER = 9;
     private const int PET = 40;
+    private const int PET2 = 41;
+    private const int BOT = 50;
+    private const int BOT2 = 51;
     private const int CAT = 1;
 
     private readonly LiveRoomHarness _harness = new(10, 10);
@@ -184,8 +192,111 @@ public sealed class RoomPetTests
             .Equal(counts ? [RewardTrackActionTypes.PET_OTHER_USERS_ROOM] : []);
     }
 
+    /// <summary>
+    /// Two pets put down on one tile while the first is still being taken out of the inventory:
+    /// both pass the tile check and the first stands there. A pet put on a taken tile is refused
+    /// (PetPlacingError 4, RSEME_SELECTED_TILE_NOT_FREE_FOR_PET: RoomUsersHandler.as:523-525) and
+    /// stays its owner's; ours put the second down on another tile instead.
+    /// </summary>
+    [Fact]
+    public async Task A_second_pet_put_on_the_same_tile_meanwhile_is_refused_and_given_back()
+    {
+        var checkOuts = new Dictionary<int, TaskCompletionSource<PetSnapshot?>>
+        {
+            [PET] = new(),
+            [PET2] = new(),
+        };
+        _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = call =>
+            checkOuts[(int)call.Args[0]!].Task;
+        _harness.Fakes.Handlers[nameof(IInventoryGrain.ReturnPetAsync)] = _ =>
+            Task.FromResult(true);
+
+        var first = _harness.Room.PlacePetAsync(Owner, PET, 4, 4, Ct);
+        var second = _harness.Room.PlacePetAsync(Owner, PET2, 4, 4, Ct);
+
+        checkOuts[PET].SetResult(Pet());
+        (await first).Should().BeTrue();
+        checkOuts[PET2].SetResult(Pet() with { Id = PET2 });
+        (await second).Should().BeFalse("the tile was taken while the inventory was asked");
+
+        Pets.TryGetPet(PET2, out _).Should().BeFalse();
+        _harness
+            .Fakes.Log.Of(nameof(IInventoryGrain.ReturnPetAsync))
+            .Select(x => ((PetSnapshot)x.Args[0]!).Id)
+            .Should()
+            .Equal(PET2);
+        Sent<PetPlacingErrorMessageComposer>()
+            .Select(x => x.Error)
+            .Should()
+            .Equal(PetPlacingErrorType.SelectedTileNotFree);
+    }
+
+    /// <summary>
+    /// A bot is put down the same way, so the same: refused with its own taken-tile error
+    /// (BotError 3, RSEME_SELECTED_TILE_NOT_FREE_FOR_BOT: RoomUsersHandler.as:558-559) and given
+    /// back.
+    /// </summary>
+    [Fact]
+    public async Task A_second_bot_put_on_the_same_tile_meanwhile_is_refused_and_given_back()
+    {
+        RoomHarness.SetMember(Member("RoomSnapshot"), "OwnerId", (PlayerId)OWNER);
+        var checkOuts = new Dictionary<int, TaskCompletionSource<BotSnapshot?>>
+        {
+            [BOT] = new(),
+            [BOT2] = new(),
+        };
+        _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutBotAsync)] = call =>
+            checkOuts[(int)call.Args[0]!].Task;
+        _harness.Fakes.Handlers[nameof(IInventoryGrain.ReturnBotAsync)] = _ =>
+            Task.FromResult(true);
+
+        var first = _harness.Room.PlaceBotAsync(Owner, BOT, 4, 4, Ct);
+        var second = _harness.Room.PlaceBotAsync(Owner, BOT2, 4, 4, Ct);
+
+        checkOuts[BOT].SetResult(Bot(BOT));
+        (await first).Should().BeTrue();
+        checkOuts[BOT2].SetResult(Bot(BOT2));
+        (await second).Should().BeFalse("the tile was taken while the inventory was asked");
+
+        _harness
+            .Fakes.Log.Of(nameof(IInventoryGrain.ReturnBotAsync))
+            .Select(x => ((BotSnapshot)x.Args[0]!).Id)
+            .Should()
+            .Equal(BOT2);
+        Sent<BotErrorMessageComposer>()
+            .Select(x => x.Error)
+            .Should()
+            .Equal(BotErrorType.SelectedTileNotFree);
+    }
+
     private async Task PlaceAsync() =>
         (await Pets.PlacePetAsync(Owner, PET, 4, 4, Ct)).Should().BeTrue();
+
+    private IEnumerable<T> Sent<T>() =>
+        _harness.Fakes.Log.Calls.SelectMany(x => x.Args).OfType<T>();
+
+    private static BotSnapshot Bot(int id) =>
+        new()
+        {
+            Id = id,
+            OwnerId = OWNER,
+            OwnerName = "owner",
+            RoomId = null,
+            Name = "Bot",
+            Motto = string.Empty,
+            Figure = "hd-180-1",
+            Gender = AvatarGenderType.Male,
+            X = 0,
+            Y = 0,
+            Z = Altitude.Zero,
+            Rotation = Rotation.South,
+            FreeRoam = false,
+            ChatText = string.Empty,
+            AutoChat = false,
+            ChatDelaySeconds = 0,
+            MixSentences = false,
+            DanceType = AvatarDanceType.None,
+        };
 
     private void MoveOwnerTo(int x, int y) => _owner.SetPosition(x, y);
 
