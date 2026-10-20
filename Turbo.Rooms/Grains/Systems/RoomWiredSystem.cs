@@ -375,6 +375,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
+                ForgetUserVisualization(playerLeftEvt.ObjectId);
                 QueueEvent(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
@@ -382,6 +383,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ForgetStoredValuesOfUnownedFurni(detatchedEvt.ObjectId);
                 ForgetProjectileFlight(detatchedEvt.ObjectId);
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
+                ForgetFurniVisualization(detatchedEvt.ObjectId);
                 break;
             default:
                 QueueEvent(evt);

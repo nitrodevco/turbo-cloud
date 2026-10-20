@@ -63,4 +63,15 @@ public static class WiredSaveErrors
     /// <summary>"Delimiter can not be empty"</summary>
     public const string PLACEHOLDER_DELIMITER_EMPTY =
         "wiredfurni.error.placeholder.delimiter_empty";
+
+    /// <summary>
+    /// "Steady Color Tint only works on BC or temporary furniture. Normal furniture cannot use
+    /// this setting."
+    /// </summary>
+    public const string SET_FURNI_HIGHLIGHT_NORMAL_FURNI =
+        "wiredfurni.error.set_furni_highlight.normal_furni";
+
+    /// <summary>A Darken strength the hotel does not offer (no text on Habbo: the key shows).</summary>
+    public const string SET_FURNI_HIGHLIGHT_INVALID_STRENGTH =
+        "wiredfurni.error.set_furni_highlight.invalid_strength";
 }

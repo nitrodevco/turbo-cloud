@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Orleans;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -41,4 +42,12 @@ public sealed record RoomEntryViewSnapshot
     /// <summary>The areas hidden by a switched-on Room Area Hider, sent with the floor map.</summary>
     [Id(10)]
     public required ImmutableArray<AreaHideDataSnapshot> AreaHides { get; init; }
+
+    /// <summary>
+    /// The Set Visibility / Set Highlight effects the room keeps for everyone
+    /// (<c>WiredFurniVisualizationState</c> / <c>WiredUserVisualizationState</c>), sent right
+    /// after Users; none when the room keeps nothing.
+    /// </summary>
+    [Id(11)]
+    public ImmutableArray<IComposer> WiredVisualization { get; init; } = [];
 }

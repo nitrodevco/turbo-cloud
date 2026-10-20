@@ -149,6 +149,23 @@ public class WiredConfig
     public bool PlaceFurniBuildersClubOnly { get; init; } = true;
 
     /// <summary>
+    /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,
+    /// as on Habbo ("Steady Color Tint only works on BC or temporary furniture. Normal furniture
+    /// cannot use this setting.", <c>wiredfurni.error.set_furni_highlight.normal_furni</c>): a
+    /// save that picks other furni is refused and other furni a selector finds are left out. Off
+    /// lets any furni be tinted.
+    /// </summary>
+    public bool FurniHighlightSteadyTintBuildersClubOnly { get; init; } = true;
+
+    /// <summary>
+    /// The strengths Set Highlight's Darken may be saved with; keep it equal to the client variable
+    /// <c>wired.furni_highlight.darken_levels</c>, which the editor offers. Habbo's is <c>0</c>
+    /// (official external variables 2026-10-20), which hides Darken and refuses any strength above 0
+    /// with <c>wiredfurni.error.set_furni_highlight.invalid_strength</c>.
+    /// </summary>
+    public int[] FurniHighlightDarkenLevels { get; init; } = [0];
+
+    /// <summary>
     /// How long a player told that Place Temporary Furni could not place a copy is not told again;
     /// Habbo's is about 5 s (recorded: none 4.4 s after the last, one 6.6 s after). 0 tells them
     /// on every run that fails.
