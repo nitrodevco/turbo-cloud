@@ -257,8 +257,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
-        services.AddSingleton<Turbo.Admin.Plugins.AdminPluginAudit>();
-        services.AddSingleton<Turbo.Admin.Server.AdminRestartAudit>();
+        services.AddSingleton<Turbo.Admin.Commands.AdminActionLog>();
         services.AddSingleton(pluginRoutes ?? new Turbo.Plugins.PluginAdminRoutes());
 
         // Internal to Turbo.Admin, as the host knows it.

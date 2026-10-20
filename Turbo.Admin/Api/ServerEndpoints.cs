@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Commands;
-using Turbo.Admin.Server;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
@@ -22,12 +21,12 @@ namespace Turbo.Admin.Api;
 /// hold as the host stops, and the process ends with <c>Turbo:Operations:RestartExitCode</c>.
 /// Starting it again is the host's (Supervisor or systemd set to restart the process); without
 /// one it stays stopped, as after a shutdown. Every request, refused ones too, goes to the command
-/// log (<see cref="AdminRestartAudit"/>).
+/// log (<see cref="AdminActionLog"/>).
 /// </summary>
 internal sealed class ServerEndpoints(
     IGrainFactory grainFactory,
     IHotelAvailability availability,
-    AdminRestartAudit audit
+    AdminActionLog audit
 )
 {
     private const string NO_RESTART = "You can't restart the server.";
@@ -58,7 +57,7 @@ internal sealed class ServerEndpoints(
         if (!await CanRestartAsync(http, ct).ConfigureAwait(false))
         {
             await audit
-                .WriteAsync(player, arguments, CommandOutcome.Refused, ct)
+                .WriteAsync(AdminActionLog.RESTART, player, arguments, CommandOutcome.Refused, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_RESTART);
@@ -69,7 +68,13 @@ internal sealed class ServerEndpoints(
         if (request.Minutes is not { } minutes || minutes < 0 || minutes > max)
         {
             await audit
-                .WriteAsync(player, arguments, CommandOutcome.BindFailed, ct)
+                .WriteAsync(
+                    AdminActionLog.RESTART,
+                    player,
+                    arguments,
+                    CommandOutcome.BindFailed,
+                    ct
+                )
                 .ConfigureAwait(false);
 
             return AdminResults.Error(
@@ -81,7 +86,7 @@ internal sealed class ServerEndpoints(
         if (!availability.ScheduleRestart(TimeSpan.FromMinutes(minutes), reason))
         {
             await audit
-                .WriteAsync(player, arguments, CommandOutcome.Failed, ct)
+                .WriteAsync(AdminActionLog.RESTART, player, arguments, CommandOutcome.Failed, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(
@@ -91,7 +96,7 @@ internal sealed class ServerEndpoints(
         }
 
         await audit
-            .WriteAsync(player, arguments, CommandOutcome.Completed, ct)
+            .WriteAsync(AdminActionLog.RESTART, player, arguments, CommandOutcome.Completed, ct)
             .ConfigureAwait(false);
 
         return Results.Ok(StatusOf(true));
@@ -104,7 +109,7 @@ internal sealed class ServerEndpoints(
         if (!await CanRestartAsync(http, ct).ConfigureAwait(false))
         {
             await audit
-                .WriteAsync(player, CANCEL, CommandOutcome.Refused, ct)
+                .WriteAsync(AdminActionLog.RESTART, player, CANCEL, CommandOutcome.Refused, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_RESTART);
@@ -118,6 +123,7 @@ internal sealed class ServerEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.RESTART,
                 player,
                 CANCEL,
                 called ? CommandOutcome.Completed : CommandOutcome.Failed,
