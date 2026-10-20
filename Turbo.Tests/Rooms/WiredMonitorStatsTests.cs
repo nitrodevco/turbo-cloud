@@ -34,10 +34,10 @@ public sealed class WiredMonitorStatsTests
         stats!.FloorItemCount.Should().Be(4);
         stats.FloorItemCap.Should().Be(4000);
         stats.WallItemCap.Should().Be(4000);
-        // Sized by the owner's account level; this hotel's players are all level 1.
-        stats.ExecutionCostCap.Should().Be(2500);
-        stats.MaxPermanentFurniVariables.Should().Be(12);
-        stats.MaxPermanentUserVariables.Should().Be(50);
-        stats.MaxPermanentGlobalVariables.Should().Be(37);
+        // One cap for every room by default (WiredConfig.ExecutionCostCapPerOwnerLevel 0).
+        stats.ExecutionCostCap.Should().Be(4687.5);
+        stats.MaxPermanentFurniVariables.Should().Be(23);
+        stats.MaxPermanentUserVariables.Should().Be(93);
+        stats.MaxPermanentGlobalVariables.Should().Be(70);
     }
 }

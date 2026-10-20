@@ -67,15 +67,19 @@ public class WiredConfig
     /// (2500 for levels 3 and 4, 2812.5 for 7, 4687.5 for 13; WIN63-202610131318 and
     /// WIN63-202610201032), and a room loaded before its owner levelled up keeps its old cap
     /// until it unloads. This is the least cap, and every room's when
-    /// <see cref="ExecutionCostCapPerOwnerLevel"/> is 0. 0 or less is no cap.
+    /// <see cref="ExecutionCostCapPerOwnerLevel"/> is 0. 0 or less is no cap. The default keeps
+    /// every room at the level 13 cap, as before: this hotel's account levels are all the default
+    /// one, so Habbo's sizing (2500 and 312.5) would shrink every room. Set those two once
+    /// account levels are earned.
     /// </summary>
-    public double ExecutionCostCap { get; init; } = 2500;
+    public double ExecutionCostCap { get; init; } = 4687.5;
 
     /// <summary>
     /// What each of the owner's account levels (plus <see cref="ExecutionCostCapOwnerLevelOffset"/>)
-    /// is worth in usage cap, when that comes to more than <see cref="ExecutionCostCap"/>.
+    /// is worth in usage cap, when that comes to more than <see cref="ExecutionCostCap"/>; 0 (the
+    /// default) is one cap for every room. Habbo's: 312.5.
     /// </summary>
-    public double ExecutionCostCapPerOwnerLevel { get; init; } = 312.5;
+    public double ExecutionCostCapPerOwnerLevel { get; init; }
     public int ExecutionCostCapOwnerLevelOffset { get; init; } = 2;
 
     // What an execution adds to the usage: each stack it runs, each action, and each furni or
