@@ -236,6 +236,7 @@ public sealed class WiredExecutionModelTests
             new WiredConfig
             {
                 ExecutionCostCap = 5,
+                ExecutionCostCapPerOwnerLevel = 0,
                 ExecutionCostPerStack = 0,
                 ExecutionCostPerAction = 1,
                 ExecutionCostPerTarget = 0,

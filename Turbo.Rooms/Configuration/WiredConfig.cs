@@ -62,13 +62,21 @@ public class WiredConfig
     /// The room's wired usage budget, the monitor's "usage" limit. Usage is what recent executions
     /// cost, decaying over time; an execution that takes it past this is cancelled and
     /// EXECUTION_CAP is counted ("an execution is cancelled when it would exceed the usage cap",
-    /// in-client error help). Habbo sizes it per room by a formula it does not disclose, and the
-    /// permanent variable caps below scale with it (official client captures of WiredRoomStats):
-    /// 4687.5 with 23 / 93 / 70 variables for an owner of level 13, 2500 with 12 / 50 / 37 in
-    /// another room (WIN63-202610131318), a factor of about 1.875 throughout. The defaults are the
-    /// first room's, so cap and variable limits come from one room. 0 or less is no cap.
+    /// in-client error help). Habbo sizes it by the room owner's account level when the room
+    /// loads: max(2500, 312.5 x (level + 2)) fits every official client capture of WiredRoomStats
+    /// (2500 for levels 3 and 4, 2812.5 for 7, 4687.5 for 13; WIN63-202610131318 and
+    /// WIN63-202610201032), and a room loaded before its owner levelled up keeps its old cap
+    /// until it unloads. This is the least cap, and every room's when
+    /// <see cref="ExecutionCostCapPerOwnerLevel"/> is 0. 0 or less is no cap.
     /// </summary>
-    public double ExecutionCostCap { get; init; } = 4687.5;
+    public double ExecutionCostCap { get; init; } = 2500;
+
+    /// <summary>
+    /// What each of the owner's account levels (plus <see cref="ExecutionCostCapOwnerLevelOffset"/>)
+    /// is worth in usage cap, when that comes to more than <see cref="ExecutionCostCap"/>.
+    /// </summary>
+    public double ExecutionCostCapPerOwnerLevel { get; init; } = 312.5;
+    public int ExecutionCostCapOwnerLevelOffset { get; init; } = 2;
 
     // What an execution adds to the usage: each stack it runs, each action, and each furni or
     // user an action works on (a signal's antennas and a call's stacks are not targets). Habbo's
@@ -124,13 +132,14 @@ public class WiredConfig
     public int MaxWallItems { get; init; } = 4000;
 
     /// <summary>
-    /// Permanent variable definitions a room may hold per kind. Habbo sizes these per room with
-    /// its usage cap (<see cref="ExecutionCostCap"/>): official client captures show 23 furni / 93
-    /// user / 70 global with a cap of 4687.5, and 12 / 50 / 37 with 2500.
+    /// Permanent variable definitions a room may hold per kind, per 10000 of its usage cap
+    /// (<see cref="ExecutionCostCap"/> for its owner's level), rounded down: official client
+    /// captures of WiredRoomStats show 12 furni / 50 user / 37 global at 2500, 14 / 56 / 42 at
+    /// 2812.5 and 23 / 93 / 70 at 4687.5. 0 or less is no cap for that kind.
     /// </summary>
-    public int MaxPermanentFurniVariables { get; init; } = 23;
-    public int MaxPermanentUserVariables { get; init; } = 93;
-    public int MaxPermanentGlobalVariables { get; init; } = 70;
+    public int PermanentFurniVariablesPer10000Cap { get; init; } = 50;
+    public int PermanentUserVariablesPer10000Cap { get; init; } = 200;
+    public int PermanentGlobalVariablesPer10000Cap { get; init; } = 150;
 
     // The bounds a saved box is checked against.
     // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how

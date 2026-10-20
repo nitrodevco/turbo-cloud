@@ -273,6 +273,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             () => HydrateRoomStateAsync(ct)
         );
 
+        _state.OwnerAccountLevel = await GetOwnerAccountLevelAsync(ct);
+
         await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot, ct);
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
