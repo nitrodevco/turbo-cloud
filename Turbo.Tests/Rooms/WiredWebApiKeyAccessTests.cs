@@ -6,6 +6,7 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
@@ -55,6 +56,26 @@ public sealed class WiredWebApiKeyAccessTests
     }
 
     [Fact]
+    public async Task A_player_with_rights_who_may_edit_wired_neither_sees_nor_gets_keys()
+    {
+        const int WITH_RIGHTS = 3;
+        await SetUpAsync();
+        Enter(WITH_RIGHTS, []);
+        ((ISet<PlayerId>)RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!).Add(
+            (PlayerId)WITH_RIGHTS
+        );
+        foreach (var mask in new[] { "WiredModifyPermissionMask", "WiredReadPermissionMask" })
+            RoomHarness.SetMember(
+                RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!,
+                mask,
+                WiredPermissionFlags.Rights
+            );
+
+        (await GenerateAsync(WITH_RIGHTS)).Should().BeNull();
+        (await SnapshotAsync(WITH_RIGHTS)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Staff_granted_the_keys_node_see_and_set_them()
     {
         await SetUpAsync();
@@ -83,11 +104,7 @@ public sealed class WiredWebApiKeyAccessTests
 
     private async Task<string?> SnapshotAsync(int playerId) =>
         (
-            await _room.Harness.Room.GetWiredDataSnapshotByFloorItemIdAsync(
-                As(playerId),
-                ADDON,
-                Ct
-            )
+            await _room.Harness.Room.GetWiredDataSnapshotByFloorItemIdAsync(As(playerId), ADDON, Ct)
         )?.StringParam;
 
     private Task<WiredSaveResult> SaveAsync(int playerId, string keys) =>

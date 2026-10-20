@@ -581,19 +581,50 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         var path = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
 
         // 16 characters but 18 bytes (an é takes two in UTF-8): counted in characters it fitted.
-        (
-            await limited.SendAsync(
-                HttpMethod.Put,
-                path,
-                write: write,
-                body: """{"value":"5"} éé"""
-            )
-        )
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: """{"value":"5"} éé"""))
             .Status.Should()
             .Be(413);
         (await limited.SendAsync(HttpMethod.Put, path, write: write, body: """{"value":"5"}   """))
             .Status.Should()
             .Be(200);
+    }
+
+    [Fact]
+    public async Task Mass_deletion_empties_the_named_variables_when_the_box_allows_it()
+    {
+        var (read, write) = await SetUpAsync();
+        var hp = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
+
+        await JsonAsync(HttpMethod.Put, hp, write: write, body: """{"value":"3"}""");
+
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/public/rooms/1/variables/bulk-delete",
+                write: write,
+                body: """{"variables":["hp"]}"""
+            )
+        )
+            .Status.Should()
+            .Be(204);
+        (await SendAsync(HttpMethod.Get, hp, read: read))
+            .Should()
+            .Be((404, "wired.variables.not_found"));
+    }
+
+    [Fact]
+    public async Task A_batch_needs_both_keys()
+    {
+        var (read, write) = await SetUpAsync();
+        const string BATCH = "/api/public/rooms/1/variables/user/points/batch";
+        var body = $$"""{"requests":[{"method":"GET","path":"users/{{PLAYER_ID}}"}]}""";
+
+        (await SendAsync(HttpMethod.Post, BATCH, read: read, body: body))
+            .Should()
+            .Be((403, "wired.variables.key_missing"));
+        (await SendAsync(HttpMethod.Post, BATCH, write: write, body: body))
+            .Should()
+            .Be((403, "wired.variables.key_missing"));
     }
 
     [Fact]
@@ -673,7 +704,9 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         (await SendAsync(HttpMethod.Get, $"/api/public/rooms/{WITHOUT_ADDON}/variables", read: "x"))
             .Should()
             .Be((403, "wired.variables.api_disabled"));
-        _room.Harness.Fakes.Log.Calls.Should().NotContain(call => call.Interface == typeof(IRoomGrain));
+        _room
+            .Harness.Fakes.Log.Calls.Should()
+            .NotContain(call => call.Interface == typeof(IRoomGrain));
 
         (await SendAsync(HttpMethod.Get, asleep, read: "stored-read")).Status.Should().Be(200);
         _room
@@ -740,7 +773,9 @@ public sealed class WiredWebApiTests : IAsyncDisposable
                 .Be((403, "wired.variables.key_invalid"));
 
         // The room's own allowance is untouched by them.
-        (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read))
+            .Status.Should()
+            .Be(200);
         (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
         (await limited.RetryAfterAsync(PATH, read)).Should().Be((429, true));
 
