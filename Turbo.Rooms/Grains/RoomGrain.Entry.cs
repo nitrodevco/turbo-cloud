@@ -114,6 +114,7 @@ public sealed partial class RoomGrain
                         .Items.Select(x => (x.Logic as FurnitureAreaHideLogic)?.GetActiveArea())
                         .OfType<AreaHideDataSnapshot>(),
                 ],
+                WiredVisualization = [.. WiredSystem.GetVisualizationEntryState()],
             }
         );
 

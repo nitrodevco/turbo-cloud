@@ -47,11 +47,11 @@ public sealed partial class RoomWiredSystem
     ) => Keep(_userTransparencies, roomIndices, transparency);
 
     /// <summary>
-    /// The kept states for a player walking in, furni then users; nothing when there are none
-    /// (official client capture 3/3). Habbo sends the furni state right after the first Users,
-    /// before Objects; here it comes with the wired entry state (the client buffers it either way).
+    /// The kept states for a player walking in, furni then users, which the entry sends right
+    /// after the first Users and before Objects (<c>RoomService</c>); nothing when there are none
+    /// (official client capture, 3 of 3 entries each way).
     /// </summary>
-    private IEnumerable<IComposer> GetVisualizationEntryState()
+    public IEnumerable<IComposer> GetVisualizationEntryState()
     {
         if (_furniTransparencies.Count > 0 || _furniHighlights.Count > 0)
             yield return new WiredFurniVisualizationStateMessageComposer

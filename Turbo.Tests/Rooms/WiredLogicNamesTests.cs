@@ -66,6 +66,7 @@ public sealed class WiredLogicNamesTests
         "wf_act_reset_timers",
         "wf_act_send_signal",
         "wf_act_set_altitude",
+        "wf_act_set_highlight",
         "wf_act_show_message",
         "wf_act_teleport_to",
         "wf_act_teleport_to_room",

@@ -85,8 +85,7 @@ public sealed class WiredSetHighlightTests
         sent.FurniIds.Should().Equal(LAMP);
         sent.Highlight.Should().Be(expected);
 
-        var state = Wired
-            .GetEntryState()
+        var state = EntryView()
             .OfType<WiredFurniVisualizationStateMessageComposer>()
             .Should()
             .ContainSingle()
@@ -109,15 +108,25 @@ public sealed class WiredSetHighlightTests
     }
 
     [Fact]
-    public void A_room_without_a_highlight_tells_a_newcomer_nothing_of_it()
+    public void A_room_without_a_highlight_tells_a_newcomer_nothing_of_it() =>
+        EntryView().Should().BeEmpty();
+
+    [Fact]
+    public async Task The_kept_state_rides_in_the_entry_view_not_the_wired_entry_tail()
     {
+        // Official client capture (lab60, 3/3): right after the first Users, before Objects.
+        Wired.KeepFurniHighlight([LAMP], new WiredHighlightSnapshot { Type = 0, Strength = 50 });
+
+        (await _room.Harness.Room.GetEntryViewAsync((PlayerId)999, Ct))
+            .WiredVisualization.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<WiredFurniVisualizationStateMessageComposer>();
         Wired
             .GetEntryState()
+            .OfType<WiredFurniVisualizationStateMessageComposer>()
             .Should()
-            .NotContain(x =>
-                x is WiredFurniVisualizationStateMessageComposer
-                || x is WiredUserVisualizationStateMessageComposer
-            );
+            .BeEmpty();
     }
 
     [Fact]
@@ -135,11 +144,7 @@ public sealed class WiredSetHighlightTests
             .Equal(LAMP);
         SentTo<WiredFurniHighlightMessageComposer>(100 + CLICKED).Should().BeEmpty();
         SentToRoom<WiredFurniHighlightMessageComposer>().Should().BeEmpty();
-        Wired
-            .GetEntryState()
-            .OfType<WiredFurniVisualizationStateMessageComposer>()
-            .Should()
-            .BeEmpty();
+        EntryView().OfType<WiredFurniVisualizationStateMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -154,8 +159,7 @@ public sealed class WiredSetHighlightTests
             .ContainSingle()
             .Which.RoomIndices.Should()
             .Equal(CLICKER);
-        Wired
-            .GetEntryState()
+        EntryView()
             .OfType<WiredUserVisualizationStateMessageComposer>()
             .Single()
             .Highlights.Select(x => x.Id)
@@ -173,11 +177,7 @@ public sealed class WiredSetHighlightTests
             Ct
         );
 
-        Wired
-            .GetEntryState()
-            .OfType<WiredUserVisualizationStateMessageComposer>()
-            .Should()
-            .BeEmpty();
+        EntryView().OfType<WiredUserVisualizationStateMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -201,8 +201,7 @@ public sealed class WiredSetHighlightTests
             Ct
         );
 
-        Wired
-            .GetEntryState()
+        EntryView()
             .OfType<WiredFurniVisualizationStateMessageComposer>()
             .Single()
             .Highlights.Should()
@@ -380,6 +379,9 @@ public sealed class WiredSetHighlightTests
             await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
         }
     }
+
+    /// <summary>What a player walking in is sent of the kept effects, right after Users (RoomService).</summary>
+    private List<IComposer> EntryView() => [.. Wired.GetVisualizationEntryState()];
 
     private IEnumerable<T> SentToRoom<T>() =>
         _room
