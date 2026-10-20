@@ -13,8 +13,10 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Content;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
@@ -42,11 +44,13 @@ internal sealed partial class ContentEndpoints(
     AdminPetBotEditor petsAndBots,
     AdminCurrencyEditor currencies,
     IChatStyleService chatStyles,
+    AdminActionLog actions,
     ILogger<ContentEndpoints> logger
 )
 {
     private const string NO_ACCESS = "You can't see the game's content.";
     private const string NO_MANAGE = "You can't change the game's content.";
+    private const string NO_GROUP_DELETE = "You can't delete groups: that needs guild.delete_any.";
 
     // The chat bubbles' bundle is a few hundred kilobytes; this leaves room for a hotel's own.
     private const long CHAT_BUNDLE_MAX_BYTES = 32L * 1024 * 1024;
@@ -131,17 +135,7 @@ internal sealed partial class ContentEndpoints(
                     "Not removed: they must be in the group, and the owner stays until it is deleted."
                 )
         );
-        group.MapDelete(
-            "/groups/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                GroupAsync(
-                    id,
-                    http,
-                    ct,
-                    (grain, staff) => grain.StaffDeleteAsync(staff, ct),
-                    "There is no such group."
-                )
-        );
+        group.MapDelete("/groups/{id:int}", DeleteGroupAsync);
         group.MapPost(
             "/groups/parts",
             (GroupBadgePartRequest request, HttpContext http, CancellationToken ct) =>
@@ -799,6 +793,51 @@ internal sealed partial class ContentEndpoints(
                 return taken ? Results.NoContent() : Results.NotFound();
             }
         );
+
+    /// <summary>
+    /// Deletes a group for staff who hold <c>guild.delete_any</c>, the node that deletes any group
+    /// in the game, not <c>content.manage</c>. It is not held to <c>GuildConfig.DeletionEnabled</c>
+    /// or the member cap, which keep players from deleting groups in the client: the panel is
+    /// where staff remove an abusive group whatever those say. A delete cannot be undone (the
+    /// roster and the forum go with it), so every one is in the command log, refusals included.
+    /// </summary>
+    private async Task<IResult> DeleteGroupAsync(int id, HttpContext http, CancellationToken ct)
+    {
+        var staff = AdminIdentity.Of(http).PlayerId;
+        var arguments = $"delete {id}";
+
+        if (
+            !await grainFactory
+                .HasPermissionAsync(staff, PermissionNodes.Guild.DELETE_ANY, ct)
+                .ConfigureAwait(false)
+        )
+        {
+            await actions
+                .WriteAsync(AdminActionLog.GROUP, staff, arguments, CommandOutcome.Refused, ct)
+                .ConfigureAwait(false);
+
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_GROUP_DELETE);
+        }
+
+        var deleted = await grainFactory
+            .GetGuildGrain(new GuildId(id))
+            .StaffDeleteAsync(staff, ct)
+            .ConfigureAwait(false);
+
+        await actions
+            .WriteAsync(
+                AdminActionLog.GROUP,
+                staff,
+                arguments,
+                deleted ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        return deleted
+            ? Results.NoContent()
+            : AdminResults.Error(StatusCodes.Status400BadRequest, "There is no such group.");
+    }
 
     /// <summary>A staff change to a group through its grain: no content, or 400 with why not.</summary>
     private Task<IResult> GroupAsync(

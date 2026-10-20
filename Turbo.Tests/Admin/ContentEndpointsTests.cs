@@ -318,6 +318,59 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
         _fakes.Log.Of("RemoveBadgeAsync").Should().BeEmpty();
     }
 
+    // The panel's delete needed only content.manage, which deletes no group in the game, and left
+    // no trace but a server log line: it now needs guild.delete_any and is in the command log.
+    [Fact]
+    public async Task A_group_is_deleted_only_by_staff_who_may_delete_any_group_and_each_try_is_logged()
+    {
+        _fakes.Handlers["StaffDeleteAsync"] = _ => Task.FromResult(true);
+        _holds = node => node != PermissionNodes.Guild.DELETE_ANY;
+        await _server.StartAsync(Ct);
+
+        (await SendAsync(HttpMethod.Delete, "/api/content/groups/10"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden, "content.manage deletes no group");
+        _fakes.Log.Of("StaffDeleteAsync").Should().BeEmpty();
+
+        _holds = _ => true;
+
+        (await SendAsync(HttpMethod.Delete, "/api/content/groups/10"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NoContent);
+        _fakes.Log.Of("StaffDeleteAsync").Should().ContainSingle();
+
+        await using var db = _db.CreateDbContext();
+        db.CommandLogs.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Command,
+                x.Arguments,
+                x.Outcome,
+                x.Source,
+            })
+            .ToList()
+            .Should()
+            .BeEquivalentTo(
+                [
+                    new
+                    {
+                        Command = "group",
+                        Arguments = "delete 10",
+                        Outcome = "refused",
+                        Source = "panel",
+                    },
+                    new
+                    {
+                        Command = "group",
+                        Arguments = "delete 10",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                ],
+                options => options.WithStrictOrdering()
+            );
+    }
+
     private static AchievementDefinition Login() =>
         new()
         {

@@ -1083,7 +1083,11 @@ The **Content** page is the game's content, each change made at once and on reco
   word-filtered), put its badge back to the default, take any member, admin, request or block out,
   or delete it, whatever its size or `Turbo:Guilds:DeletionEnabled`. Each goes through the group's
   grain (`StaffRenameAsync`, ...) as the owner's own change would, the staff member named in the
-  log. Below, the badge parts and colours group badges are built from: added under the next id of
+  log. Deleting needs `guild.delete_any`, the node that deletes any group in the game, rather than
+  `content.manage`, and every delete, refused ones too, is in the command log as `group delete
+  <id>`. The deletion setting and the member cap are left out on purpose: in the client
+  `group.deletion.enabled` hides the button from owners and staff alike, and the panel is where
+  staff remove an abusive group whatever a hotel has set for its players. Below, the badge parts and colours group badges are built from: added under the next id of
   their kind (ids are written into badge codes, so they are never reused), their files or hex
   changed, and read again by the group directory at once.
 - **Pets**: each pet type's palettes (the body the info stand names, the rarity breeding weighs,

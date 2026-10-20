@@ -11,8 +11,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
-using Turbo.Admin.Plugins;
 using Turbo.Contracts.Plugins.Admin;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
@@ -31,7 +31,7 @@ namespace Turbo.Admin.Api;
 internal sealed class PluginAdminEndpoints(
     IGrainFactory grainFactory,
     IPluginAdminRoutes routes,
-    AdminPluginAudit audit,
+    AdminActionLog audit,
     IOptions<AdminConfig> config,
     ILogger<PluginAdminEndpoints> logger
 )
@@ -84,6 +84,7 @@ internal sealed class PluginAdminEndpoints(
         if (method != "GET")
             await audit
                 .WriteAsync(
+                    AdminActionLog.PLUGIN,
                     AdminIdentity.Of(http).PlayerId,
                     $"call {key} {method} /{path} {result.Status}",
                     result.Status switch
