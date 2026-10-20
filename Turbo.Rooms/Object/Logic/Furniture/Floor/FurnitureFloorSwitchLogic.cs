@@ -66,11 +66,6 @@ public class FurnitureFloorSwitchLogic(
         var previousState = GetState();
 
         await SetStateAsync(GetNextToggleableState());
-        await _roomGrain.ActionModule.ReportItemUsedAsync(
-            ctx,
-            _ctx.ObjectId,
-            previousState != GetState(),
-            ct
-        );
+        await ActionModule.ReportItemUsedAsync(ctx, _ctx.ObjectId, previousState != GetState(), ct);
     }
 }

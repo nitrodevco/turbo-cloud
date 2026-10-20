@@ -1211,7 +1211,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var composers = ImmutableArray.CreateBuilder<IComposer>(3);
         var shownOrHidden =
             ctx.HiddenBeforeMove.Count > 0
-                ? _roomGrain.FurniModule.TakeHiddenWiredMoves(
+                ? FurniModule.TakeHiddenWiredMoves(
                     ctx.FloorItemMoves,
                     ctx.WallItemMoves,
                     ctx.HiddenBeforeMove
