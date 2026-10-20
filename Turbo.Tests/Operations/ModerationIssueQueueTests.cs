@@ -444,6 +444,78 @@ public sealed class ModerationIssueQueueTests : IDisposable
         reply.End.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task The_mod_action_windows_default_sanction_gives_the_next_step_with_the_moderators_text()
+    {
+        var config = new OperationsConfig { CfhDefaultSanctions = ["ALERT", "BAN:18"] };
+
+        // ModActionCtrl.onDefaultSanctionButton, opened from the user info: no issue id.
+        var reply = Assert.Single(
+            await DefaultSanctionAsync(config, w => w.Int(TROLL).Int(TOPIC).String("stop that"))
+        );
+
+        var caution = _sent.Single(x => x.Composer is ModeratorCautionEventMessageComposer);
+        caution.Player.Should().Be(TROLL);
+        ((ModeratorCautionEventMessageComposer)caution.Composer).Message.Should().Be("stop that");
+        reply.Header.Should().Be(PacketHarness.Outgoing("ModeratorActionResultMessageComposer"));
+        reply.PopInt().Should().Be(TROLL);
+        reply.PopBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_default_sanction_from_a_held_issue_is_recorded_on_it_and_closes_it()
+    {
+        var config = new OperationsConfig { CfhDefaultSanctions = ["ALERT", "BAN:18"] };
+        await SubmitAsync();
+        await PickAsync(MODERATOR);
+        _sent.Clear();
+
+        // No text written: the player is told the topic.
+        await DefaultSanctionAsync(config, w => w.Int(TROLL).Int(TOPIC).String("").Int(1));
+
+        var caution = _sent.Single(x => x.Composer is ModeratorCautionEventMessageComposer);
+        ((ModeratorCautionEventMessageComposer)caution.Composer).Message.Should().Be("bullying");
+        _sent
+            .Where(x => x.Composer is IssueCloseNotificationMessageComposer)
+            .Select(x => x.Player)
+            .Should()
+            .Equal(REPORTER);
+        var service = Service(config);
+        (await service.GetOpenIssuesAsync(CancellationToken.None)).Should().BeEmpty();
+        var next = (await service.GetDefaultSanctionAsync(TROLL, CancellationToken.None))!;
+        (next.Name, next.LengthHours).Should().Be(("BAN", 18));
+    }
+
+    [Fact]
+    public async Task A_default_sanction_with_none_configured_gives_nothing_and_says_so()
+    {
+        var reply = Assert.Single(
+            await DefaultSanctionAsync(
+                new OperationsConfig { CfhDefaultSanctions = [] },
+                w => w.Int(TROLL).Int(TOPIC).String("stop that")
+            )
+        );
+
+        _sent.Should().NotContain(x => x.Composer is ModeratorCautionEventMessageComposer);
+        reply.PopInt().Should().Be(TROLL);
+        reply.PopBoolean().Should().BeFalse();
+    }
+
+    private async Task<List<ClientPacket>> DefaultSanctionAsync(
+        OperationsConfig config,
+        Action<PayloadWriter> write
+    )
+    {
+        var harness = new PacketHarness();
+        harness.Resolver.Overrides[typeof(IModerationIssueService)] = Service(config);
+
+        return await harness.SendAsync(
+            PacketHarness.Incoming("DefaultSanctionMessageEvent"),
+            PacketHarness.Payload(write),
+            playerId: MODERATOR
+        );
+    }
+
     private async Task CloseDefaultAsync(int issueId, OperationsConfig config)
     {
         var harness = new PacketHarness();

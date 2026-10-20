@@ -246,22 +246,62 @@ public sealed class ModerationIssueService(
             && await NextSanctionAsync(dbCtx, reported, ct) is { } sanction
         )
         {
-            // What the player is told and the ban's reason: the topic as the client names it
-            // (help.cfh.topic.<id>), else its name.
-            var reason =
-                await texts.GetTextAsync($"{TOPIC_TEXT}{first.TopicId}", ct)
-                ?? await dbCtx
-                    .CfhTopics.AsNoTracking()
-                    .Where(x => x.Id == first.TopicId)
-                    .Select(x => x.Name)
-                    .FirstOrDefaultAsync(ct)
-                ?? string.Empty;
+            var reason = await TopicReasonAsync(dbCtx, first.TopicId, ct);
 
             first.Sanctioned = await ApplyAsync(moderator, reported, sanction, reason, ct);
         }
 
         await CloseHeldAsync(dbCtx, reports, CfhCloseReasonType.Resolved, ct);
     }
+
+    public async Task<bool> GiveDefaultSanctionAsync(
+        PlayerId moderator,
+        PlayerId player,
+        int topicId,
+        string message,
+        int issueId,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+        if (await NextSanctionAsync(dbCtx, player, ct) is not { } sanction)
+            return false;
+
+        var reason = string.IsNullOrWhiteSpace(message)
+            ? await TopicReasonAsync(dbCtx, topicId, ct)
+            : message;
+        var given = await ApplyAsync(moderator, player, sanction, reason, ct);
+
+        // One sanction is one step up the player's ladder, which counts the issues sanctioned.
+        var issues = issueId > 0 ? await HeldAsync(dbCtx, moderator, [issueId], ct) : [];
+
+        if (issues is [{ } issue] && issue.ReportedEntityId == player.Value)
+        {
+            issue.Sanctioned = given;
+
+            await CloseHeldAsync(dbCtx, issues, CfhCloseReasonType.Resolved, ct);
+        }
+
+        return given;
+    }
+
+    /// <summary>
+    /// What the player is told and the ban's reason for a default sanction: the topic as the
+    /// client names it (help.cfh.topic.&lt;id&gt;), else its name.
+    /// </summary>
+    private async Task<string> TopicReasonAsync(
+        TurboDbContext dbCtx,
+        int topicId,
+        CancellationToken ct
+    ) =>
+        await texts.GetTextAsync($"{TOPIC_TEXT}{topicId}", ct)
+        ?? await dbCtx
+            .CfhTopics.AsNoTracking()
+            .Where(x => x.Id == topicId)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync(ct)
+        ?? string.Empty;
 
     public async Task<SanctionTypeSnapshot?> GetDefaultSanctionAsync(
         PlayerId player,
