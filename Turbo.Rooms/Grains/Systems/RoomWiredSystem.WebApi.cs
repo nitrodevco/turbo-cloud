@@ -158,7 +158,7 @@ public sealed partial class RoomWiredSystem
                     request.Operation,
                     request.TargetKind,
                     request.EntityId,
-                    request.Body is null ? null : JsonNode.Parse(request.Body)?["value"],
+                    WiredWebApiJson.BodyMember(request.Body, "value"),
                     ct
                 );
             }
@@ -180,7 +180,7 @@ public sealed partial class RoomWiredSystem
                         : WiredWebApiOperation.PatchValue,
                     WiredWebApiEntity.GLOBAL,
                     "0",
-                    request.Body is null ? null : JsonNode.Parse(request.Body)?["value"],
+                    WiredWebApiJson.BodyMember(request.Body, "value"),
                     ct
                 );
             }
@@ -725,7 +725,7 @@ public sealed partial class RoomWiredSystem
         if (!addon.AllowsBulkDelete)
             return WiredWebApiJson.Error(403, WiredWebApiErrors.BULK_DELETE_NOT_ENABLED);
 
-        var names = body is null ? null : JsonNode.Parse(body)?["variables"] as JsonArray;
+        var names = WiredWebApiJson.BodyMember(body, "variables") as JsonArray;
 
         if (names is null || names.Count == 0)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.BULK_DELETE_EMPTY);
@@ -777,7 +777,7 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        var requests = body is null ? null : JsonNode.Parse(body)?["requests"] as JsonArray;
+        var requests = WiredWebApiJson.BodyMember(body, "requests") as JsonArray;
 
         if (requests is null || requests.Count == 0)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.BATCH_EMPTY);
@@ -789,8 +789,8 @@ public sealed partial class RoomWiredSystem
 
         foreach (var node in requests)
         {
-            var opId = WiredWebApiJson.StringOf(node?["op_id"]);
-            var operation = WiredWebApiJson.StringOf(node?["method"]) switch
+            var opId = WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "op_id"));
+            var operation = WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "method")) switch
             {
                 "GET" => WiredWebApiOperation.GetValue,
                 "PUT" => WiredWebApiOperation.PutValue,
@@ -798,7 +798,7 @@ public sealed partial class RoomWiredSystem
                 "DELETE" => WiredWebApiOperation.DeleteValue,
                 _ => (WiredWebApiOperation?)null,
             };
-            var path = (WiredWebApiJson.StringOf(node?["path"]) ?? string.Empty).Split('/');
+            var path = (WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "path")) ?? string.Empty).Split('/');
             var response =
                 operation is null || path.Length != 2
                     ? WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET)
@@ -810,7 +810,7 @@ public sealed partial class RoomWiredSystem
                     operation.Value,
                     path[0],
                     path[1],
-                    node?["body"]?["value"],
+                    WiredWebApiJson.Member(WiredWebApiJson.Member(node, "body"), "value"),
                     ct
                 );
 
@@ -933,7 +933,7 @@ public sealed partial class RoomWiredSystem
             case WiredWebApiOperation.PatchGlobalProfile:
             {
                 if (
-                    (request.Body is null ? null : JsonNode.Parse(request.Body)?["variables"])
+                    WiredWebApiJson.BodyMember(request.Body, "variables")
                     is not JsonObject changes
                 )
                     return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);

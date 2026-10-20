@@ -358,6 +358,46 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .Be((400, "wired.variables.batch_limit_exceeded"));
     }
 
+    [Theory]
+    [InlineData("[1]")]
+    [InlineData("\"7\"")]
+    [InlineData("7")]
+    [InlineData("null")]
+    [InlineData("{\"value\":[1]}")]
+    public async Task A_body_of_the_wrong_shape_is_refused_as_invalid(string body)
+    {
+        var (read, write) = await SetUpAsync();
+
+        foreach (
+            var (method, path) in new[]
+            {
+                (HttpMethod.Put, $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}"),
+                (HttpMethod.Patch, $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}"),
+                (HttpMethod.Patch, "/api/public/rooms/1/variables/global/round"),
+                (HttpMethod.Post, "/api/public/rooms/1/variables/bulk-delete"),
+                (HttpMethod.Post, "/api/public/rooms/1/variables/user/points/batch"),
+                (HttpMethod.Patch, "/api/public/rooms/1/variables_profile/global"),
+                (HttpMethod.Patch, $"/api/public/rooms/1/variables_profile/furni/furni/{CHAIR}"),
+            }
+        )
+            (await SendAsync(method, path, read, write, body))
+                .Status.Should()
+                .Be(400, $"{method} {path} with {body}");
+
+        // A batch whose operations are not objects answers each one as invalid.
+        var results = (
+            await JsonAsync(
+                HttpMethod.Post,
+                "/api/public/rooms/1/variables/user/points/batch",
+                read: read,
+                write: write,
+                body: $$"""{"requests":[{{body}},{"method":"PUT","path":"users/{{PLAYER_ID}}","body":[1]}]}"""
+            )
+        )!["results"]!.AsArray();
+
+        results.Select(x => (int)x!["status"]!).Should().Equal(400, 400);
+    }
+
     [Fact]
     public async Task Profiles_list_what_an_entity_holds_and_patch_several_at_once()
     {
