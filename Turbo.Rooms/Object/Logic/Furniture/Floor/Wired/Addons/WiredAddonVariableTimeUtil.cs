@@ -63,7 +63,9 @@ public class WiredAddonVariableTimeUtil(
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TIME_UTIL;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.AnyInt(), new WiredRangeParamRule(0, 2, 0)];
+        // A fresh box reads the creation time on the official server (defaults [0,1],
+        // 2026-10-20T17-35-39-Open-wait).
+        [WiredRules.AnyInt(), new WiredRangeParamRule(0, 2, MODE_CREATED)];
 
     protected override IEnumerable<IWiredVariable> BuildSubVariables(
         FurnitureWiredVariableLogic parent,
@@ -112,7 +114,7 @@ public class WiredAddonVariableTimeUtil(
 
     private DateTimeOffset? ResolveInstant(IWiredVariable parent, WiredVariableKey key)
     {
-        switch (GetIntParamOrDefault(1, MODE_VALUE))
+        switch (GetIntParamOrDefault(1, MODE_CREATED))
         {
             case MODE_CREATED:
             case MODE_UPDATED:
@@ -120,7 +122,7 @@ public class WiredAddonVariableTimeUtil(
                 if (!parent.TryGetTimestamps(key, out var created, out var updated))
                     return null;
 
-                var ms = GetIntParamOrDefault(1, MODE_VALUE) == MODE_CREATED ? created : updated;
+                var ms = GetIntParamOrDefault(1, MODE_CREATED) == MODE_CREATED ? created : updated;
 
                 return ms <= 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(ms);
             }

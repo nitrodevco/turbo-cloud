@@ -23,10 +23,13 @@ public class WiredAddonAnimationTime(
     private const int MIN_ANIMATION_MS = 50;
     private const int MAX_ANIMATION_MS = 2000;
 
-    private int _animationTimeMs = MIN_ANIMATION_MS;
+    // A fresh box opens on 500 ms on the official server (2026-10-20T17-35-39-Open-wait).
+    private const int DEFAULT_ANIMATION_MS = 500;
+
+    private int _animationTimeMs = DEFAULT_ANIMATION_MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, MIN_ANIMATION_MS)];
+        [new WiredRangeParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, DEFAULT_ANIMATION_MS)];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -39,6 +42,6 @@ public class WiredAddonAnimationTime(
     {
         await base.FillInternalDataAsync(ct);
 
-        _animationTimeMs = GetIntParamOrDefault(0, MIN_ANIMATION_MS);
+        _animationTimeMs = GetIntParamOrDefault(0, DEFAULT_ANIMATION_MS);
     }
 }

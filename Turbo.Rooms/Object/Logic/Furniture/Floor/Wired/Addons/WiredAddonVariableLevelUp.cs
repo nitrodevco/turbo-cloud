@@ -56,9 +56,15 @@ public class WiredAddonVariableLevelUp(
     public override int WiredCode => (int)WiredAddonType.VARIABLE_LEVEL_UP;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 255, 255), new WiredRangeParamRule(0, 2, 1)];
+        [new WiredRangeParamRule(0, 255, 0), new WiredRangeParamRule(0, 2, MODE_LINEAR)];
 
     public override IWiredParamRule? GetIntParamTailRule() => WiredRules.NonNegative();
+
+    // A fresh box exposes no sub-variables and holds linear figures plus a third one (the editor
+    // sends two ints for manual, four for linear, five for exponential: AS3 wired_setup/addons/
+    // VariableLvlUpAddon.as:133-151), like the official one (defaults [0,1,100,50,50],
+    // 2026-10-20T17-35-39-Open-wait).
+    public override List<int> GetDefaultIntParams() => [.. base.GetDefaultIntParams(), 100, 50, 50];
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
@@ -72,7 +78,7 @@ public class WiredAddonVariableLevelUp(
         string parentName
     )
     {
-        var mask = GetIntParamOrDefault(0, 255);
+        var mask = GetIntParamOrDefault(0, 0);
 
         for (var i = 0; i < SUB_NAMES.Length; i++)
         {

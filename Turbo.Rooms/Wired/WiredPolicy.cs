@@ -19,6 +19,7 @@ public sealed class WiredPolicy : IWiredPolicy
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }
     public WiredCarryUserType? CarryUsers { get; set; }
+    public IReadOnlySet<RoomObjectId>? CarryUserIds { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; } = WiredMovePhysicsFlags.None;
     public IReadOnlySet<RoomObjectId>? MoveThroughUserIds { get; set; }
     public IReadOnlySet<int>? MoveThroughFurniIds { get; set; }

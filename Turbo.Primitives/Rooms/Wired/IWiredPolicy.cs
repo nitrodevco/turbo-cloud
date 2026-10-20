@@ -38,6 +38,11 @@ public interface IWiredPolicy
 
     /// <summary>Null when users are not carried along with moving furni.</summary>
     public WiredCarryUserType? CarryUsers { get; set; }
+
+    /// <summary>
+    /// The users the carry users addon may carry: its user source. Null means every user.
+    /// </summary>
+    public IReadOnlySet<RoomObjectId>? CarryUserIds { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; }
 
     /// <summary>
