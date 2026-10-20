@@ -69,7 +69,16 @@ public sealed partial class RoomWiredSystem
         WiredVariableId variableId,
         RoomId referrer,
         CancellationToken ct
-    ) => (await GetSharedVariableBoxAsync(variableId, ct))?.SubscribeShared(referrer);
+    )
+    {
+        if (await GetSharedVariableBoxAsync(variableId, ct) is not { } box)
+            return null;
+
+        // What a share add-on passes on is read off the add-ons as saved.
+        await box.LoadTileAddonsAsync(ct);
+
+        return box.SubscribeShared(referrer);
+    }
 
     public async Task<bool> ApplySharedVariableChangeAsync(
         WiredVariableId variableId,

@@ -24,6 +24,7 @@ using Turbo.Primitives.Rooms.Snapshots.Wired.VariableFx;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 namespace Turbo.Rooms.Wired.VariableFx;
 
@@ -146,11 +147,19 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         var found = new Dictionary<int, VariableFxBinding>();
 
-        foreach (var item in FurniModule.Items)
-        {
-            if (item.Logic is not FurnitureWiredVariableFxLogic box)
-                continue;
+        // The fx an import add-on takes over count as boxes of this room, under their own ids.
+        var boxes = FurniModule.Items.SelectMany<IRoomItem, FurnitureWiredVariableFxLogic>(item =>
+            item.Logic switch
+            {
+                FurnitureWiredVariableFxLogic box => [box],
+                WiredVariableReference reference =>
+                    reference.ImportedAddons.OfType<FurnitureWiredVariableFxLogic>(),
+                _ => [],
+            }
+        );
 
+        foreach (var box in boxes)
+        {
             if (!box.IsLoaded)
             {
                 _configsDirty = true;
@@ -161,7 +170,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             if (found.Count >= _roomGrain._wiredConfig.VariableFxMaxBoxes)
                 break;
 
-            found[item.ObjectId] = new VariableFxBinding(box, box.BuildConfig());
+            found[box.ObjectId] = new VariableFxBinding(box, box.BuildConfig());
         }
 
         var removed = _bindingsByConfigId

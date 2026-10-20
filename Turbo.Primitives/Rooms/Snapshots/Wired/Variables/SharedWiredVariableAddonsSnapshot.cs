@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -24,4 +25,8 @@ public sealed record SharedWiredVariableAddonsSnapshot
 
     [Id(3)]
     public string? TextConnectorFallback { get; init; }
+
+    /// <summary>The subvariable creators and variable fx on the variable's stack, of the ticked categories.</summary>
+    [Id(4)]
+    public ImmutableArray<SharedWiredVariableAddonSnapshot> Addons { get; init; } = [];
 }

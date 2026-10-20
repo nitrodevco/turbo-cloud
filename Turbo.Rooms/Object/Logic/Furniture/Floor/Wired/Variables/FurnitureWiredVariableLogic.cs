@@ -604,9 +604,14 @@ public abstract class FurnitureWiredVariableLogic
             return null;
 
         var categories = share.Categories;
+        var addons = GetSharedTileAddons(categories);
 
         if (!categories.HasFlag(WiredVariableAddonCategories.TextConnectors))
-            return new SharedWiredVariableAddonsSnapshot { Categories = categories };
+            return new SharedWiredVariableAddonsSnapshot
+            {
+                Categories = categories,
+                Addons = addons,
+            };
 
         return new SharedWiredVariableAddonsSnapshot
         {
@@ -614,7 +619,52 @@ public abstract class FurnitureWiredVariableLogic
             HasTextConnector = HasTextConnector(),
             TextConnectors = GetTextConnectors(),
             TextConnectorFallback = GetTextConnectorFallback(),
+            Addons = addons,
         };
+    }
+
+    /// <summary>
+    /// The subvariable creators and variable fx on this variable's stack, of the ticked
+    /// categories, as saved there. The room loads them before it answers a subscription
+    /// (<see cref="LoadTileAddonsAsync"/>).
+    /// </summary>
+    private ImmutableArray<SharedWiredVariableAddonSnapshot> GetSharedTileAddons(
+        WiredVariableAddonCategories categories
+    )
+    {
+        var addons = ImmutableArray.CreateBuilder<SharedWiredVariableAddonSnapshot>();
+
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        {
+            var category = item.Logic switch
+            {
+                Addons.FurnitureWiredSubVariableAddonLogic =>
+                    WiredVariableAddonCategories.SubVariableCreators,
+                Addons.VariableFx.FurnitureWiredVariableFxLogic =>
+                    WiredVariableAddonCategories.VariableFx,
+                _ => WiredVariableAddonCategories.None,
+            };
+
+            if (
+                category != WiredVariableAddonCategories.None
+                && categories.HasFlag(category)
+                && item.Logic is FurnitureWiredLogic addon
+                && addon.ToSharedAddon(category) is { } shared
+            )
+                addons.Add(shared);
+        }
+
+        return addons.ToImmutable();
+    }
+
+    /// <summary>Loads the add-ons on this variable's stack that the wired system has not reached yet.</summary>
+    public async Task LoadTileAddonsAsync(CancellationToken ct)
+    {
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()).ToList())
+        {
+            if (item.Logic is Addons.FurnitureWiredAddonLogic addon)
+                await addon.EnsureWiredLoadedAsync(ct);
+        }
     }
 
     /// <summary>

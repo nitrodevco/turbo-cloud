@@ -3,15 +3,19 @@ using FluentAssertions;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
@@ -32,6 +36,11 @@ public sealed class WiredVariableAddonSharingTests
     private const int SHARE = 31;
     private const int REFERENCE = 20;
     private const int IMPORT = 40;
+    private const int LEVEL_UP = 32;
+    private const int HP = 11;
+    private const int FX = 33;
+    private const int HP_SHARE = 34;
+    private const int OWN_LEVEL_UP = 41;
 
     private readonly WiredRoom _shop = new(8, 8);
     private readonly WiredRoom _other = new(8, 8);
@@ -252,9 +261,175 @@ public sealed class WiredVariableAddonSharingTests
             );
     }
 
-    private async Task BuildShopAsync(int[] shared)
+    /// <summary>
+    /// A Level Up System on the shared "coins" is a subvariable creator: with both add-ons
+    /// ticking the category, the reference has "linked.current_level" and friends, worked out
+    /// from its own copy of the value by the shop's table (linear, 100 XP a level: 250 -> 3).
+    /// </summary>
+    [Fact]
+    public async Task An_imported_subvariable_creator_makes_its_subvariables_on_the_reference()
+    {
+        await BuildShopAsync(shared: [0, 1, 0], levelUp: true);
+        await AddReferenceAsync(imported: [0, 1, 0]);
+        await TickAsync(_other);
+
+        var level = OtherVariable("linked.current_level");
+
+        level.Should().NotBeNull();
+        level!
+            .TryGetValue(
+                new WiredVariableKey(
+                    level.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Global,
+                    0
+                ),
+                out var value
+            )
+            .Should()
+            .BeTrue();
+        ((int)value).Should().Be(3);
+        OtherVariable("linked.max_level").Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// A Level Up System on the reference's own stack goes before the imported one, as an own
+    /// text connector does: its table (linear, 50 XP a level: 250 -> 6) is the one that counts,
+    /// and the subvariable is there once.
+    /// </summary>
+    [Fact]
+    public async Task An_own_subvariable_creator_goes_before_the_imported_one()
+    {
+        await BuildShopAsync(shared: [0, 1, 0], levelUp: true);
+        _other.AddBox<WiredAddonVariableLevelUp>(OWN_LEVEL_UP, 3, 3, "wf_xtra_var_lvlup_system");
+        (await _other.SaveAsync<UpdateAddonMessage>(OWN_LEVEL_UP, intParams: [255, 1, 50, 50]))
+            .Should()
+            .BeTrue();
+        await AddReferenceAsync(imported: [0, 1, 0]);
+        await TickAsync(_other);
+
+        var levels = _other
+            .Harness.Module<RoomWiredSystem>()
+            .GetAllVariables()
+            .Where(x => x.GetVarSnapshot().VariableName == "linked.current_level")
+            .ToList();
+
+        levels.Should().ContainSingle();
+        levels[0]
+            .TryGetValue(
+                new WiredVariableKey(
+                    levels[0].GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Global,
+                    0
+                ),
+                out var value
+            )
+            .Should()
+            .BeTrue();
+        ((int)value).Should().Be(6);
+    }
+
+    [Theory]
+    [InlineData(new[] { 1, 0, 1 }, new[] { 1, 1, 1 })]
+    [InlineData(new[] { 1, 1, 1 }, new[] { 1, 0, 1 })]
+    public async Task Subvariable_creators_pass_only_when_both_addons_tick_them(
+        int[] shared,
+        int[] imported
+    )
+    {
+        await BuildShopAsync(shared, levelUp: true);
+        await AddReferenceAsync(imported);
+        await TickAsync(_other);
+
+        OtherVariable("linked.current_level").Should().BeNull();
+    }
+
+    /// <summary>
+    /// A Health Points fx on a shared user variable, shared and imported as Variable FX: a player
+    /// in the importing room holding the reference is drawn with it, under the shop box's id.
+    /// </summary>
+    [Fact]
+    public async Task An_imported_variable_fx_is_drawn_in_the_importing_room()
+    {
+        var hp = _shop.AddBox<WiredVariableUser>(HP, 5, 5, "wf_var_user");
+        var fx = _shop.AddBox<WiredAddonVariableFxHealthPoints>(FX, 5, 5, "wf_xtra_varfx_hp");
+        _shop.AddBox<WiredAddonVariableShare>(HP_SHARE, 5, 5, "wf_xtra_var_share");
+
+        (await _shop.SaveAsync<UpdateAddonMessage>(FX, intParams: [.. fx.GetDefaultIntParams()]))
+            .Should()
+            .BeTrue();
+        (await _shop.SaveAsync<UpdateAddonMessage>(HP_SHARE, intParams: [0, 0, 1]))
+            .Should()
+            .BeTrue();
+        (
+            await _shop.SaveAsync<UpdateVariableMessage>(
+                HP,
+                intParams: [(int)WiredAvailabilityType.Shared, 1],
+                stringParam: "hp"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await hp.LoadWiredAsync(Ct);
+
+        var reference = await AddReferenceAsync(imported: [0, 0, 1], source: HP);
+        _other.Enter(1, 1, 1);
+
+        (
+            await reference.GiveValueAsync(
+                new WiredVariableKey(
+                    reference.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.User,
+                    1
+                ),
+                new WiredVariableValue(40)
+            )
+        )
+            .Should()
+            .BeTrue();
+        await TickAsync(_other);
+
+        for (var i = 0; i < 3; i++)
+        {
+            _now += 2_000;
+            await _other.Harness.Room.VariableFxSystem.ProcessAsync(_now, Ct);
+        }
+
+        var sent = _other
+            .Harness.Fakes.Log.Of("SendComposerAsync")
+            .Where(call => Equals(call.Key, 101L))
+            .SelectMany(call => call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
+            .ToList();
+
+        sent.OfType<VariableFxConfigsMessageComposer>()
+            .SelectMany(x => x.Configs)
+            .Should()
+            .Contain(x => x.ConfigId == FX);
+        sent.OfType<VariableFxStatusMessageComposer>()
+            .SelectMany(x => x.Statuses)
+            .Should()
+            .Contain(x => x.Key.ConfigId == FX && x.Value == 40);
+    }
+
+    private IWiredVariable? OtherVariable(string name) =>
+        _other
+            .Harness.Module<RoomWiredSystem>()
+            .GetAllVariables()
+            .FirstOrDefault(x => x.GetVarSnapshot().VariableName == name);
+
+    private async Task BuildShopAsync(int[] shared, bool levelUp = false)
     {
         var coins = _shop.AddBox<WiredVariableRoom>(COINS, 6, 6, "wf_var_room");
+
+        if (levelUp)
+        {
+            _shop.AddBox<WiredAddonVariableLevelUp>(LEVEL_UP, 6, 6, "wf_xtra_var_lvlup_system");
+
+            // Every subvariable, linear, 100 XP a level, 50 levels.
+            (await _shop.SaveAsync<UpdateAddonMessage>(LEVEL_UP, intParams: [255, 1, 100, 50]))
+                .Should()
+                .BeTrue();
+        }
+
         _shop.AddBox<WiredAddonVariableTextConnector>(
             CONNECTOR,
             6,
@@ -277,9 +452,27 @@ public sealed class WiredVariableAddonSharingTests
             .Should()
             .BeTrue();
         await coins.LoadWiredAsync(Ct);
+
+        if (levelUp)
+            (
+                await coins.SetValueAsync(
+                    _shop.Harness.Fakes.Create<IWiredExecutionContext>(),
+                    new WiredVariableKey(
+                        coins.GetVarSnapshot().VariableId,
+                        WiredVariableTargetType.Global,
+                        0
+                    ),
+                    new WiredVariableValue(250)
+                )
+            )
+                .Should()
+                .BeTrue();
     }
 
-    private async Task<WiredVariableReference> AddReferenceAsync(int[]? imported)
+    private async Task<WiredVariableReference> AddReferenceAsync(
+        int[]? imported,
+        int source = COINS
+    )
     {
         var reference = _other.AddBox<WiredVariableReference>(REFERENCE, 3, 3, "wf_var_reference");
 
@@ -299,7 +492,7 @@ public sealed class WiredVariableAddonSharingTests
                 stringParam: "linked",
                 variableIds:
                 [
-                    ((FurnitureWiredVariableLogic)_shop.FloorItem(COINS).Logic)
+                    ((FurnitureWiredVariableLogic)_shop.FloorItem(source).Logic)
                         .GetVarSnapshot()
                         .VariableId.ToString(),
                 ]

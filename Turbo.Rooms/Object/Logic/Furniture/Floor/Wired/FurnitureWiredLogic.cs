@@ -47,7 +47,20 @@ public abstract partial class FurnitureWiredLogic(
 
     protected IWiredData _wiredData = null!;
 
-    public RoomObjectId ObjectId => _ctx.ObjectId;
+    /// <summary>
+    /// The box's id; for a copy imported from another room (<see cref="ImportWiredAsync"/>), the
+    /// id of the box it copies, so what it makes is known by the same ids in both rooms.
+    /// </summary>
+    public RoomObjectId ObjectId => _importedFrom ?? _ctx.ObjectId;
+
+    /// <summary>
+    /// The box in another room this one is a copy of: an add-on a "Variable Add-on: Import"
+    /// takes over, run on the reference box it imports for. It is no furni of its own and never
+    /// saves anything.
+    /// </summary>
+    private RoomObjectId? _importedFrom;
+
+    public bool IsImported => _importedFrom is not null;
 
     private WiredDataSnapshot? _snapshot;
 
@@ -62,6 +75,42 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     public Task EnsureWiredLoadedAsync(CancellationToken ct) =>
         _wiredData is null ? LoadWiredAsync(ct) : Task.CompletedTask;
+
+    /// <summary>
+    /// The box as saved, for a share add-on to pass on as one of <paramref name="category"/>;
+    /// null while it is not loaded.
+    /// </summary>
+    public SharedWiredVariableAddonSnapshot? ToSharedAddon(WiredVariableAddonCategories category) =>
+        _wiredData is null
+            ? null
+            : new SharedWiredVariableAddonSnapshot
+            {
+                BoxId = ObjectId.Value,
+                LogicType = _ctx.Definition.LogicName,
+                Category = category,
+                IntParams = [.. _wiredData.IntParams],
+                StringParam = _wiredData.StringParam ?? string.Empty,
+                VariableIds = [.. _wiredData.VariableIds],
+            };
+
+    /// <summary>
+    /// Makes this box a copy of <paramref name="addon"/>, an add-on of another room, and loads
+    /// it: its params are checked by this room's rules as a save here would be, and variable ids
+    /// this room does not have are dropped.
+    /// </summary>
+    public Task ImportWiredAsync(SharedWiredVariableAddonSnapshot addon, CancellationToken ct)
+    {
+        _importedFrom = RoomObjectId.Parse(addon.BoxId);
+        _wiredData = new WiredData
+        {
+            IntParams = [.. addon.IntParams],
+            StringParam = addon.StringParam,
+            VariableIds = [.. addon.VariableIds],
+        };
+        _wiredData.AttatchRules(GetIntParamRules(), GetIntParamTailRule());
+
+        return LoadWiredAsync(ct);
+    }
 
     /// <summary>The box's activation flash: Habbo flips most boxes between 0 and 1 each time they act.</summary>
     public virtual Task FlashActivationStateAsync(CancellationToken ct) =>
@@ -881,6 +930,10 @@ public abstract partial class FurnitureWiredLogic(
 
             _wiredData.MarkDirty();
         }
+
+        // A copy runs on another box's furni: what it holds is not that furni's to keep.
+        if (IsImported)
+            return Task.CompletedTask;
 
         _wiredData.SetAction(() =>
         {
