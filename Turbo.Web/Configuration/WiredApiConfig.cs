@@ -38,6 +38,15 @@ public sealed class WiredApiConfig
     /// publishes no such limit; the default only slows down key guessing.
     /// </summary>
     public WiredApiLimit Failures { get; init; } = new() { PerMinute = 60, Burst = 20 };
+
+    /// <summary>
+    /// Sites whose pages may call these endpoints from a browser (CORS), such as a variables
+    /// explorer hosted elsewhere: their origins (<c>https://example.com</c>), or <c>*</c> for any
+    /// site, never with credentials (the keys travel in headers, not cookies). Any by default, as
+    /// Habbo's: its API answered cross-origin requests from any origin, key headers included
+    /// (browser check, 2026-10-20). An empty list allows none.
+    /// </summary>
+    public string[] AllowedOrigins { get; init; } = ["*"];
 }
 
 public sealed class WiredApiLimit

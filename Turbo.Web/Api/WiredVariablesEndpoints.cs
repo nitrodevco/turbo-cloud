@@ -90,10 +90,74 @@ internal sealed class WiredVariablesEndpoints(
         rooms.MapDelete(USER_PROFILE, Handle(WiredWebApiOperation.DeleteUserProfile));
         rooms.MapGet(FURNI_PROFILE, Handle(WiredWebApiOperation.GetFurniProfile));
         rooms.MapPatch(FURNI_PROFILE, Handle(WiredWebApiOperation.PatchFurniProfile));
+
+        // A browser asks before a call with key headers from another site (a CORS preflight).
+        rooms.MapMethods("/variables/{**path}", [HttpMethods.Options], Preflight);
+        rooms.MapMethods("/variables_profile/{**path}", [HttpMethods.Options], Preflight);
     }
 
     private RequestDelegate Handle(WiredWebApiOperation operation) =>
-        http => HandleAsync(http, operation, http.RequestAborted);
+        http =>
+        {
+            AllowOrigin(http);
+
+            return HandleAsync(http, operation, http.RequestAborted);
+        };
+
+    /// <summary>
+    /// Answers a browser's preflight: from an allowed site (<see cref="WiredApiConfig.AllowedOrigins"/>)
+    /// every method and key header of these endpoints; from any other, nothing, so the browser
+    /// does not make the call.
+    /// </summary>
+    private Task Preflight(HttpContext http)
+    {
+        if (AllowOrigin(http))
+        {
+            var headers = http.Response.Headers;
+
+            headers.AccessControlAllowMethods = "GET, PUT, PATCH, DELETE, POST";
+            headers.AccessControlAllowHeaders =
+                $"{READ_KEY_HEADER}, {WRITE_KEY_HEADER}, Content-Type";
+            headers.AccessControlMaxAge = "600";
+        }
+
+        http.Response.StatusCode = StatusCodes.Status204NoContent;
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Lets a page of an allowed site read the answer (<c>Access-Control-Allow-Origin</c>: <c>*</c>
+    /// when any site is, else the site itself), and its <c>Retry-After</c>; never with
+    /// credentials. Whether the request's site is allowed.
+    /// </summary>
+    private bool AllowOrigin(HttpContext http)
+    {
+        var origin = http.Request.Headers.Origin.ToString();
+
+        if (origin.Length == 0)
+            return false;
+
+        var headers = http.Response.Headers;
+
+        if (Api.AllowedOrigins.Contains("*"))
+            headers.AccessControlAllowOrigin = "*";
+        else if (
+            Api.AllowedOrigins.Any(allowed =>
+                string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+        {
+            headers.AccessControlAllowOrigin = origin;
+            headers.Vary = "Origin";
+        }
+        else
+            return false;
+
+        headers.AccessControlExposeHeaders = "Retry-After";
+
+        return true;
+    }
 
     private async Task HandleAsync(
         HttpContext http,
@@ -393,8 +457,7 @@ internal sealed class WiredApiRateLimits(WiredApiConfig config)
 {
     private readonly PartitionedRateLimiter<(int, WiredApiLimit)> _limiter = Chained<int>();
 
-    private readonly PartitionedRateLimiter<(string, WiredApiLimit)> _failures =
-        Chained<string>();
+    private readonly PartitionedRateLimiter<(string, WiredApiLimit)> _failures = Chained<string>();
 
     /// <summary>Null when the room has room for the call, else how long until it has.</summary>
     public TimeSpan? TryAcquire(int roomId, WiredWebApiOperation operation)

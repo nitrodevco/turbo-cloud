@@ -752,6 +752,46 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Any_site_may_call_from_a_browser_unless_the_hotel_lists_its_own()
+    {
+        const string EXPLORER = "https://wired.habbo.com";
+        const string OTHER = "https://example.com";
+        await using var listed = new WiredWebApiTests(
+            new WiredApiConfig { AllowedOrigins = [EXPLORER] }
+        );
+        var (listedRead, _) = await listed.SetUpAsync();
+        var (read, _) = await SetUpAsync();
+
+        // By default any site, as Habbo's API answered (browser check, 2026-10-20), with the key
+        // headers allowed and never credentials.
+        foreach (var origin in new[] { EXPLORER, OTHER })
+        {
+            using (var preflight = await CrossSiteAsync(HttpMethod.Options, origin, null))
+            {
+                ((int)preflight.StatusCode).Should().Be(204);
+                preflight.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+                string.Join(",", preflight.Headers.GetValues("Access-Control-Allow-Headers"))
+                    .Should()
+                    .Contain("X-Wired-Read-Key")
+                    .And.Contain("X-Wired-Write-Key");
+                preflight.Headers.Contains("Access-Control-Allow-Credentials").Should().BeFalse();
+            }
+
+            using var call = await CrossSiteAsync(HttpMethod.Get, origin, read);
+
+            ((int)call.StatusCode).Should().Be(200);
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        }
+
+        // A hotel that lists its sites lets those alone.
+        using (var call = await listed.CrossSiteAsync(HttpMethod.Get, EXPLORER, listedRead))
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal(EXPLORER);
+
+        using (var other = await listed.CrossSiteAsync(HttpMethod.Options, OTHER, null))
+            other.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Batched_writes_share_a_budget_a_minute_and_reads_are_free()
     {
         await using var limited = new WiredWebApiTests(
@@ -1091,6 +1131,26 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         status.Should().Be(200, json?.ToJsonString());
 
         return json;
+    }
+
+    private async Task<HttpResponseMessage> CrossSiteAsync(
+        HttpMethod method,
+        string origin,
+        string? read
+    )
+    {
+        using var request = new HttpRequestMessage(method, "/api/public/rooms/1/variables");
+        request.Headers.Add("Origin", origin);
+
+        if (read is not null)
+            request.Headers.Add("X-Wired-Read-Key", read);
+        else
+        {
+            request.Headers.Add("Access-Control-Request-Method", "GET");
+            request.Headers.Add("Access-Control-Request-Headers", "x-wired-read-key");
+        }
+
+        return await _http.SendAsync(request, Ct);
     }
 
     /// <summary>A GET's status and whether it says when to try again (<c>Retry-After</c>, in whole seconds).</summary>
