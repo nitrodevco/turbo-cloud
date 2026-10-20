@@ -260,18 +260,17 @@ public sealed class AssetWriteGuardTests
     /// <summary>A server assembly with one write of each kind, outside the primitives.</summary>
     private static Assembly Plant()
     {
-        Type[] used =
-        [
-            typeof(TurboDbContext),
-            typeof(EntityFrameworkQueryableExtensions),
-            typeof(RelationalDatabaseFacadeExtensions),
-        ];
+        // Every assembly the test host may load (the framework's and the server's), not just the
+        // ones loaded so far: run on its own this test had not loaded System.Linq.Queryable, so
+        // Where bound to Enumerable and ExecuteDeleteAsync was missing.
+        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Where(x => x.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(x => MetadataReference.CreateFromFile(x));
         var compilation = CSharpCompilation.Create(
             "Turbo.Planted",
             [CSharpSyntaxTree.ParseText(PLANTED)],
-            PluginBuilder
-                .References()
-                .Concat(used.Select(x => MetadataReference.CreateFromFile(x.Assembly.Location))),
+            references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 

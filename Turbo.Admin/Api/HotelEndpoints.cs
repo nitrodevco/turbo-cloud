@@ -28,14 +28,27 @@ internal sealed class HotelEndpoints(
 {
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/hotel/abilities", AbilitiesAsync);
-        secured.MapPost("/hotel/actions", ActAsync);
         secured
-            .MapGet("/hotel/welcome-message", GetWelcomeMessageAsync)
-            .AddEndpointFilter(RequireWelcomeMessageAsync);
+            .MapGet("/hotel/abilities", AbilitiesAsync)
+            .PanelOnly("Which hotel actions the caller holds.");
         secured
-            .MapPut("/hotel/welcome-message", SetWelcomeMessageAsync)
-            .AddEndpointFilter(RequireWelcomeMessageAsync);
+            .MapPost("/hotel/actions", ActAsync)
+            .PanelOnly("Any staff member may run a hotel action they hold.")
+            .ChecksInHandler("Each action runs as its command, which checks its own node.");
+
+        var welcome = secured
+            .MapGroup("/hotel/welcome-message")
+            .RequirePermission(
+                PermissionNodes.Admin.WELCOME_MESSAGE_MANAGE,
+                "You can't change the welcome message."
+            );
+
+        welcome.MapGet("", GetWelcomeMessageAsync);
+        welcome
+            .MapPut("", SetWelcomeMessageAsync)
+            .ViewIsEnough(
+                "admin.welcome.manage is the one node to see and change the welcome message."
+            );
     }
 
     private async Task<IResult> AbilitiesAsync(HttpContext http, CancellationToken ct)
@@ -105,26 +118,5 @@ internal sealed class HotelEndpoints(
                 HotelSettingEntity.VALUE_MAX_LENGTH
             )
         );
-    }
-
-    private async ValueTask<object?> RequireWelcomeMessageAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.WELCOME_MESSAGE_MANAGE,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(
-                StatusCodes.Status403Forbidden,
-                "You can't change the welcome message."
-            );
     }
 }

@@ -167,9 +167,17 @@ public sealed class WordFilterEndpointsTests : IAsyncDisposable
             .GetBoolean()
             .Should()
             .BeFalse();
-        (await SendAsync(HttpMethod.Post, "/api/word-filter", new { words = "heck" }))
+        var refused = await SendAsync(HttpMethod.Post, "/api/word-filter", new { words = "heck" });
+        refused.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await JsonAsync(refused))
+            .GetProperty("message")
+            .GetString()
+            .Should()
+            .Be("You can't change the word filter.");
+        // Trying a line is not a GET but changes nothing: reading the filter is enough.
+        (await SendAsync(HttpMethod.Post, "/api/word-filter/test", new { text = "oh heck" }))
             .StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+            .Be(HttpStatusCode.OK);
         (await SendAsync(HttpMethod.Delete, "/api/word-filter/1"))
             .StatusCode.Should()
             .Be(HttpStatusCode.Forbidden);

@@ -30,7 +30,10 @@ internal sealed class LiveEndpoints(
 {
     private readonly TimeSpan _heartbeat = TimeSpan.FromSeconds(config.Value.LiveHeartbeatSeconds);
 
-    public void Map(RouteGroupBuilder secured) => secured.MapGet("/live", StreamAsync);
+    public void Map(RouteGroupBuilder secured) =>
+        secured
+            .MapGet("/live", StreamAsync)
+            .PanelOnly("Each stream of changes is sent only to staff who hold its node.");
 
     private async Task StreamAsync(HttpContext http)
     {

@@ -29,14 +29,24 @@ internal sealed class ServerEndpoints(
     AdminActionLog audit
 )
 {
+    /// <summary>Why a restart route checks in its handler: each refusal goes into the command log.</summary>
+    private const string LOGGED =
+        "Each refusal is written to the command log, so the handler checks admin.server.restart.";
+
     private const string NO_RESTART = "You can't restart the server.";
     private const string CANCEL = "cancel";
 
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/server/restart", StatusAsync);
-        secured.MapPost("/server/restart", RestartAsync);
-        secured.MapDelete("/server/restart", CancelAsync);
+        var restart = secured
+            .MapGroup("/server/restart")
+            .PanelOnly(
+                "Any staff member sees whether a restart is coming and whether they may start one."
+            );
+
+        restart.MapGet("", StatusAsync);
+        restart.MapPost("", RestartAsync).ChecksInHandler(LOGGED);
+        restart.MapDelete("", CancelAsync).ChecksInHandler(LOGGED);
     }
 
     private async Task<IResult> StatusAsync(HttpContext http, CancellationToken ct) =>

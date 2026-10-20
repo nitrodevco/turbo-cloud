@@ -1055,6 +1055,39 @@ passkey; they add more while signed in instead.
 | `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
 | `admin.plugins.uninstall` | With `admin.plugins.manage`: uninstalling a plugin on that page, its dry run, and the SQL export of its tables. No wildcard grants it. |
 
+### How a route says who may call it
+
+Every route behind the session declares its access, and `AdminSessionFilter` checks it before
+the handler runs, the way `PermissionGate` checks a packet handler's `[RequiresPermission]`:
+
+```csharp
+var group = secured
+    .MapGroup("/word-filter")
+    .RequirePermission(PermissionNodes.Moderation.TOOL, NO_ACCESS)          // to see
+    .RequirePermissionToChange(PermissionNodes.Moderation.FILTER_MANAGE, NO_MANAGE); // to change
+group.MapPost("/test", TestAsync).ViewIsEnough("Trying a line changes nothing.");
+```
+
+- `RequirePermission(node, refusal)` on a group or a route: every request needs the node (a
+  route's own comes on top of its group's). `RequireAnyPermission(refusal, nodes...)` takes any of
+  them.
+- `RequirePermissionToChange(node, refusal)` on a group: anything but a GET needs the node.
+- A note, with its reason, for a route that needs no more: `PanelOnly` (the caller's own account,
+  their session, a list cut to what they hold), `ViewIsEnough` (a request that is not a GET but
+  changes nothing, or an area with one node for both), `ChecksInHandler` (the handler decides from
+  the request: the target's rank, a room's owner, a command's own node, a refusal written to the
+  command log).
+
+`AdminAccessGuardTests` fails for a route that declares none of these, and for a change that does
+not say what changing needs. A handler still asks `grainFactory.HoldsAsync(http, node, ct)` for
+what it shows (a list that says whether it may be changed), never to decide who may call it.
+
+The dashboard needs only `admin.panel`, although it shows the figures `:status` reports in the
+hotel (uptime, players online, rooms loaded, silos, memory, a coming maintenance or shutdown) and
+`:status` needs `command.status`. That is on purpose: it is the panel's front page, its figures
+are counts with no player data in them, and its busiest rooms are in the navigator anyway, so
+every staff member who may open the panel sees it.
+
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
 commands typed in the hotel. Room commands (`kick`, `mute`, ...) need a room, so the console

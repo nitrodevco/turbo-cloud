@@ -14,9 +14,11 @@ namespace Turbo.Admin.Api;
 internal sealed class ClientAssetEndpoints(ClientAssets assets)
 {
     public void Map(RouteGroupBuilder secured) =>
-        secured.MapGet(
-            "/client/assets",
-            async (CancellationToken ct) =>
-                Results.Ok(await assets.GetAsync(ct).ConfigureAwait(false))
-        );
+        secured
+            .MapGet(
+                "/client/assets",
+                async (CancellationToken ct) =>
+                    Results.Ok(await assets.GetAsync(ct).ConfigureAwait(false))
+            )
+            .PanelOnly("The addresses are already public in the client's own config.");
 }

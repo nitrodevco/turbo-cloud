@@ -31,8 +31,13 @@ internal sealed class CommandEndpoints(
 {
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/commands", ListAsync);
-        secured.MapPost("/commands/run", RunAsync);
+        secured
+            .MapGet("/commands", ListAsync)
+            .PanelOnly("Lists only the commands the caller holds.");
+        secured
+            .MapPost("/commands/run", RunAsync)
+            .PanelOnly("Any staff member may run a command they hold.")
+            .ChecksInHandler("Each command checks its own node, as in the game.");
     }
 
     private async Task<IResult> ListAsync(HttpContext http, CancellationToken ct)

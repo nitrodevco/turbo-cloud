@@ -14,8 +14,10 @@ internal sealed class PerformanceEndpoints(AdminPerformanceRecorder recorder)
     private const int DEFAULT_HOURS = 1;
 
     public void Map(RouteGroupBuilder secured) =>
-        secured.MapGet(
-            "/performance",
-            (int? hours) => Results.Ok(recorder.Read(hours ?? DEFAULT_HOURS))
-        );
+        secured
+            .MapGet(
+                "/performance",
+                (int? hours) => Results.Ok(recorder.Read(hours ?? DEFAULT_HOURS))
+            )
+            .PanelOnly("The server's timings, for any staff member.");
 }

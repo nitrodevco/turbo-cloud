@@ -32,7 +32,10 @@ internal sealed class VoucherEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/vouchers").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/vouchers")
+            .RequirePermission(PermissionNodes.Admin.CATALOG_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Catalog.MANAGE, NO_MANAGE);
 
         group.MapGet("/", SearchAsync);
         group.MapPost(
@@ -45,13 +48,10 @@ internal sealed class VoucherEndpoints(
         group.MapDelete(
             "/{id:int}",
             (int id, HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        await vouchers.DeleteAsync(id, ct).ConfigureAwait(false)
-                            ? Results.NoContent()
-                            : Results.NotFound()
+                ChangeAsync(async () =>
+                    await vouchers.DeleteAsync(id, ct).ConfigureAwait(false)
+                        ? Results.NoContent()
+                        : Results.NotFound()
                 )
         );
         group.MapGet(
@@ -85,7 +85,9 @@ internal sealed class VoucherEndpoints(
                 vouchers = found.Select(Item),
                 total,
                 pageSize,
-                canManage = await CanManageAsync(http, ct).ConfigureAwait(false),
+                canManage = await grainFactory
+                    .HoldsAsync(http, PermissionNodes.Catalog.MANAGE, ct)
+                    .ConfigureAwait(false),
             }
         );
     }
@@ -96,54 +98,44 @@ internal sealed class VoucherEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                var saved = await vouchers
-                    .SaveAsync(Snapshot(id, request), ct)
-                    .ConfigureAwait(false);
+        ChangeAsync(async () =>
+        {
+            var saved = await vouchers.SaveAsync(Snapshot(id, request), ct).ConfigureAwait(false);
 
-                logger.LogInformation(
-                    "Staff {StaffId} saved voucher {VoucherId} ({Code})",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    saved.Id,
-                    saved.Code
-                );
+            logger.LogInformation(
+                "Staff {StaffId} saved voucher {VoucherId} ({Code})",
+                AdminIdentity.Of(http).PlayerId.Value,
+                saved.Id,
+                saved.Code
+            );
 
-                return Results.Ok(Item(saved));
-            }
-        );
+            return Results.Ok(Item(saved));
+        });
 
     private Task<IResult> GenerateAsync(
         VoucherGenerateRequest request,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                var made = await vouchers
-                    .GenerateAsync(
-                        Snapshot(0, request.Voucher ?? new VoucherRequest()),
-                        request.Count ?? 0,
-                        request.Prefix ?? string.Empty,
-                        ct
-                    )
-                    .ConfigureAwait(false);
+        ChangeAsync(async () =>
+        {
+            var made = await vouchers
+                .GenerateAsync(
+                    Snapshot(0, request.Voucher ?? new VoucherRequest()),
+                    request.Count ?? 0,
+                    request.Prefix ?? string.Empty,
+                    ct
+                )
+                .ConfigureAwait(false);
 
-                logger.LogInformation(
-                    "Staff {StaffId} made {Count} vouchers",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    made.Length
-                );
+            logger.LogInformation(
+                "Staff {StaffId} made {Count} vouchers",
+                AdminIdentity.Of(http).PlayerId.Value,
+                made.Length
+            );
 
-                return Results.Ok(new { vouchers = made.Select(Item) });
-            }
-        );
+            return Results.Ok(new { vouchers = made.Select(Item) });
+        });
 
     private VoucherItem Item(VoucherSnapshot voucher) =>
         new(
@@ -174,15 +166,8 @@ internal sealed class VoucherEndpoints(
             CreatedAt = default,
         };
 
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    )
+    private async Task<IResult> ChangeAsync(Func<Task<IResult>> change)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         try
         {
             return await change().ConfigureAwait(false);
@@ -191,30 +176,5 @@ internal sealed class VoucherEndpoints(
         {
             return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
         }
-    }
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Catalog.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CATALOG_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

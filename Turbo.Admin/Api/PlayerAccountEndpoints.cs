@@ -39,16 +39,26 @@ internal sealed class PlayerAccountEndpoints(
     private const string NO_ACCESS = "You can't look up players.";
     private const string NO_CREATE = "You can't create players.";
 
+    /// <summary>Why the account routes check in the handler: whether may depends on the target.</summary>
+    private const string TICKET_POLICY =
+        "AdminTicketPolicy decides from the target: staff act only on accounts they outrank.";
+
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/players").AddEndpointFilter(RequirePlayersViewAsync);
+        var group = secured
+            .MapGroup("/players")
+            .RequirePermission(PermissionNodes.Admin.PLAYERS_VIEW, NO_ACCESS);
 
-        group.MapPost("/", CreateAsync);
+        group
+            .MapPost("/", CreateAsync)
+            .RequirePermission(PermissionNodes.Admin.PLAYERS_CREATE, NO_CREATE);
         group.MapGet("/{id:int}/ticket", TicketAsync);
-        group.MapPost("/{id:int}/ticket", IssueAsync);
-        group.MapDelete("/{id:int}/ticket", RevokeAsync);
-        group.MapDelete("/{id:int}/discord", UnlinkDiscordAsync);
-        group.MapDelete("/{id:int}/site-sessions", EndSiteSessionsAsync);
+        group.MapPost("/{id:int}/ticket", IssueAsync).ChecksInHandler(TICKET_POLICY);
+        group.MapDelete("/{id:int}/ticket", RevokeAsync).ChecksInHandler(TICKET_POLICY);
+        group.MapDelete("/{id:int}/discord", UnlinkDiscordAsync).ChecksInHandler(TICKET_POLICY);
+        group
+            .MapDelete("/{id:int}/site-sessions", EndSiteSessionsAsync)
+            .ChecksInHandler(TICKET_POLICY);
     }
 
     /// <summary>
@@ -121,12 +131,6 @@ internal sealed class PlayerAccountEndpoints(
     )
     {
         var identity = AdminIdentity.Of(http);
-
-        if (
-            !await HoldsAsync(identity.PlayerId, PermissionNodes.Admin.PLAYERS_CREATE, ct)
-                .ConfigureAwait(false)
-        )
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_CREATE);
 
         var gender = string.Equals(request.Gender, "female", StringComparison.OrdinalIgnoreCase)
             ? AvatarGenderType.Female
@@ -268,25 +272,5 @@ internal sealed class PlayerAccountEndpoints(
                 is { } refused
             ? AdminResults.Error(StatusCodes.Status403Forbidden, refused)
             : null;
-    }
-
-    private Task<bool> HoldsAsync(PlayerId player, string node, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(player, node, ct);
-
-    private async ValueTask<object?> RequirePlayersViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await HoldsAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.PLAYERS_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

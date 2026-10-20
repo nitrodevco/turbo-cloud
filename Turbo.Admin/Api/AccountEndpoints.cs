@@ -30,11 +30,15 @@ internal sealed class AccountEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/account", GetAsync);
-        secured.MapPost("/account/confirm", ConfirmOptionsAsync);
-        secured.MapPost("/account/passkeys/options", PasskeyOptionsAsync);
-        secured.MapPost("/account/passkeys", AddPasskeyAsync);
-        secured.MapDelete("/account/passkeys/{id:int}", RemovePasskeyAsync);
+        var account = secured
+            .MapGroup("/account")
+            .PanelOnly("The caller's own account and passkeys.");
+
+        account.MapGet("", GetAsync);
+        account.MapPost("/confirm", ConfirmOptionsAsync);
+        account.MapPost("/passkeys/options", PasskeyOptionsAsync);
+        account.MapPost("/passkeys", AddPasskeyAsync);
+        account.MapDelete("/passkeys/{id:int}", RemovePasskeyAsync);
     }
 
     private async Task<IResult> GetAsync(HttpContext http, CancellationToken ct)

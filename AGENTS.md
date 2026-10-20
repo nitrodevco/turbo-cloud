@@ -1282,6 +1282,15 @@ out of pulling it apart; they hold for any system that grows the same way.
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
 
+## Admin API routes
+- Every admin route declares who may call it (`RequirePermission`, `RequirePermissionToChange`,
+  or a note: `PanelOnly`, `ViewIsEnough`, `ChecksInHandler`, each with its reason); the session
+  filter checks it before the handler runs (`docs/admin-panel.md`, *How a route says who may call
+  it*). A handler does not check a node to decide whether it may run: a route whose author forgot
+  that check was open to anyone with `admin.panel`, and the same action needed different nodes
+  in different files. `AdminAccessGuardTests` reads every route and fails on one that declares
+  nothing.
+
 ## Packet handler extensions
 When two or more handlers do the same thing around their grain call — the same grain call, the
 same mapping from a snapshot to a composer, the same failure-to-composer mapping — that

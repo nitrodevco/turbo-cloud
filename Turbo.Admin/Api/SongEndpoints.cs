@@ -29,7 +29,10 @@ internal sealed class SongEndpoints(IGrainFactory grainFactory)
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/songs").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/songs")
+            .RequirePermission(PermissionNodes.Admin.CATALOG_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Catalog.MANAGE, NO_MANAGE);
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:int}", GetAsync);
@@ -64,39 +67,24 @@ internal sealed class SongEndpoints(IGrainFactory grainFactory)
         SongRequest request,
         HttpContext http,
         CancellationToken ct
-    ) => ManageAsync(http, ct, () => Directory.CreateSongAsync(Draft(request), ct));
+    ) => ChangeAsync(ct, () => Directory.CreateSongAsync(Draft(request), ct));
 
     private Task<IResult> UpdateAsync(
         int id,
         SongRequest request,
         HttpContext http,
         CancellationToken ct
-    ) => ManageAsync(http, ct, () => Directory.UpdateSongAsync(id, Draft(request), ct));
+    ) => ChangeAsync(ct, () => Directory.UpdateSongAsync(id, Draft(request), ct));
 
     private Task<IResult> DeleteAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(http, ct, () => Directory.DeleteSongAsync(id, ct));
+        ChangeAsync(ct, () => Directory.DeleteSongAsync(id, ct));
 
     /// <summary>
-    /// A change by someone who holds <c>catalog.manage</c>: the song as saved (no content after a
+    /// A change: the song as saved (no content after a
     /// delete), 404 for a song that is gone, or 400 with why it was refused.
     /// </summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<SongEditResult>> edit
-    )
+    private async Task<IResult> ChangeAsync(CancellationToken ct, Func<Task<SongEditResult>> edit)
     {
-        if (
-            !await grainFactory
-                .HasPermissionAsync(
-                    AdminIdentity.Of(http).PlayerId,
-                    PermissionNodes.Catalog.MANAGE,
-                    ct
-                )
-                .ConfigureAwait(false)
-        )
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var result = await edit().ConfigureAwait(false);
 
         if (!result.Saved)
@@ -144,22 +132,4 @@ internal sealed class SongEndpoints(IGrainFactory grainFactory)
             song.Code.Length > 0 ? song.Code : null,
             song.Track
         );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CATALOG_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

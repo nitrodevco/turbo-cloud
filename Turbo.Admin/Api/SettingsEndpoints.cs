@@ -24,7 +24,10 @@ internal sealed class SettingsEndpoints(IGrainFactory grainFactory, IServerSetti
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/settings").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/settings")
+            .RequirePermission(PermissionNodes.Admin.SETTINGS_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Settings.MANAGE, NO_MANAGE);
 
         group.MapGet("/", ListAsync);
         group.MapPut("/", SaveAsync);
@@ -36,97 +39,54 @@ internal sealed class SettingsEndpoints(IGrainFactory grainFactory, IServerSetti
         Results.Ok(
             new SettingsResponse(
                 settings.List(),
-                await CanManageAsync(http, ct).ConfigureAwait(false),
+                await grainFactory
+                    .HoldsAsync(http, PermissionNodes.Settings.MANAGE, ct)
+                    .ConfigureAwait(false),
                 settings.StartupLoadError
             )
         );
 
-    private Task<IResult> SaveAsync(
+    private async Task<IResult> SaveAsync(
         SettingSaveRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await settings
-                            .SaveAsync(
-                                request.Path ?? string.Empty,
-                                request.Value ?? string.Empty,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await settings
+                    .SaveAsync(
+                        request.Path ?? string.Empty,
+                        request.Value ?? string.Empty,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> ResetAsync(string? path, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return await settings
-                        .ResetAsync(path ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
-                        .ConfigureAwait(false)
-                        ? Results.NoContent()
-                        : Results.NotFound();
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+    private async Task<IResult> ResetAsync(string? path, HttpContext http, CancellationToken ct)
+    {
+        try
+        {
+            return await settings
+                .ResetAsync(path ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+                .ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> HistoryAsync(int? page, CancellationToken ct) =>
         Results.Ok(await settings.HistoryAsync(page ?? 0, ct).ConfigureAwait(false));
-
-    /// <summary>A change by someone who holds <c>settings.manage</c>.</summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    ) =>
-        await CanManageAsync(http, ct).ConfigureAwait(false)
-            ? await change().ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Settings.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.SETTINGS_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

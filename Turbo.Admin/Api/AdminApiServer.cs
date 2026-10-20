@@ -89,9 +89,8 @@ internal sealed class AdminApiServer(
         app.Use(HandleFailureAsync);
 
         var secured = app.MapGroup("/api")
-            .AddEndpointFilter(
-                new AdminSessionFilter(services.GetRequiredService<IGrainFactory>())
-            );
+            .AddEndpointFilter(new AdminSessionFilter(services.GetRequiredService<IGrainFactory>()))
+            .WithMetadata(new AdminSessionRequired());
 
         var passkeys = ActivatorUtilities.CreateInstance<AdminPasskeys>(services);
 

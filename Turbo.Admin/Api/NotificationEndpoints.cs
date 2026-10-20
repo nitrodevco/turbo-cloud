@@ -19,7 +19,10 @@ internal sealed class NotificationEndpoints(
     AdminNotificationQueries notifications
 )
 {
-    public void Map(RouteGroupBuilder secured) => secured.MapGet("/notifications", GetAsync);
+    public void Map(RouteGroupBuilder secured) =>
+        secured
+            .MapGet("/notifications", GetAsync)
+            .PanelOnly("Each kind of notice is counted only for staff who may see it.");
 
     private async Task<IResult> GetAsync(HttpContext http, CancellationToken ct)
     {
