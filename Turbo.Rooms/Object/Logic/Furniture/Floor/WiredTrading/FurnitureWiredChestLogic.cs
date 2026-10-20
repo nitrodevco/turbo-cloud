@@ -151,7 +151,7 @@ public abstract class FurnitureWiredChestLogic(
                 if (!await CanOpenAsync(ctx))
                     return Reject(ctx, interaction, "may not look inside");
 
-                await _roomGrain.WiredChestSystem.CloseOtherChestsAsync(ctx.PlayerId, this, ct);
+                await WiredChestSystem.CloseOtherChestsAsync(ctx.PlayerId, this, ct);
                 await SetViewerCountAsync(await Chest.OpenAsync(Settings, ctx.PlayerId, ct));
 
                 return true;

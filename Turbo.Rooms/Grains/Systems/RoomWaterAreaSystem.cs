@@ -90,10 +90,10 @@ public sealed class RoomWaterAreaSystem(RoomGrain roomGrain)
         var tiles = new List<int>();
         foreach (var (x, y) in FloorFootprint.Of(item).Tiles())
         {
-            if (!_roomGrain.MapModule.InBounds(x, y))
+            if (!MapModule.InBounds(x, y))
                 continue;
 
-            var idx = _roomGrain.MapModule.ToIdx(x, y);
+            var idx = MapModule.ToIdx(x, y);
             tiles.Add(idx);
             (_itemsByTile.TryGetValue(idx, out var items) ? items : (_itemsByTile[idx] = [])).Add(
                 item
@@ -145,18 +145,18 @@ public sealed class RoomWaterAreaSystem(RoomGrain roomGrain)
     {
         for (var x = footprint.X - 1; x <= footprint.X + footprint.Width; x++)
         {
-            if (_roomGrain.MapModule.InBounds(x, footprint.Y - 1))
-                yield return _roomGrain.MapModule.ToIdx(x, footprint.Y - 1);
-            if (_roomGrain.MapModule.InBounds(x, footprint.Y + footprint.Length))
-                yield return _roomGrain.MapModule.ToIdx(x, footprint.Y + footprint.Length);
+            if (MapModule.InBounds(x, footprint.Y - 1))
+                yield return MapModule.ToIdx(x, footprint.Y - 1);
+            if (MapModule.InBounds(x, footprint.Y + footprint.Length))
+                yield return MapModule.ToIdx(x, footprint.Y + footprint.Length);
         }
 
         for (var y = footprint.Y; y < footprint.Y + footprint.Length; y++)
         {
-            if (_roomGrain.MapModule.InBounds(footprint.X - 1, y))
-                yield return _roomGrain.MapModule.ToIdx(footprint.X - 1, y);
-            if (_roomGrain.MapModule.InBounds(footprint.X + footprint.Width, y))
-                yield return _roomGrain.MapModule.ToIdx(footprint.X + footprint.Width, y);
+            if (MapModule.InBounds(footprint.X - 1, y))
+                yield return MapModule.ToIdx(footprint.X - 1, y);
+            if (MapModule.InBounds(footprint.X + footprint.Width, y))
+                yield return MapModule.ToIdx(footprint.X + footprint.Width, y);
         }
     }
 
@@ -189,10 +189,10 @@ public sealed class RoomWaterAreaSystem(RoomGrain roomGrain)
 
     private bool IsWaterAt(IRoomFloorItem source, int x, int y)
     {
-        if (!_roomGrain.MapModule.InBounds(x, y))
+        if (!MapModule.InBounds(x, y))
             return false;
 
-        var idx = _roomGrain.MapModule.ToIdx(x, y);
+        var idx = MapModule.ToIdx(x, y);
         if (!_itemsByTile.TryGetValue(idx, out var items))
             return false;
 

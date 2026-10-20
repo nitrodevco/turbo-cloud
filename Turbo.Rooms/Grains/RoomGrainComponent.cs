@@ -1,5 +1,6 @@
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Wired.Leaderboard;
 using Turbo.Rooms.Wired.VariableFx;
 
 namespace Turbo.Rooms.Grains;
@@ -47,4 +48,7 @@ public abstract class RoomGrainComponent(RoomGrain roomGrain)
     protected RoomWiredChestSystem WiredChestSystem => _roomGrain.WiredChestSystem;
     protected RoomWiredTransactionSystem WiredTransactionSystem =>
         _roomGrain.WiredTransactionSystem;
+    protected RoomVariableLeaderboardSystem VariableLeaderboardSystem =>
+        _roomGrain.VariableLeaderboardSystem;
+    protected RoomWaterAreaSystem WaterAreaSystem => _roomGrain.WaterAreaSystem;
 }

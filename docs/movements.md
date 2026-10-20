@@ -231,7 +231,7 @@ stays queued, ahead of the next flush's updates, and is written again with its m
 | `room.pickall`, `room.ejectall` | `:pickall` and `:ejectall`, one operation for all the furni |
 | `room.delete`, `room.floorplan`, `room.rent_end`, `group.furni_removed` | furni sent home when the room goes (cause ref: the room), is left off a new floor plan (the room), a rented space ends (the rentable furni), the room's group goes (the room) |
 | `room.delete_item` | a furni the client deletes |
-| `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_supply`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
+| `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
 
 ## Holders, made-in-room and borrowed furni
 

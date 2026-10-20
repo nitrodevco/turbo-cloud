@@ -23,7 +23,7 @@ public abstract class ContextVariable(RoomGrain roomGrain) : WiredInternalVariab
         if (!CanBind(key))
             return false;
 
-        if (_roomGrain.WiredSystem.CurrentExecution is { } execution)
+        if (WiredSystem.CurrentExecution is { } execution)
             value = GetValueForExecution(execution);
 
         return true;

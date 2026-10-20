@@ -378,6 +378,10 @@ public sealed class AssetSyncTests : IDisposable
         }
 
         relisted.Should().BeTrue();
+
+        // The preview that saw it read Habbo again behind it too (the lists are always stale
+        // here); the database closes after this test, and that read must be done by then.
+        await sync.WhenRelistedAsync();
     }
 
     [Fact]

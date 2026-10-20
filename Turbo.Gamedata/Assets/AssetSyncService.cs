@@ -72,6 +72,9 @@ internal sealed class AssetSyncService(
     private readonly SemaphoreSlim _listing = new(1, 1);
     private HabboLists? _lists;
 
+    /// <summary>The background read <see cref="RelistBehind"/> started last; done when none runs.</summary>
+    private Task _relisting = Task.CompletedTask;
+
     public AssetJobSnapshot Start(PlayerId player) =>
         jobs.Start(
             AssetJobKind.Sync,
@@ -321,7 +324,7 @@ internal sealed class AssetSyncService(
         if (!_listing.Wait(0))
             return;
 
-        _ = Task.Run(async () =>
+        _relisting = Task.Run(async () =>
         {
             try
             {
@@ -342,6 +345,12 @@ internal sealed class AssetSyncService(
             }
         });
     }
+
+    /// <summary>
+    /// Waits for a background read of Habbo's lists to end: what touches the database after a
+    /// preview has answered, for whoever closes the database next.
+    /// </summary>
+    internal Task WhenRelistedAsync() => _relisting;
 
     private bool IsStale(HabboLists lists) =>
         time.GetUtcNow().UtcDateTime - lists.ListedAt
