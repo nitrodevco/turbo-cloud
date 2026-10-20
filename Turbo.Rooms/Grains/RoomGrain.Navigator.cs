@@ -9,6 +9,7 @@ using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Advertisement;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
@@ -296,6 +297,13 @@ public sealed partial class RoomGrain
         )
             return false;
 
+        if (FindFilteredEventText(name, description) is { } refusal)
+        {
+            await _grainFactory.SendComposerToPlayerAsync(ctx.PlayerId, refusal, ct);
+
+            return false;
+        }
+
         (name, description) = FilterEventText(name, description);
 
         try
@@ -402,6 +410,33 @@ public sealed partial class RoomGrain
             _wordFilter.FilterAndTruncate(name, RoomEventEntity.NAME_MAX_LENGTH),
             _wordFilter.FilterAndTruncate(description, RoomEventEntity.DESCRIPTION_MAX_LENGTH)
         );
+
+    /// <summary>
+    /// An edit holding a filtered word is refused with the field and its filtered text, the name
+    /// first: the event window shows one error at a time (it clears the errors on each), and its
+    /// next save sends the text it was handed back.
+    /// </summary>
+    private RoomAdErrorEventMessageComposer? FindFilteredEventText(string name, string description)
+    {
+        if (!_wordFilter.IsClean(name))
+            return new RoomAdErrorEventMessageComposer
+            {
+                ErrorCode = RoomAdErrorEventMessageComposer.NAME,
+                FilteredText = _wordFilter.FilterAndTruncate(name, RoomEventEntity.NAME_MAX_LENGTH),
+            };
+
+        if (!_wordFilter.IsClean(description))
+            return new RoomAdErrorEventMessageComposer
+            {
+                ErrorCode = RoomAdErrorEventMessageComposer.DESCRIPTION,
+                FilteredText = _wordFilter.FilterAndTruncate(
+                    description,
+                    RoomEventEntity.DESCRIPTION_MAX_LENGTH
+                ),
+            };
+
+        return null;
+    }
 
     private RoomEventSnapshot? GetActiveEvent()
     {
