@@ -219,10 +219,11 @@ internal sealed class AssetMovementDispatcher(
     }
 
     /// <summary>
-    /// Deletes rows older than the retention, oldest first and a batch at a time, whatever the
-    /// cursors, and turns the newest row it removes into the
-    /// <see cref="MovementCauses.OUTBOX_PRUNED"/> marker (deleting the previous one), so a
-    /// consumer behind it is told which ids it lost.
+    /// Deletes rows older than the retention, oldest first and a batch at a time, and turns the
+    /// newest row it removes into the <see cref="MovementCauses.OUTBOX_PRUNED"/> marker (deleting
+    /// the previous one), so a consumer behind it is told which ids it lost. A plugin's cursor
+    /// does not hold it back, but the server's own currency ledger does while it is registered:
+    /// it is where currency history is kept, so no row goes before it has read it.
     /// </summary>
     private async Task PruneAsync(CancellationToken ct)
     {
@@ -234,13 +235,30 @@ internal sealed class AssetMovementDispatcher(
         try
         {
             var cutoff = now.AddHours(-_config.OutboxRetentionHours);
+            var ledgerRegistered = registry.Current.Any(x =>
+                x.Consumer.Name == CurrencyLedger.NAME
+            );
 
             var pruned = await dbCtxFactory.InTransactionAsync(
                 async db =>
                 {
+                    var keepFrom = long.MaxValue;
+
+                    // Stored in the same save as the ledger's rows, so it is what the ledger has.
+                    if (ledgerRegistered)
+                        keepFrom = await db
+                            .MovementConsumerCursors.AsNoTracking()
+                            .Where(x => x.Name == CurrencyLedger.NAME)
+                            .Select(x => x.Cursor)
+                            .FirstOrDefaultAsync(ct);
+
                     var ids = await db
                         .AssetMovementOutbox.AsNoTracking()
-                        .Where(x => x.CreatedAt < cutoff && x.Cause != MovementCauses.OUTBOX_PRUNED)
+                        .Where(x =>
+                            x.CreatedAt < cutoff
+                            && x.Id <= keepFrom
+                            && x.Cause != MovementCauses.OUTBOX_PRUNED
+                        )
                         .OrderBy(x => x.Id)
                         .Select(x => x.Id)
                         .Take(_config.BatchSize)

@@ -215,6 +215,49 @@ public sealed class AssetMovementDispatcherTests : IDisposable
         newcomer.Batches.Single().Movements.Select(x => x.Id).Should().Equal(7);
     }
 
+    // The server's currency ledger is where currency history is kept for good: rows it has not
+    // read yet used to be pruned like anyone's, and the history lost them without a trace.
+    [Fact]
+    public async Task TheServersCurrencyLedger_HoldsPruningBackToWhatItHasRead()
+    {
+        for (var id = 1; id <= 5; id++)
+            Row(id, ago: TimeSpan.FromHours(80));
+        Row(6, ago: TimeSpan.FromMinutes(1));
+        using (var db = _db.CreateDbContext())
+        {
+            db.MovementConsumerCursors.Add(
+                new MovementConsumerCursorEntity { Name = CurrencyLedger.NAME, Cursor = 2 }
+            );
+            db.SaveChanges();
+        }
+        var plugin = new LedgerConsumer("plugin-audit");
+        using var r1 = _registry.Register(new CurrencyLedger(_db, _clock));
+        using var r2 = _registry.Register(plugin);
+
+        await Dispatcher().DispatchAsync(Ct);
+
+        Outbox()
+            .Select(x => (x.Id, x.Cause))
+            .Should()
+            .Equal(
+                (2, MovementCauses.OUTBOX_PRUNED),
+                (3, MovementCauses.ROOM_PICKUP),
+                (4, MovementCauses.ROOM_PICKUP),
+                (5, MovementCauses.ROOM_PICKUP),
+                (6, MovementCauses.ROOM_PICKUP)
+            );
+        plugin.Batches.Single().Gap.Should().Be(new OutboxGap(1, 2));
+
+        // Read now, the rest of the old rows go on the next prune.
+        _clock.Advance(TimeSpan.FromHours(1));
+        await Dispatcher().DispatchAsync(Ct);
+
+        Outbox()
+            .Select(x => (x.Id, x.Cause))
+            .Should()
+            .Equal((5, MovementCauses.OUTBOX_PRUNED), (6, MovementCauses.ROOM_PICKUP));
+    }
+
     [Fact]
     public async Task ARowThatCommitsAfterLaterRows_IsHandedOverLate_BelowTheCursor_Once()
     {

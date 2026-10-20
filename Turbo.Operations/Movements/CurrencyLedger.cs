@@ -16,12 +16,21 @@ namespace Turbo.Operations.Movements;
 /// or reaches a player's wallet becomes a row of <c>currency_ledger</c>, kept for good, which the
 /// outbox is not (<c>OutboxRetentionHours</c>). A movement between two wallets is a row for each
 /// player. Its cursor is written with the rows, and a movement it already kept is dropped, so
-/// delivering a batch again keeps each once (<see cref="IAssetMovementConsumer"/>).
+/// delivering a batch again keeps each once (<see cref="IAssetMovementConsumer"/>). Ids pruned
+/// before it read them are kept as a <see cref="GAP_CAUSE"/> row, so a hole in the history shows.
 /// </summary>
-public sealed class CurrencyLedger(IDbContextFactory<TurboDbContext> dbCtxFactory)
-    : IAssetMovementConsumer
+public sealed class CurrencyLedger(
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    TimeProvider timeProvider
+) : IAssetMovementConsumer
 {
     public const string NAME = "core.currency-ledger";
+
+    /// <summary>
+    /// The cause of a row that marks outbox ids pruned before the ledger read them: no player, no
+    /// amount, the ids as its cause ref (<c>first-last</c>).
+    /// </summary>
+    public const string GAP_CAUSE = "ledger.gap";
 
     public string Name => NAME;
 
@@ -42,6 +51,11 @@ public sealed class CurrencyLedger(IDbContextFactory<TurboDbContext> dbCtxFactor
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         var entries = batch.Movements.SelectMany(Entries).ToList();
+
+        // Ids pruned before the ledger read them (it was not registered while a plugin's
+        // dispatcher pruned): the history has a hole, and the ledger says where.
+        if (batch.Gap is { } gap)
+            entries.Add(GapEntry(gap, timeProvider.GetUtcNow().UtcDateTime));
 
         if (entries.Count > 0)
         {
@@ -78,6 +92,21 @@ public sealed class CurrencyLedger(IDbContextFactory<TurboDbContext> dbCtxFactor
         // One transaction: the rows and the cursor are kept together or not at all.
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
     }
+
+    /// <summary>The row that marks a gap; its operation is the range, so a gap delivered twice is kept once.</summary>
+    private static CurrencyLedgerEntryEntity GapEntry(OutboxGap gap, DateTime now) =>
+        new()
+        {
+            OutboxId = gap.LastId,
+            OperationId = $"{GAP_CAUSE}:{gap.FirstId}-{gap.LastId}",
+            Seq = 0,
+            OccurredAt = now,
+            PlayerId = 0,
+            Amount = 0,
+            Cause = GAP_CAUSE,
+            CauseRef = $"{gap.FirstId}-{gap.LastId}",
+            OtherKind = PlaceKind.None,
+        };
 
     /// <summary>What a movement did to wallets: a row for the one it left, and the one it reached.</summary>
     private static IEnumerable<CurrencyLedgerEntryEntity> Entries(OutboxMovement row)
