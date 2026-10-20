@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Crafting;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -255,6 +256,29 @@ public sealed class CraftingTableTests
 
         Results(OWNER).Should().Equal([null]);
         _inventories[OWNER].Keys.Should().Equal(plank);
+    }
+
+    // CraftingWidgetHandler.registerForFurniListInvalidate: after a craft the widget waits for the
+    // inventory's list to go stale before it takes presses again; a failure stops the wait itself.
+    [Fact]
+    public async Task A_craft_calls_the_crafters_inventory_list_stale_after_its_result()
+    {
+        var plank = Give(OWNER, "plank");
+        var nail = Give(OWNER, "nail");
+
+        await MixAsync([plank], craft: true);
+
+        SentTo(OWNER).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
+
+        await MixAsync([plank, nail], craft: true);
+
+        var sent = SentTo(OWNER).ToList();
+
+        sent.OfType<FurniListInvalidateEventMessageComposer>().Should().ContainSingle();
+        sent.FindIndex(x => x is FurniListInvalidateEventMessageComposer)
+            .Should()
+            .BeGreaterThan(sent.FindLastIndex(x => x is CraftingResultMessageComposer));
+        SentTo(GUEST).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
