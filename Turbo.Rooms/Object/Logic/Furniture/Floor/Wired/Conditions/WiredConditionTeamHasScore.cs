@@ -28,13 +28,13 @@ public class WiredConditionTeamHasScore(
         [
             new WiredEnumParamRule<GameTeamType>(GameTeamType.None),
             new WiredRangeParamRule(0, 1000, 0),
-            new WiredRangeParamRule(0, 2, 1),
+            new WiredRangeParamRule(0, 2, 0),
         ];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var points = GetIntParamOrDefault(1, 0);
-        var comparison = GetIntParamOrDefault(2, 1);
+        var comparison = GetIntParamOrDefault(2, 0);
 
         foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
         {

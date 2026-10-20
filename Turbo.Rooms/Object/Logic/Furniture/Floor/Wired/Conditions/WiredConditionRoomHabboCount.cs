@@ -22,13 +22,13 @@ public class WiredConditionRoomHabboCount(
     public override int WiredCode => (int)WiredConditionType.USER_COUNT_IN;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 125, 0), new WiredRangeParamRule(0, 125, 0)];
+        [new WiredRangeParamRule(0, 125, 1), new WiredRangeParamRule(0, 125, 50)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var count = AvatarModule.Avatars.Count(x => x is IRoomPlayer);
-        var min = GetIntParamOrDefault(0, 0);
-        var max = GetIntParamOrDefault(1, 0);
+        var min = GetIntParamOrDefault(0, 1);
+        var max = GetIntParamOrDefault(1, 50);
 
         return count >= min && count <= max;
     }

@@ -21,7 +21,7 @@ public class WiredConditionItemHasHabbo(
 {
     public override int WiredCode => (int)WiredConditionType.FURNIS_HAVE_AVATARS;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 

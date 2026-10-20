@@ -21,8 +21,8 @@ public class WiredConditionTimerLessThan(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         // Flash saves the slider (1 to 1200 half seconds) plus one pulse, so 2 to 1201.
-        [new WiredRangeParamRule(1, 1201, 1)];
+        [new WiredRangeParamRule(1, 1201, 20)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx) =>
-        WiredSystem.GetElapsedTimerPulses(_roomGrain.NowMs()) < GetIntParamOrDefault(0, 1);
+        WiredSystem.GetElapsedTimerPulses(_roomGrain.NowMs()) < GetIntParamOrDefault(0, 20);
 }

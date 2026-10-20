@@ -24,14 +24,14 @@ public class WiredConditionItemHeightMatch(
     protected override bool AllowsWallFurni => true;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 8000, 0), new WiredRangeParamRule(0, 2, 1)];
+        [new WiredRangeParamRule(0, 8000, 0), new WiredRangeParamRule(0, 2, 0)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var altitude = GetIntParamOrDefault(0, 0);
-        var comparison = GetIntParamOrDefault(1, 1);
+        var comparison = GetIntParamOrDefault(1, 0);
         var items = GetFloorItems(ctx.GetSelection(this));
 
         return Quantify(

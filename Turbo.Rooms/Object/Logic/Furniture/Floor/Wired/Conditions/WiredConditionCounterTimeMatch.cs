@@ -37,7 +37,7 @@ public class WiredConditionCounterTimeMatch(
             new WiredRangeParamRule(0, 59, 0),
             new WiredRangeParamRule(0, 99, 0),
             new WiredRangeParamRule(0, 1, 0),
-            new WiredRangeParamRule(0, 2, 1),
+            new WiredRangeParamRule(0, 2, 0),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
@@ -47,7 +47,7 @@ public class WiredConditionCounterTimeMatch(
         var target =
             (GetIntParamOrDefault(1, 0) * 60 + GetIntParamOrDefault(0, 0)) * 2
             + GetIntParamOrDefault(2, 0);
-        var comparison = GetIntParamOrDefault(3, 1);
+        var comparison = GetIntParamOrDefault(3, 0);
         var clocks = GetFloorItems(ctx.GetSelection(this))
             .Select(x => x.Logic as IWiredClock)
             .Where(x => x is not null)

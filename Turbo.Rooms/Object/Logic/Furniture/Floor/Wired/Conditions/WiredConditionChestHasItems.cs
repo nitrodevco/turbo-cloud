@@ -56,7 +56,9 @@ public class WiredConditionChestHasItems(
         [
             new WiredRangeParamRule(0, MAX_VALUE, 0),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.Furni),
+            // A fresh box reads a context variable on the official server (both chest
+            // conditions: defaults [0,0,-20,2], 2026-10-20T17-37-19-Open-wait).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
         ];
 

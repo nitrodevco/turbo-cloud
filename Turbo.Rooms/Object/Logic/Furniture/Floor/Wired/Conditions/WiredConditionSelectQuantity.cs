@@ -27,8 +27,8 @@ public class WiredConditionSelectQuantity(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, 100, 0),
-            new WiredRangeParamRule(0, 2, 1),
+            new WiredRangeParamRule(0, 100, 5),
+            new WiredRangeParamRule(0, 2, 0),
         ];
 
     // The selector's, the signal's or the triggering furni and users: no picks and no whole room
@@ -58,9 +58,9 @@ public class WiredConditionSelectQuantity(
             : WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds.Count;
 
         return WiredComparison.CompareThreeWay(
-            GetIntParamOrDefault(2, 1),
+            GetIntParamOrDefault(2, 0),
             count,
-            GetIntParamOrDefault(1, 0)
+            GetIntParamOrDefault(1, 5)
         );
     }
 }
