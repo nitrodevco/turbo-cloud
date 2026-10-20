@@ -81,7 +81,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     public WiredWebApiTests()
         : this(new WiredApiConfig()) { }
 
-    private WiredWebApiTests(WiredApiConfig wiredApi)
+    private WiredWebApiTests(WiredApiConfig wiredApi, PublicApiConfig? publicApi = null)
     {
         _port = TestPorts.Free();
 
@@ -90,6 +90,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             Enabled = true,
             Url = $"http://127.0.0.1:{_port}",
             WiredApi = wiredApi,
+            PublicApi = publicApi ?? new PublicApiConfig(),
         };
         _room.Harness.Fakes.Instances[(typeof(IRoomGrain), (long)ROOM)] = _room.Harness.Room;
         // The room under test is loaded; any other room is asleep until a call wakes it.
@@ -827,6 +828,40 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Any_site_may_read_a_public_room_from_a_browser_unless_the_hotel_lists_its_own()
+    {
+        const string EXPLORER = "https://wired.habbo.com";
+        const string OTHER = "https://example.com";
+        await using var listed = new WiredWebApiTests(
+            new WiredApiConfig(),
+            new PublicApiConfig { AllowedOrigins = [EXPLORER] }
+        );
+        await listed._server.StartAsync(Ct);
+        await _server.StartAsync(Ct);
+
+        // By default any site, as Habbo's API answered GET rooms/80462556 from wired.habbo.com and
+        // example.com (browser check, 2026-10-20); a not-found too, so the page can tell.
+        foreach (var origin in new[] { EXPLORER, OTHER })
+        foreach (var path in new[] { "/api/public/rooms/1", "/api/public/users/999/rooms" })
+        {
+            using var call = await PublicCrossSiteAsync(path, origin);
+
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+            call.Headers.Contains("Access-Control-Allow-Credentials").Should().BeFalse();
+        }
+
+        // A hotel that lists its sites lets those alone.
+        using (var call = await listed.PublicCrossSiteAsync("/api/public/rooms/1", EXPLORER))
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal(EXPLORER);
+
+        using (var other = await listed.PublicCrossSiteAsync("/api/public/rooms/1", OTHER))
+        {
+            ((int)other.StatusCode).Should().Be(200);
+            other.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+        }
+    }
+
+    [Fact]
     public async Task Batched_writes_share_a_budget_a_minute_and_reads_are_free()
     {
         await using var limited = new WiredWebApiTests(
@@ -1184,6 +1219,14 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             request.Headers.Add("Access-Control-Request-Method", "GET");
             request.Headers.Add("Access-Control-Request-Headers", "x-wired-read-key");
         }
+
+        return await _http.SendAsync(request, Ct);
+    }
+
+    private async Task<HttpResponseMessage> PublicCrossSiteAsync(string path, string origin)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Origin", origin);
 
         return await _http.SendAsync(request, Ct);
     }
