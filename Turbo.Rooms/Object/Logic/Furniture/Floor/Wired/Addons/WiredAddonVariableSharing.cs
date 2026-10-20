@@ -11,7 +11,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// <summary>
 /// What the variable share and import add-ons have in common (AS3 <c>addons/_-226</c>,
 /// WIN63-202610201032): three int params, one per "Categories" checkbox - text connectors,
-/// subvariable creators, variable FX - 1 for ticked.
+/// subvariable creators, variable FX - 1 for ticked. A fresh box has all three ticked (official
+/// client capture lab60, WIN63-202610201032: share and import open with [1,1,1]).
 /// </summary>
 public abstract class WiredAddonVariableSharing(
     IGrainFactory grainFactory,
@@ -27,11 +28,7 @@ public abstract class WiredAddonVariableSharing(
     ];
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-        ];
+        [new WiredBoolParamRule(true), new WiredBoolParamRule(true), new WiredBoolParamRule(true)];
 
     /// <summary>The ticked categories.</summary>
     public WiredVariableAddonCategories Categories
@@ -42,7 +39,7 @@ public abstract class WiredAddonVariableSharing(
 
             for (var i = 0; i < CATEGORY_PARAMS.Length; i++)
             {
-                if (GetIntParamOrDefault(i, false))
+                if (GetIntParamOrDefault(i, true))
                     categories |= CATEGORY_PARAMS[i];
             }
 

@@ -196,6 +196,62 @@ public sealed class WiredVariableAddonSharingTests
         call.Args[1].Should().Be(SHARE);
     }
 
+    /// <summary>
+    /// Habbo answers the button with WiredSaveSuccess (official client capture lab60,
+    /// WIN63-202610201032, 163 ms after it); a refused synchronize is answered with nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public async Task A_synchronize_is_answered_with_save_success(bool synchronized, int answers)
+    {
+        var harness = new PacketHarness();
+
+        harness.Fakes.Handlers[nameof(IRoomGrain.SynchronizeSharedWiredAddonsAsync)] = _ =>
+            Task.FromResult(synchronized);
+
+        var replies = await harness.SendAsync(
+            PacketHarness.Incoming("SynchronizeSharedAddonsMessageEvent"),
+            PacketHarness.Payload(w => w.Int(SHARE)),
+            playerId: 105,
+            roomId: 1
+        );
+
+        replies
+            .Count(x => x.Header == PacketHarness.Outgoing("WiredSaveSuccessMessageComposer"))
+            .Should()
+            .Be(answers);
+    }
+
+    /// <summary>
+    /// A fresh share or import box opens with every category ticked (official client capture lab60,
+    /// WIN63-202610201032: both open with [1,1,1]).
+    /// </summary>
+    [Fact]
+    public async Task Fresh_share_and_import_addons_tick_every_category()
+    {
+        var share = _shop.AddBox<WiredAddonVariableShare>(SHARE, 1, 1, "wf_xtra_var_share");
+        var import = _shop.AddBox<WiredAddonVariableImport>(IMPORT, 2, 2, "wf_xtra_var_import");
+
+        foreach (var box in new FurnitureWiredAddonLogic[] { share, import })
+        {
+            await box.LoadWiredAsync(Ct);
+
+            var snapshot = box.GetSnapshot();
+
+            snapshot.IntParams.Should().Equal(1, 1, 1);
+            snapshot.DefaultIntParams.Should().Equal(1, 1, 1);
+        }
+
+        share
+            .Categories.Should()
+            .Be(
+                WiredVariableAddonCategories.TextConnectors
+                    | WiredVariableAddonCategories.SubVariableCreators
+                    | WiredVariableAddonCategories.VariableFx
+            );
+    }
+
     private async Task BuildShopAsync(int[] shared)
     {
         var coins = _shop.AddBox<WiredVariableRoom>(COINS, 6, 6, "wf_var_room");

@@ -24,8 +24,11 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 /// It needs a running stack to know its target, so it is listed as requiring an execution context,
 /// which keeps it out of the pickers that use a variable outside one
 /// (<c>wiredfurni.error.variables.requires_execution_context</c>: "You cannot select a pointer
-/// variable in this context."). Inference: that a box of another kind, or another pointer, is no
-/// target, and the flags it is listed with (it may stand for any variable of its kind).
+/// variable in this context."). Listed as Habbo lists it: created, availability 999 (internal), the
+/// header's kind, with a value that can be written, requiring an execution context (official client
+/// capture lab60, WIN63-202610201032). Inference: that a box of another kind, or another pointer,
+/// is no target. Open: on Habbo, writes through a pointer changed nothing in 4/4 fires of lab60
+/// (the context variable held the target box's furni id); the announcement's behaviour is kept.
 /// </summary>
 [RoomObjectLogic("wf_var_pointer")]
 public class WiredVariablePointer(
@@ -41,10 +44,11 @@ public class WiredVariablePointer(
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.VariableTarget(WiredVariableTargetType.Furni)];
+        [WiredRules.VariableTarget(WiredVariableTargetType.User)];
 
+    // A fresh box opens on users (official client capture lab60, WIN63-202610201032: ints [1]).
     protected override WiredVariableTargetType TargetType =>
-        GetIntParamOrDefault(PARAM_TARGET, WiredVariableTargetType.Furni);
+        GetIntParamOrDefault(PARAM_TARGET, WiredVariableTargetType.User);
 
     protected override WiredAvailabilityType AvailabilityType => WiredAvailabilityType.Internal;
 

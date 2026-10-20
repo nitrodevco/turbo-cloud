@@ -107,6 +107,18 @@ public sealed class WiredVariablePointerTests
             .BeFalse();
     }
 
+    /// <summary>A fresh pointer opens on users (official client capture lab60, WIN63-202610201032: ints [1]).</summary>
+    [Fact]
+    public async Task A_fresh_pointer_stands_for_a_user_variable()
+    {
+        var pointer = _room.AddBox<WiredVariablePointer>(POINTER, 2, 2, "wf_var_pointer");
+
+        await pointer.LoadWiredAsync(Ct);
+
+        pointer.GetSnapshot().IntParams.Should().Equal(1);
+        pointer.GetSnapshot().DefaultIntParams.Should().Equal(1);
+    }
+
     private static long Read(WiredVariableRoom variable)
     {
         var snapshot = variable.GetVarSnapshot();
