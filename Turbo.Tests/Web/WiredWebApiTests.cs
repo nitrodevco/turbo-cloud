@@ -486,6 +486,38 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_pointer_variable_has_no_target_for_the_api()
+    {
+        const int POINTER_VAR = 6;
+        var (read, write) = await SetUpAsync();
+
+        await AddVariableAsync<WiredVariablePointer>(
+            POINTER_VAR,
+            5,
+            4,
+            "wf_var_pointer",
+            [(int)WiredVariableTargetType.User],
+            "aimed"
+        );
+
+        (await JsonAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))!["users"]!
+            .AsArray()
+            .Select(x => x!.GetValue<string>())
+            .Should()
+            .Equal("points");
+        (
+            await SendAsync(
+                HttpMethod.Put,
+                $"/api/public/rooms/1/variables/user/aimed/users/{PLAYER_ID}",
+                write: write,
+                body: """{"value":"1"}"""
+            )
+        )
+            .Should()
+            .Be((404, "wired.variables.not_found"));
+    }
+
+    [Fact]
     public async Task Mass_deletion_only_works_when_the_box_allows_it()
     {
         var (_, write) = await SetUpAsync(allowBulkDelete: false);
