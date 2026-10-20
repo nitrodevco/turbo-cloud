@@ -76,9 +76,11 @@ public class WiredVariableReference(
 
     public override int GetMaxVariableIds() => 1;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+    // A fresh box is read only on the official server (defaults [1], 3/3 opens, e.g.
+    // 2026-10-20T17-06-11-Open-wait; AS3 wired_setup/variables/ReferenceVariable.as:103).
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
-    private bool IsReadOnly => GetIntParamOrDefault(PARAM_READ_ONLY, false);
+    private bool IsReadOnly => GetIntParamOrDefault(PARAM_READ_ONLY, true);
 
     protected override WiredVariableTargetType TargetType =>
         Reference?.TargetType ?? WiredVariableTargetType.Global;
