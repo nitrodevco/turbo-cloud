@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -306,19 +307,11 @@ public sealed class HotelAvailabilityService(
 
         logger.LogWarning("The maintenance countdown ran out; the hotel is closed to players");
 
-        var staying = new List<PlayerId>();
-        var leaving = new List<PlayerId>();
-
-        foreach (var playerId in sessionGateway.GetOnlinePlayerIds())
-            (
-                await grainFactory.HasPermissionAsync(
-                    playerId,
-                    PermissionNodes.Hotel.MAINTENANCE_BYPASS,
-                    ct
-                )
-                    ? staying
-                    : leaving
-            ).Add(playerId);
+        var online = sessionGateway.GetOnlinePlayerIds();
+        var staying = (
+            await grainFactory.WhoHoldsAsync(online, PermissionNodes.Hotel.MAINTENANCE_BYPASS, ct)
+        ).ToHashSet();
+        var leaving = online.Where(x => !staying.Contains(x)).ToList();
 
         await DisconnectAsync(
             leaving,

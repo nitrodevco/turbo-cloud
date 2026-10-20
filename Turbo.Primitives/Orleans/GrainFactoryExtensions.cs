@@ -167,6 +167,24 @@ public static class GrainFactoryExtensions
     ) => factory.GetPlayerPermissionGrain(playerId).HasAsync(node, ct);
 
     /// <summary>
+    /// Which of <paramref name="playerIds"/> hold <paramref name="node"/>, asked of their
+    /// permission grains at once: asked one after another, every online player cost a grain
+    /// call's time before the answer.
+    /// </summary>
+    public static async Task<List<PlayerId>> WhoHoldsAsync(
+        this IGrainFactory factory,
+        IEnumerable<PlayerId> playerIds,
+        string node,
+        CancellationToken ct
+    )
+    {
+        var players = playerIds.ToList();
+        var held = await Task.WhenAll(players.Select(x => factory.HasPermissionAsync(x, node, ct)));
+
+        return [.. players.Where((_, i) => held[i])];
+    }
+
+    /// <summary>
     /// A limit for one player: the meta key's value when their groups or they set one, otherwise
     /// <paramref name="fallback"/>, the hotel's configured default. The grain that enforces the
     /// limit passes its own config option.
