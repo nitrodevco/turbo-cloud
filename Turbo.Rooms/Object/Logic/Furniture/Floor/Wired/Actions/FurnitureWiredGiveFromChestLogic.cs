@@ -10,6 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -91,6 +92,17 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
+
+    // The chests slot takes Wired chests of the box's kind; a normal chest does not give to an
+    // effect (require_coin_chests / require_furni_chests and their note; which box sends which
+    // text is inferred from the wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot != SLOT_CHESTS
+        || item.Logic is FurnitureWiredChestLogic { IsWiredEnabled: true } chest
+            && chest.Kind == Kind
+            ? null
+        : Kind == WiredChestKind.Coins ? WiredSaveErrors.REQUIRE_COIN_CHESTS
+        : WiredSaveErrors.REQUIRE_FURNI_CHESTS;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();

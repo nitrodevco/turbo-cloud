@@ -58,6 +58,46 @@ public static class WiredSaveErrors
     /// <summary>"Can only select counter furni."</summary>
     public const string REQUIRE_COUNTER_FURNI = "wiredfurni.error.require_counter_furni";
 
+    /// <summary>"Can only select antenna furni."</summary>
+    public const string REQUIRE_ANTENNA_FURNI = "wiredfurni.error.require_antenna_furni";
+
+    /// <summary>
+    /// "Can only select chests." with the note that WIRED Effects need a Wired chest, not a
+    /// normal one.
+    /// </summary>
+    public const string REQUIRE_CHESTS = "wiredfurni.error.require_chests";
+
+    /// <summary>"Can only select credit chests." with the same note.</summary>
+    public const string REQUIRE_COIN_CHESTS = "wiredfurni.error.require_coin_chests";
+
+    /// <summary>"Can only select furni chests." with the same note.</summary>
+    public const string REQUIRE_FURNI_CHESTS = "wiredfurni.error.require_furni_chests";
+
+    /// <summary>"Can only select contracts!"</summary>
+    public const string REQUIRE_CONTRACTS = "wiredfurni.error.require_contracts";
+
+    /// <summary>
+    /// "Can only select contracts! You can also select the WIRED Effect if no contract was
+    /// involved in the transaction"
+    /// </summary>
+    public const string REQUIRE_CONTRACTS_OR_TRADE_WIRED =
+        "wiredfurni.error.require_contracts_or_trade_wired";
+
+    /// <summary>"Can only select wired room linkers!"</summary>
+    public const string REQUIRE_ROOM_LINKER = "wiredfurni.error.require_room_linker";
+
+    /// <summary>"Can not select temporary furni in Wired."</summary>
+    public const string TEMP_FURNI_NOT_ALLOWED = "wiredfurni.error.temp_furni_not_allowed";
+
+    /// <summary>"Chest name is not allowed"</summary>
+    public const string UNACCEPTABLE_CHEST_NAME = "wiredfurni.error.unacceptable_chest_name";
+
+    /// <summary>"Chest description is not allowed"</summary>
+    public const string UNACCEPTABLE_CHEST_DESC = "wiredfurni.error.unacceptable_chest_desc";
+
+    /// <summary>"The following products/badges do not exist: %products%"</summary>
+    public const string INVALID_REWARD_PRODUCTS = "wiredfurni.error.invalid_reward_products";
+
     /// <summary>"Placeholder length must be between 1 and 40 characters."</summary>
     public const string PLACEHOLDER_NAME_LENGTH = "wiredfurni.error.placeholder.name_length";
 

@@ -97,7 +97,7 @@ public sealed class WiredContextEventVariableTests
     )
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
-        _room.AddFloorItem(ANTENNA, 7, 1);
+        _room.AddFloorItem(ANTENNA, 7, 1, "wf_antenna1");
         _room.AddFloorItem(30, 6, 6);
         _room.AddFloorItem(31, 6, 7);
 

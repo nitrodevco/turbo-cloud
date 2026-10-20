@@ -390,15 +390,6 @@ public abstract partial class FurnitureWiredLogic(
                 return false;
             }
 
-            RefuseUnpickableFurni(update.StuffIds);
-            RefuseUnpickableFurni(update.StuffIds2);
-
-            if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
-                stuffIds = validStuffIds;
-
-            if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
-                stuffIds2 = validStuffIds2;
-
             if (GetValidVariableIds(update.VariableIds, out var validVariableIds))
                 variableIds = [.. validVariableIds.Select(x => x.ToString())];
 
@@ -424,6 +415,16 @@ public abstract partial class FurnitureWiredLogic(
                 furniSources.Add(sourceTypes);
                 index++;
             }
+
+            // Checked against the slots as saved: a slot refuses only picks it reads.
+            RefuseUnpickableFurni(update.StuffIds, secondary: false, furniSources);
+            RefuseUnpickableFurni(update.StuffIds2, secondary: true, furniSources);
+
+            if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
+                stuffIds = validStuffIds;
+
+            if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
+                stuffIds2 = validStuffIds2;
 
             index = 0;
             var validPlayerSources = GetOfferedPlayerSources();
@@ -705,19 +706,58 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>The <c>wiredfurni.error.require_*</c> text for a pick <see cref="CanPickFurni"/> refuses.</summary>
     protected virtual string? PickRefusedErrorKey => null;
 
-    private void RefuseUnpickableFurni(List<int> proposed)
+    /// <summary>
+    /// The <c>wiredfurni.error.require_*</c> text a furni slot refuses the furni with, or null
+    /// when the slot takes it. For boxes whose slots take different furni (Send Signal: antennas,
+    /// then any furni to forward); a save is refused only for a pick list a slot reads as saved,
+    /// and picks stored before are left as they are.
+    /// </summary>
+    protected virtual string? RefusePickInSlot(int slot, IRoomItem item) => null;
+
+    /// <summary>Whether the furni is one of the antennas signals go to (<see cref="Configuration.WiredConfig.AntennaLogicNames"/>).</summary>
+    protected bool IsAntenna(IRoomItem item) =>
+        _roomGrain._wiredConfig.AntennaLogicNames is not { Length: > 0 } antennas
+        || antennas.Contains(item.Definition.LogicName, StringComparer.OrdinalIgnoreCase);
+
+    private void RefuseUnpickableFurni(
+        List<int> proposed,
+        bool secondary,
+        List<WiredFurniSourceType[]> furniSources
+    )
     {
         foreach (var proposedId in proposed)
         {
             if (
-                FurniModule.TryGetItem(
+                !FurniModule.TryGetItem(
                     WiredFurniIds.FromClient(FurniModule, proposedId),
                     out var item
-                ) && !CanPickFurni(item)
+                )
             )
+                continue;
+
+            if (item.IsTemporary && _roomGrain._wiredConfig.RefuseTemporaryFurniPicks)
+                throw new WiredSaveRefusedException(WiredSaveErrors.TEMP_FURNI_NOT_ALLOWED);
+
+            if (!CanPickFurni(item))
                 throw new WiredSaveRefusedException(PickRefusedErrorKey ?? WiredSaveErrors.GENERIC);
+
+            for (var slot = 0; slot < furniSources.Count; slot++)
+            {
+                if (
+                    ReadsPickList(furniSources[slot], secondary)
+                    && RefusePickInSlot(slot, item) is { } errorKey
+                )
+                    throw new WiredSaveRefusedException(errorKey);
+            }
         }
     }
+
+    private static bool ReadsPickList(WiredFurniSourceType[] sources, bool secondary) =>
+        secondary
+            ? sources.Contains(WiredFurniSourceType.SecondaryItems)
+            : sources.Any(x =>
+                x is WiredFurniSourceType.SelectedItems or WiredFurniSourceType.SnapshotItems
+            );
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {

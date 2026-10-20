@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -37,6 +38,13 @@ public class WiredActionCancelTransaction(
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+
+    // Contracts, or the Initiate Transaction box of a custom contract
+    // (wiredfurni.error.require_contracts_or_trade_wired; inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        item.Logic is FurnitureWiredContractLogic or WiredActionInitiateTransaction
+            ? null
+            : WiredSaveErrors.REQUIRE_CONTRACTS_OR_TRADE_WIRED;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

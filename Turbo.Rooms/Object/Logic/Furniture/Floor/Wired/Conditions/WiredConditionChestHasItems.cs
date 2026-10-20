@@ -3,6 +3,7 @@ using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -66,6 +67,13 @@ public class WiredConditionChestHasItems(
     // (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.Furni, WiredSources.Furni.DefaultingTo(WiredFurniSourceType.SelectorItems)];
+
+    // The chests slot takes chests of either kind (wiredfurni.error.require_chests; which box
+    // the text is for is inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot != ChestSlot || item.Logic is FurnitureWiredChestLogic
+            ? null
+            : WiredSaveErrors.REQUIRE_CHESTS;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];

@@ -71,8 +71,8 @@ public sealed class WiredContextVariableScopeTests
     {
         _room.Enter(5, 1, 1);
         _room.AddFloorItem(CLICK_ME, 9, 9);
-        _room.AddFloorItem(ANTENNA_A, 8, 1);
-        _room.AddFloorItem(ANTENNA_B, 8, 2);
+        _room.AddFloorItem(ANTENNA_A, 8, 1, "wf_antenna1");
+        _room.AddFloorItem(ANTENNA_B, 8, 2, "wf_antenna1");
 
         _seen = _room.AddBox<WiredVariableRoom>(30, 5, 5, "wf_var_room");
         var number = _room.AddBox<WiredVariableContext>(31, 5, 6, "wf_var_context");

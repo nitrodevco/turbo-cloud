@@ -8,6 +8,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -32,6 +33,11 @@ public class WiredActionTeleportToRoom(
     public override int WiredCode => (int)WiredActionType.TELEPORT_TO_ROOM;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+
+    // Furni that lead somewhere: room linkers, and teleporters, which this server lets lead to
+    // their pair (wiredfurni.error.require_room_linker; inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        item.Logic is FurnitureTeleportLogic ? null : WiredSaveErrors.REQUIRE_ROOM_LINKER;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

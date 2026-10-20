@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -94,6 +95,43 @@ public class WiredChestRoomTests
             .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
             .Should()
             .ContainSingle(x => x.ChestId == CHEST);
+    }
+
+    [Theory]
+    [InlineData("bad chest", "", "wiredfurni.error.unacceptable_chest_name")]
+    [InlineData("chest", "a bad one", "wiredfurni.error.unacceptable_chest_desc")]
+    public async Task A_name_or_description_the_filter_would_change_is_refused_with_Habbos_text(
+        string name,
+        string description,
+        string errorKey
+    )
+    {
+        var (room, _) = CreateRoomWithChest();
+        AddPlayer(room, OWNER);
+        StubSummary(room);
+        RoomHarness.SetField(room.Room, "_wordFilter", new BadIsUncleanFilter());
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            Preferences(
+                previewMode: WiredChestPreviewMode.None,
+                previewAmount: 1,
+                wired: false
+            ) with
+            {
+                Name = name,
+                Description = description,
+            },
+            Ct
+        );
+
+        done.Should().BeFalse();
+        Sent(room.Fakes)
+            .OfType<WiredValidationErrorEventMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.LocalizationKey == errorKey);
+        Sent(room.Fakes).OfType<ChestPreferencesUpdateSuccessMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -379,6 +417,19 @@ public class WiredChestRoomTests
             createLogic: (stuffDataFactory, ctx) =>
                 new FurnitureWiredFurniChestLogic(stuffDataFactory, ctx)
         );
+
+    private sealed class BadIsUncleanFilter : IWordFilter
+    {
+        public string Replacement => "bobba";
+
+        public string Filter(string text) => text.Replace("bad", Replacement);
+
+        public string Filter(string text, IReadOnlySet<string> extraWords) => Filter(text);
+
+        public bool IsClean(string text) => !text.Contains("bad");
+
+        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
+    }
 
     private static RoomFloorItem CreateCoinChest(RoomHarness room, int id, int x) =>
         room.CreateFloorItem(

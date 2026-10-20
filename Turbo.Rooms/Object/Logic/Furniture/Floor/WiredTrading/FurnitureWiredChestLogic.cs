@@ -20,6 +20,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -421,6 +422,23 @@ public abstract class FurnitureWiredChestLogic(
         )
             return Reject(ctx, preferences, "name or description too long");
 
+        if (config.RefuseUnacceptableText && UnacceptableTextError(preferences) is { } errorKey)
+        {
+            // The client shows it as "Update failed" over the settings, which stay open: they
+            // close on the success message only (ChestSettingsUI.as:127-132).
+            await SendAsync(
+                ctx.PlayerId,
+                new WiredValidationErrorEventMessageComposer
+                {
+                    LocalizationKey = errorKey,
+                    Parameters = [],
+                },
+                ct
+            );
+
+            return Reject(ctx, preferences, "name or description not allowed");
+        }
+
         // Flash only fills the preview dropdowns for a furni chest: a coin chest sends them unset
         // (-1 or 0), and so does a furni chest whose amount was never picked. Keep what is stored.
         var previewMode =
@@ -671,6 +689,17 @@ public abstract class FurnitureWiredChestLogic(
             : fallback;
 
     private static string Format(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Habbo's refusal for a name or description the word filter would change
+    /// (<c>wiredfurni.error.unacceptable_chest_name</c> "Chest name is not allowed",
+    /// <c>unacceptable_chest_desc</c>), or null when both are clean.
+    /// </summary>
+    private string? UnacceptableTextError(SetChestPreferencesInteraction preferences) =>
+        !_roomGrain._wordFilter.IsClean(preferences.Name) ? WiredSaveErrors.UNACCEPTABLE_CHEST_NAME
+        : !_roomGrain._wordFilter.IsClean(preferences.Description)
+            ? WiredSaveErrors.UNACCEPTABLE_CHEST_DESC
+        : null;
 
     private Task SendAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
         _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, composer, ct);

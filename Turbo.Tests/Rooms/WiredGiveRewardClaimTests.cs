@@ -66,6 +66,33 @@ public sealed class WiredGiveRewardClaimTests
         _room.Harness.Fakes.Log.Calls.Count(x => x.Method == "GiveBadgeAsync").Should().Be(2);
     }
 
+    [Fact]
+    public async Task A_prize_naming_furniture_the_hotel_lacks_is_refused_with_the_names()
+    {
+        var known = _room.FloorItem(BOX).Definition;
+        _room.Harness.Fakes.Handlers["TryGetDefinitionByName"] = call =>
+            (string)call.Args[0]! == "throne" ? known : null;
+
+        var refused = await _room.SaveWithResultAsync<UpdateActionMessage>(
+            BOX,
+            intParams: [(int)WiredRewardIntervalType.Once, 0, 0, 1],
+            stringParam: "1,throne,50;1,no_such_chair,25;0,ACH_Test1,25;1,nope,0"
+        );
+
+        refused.IsSaved.Should().BeFalse();
+        refused.ErrorKey.Should().Be("wiredfurni.error.invalid_reward_products");
+        refused.Parameters.Should().Equal(("products", "no_such_chair, nope"));
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: [(int)WiredRewardIntervalType.Once, 0, 0, 1],
+                stringParam: "1,throne,50;0,ACH_Test1,50"
+            )
+        )
+            .Should()
+            .BeTrue();
+    }
+
     private async Task SaveOncePerUserAsync() => (
             await _room.SaveAsync<UpdateActionMessage>(
                 BOX,

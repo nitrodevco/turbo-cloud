@@ -45,8 +45,8 @@ public sealed class WiredExecutionModelTests
     {
         _room.Enter(5, 1, 1);
         _room.AddFloorItem(CLICK_ME, 9, 9);
-        _room.AddFloorItem(ANTENNA_A, 8, 8);
-        _room.AddFloorItem(ANTENNA_B, 8, 9);
+        _room.AddFloorItem(ANTENNA_A, 8, 8, "wf_antenna1");
+        _room.AddFloorItem(ANTENNA_B, 8, 9, "wf_antenna1");
     }
 
     [Fact]

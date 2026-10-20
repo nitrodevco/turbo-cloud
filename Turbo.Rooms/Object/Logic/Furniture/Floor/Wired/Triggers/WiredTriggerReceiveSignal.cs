@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -32,6 +33,10 @@ public class WiredTriggerReceiveSignal(
         [
             [WiredFurniSourceType.SelectedItems],
         ];
+
+    // Listens on antennas only (wiredfurni.error.require_antenna_furni; inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        IsAntenna(item) ? null : WiredSaveErrors.REQUIRE_ANTENNA_FURNI;
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
