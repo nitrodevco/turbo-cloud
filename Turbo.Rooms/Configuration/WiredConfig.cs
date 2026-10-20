@@ -141,6 +141,13 @@ public class WiredConfig
     public int PermanentUserVariablesPer10000Cap { get; init; } = 200;
     public int PermanentGlobalVariablesPer10000Cap { get; init; } = 150;
 
+    /// <summary>
+    /// Whether only a variable box's owner and the room's owner may save it; anyone else with
+    /// wired rights is refused with <c>wiredfurni.error.variables.permissions.2</c> ("Only the
+    /// owner of this wired variable or room owner has the permission to make this change.").
+    /// </summary>
+    public bool VariableBoxOwnersOnly { get; init; } = true;
+
     // The bounds a saved box is checked against.
     // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how
     // Habbo works (recorded on hhus, WIN63-202610121709: 10x18, 12x16 and 50x50 areas saved as sent,

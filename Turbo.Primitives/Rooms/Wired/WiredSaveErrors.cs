@@ -43,6 +43,12 @@ public static class WiredSaveErrors
     /// <summary>"This room reached the limit of permanent variables for this variable type."</summary>
     public const string VARIABLE_PERMANENT_LIMIT = "wiredfurni.error.variables.permanent_limit";
 
+    /// <summary>
+    /// "Only the owner of this wired variable or room owner has the permission to make this change."
+    /// </summary>
+    public const string VARIABLE_OWNER_OR_ROOM_OWNER_ONLY =
+        "wiredfurni.error.variables.permissions.2";
+
     /// <summary>"Invalid availability": one the box's editor does not offer.</summary>
     public const string VARIABLE_INVALID_AVAILABILITY =
         "wiredfurni.error.variables.invalid_availability";
