@@ -91,4 +91,10 @@ public class WiredChestConfig
     /// idleness while the window is open would forget it.
     /// </summary>
     public int TradeKeepAliveMinutes { get; init; } = 30;
+
+    /// <summary>
+    /// Whether a final confirm sent before accepting ends the trade as invalid (nothing moves),
+    /// as official does; otherwise it is ignored and the trade stays open.
+    /// </summary>
+    public bool CancelUnacceptedConfirm { get; init; } = true;
 }

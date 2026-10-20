@@ -182,6 +182,41 @@ public class WiredContractTests
     }
 
     [Fact]
+    public async Task A_final_confirm_before_accepting_cancels_the_trade_as_invalid()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
+            Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([Item(1, CHAIR_SPRITE)]);
+        fakes.Handlers["CompleteWiredContractTradeAsync"] = _ =>
+            Task.FromResult<WiredTransactionFailureType?>(null);
+
+        await trade.StartContractAsync(
+            Request([Rule(Furni(Chair, 1))], TradeRequirementRulesType.Single, 1),
+            Ct
+        );
+        await trade.AddItemsAsync([1], Ct);
+
+        await trade.ConfirmAsync(true, Ct);
+
+        Sent(fakes)
+            .OfType<WiredTradeCancelledMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Invalid);
+        fakes
+            .Log.Of("ReportWiredTransactionFailedAsync")
+            .Should()
+            .ContainSingle(x =>
+                (WiredTransactionFailureType)x.Args[2]! == WiredTransactionFailureType.Invalid
+            );
+
+        // The trade is over: accepting and confirming now moves nothing.
+        await trade.ConfirmAsync(false, Ct);
+        await trade.ConfirmAsync(true, Ct);
+        fakes.Log.Of("CompleteWiredContractTradeAsync").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task The_room_hears_where_a_contract_trade_is_until_it_ends()
     {
         var fakes = new Fakes();

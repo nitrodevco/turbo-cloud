@@ -290,6 +290,14 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
 
         if (!session.IsAccepted)
         {
+            // The client only confirms after accepting; a confirm out of turn is an invalid trade.
+            if (_config.CancelUnacceptedConfirm)
+            {
+                await EndAsync(session, WiredTransactionFailureType.Invalid, ct);
+
+                return;
+            }
+
             _logger.LogWarning(
                 "Player {PlayerId} confirmed a wired trade they had not accepted; ignored",
                 _state.PlayerId

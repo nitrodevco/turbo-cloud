@@ -229,15 +229,36 @@ public class WiredChestRoomTests
         await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
         await trade.AddItemsAsync([20], Ct);
 
-        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
         fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Should().BeEmpty();
 
-        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
         await trade.ConfirmAsync(isFinalConfirm: true, Ct);
 
         var deposit = fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Single();
         ((ImmutableArray<RoomObjectId>)deposit.Args[2]!).Should().Equal((RoomObjectId)20);
         Sent(fakes).OfType<WiredTradeCompletedMessageComposer>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_deposit_confirmed_before_it_was_accepted_is_cancelled_as_invalid()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair"));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([20], Ct);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+
+        Sent(fakes)
+            .OfType<WiredTradeCancelledMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Invalid);
+
+        // The trade is over: what was offered stays in the inventory.
+        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+        fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Should().BeEmpty();
     }
 
     /// <summary>Names the room grain method the trade grain calls; nameof needs a type.</summary>
