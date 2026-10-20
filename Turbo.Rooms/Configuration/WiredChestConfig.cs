@@ -42,6 +42,13 @@ public class WiredChestConfig
     /// <summary>The activity point type diamonds are kept under.</summary>
     public int DiamondsActivityPointType { get; init; } = 5;
 
+    /// <summary>
+    /// Whether chest settings whose name or description the word filter would change are refused
+    /// with Habbo's <c>wiredfurni.error.unacceptable_chest_name</c> / <c>unacceptable_chest_desc</c>
+    /// (when the hotel sends them is inferred from the texts). Off saves them filtered.
+    /// </summary>
+    public bool RefuseUnacceptableText { get; init; } = true;
+
     public int NameMaxLength { get; init; } = 30;
     public int DescriptionMaxLength { get; init; } = 200;
 

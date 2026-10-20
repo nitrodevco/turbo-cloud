@@ -89,6 +89,15 @@ public static class WiredSaveErrors
     /// <summary>"Can not select temporary furni in Wired."</summary>
     public const string TEMP_FURNI_NOT_ALLOWED = "wiredfurni.error.temp_furni_not_allowed";
 
+    /// <summary>"Chest name is not allowed"</summary>
+    public const string UNACCEPTABLE_CHEST_NAME = "wiredfurni.error.unacceptable_chest_name";
+
+    /// <summary>"Chest description is not allowed"</summary>
+    public const string UNACCEPTABLE_CHEST_DESC = "wiredfurni.error.unacceptable_chest_desc";
+
+    /// <summary>"The following products/badges do not exist: %products%"</summary>
+    public const string INVALID_REWARD_PRODUCTS = "wiredfurni.error.invalid_reward_products";
+
     /// <summary>"Placeholder length must be between 1 and 40 characters."</summary>
     public const string PLACEHOLDER_NAME_LENGTH = "wiredfurni.error.placeholder.name_length";
 

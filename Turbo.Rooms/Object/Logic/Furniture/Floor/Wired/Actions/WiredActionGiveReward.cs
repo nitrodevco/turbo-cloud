@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
@@ -53,6 +55,35 @@ public class WiredActionGiveReward(
         ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
+    /// <summary>
+    /// A prize naming furniture the hotel does not have is refused, the unknown names listed
+    /// (<c>wiredfurni.error.invalid_reward_products</c> "The following products/badges do not
+    /// exist: %products%"; when Habbo sends it is inferred from the text). Badge codes are not
+    /// checked: any code can be given.
+    /// </summary>
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        var unknown = ParseRewards(update.StringParam)
+            .Where(x =>
+                x.Type == WiredRewardType.Product
+                && _roomGrain._definitionProvider.TryGetDefinitionByName(x.Code) is null
+            )
+            .Select(x => x.Code)
+            .Distinct()
+            .ToList();
+
+        return unknown.Count > 0
+            ? throw new WiredSaveRefusedException(
+                WiredSaveErrors.INVALID_REWARD_PRODUCTS,
+                ("products", string.Join(", ", unknown))
+            )
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
