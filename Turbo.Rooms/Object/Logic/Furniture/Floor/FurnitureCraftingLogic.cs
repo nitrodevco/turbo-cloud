@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -265,6 +266,10 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
             new CraftingResultMessageComposer { Success = true, Product = Product(recipe) },
             ct
         );
+        // The widget waits for the inventory to call its list stale after a craft
+        // (CraftingWidgetHandler.registerForFurniListInvalidate), then asks for the list and the
+        // table again; until then its inventory and mixer take no presses (inventoryDirty).
+        await SendAsync(ctx, new FurniListInvalidateEventMessageComposer(), ct);
 
         return true;
     }
