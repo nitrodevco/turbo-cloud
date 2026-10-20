@@ -18,8 +18,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 /// context variable pointing to the furni ID of the target variable's Wired box"
 /// (<c>variables.pointer.usage_info</c>). Int param 0 is the kind of variable it stands for (the
 /// editor's header: furni, user, global or context); the one picked variable id is the context
-/// accessor variable. While a stack runs, reads and writes go to the variable box whose furni id
-/// the accessor holds, when that box makes a variable of the same kind.
+/// accessor variable. While a stack runs, reads go to the variable box whose furni id the
+/// accessor holds, when that box makes a variable of the same kind; writes through it change
+/// nothing (below).
 ///
 /// It needs a running stack to know its target, so it is listed as requiring an execution context,
 /// which keeps it out of the pickers that use a variable outside one
@@ -27,8 +28,13 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 /// variable in this context."). Listed as Habbo lists it: created, availability 999 (internal), the
 /// header's kind, with a value that can be written, requiring an execution context (official client
 /// capture lab60, WIN63-202610201032). Inference: that a box of another kind, or another pointer,
-/// is no target. Open: on Habbo, writes through a pointer changed nothing in 4/4 fires of lab60
-/// (the context variable held the target box's furni id); the announcement's behaviour is kept.
+/// is no target.
+///
+/// Writes through a pointer (give, set, take) are no-ops: on Habbo, Change Variable "assign 7"
+/// through a furni or a global pointer whose context variable held the target box's furni id left
+/// the target unchanged, 8 of 8 fires, while a direct write from the same box worked; reads
+/// through it returned the target's value (global 3/3, furni 2/2) (official client capture
+/// 2026-10-20, lab60 + lab61, NOTES-lab61-20261020.md).
 /// </summary>
 [RoomObjectLogic("wf_var_pointer")]
 public class WiredVariablePointer(
@@ -72,38 +78,20 @@ public class WiredVariablePointer(
             && target.TryGetValue(Forward(target, key), out value);
     }
 
+    // Writes through a pointer change nothing on Habbo (see the summary).
     public override Task<bool> GiveValueAsync(
         WiredVariableKey key,
         WiredVariableValue value,
         bool replace = false
-    )
-    {
-        var target = GetTarget();
-
-        return target is null || !CanBind(key)
-            ? Task.FromResult(false)
-            : target.GiveValueAsync(Forward(target, key), value, replace);
-    }
+    ) => Task.FromResult(false);
 
     public override Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,
         WiredVariableKey key,
         WiredVariableValue value
-    )
-    {
-        var target = GetTarget();
+    ) => Task.FromResult(false);
 
-        return target is null || !CanBind(key)
-            ? Task.FromResult(false)
-            : target.SetValueAsync(ctx, Forward(target, key), value);
-    }
-
-    public override bool RemoveValue(WiredVariableKey key)
-    {
-        var target = GetTarget();
-
-        return target is not null && CanBind(key) && target.RemoveValue(Forward(target, key));
-    }
+    public override bool RemoveValue(WiredVariableKey key) => false;
 
     /// <summary>
     /// The variable box the accessor points at in the running stack: the accessor's value is its

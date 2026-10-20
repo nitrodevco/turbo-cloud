@@ -14,6 +14,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -210,11 +211,19 @@ public class WiredVariableReference(
         return true;
     }
 
-    /// <summary>Asks the room the variable lives in for its values, and to be told of its changes.</summary>
+    /// <summary>
+    /// Asks the room the variable lives in for its values, and to be told of its changes, then
+    /// takes over the add-ons it shares that this box imports.
+    /// </summary>
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         await base.FillInternalDataAsync(ct);
+        await SubscribeSourceAsync(ct);
+        await ImportAddonsAsync(ct);
+    }
 
+    private async Task SubscribeSourceAsync(CancellationToken ct)
+    {
         _values = [];
         _sharedAddons = null;
         _varSnapshot = null;
@@ -275,6 +284,67 @@ public class WiredVariableReference(
             .Any(import => import.Categories.HasFlag(category))
             ? shared
             : null;
+    }
+
+    /// <summary>
+    /// The subvariable creators and variable fx this box takes over from the variable's room: a
+    /// copy of each shared one whose category the import add-on imports too, run on this box as
+    /// if it stood on its stack. Their subvariables and fx are known by the shared boxes' ids,
+    /// as there.
+    /// </summary>
+    public IReadOnlyList<Addons.FurnitureWiredAddonLogic> ImportedAddons => _importedAddons;
+
+    private List<Addons.FurnitureWiredAddonLogic> _importedAddons = [];
+
+    /// <summary>
+    /// Builds <see cref="ImportedAddons"/> afresh from what the variable's room shares. An add-on
+    /// of a kind this box's own stack has already is not taken over, as a text connector of its
+    /// own goes before the imported one (inference: Habbo's choice between the two is not
+    /// recorded). The fx system is told when fx come or go.
+    /// </summary>
+    private async Task ImportAddonsAsync(CancellationToken ct)
+    {
+        var hadFx = _importedAddons.Any(x => x is Addons.VariableFx.FurnitureWiredVariableFxLogic);
+
+        _importedAddons = [];
+
+        if (_sharedAddons is { Addons.Length: > 0 } shared)
+        {
+            var own = new HashSet<int>();
+
+            foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()).ToList())
+            {
+                if (item.Logic is not Addons.FurnitureWiredAddonLogic addon)
+                    continue;
+
+                await addon.EnsureWiredLoadedAsync(ct);
+                own.Add(addon.WiredCode);
+            }
+
+            foreach (var addon in shared.Addons)
+            {
+                if (
+                    Imported(addon.Category) is null
+                    || _roomGrain._logicProvider.CreateLogicInstance(addon.LogicType, _ctx)
+                        is not Addons.FurnitureWiredAddonLogic copy
+                    || own.Contains(copy.WiredCode)
+                )
+                    continue;
+
+                await copy.ImportWiredAsync(addon, ct);
+                _importedAddons.Add(copy);
+            }
+        }
+
+        if (hadFx || _importedAddons.Any(x => x is Addons.VariableFx.FurnitureWiredVariableFxLogic))
+            await _ctx.PublishRoomEventAsync(
+                new WiredVariableFxBoxChangedEvent
+                {
+                    RoomId = _ctx.RoomId,
+                    CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                },
+                ct
+            );
     }
 
     /// <summary>A text connector on this box's own stack, else the imported ones.</summary>
