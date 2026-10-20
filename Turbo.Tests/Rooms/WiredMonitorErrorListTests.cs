@@ -56,7 +56,12 @@ public sealed class WiredMonitorErrorListTests
         RoomHarness.SetField(
             _room.Harness.Room,
             "_wiredConfig",
-            new WiredConfig { ExecutionCostCap = 0.5, ExecutionCostPerStack = 1 }
+            new WiredConfig
+            {
+                ExecutionCostCap = 0.5,
+                ExecutionCostCapPerOwnerLevel = 0,
+                ExecutionCostPerStack = 1,
+            }
         );
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
         await Wired.OnRoomEventAsync(

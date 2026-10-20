@@ -281,6 +281,36 @@ public sealed partial class RoomGrain
         }
     }
 
+    /// <summary>
+    /// The owner's account level, read once as the room loads: it sizes the room's wired usage
+    /// cap until the room unloads, as on Habbo.
+    /// </summary>
+    private async Task<int> GetOwnerAccountLevelAsync(CancellationToken ct)
+    {
+        var ownerId = _state.RoomSnapshot.OwnerId;
+
+        if (ownerId.Value <= 0)
+            return PlayerAccountLevel.DEFAULT;
+
+        try
+        {
+            var owner = await _grainFactory.GetPlayerGrain(ownerId).GetSummaryAsync(ct);
+
+            return owner?.AccountLevel ?? PlayerAccountLevel.DEFAULT;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Could not read the account level of player {PlayerId}, owner of room {RoomId}; its wired usage cap is the default level's",
+                ownerId,
+                _state.RoomId
+            );
+
+            return PlayerAccountLevel.DEFAULT;
+        }
+    }
+
     public async Task<WiredRoomStatsSnapshot?> GetWiredRoomStatsAsync(
         ActionContext ctx,
         CancellationToken ct
@@ -294,7 +324,7 @@ public sealed partial class RoomGrain
         return new WiredRoomStatsSnapshot
         {
             ExecutionCost = WiredSystem.GetExecutionCost(NowMs()),
-            ExecutionCostCap = _wiredConfig.ExecutionCostCap,
+            ExecutionCostCap = WiredSystem.ExecutionCostCap,
             IsHeavy = WiredSystem.IsHeavy,
             FloorItemCount = floorItemCount,
             FloorItemCap = _wiredConfig.MaxFloorItems,
@@ -304,17 +334,23 @@ public sealed partial class RoomGrain
                 variables,
                 WiredVariableTargetType.Furni
             ),
-            MaxPermanentFurniVariables = _wiredConfig.MaxPermanentFurniVariables,
+            MaxPermanentFurniVariables = WiredSystem.GetMaxPermanentVariables(
+                WiredVariableTargetType.Furni
+            ),
             PermanentUserVariables = RoomWiredSystem.CountPermanentVariables(
                 variables,
                 WiredVariableTargetType.User
             ),
-            MaxPermanentUserVariables = _wiredConfig.MaxPermanentUserVariables,
+            MaxPermanentUserVariables = WiredSystem.GetMaxPermanentVariables(
+                WiredVariableTargetType.User
+            ),
             PermanentGlobalVariables = RoomWiredSystem.CountPermanentVariables(
                 variables,
                 WiredVariableTargetType.Global
             ),
-            MaxPermanentGlobalVariables = _wiredConfig.MaxPermanentGlobalVariables,
+            MaxPermanentGlobalVariables = WiredSystem.GetMaxPermanentVariables(
+                WiredVariableTargetType.Global
+            ),
         };
     }
 

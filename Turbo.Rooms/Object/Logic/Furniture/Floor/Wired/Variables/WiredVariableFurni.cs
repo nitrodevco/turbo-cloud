@@ -39,6 +39,9 @@ public class WiredVariableFurni(
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.Persistent
-            ),
+            )
+            {
+                ErrorKey = WiredSaveErrors.VARIABLE_INVALID_AVAILABILITY,
+            },
         ];
 }

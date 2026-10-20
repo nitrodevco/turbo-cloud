@@ -39,7 +39,10 @@ public class WiredVariableUser(
                 WiredAvailabilityType.UserActive,
                 WiredAvailabilityType.Persistent,
                 WiredAvailabilityType.Shared
-            ),
+            )
+            {
+                ErrorKey = WiredSaveErrors.VARIABLE_INVALID_AVAILABILITY,
+            },
             new WiredBoolParamRule(false),
         ];
 }
