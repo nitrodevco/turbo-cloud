@@ -193,6 +193,31 @@ public class WiredConfig
     public int PlacementFailureNotificationCooldownMs { get; init; } = 5000;
 
     /// <summary>
+    /// Who gets the <c>wired.error</c> bubble when a room hits a wired limit Habbo has a text for
+    /// (<c>room.error.wired.execution_cap</c>, <c>delayed_events_cap</c>, <c>executor_overload</c>,
+    /// <c>marked_as_heavy</c>, <c>too_many_variables</c>, <c>transaction_failure</c>; official texts,
+    /// <c>notification.wired.error={"display":"BUBBLE"}</c> official external variables). Habbo
+    /// told the room's owner of the usage cap (official client capture 2026-10-20, the owner alone
+    /// in the room, timer-driven load); whether others in the room are told too is not known.
+    /// </summary>
+    public WiredErrorNoticeRecipients ErrorNoticeRecipients { get; init; } =
+        WiredErrorNoticeRecipients.Owner;
+
+    /// <summary>
+    /// How long one room does not repeat the bubble for the same error. Habbo repeated the usage
+    /// cap's every 20.0 s while the room stayed over the cap (official client capture 2026-10-20,
+    /// 5 of 5 intervals), and counted EXECUTION_CAP once per bubble; the other errors' interval is
+    /// inferred from it.
+    /// </summary>
+    public int ErrorNoticeCooldownMs { get; init; } = 20000;
+
+    /// <summary>
+    /// The bubble's image; empty lets the client pick its default for the type. Habbo's carries
+    /// <c>album1584/WIRD2.png</c> (usage cap and placement failure, recorded).
+    /// </summary>
+    public string ErrorNoticeImage { get; init; } = "${image.library.url}album1584/WIRD2.png";
+
+    /// <summary>
     /// Whether a player entering a room whose wired writes <c>$(trigger_text)</c> is told that the
     /// room can use the full text of what they say, as Habbo does (official client captures,
     /// WIN63-202610121709 and 202610131318: on every entry while a Show Message text held it, on
@@ -337,4 +362,12 @@ public class WiredConfig
     /// limit), so this default is ours. 0 turns the cap off.
     /// </summary>
     public int MaxVariablesPerHolder { get; init; } = 500;
+}
+
+/// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>
+public enum WiredErrorNoticeRecipients
+{
+    None,
+    Owner,
+    Room,
 }

@@ -83,8 +83,10 @@ public sealed class WiredMonitorErrorListTests
 
         errors.Should().HaveCount(10);
         errors[0].ErrorName.Should().Be("EXECUTION_CAP");
-        errors[0].ThrowCount.Should().Be(2);
-        errors[0].MsSinceLastOccurrence.Should().Be(3_000);
+        // Counted once per bubble, one per 20 s while over the cap (official client capture
+        // 2026-10-20): the second cancellation right after the first is not counted again.
+        errors[0].ThrowCount.Should().Be(1);
+        errors[0].MsSinceLastOccurrence.Should().Be(4_000, "the counted one is the first");
         errors.Where((_, i) => i != 0).Should().OnlyContain(x => x.ThrowCount == 0);
 
         Wired.ClearErrorLogs();

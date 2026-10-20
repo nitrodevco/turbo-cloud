@@ -11,11 +11,21 @@ public sealed partial class RoomWiredSystem
     private readonly int[] _errorCounts = new int[WiredErrors.All.Length];
     private readonly long[] _errorLastMs = new long[WiredErrors.All.Length];
 
-    /// <summary>Counts one occurrence of a monitor error.</summary>
+    /// <summary>
+    /// Counts one occurrence of a monitor error, and tells whom it concerns if it has a bubble.
+    /// The usage cap is counted once per bubble: Habbo's EXECUTION_CAP count equalled the bubbles
+    /// it sent, one per 20 s while the room stayed over the cap (official client capture
+    /// 2026-10-20), however many executions it cancelled meanwhile.
+    /// </summary>
     internal void RecordError(WiredErrorKind kind, long now)
     {
+        if (kind == WiredErrorKind.ExecutionCap && ErrorNoticeCoolingDown(kind, now))
+            return;
+
         _errorCounts[(int)kind]++;
         _errorLastMs[(int)kind] = now;
+
+        SendErrorNotice(kind, now);
     }
 
     /// <summary>
