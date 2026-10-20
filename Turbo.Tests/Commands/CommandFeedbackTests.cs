@@ -212,6 +212,7 @@ public class CommandFeedbackTests
     private static PlayerNoticeService Notices(Fakes fakes, int timeoutMs = 5000) =>
         new(
             fakes.Create<IGrainFactory>(),
+            new InMemoryDb(),
             fakes.Create<IHotelTextProvider>(),
             Options.Create(new PlayerConfig { NoticeTimeoutMs = timeoutMs }),
             new CapturingLogger<IPlayerNoticeService>()

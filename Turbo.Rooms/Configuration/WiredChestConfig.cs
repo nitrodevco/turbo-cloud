@@ -76,6 +76,21 @@ public class WiredChestConfig
     /// <summary>Item types one log details window lists before it says there are more.</summary>
     public int MaxLogDetailItemTypes { get; init; } = 100;
 
+    /// <summary>
+    /// Whether a chest's owner gets the notifications they ticked in its notification settings
+    /// (<c>wired_chests.*</c> bubbles, kept for them while offline). Off, the settings are only stored.
+    /// </summary>
+    public bool NotificationsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// The link a chest notification carries, <c>{0}</c> the chest's room id: clicking the bubble
+    /// goes to the chest's room (<c>wiredchests.notification_settings.notification_info.desc</c>).
+    /// The client strips <c>event:</c> and opens the rest as a client link
+    /// (HabboNotifications.showNotification); the room link is the one the client's own room
+    /// links use (<c>navigator/goto/&lt;id&gt;</c>, FurnitureRoomLinkHandler). Empty sends none.
+    /// </summary>
+    public string NotificationLink { get; init; } = "event:navigator/goto/{0}";
+
     // A contract, as its editor bounds it.
 
     /// <summary>Payment options a contract may offer.</summary>

@@ -52,6 +52,16 @@ public class RestrictionNoticeTests
             Delivered.Add(textKey);
             return Task.FromResult(PlayerNoticeDelivery.Sent);
         }
+
+        public Task<PlayerNoticeDelivery> SendPersistentAsync(
+            PlayerId playerId,
+            string notificationType,
+            System.Collections.Immutable.ImmutableDictionary<string, string> parameters,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
+        public Task DeliverPersistentAsync(PlayerId playerId, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class Hotel

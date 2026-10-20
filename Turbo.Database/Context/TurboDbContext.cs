@@ -95,6 +95,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerUnseenItemEntity> PlayerUnseenItems { get; init; }
 
+    public DbSet<PlayerPendingNotificationEntity> PlayerPendingNotifications { get; init; }
+
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }

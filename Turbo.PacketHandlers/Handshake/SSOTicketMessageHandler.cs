@@ -22,6 +22,7 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
@@ -40,7 +41,8 @@ public class SSOTicketMessageHandler(
     ICallForHelpService callForHelp,
     IPlayerOnboardingService onboarding,
     IModerationToolService moderation,
-    IModerationIssueService issues
+    IModerationIssueService issues,
+    IPlayerNoticeService notices
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -369,5 +371,8 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
+        // Persistent notifications that came while they were away (a wired chest's), last, as
+        // bubbles over a hotel view that is already up.
+        await notices.DeliverPersistentAsync(playerId, ct).ConfigureAwait(false);
     }
 }

@@ -213,6 +213,7 @@ public abstract class FurnitureWiredChestLogic(
                 Summary
             );
 
+        var before = AvailableAmount;
         var result = await Chest.DepositAsync(
             new WiredChestDepositRequest
             {
@@ -228,6 +229,15 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(
+            result,
+            before,
+            deposit: true,
+            WiredTransactionType.Manual,
+            ctx.PlayerId,
+            player.Name,
+            ct
+        );
 
         return result;
     }
@@ -247,6 +257,7 @@ public abstract class FurnitureWiredChestLogic(
         CancellationToken ct
     )
     {
+        var before = AvailableAmount;
         var result = await Chest.WithdrawAsync(
             new WiredChestWithdrawRequest
             {
@@ -263,6 +274,7 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(result, before, deposit: false, type, receiverId, receiverName, ct);
 
         return result;
     }
@@ -280,6 +292,7 @@ public abstract class FurnitureWiredChestLogic(
         CancellationToken ct
     )
     {
+        var before = AvailableAmount;
         var result = await Chest.DepositAsync(
             new WiredChestDepositRequest
             {
@@ -295,6 +308,7 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(result, before, deposit: true, type, depositorId, depositorName, ct);
 
         return result;
     }
@@ -338,6 +352,7 @@ public abstract class FurnitureWiredChestLogic(
         if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var player))
             return Reject(ctx, withdraw, "not in the room");
 
+        var before = AvailableAmount;
         var result = await Chest.WithdrawAsync(
             new WiredChestWithdrawRequest
             {
@@ -354,6 +369,15 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(
+            result,
+            before,
+            deposit: false,
+            WiredTransactionType.Manual,
+            ctx.PlayerId,
+            player.Name,
+            ct
+        );
         await SendAsync(
             ctx.PlayerId,
             result.Failure is { } failure
@@ -659,6 +683,73 @@ public abstract class FurnitureWiredChestLogic(
         await SetMapDataAsync(entries, refresh);
         await ApplyStateAsync();
     }
+
+    /// <summary>
+    /// Tells the chest's owner what a move did, as they asked in its notification settings
+    /// (<see cref="WiredChestNotices"/>): only what they ticked, only on a wired chest for the
+    /// wired-only kinds, and with "Only when I am not in the room" only while they are not in it.
+    /// An offline owner gets it at their next login.
+    /// </summary>
+    private async Task NotifyOwnerAsync(
+        WiredChestMoveResultSnapshot result,
+        int amountBefore,
+        bool deposit,
+        WiredTransactionType type,
+        PlayerId actorId,
+        string actorName,
+        CancellationToken ct
+    )
+    {
+        if (!result.Succeeded || !_roomGrain._wiredChestConfig.NotificationsEnabled)
+            return;
+
+        var ownerId = _ctx.RoomObject.OwnerId;
+
+        if (
+            (WiredChestNotifyMode)Number(WiredChestData.NOTIFY_MODE, 0)
+                == WiredChestNotifyMode.OnlyWhenNotInRoom
+            && AvatarModule.TryGetPlayer(ownerId, out _)
+        )
+            return;
+
+        var kinds = WiredChestNotices.For(
+            deposit,
+            type,
+            byOwner: actorId == ownerId,
+            amountBefore,
+            AvailableAmount,
+            Capacity
+        );
+
+        foreach (var kind in kinds)
+        {
+            var (flag, wiredOnly) = WiredChestNotices.PreferenceOf(kind);
+
+            if (!Flag(flag) || (wiredOnly && !IsWiredEnabled))
+                continue;
+
+            var parameters = ImmutableDictionary<string, string>
+                .Empty.Add(WiredChestNotices.PARAM_CHEST_NAME, ChestName)
+                .Add(WiredChestNotices.PARAM_USER_NAME, actorName);
+            var link = _roomGrain._wiredChestConfig.NotificationLink;
+
+            if (link.Length > 0)
+                parameters = parameters.Add(
+                    WiredChestNotices.PARAM_LINK,
+                    string.Format(CultureInfo.InvariantCulture, link, _ctx.RoomId.Value)
+                );
+
+            await _roomGrain._playerNoticeService.SendPersistentAsync(
+                ownerId,
+                kind,
+                parameters,
+                ct
+            );
+        }
+    }
+
+    private string ChestName =>
+        StuffData is IMapStuffData map ? map.ValueOf(WiredChestData.NAME) : string.Empty;
 
     private bool Changes(IReadOnlyDictionary<string, string> entries)
     {
