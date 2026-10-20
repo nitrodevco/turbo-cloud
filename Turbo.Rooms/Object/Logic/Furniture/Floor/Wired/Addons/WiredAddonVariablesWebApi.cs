@@ -78,12 +78,16 @@ public class WiredAddonVariablesWebApi(
         return key;
     }
 
-    public override Task<bool> ApplyWiredUpdateAsync(
+    public override async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
         CancellationToken ct
     )
     {
+        // Staff controlling every room may save the room's other boxes, not this one's keys.
+        if (!await _roomGrain.MaySeeWiredWebApiKeysAsync(ctx))
+            throw new WiredSaveRefusedException(WiredSaveErrors.GENERIC);
+
         var read = WiredWebApiKeys.ReadKeyOf(update.StringParam);
         var write = WiredWebApiKeys.WriteKeyOf(update.StringParam);
 
@@ -96,7 +100,7 @@ public class WiredAddonVariablesWebApi(
         _issuedReadKey = null;
         _issuedWriteKey = null;
 
-        return base.ApplyWiredUpdateAsync(
+        return await base.ApplyWiredUpdateAsync(
             ctx,
             update with
             {
