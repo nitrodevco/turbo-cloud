@@ -38,8 +38,8 @@ public sealed class PluginApiVersionTests : IDisposable
         catch (UnauthorizedAccessException) { }
     }
 
+    // OLDEST is VERSION until a published plugin is broken by a change, so one row covers both.
     [Theory]
-    [InlineData(PluginApi.OLDEST, true)]
     [InlineData(PluginApi.VERSION, true)]
     [InlineData(PluginApi.VERSION + 1, false)]
     [InlineData(PluginApi.OLDEST - 1, false)]
@@ -74,10 +74,9 @@ public sealed class PluginApiVersionTests : IDisposable
     }
 
     [Fact]
-    public async Task A_plugin_built_for_api_3_consumes_movements_through_the_host()
+    public async Task A_plugin_built_for_this_api_consumes_movements_through_the_host()
     {
-        PluginApi.VERSION.Should().Be(3);
-        PluginBuilder.Write(_folder, "ledger", CONSUMER, 3);
+        PluginBuilder.Write(_folder, "ledger", CONSUMER, PluginApi.VERSION);
 
         var registry = new AssetMovementConsumerRegistry(
             new Fakes().Create<IGrainFactory>(),

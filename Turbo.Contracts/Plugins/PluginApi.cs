@@ -9,19 +9,16 @@ namespace Turbo.Contracts.Plugins;
 public static class PluginApi
 {
     /// <summary>
-    /// 2: plugin settings on the Settings page, and admin endpoints and pages (<c>Admin.IPluginAdmin</c>).
-    /// 3: asset movements: consumers (<c>Turbo.Primitives.Movements.IAssetMovementConsumer</c>, registered
-    /// with the host's <c>IAssetMovementConsumerRegistry</c>) and reversals (<c>IAssetReversalService</c>);
-    /// <c>docs/movements.md</c>.
+    /// 1: everything plugins build on today, plugin settings, admin endpoints and pages
+    /// (<c>Admin.IPluginAdmin</c>), asset movement consumers and reversals
+    /// (<c>docs/movements.md</c>) included. No plugin outside this project has been published, so
+    /// the API stays 1 while it changes; it counts up from the first one that is: an addition
+    /// raises <see cref="VERSION"/>, a change that breaks a published plugin raises
+    /// <see cref="OLDEST"/> with it.
     /// </summary>
-    public const int VERSION = 3;
+    public const int VERSION = 1;
 
-    /// <summary>
-    /// The oldest plugin API this server still loads: <see cref="VERSION"/> only added to it. One
-    /// thing changed under it: the wallet's and the inventory's grain methods that move an asset
-    /// now take a <c>MovementCause</c>, so a plugin built before them that calls one must be rebuilt
-    /// (<c>docs/movements.md</c> "Plugins").
-    /// </summary>
+    /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;
 
     /// <summary>Why the server can't take a plugin built for <paramref name="manifest"/>'s API; null when it can.</summary>
