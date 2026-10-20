@@ -58,7 +58,10 @@ public abstract class FurnitureWiredVariableLogic
     /// <c>name_uniq</c>, official client capture 2026-10-11). Turning a box permanent consumes
     /// one of the room's permanent variable slots for its target type, so the switch is refused
     /// once the configured cap is reached, with the text Habbo sends for it
-    /// (<c>permanent_limit</c>, official client capture 2026-10-11).
+    /// (<c>permanent_limit</c>, official client capture 2026-10-11). "Permanent, shared" is for
+    /// the room's owner only (<c>shared_var_own_room</c>, "You can only set up shared variables in
+    /// your own room."); an availability the box's editor does not offer is refused with
+    /// <c>invalid_availability</c> by its param rule.
     /// </summary>
     public override async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -77,10 +80,21 @@ public abstract class FurnitureWiredVariableLogic
         if (IsNameTaken(name))
             throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_UNIQUE);
 
+        var availability =
+            AvailabilityParamIndex is int index && index < update.IntParams.Count
+                ? (WiredAvailabilityType?)update.IntParams[index]
+                : null;
+
         if (
-            AvailabilityParamIndex is int index
-            && index < update.IntParams.Count
-            && ((WiredAvailabilityType)update.IntParams[index]).IsPermanent()
+            availability == WiredAvailabilityType.Shared
+            && GetIntParamRules()[AvailabilityParamIndex!.Value].IsValid((int)availability)
+            && ctx.Origin != ActionOrigin.System
+            && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        )
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_SHARED_OWN_ROOM);
+
+        if (
+            availability?.IsPermanent() == true
             && !GetVarSnapshot().AvailabilityType.IsPermanent()
             && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )

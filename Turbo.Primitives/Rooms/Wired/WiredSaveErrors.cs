@@ -43,6 +43,13 @@ public static class WiredSaveErrors
     /// <summary>"This room reached the limit of permanent variables for this variable type."</summary>
     public const string VARIABLE_PERMANENT_LIMIT = "wiredfurni.error.variables.permanent_limit";
 
+    /// <summary>"Invalid availability": one the box's editor does not offer.</summary>
+    public const string VARIABLE_INVALID_AVAILABILITY =
+        "wiredfurni.error.variables.invalid_availability";
+
+    /// <summary>"You can only set up shared variables in your own room."</summary>
+    public const string VARIABLE_SHARED_OWN_ROOM = "wiredfurni.error.variables.shared_var_own_room";
+
     /// <summary>"A username can not be longer than %max_username_length% characters!"</summary>
     public const string USERNAME_LENGTH = "wiredfurni.error.username_length";
 
