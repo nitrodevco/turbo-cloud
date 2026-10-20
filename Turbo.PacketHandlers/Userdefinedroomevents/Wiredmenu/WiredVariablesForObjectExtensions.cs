@@ -34,12 +34,26 @@ internal static class WiredVariablesForObjectExtensions
         if (variables is null)
             return;
 
+        // A target that left the room (a furni picked up while inspected) is answered with menu
+        // error 0, on every poll; the inspection tab keeps what it shows until it is reopened
+        // (official client capture, WIN63-202610201032, 29 of 29 polls in 2 runs).
+        if (!variables.TargetPresent)
+        {
+            await ctx.SendComposerAsync(
+                    new WiredMenuErrorEventMessageComposer { ErrorCode = 0 },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         await ctx.SendComposerAsync(
                 new WiredVariablesForObjectEventMessageComposer
                 {
                     TargetType = binding.TargetType,
                     TargetId = echoedTargetId,
-                    VariableValues = variables,
+                    VariableValues = variables.Values,
                     ConfiguredInWireds = [],
                 },
                 ct
