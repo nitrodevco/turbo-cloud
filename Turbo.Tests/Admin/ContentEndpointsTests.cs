@@ -288,6 +288,71 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
         _fakes.Log.Of("RemoveBadgeAsync").Should().ContainSingle().Which.Key.Should().Be(2L);
     }
 
+    // content.manage alone gave and took any badge, which in the hotel needs :givebadge's and
+    // :takebadge's nodes, and left only a server log line.
+    [Fact]
+    public async Task Giving_and_taking_a_badge_needs_the_commands_nodes_and_is_in_the_command_log()
+    {
+        _holds = node =>
+            node != PermissionNodes.Command.GIVEBADGE && node != PermissionNodes.Command.TAKEBADGE;
+        await _server.StartAsync(Ct);
+
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/content/badges/XMAS26/holders",
+                new { playerId = 3 }
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        (await SendAsync(HttpMethod.Delete, "/api/content/badges/XMAS26/holders/2"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        _fakes.Log.Of("GiveBadgeAsync").Should().BeEmpty();
+        _fakes.Log.Of("RemoveBadgeAsync").Should().BeEmpty();
+
+        _holds = _ => true;
+
+        await SendAsync(
+            HttpMethod.Post,
+            "/api/content/badges/XMAS26/holders",
+            new { playerId = 3 }
+        );
+        await SendAsync(HttpMethod.Delete, "/api/content/badges/XMAS26/holders/2");
+
+        await using var db = _db.CreateDbContext();
+        db.CommandLogs.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Command,
+                x.Arguments,
+                x.Outcome,
+                x.Source,
+            })
+            .ToList()
+            .Should()
+            .BeEquivalentTo(
+                [
+                    new
+                    {
+                        Command = "badge",
+                        Arguments = "give XMAS26 3",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                    new
+                    {
+                        Command = "badge",
+                        Arguments = "take XMAS26 2",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                ],
+                options => options.WithStrictOrdering()
+            );
+    }
+
     [Fact]
     public async Task Staff_who_may_only_see_the_content_change_none_of_it()
     {

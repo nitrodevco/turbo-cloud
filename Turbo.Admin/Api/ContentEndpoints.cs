@@ -74,8 +74,13 @@ internal sealed partial class ContentEndpoints(
                 )
         );
         group.MapPut("/badges/{code}/rarity", SetRarityAsync);
-        group.MapPost("/badges/{code}/holders", GiveBadgeAsync);
-        group.MapDelete("/badges/{code}/holders/{playerId:int}", TakeBadgeAsync);
+        // What :givebadge and :takebadge do in the hotel, so their nodes as well as content.manage.
+        group
+            .MapPost("/badges/{code}/holders", GiveBadgeAsync)
+            .RequirePermission(PermissionNodes.Command.GIVEBADGE, "You can't give badges.");
+        group
+            .MapDelete("/badges/{code}/holders/{playerId:int}", TakeBadgeAsync)
+            .RequirePermission(PermissionNodes.Command.TAKEBADGE, "You can't take badges.");
         group.MapGet(
             "/groups",
             async (string? q, int? page, CancellationToken ct) =>
@@ -607,13 +612,15 @@ internal sealed partial class ContentEndpoints(
                 .GiveBadgeAsync(CheckCode(code), ct)
                 .ConfigureAwait(false);
 
-            logger.LogInformation(
-                "{Actor} gave badge {Code} to player {PlayerId}: {Given}",
-                ContentAccess.Actor(http),
-                code,
-                player.Value,
-                given
-            );
+            await actions
+                .WriteAsync(
+                    AdminActionLog.BADGE,
+                    AdminIdentity.Of(http).PlayerId,
+                    $"give {code} {player.Value}",
+                    given ? CommandOutcome.Completed : CommandOutcome.Failed,
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
 
             return given
                 ? Results.NoContent()
@@ -636,13 +643,15 @@ internal sealed partial class ContentEndpoints(
                 .RemoveBadgeAsync(CheckCode(code), ct)
                 .ConfigureAwait(false);
 
-            logger.LogInformation(
-                "{Actor} took badge {Code} from player {PlayerId}: {Taken}",
-                ContentAccess.Actor(http),
-                code,
-                playerId,
-                taken
-            );
+            await actions
+                .WriteAsync(
+                    AdminActionLog.BADGE,
+                    AdminIdentity.Of(http).PlayerId,
+                    $"take {code} {playerId}",
+                    taken ? CommandOutcome.Completed : CommandOutcome.Failed,
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
 
             return taken ? Results.NoContent() : Results.NotFound();
         });
