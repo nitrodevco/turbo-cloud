@@ -32,7 +32,15 @@ public class WiredActionMoveRotateFurni(
         [
             new WiredRangeParamRule(0, 11, 0), // Movement Type
             new WiredRangeParamRule(0, 3, 0), // Rotation Type
+            new WiredParamRule(1),
         ];
+
+    // The official server opens a fresh box with a third int, 1 (defaults [0,0,1],
+    // 2026-10-20T17-39-35-Open-wait), that the editor neither reads nor writes (AS3 actiontypes/
+    // _-M2F.as:29-37: two radio groups); a save of the two keeps it at its default.
+    private const int EDITOR_PARAMS = 2;
+
+    protected override int GetRequiredIntParamCount() => EDITOR_PARAMS;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 

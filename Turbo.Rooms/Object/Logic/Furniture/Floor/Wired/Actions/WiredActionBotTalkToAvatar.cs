@@ -28,7 +28,9 @@ public class WiredActionBotTalkToAvatar(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredBoolParamRule(true),
+            // A fresh box talks (0) rather than whispers on the official server (defaults
+            // [0,-1,0], 2026-10-20T17-39-35-Open-wait; AS3 actiontypes/_-A1j.as:86 whisper = 1).
+            new WiredBoolParamRule(false),
             new WiredRangeParamRule(-1, 2, -1),
             new WiredBoolParamRule(false),
         ];
@@ -52,7 +54,7 @@ public class WiredActionBotTalkToAvatar(
 
         text = await ctx.FormatTextAsync(text, ct);
 
-        var whisper = GetIntParamOrDefault(0, true);
+        var whisper = GetIntParamOrDefault(0, false);
         var width = GetIntParamOrDefault(1, -1);
         int? bubbleWidth = width < 0 ? null : width;
         var hideName = GetIntParamOrDefault(2, false);

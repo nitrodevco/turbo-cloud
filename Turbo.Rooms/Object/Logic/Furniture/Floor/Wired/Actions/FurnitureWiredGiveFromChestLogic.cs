@@ -74,8 +74,10 @@ public abstract class FurnitureWiredGiveFromChestLogic(
             ),
             new WiredRangeParamRule(1, int.MaxValue, 1),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
-            new WiredBoolParamRule(false),
+            // The official server opens a fresh box reading a context variable with the pop-up
+            // ticked (both kinds, defaults [0,1,0,-20,1,..], 2026-10-20T17-39-35-Open-wait).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
+            new WiredBoolParamRule(true),
             KindParamRule,
         ];
 
@@ -207,7 +209,7 @@ public abstract class FurnitureWiredGiveFromChestLogic(
                             ],
                         },
                         RewardText = _roomGrain._wordFilter.Filter(GetStringParam()),
-                        OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, false),
+                        OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, true),
                     },
                 },
                 ct
