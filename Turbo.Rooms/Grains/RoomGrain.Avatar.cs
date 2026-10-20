@@ -361,7 +361,7 @@ public sealed partial class RoomGrain
                 targetId <= 0
                 || targetId == ctx.PlayerId
                 || !AvatarModule.TryGetPlayer(targetId, out _)
-                || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
+                || !AvatarModule.TryGetPlayer(ctx.PlayerId, out var giver)
             )
                 return false;
 
@@ -382,6 +382,14 @@ public sealed partial class RoomGrain
                     PlayerId = targetId,
                     RespectTotal = result.TargetRespectTotal,
                 },
+                ct
+            );
+
+            // The giver gives the thumbs up: the client draws the respect gesture only from the
+            // expression (AS3 AvatarExpressionEnum.RESPECT, 7), the notification is the bubble.
+            await AvatarModule.SetAvatarExpressionAsync(
+                giver.ObjectId,
+                AvatarExpressionType.Respect,
                 ct
             );
 
