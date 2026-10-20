@@ -1471,6 +1471,10 @@ public class Revision20260909 : IRevision
                 new SetFurnitureLabelSettingsMessageParser()
             },
             {
+                MessageEvent.SynchronizeSharedAddonsMessageEvent,
+                new SynchronizeSharedAddonsMessageParser()
+            },
+            {
                 MessageEvent.VariableLeaderboardReplaceSubscriptionMessageEvent,
                 new VariableLeaderboardReplaceSubscriptionMessageParser()
             },

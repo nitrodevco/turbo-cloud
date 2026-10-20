@@ -475,6 +475,7 @@ internal static class MessageEvent
     public const int SetCustomStackingHeightMessageEvent = 2882;
     public const int SetFurnitureLabelDataMessageEvent = 7502;
     public const int SetFurnitureLabelSettingsMessageEvent = 7503;
+    public const int SynchronizeSharedAddonsMessageEvent = 7620;
     public const int SetDiscordPreferencesMessageEvent = 452;
     public const int SetIgnoreRoomInvitesMessageEvent = 1322;
     public const int SetItemDataMessageEvent = 3432;
