@@ -445,6 +445,47 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_profile_patch_with_a_refused_change_changes_nothing()
+    {
+        const int FLAG_VAR = 6;
+        var (read, write) = await SetUpAsync();
+        var profilePath = $"/api/public/rooms/1/variables_profile/user/users/{PLAYER_ID}";
+
+        // A user variable without a value is only held or not: a number cannot be written to it.
+        await AddVariableAsync<WiredVariableUser>(
+            FLAG_VAR,
+            5,
+            4,
+            "wf_var_user",
+            [(int)WiredAvailabilityType.UserActive, 0],
+            "flag"
+        );
+        await JsonAsync(
+            HttpMethod.Patch,
+            profilePath,
+            write: write,
+            body: """{"variables":{"points":"5","flag":"1"}}"""
+        );
+
+        (
+            await SendAsync(
+                HttpMethod.Patch,
+                profilePath,
+                write: write,
+                body: """{"variables":{"points":"9","flag":"3"}}"""
+            )
+        )
+            .Should()
+            .Be((403, "wired.variables.operation_not_allowed"));
+        (await JsonAsync(HttpMethod.Get, profilePath, read: read))!["variables"]!["points"]![
+            "value"
+        ]!
+            .GetValue<string>()
+            .Should()
+            .Be("5");
+    }
+
+    [Fact]
     public async Task Mass_deletion_only_works_when_the_box_allows_it()
     {
         var (_, write) = await SetUpAsync(allowBulkDelete: false);
