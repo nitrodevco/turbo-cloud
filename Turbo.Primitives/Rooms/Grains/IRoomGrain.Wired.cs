@@ -168,6 +168,46 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// One page of who holds a permanent user variable (Variable Management), or null when the
+    /// caller may not read the room's wired or the variable is not one it manages.
+    /// </summary>
+    public Task<WiredVariableOwnersPageSnapshot?> GetWiredVariableOwnersPageAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
+        int page,
+        int pageSize,
+        int sortType,
+        int userTypeFilter,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// What one user, pet or bot (by player, pet or bot id) holds of the room's permanent user
+    /// variables, or null when the caller may not read the room's wired or the entity is not
+    /// found.
+    /// </summary>
+    public Task<WiredEntityPermanentVariablesSnapshot?> GetWiredEntityPermanentVariablesAsync(
+        ActionContext ctx,
+        int entityType,
+        int entityId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Variable Management edits, gives or takes away a permanent user variable on one user, pet
+    /// or bot, present in the room or not. Requires wired modify permission.
+    /// </summary>
+    public Task<bool> ApplyWiredVariableManagementChangeAsync(
+        ActionContext ctx,
+        int entityType,
+        int entityId,
+        WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
+        WiredVariableValue value,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Takes a stored furni or user variable from everything that holds it, in the room or not.
     /// Requires wired modify permission; false when the caller lacks it.
     /// </summary>

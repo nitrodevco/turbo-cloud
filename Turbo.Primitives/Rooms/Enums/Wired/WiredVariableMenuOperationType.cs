@@ -3,7 +3,8 @@ namespace Turbo.Primitives.Rooms.Enums.Wired;
 /// <summary>
 /// What the wired menu's inspection tab asks for on one furni or user, as the client numbers it
 /// in the last field of <c>WiredSetObjectVariableValue</c>: edit a value it already holds, give
-/// it the variable, or take the variable away.
+/// it the variable, or take the variable away. Variable Management numbers its
+/// <c>WiredSetUserPermanentVariable</c> the same (<c>VariableManagementDetailView</c>).
 /// </summary>
 public enum WiredVariableMenuOperationType
 {

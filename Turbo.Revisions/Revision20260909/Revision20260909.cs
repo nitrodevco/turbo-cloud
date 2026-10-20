@@ -1569,6 +1569,14 @@ public class Revision20260909 : IRevision
                 new WiredGetVariablesForObjectMessageParser()
             },
             {
+                MessageEvent.WiredGetUserPermanentVariablesMessageEvent,
+                new WiredGetUserPermanentVariablesMessageParser()
+            },
+            {
+                MessageEvent.WiredGetVariableOwnersPageMessageEvent,
+                new WiredGetVariableOwnersPageMessageParser()
+            },
+            {
                 MessageEvent.WiredSetObjectVariableValueMessageEvent,
                 new WiredSetObjectVariableValueMessageParser()
             },
@@ -1579,6 +1587,10 @@ public class Revision20260909 : IRevision
             {
                 MessageEvent.WiredSetRoomSettingsMessageEvent,
                 new WiredSetRoomSettingsMessageParser()
+            },
+            {
+                MessageEvent.WiredSetUserPermanentVariableMessageEvent,
+                new WiredSetUserPermanentVariableMessageParser()
             },
             { MessageEvent.WiredUpdateRoomMessageEvent, new WiredUpdateRoomMessageParser() },
             #endregion
@@ -3717,6 +3729,24 @@ public class Revision20260909 : IRevision
                 typeof(WiredVariablesForObjectEventMessageComposer),
                 new WiredVariablesForObjectEventMessageComposerSerializer(
                     MessageComposer.WiredVariablesForObjectMessageComposer
+                )
+            },
+            {
+                typeof(WiredUserVariablesListMessageComposer),
+                new WiredUserVariablesListMessageComposerSerializer(
+                    MessageComposer.WiredUserVariablesListMessageComposer
+                )
+            },
+            {
+                typeof(WiredUserPermanentVariablesMessageComposer),
+                new WiredUserPermanentVariablesMessageComposerSerializer(
+                    MessageComposer.WiredUserPermanentVariablesMessageComposer
+                )
+            },
+            {
+                typeof(WiredSetUserPermanentVariableResultMessageComposer),
+                new WiredSetUserPermanentVariableResultMessageComposerSerializer(
+                    MessageComposer.WiredSetUserPermanentVariableResultMessageComposer
                 )
             },
             #region Userdefinedroomevents Wiredtrading

@@ -403,6 +403,83 @@ public sealed partial class RoomGrain
         return WiredSystem.GetVariableHolders(variableId);
     }
 
+    public async Task<WiredVariableOwnersPageSnapshot?> GetWiredVariableOwnersPageAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
+        int page,
+        int pageSize,
+        int sortType,
+        int userTypeFilter,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetVariableOwnersPageAsync(
+            variableId,
+            page,
+            pageSize,
+            sortType,
+            userTypeFilter,
+            ct
+        );
+    }
+
+    public async Task<WiredEntityPermanentVariablesSnapshot?> GetWiredEntityPermanentVariablesAsync(
+        ActionContext ctx,
+        int entityType,
+        int entityId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetEntityPermanentVariablesAsync(entityType, entityId, ct);
+    }
+
+    public async Task<bool> ApplyWiredVariableManagementChangeAsync(
+        ActionContext ctx,
+        int entityType,
+        int entityId,
+        WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
+        WiredVariableValue value,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await CanModifyWiredAsync(ctx, ct))
+                return false;
+
+            return await WiredSystem.ApplyVariableManagementChangeAsync(
+                entityType,
+                entityId,
+                variableId,
+                operation,
+                value,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId} failed to {Operation} wired variable {VariableId} on entity {EntityType} {EntityId} in room {RoomId}",
+                ctx.PlayerId,
+                operation,
+                variableId,
+                entityType,
+                entityId,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> RemoveWiredVariableFromAllHoldersAsync(
         ActionContext ctx,
         WiredVariableId variableId,
