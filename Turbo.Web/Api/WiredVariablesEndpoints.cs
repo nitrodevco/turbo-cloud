@@ -126,38 +126,7 @@ internal sealed class WiredVariablesEndpoints(
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Lets a page of an allowed site read the answer (<c>Access-Control-Allow-Origin</c>: <c>*</c>
-    /// when any site is, else the site itself), and its <c>Retry-After</c>; never with
-    /// credentials. Whether the request's site is allowed.
-    /// </summary>
-    private bool AllowOrigin(HttpContext http)
-    {
-        var origin = http.Request.Headers.Origin.ToString();
-
-        if (origin.Length == 0)
-            return false;
-
-        var headers = http.Response.Headers;
-
-        if (Api.AllowedOrigins.Contains("*"))
-            headers.AccessControlAllowOrigin = "*";
-        else if (
-            Api.AllowedOrigins.Any(allowed =>
-                string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)
-            )
-        )
-        {
-            headers.AccessControlAllowOrigin = origin;
-            headers.Vary = "Origin";
-        }
-        else
-            return false;
-
-        headers.AccessControlExposeHeaders = "Retry-After";
-
-        return true;
-    }
+    private bool AllowOrigin(HttpContext http) => ApiCors.AllowOrigin(http, Api.AllowedOrigins);
 
     private async Task HandleAsync(
         HttpContext http,
