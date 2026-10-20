@@ -42,6 +42,9 @@ public sealed class CameraPhotoPosterTests
             {
                 StoragePath = _storage,
                 RendererCacheDirectory = Path.Combine(_storage, "cache"),
+                // What is drawn is tested here, not how fast: a CI runner's first start of the
+                // renderer took the default 15 s, and the photo was given up on.
+                RendererTimeoutMilliseconds = 120_000,
             }
         );
         var handler = new RenderRoomMessageHandler(
