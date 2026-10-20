@@ -200,6 +200,32 @@ public sealed class RoomFurnitureCustodyTests : IDisposable
         moved.SnapshotExtraData.Should().NotBeNull("a destruction carries what it was");
     }
 
+    // The caller grants what a used-up item was worth once the delete returns. A failed write
+    // used to be queued and the delete returned true: the grant was kept, and a crash before the
+    // next flush kept the item too.
+    [Fact]
+    public async Task A_use_whose_write_fails_is_refused_and_the_furni_keeps_its_row()
+    {
+        await InRoomAAsync(ITEM, x: 2, y: 3);
+        var persistence = NewPersistence(ROOM_A, new FailingOnceDb(_world.Db));
+        _room.Harness.Fakes.Instances[(typeof(IRoomPersistenceGrain), (long)ROOM_A)] = persistence;
+        var cause = MovementCause.New(MovementCauses.USE_EFFECT_BOX, OWNER, ITEM);
+
+        var use = () =>
+            _room
+                .Harness.Module<RoomActionModule>()
+                .DeleteItemByIdAsync(ActionContext.CreateForPlayer(OWNER, ROOM_A), ITEM, cause, Ct);
+
+        await use.Should().ThrowAsync<InvalidOperationException>("nothing may be granted for it");
+
+        await FlushAsync(persistence);
+
+        (_world.Row(ITEM).RoomEntityId, _world.Row(ITEM).X, _world.Row(ITEM).Y)
+            .Should()
+            .Be((ROOM_A, 2, 3), "a refused use is not written later either");
+        _world.Movements().Should().BeEmpty();
+    }
+
     [Fact]
     public async Task A_pickup_whose_first_write_fails_is_written_by_the_next_flush()
     {

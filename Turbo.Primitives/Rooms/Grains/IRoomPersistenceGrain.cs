@@ -92,7 +92,9 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// the furniture custody, and <paramref name="pets"/>, what the use
     /// changed, are written, in one transaction. What the use grants elsewhere (credits, an item
     /// given back) is written at once by its own grain, so a row left for the flush came back
-    /// after a crash with the grant kept. A write that fails stays queued for the next flush.
+    /// after a crash with the grant kept. When the write fails the pets stay queued for the next
+    /// flush, but a used-up item is not: the call throws, its row stays, and the caller grants
+    /// nothing.
     /// </summary>
     public Task WriteUseAsync(
         RoomId roomId,

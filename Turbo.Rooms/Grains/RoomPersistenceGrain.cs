@@ -357,17 +357,20 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         {
             _logger.LogError(
                 ex,
-                "Failed to write the use of item {ItemId} ({Count} pets) for room {RoomId}; queued for the next flush",
+                "Failed to write the use of item {ItemId} ({Count} pets) for room {RoomId}; the pets are queued for the next flush",
                 usedItemId,
                 pets.Count,
                 _state.RoomId
             );
 
-            if (usedUp is not null)
-                _state.PendingCustodyWrites.Enqueue(new CustodyDestroy(usedUp.Item, usedUp.Cause));
-
             foreach (var pet in pets)
                 _state.DirtyPets.TryAdd(pet.Id, pet);
+
+            // The caller grants what the item was worth once this returns. Queued, the item's
+            // row outlived that grant and a crash gave both back, so its use is refused instead:
+            // the row stays where it was and nothing is granted.
+            if (usedUp is not null)
+                throw;
         }
     }
 

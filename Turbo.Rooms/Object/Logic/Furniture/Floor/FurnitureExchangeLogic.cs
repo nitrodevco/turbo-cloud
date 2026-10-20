@@ -8,6 +8,7 @@ using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -45,28 +46,37 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         if (!CreditFurniValue.TryParse(_ctx.Definition.Name, out var credits))
             return Reject(ctx, interaction, "definition name carries no credit value");
 
+        var cause = MovementCause.New(
+            MovementCauses.USE_CREDIT_FURNI,
+            ctx.PlayerId.Value,
+            _ctx.ObjectId.Value
+        );
+
+        // The furni goes first, written before anything is paid: credited first, a delete that
+        // failed or a crash in between left the furni to be redeemed again.
+        if (!await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, cause, ct))
+            return false;
+
+        // Under the furni's own reference, so the value is paid once whatever retries it.
         var credited = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
             .CreditAsync(
                 CurrencyKind.Credits,
                 credits,
-                MovementCause.New(
-                    MovementCauses.USE_CREDIT_FURNI,
-                    ctx.PlayerId.Value,
-                    _ctx.ObjectId.Value
-                ),
+                CreditReference(_ctx.ObjectId),
+                cause.StartingAt(1),
                 ct
             );
 
-        if (!credited)
-            return Reject(ctx, interaction, "wallet refused the credit");
+        if (credited != WalletCreditResult.Rejected)
+            return true;
 
-        // The wallet has the value now; the furni must not survive to be redeemed twice.
-        return await ActionModule.DeleteItemByIdAsync(
-            ctx,
-            _ctx.ObjectId,
-            MovementCause.New(MovementCauses.USE_CREDIT_FURNI, ctx.PlayerId, _ctx.ObjectId.Value),
-            ct
-        );
+        // The wallet took nothing (the balance would overflow): the furni goes back to its owner.
+        await ActionModule.GiveBackUsedItemAsync(_ctx.RoomObject, ct);
+
+        return Reject(ctx, interaction, "wallet refused the credit");
     }
+
+    /// <summary>The wallet reference a redeemed furni is paid under: one payment per furni.</summary>
+    public static string CreditReference(RoomObjectId itemId) => $"creditfurni:{itemId.Value}";
 }
