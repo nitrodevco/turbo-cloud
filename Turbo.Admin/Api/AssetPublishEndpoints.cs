@@ -33,7 +33,10 @@ internal sealed class AssetPublishEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/assets/targets").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/assets/targets")
+            .RequirePermission(PermissionNodes.Admin.GAMEDATA_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Gamedata.MANAGE, NO_MANAGE);
 
         group.MapGet("/", ListAsync);
         group.MapPost("/", CreateAsync);
@@ -58,133 +61,106 @@ internal sealed class AssetPublishEndpoints(
         );
     }
 
-    private Task<IResult> CreateAsync(
+    private async Task<IResult> CreateAsync(
         AssetPublishTargetInput input,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                if (EditOf(input) is not { } edit)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, UNKNOWN_PROTOCOL);
+    )
+    {
+        if (EditOf(input) is not { } edit)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, UNKNOWN_PROTOCOL);
 
-                try
-                {
-                    var target = await publishing.CreateTargetAsync(edit, ct).ConfigureAwait(false);
+        try
+        {
+            var target = await publishing.CreateTargetAsync(edit, ct).ConfigureAwait(false);
 
-                    return Results.Ok(await ResponseAsync(target, ct).ConfigureAwait(false));
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+            return Results.Ok(await ResponseAsync(target, ct).ConfigureAwait(false));
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> UpdateAsync(
+    private async Task<IResult> UpdateAsync(
         int id,
         AssetPublishTargetInput input,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                if (EditOf(input) is not { } edit)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, UNKNOWN_PROTOCOL);
+    )
+    {
+        if (EditOf(input) is not { } edit)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, UNKNOWN_PROTOCOL);
 
-                try
-                {
-                    return
-                        await publishing.UpdateTargetAsync(id, edit, ct).ConfigureAwait(false)
-                            is { } target
-                        ? Results.Ok(await ResponseAsync(target, ct).ConfigureAwait(false))
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+        try
+        {
+            return
+                await publishing.UpdateTargetAsync(id, edit, ct).ConfigureAwait(false) is { } target
+                ? Results.Ok(await ResponseAsync(target, ct).ConfigureAwait(false))
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> DeleteAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return await publishing.DeleteTargetAsync(id, ct).ConfigureAwait(false)
-                        ? Results.NoContent()
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    private async Task<IResult> DeleteAsync(int id, HttpContext http, CancellationToken ct)
+    {
+        try
+        {
+            return await publishing.DeleteTargetAsync(id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
-    private Task<IResult> TestAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await publishing.TestAsync(id, ct).ConfigureAwait(false) is { } result
-                    ? Results.Ok(new AssetPublishTestResponse(result.Ok, result.Message))
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET)
-        );
+    private async Task<IResult> TestAsync(int id, HttpContext http, CancellationToken ct) =>
+        await publishing.TestAsync(id, ct).ConfigureAwait(false) is { } result
+            ? Results.Ok(new AssetPublishTestResponse(result.Ok, result.Message))
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
 
-    private Task<IResult> PublishAsync(
+    private async Task<IResult> PublishAsync(
         int id,
         AssetPublishRequest? request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await publishing
-                            .PublishAsync(
-                                id,
-                                request?.DryRun ?? false,
-                                request?.DeleteRemoved ?? false,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                            is { } job
-                        ? Results.Ok(AssetPublishJobResponse.From(job))
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return
+                await publishing
+                    .PublishAsync(
+                        id,
+                        request?.DryRun ?? false,
+                        request?.DeleteRemoved ?? false,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+                    is { } job
+                ? Results.Ok(AssetPublishJobResponse.From(job))
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
-    private Task<IResult> ForgetHostKeyAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await publishing.ForgetHostKeyAsync(id, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET)
-        );
+    private async Task<IResult> ForgetHostKeyAsync(
+        int id,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        await publishing.ForgetHostKeyAsync(id, ct).ConfigureAwait(false)
+            ? Results.NoContent()
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
 
     private async Task<IResult> HistoryAsync(int id, CancellationToken ct)
     {
@@ -243,40 +219,5 @@ internal sealed class AssetPublishEndpoints(
             .ConfigureAwait(false);
 
         return names?.ToDictionary(x => x.Key.Value, x => x.Value);
-    }
-
-    /// <summary>A change by someone who holds <c>gamedata.manage</c>.</summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    ) =>
-        await CanManageAsync(http, ct).ConfigureAwait(false)
-            ? await change().ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Gamedata.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.GAMEDATA_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

@@ -37,7 +37,8 @@ internal sealed class PermissionPlayerEndpoints(
     {
         var group = secured
             .MapGroup("/permissions/players")
-            .AddEndpointFilter(PermissionResults.RequireView(grainFactory));
+            .RequirePermission(PermissionNodes.Admin.PERMISSIONS_VIEW, PermissionResults.NO_ACCESS)
+            .ChecksInHandler(PermissionResults.EDITOR);
 
         group.MapGet("/", ListAsync);
         group.MapGet("/find", FindAsync);

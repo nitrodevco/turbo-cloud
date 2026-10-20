@@ -22,7 +22,7 @@ internal sealed class PermissionLookupEndpoints(IGrainFactory grainFactory, Perm
     {
         var group = secured
             .MapGroup("/permissions")
-            .AddEndpointFilter(PermissionResults.RequireView(grainFactory));
+            .RequirePermission(PermissionNodes.Admin.PERMISSIONS_VIEW, PermissionResults.NO_ACCESS);
 
         group.MapGet("/catalog", () => Results.Ok(views.GetCatalog()));
         group.MapGet("/search", SearchAsync);

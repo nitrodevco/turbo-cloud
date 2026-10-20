@@ -4,10 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Content;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Quests.RewardTracks;
@@ -19,13 +17,18 @@ namespace Turbo.Admin.Api;
 /// list, read, save and remove them, take Habbo's in from a capture (a plan first, then the
 /// import), and read them again from the database. See <c>docs/reward-tracks.md</c>.
 /// </summary>
-internal sealed class RewardTrackEndpoints(IGrainFactory grainFactory, AdminRewardTracks tracks)
+internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
 {
     private const string NO_ACCESS = "You can't manage the reward tracks.";
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/reward-tracks").AddEndpointFilter(RequireManageAsync);
+        var group = secured
+            .MapGroup("/reward-tracks")
+            .RequirePermission(PermissionNodes.Admin.REWARD_TRACKS_MANAGE, NO_ACCESS)
+            .ViewIsEnough(
+                "Reward tracks have one node, admin.rewardtracks.manage, to see and change them."
+            );
 
         group.MapGet(
             "/",
@@ -122,23 +125,5 @@ internal sealed class RewardTrackEndpoints(IGrainFactory grainFactory, AdminRewa
         {
             return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
         }
-    }
-
-    private async ValueTask<object?> RequireManageAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.REWARD_TRACKS_MANAGE,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

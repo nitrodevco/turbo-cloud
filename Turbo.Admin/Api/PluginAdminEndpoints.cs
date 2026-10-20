@@ -42,8 +42,13 @@ internal sealed class PluginAdminEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/plugins/pages", PagesAsync);
-        secured.MapMethods("/plugins/{key}/api/{**path}", METHODS, CallAsync);
+        secured
+            .MapGet("/plugins/pages", PagesAsync)
+            .PanelOnly("Lists only the plugin pages whose node the caller holds.");
+        secured
+            .MapMethods("/plugins/{key}/api/{**path}", METHODS, CallAsync)
+            .PanelOnly("Any staff member may call a plugin route whose node they hold.")
+            .ChecksInHandler("Each plugin route declares its own node, checked when it is called.");
     }
 
     /// <summary>Each live plugin's pages its viewer may see, with the plugin's nodes they hold (for its actions).</summary>

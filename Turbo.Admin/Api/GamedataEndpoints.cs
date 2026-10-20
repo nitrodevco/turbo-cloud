@@ -59,7 +59,10 @@ internal sealed class GamedataEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/gamedata").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/gamedata")
+            .RequirePermission(PermissionNodes.Admin.GAMEDATA_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Gamedata.MANAGE, NO_MANAGE);
 
         group.MapGet("/", StatusAsync);
         group.MapPost("/habbo/check", CheckAsync);
@@ -70,13 +73,8 @@ internal sealed class GamedataEndpoints(
         );
         group.MapPost(
             "/habbo/client/check",
-            (HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
-                )
+            async (HttpContext http, CancellationToken ct) =>
+                Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
         );
         group.MapGet(
             "/habbo/client/build",
@@ -86,47 +84,37 @@ internal sealed class GamedataEndpoints(
         group.MapPost(
             "/habbo/client/build",
             (HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    () =>
-                    {
-                        try
-                        {
-                            return Task.FromResult(
-                                Results.Ok(
-                                    AssetJobResponse.From(
-                                        assetSync.StartClientBuild(
-                                            AdminIdentity.Of(http).PlayerId,
-                                            force: true
-                                        )
-                                    )
+            {
+                try
+                {
+                    return Task.FromResult(
+                        Results.Ok(
+                            AssetJobResponse.From(
+                                assetSync.StartClientBuild(
+                                    AdminIdentity.Of(http).PlayerId,
+                                    force: true
                                 )
-                            );
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            return Task.FromResult(
-                                AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
-                            );
-                        }
-                    }
-                )
+                            )
+                        )
+                    );
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Task.FromResult(
+                        AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
+                    );
+                }
+            }
         );
         group.MapDelete(
             "/habbo/client/releases/{version}",
-            (string version, HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        await client.ForgetAsync(version, ct).ConfigureAwait(false)
-                            ? Results.NoContent()
-                            : AdminResults.Error(
-                                StatusCodes.Status404NotFound,
-                                "There is no such release, or it is downloading."
-                            )
-                )
+            async (string version, HttpContext http, CancellationToken ct) =>
+                await client.ForgetAsync(version, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : AdminResults.Error(
+                        StatusCodes.Status404NotFound,
+                        "There is no such release, or it is downloading."
+                    )
         );
         group.MapGet("/habbo/import", PreviewAsync);
         group.MapPost("/habbo/import/{releaseId:int}", ImportAsync);
@@ -162,7 +150,9 @@ internal sealed class GamedataEndpoints(
         group.MapPost("/variables/import/preview", VariablePreviewAsync);
         group.MapPost("/variables/import", VariableImportAsync);
         group.MapGet("/hotel-view", HotelViewAsync);
-        group.MapPost("/hotel-view/texts", HotelViewTextsAsync);
+        group
+            .MapPost("/hotel-view/texts", HotelViewTextsAsync)
+            .ViewIsEnough("It reads the texts the keys name, and changes nothing.");
         group.MapGet("/hotel-view/habbo", HabboHotelViewAsync);
         group.MapPost(
             "/hotel-view/habbo-texts",
@@ -205,7 +195,11 @@ internal sealed class GamedataEndpoints(
         // The catalog's offers name products, so the catalog editor reads them too.
         secured
             .MapGroup("/product-data")
-            .AddEndpointFilter(RequireCatalogOrGamedataAsync)
+            .RequireAnyPermission(
+                NO_ACCESS,
+                PermissionNodes.Admin.CATALOG_VIEW,
+                PermissionNodes.Admin.GAMEDATA_VIEW
+            )
             .MapGet("/", ProductLookupAsync);
         group.MapGet(
             "/history",
@@ -258,71 +252,59 @@ internal sealed class GamedataEndpoints(
                 figureMap.File,
                 effectMap.File,
                 await variables.GetFileKeysAsync(ct).ConfigureAwait(false),
-                await CanManageAsync(http, ct).ConfigureAwait(false)
+                await grainFactory
+                    .HoldsAsync(http, PermissionNodes.Gamedata.MANAGE, ct)
+                    .ConfigureAwait(false)
             )
         );
     }
 
-    private Task<IResult> CheckAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    var result = await releases.CheckAsync(ct).ConfigureAwait(false);
+    private async Task<IResult> CheckAsync(HttpContext http, CancellationToken ct)
+    {
+        try
+        {
+            var result = await releases.CheckAsync(ct).ConfigureAwait(false);
 
-                    assetSync.StartAfterCheck(AdminIdentity.Of(http).PlayerId);
+            assetSync.StartAfterCheck(AdminIdentity.Of(http).PlayerId);
 
-                    // The HTML client too: a new release downloads in the background.
-                    await client.CheckAsync(wait: false, ct).ConfigureAwait(false);
+            // The HTML client too: a new release downloads in the background.
+            await client.CheckAsync(wait: false, ct).ConfigureAwait(false);
 
-                    return Results.Ok(result);
-                }
-                catch (HttpRequestException ex)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Checking Habbo from the panel failed: {Message}",
-                        ex.Message
-                    );
+            return Results.Ok(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Checking Habbo from the panel failed: {Message}", ex.Message);
 
-                    return AdminResults.Error(
-                        StatusCodes.Status502BadGateway,
-                        $"Habbo could not be checked: {ex.Message}"
-                    );
-                }
-            }
-        );
+            return AdminResults.Error(
+                StatusCodes.Status502BadGateway,
+                $"Habbo could not be checked: {ex.Message}"
+            );
+        }
+    }
 
     private async Task<IResult> PreviewAsync(int? releaseId, CancellationToken ct) =>
         await furniture.PreviewImportAsync(releaseId, ct).ConfigureAwait(false) is { } preview
             ? Results.Ok(preview)
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_RELEASE);
 
-    private Task<IResult> ImportAsync(int releaseId, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await imports
-                            .StartAsync(releaseId, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } job
-                        ? Results.Ok(new { job })
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_RELEASE);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    private async Task<IResult> ImportAsync(int releaseId, HttpContext http, CancellationToken ct)
+    {
+        try
+        {
+            return
+                await imports
+                    .StartAsync(releaseId, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } job
+                ? Results.Ok(new { job })
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_RELEASE);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
     private async Task<IResult> FurnitureListAsync(
         string? q,
@@ -366,39 +348,31 @@ internal sealed class GamedataEndpoints(
             ? Results.Ok(FurnitureDefinitionResponse.From(definition))
             : Results.NotFound();
 
-    private Task<IResult> UpdateDefinitionAsync(
+    private async Task<IResult> UpdateDefinitionAsync(
         int id,
         FurnitureDefinitionUpdateRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                if (request.Fields is not { Count: > 0 } fields)
-                    return AdminResults.Error(
-                        StatusCodes.Status400BadRequest,
-                        "Nothing to change."
-                    );
+    )
+    {
+        if (request.Fields is not { Count: > 0 } fields)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, "Nothing to change.");
 
-                try
-                {
-                    return
-                        await furniture
-                            .UpdateDefinitionAsync(id, fields, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } definition
-                        ? Results.Ok(FurnitureDefinitionResponse.From(definition))
-                        : Results.NotFound();
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+        try
+        {
+            return
+                await furniture
+                    .UpdateDefinitionAsync(id, fields, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } definition
+                ? Results.Ok(FurnitureDefinitionResponse.From(definition))
+                : Results.NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> HabboValuesPreviewAsync(string? fields, CancellationToken ct)
     {
@@ -414,34 +388,25 @@ internal sealed class GamedataEndpoints(
         }
     }
 
-    private Task<IResult> TakeHabboValuesAsync(
+    private async Task<IResult> TakeHabboValuesAsync(
         HabboValuesRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    var changeSet = await furniture
-                        .TakeHabboValuesAsync(
-                            request.Fields ?? [],
-                            AdminIdentity.Of(http).PlayerId,
-                            ct
-                        )
-                        .ConfigureAwait(false);
+    )
+    {
+        try
+        {
+            var changeSet = await furniture
+                .TakeHabboValuesAsync(request.Fields ?? [], AdminIdentity.Of(http).PlayerId, ct)
+                .ConfigureAwait(false);
 
-                    return Results.Ok(new { changeSet });
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+            return Results.Ok(new { changeSet });
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     /// <summary>A comma-separated list of furnidata keys from the query.</summary>
     private static string[] FieldList(string? fields) =>
@@ -450,106 +415,90 @@ internal sealed class GamedataEndpoints(
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
         );
 
-    private Task<IResult> RebuildAsync(string file, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                GamedataFiles.IsKnown(file)
-                    ? Results.Ok((await files.RebuildAsync(file, ct).ConfigureAwait(false)).File)
-                    : Results.NotFound()
-        );
+    private async Task<IResult> RebuildAsync(string file, HttpContext http, CancellationToken ct) =>
+        GamedataFiles.IsKnown(file)
+            ? Results.Ok((await files.RebuildAsync(file, ct).ConfigureAwait(false)).File)
+            : Results.NotFound();
 
-    private Task<IResult> SetFileKeyAsync(
+    private async Task<IResult> SetFileKeyAsync(
         string file,
         FileKeyRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await variables
-                            .SetFileKeyAsync(
-                                file,
-                                request.Key ?? string.Empty,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await variables
+                    .SetFileKeyAsync(
+                        file,
+                        request.Key ?? string.Empty,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> TextPreviewAsync(int? versionId, CancellationToken ct) =>
         await texts.PreviewImportAsync(versionId, ct).ConfigureAwait(false) is { } preview
             ? Results.Ok(preview)
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_TEXTS);
 
-    private Task<IResult> TextImportAsync(int versionId, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await imports
-                            .StartTextsAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } job
-                        ? Results.Ok(new { job })
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_TEXTS);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    private async Task<IResult> TextImportAsync(
+        int versionId,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return
+                await imports
+                    .StartTextsAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } job
+                ? Results.Ok(new { job })
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_TEXTS);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
     private async Task<IResult> ProductPreviewAsync(int? versionId, CancellationToken ct) =>
         await products.PreviewImportAsync(versionId, ct).ConfigureAwait(false) is { } preview
             ? Results.Ok(preview)
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_PRODUCTS);
 
-    private Task<IResult> ProductImportAsync(
+    private async Task<IResult> ProductImportAsync(
         int versionId,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await imports
-                            .StartProductsAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } job
-                        ? Results.Ok(new { job })
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_PRODUCTS);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return
+                await imports
+                    .StartProductsAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } job
+                ? Results.Ok(new { job })
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_PRODUCTS);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
     private async Task<IResult> ProductSearchAsync(string? q, int? page, CancellationToken ct) =>
         Results.Ok(await products.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
@@ -569,84 +518,69 @@ internal sealed class GamedataEndpoints(
                 : (await products.SearchAsync(q, 0, ct).ConfigureAwait(false)).Items
         );
 
-    private Task<IResult> SaveProductAsync(
+    private async Task<IResult> SaveProductAsync(
         ProductSaveRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await products
-                            .SaveAsync(
-                                request.Code ?? string.Empty,
-                                request.Name,
-                                request.Description,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await products
+                    .SaveAsync(
+                        request.Code ?? string.Empty,
+                        request.Name,
+                        request.Description,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> DeleteProductAsync(
+    private async Task<IResult> DeleteProductAsync(
         string? code,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await products
-                    .DeleteAsync(code ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
-                    .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
-        );
+        await products
+            .DeleteAsync(code ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+            .ConfigureAwait(false)
+            ? Results.NoContent()
+            : Results.NotFound();
 
     private async Task<IResult> FigurePreviewAsync(int? versionId, CancellationToken ct) =>
         await figures.PreviewImportAsync(versionId, ct).ConfigureAwait(false) is { } preview
             ? Results.Ok(preview)
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_FIGURES);
 
-    private Task<IResult> FigureImportAsync(
+    private async Task<IResult> FigureImportAsync(
         int versionId,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await imports
-                            .StartFiguresAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } job
-                        ? Results.Ok(new { job })
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NO_FIGURES);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return
+                await imports
+                    .StartFiguresAsync(versionId, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } job
+                ? Results.Ok(new { job })
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_FIGURES);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
+    }
 
     private async Task<IResult> FigureSearchAsync(
         FigureRecordKind kind,
@@ -665,87 +599,72 @@ internal sealed class GamedataEndpoints(
     private async Task<IResult> FigureKindsAsync(CancellationToken ct) =>
         Results.Ok(await figures.GetKindsAsync(ct).ConfigureAwait(false));
 
-    private Task<IResult> SaveFigureAsync(
+    private async Task<IResult> SaveFigureAsync(
         FigureSaveRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await figures
-                            .SaveAsync(
-                                request.Kind,
-                                request.Data ?? string.Empty,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await figures
+                    .SaveAsync(
+                        request.Kind,
+                        request.Data ?? string.Empty,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> PalettesAsync(CancellationToken ct) =>
         Results.Ok(await figures.GetPalettesAsync(ct).ConfigureAwait(false));
 
-    private Task<IResult> SaveFigureBatchAsync(
+    private async Task<IResult> SaveFigureBatchAsync(
         FigureBatchRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    var changed = await figures
-                        .SaveBatchAsync(
-                            request.Kind,
-                            request.Save ?? [],
-                            request.Delete ?? [],
-                            request.Summary ?? string.Empty,
-                            AdminIdentity.Of(http).PlayerId,
-                            ct
-                        )
-                        .ConfigureAwait(false);
+    )
+    {
+        try
+        {
+            var changed = await figures
+                .SaveBatchAsync(
+                    request.Kind,
+                    request.Save ?? [],
+                    request.Delete ?? [],
+                    request.Summary ?? string.Empty,
+                    AdminIdentity.Of(http).PlayerId,
+                    ct
+                )
+                .ConfigureAwait(false);
 
-                    return Results.Ok(new { changed });
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+            return Results.Ok(new { changed });
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> DeleteFigureAsync(
+    private async Task<IResult> DeleteFigureAsync(
         FigureRecordKind kind,
         string? key,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await figures
-                    .DeleteAsync(kind, key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
-                    .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
-        );
+        await figures
+            .DeleteAsync(kind, key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+            .ConfigureAwait(false)
+            ? Results.NoContent()
+            : Results.NotFound();
 
     private async Task<IResult> OwnedClothingAsync(int playerId, CancellationToken ct) =>
         Results.Ok(
@@ -757,276 +676,210 @@ internal sealed class GamedataEndpoints(
             }
         );
 
-    private Task<IResult> GrantClothingAsync(
+    private async Task<IResult> GrantClothingAsync(
         int playerId,
         ClothingGrantRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                var granted = await clothing
-                    .GrantAsync(playerId, request.SetIds ?? [], ct)
-                    .ConfigureAwait(false);
-
-                logger.LogInformation(
-                    "Player {StaffId} gave player {PlayerId} {Count} figure sets: {SetIds}",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    playerId,
-                    granted,
-                    request.SetIds
-                );
-
-                return Results.Ok(new { changed = granted });
-            }
-        );
-
-    private Task<IResult> RevokeClothingAsync(
-        int playerId,
-        ClothingGrantRequest request,
-        HttpContext http,
-        CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                var revoked = await clothing
-                    .RevokeAsync(playerId, request.SetIds ?? [], ct)
-                    .ConfigureAwait(false);
-
-                logger.LogInformation(
-                    "Player {StaffId} took {Count} figure sets from player {PlayerId}: {SetIds}",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    revoked,
-                    playerId,
-                    request.SetIds
-                );
-
-                return Results.Ok(new { changed = revoked });
-            }
-        );
-
-    private async ValueTask<object?> RequireCatalogOrGamedataAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
     )
     {
-        var http = context.HttpContext;
-        var player = AdminIdentity.Of(http).PlayerId;
+        var granted = await clothing
+            .GrantAsync(playerId, request.SetIds ?? [], ct)
+            .ConfigureAwait(false);
 
-        return
-            await grainFactory
-                .HasPermissionAsync(player, PermissionNodes.Admin.CATALOG_VIEW, http.RequestAborted)
-                .ConfigureAwait(false)
-            || await grainFactory
-                .HasPermissionAsync(
-                    player,
-                    PermissionNodes.Admin.GAMEDATA_VIEW,
-                    http.RequestAborted
-                )
-                .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
+        logger.LogInformation(
+            "Player {StaffId} gave player {PlayerId} {Count} figure sets: {SetIds}",
+            AdminIdentity.Of(http).PlayerId.Value,
+            playerId,
+            granted,
+            request.SetIds
+        );
+
+        return Results.Ok(new { changed = granted });
+    }
+
+    private async Task<IResult> RevokeClothingAsync(
+        int playerId,
+        ClothingGrantRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var revoked = await clothing
+            .RevokeAsync(playerId, request.SetIds ?? [], ct)
+            .ConfigureAwait(false);
+
+        logger.LogInformation(
+            "Player {StaffId} took {Count} figure sets from player {PlayerId}: {SetIds}",
+            AdminIdentity.Of(http).PlayerId.Value,
+            revoked,
+            playerId,
+            request.SetIds
+        );
+
+        return Results.Ok(new { changed = revoked });
     }
 
     private async Task<IResult> TextSearchAsync(string? q, int? page, CancellationToken ct) =>
         Results.Ok(await texts.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
 
-    private Task<IResult> SaveTextAsync(
+    private async Task<IResult> SaveTextAsync(
         TextSaveRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await texts
-                            .SaveAsync(
-                                request.Key ?? string.Empty,
-                                request.Value ?? string.Empty,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
-
-    private Task<IResult> DeleteTextAsync(string? key, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
+    )
+    {
+        try
+        {
+            return Results.Ok(
                 await texts
-                    .DeleteAsync(key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+                    .SaveAsync(
+                        request.Key ?? string.Empty,
+                        request.Value ?? string.Empty,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
                     .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
-        );
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private async Task<IResult> VariableSearchAsync(string? q, int? page, CancellationToken ct) =>
-        Results.Ok(await variables.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
-
-    private Task<IResult> SaveVariableAsync(
-        VariableSaveRequest request,
-        HttpContext http,
-        CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await variables
-                            .SaveAsync(
-                                request.Key ?? string.Empty,
-                                request.Value ?? string.Empty,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
-
-    private Task<IResult> LinkVariableAsync(
-        VariableLinkRequest request,
-        HttpContext http,
-        CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await variables
-                            .LinkAsync(
-                                request.Key ?? string.Empty,
-                                request.Setting,
-                                request.File,
-                                AdminIdentity.Of(http).PlayerId,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
-
-    private Task<IResult> DeleteVariableAsync(
+    private async Task<IResult> DeleteTextAsync(
         string? key,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
+        await texts
+            .DeleteAsync(key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+            .ConfigureAwait(false)
+            ? Results.NoContent()
+            : Results.NotFound();
+
+    private async Task<IResult> VariableSearchAsync(string? q, int? page, CancellationToken ct) =>
+        Results.Ok(await variables.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
+
+    private async Task<IResult> SaveVariableAsync(
+        VariableSaveRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return Results.Ok(
                 await variables
-                    .DeleteAsync(key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+                    .SaveAsync(
+                        request.Key ?? string.Empty,
+                        request.Value ?? string.Empty,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
                     .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
-        );
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
-    private Task<IResult> VariablePreviewAsync(
-        VariableImportRequest request,
+    private async Task<IResult> LinkVariableAsync(
+        VariableLinkRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await variables
+                    .LinkAsync(
+                        request.Key ?? string.Empty,
+                        request.Setting,
+                        request.File,
+                        AdminIdentity.Of(http).PlayerId,
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private async Task<IResult> DeleteVariableAsync(
+        string? key,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return Results.Ok(
-                        await variables
-                            .PreviewImportAsync(
-                                request.Json ?? string.Empty,
-                                request.RemoveMissing,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                    );
-                }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+        await variables
+            .DeleteAsync(key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+            .ConfigureAwait(false)
+            ? Results.NoContent()
+            : Results.NotFound();
 
-    private Task<IResult> VariableImportAsync(
+    private async Task<IResult> VariablePreviewAsync(
         VariableImportRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                await variables
+                    .PreviewImportAsync(request.Json ?? string.Empty, request.RemoveMissing, ct)
+                    .ConfigureAwait(false)
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private async Task<IResult> VariableImportAsync(
+        VariableImportRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                new
                 {
-                    return Results.Ok(
-                        new
-                        {
-                            changeSet = await variables
-                                .ImportAsync(
-                                    request.Json ?? string.Empty,
-                                    request.RemoveMissing,
-                                    AdminIdentity.Of(http).PlayerId,
-                                    ct
-                                )
-                                .ConfigureAwait(false),
-                        }
-                    );
+                    changeSet = await variables
+                        .ImportAsync(
+                            request.Json ?? string.Empty,
+                            request.RemoveMissing,
+                            AdminIdentity.Of(http).PlayerId,
+                            ct
+                        )
+                        .ConfigureAwait(false),
                 }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> HotelViewAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(
             new
             {
                 variables = await hotelView.GetVariablesAsync(ct).ConfigureAwait(false),
-                canManage = await CanManageAsync(http, ct).ConfigureAwait(false),
+                canManage = await grainFactory
+                    .HoldsAsync(http, PermissionNodes.Gamedata.MANAGE, ct)
+                    .ConfigureAwait(false),
             }
         );
 
@@ -1059,41 +912,36 @@ internal sealed class GamedataEndpoints(
         }
     }
 
-    private Task<IResult> SaveHotelViewAsync(
+    private async Task<IResult> SaveHotelViewAsync(
         HotelViewSaveRequest request,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                new
                 {
-                    return Results.Ok(
-                        new
-                        {
-                            changeSet = await hotelView
-                                .SaveAsync(
-                                    new HotelViewEdit
-                                    {
-                                        Variables = request.Variables ?? [],
-                                        Texts = request.Texts ?? [],
-                                    },
-                                    AdminIdentity.Of(http).PlayerId,
-                                    ct
-                                )
-                                .ConfigureAwait(false),
-                        }
-                    );
+                    changeSet = await hotelView
+                        .SaveAsync(
+                            new HotelViewEdit
+                            {
+                                Variables = request.Variables ?? [],
+                                Texts = request.Texts ?? [],
+                            },
+                            AdminIdentity.Of(http).PlayerId,
+                            ct
+                        )
+                        .ConfigureAwait(false),
                 }
-                catch (ArgumentException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
-                }
-            }
-        );
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
 
     private async Task<IResult> HistoryAsync(
         int? page,
@@ -1106,61 +954,21 @@ internal sealed class GamedataEndpoints(
             ? Results.Ok(changes)
             : Results.NotFound();
 
-    private Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                try
-                {
-                    return
-                        await history
-                            .RollbackAsync(id, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                            is { } result
-                        ? Results.Ok(result)
-                        : Results.NotFound();
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
-                }
-            }
-        );
-
-    /// <summary>A change by someone who holds <c>gamedata.manage</c>.</summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    ) =>
-        await CanManageAsync(http, ct).ConfigureAwait(false)
-            ? await change().ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Gamedata.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
+    private async Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct)
     {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.GAMEDATA_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
+        try
+        {
+            return
+                await history
+                    .RollbackAsync(id, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    is { } result
+                ? Results.Ok(result)
+                : Results.NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
     }
 }

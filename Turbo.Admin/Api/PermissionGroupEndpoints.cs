@@ -39,7 +39,8 @@ internal sealed class PermissionGroupEndpoints(
     {
         var group = secured
             .MapGroup("/permissions/groups")
-            .AddEndpointFilter(PermissionResults.RequireView(grainFactory));
+            .RequirePermission(PermissionNodes.Admin.PERMISSIONS_VIEW, PermissionResults.NO_ACCESS)
+            .ChecksInHandler(PermissionResults.EDITOR);
 
         group.MapGet("/", ListAsync);
         group.MapPost("/", CreateAsync);

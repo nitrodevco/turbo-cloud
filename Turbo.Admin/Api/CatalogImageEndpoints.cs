@@ -7,9 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using Orleans;
 using Turbo.Admin.Catalog;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
@@ -19,7 +17,6 @@ namespace Turbo.Admin.Api;
 /// with <c>admin.catalog.view</c>; uploaded and deleted by those who also hold <c>catalog.manage</c>.
 /// </summary>
 internal sealed class CatalogImageEndpoints(
-    IGrainFactory grainFactory,
     AdminCatalogImages images,
     ILogger<CatalogImageEndpoints> logger
 )
@@ -36,7 +33,10 @@ internal sealed class CatalogImageEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/catalog/images").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/catalog/images")
+            .RequirePermission(PermissionNodes.Admin.CATALOG_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Catalog.MANAGE, NO_MANAGE);
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{name}/file", FileAsync);
@@ -73,9 +73,6 @@ internal sealed class CatalogImageEndpoints(
 
     private async Task<IResult> UploadAsync(HttpContext http, CancellationToken ct)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         if (!http.Request.HasFormContentType)
             return AdminResults.Error(
                 StatusCodes.Status400BadRequest,
@@ -148,38 +145,10 @@ internal sealed class CatalogImageEndpoints(
 
     private async Task<IResult> DeleteAsync(string name, HttpContext http, CancellationToken ct)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         return await images
             .DeleteAsync(name, AdminIdentity.Of(http).PlayerId, ct)
             .ConfigureAwait(false)
             ? Results.NoContent()
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_IMAGE);
-    }
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Catalog.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CATALOG_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

@@ -47,7 +47,12 @@ internal sealed class PluginEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/plugins").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/plugins")
+            .RequirePermission(PermissionNodes.Admin.PLUGINS_VIEW, NO_ACCESS)
+            .ChecksInHandler(
+                "Each change checks its node in the handler, so a refusal is written to the command log too."
+            );
 
         group.MapGet("/", ListAsync);
         group.MapPost("/rescan", RescanAsync);
@@ -661,17 +666,4 @@ internal sealed class PluginEndpoints(
 
     private Task<bool> HoldsAsync(HttpContext http, string node, CancellationToken ct) =>
         grainFactory.HasPermissionAsync(AdminIdentity.Of(http).PlayerId, node, ct);
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_VIEW, http.RequestAborted)
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

@@ -28,7 +28,12 @@ internal sealed class StaffEndpoints(
 )
 {
     public void Map(RouteGroupBuilder secured) =>
-        secured.MapPost("/staff/passkey-links", CreateLinkAsync);
+        secured
+            .MapPost("/staff/passkey-links", CreateLinkAsync)
+            .PanelOnly("Any staff member asks; AdminLinkPolicy decides from the target.")
+            .ChecksInHandler(
+                "AdminLinkPolicy decides from the target: staff link only accounts they outrank."
+            );
 
     private async Task<IResult> CreateLinkAsync(
         HttpContext http,

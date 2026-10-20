@@ -23,21 +23,31 @@ internal sealed class WordFilterEndpoints(IGrainFactory grainFactory, AdminWordF
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/word-filter").AddEndpointFilter(RequireToolAsync);
+        var group = secured
+            .MapGroup("/word-filter")
+            .RequirePermission(PermissionNodes.Moderation.TOOL, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Moderation.FILTER_MANAGE, NO_MANAGE);
 
         group.MapGet("/", ListAsync);
         group.MapPost("/", AddAsync);
         group.MapDelete("/{id:int}", RemoveAsync);
-        group.MapPost(
-            "/test",
-            (WordFilterTestRequest request) => Results.Ok(words.Test(request.Text))
-        );
+        group
+            .MapPost(
+                "/test",
+                (WordFilterTestRequest request) => Results.Ok(words.Test(request.Text))
+            )
+            .ViewIsEnough("Trying a line on the filter changes nothing.");
     }
 
     private async Task<IResult> ListAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(
             await words
-                .ListAsync(await CanManageAsync(http, ct).ConfigureAwait(false), ct)
+                .ListAsync(
+                    await grainFactory
+                        .HoldsAsync(http, PermissionNodes.Moderation.FILTER_MANAGE, ct)
+                        .ConfigureAwait(false),
+                    ct
+                )
                 .ConfigureAwait(false)
         );
 
@@ -45,52 +55,15 @@ internal sealed class WordFilterEndpoints(IGrainFactory grainFactory, AdminWordF
         WordFilterAddRequest request,
         HttpContext http,
         CancellationToken ct
-    )
-    {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-        return Results.Ok(
+    ) =>
+        Results.Ok(
             await words
                 .AddAsync(AdminIdentity.Of(http).PlayerId, request.Words, ct)
                 .ConfigureAwait(false)
         );
-    }
 
-    private async Task<IResult> RemoveAsync(int id, HttpContext http, CancellationToken ct)
-    {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-        return await words
-            .RemoveAsync(AdminIdentity.Of(http).PlayerId, id, ct)
-            .ConfigureAwait(false)
+    private async Task<IResult> RemoveAsync(int id, HttpContext http, CancellationToken ct) =>
+        await words.RemoveAsync(AdminIdentity.Of(http).PlayerId, id, ct).ConfigureAwait(false)
             ? Results.NoContent()
             : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND);
-    }
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Moderation.FILTER_MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireToolAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Moderation.TOOL,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

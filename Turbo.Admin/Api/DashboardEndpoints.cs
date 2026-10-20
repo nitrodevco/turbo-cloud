@@ -25,7 +25,10 @@ internal sealed class DashboardEndpoints(
 {
     private const int BUSIEST_ROOMS = 20;
 
-    public void Map(RouteGroupBuilder secured) => secured.MapGet("/dashboard", GetAsync);
+    public void Map(RouteGroupBuilder secured) =>
+        secured
+            .MapGet("/dashboard", GetAsync)
+            .PanelOnly("The hotel's figures on the panel's front page.");
 
     private async Task<IResult> GetAsync(CancellationToken ct)
     {

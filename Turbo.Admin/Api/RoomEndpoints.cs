@@ -49,7 +49,12 @@ internal sealed class RoomEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/rooms").AddEndpointFilter(RequireRoomsViewAsync);
+        var group = secured
+            .MapGroup("/rooms")
+            .RequirePermission(PermissionNodes.Admin.ROOMS_VIEW, NO_ACCESS)
+            .ChecksInHandler(
+                "A change asks AdminRoomAbilities for the node the hotel asks for in that room, where owning it counts."
+            );
 
         group.MapGet("/", SearchAsync);
         group.MapGet("/categories", CategoriesAsync);
@@ -450,22 +455,4 @@ internal sealed class RoomEndpoints(
         Enum.TryParse<RoomSearchMode>(by, ignoreCase: true, out var mode)
             ? mode
             : RoomSearchMode.Name;
-
-    private async ValueTask<object?> RequireRoomsViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.ROOMS_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

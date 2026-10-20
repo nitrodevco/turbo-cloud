@@ -31,13 +31,17 @@ internal sealed class PlayerEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/players").AddEndpointFilter(RequirePlayersViewAsync);
+        var group = secured
+            .MapGroup("/players")
+            .RequirePermission(PermissionNodes.Admin.PLAYERS_VIEW, NO_ACCESS);
 
         group.MapGet("/", SearchAsync);
         group.MapGet("/abilities", AbilitiesAsync);
         group.MapGet("/{id:int}", GetAsync);
         group.MapGet("/{id:int}/inventory", InventoryAsync);
-        group.MapPost("/{id:int}/actions", ActAsync);
+        group
+            .MapPost("/{id:int}/actions", ActAsync)
+            .ChecksInHandler("Each action runs as its command, which checks its own node.");
     }
 
     private async Task<IResult> AbilitiesAsync(HttpContext http, CancellationToken ct)
@@ -125,22 +129,4 @@ internal sealed class PlayerEndpoints(
         Enum.TryParse<PlayerSearchMode>(by, ignoreCase: true, out var mode)
             ? mode
             : PlayerSearchMode.Name;
-
-    private async ValueTask<object?> RequirePlayersViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.PLAYERS_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

@@ -15,8 +15,12 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
 {
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapPost("/auth/logout", LogoutAsync);
-        secured.MapGet("/me", MeAsync);
+        secured
+            .MapPost("/auth/logout", LogoutAsync)
+            .PanelOnly("Signing out ends the caller's own session.");
+        secured
+            .MapGet("/me", MeAsync)
+            .PanelOnly("Who the caller is and what the panel shows them.");
     }
 
     private async Task<IResult> LogoutAsync(HttpContext http, CancellationToken ct)

@@ -16,7 +16,10 @@ namespace Turbo.Admin.Api;
 /// </summary>
 internal sealed class SearchEndpoints(IGrainFactory grainFactory, AdminSearchQueries search)
 {
-    public void Map(RouteGroupBuilder secured) => secured.MapGet("/search", SearchAsync);
+    public void Map(RouteGroupBuilder secured) =>
+        secured
+            .MapGet("/search", SearchAsync)
+            .PanelOnly("Each kind of result is searched only for staff who may see it.");
 
     private async Task<IResult> SearchAsync(string? q, HttpContext http, CancellationToken ct)
     {

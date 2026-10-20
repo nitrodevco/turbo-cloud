@@ -5,12 +5,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Moderation;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
@@ -22,11 +20,7 @@ namespace Turbo.Admin.Api;
 /// hotel see it at once and the reporter is told it was closed. A report another moderator holds
 /// can't be closed here either.
 /// </summary>
-internal sealed class ReportEndpoints(
-    IGrainFactory grainFactory,
-    AdminReportQueries reports,
-    IModerationIssueService issues
-)
+internal sealed class ReportEndpoints(AdminReportQueries reports, IModerationIssueService issues)
 {
     private const string NO_ACCESS = "You can't handle reports.";
     private const string NOT_FOUND = "There is no such report.";
@@ -36,7 +30,12 @@ internal sealed class ReportEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/reports").AddEndpointFilter(RequireToolAsync);
+        var group = secured
+            .MapGroup("/reports")
+            .RequirePermission(PermissionNodes.Moderation.TOOL, NO_ACCESS)
+            .ViewIsEnough(
+                "Picking, releasing and closing reports is what moderation.tool is for, as in the mod tool."
+            );
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:int}", GetAsync);
@@ -160,23 +159,5 @@ internal sealed class ReportEndpoints(
                 : failure.IssueId == ids[0] ? CLOSED
                 : $"Report #{failure.IssueId} is closed."
         );
-    }
-
-    private async ValueTask<object?> RequireToolAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Moderation.TOOL,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }
