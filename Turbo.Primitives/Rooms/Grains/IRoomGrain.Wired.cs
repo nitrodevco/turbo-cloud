@@ -78,13 +78,10 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
-    /// Variable values bound to one target, or null when the caller may not read the room's
-    /// wired.
+    /// Variable values bound to one target, saying whether the target is in the room at all, or
+    /// null when the caller may not read the room's wired.
     /// </summary>
-    public Task<List<(
-        WiredVariableId id,
-        WiredVariableValue value
-    )>?> GetAllVariablesForBindingAsync(
+    public Task<WiredObjectVariablesSnapshot?> GetAllVariablesForBindingAsync(
         ActionContext ctx,
         WiredVariableBinding binding,
         CancellationToken ct

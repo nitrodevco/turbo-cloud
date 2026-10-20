@@ -365,6 +365,12 @@ public sealed partial class RoomWiredSystem
             _ => [0],
         };
 
+    /// <summary>
+    /// Whether a variable target is in the room right now: a furni or user by object id; the room
+    /// and the context always are.
+    /// </summary>
+    public bool IsLiveVariableTarget(WiredVariableBinding binding) => IsLiveTarget(binding);
+
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch
         {

@@ -172,10 +172,7 @@ public sealed partial class RoomGrain
         return await WiredSystem.GetWiredVariablesSnapshotAsync(ct);
     }
 
-    public async Task<List<(
-        WiredVariableId id,
-        WiredVariableValue value
-    )>?> GetAllVariablesForBindingAsync(
+    public async Task<WiredObjectVariablesSnapshot?> GetAllVariablesForBindingAsync(
         ActionContext ctx,
         WiredVariableBinding binding,
         CancellationToken ct
@@ -184,7 +181,14 @@ public sealed partial class RoomGrain
         if (!await CanReadWiredAsync(ctx, ct))
             return null;
 
-        return await WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
+        if (!WiredSystem.IsLiveVariableTarget(binding))
+            return new WiredObjectVariablesSnapshot { TargetPresent = false, Values = [] };
+
+        return new WiredObjectVariablesSnapshot
+        {
+            TargetPresent = true,
+            Values = await WiredSystem.GetAllVariablesForBindingAsync(binding, ct),
+        };
     }
 
     public async Task<WiredRoomSettingsSnapshot?> GetWiredRoomSettingsAsync(
