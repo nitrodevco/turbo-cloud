@@ -35,6 +35,7 @@ public sealed class HabbiconTests : IDisposable
     private const int TOAST_TOAST = 61;
     private const int TOAST_REWARD = 71;
     private const int DUCK_DUCK = 28;
+    private const int ZOMBIE_RAGE = 76;
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -114,6 +115,26 @@ public sealed class HabbiconTests : IDisposable
             .Habbicons.Single(x => x.HabbiconId == TOAST_TOAST)
             .State.Should()
             .Be(HabbiconState.Owned);
+    }
+
+    [Fact]
+    public async Task A_habboween_track_habbicon_is_given_as_its_prize()
+    {
+        // Habbo's Habboween 2026 free13 (700 points): Habbicon 76, zombie_rage.
+        var grain = await GrainAsync();
+
+        (await grain.GiveAsync(ZOMBIE_RAGE, Ct)).Should().BeTrue();
+
+        Single<UserHabbiconStatusChangedMessageComposer>()
+            .Should()
+            .Be(
+                new UserHabbiconStatusChangedMessageComposer
+                {
+                    HabbiconId = ZOMBIE_RAGE,
+                    State = HabbiconState.Owned,
+                }
+            );
+        (await grain.CanUseAsync(ZOMBIE_RAGE, Ct)).Should().BeTrue();
     }
 
     [Fact]
@@ -313,7 +334,7 @@ public sealed class HabbiconTests : IDisposable
     {
         using var stream =
             typeof(HabbiconTests).Assembly.GetManifestResourceStream(
-                "Catalog.Fixtures.hhus-habbicon-shop-data-2026-10-12.hex"
+                "Catalog.Fixtures.hhus-habbicon-shop-data-2026-10-17.hex"
             ) ?? throw new InvalidOperationException("The official HabbiconShopData is missing.");
         using var reader = new StreamReader(stream);
 
