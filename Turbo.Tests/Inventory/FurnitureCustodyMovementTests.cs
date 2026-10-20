@@ -149,6 +149,36 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     }
 
     [Fact]
+    public async Task UsingUpSeveralItems_IsAllOrNone_UnderOneOperation()
+    {
+        var inventory = await NewInventoryAsync(OWNER);
+        var first = await inventory.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
+        var second = await inventory.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
+        var gone = await inventory.GrantFurnitureAsync(CHAIR, null, Cause(), Ct);
+        await _world.DeleteRowAsync(gone!.ItemId.Value, Ct);
+        var refused = MovementCause.New(MovementCauses.USE_CRAFTING, OWNER);
+
+        (await inventory.ConsumeAllFurnitureAsync([first!.ItemId, gone.ItemId], refused, Ct))
+            .Should()
+            .BeEmpty("one of them has no row");
+        Rows().Select(x => x.Id).Should().Contain(first.ItemId.Value, "none was used up");
+        Movements().Should().NotContain(x => x.OperationId == refused.OperationId);
+
+        var used = MovementCause.New(MovementCauses.USE_CRAFTING, OWNER);
+
+        (await inventory.ConsumeAllFurnitureAsync([first.ItemId, second!.ItemId], used, Ct))
+            .Select(x => x.ItemId)
+            .Should()
+            .Equal(first.ItemId, second.ItemId);
+        Rows().Select(x => x.Id).Should().NotContain([first.ItemId.Value, second.ItemId.Value]);
+        Movements()
+            .Where(x => x.OperationId == used.OperationId)
+            .Select(x => (int)x.Seq)
+            .Should()
+            .Equal(0, 1);
+    }
+
+    [Fact]
     public async Task APresent_IsMadeIntoTheInventory_ItsContentIntoThePresent_AndOpenedByWhoeverHoldsIt()
     {
         var inventory = await NewInventoryAsync(OWNER);

@@ -208,6 +208,52 @@ internal sealed class InventoryFurniModule(
     }
 
     /// <summary>
+    /// All of the items used up in one transaction, or none: a craft whose ingredients went one
+    /// at a time lost the ones before an ingredient that had gone, and made nothing.
+    /// </summary>
+    public async Task<ImmutableArray<FurnitureItemSnapshot>> ConsumeAllAsync(
+        ImmutableArray<RoomObjectId> itemIds,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        await EnsureReadyAsync(ct);
+
+        if (itemIds.IsEmpty || itemIds.Distinct().Count() != itemIds.Length)
+            return [];
+
+        var snapshots = ImmutableArray.CreateBuilder<FurnitureItemSnapshot>(itemIds.Length);
+
+        foreach (var itemId in itemIds)
+        {
+            if (!_state.FurnitureById.TryGetValue(itemId, out var item))
+                return [];
+
+            snapshots.Add(item.GetSnapshot());
+        }
+
+        var taken = snapshots.MoveToImmutable();
+
+        if (!await _custody.DestroyInInventoryAsync(PlayerId, taken, cause, ct))
+        {
+            _logger.LogWarning(
+                "Furniture {ItemIds} of player {PlayerId} is not all in the inventory's rows; none used up",
+                itemIds,
+                PlayerId
+            );
+
+            return [];
+        }
+
+        foreach (var itemId in itemIds)
+            _state.FurnitureById.Remove(itemId);
+
+        await SendRemovedAsync([.. itemIds], ct);
+
+        return taken;
+    }
+
+    /// <summary>
     /// One sheet off a post-it pad held here. A pad of several sheets keeps one fewer: its row
     /// first, then its item, and the client sets the count it is told (Flash
     /// <c>IncomingMessages.onPostItPlaced</c> -> <c>FurniModel.updatePostItCount</c>), which it
