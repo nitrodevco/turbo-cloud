@@ -15,4 +15,8 @@ public sealed record SharedWiredVariableStateSnapshot
 
     [Id(1)]
     public required ImmutableDictionary<int, long> Values { get; init; }
+
+    /// <summary>What a share add-on on the variable's stack shares; null without one.</summary>
+    [Id(2)]
+    public SharedWiredVariableAddonsSnapshot? Addons { get; init; }
 }

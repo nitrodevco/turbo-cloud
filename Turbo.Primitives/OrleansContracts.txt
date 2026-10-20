@@ -569,6 +569,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   380E97D3: MutePlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task<bool>
   9D6F4F6C: OnGuildChangedAsync(System.Threading.CancellationToken) -> Task
   4C608C6E: OnGuildDeletedAsync(System.Threading.CancellationToken) -> Task
+  B3FAD6D2: OnSharedWiredVariableAddonsChangedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, System.Threading.CancellationToken) -> Task
   0B198770: OnSharedWiredVariableChangedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, System.Threading.CancellationToken) -> Task
   25E77423: PassHandItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   8133AFC8: PassHandItemToPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
@@ -638,6 +639,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   88DA986E: StaffPickupBotAsync(int, System.Threading.CancellationToken) -> Task<bool>
   31D10C99: StaffUpdateBotAsync(int, Turbo.Primitives.Bots.Snapshots.BotStaffEditSnapshot, System.Threading.CancellationToken) -> Task<bool>
   7D730882: SubscribeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableStateSnapshot?>
+  F1B6BD3E: SynchronizeSharedWiredAddonsAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   02CF499A: TogglePetBreedingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   4057A1C8: TogglePetRidingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   87B3024D: ToggleRoomMuteAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>

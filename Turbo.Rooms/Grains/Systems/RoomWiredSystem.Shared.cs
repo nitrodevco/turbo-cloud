@@ -6,13 +6,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Logging;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -122,6 +125,95 @@ public sealed partial class RoomWiredSystem
                     roomId
                 );
         }
+    }
+
+    /// <summary>
+    /// "Synchronize" on a share add-on: the loaded rooms using the shared variable it stands on are
+    /// told to read its add-ons again. A room that loads later reads them when it subscribes.
+    /// Inference: what the button sends is known (AS3 <c>VariableAddonShareAddon.synchronize</c>,
+    /// WIN63-202610201032); that a using room otherwise keeps what it read until it reloads is not
+    /// recorded.
+    /// </summary>
+    public async Task<bool> SynchronizeSharedAddonsAsync(int boxId, CancellationToken ct)
+    {
+        if (
+            !FurniModule.TryGetItem(boxId, out var item)
+            || item.Logic is not WiredAddonVariableShare share
+        )
+            return false;
+
+        await share.EnsureWiredLoadedAsync(ct);
+
+        if (share.GetSharedVariable() is not { } variable)
+            return false;
+
+        await ShareAddonsChangedAsync(
+            variable.GetVarSnapshot().VariableId,
+            variable.SharedReferrers
+        );
+
+        return true;
+    }
+
+    private async Task ShareAddonsChangedAsync(
+        WiredVariableId variableId,
+        IReadOnlyCollection<int> referrers
+    )
+    {
+        var active = (
+            await _roomGrain._grainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
+        ).ToHashSet();
+
+        foreach (var referrer in referrers)
+        {
+            var roomId = (RoomId)referrer;
+
+            if (roomId == _roomGrain.RoomId || !active.Contains(roomId))
+                continue;
+
+            _roomGrain
+                ._grainFactory.GetRoomGrain(roomId)
+                .OnSharedWiredVariableAddonsChangedAsync(_roomGrain.RoomId, variableId, default)
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "send shared variable add-ons to room {RoomId}",
+                    roomId
+                );
+        }
+    }
+
+    /// <summary>
+    /// The add-ons a shared variable of another room shares were synchronized: the reference boxes
+    /// using it are loaded again on the next tick, which reads them afresh.
+    /// </summary>
+    public Task OnSharedVariableAddonsChangedAsync(
+        RoomId sourceRoom,
+        WiredVariableId variableId,
+        CancellationToken ct
+    )
+    {
+        List<int> boxIds =
+        [
+            .. FurniModule
+                .Items.Where(x =>
+                    x.Logic is WiredVariableReference reference
+                    && reference.RefersTo(sourceRoom, variableId)
+                )
+                .Select(x => x.ObjectId.Value),
+        ];
+
+        if (boxIds.Count == 0)
+            return Task.CompletedTask;
+
+        return _roomGrain.PublishRoomEventAsync(
+            new WiredVariableBoxChangedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                BoxIds = boxIds,
+            },
+            ct
+        );
     }
 
     /// <summary>A shared variable of another room changed: the reference boxes using it follow.</summary>

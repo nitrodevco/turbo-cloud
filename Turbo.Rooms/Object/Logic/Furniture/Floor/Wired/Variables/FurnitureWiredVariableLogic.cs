@@ -578,6 +578,42 @@ public abstract class FurnitureWiredVariableLogic
         {
             Variable = GetVarSnapshot(),
             Values = values.ToImmutable(),
+            Addons = GetSharedAddons(),
+        };
+    }
+
+    /// <summary>The rooms using this shared variable.</summary>
+    public IReadOnlyCollection<int> SharedReferrers => Referrers;
+
+    /// <summary>
+    /// What a share add-on on this variable's stack passes on to the rooms using it ("Place a Share
+    /// Add-on on top of a permanently shared Variable", Wired Faculty 19/10/2026): the add-ons of
+    /// the categories it ticks. Null without one. Text connectors are passed as this variable
+    /// shows them.
+    /// </summary>
+    public SharedWiredVariableAddonsSnapshot? GetSharedAddons()
+    {
+        if (
+            FurniModule
+                .GetFloorItemsOnTile(_ctx.GetTileIdx())
+                .Select(item => item.Logic)
+                .OfType<Addons.WiredAddonVariableShare>()
+                .FirstOrDefault()
+            is not { } share
+        )
+            return null;
+
+        var categories = share.Categories;
+
+        if (!categories.HasFlag(WiredVariableAddonCategories.TextConnectors))
+            return new SharedWiredVariableAddonsSnapshot { Categories = categories };
+
+        return new SharedWiredVariableAddonsSnapshot
+        {
+            Categories = categories,
+            HasTextConnector = HasTextConnector(),
+            TextConnectors = GetTextConnectors(),
+            TextConnectorFallback = GetTextConnectorFallback(),
         };
     }
 
