@@ -33,6 +33,7 @@ turbo_load_env() {
   TURBO_PID_FILE="$TURBO_DEPLOY_ROOT/turbo.pid"
   TURBO_PLUGIN_PATH="${TURBO_PLUGIN_PATH:-$TURBO_DEPLOY_ROOT/shared/plugins}"
   TURBO_ASSETS_PATH="${TURBO_ASSETS_PATH:-$TURBO_DEPLOY_ROOT/shared/assets}"
+  TURBO_CAMERA_PATH="${TURBO_CAMERA_PATH:-$TURBO_DEPLOY_ROOT/shared/camera}"
 }
 
 # Moves the asset bundles a release kept in its own folder (before TURBO_ASSETS_PATH existed)
@@ -68,6 +69,30 @@ turbo_adopt_assets() {
   fi
 
   mkdir -p "$TURBO_ASSETS_PATH"
+}
+
+# Gathers the camera's photos, room thumbnails and starter room pictures the releases kept in
+# their own folders (before TURBO_CAMERA_PATH existed, each release had its own and a deploy
+# started with none) into the shared one, once. Copied oldest release first, so a room's newest
+# thumbnail is the one kept.
+turbo_adopt_camera() {
+  local release kind
+
+  if [ -d "$TURBO_CAMERA_PATH/photos" ]; then
+    return
+  fi
+
+  # Release folders are named by their time, and a glob is sorted: oldest first.
+  for release in "$TURBO_DEPLOY_ROOT"/releases/*/; do
+    for kind in photos thumbnails starter-rooms; do
+      [ -d "${release}camera/$kind" ] || continue
+      turbo_log "Copying the camera's $kind from $release"
+      mkdir -p "$TURBO_CAMERA_PATH/$kind"
+      cp -a "${release}camera/$kind/." "$TURBO_CAMERA_PATH/$kind/"
+    done
+  done
+
+  mkdir -p "$TURBO_CAMERA_PATH/photos"
 }
 
 # Ploi runs deploy scripts and daemons with a minimal PATH, so a user-level install from
@@ -196,6 +221,10 @@ turbo_export_app_env() {
 
   # So do the asset bundles: synced and uploaded ones are kept here, and published from here.
   export "TURBO__Turbo__Assets__Directory=$TURBO_ASSETS_PATH"
+
+  # And what the camera made: photos players bought, room thumbnails, starter room pictures.
+  export "TURBO__Turbo__Camera__StoragePath=$TURBO_CAMERA_PATH"
+  export "TURBO__Turbo__Onboarding__PictureDirectory=$TURBO_CAMERA_PATH/starter-rooms"
 
   # Daemon output goes to a log file, where colour codes are noise.
   export "TURBO__Logging__TurboConsole__UseAnsiColor=${TURBO_LOG_COLOR:-false}"

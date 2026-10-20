@@ -21,6 +21,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
     current -> releases/...        what the daemon runs
     shared/plugins/                plugin folder, kept across releases
     shared/assets/                 asset bundles (Turbo:Assets:Directory), kept across releases
+    shared/camera/                 camera photos, room thumbnails, starter room pictures, kept across releases
     turbo.pid                      written by start.sh, used by deploy.sh to restart
 ```
 
