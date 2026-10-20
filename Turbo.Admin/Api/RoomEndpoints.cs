@@ -316,6 +316,24 @@ internal sealed class RoomEndpoints(
         if (await RefuseLoadedAsync(http, id, x => x.MuteRoom, ct).ConfigureAwait(false) is { } no)
             return no;
 
+        // Either node shows the switch (RoomAbilities.MuteRoom), but each way needs its own, as
+        // :roommute and :roomunmute do in the hotel.
+        if (
+            !await grainFactory
+                .HasPermissionAsync(
+                    AdminIdentity.Of(http).PlayerId,
+                    request.Muted
+                        ? PermissionNodes.Command.ROOMMUTE
+                        : PermissionNodes.Command.ROOMUNMUTE,
+                    ct
+                )
+                .ConfigureAwait(false)
+        )
+            return AdminResults.Error(
+                StatusCodes.Status403Forbidden,
+                request.Muted ? "You can't mute rooms." : "You can't lift a room's mute."
+            );
+
         var changed = await Room(id)
             .SetRoomMutedBySystemAsync(request.Muted, ct)
             .ConfigureAwait(false);

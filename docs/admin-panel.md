@@ -363,7 +363,7 @@ group rooms' rights, the settings' limits). Buttons only appear for what you may
 | Remove one player's rights, or everyone's | Owning the room, or `room.control.any` | No |
 | Kick, mute (up to an hour) or ban (an hour, a day or for good) a player; lift a ban | Owning the room, or `room.moderate.any` (staff with it act on anyone who lacks it) | Kick and mute: yes. Ban and lift: no |
 | Staff pick | `navigator.staff_pick` | No |
-| Mute the whole room | `command.roommute` or `command.roomunmute` | Yes |
+| Mute the whole room; lift it | `command.roommute` to mute, `command.roomunmute` to lift it (either shows the switch) | Yes |
 | Kick everyone (its owner and room moderators stay) | `command.roomkickall` | Yes |
 | Unload (sends everyone out) | `command.unloadroom` | Yes |
 | Room alert (a pop-up for everyone inside, up to 500 characters) | `command.roomalert` | Yes |
