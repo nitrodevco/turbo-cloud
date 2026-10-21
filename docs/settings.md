@@ -92,7 +92,18 @@ A setting is the whole server's, so give `settings.manage` only to those who run
 
 An external variable can be linked to a setting (**Gamedata > Variables**), so the client gets
 the setting's value, the same way one follows a gamedata file's address (see `docs/gamedata.md`). It follows the value configured now, so the variables
-are built again as soon as the setting is saved, without waiting for the server's restart.
+are built again as soon as the setting is saved, without waiting for the server's restart: at once
+on the silo it was saved on, within `CheckSeconds` on the others (below).
+
+## More than one silo
+
+A setting saved or put back reloads the configuration of the silo whose panel it was saved
+through. Every silo also asks the database every `Turbo:Settings:CheckSeconds` (default `5`)
+whether the panel's overrides are still those it read (`ServerSettingsWatcher`), and reads them
+again when they aren't: so within `CheckSeconds` another silo's Settings page shows the change, an
+**applies now** setting applies there too, and the external variables that follow a setting are
+built again. A setting that applies after a restart still waits on each silo's own restart.
+`0` never asks: a change saved elsewhere then waits on this silo's restart.
 
 ## Starting up
 

@@ -41,6 +41,8 @@ internal static class ServerSettingsHostExtensions
             sp.GetRequiredService<ServerSettingsService>()
         );
         builder.Services.AddSingleton<IPluginDataOwner, PluginSettingData>();
+        // Another silo's saves reach this one's configuration.
+        builder.Services.AddHostedService<ServerSettingsWatcher>();
 
         return builder;
     }

@@ -309,8 +309,9 @@ longer publishes them.
 - **A variable can follow something** instead of holding a value of its own. **Link** it on the
   Variables tab, and the file writes what it follows, built again whenever that changes:
   - **a server setting** (`Turbo:Web:HotelName`, say): its value configured now, so saving the
-    setting on the Settings page builds the variables again at once. A secret setting can't be
-    followed: the variables are public.
+    setting on the Settings page builds the variables again at once on that silo, and on the
+    others once they read the panel's overrides again, within `Turbo:Settings:CheckSeconds`
+    (`docs/settings.md`). A secret setting can't be followed: the variables are public.
   - **a gamedata file's address**, as Habbo's external variables give theirs:
     `<PublicUrl>/gamedata/<file>/<sha1>` of the file's current build (FurnitureData, product data,
     the external texts or the figure data). The client then loads exactly that build, cached for
@@ -475,5 +476,5 @@ loading the old build after a change.
 - A player's club running out takes their club clothing off at their next login or look change, not
   the moment it runs out.
 - Each silo checks Habbo and builds the file on its own. Definitions changed on one silo reach
-  another's file within `FileCheckSeconds`; **Rebuild** in the panel forces one on the silo it
-  reaches.
+  another's file within `FileCheckSeconds`, and a setting a variable follows within
+  `Turbo:Settings:CheckSeconds`; **Rebuild** in the panel forces one on the silo it reaches.

@@ -27,8 +27,9 @@ namespace Turbo.Main.Settings;
 /// The server's settings (<see cref="IServerSettings"/>): read from the registered config
 /// classes (<see cref="ServerSettingRegistry"/>) and the configuration, and overridden in
 /// <c>server_settings</c>, which <see cref="ServerSettingsConfigurationProvider"/> reads back.
-/// What is shown is worked out again whenever the configuration reloads - an override saved, or
-/// <c>appsettings.json</c> changed on disk, a plugin's sections added or taken away - and
+/// What is shown is worked out again whenever the configuration reloads - an override saved here
+/// or on another silo (<see cref="CheckAsync"/>), <c>appsettings.json</c> changed on disk, a
+/// plugin's sections added or taken away - and
 /// <see cref="Version"/> goes up with it.
 /// </summary>
 internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSections, IDisposable
@@ -47,6 +48,9 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     private readonly IDisposable _reloads;
 
     private readonly Lock _plugins = new();
+
+    // One read of the overrides at a time: a save's and a check's would otherwise race to set them.
+    private readonly Lock _refreshing = new();
 
     private int _version;
     private Read? _read;
@@ -233,6 +237,39 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             Total = total,
             PageSize = size,
         };
+    }
+
+    /// <summary>
+    /// Reads the panel's overrides again when the database holds others than those read last
+    /// here: one saved or put back on another silo, which tells only its own configuration.
+    /// <see cref="ServerSettingsWatcher"/> asks every <see cref="ServerSettingsConfig.CheckSeconds"/>,
+    /// so the change reaches this silo's live settings, the Settings page and the external
+    /// variables that follow a setting within that. True when they were read again.
+    /// </summary>
+    internal async Task<bool> CheckAsync(CancellationToken ct)
+    {
+        if (ServerSettingsConfiguration.Find(_configuration) is not { } provider)
+            return false;
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var rows = await dbCtx
+            .ServerSettings.AsNoTracking()
+            .Select(x => new { x.Path, x.Value })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (provider.Holds(rows.Select(x => (x.Path, x.Value))))
+            return false;
+
+        _logger.LogInformation(
+            "The panel's server settings were changed elsewhere; reading them again"
+        );
+
+        Refresh();
+
+        return true;
     }
 
     /// <summary>
@@ -521,7 +558,8 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         {
             try
             {
-                provider.Refresh();
+                lock (_refreshing)
+                    provider.Refresh();
             }
             catch (AggregateException ex)
                 when (ex.Flatten().InnerExceptions.All(x => x is OptionsValidationException))

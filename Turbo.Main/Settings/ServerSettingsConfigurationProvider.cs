@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
@@ -20,6 +21,9 @@ internal sealed class ServerSettingsConfigurationProvider(
     private readonly Func<ServerSettingsLoad> _load = load;
 
     private HashSet<string> _paths = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The rows read last, by path: what <see cref="Holds"/> compares the database's with.</summary>
+    private IReadOnlyList<(string Path, string Value)> _rows = [];
 
     /// <summary>Why the overrides couldn't be read when they were last read; null when they were.</summary>
     public string? LoadError { get; private set; }
@@ -71,11 +75,19 @@ internal sealed class ServerSettingsConfigurationProvider(
 
         Data = data;
         _paths = paths;
+        _rows = ByPath(read.Rows);
         overrides.Replace(whole);
     }
 
     /// <summary>Whether the panel overrides the setting at the path, an empty list or map included.</summary>
     public bool Overrides(string path) => _paths.Contains(path);
+
+    /// <summary>
+    /// Whether <paramref name="rows"/>, as the database holds them now, are the rows read last:
+    /// false when one was saved, changed or removed since (on another silo, say).
+    /// </summary>
+    public bool Holds(IEnumerable<(string Path, string Value)> rows) =>
+        ByPath(rows).SequenceEqual(_rows);
 
     /// <summary>Reads the overrides again and tells the configuration they changed.</summary>
     public void Refresh()
@@ -83,4 +95,8 @@ internal sealed class ServerSettingsConfigurationProvider(
         Load();
         OnReload();
     }
+
+    private static List<(string Path, string Value)> ByPath(
+        IEnumerable<(string Path, string Value)> rows
+    ) => [.. rows.OrderBy(x => x.Path, StringComparer.Ordinal)];
 }
