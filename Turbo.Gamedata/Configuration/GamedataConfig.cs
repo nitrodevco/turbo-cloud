@@ -30,7 +30,8 @@ public sealed class GamedataConfig
     /// <summary>
     /// Where Habbo's gamedata files are asked for: <c>{domain}</c> and <c>{file}</c>
     /// (<c>external_variables</c>, <c>furnidata_json</c>, ...) are filled in. The address
-    /// redirects to the file's current hash.
+    /// redirects to the file's current hash. Habbo's list of those hashes is asked for with
+    /// <c>hashes</c> as the file and no <c>/0</c> (<c>/gamedata/hashes</c>).
     /// </summary>
     [UrlSetting]
     public string HabboGamedataUrl { get; init; } = "https://www.habbo.{domain}/gamedata/{file}/0";

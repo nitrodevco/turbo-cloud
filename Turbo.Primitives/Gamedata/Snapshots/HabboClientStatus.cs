@@ -5,7 +5,8 @@ namespace Turbo.Primitives.Gamedata.Snapshots;
 
 /// <summary>
 /// Habbo's HTML client as the hotel has it: each environment, every release downloaded (newest
-/// first), and the one the hotel builds from - the followed environment's - with why, when none.
+/// first), and the one the hotel builds from - the followed environment's - with why, when none;
+/// and its AIR client, which the window templates take what the HTML client lacks from.
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record HabboClientStatus
@@ -23,4 +24,8 @@ public sealed record HabboClientStatus
     /// <summary>The release built from; null when there is none.</summary>
     [Id(3)]
     public string? Followed { get; init; }
+
+    /// <summary>Habbo's AIR client: the newest named, and the one kept.</summary>
+    [Id(4)]
+    public required HabboAirClientSnapshot Air { get; init; }
 }

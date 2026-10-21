@@ -139,10 +139,15 @@ renderers' extras, the room content. The hotel takes it as nitro-studio does
    (`production`, `sandbox`, or `auto`, the first of them with a release).
 
 It is asked on the release watcher's schedule (`ReleaseCheckMinutes`) and with **Check now**, and
-on its own from the Updates tab's **Habbo's HTML client** panel, which shows each environment,
-the releases kept and their libraries, and under **Built from the client** each bundle built from
-the release followed (marked when an upload stands in its place and is left alone), what the last
-build left out and the templates' problems. **Build now** builds every one again as an asset job,
+on its own with **Check the client** under the **Habbo's HTML client** row of Habbo updates'
+**Sources** table. The row shows the release built from, when Habbo built it and when the hotel
+last built from it; opened, each environment, counts of the release's libraries, the releases kept
+and the bundles built, and folded under those the releases kept and their libraries, each bundle
+built from the release followed (marked when an upload stands in its place and is left alone),
+what the last build left out and the templates' problems. The **Habbo's AIR client** row shows the
+newest AIR release named, the one kept (when Habbo built it, as its zip dates `HabboAir.swf`, and
+when it was downloaded, kept in `.habbo-client/air/<version>/air.json`) and how many images and
+layouts the last build took from it. **Build now** builds every one again as an asset job,
 whether its library changed or not. A release the hotel follows is built from as soon as it is
 downloaded, once no other asset job runs (`Turbo:Gamedata:ClientBuildAfterDownload`, on by
 default; off, it is built at the next asset sync).

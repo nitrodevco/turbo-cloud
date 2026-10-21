@@ -905,12 +905,30 @@ public sealed class AssetSyncTests : IDisposable
                 }
             )
         );
-        _habbo.Serve(AIR, TestAirClient.Zip(air));
+        var airBuilt = new DateTimeOffset(2026, 9, 30, 10, 0, 0, TimeSpan.Zero);
+
+        _habbo.Serve(AIR, TestAirClient.Zip(air, airBuilt));
         await Client().CheckAsync(wait: true, Ct);
 
         var job = await RunAsync();
 
         job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        // The Sources tab says which AIR client is kept, when Habbo built it, and what it gave.
+        (await Client().GetStatusAsync(Ct))
+            .Air.Should()
+            .Match<HabboAirClientSnapshot>(x =>
+                x.Version == "34"
+                && x.Kept == "34"
+                && x.BuiltAt == airBuilt.UtcDateTime
+                && x.DownloadedAt != null
+                && x.Size == air.Length
+            );
+        (await Builder().GetAsync(Ct))
+            .Should()
+            .Match<HabboClientBuildSnapshot>(x =>
+                x.AirVersion == "34" && x.AirImages == 1 && x.AirLayouts == 0
+            );
 
         var files = NitroBundle
             .Read(
@@ -1060,6 +1078,12 @@ public sealed class AssetSyncTests : IDisposable
 
         const string NOTE =
             "habbo-toolbar-com: layouts taken from Habbo's AIR client 34: prog_menu_view_xml";
+
+        (await Builder().GetAsync(Ct))
+            .Should()
+            .Match<HabboClientBuildSnapshot>(x =>
+                x.AirVersion == "34" && x.AirImages == 0 && x.AirLayouts == 1
+            );
 
         job.Log.Should().Contain(NOTE).And.NotContain(x => x.StartsWith("Template problem:"));
         (await Builder().GetAsync(Ct)).Notes.Should().Contain(NOTE);

@@ -47,8 +47,11 @@ public static class TestAirClient
             [0, 0, 0, 0, .. Encoding.UTF8.GetBytes(text)]
         );
 
-    /// <summary>A <c>HabboWin.zip</c> with the AIR runtime's files and <c>HabboAir.swf</c>.</summary>
-    public static byte[] Zip(byte[] swf)
+    /// <summary>
+    /// A <c>HabboWin.zip</c> with the AIR runtime's files and <c>HabboAir.swf</c>, dated when Habbo
+    /// built it (to the even second a zip keeps).
+    /// </summary>
+    public static byte[] Zip(byte[] swf, DateTimeOffset? builtAt = null)
     {
         var output = new MemoryStream();
 
@@ -57,7 +60,13 @@ public static class TestAirClient
             using (var exe = zip.CreateEntry("Habbo.exe").Open())
                 exe.Write("MZ"u8);
 
-            using var entry = zip.CreateEntry("HabboAir.swf").Open();
+            var air = zip.CreateEntry("HabboAir.swf");
+
+            // A zip keeps the wall clock alone, which is read back as this machine's.
+            if (builtAt is { } built)
+                air.LastWriteTime = built.ToLocalTime();
+
+            using var entry = air.Open();
 
             entry.Write(swf);
         }

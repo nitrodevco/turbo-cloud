@@ -17,6 +17,7 @@ public static class GamedataEntityExtensions
             FoundAt = entity.CreatedAt,
             CheckedAt = entity.CheckedAt,
             ImportedAt = entity.ImportedAt,
+            HabboHash = entity.HabboHash,
         };
 
     public static GamedataChangeSetSnapshot ToSnapshot(
@@ -56,6 +57,7 @@ public static class GamedataEntityExtensions
             FoundAt = entity.CreatedAt,
             CheckedAt = entity.CheckedAt,
             ImportedAt = entity.ImportedAt,
+            HabboHash = entity.HabboHash,
         };
 
     public static HabboVariableVersionSnapshot ToSnapshot(this HabboVariableVersionEntity entity) =>
@@ -68,6 +70,7 @@ public static class GamedataEntityExtensions
             FoundAt = entity.CreatedAt,
             CheckedAt = entity.CheckedAt,
             ImportedAt = entity.ImportedAt,
+            HabboHash = entity.HabboHash,
         };
 
     public static HabboProductVersionSnapshot ToSnapshot(this HabboProductVersionEntity entity) =>
@@ -80,6 +83,7 @@ public static class GamedataEntityExtensions
             FoundAt = entity.CreatedAt,
             CheckedAt = entity.CheckedAt,
             ImportedAt = entity.ImportedAt,
+            HabboHash = entity.HabboHash,
         };
 
     public static HabboFigureVersionSnapshot ToSnapshot(this HabboFigureVersionEntity entity) =>
@@ -93,6 +97,7 @@ public static class GamedataEntityExtensions
             FoundAt = entity.CreatedAt,
             CheckedAt = entity.CheckedAt,
             ImportedAt = entity.ImportedAt,
+            HabboHash = entity.HabboHash,
         };
 
     public static GamedataFileSnapshot ToSnapshot(this GamedataBuildEntity entity) =>

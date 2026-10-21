@@ -32,4 +32,12 @@ public class HabboTextVersionEntity : TurboEntity
 
     [Column("imported_at")]
     public DateTime? ImportedAt { get; set; }
+
+    /// <summary>
+    /// The hash Habbo's <c>/gamedata/hashes</c> listed for the file when this version was last
+    /// found; null when it could not be read.
+    /// </summary>
+    [Column("habbo_hash")]
+    [MaxLength(64)]
+    public string? HabboHash { get; set; }
 }

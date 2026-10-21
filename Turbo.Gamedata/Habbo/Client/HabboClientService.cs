@@ -60,6 +60,7 @@ internal sealed partial class HabboClientService(
     private const long MAX_ASAR = 512L * 1024 * 1024;
     private const string AIR_FOLDER = "air";
     private const string AIR_SWF = "HabboAir.swf";
+    private const string AIR_FILE = "air.json";
 
     private static readonly JsonSerializerOptions JSON = new() { WriteIndented = true };
 
@@ -116,7 +117,53 @@ internal sealed partial class HabboClientService(
             Releases = [.. releases.Select(x => x.Snapshot)],
             Follow = followed,
             Followed = followed is null ? null : environments[followed].Version,
+            Air = ReadAir() with { Version = NewestAir(environments)?.Version },
         };
+    }
+
+    /// <summary>
+    /// The AIR client kept: its release, when Habbo built it and when it was downloaded (one kept
+    /// before that was written dates both by its files), and its size.
+    /// </summary>
+    private HabboAirClientSnapshot ReadAir()
+    {
+        var folder = Path.Combine(Root, AIR_FOLDER);
+
+        if (!Directory.Exists(folder))
+            return new HabboAirClientSnapshot();
+
+        foreach (var kept in Directory.EnumerateDirectories(folder))
+        {
+            var version = Path.GetFileName(kept);
+            var swf = new FileInfo(Path.Combine(kept, AIR_SWF));
+
+            if (version.EndsWith(".partial", StringComparison.Ordinal) || !swf.Exists)
+                continue;
+
+            AirFile? file = null;
+
+            try
+            {
+                var path = Path.Combine(kept, AIR_FILE);
+
+                if (File.Exists(path))
+                    file = JsonSerializer.Deserialize<AirFile>(File.ReadAllText(path), JSON);
+            }
+            catch (JsonException)
+            {
+                // Dated by its files, as one kept before the file was written.
+            }
+
+            return new HabboAirClientSnapshot
+            {
+                Kept = version,
+                BuiltAt = file?.BuiltAt ?? swf.LastWriteTimeUtc,
+                DownloadedAt = file?.DownloadedAt ?? Directory.GetLastWriteTimeUtc(kept),
+                Size = swf.Length,
+            };
+        }
+
+        return new HabboAirClientSnapshot();
     }
 
     public async Task<HabboClientStatus> CheckAsync(bool wait, CancellationToken ct)
@@ -313,13 +360,18 @@ internal sealed partial class HabboClientService(
     {
         var environments = await ReadEnvironmentsAsync(ct).ConfigureAwait(false);
 
-        return environments
+        return NewestAir(environments);
+    }
+
+    private static (string Version, string Url)? NewestAir(
+        Dictionary<string, EnvironmentState> environments
+    ) =>
+        environments
             .Values.Where(x => x.AirVersion is { } v && IsVersion(v) && x.AirUrl is not null)
             .OrderByDescending(x => long.TryParse(x.AirVersion, out var n) ? n : -1)
             .ThenByDescending(x => x.AirVersion, StringComparer.Ordinal)
             .Select(x => ((string Version, string Url)?)(x.AirVersion!, x.AirUrl!))
             .FirstOrDefault();
-    }
 
     /// <summary>
     /// Habbo's AIR client's <c>HabboAir.swf</c> of the release: the one kept, else downloaded from
@@ -356,6 +408,8 @@ internal sealed partial class HabboClientService(
 
             var zip = await ZipFile.OpenReadAsync(zipPath, ct).ConfigureAwait(false);
 
+            DateTime builtAt;
+
             await using (zip.ConfigureAwait(false))
             {
                 var entry =
@@ -369,6 +423,7 @@ internal sealed partial class HabboClientService(
                         $"Habbo's AIR client {version} has a {AIR_SWF} larger than this server takes."
                     );
 
+                builtAt = entry.LastWriteTime.UtcDateTime;
                 await entry
                     .ExtractToFileAsync(Path.Combine(partial, AIR_SWF), ct)
                     .ConfigureAwait(false);
@@ -383,6 +438,16 @@ internal sealed partial class HabboClientService(
                 throw new InvalidDataException(
                     $"Habbo's AIR client {version} has a {AIR_SWF} that is not an SWF."
                 );
+
+            await File.WriteAllTextAsync(
+                    Path.Combine(partial, AIR_FILE),
+                    JsonSerializer.Serialize(
+                        new AirFile(builtAt, time.GetUtcNow().UtcDateTime),
+                        JSON
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false);
 
             // Only the newest is kept.
             foreach (var before in Directory.EnumerateDirectories(folder))
@@ -936,6 +1001,9 @@ internal sealed partial class HabboClientService(
     }
 
     private sealed record ReleaseFileEntry(string Path, long Size, string Sha256);
+
+    /// <summary>The AIR client kept: when Habbo built its <c>HabboAir.swf</c>, and when it was downloaded.</summary>
+    private sealed record AirFile(DateTime BuiltAt, DateTime DownloadedAt);
 }
 
 /// <summary>

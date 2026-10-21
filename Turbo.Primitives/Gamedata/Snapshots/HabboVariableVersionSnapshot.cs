@@ -29,4 +29,8 @@ public sealed record HabboVariableVersionSnapshot
     /// <summary>When any of it was last taken in; null until some is.</summary>
     [Id(6)]
     public DateTime? ImportedAt { get; init; }
+
+    /// <summary>The hash Habbo's <c>/gamedata/hashes</c> lists the file under; null when unread.</summary>
+    [Id(7)]
+    public string? HabboHash { get; init; }
 }

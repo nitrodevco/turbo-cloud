@@ -58,6 +58,57 @@ internal sealed class HabboGamedataClient(
         return bytes;
     }
 
+    /// <summary>
+    /// Each file's hash as Habbo's <c>/gamedata/hashes</c> lists it (<c>{ "hashes": [ { name, url,
+    /// hash } ] }</c>), by its name there: <c>furnidata</c>, <c>productdata</c>,
+    /// <c>external_texts</c>, <c>external_variables</c>, <c>figurepartlist</c>. Its address is the
+    /// gamedata's with <c>hashes</c> for the file (and no <c>/0</c>, which it does not answer).
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string>> GetHashesAsync(
+        string domain,
+        CancellationToken ct
+    )
+    {
+        var url = (config?.Value.HabboGamedataUrl ?? DEFAULT_URL)
+            .Replace("{domain}", domain, StringComparison.Ordinal)
+            .Replace("{file}/0", "hashes", StringComparison.Ordinal)
+            .Replace("{file}", "hashes", StringComparison.Ordinal);
+        var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        try
+        {
+            using var document = JsonDocument.Parse(
+                await GetUrlAsync(url, ct).ConfigureAwait(false)
+            );
+
+            if (
+                document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("hashes", out var list)
+                || list.ValueKind != JsonValueKind.Array
+            )
+                throw new HttpRequestException($"{url} lists no hashes.");
+
+            foreach (var entry in list.EnumerateArray())
+                if (
+                    entry.ValueKind == JsonValueKind.Object
+                    && entry.TryGetProperty("name", out var name)
+                    && entry.TryGetProperty("hash", out var hash)
+                    && name.ValueKind == JsonValueKind.String
+                    && hash.ValueKind == JsonValueKind.String
+                )
+                    hashes[name.GetString()!] = hash.GetString()!;
+        }
+        catch (JsonException ex)
+        {
+            throw new HttpRequestException(
+                $"{url} is not JSON; Habbo's filter may have refused the request.",
+                ex
+            );
+        }
+
+        return hashes;
+    }
+
     /// <summary>The <c>key=value</c> lines of an external variables file; a key given twice keeps the last.</summary>
     public static Dictionary<string, string> ParseVariables(byte[] file)
     {

@@ -33,4 +33,8 @@ public sealed record HabboFigureVersionSnapshot
     /// <summary>When it was taken in; null until it is.</summary>
     [Id(7)]
     public DateTime? ImportedAt { get; init; }
+
+    /// <summary>The hash Habbo's <c>/gamedata/hashes</c> lists the file under; null when unread.</summary>
+    [Id(8)]
+    public string? HabboHash { get; init; }
 }

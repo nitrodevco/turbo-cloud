@@ -132,6 +132,34 @@ public sealed class AssetBundleServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task The_overview_says_when_each_kind_was_last_downloaded_from_habbo()
+    {
+        var downloaded = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        // An upload and a failed library are newer, but neither was downloaded from Habbo.
+        Bundle(AssetBundleKind.Badge, "ACH_1", updatedAt: downloaded);
+        Bundle(AssetBundleKind.Badge, "ACH_2", updatedAt: downloaded.AddDays(-3));
+        Bundle(
+            AssetBundleKind.Badge,
+            "OWN",
+            source: AssetBundleSource.Upload,
+            updatedAt: downloaded.AddDays(2)
+        );
+        Bundle(
+            AssetBundleKind.Badge,
+            "ACH_3",
+            hash: false,
+            error: "Habbo has no file at its address.",
+            updatedAt: downloaded.AddDays(1)
+        );
+
+        var kinds = (await _service.GetOverviewAsync(Ct)).Kinds.ToDictionary(x => x.Kind);
+
+        kinds[AssetBundleKind.Badge].UpdatedAt.Should().Be(downloaded);
+        kinds[AssetBundleKind.Sound].UpdatedAt.Should().BeNull("the hotel has no trax sample");
+    }
+
+    [Fact]
     public async Task Posters_and_campaign_versions_count_for_the_furniture_they_stand_in_for()
     {
         // The poster item has no bundle of its own: each poster's stands in for it, as an ad
@@ -331,7 +359,9 @@ public sealed class AssetBundleServiceTests : IDisposable
         bool hash = true,
         bool file = true,
         string? ids = null,
-        string? error = null
+        string? error = null,
+        AssetBundleSource source = AssetBundleSource.Habbo,
+        DateTime? updatedAt = null
     )
     {
         string? written = null;
@@ -356,12 +386,12 @@ public sealed class AssetBundleServiceTests : IDisposable
                 Kind = kind,
                 Name = name,
                 Revision = "1",
-                Source = AssetBundleSource.Habbo,
+                Source = source,
                 Hash = hash ? written ?? "0000" : null,
                 Size = 10,
                 Ids = ids,
                 Error = error,
-                UpdatedAt = DateTime.UtcNow,
+                UpdatedAt = updatedAt ?? DateTime.UtcNow,
             }
         );
     }

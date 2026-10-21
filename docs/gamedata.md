@@ -33,6 +33,12 @@ Whether it is floor or wall furniture is not edited: that changes which fields i
   `flash-assets-<revision>` of `flash.client.url`). It then downloads `furnidata_json/0`. New
   furniture data is kept in `habbo_releases`, gzipped, by its SHA-1. Nothing is taken in until
   staff do it.
+- **Habbo's hashes.** Each check first reads `www.habbo.<HabboDomain>/gamedata/hashes` (the same
+  shape as the hotel's own, without the figure and effect maps the hotel builds itself), and each
+  version it keeps of the furniture data, product data, texts, variables and figure data
+  (`figurepartlist`) holds the hash Habbo listed it under (`habbo_hash`). The Sources tab of Habbo
+  updates shows each hash and whether it changed since the hotel last took that file in. A check
+  goes on without them when the list can't be read.
 - **The definitions are the source.** `furniture_definitions` holds every furnidata field. Some
   are the columns the server already used (`xdim` is `width`, `canstandon` is `can_walk`,
   `height` is `stack_height`, `specialtype` is `category`). The rest are columns only the client's

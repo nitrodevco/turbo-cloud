@@ -2298,6 +2298,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(16)")
                         .HasColumnName("domain");
 
+                    b.Property<string>("HabboHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("habbo_hash");
+
                     b.Property<string>("Hash")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -2506,6 +2511,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(16)")
                         .HasColumnName("domain");
 
+                    b.Property<string>("HabboHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("habbo_hash");
+
                     b.Property<string>("Hash")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -2568,6 +2578,11 @@ namespace Turbo.Database.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)")
                         .HasColumnName("furniture_data_hash");
+
+                    b.Property<string>("HabboHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("habbo_hash");
 
                     b.Property<DateTime?>("ImportedAt")
                         .HasColumnType("datetime(6)")
@@ -2658,6 +2673,11 @@ namespace Turbo.Database.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("varchar(16)")
                         .HasColumnName("domain");
+
+                    b.Property<string>("HabboHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("habbo_hash");
 
                     b.Property<string>("Hash")
                         .IsRequired()
@@ -2752,6 +2772,11 @@ namespace Turbo.Database.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("varchar(16)")
                         .HasColumnName("domain");
+
+                    b.Property<string>("HabboHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("habbo_hash");
 
                     b.Property<string>("Hash")
                         .IsRequired()

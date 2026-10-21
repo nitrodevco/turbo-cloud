@@ -37,11 +37,19 @@ internal sealed class HabboReleaseService(
     private const string CLIENT_URL_VARIABLE = "flash.client.url";
     private const string REVISION_PREFIX = "flash-assets-";
 
+    // The names Habbo's /gamedata/hashes lists its files under.
+    private const string FURNITURE_DATA = "furnidata";
+    private const string PRODUCT_DATA = "productdata";
+    private const string EXTERNAL_TEXTS = "external_texts";
+    private const string EXTERNAL_VARIABLES = "external_variables";
+    private const string FIGURE_DATA = "figurepartlist";
+
     private readonly GamedataConfig _config = config.Value;
 
     public async Task<HabboCheckResult> CheckAsync(CancellationToken ct)
     {
         var domain = _config.HabboDomain;
+        var hashes = await HashesAsync(domain, ct).ConfigureAwait(false);
         var variablesFile = await habbo
             .GetExternalVariablesFileAsync(domain, ct)
             .ConfigureAwait(false);
@@ -56,20 +64,46 @@ internal sealed class HabboReleaseService(
         var products = await habbo.GetProductDataAsync(domain, ct).ConfigureAwait(false);
         var figures = await habbo.GetFigureDataAsync(domain, ct).ConfigureAwait(false);
         var now = time.GetUtcNow().UtcDateTime;
-        var (release, isNew) = await KeepReleaseAsync(domain, revision, data, now, ct)
+        var (release, isNew) = await KeepReleaseAsync(
+                domain,
+                revision,
+                data,
+                hashes.GetValueOrDefault(FURNITURE_DATA),
+                now,
+                ct
+            )
             .ConfigureAwait(false);
-        var (version, textsAreNew) = await KeepTextsAsync(domain, texts, now, ct)
+        var (version, textsAreNew) = await KeepTextsAsync(
+                domain,
+                texts,
+                hashes.GetValueOrDefault(EXTERNAL_TEXTS),
+                now,
+                ct
+            )
             .ConfigureAwait(false);
-        var (productVersion, productsAreNew) = await KeepProductsAsync(domain, products, now, ct)
+        var (productVersion, productsAreNew) = await KeepProductsAsync(
+                domain,
+                products,
+                hashes.GetValueOrDefault(PRODUCT_DATA),
+                now,
+                ct
+            )
             .ConfigureAwait(false);
-        var (figureVersion, figuresAreNew) = await KeepFiguresAsync(domain, figures, now, ct)
+        var (figureVersion, figuresAreNew) = await KeepFiguresAsync(
+                domain,
+                figures,
+                hashes.GetValueOrDefault(FIGURE_DATA),
+                now,
+                ct
+            )
             .ConfigureAwait(false);
         var (variableVersion, variablesAreNew) = await KeepVariablesAsync(
                 domain,
                 variablesFile,
                 variables.Count,
                 now,
-                ct
+                ct,
+                hashes.GetValueOrDefault(EXTERNAL_VARIABLES)
             )
             .ConfigureAwait(false);
 
@@ -86,6 +120,32 @@ internal sealed class HabboReleaseService(
             Variables = variableVersion,
             VariablesAreNew = variablesAreNew,
         };
+    }
+
+    /// <summary>
+    /// Habbo's <c>/gamedata/hashes</c>, read before the files so each version keeps the hash Habbo
+    /// listed it under; empty when it could not be read, which a check goes on without.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> HashesAsync(
+        string domain,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await habbo.GetHashesAsync(domain, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "habbo.{Domain}'s gamedata hashes could not be read: {Message}",
+                domain,
+                ex.Message
+            );
+
+            return new Dictionary<string, string>();
+        }
     }
 
     public async Task<HabboVariableVersionSnapshot?> GetLatestVariablesAsync(CancellationToken ct)
@@ -109,7 +169,8 @@ internal sealed class HabboReleaseService(
         byte[] variables,
         int count,
         DateTime now,
-        CancellationToken ct
+        CancellationToken ct,
+        string? habboHash = null
     )
     {
         var hash = GamedataBytes.Hash(variables);
@@ -126,6 +187,7 @@ internal sealed class HabboReleaseService(
         if (known is not null)
         {
             known.CheckedAt = now;
+            known.HabboHash = habboHash ?? known.HabboHash;
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -139,6 +201,7 @@ internal sealed class HabboReleaseService(
             Content = GamedataBytes.Compress(variables),
             VariableCount = count,
             CheckedAt = now,
+            HabboHash = habboHash,
         };
 
         dbCtx.HabboVariableVersions.Add(version);
@@ -230,6 +293,7 @@ internal sealed class HabboReleaseService(
     private async Task<(HabboFigureVersionSnapshot Version, bool IsNew)> KeepFiguresAsync(
         string domain,
         byte[] figures,
+        string? habboHash,
         DateTime now,
         CancellationToken ct
     )
@@ -245,6 +309,7 @@ internal sealed class HabboReleaseService(
         if (known is not null)
         {
             known.CheckedAt = now;
+            known.HabboHash = habboHash ?? known.HabboHash;
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -275,6 +340,7 @@ internal sealed class HabboReleaseService(
                 x.Kind == Primitives.Gamedata.Enums.FigureRecordKind.Color
             ),
             CheckedAt = now,
+            HabboHash = habboHash,
         };
 
         dbCtx.HabboFigureVersions.Add(version);
@@ -317,6 +383,7 @@ internal sealed class HabboReleaseService(
     private async Task<(HabboProductVersionSnapshot Version, bool IsNew)> KeepProductsAsync(
         string domain,
         byte[] products,
+        string? habboHash,
         DateTime now,
         CancellationToken ct
     )
@@ -332,6 +399,7 @@ internal sealed class HabboReleaseService(
         if (known is not null)
         {
             known.CheckedAt = now;
+            known.HabboHash = habboHash ?? known.HabboHash;
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -345,6 +413,7 @@ internal sealed class HabboReleaseService(
             Content = GamedataBytes.Compress(products),
             ProductCount = Products.ProductDataFile.Parse(products).Count,
             CheckedAt = now,
+            HabboHash = habboHash,
         };
 
         dbCtx.HabboProductVersions.Add(version);
@@ -392,6 +461,7 @@ internal sealed class HabboReleaseService(
         string domain,
         string revision,
         byte[] data,
+        string? habboHash,
         DateTime now,
         CancellationToken ct
     )
@@ -404,6 +474,7 @@ internal sealed class HabboReleaseService(
         {
             known.CheckedAt = now;
             known.Revision = revision;
+            known.HabboHash = habboHash ?? known.HabboHash;
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -418,6 +489,7 @@ internal sealed class HabboReleaseService(
             FurnitureData = GamedataBytes.Compress(data),
             FurnitureCount = CountItems(data),
             CheckedAt = now,
+            HabboHash = habboHash,
         };
 
         dbCtx.HabboReleases.Add(release);
@@ -460,6 +532,7 @@ internal sealed class HabboReleaseService(
     private async Task<(HabboTextVersionSnapshot Version, bool IsNew)> KeepTextsAsync(
         string domain,
         byte[] texts,
+        string? habboHash,
         DateTime now,
         CancellationToken ct
     )
@@ -475,6 +548,7 @@ internal sealed class HabboReleaseService(
         if (known is not null)
         {
             known.CheckedAt = now;
+            known.HabboHash = habboHash ?? known.HabboHash;
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -488,6 +562,7 @@ internal sealed class HabboReleaseService(
             Content = GamedataBytes.Compress(texts),
             TextCount = ExternalTextsFile.Parse(Encoding.UTF8.GetString(texts)).Count,
             CheckedAt = now,
+            HabboHash = habboHash,
         };
 
         dbCtx.HabboTextVersions.Add(version);

@@ -67,6 +67,11 @@ internal sealed class AssetBundleService(
                 Bundles = g.Count(x => x.Hash != null),
                 Failed = g.Count(x => x.Error != null),
                 Bytes = g.Sum(x => x.Hash != null ? x.Size : 0L),
+                UpdatedAt = g.Max(x =>
+                    x.Hash != null && x.Source == AssetBundleSource.Habbo
+                        ? (DateTime?)x.UpdatedAt
+                        : null
+                ),
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -92,6 +97,7 @@ internal sealed class AssetBundleService(
                                 Bundles = count.Bundles,
                                 Failed = count.Failed,
                                 Bytes = count.Bytes,
+                                UpdatedAt = count.UpdatedAt,
                             }
                             : new AssetKindSummary
                             {

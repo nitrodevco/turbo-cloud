@@ -296,6 +296,9 @@ internal sealed partial class ClientBundleBuilder(
             BuiltAt = last?.BuiltAt,
             Problems = [.. last?.Problems ?? []],
             Notes = [.. last?.Notes ?? []],
+            AirVersion = last?.AirVersion,
+            AirImages = last?.AirImages ?? 0,
+            AirLayouts = last?.AirLayouts ?? 0,
         };
     }
 
@@ -340,6 +343,11 @@ internal sealed partial class ClientBundleBuilder(
     )
     {
         var before = templates is null ? await ReadBuildAsync(ct).ConfigureAwait(false) : null;
+        var air = templates is null
+            ? before?.AirVersion is { } kept
+                ? new AirTaken(kept, before.AirImages, before.AirLayouts)
+                : null
+            : templates.Air;
         var file = new BuildFile
         {
             Version = version,
@@ -347,6 +355,9 @@ internal sealed partial class ClientBundleBuilder(
             Templates = templates?.Libraries ?? before?.Templates ?? [],
             Problems = templates?.Problems ?? before?.Problems ?? [],
             Notes = notes,
+            AirVersion = air?.Version,
+            AirImages = air?.Images ?? 0,
+            AirLayouts = air?.Layouts ?? 0,
         };
         var temp = $"{BuildPath}.{Guid.NewGuid():N}.part";
 
@@ -363,10 +374,24 @@ internal sealed partial class ClientBundleBuilder(
         public List<string> Templates { get; init; } = [];
         public List<string> Problems { get; init; } = [];
         public List<string> Notes { get; init; } = [];
+        public string? AirVersion { get; init; }
+        public int AirImages { get; init; }
+        public int AirLayouts { get; init; }
     }
 
-    /// <summary>The templates packed: how many bundles were written, every library packed, and the problems.</summary>
-    private sealed record TemplatesBuilt(int Built, List<string> Libraries, List<string> Problems);
+    /// <summary>
+    /// The templates packed: how many bundles were written, every library packed, the problems, and
+    /// what was taken from Habbo's AIR client; null when nothing was.
+    /// </summary>
+    private sealed record TemplatesBuilt(
+        int Built,
+        List<string> Libraries,
+        List<string> Problems,
+        AirTaken? Air = null
+    );
+
+    /// <summary>The AIR client the templates took from, and how many images and layouts they took.</summary>
+    private sealed record AirTaken(string Version, int Images, int Layouts);
 
     /// <summary>
     /// The window template bundles (<see cref="ClientTemplates"/>): one for each library of the
@@ -521,7 +546,14 @@ internal sealed partial class ClientBundleBuilder(
         return new TemplatesBuilt(
             built,
             [.. packed.Bundles.Keys.Order(StringComparer.Ordinal)],
-            packed.Problems
+            packed.Problems,
+            fromAir is null || air is not { } read
+                ? null
+                : new AirTaken(
+                    read.Version,
+                    fromAir.Images.Sum(x => x.Value.Count),
+                    fromAir.Layouts.Sum(x => x.Value.Count)
+                )
         );
     }
 

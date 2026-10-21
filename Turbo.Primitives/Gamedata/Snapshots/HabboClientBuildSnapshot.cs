@@ -28,6 +28,18 @@ public sealed record HabboClientBuildSnapshot
     /// <summary>What the last build left unbuilt, and why.</summary>
     [Id(4)]
     public required ImmutableArray<string> Notes { get; init; }
+
+    /// <summary>The AIR client the templates took from; null when they took nothing from one.</summary>
+    [Id(5)]
+    public string? AirVersion { get; init; }
+
+    /// <summary>The bitmaps taken from it that the HTML client's libraries lack.</summary>
+    [Id(6)]
+    public int AirImages { get; init; }
+
+    /// <summary>The layouts taken from it in place of the HTML client's.</summary>
+    [Id(7)]
+    public int AirLayouts { get; init; }
 }
 
 /// <summary>One bundle built from the client: <c>avatar</c>, <c>variable-fx</c>, <c>texts</c>, <c>chat</c>, <c>template</c> or <c>window-manager</c> (its templates and the theme).</summary>

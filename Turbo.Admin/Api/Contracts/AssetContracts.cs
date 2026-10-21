@@ -155,8 +155,17 @@ public sealed record AssetJobResponse(
         );
 }
 
-/// <summary>A kind's bundles with a file, those that failed, and their size in bytes.</summary>
-public sealed record AssetKindResponse(string Kind, int Bundles, int Failed, long Bytes);
+/// <summary>
+/// A kind's bundles with a file, those that failed, their size in bytes, and when one was last
+/// downloaded from Habbo.
+/// </summary>
+public sealed record AssetKindResponse(
+    string Kind,
+    int Bundles,
+    int Failed,
+    long Bytes,
+    DateTime? UpdatedAt
+);
 
 /// <summary>Checks that found something, by severity.</summary>
 public sealed record AssetCheckCountsResponse(int Errors, int Warnings);
@@ -184,7 +193,8 @@ public sealed record AssetOverviewResponse(
                     AssetContractNames.Of(x.Kind),
                     x.Bundles,
                     x.Failed,
-                    x.Bytes
+                    x.Bytes,
+                    x.UpdatedAt
                 )),
             ],
             job is null ? null : AssetJobResponse.From(job),
