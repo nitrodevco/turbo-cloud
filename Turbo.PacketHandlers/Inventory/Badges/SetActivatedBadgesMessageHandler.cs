@@ -18,9 +18,6 @@ public class SetActivatedBadgesMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerBadgeGrain(ctx.PlayerId)
             .SetActivatedBadgesAsync([.. message.BadgeCodes], ct)

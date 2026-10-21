@@ -19,9 +19,6 @@ public class RejectQuestMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerQuestGrain(ctx.PlayerId)
             .RejectFromWindowAsync(message.QuestId, ct)

@@ -19,7 +19,7 @@ public class KickUserMessageHandler(IRoomService roomService) : IMessageHandler<
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.UserId <= 0)
+        if (ctx.RoomId <= 0 || message.UserId <= 0)
             return;
 
         await _roomService

@@ -45,8 +45,6 @@ public class HandlerPattern(INavigatorService navigatorService)
         // not logged in before any handler runs (SignInGate), so ctx.PlayerId is a player here.
         // Only a handler for what the client sends before it logs in (the handshake, the SSO
         // ticket, pings) carries [AllowAnonymous], and AllowAnonymousHandlerTests lists them.
-        // Older handlers, CanCreateRoomMessageHandler among them, still open with
-        // `if (ctx.PlayerId <= 0) return;`; it is redundant now, and a new handler leaves it out.
         //
         // Guard clauses first otherwise, brace-less, returning rather than throwing: an id the
         // client sent that cannot name anything.

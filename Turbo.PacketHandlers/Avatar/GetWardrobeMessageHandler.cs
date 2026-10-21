@@ -22,9 +22,6 @@ public class GetWardrobeMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var outfits = await _grainFactory
             .GetPlayerWardrobeGrain(ctx.PlayerId)
             .GetOutfitsAsync(ct)

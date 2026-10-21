@@ -18,8 +18,7 @@ public class MuteUserMessageHandler(IGrainFactory grainFactory) : IMessageHandle
     )
     {
         if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
+            ctx.RoomId <= 0
             || message.RoomId != ctx.RoomId
             || message.PlayerId <= 0
             || message.DurationInMinutes <= 0

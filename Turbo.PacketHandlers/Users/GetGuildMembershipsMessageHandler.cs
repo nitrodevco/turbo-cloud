@@ -19,9 +19,6 @@ public class GetGuildMembershipsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var guilds = await _grainFactory
             .GetPlayerGuildGrain(ctx.PlayerId)
             .GetMembershipsAsync(ct)

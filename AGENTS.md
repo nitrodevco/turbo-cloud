@@ -1245,7 +1245,7 @@ out of pulling it apart; they hold for any system that grows the same way.
 - Do not query database contexts or repositories directly from packet handlers.
 - A packet handler runs only for a session with a signed-in player: the pipeline (`SignInGate`)
   drops anything else before the handler, so a handler does not open with
-  `if (ctx.PlayerId <= 0) return;` (the older ones that still do are redundant). A handler for
+  `if (ctx.PlayerId <= 0) return;`. A handler for
   what the client sends before it logs in carries `[AllowAnonymous]` and is added to
   `AllowAnonymousHandlerTests` (`docs/permissions.md` §11).
 - Keep persistence access in grains/services/providers that own domain state.

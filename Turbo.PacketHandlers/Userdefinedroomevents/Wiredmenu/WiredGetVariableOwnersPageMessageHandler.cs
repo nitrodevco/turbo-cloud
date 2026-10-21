@@ -21,11 +21,7 @@ public class WiredGetVariableOwnersPageMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
-            || !WiredVariableId.TryParse(message.VariableId, out var variableId)
-        )
+        if (ctx.RoomId <= 0 || !WiredVariableId.TryParse(message.VariableId, out var variableId))
             return;
 
         var page = await _grainFactory

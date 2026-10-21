@@ -17,9 +17,6 @@ public class GetBadgesMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerBadgeGrain(ctx.PlayerId)
             .SendBadgeInventoryAsync(ct)

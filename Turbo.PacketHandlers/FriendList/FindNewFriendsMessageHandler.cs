@@ -21,9 +21,6 @@ public class FindNewFriendsMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService.FindNewFriendsAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

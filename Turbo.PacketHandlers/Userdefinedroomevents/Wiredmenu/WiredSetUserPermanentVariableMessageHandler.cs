@@ -31,7 +31,7 @@ public class WiredSetUserPermanentVariableMessageHandler(IGrainFactory grainFact
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.RoomId <= 0)
             return;
 
         var success =

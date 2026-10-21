@@ -19,9 +19,6 @@ public class ConvertGlobalRoomIdMessageHandler : IMessageHandler<ConvertGlobalRo
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // Global ids carry a prefix in front of the flat id (for example "r123").
         var globalId =
             message.FlatId.Length <= MAX_GLOBAL_ID_LENGTH ? message.FlatId : string.Empty;

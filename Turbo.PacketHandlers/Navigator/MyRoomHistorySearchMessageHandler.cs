@@ -18,9 +18,6 @@ public class MyRoomHistorySearchMessageHandler(INavigatorService navigatorServic
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendLegacySearchResultAsync(
                 _navigatorService,
                 NavigatorSearchType.MyHistory,

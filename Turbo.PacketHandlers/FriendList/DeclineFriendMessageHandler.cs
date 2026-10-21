@@ -21,9 +21,6 @@ public class DeclineFriendMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService
             .DeclineFriendRequestsAsync(ctx.PlayerId, message.Friends, message.DeclineAll, ct)
             .ConfigureAwait(false);

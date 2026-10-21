@@ -19,9 +19,6 @@ public class UnignoreUserMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var result = await _grainFactory
             .GetPlayerMessengerGrain(ctx.PlayerId)
             .UnignorePlayerAsync(message.PlayerId, ct)

@@ -22,9 +22,6 @@ public class CreditVaultStatusMessageHandler : IMessageHandler<CreditVaultStatus
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new CreditVaultStatusMessageComposer
                 {

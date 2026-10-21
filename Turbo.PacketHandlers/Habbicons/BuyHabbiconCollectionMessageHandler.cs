@@ -19,9 +19,6 @@ public class BuyHabbiconCollectionMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerHabbiconGrain(ctx.PlayerId)
             .BuyCollectionAsync(message.CollectionId, ct)

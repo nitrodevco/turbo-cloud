@@ -25,9 +25,6 @@ public class GetCreditsInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var wallet = _grainFactory.GetPlayerWalletGrain(ctx.PlayerId);
         var credits = await wallet
             .GetAmountForCurrencyAsync(CurrencyKind.Credits, ct)

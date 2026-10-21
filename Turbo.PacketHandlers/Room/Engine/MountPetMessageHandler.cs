@@ -17,7 +17,7 @@ public class MountPetMessageHandler(IGrainFactory grainFactory) : IMessageHandle
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.PetId <= 0)
+        if (ctx.RoomId <= 0 || message.PetId <= 0)
             return;
 
         await _grainFactory

@@ -17,9 +17,6 @@ public class GetCfhMyReportStatusMessageHandler(ICallForHelpService callForHelp)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendMyCfhReportStatusAsync(_callForHelp, ct).ConfigureAwait(false);
     }
 }

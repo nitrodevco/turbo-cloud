@@ -19,9 +19,6 @@ public class GetUserEventCatsMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new UserEventCatsMessageComposer
                 {

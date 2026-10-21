@@ -18,9 +18,6 @@ public class GetPopularRoomTagsMessageHandler(INavigatorService navigatorService
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var tags = await _navigatorService.GetPopularTagsAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(new PopularRoomTagsResultMessageComposer { Tags = tags }, ct)

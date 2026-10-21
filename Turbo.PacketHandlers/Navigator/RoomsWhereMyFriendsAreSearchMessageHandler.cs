@@ -18,9 +18,6 @@ public class RoomsWhereMyFriendsAreSearchMessageHandler(INavigatorService naviga
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendLegacySearchResultAsync(
                 _navigatorService,
                 NavigatorSearchType.RoomsWhereMyFriendsAre,

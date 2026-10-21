@@ -26,7 +26,7 @@ public class PurchaseRoomAdMessageMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.FlatId <= 0)
+        if (message.FlatId <= 0)
             return;
 
         var name = message.Name?.Trim() ?? string.Empty;

@@ -16,7 +16,7 @@ public class LetUserInMessageHandler(IRoomService roomService) : IMessageHandler
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Name))
+        if (ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Name))
             return;
 
         await _roomService

@@ -21,8 +21,7 @@ public class BanUserWithDurationMessageHandler(IRoomService roomService)
     )
     {
         if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
+            ctx.RoomId <= 0
             || message.UserId <= 0
             || message.RoomId != ctx.RoomId
             || !RoomBanTypes.TryParse(message.BanType, out var duration)

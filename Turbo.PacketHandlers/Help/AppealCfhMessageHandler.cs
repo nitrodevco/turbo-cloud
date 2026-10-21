@@ -17,7 +17,7 @@ public class AppealCfhMessageHandler(ICallForHelpService callForHelp)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.ReportId <= 0)
+        if (message.ReportId <= 0)
             return;
 
         if (

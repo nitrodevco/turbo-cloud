@@ -20,7 +20,7 @@ public class OpenMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Op
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.Id <= 0)
+        if (ctx is null || ctx.RoomId <= 0 || message.Id <= 0)
             return;
 
         var wiredData = await _grainFactory

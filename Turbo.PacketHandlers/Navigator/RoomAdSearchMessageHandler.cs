@@ -19,9 +19,6 @@ public class RoomAdSearchMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var searchType = Enum.IsDefined((NavigatorSearchType)message.TabId)
             ? (NavigatorSearchType)message.TabId
             : NavigatorSearchType.Events;

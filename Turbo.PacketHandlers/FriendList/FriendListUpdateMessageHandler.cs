@@ -21,9 +21,6 @@ public class FriendListUpdateMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .GetFriendListUpdateAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);

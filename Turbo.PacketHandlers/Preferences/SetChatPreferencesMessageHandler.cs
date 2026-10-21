@@ -18,9 +18,6 @@ public class SetChatPreferencesMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .SetChatPreferencesAsync(message.ChatMode, message.BubbleWidth, message.ScrollSpeed, ct)

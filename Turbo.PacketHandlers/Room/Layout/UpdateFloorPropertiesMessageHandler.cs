@@ -18,9 +18,6 @@ public class UpdateFloorPropertiesMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _roomService
             .SaveFloorPlanAsync(
                 ctx.AsActionContext(),

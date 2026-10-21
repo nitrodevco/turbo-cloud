@@ -39,9 +39,6 @@ public class PurchasePhotoMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var photo = store.GetLastPhoto(ctx.PlayerId.Value);
         var definition = definitions.TryGetDefinitionByName(_config.PhotoFurnitureName);
 

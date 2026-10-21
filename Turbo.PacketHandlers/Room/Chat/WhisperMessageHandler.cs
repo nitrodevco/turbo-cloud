@@ -19,8 +19,7 @@ public class WhisperMessageHandler(IGrainFactory grainFactory) : IMessageHandler
     )
     {
         if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
+            ctx.RoomId <= 0
             || string.IsNullOrWhiteSpace(message.Text)
             || string.IsNullOrWhiteSpace(message.RecipientName)
         )

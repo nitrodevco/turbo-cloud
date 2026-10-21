@@ -17,9 +17,6 @@ public class GetConcurrentUsersGoalProgressMessageHandler(IConcurrentUsersGoalSe
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new ConcurrentUsersGoalProgressMessageComposer
                 {

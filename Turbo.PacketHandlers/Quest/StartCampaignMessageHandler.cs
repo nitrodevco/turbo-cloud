@@ -18,7 +18,7 @@ public class StartCampaignMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrEmpty(message.CampaignCode))
+        if (string.IsNullOrEmpty(message.CampaignCode))
             return;
 
         await _grainFactory

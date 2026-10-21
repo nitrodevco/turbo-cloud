@@ -24,9 +24,6 @@ public class GetClubOffersMessageHandler(IGrainFactory grainFactory, ICatalogSer
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // What each offer would leave the buyer holding depends on the buyer, so the offers the
         // catalog knows and the subscription the player holds are read side by side and joined
         // here rather than either one knowing about the other.

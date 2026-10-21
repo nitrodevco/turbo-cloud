@@ -22,7 +22,7 @@ public class WiredTradeAddDeleteItemsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.ItemIds.IsDefaultOrEmpty)
+        if (message.ItemIds.IsDefaultOrEmpty)
             return;
 
         var trade = _grainFactory.GetWiredTradeGrain(ctx.PlayerId);

@@ -18,9 +18,6 @@ public class SetChatStylePreferenceMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .SetChatStyleAsync(message.ChatStyle, message.FontSize, ct)

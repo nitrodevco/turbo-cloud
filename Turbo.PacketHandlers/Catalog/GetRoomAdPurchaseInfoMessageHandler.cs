@@ -26,9 +26,6 @@ public class GetRoomAdPurchaseInfoMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var rooms = await _navigatorService
             .SearchRoomsAsync(ctx.PlayerId, NavigatorSearchType.MyRooms, string.Empty, ct)
             .ConfigureAwait(false);

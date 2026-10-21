@@ -21,9 +21,6 @@ public class SendMsgMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .SendMessageAsync(
                 ctx.PlayerId,

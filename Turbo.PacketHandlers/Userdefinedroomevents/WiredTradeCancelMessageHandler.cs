@@ -20,9 +20,6 @@ public class WiredTradeCancelMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetWiredTradeGrain(ctx.PlayerId)
             .CancelAsync(WiredTransactionFailureType.UserCancelled, ct)

@@ -21,7 +21,7 @@ public class ResetUnseenItemsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || !Enum.IsDefined((UnseenItemCategory)message.Category))
+        if (!Enum.IsDefined((UnseenItemCategory)message.Category))
             return;
 
         await _grainFactory

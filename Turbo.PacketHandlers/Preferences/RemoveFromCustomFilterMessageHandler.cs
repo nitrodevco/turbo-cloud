@@ -23,9 +23,6 @@ public class RemoveFromCustomFilterMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var removed = await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .RemoveCustomFilterWordAsync(message.Word, ct)

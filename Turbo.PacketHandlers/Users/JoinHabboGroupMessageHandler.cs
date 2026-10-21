@@ -20,7 +20,7 @@ public class JoinHabboGroupMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.GuildId <= 0)
+        if (message.GuildId <= 0)
             return;
 
         var result = await _grainFactory

@@ -19,9 +19,6 @@ public class CanCreateRoomMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var (canCreate, roomLimit) = await _navigatorService
             .CanCreateRoomAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);

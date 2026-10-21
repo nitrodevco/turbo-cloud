@@ -17,7 +17,7 @@ public class PlaceBotMessageHandler(IGrainFactory grainFactory) : IMessageHandle
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.BotId <= 0)
+        if (ctx.RoomId <= 0 || message.BotId <= 0)
             return;
 
         await _grainFactory

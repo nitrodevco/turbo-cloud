@@ -25,9 +25,6 @@ public class BlockListInitMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var blockedPlayerIds = await _grainFactory
             .GetPlayerMessengerGrain(ctx.PlayerId)
             .GetBlockedAsync(ct)

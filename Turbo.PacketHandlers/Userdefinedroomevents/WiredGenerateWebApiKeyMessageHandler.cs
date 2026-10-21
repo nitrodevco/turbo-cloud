@@ -23,7 +23,7 @@ public class WiredGenerateWebApiKeyMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.WiredId <= 0)
+        if (ctx.RoomId <= 0 || message.WiredId <= 0)
             return;
 
         var key = await _grainFactory

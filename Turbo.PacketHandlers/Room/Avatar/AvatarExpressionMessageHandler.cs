@@ -19,7 +19,7 @@ public class AvatarExpressionMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ExpressionId < 0)
+        if (ctx is null || ctx.RoomId <= 0 || message.ExpressionId < 0)
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

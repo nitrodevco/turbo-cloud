@@ -20,9 +20,6 @@ public class GetBadgeLeaderboardMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // The leaderboard grain bounds the type, tier, chunk and size; they arrive here unchecked.
         var page = await _grainFactory
             .GetBadgeLeaderboardGrain()

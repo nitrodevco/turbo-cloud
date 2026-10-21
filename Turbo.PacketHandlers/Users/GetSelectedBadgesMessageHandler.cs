@@ -22,7 +22,7 @@ public class GetSelectedBadgesMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.PlayerId <= 0)
+        if (message.PlayerId <= 0)
             return;
 
         var badges = await _grainFactory

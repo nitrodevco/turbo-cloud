@@ -24,7 +24,7 @@ public class GetOfficialSongIdMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.Code))
+        if (string.IsNullOrWhiteSpace(message.Code))
             return;
 
         var songId = await _grainFactory

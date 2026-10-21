@@ -19,9 +19,6 @@ public class GetSilverMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var wallet = _grainFactory.GetPlayerWalletGrain(ctx.PlayerId);
         var silver = await wallet
             .GetAmountForCurrencyAsync(CurrencyKind.Silver, ct)

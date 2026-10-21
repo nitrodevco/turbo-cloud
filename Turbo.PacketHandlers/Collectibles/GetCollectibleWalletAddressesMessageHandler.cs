@@ -18,9 +18,6 @@ public class GetCollectibleWalletAddressesMessageHandler
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new CollectibleWalletAddressesMessageComposer
                 {

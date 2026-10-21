@@ -18,9 +18,6 @@ public class GetForumsListMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerGuildForumGrain(ctx.PlayerId)
             .SendForumsListAsync(message.ListCode, message.StartIndex, message.Amount, ct)

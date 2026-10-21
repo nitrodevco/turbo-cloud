@@ -18,7 +18,7 @@ public class ChatMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Ch
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Text))
+        if (ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Text))
             return;
 
         await _grainFactory

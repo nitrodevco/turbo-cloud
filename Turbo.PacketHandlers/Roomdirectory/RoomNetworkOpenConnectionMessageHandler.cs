@@ -33,9 +33,6 @@ public class RoomNetworkOpenConnectionMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var roomId = await _navigatorService
             .GetRoomNetworkRoomAsync(message.NetworkId, message.HomeRoomId, ct)
             .ConfigureAwait(false);

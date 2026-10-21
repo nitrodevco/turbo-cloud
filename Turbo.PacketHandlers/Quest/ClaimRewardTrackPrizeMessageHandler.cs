@@ -18,9 +18,6 @@ public class ClaimRewardTrackPrizeMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerRewardTrackGrain(ctx.PlayerId)
             .ClaimPrizeAsync(message.TrackId, message.PrizeId, ct)

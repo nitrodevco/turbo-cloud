@@ -18,9 +18,6 @@ public class NavigatorDeleteSavedSearchMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerNavigatorGrain(ctx.PlayerId)
             .DeleteSavedSearchAsync(message.SearchId, ct)

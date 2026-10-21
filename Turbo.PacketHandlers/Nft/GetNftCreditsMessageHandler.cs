@@ -20,9 +20,6 @@ public class GetNftCreditsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var wallet = _grainFactory.GetPlayerWalletGrain(ctx.PlayerId);
         var emeralds = await wallet
             .GetAmountForCurrencyAsync(CurrencyKind.Emeralds, ct)

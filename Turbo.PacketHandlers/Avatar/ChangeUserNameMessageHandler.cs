@@ -20,9 +20,6 @@ public class ChangeUserNameMessageHandler(IPlayerOnboardingService onboarding)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var change = await onboarding
             .ChooseNameAsync(ctx.PlayerId, message.Name, ct)
             .ConfigureAwait(false);

@@ -18,7 +18,7 @@ public class RemoveRightsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.PlayerIds.Count < 1)
+        if (ctx is null || ctx.RoomId <= 0 || message.PlayerIds.Count < 1)
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

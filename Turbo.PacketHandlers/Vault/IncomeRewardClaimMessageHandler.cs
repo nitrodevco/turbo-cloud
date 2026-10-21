@@ -22,9 +22,6 @@ public class IncomeRewardClaimMessageHandler(IIncomeRewardService incomeRewards)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var claimed = await incomeRewards
             .ClaimAsync(ctx.PlayerId, message.RewardCategory, ct)
             .ConfigureAwait(false);

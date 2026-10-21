@@ -18,7 +18,7 @@ public class ShoutMessageHandler(IGrainFactory grainFactory) : IMessageHandler<S
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Text))
+        if (ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Text))
             return;
 
         await _grainFactory

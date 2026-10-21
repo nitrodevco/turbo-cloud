@@ -21,9 +21,6 @@ public class MessengerInitMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService.SendInitAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

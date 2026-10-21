@@ -22,9 +22,6 @@ public class BuildersClubQueryFurniCountMessageHandler(IGrainFactory grainFactor
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetBuildersClubGrain()
             .SendFurniCountAsync(ctx.PlayerId, ct)

@@ -18,9 +18,6 @@ public class UpdateForumReadMarkerMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerGuildForumGrain(ctx.PlayerId)
             .MarkReadAsync(message.Markers, ct)

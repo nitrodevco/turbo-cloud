@@ -20,9 +20,6 @@ public class RemoveFriendMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService
             .RemoveFriendsAsync(ctx.PlayerId, message.FriendIds, ct)
             .ConfigureAwait(false);

@@ -18,9 +18,6 @@ public class SetSoundSettingsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .SetSoundSettingsAsync(

@@ -18,9 +18,6 @@ public class CompetitionRoomsSearchMessageHandler(INavigatorService navigatorSer
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendLegacySearchResultAsync(
                 _navigatorService,
                 NavigatorSearchType.CompetitionRooms,

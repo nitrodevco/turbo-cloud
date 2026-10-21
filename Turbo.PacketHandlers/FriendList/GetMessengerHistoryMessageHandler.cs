@@ -21,9 +21,6 @@ public class GetMessengerHistoryMessageHandler(IMessengerService messengerServic
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .GetMessageHistoryAsync(ctx.PlayerId, message.ChatId, message.Message, ct)
             .ConfigureAwait(false);

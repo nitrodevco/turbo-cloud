@@ -19,9 +19,6 @@ public class ClaimProductMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var result = await _grainFactory
             .GetPlayerProductClaimGrain(ctx.PlayerId)
             .ClaimAsync(message.ClaimId, message.Choice, ct)

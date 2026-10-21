@@ -18,9 +18,6 @@ public class MyFrequentRoomHistorySearchMessageHandler(INavigatorService navigat
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendLegacySearchResultAsync(
                 _navigatorService,
                 NavigatorSearchType.MyFrequentHistory,

@@ -20,7 +20,7 @@ public class SelectClubGiftMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrEmpty(message.ProductCode))
+        if (string.IsNullOrEmpty(message.ProductCode))
             return;
 
         try

@@ -18,9 +18,6 @@ public class RequestABadgeMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // Only a badge the hotel lists for the request code can be claimed. The request code is
         // the client's to send; the badge it stands for never is.
         var badgeCode = await _grainFactory

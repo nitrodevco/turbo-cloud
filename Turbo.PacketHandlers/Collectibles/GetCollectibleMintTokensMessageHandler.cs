@@ -18,9 +18,6 @@ public class GetCollectibleMintTokensMessageHandler
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new CollectibleMintTokenCountMessageComposer { Count = 0 }, ct)
             .ConfigureAwait(false);
     }

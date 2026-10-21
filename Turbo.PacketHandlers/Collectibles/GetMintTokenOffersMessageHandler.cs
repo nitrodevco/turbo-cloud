@@ -17,9 +17,6 @@ public class GetMintTokenOffersMessageHandler : IMessageHandler<GetMintTokenOffe
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new CollectibleMintTokenOffersMessageComposer(), ct)
             .ConfigureAwait(false);
     }

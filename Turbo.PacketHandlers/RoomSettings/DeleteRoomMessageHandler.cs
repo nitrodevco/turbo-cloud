@@ -19,7 +19,7 @@ public class DeleteRoomMessageHandler(IRoomService roomService) : IMessageHandle
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.RoomId <= 0 || message.RoomId != ctx.RoomId)
+        if (message.RoomId <= 0 || message.RoomId != ctx.RoomId)
             return;
 
         await _roomService.DeleteRoomAsync(ctx.AsActionContext(), ct).ConfigureAwait(false);

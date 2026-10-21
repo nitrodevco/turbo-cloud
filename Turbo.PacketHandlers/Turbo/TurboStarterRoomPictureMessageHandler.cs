@@ -39,7 +39,7 @@ public class TurboStarterRoomPictureMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || ctx.RoomId.Value != message.RoomId)
+        if (ctx.RoomId.Value <= 0 || ctx.RoomId.Value != message.RoomId)
             return;
 
         var ok = await TakeAsync(message, ctx, ct).ConfigureAwait(false);

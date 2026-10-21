@@ -18,9 +18,6 @@ public class GetPetInventoryMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetInventoryGrain(ctx.PlayerId)
             .SendPetInventoryAsync(ct)

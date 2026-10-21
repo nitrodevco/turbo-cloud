@@ -23,9 +23,6 @@ public class PurchaseVipMembershipExtensionMessageHandler(IGrainFactory grainFac
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.PurchaseOfferAsync(
                 _grainFactory,
                 CatalogType.Normal,

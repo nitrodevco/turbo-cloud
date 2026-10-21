@@ -18,7 +18,7 @@ public class DeactivateGuildMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.GuildId <= 0)
+        if (message.GuildId <= 0)
             return;
 
         var deleted = await _grainFactory

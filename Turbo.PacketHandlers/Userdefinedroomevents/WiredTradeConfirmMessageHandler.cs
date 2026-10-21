@@ -19,9 +19,6 @@ public class WiredTradeConfirmMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetWiredTradeGrain(ctx.PlayerId)
             .ConfirmAsync(message.IsFinalConfirm, ct)

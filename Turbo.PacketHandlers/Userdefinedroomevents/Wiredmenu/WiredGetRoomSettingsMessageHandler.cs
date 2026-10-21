@@ -19,7 +19,7 @@ public class WiredGetRoomSettingsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.RoomId <= 0)
             return;
 
         var settings = await _grainFactory

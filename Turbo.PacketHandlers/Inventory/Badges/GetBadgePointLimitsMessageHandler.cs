@@ -20,8 +20,6 @@ public class GetBadgePointLimitsMessageHandler(IAchievementCatalog catalog, Time
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
         var groups = catalog
             .Current.Where(x => x.IsKnownToClient(time.GetUtcNow().UtcDateTime))
             .Select(x => new BadgePointLimitGroupSnapshot

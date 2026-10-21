@@ -18,7 +18,7 @@ public class ClaimDailyTaskMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.TaskId <= 0)
+        if (message.TaskId <= 0)
             return;
 
         await _grainFactory

@@ -33,7 +33,7 @@ public class RenderRoomThumbnailMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0)
+        if (ctx.RoomId.Value <= 0)
             return;
 
         var level = await grainFactory

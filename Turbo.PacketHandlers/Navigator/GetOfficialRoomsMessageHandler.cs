@@ -18,9 +18,6 @@ public class GetOfficialRoomsMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var rooms = await _navigatorService.GetOfficialRoomsAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(new OfficialRoomsMessageComposer { Rooms = [.. rooms] }, ct)

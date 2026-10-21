@@ -18,9 +18,6 @@ public class UnblockUserMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerMessengerGrain(ctx.PlayerId)
             .UnblockPlayerAsync(message.PlayerId, ct)

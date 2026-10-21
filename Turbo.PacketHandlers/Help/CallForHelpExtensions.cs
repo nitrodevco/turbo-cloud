@@ -21,9 +21,6 @@ internal static class CallForHelpExtensions
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var result = await callForHelp
             .SubmitAsync(ctx.PlayerId, submission, ct)
             .ConfigureAwait(false);

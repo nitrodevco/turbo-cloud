@@ -23,7 +23,7 @@ public class RequestRoomPropertySetMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ItemId <= 0)
+        if (ctx.RoomId <= 0 || message.ItemId <= 0)
             return;
 
         await _grainFactory

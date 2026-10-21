@@ -21,9 +21,6 @@ public class FollowFriendMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .FollowFriendAsync(ctx.PlayerId, message.PlayerId, ct)
             .ConfigureAwait(false);

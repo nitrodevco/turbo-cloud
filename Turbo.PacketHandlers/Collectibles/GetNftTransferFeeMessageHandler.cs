@@ -17,9 +17,6 @@ public class GetNftTransferFeeMessageHandler : IMessageHandler<GetNftTransferFee
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new NftTransferFeeMessageComposer { TransferFee = 0 }, ct)
             .ConfigureAwait(false);
     }

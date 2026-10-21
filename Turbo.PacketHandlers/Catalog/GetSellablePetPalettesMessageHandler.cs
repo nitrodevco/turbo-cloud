@@ -32,7 +32,7 @@ public class GetSellablePetPalettesMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || !TryResolveTypeId(message.ProductCode, out var typeId))
+        if (!TryResolveTypeId(message.ProductCode, out var typeId))
             return;
 
         await ctx.SendComposerAsync(

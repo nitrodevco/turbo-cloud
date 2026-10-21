@@ -24,7 +24,7 @@ public class SynchronizeSharedAddonsMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.WiredId <= 0)
+        if (ctx.RoomId <= 0 || message.WiredId <= 0)
             return;
 
         if (

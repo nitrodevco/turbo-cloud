@@ -27,8 +27,7 @@ public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactor
     )
     {
         if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
+            ctx.RoomId <= 0
             || !WiredVariableId.TryParse(message.VariableId, out var variableId)
             || !Enum.IsDefined((WiredVariableMenuOperationType)message.Operation)
         )

@@ -22,9 +22,6 @@ public class GetGiftWrappingConfigurationMessageHandler(IGiftWrappingProvider gi
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new GiftWrappingConfigurationEventMessageComposer
                 {

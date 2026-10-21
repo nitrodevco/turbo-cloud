@@ -28,9 +28,6 @@ public class RenderRoomMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var url = string.Empty;
 
         if (

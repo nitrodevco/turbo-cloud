@@ -19,9 +19,6 @@ public class GetClubGiftInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var info = await _grainFactory
             .GetCatalogPurchaseGrain(ctx.PlayerId)
             .GetClubGiftInfoAsync(ct)

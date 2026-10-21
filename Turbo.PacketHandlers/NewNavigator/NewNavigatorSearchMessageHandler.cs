@@ -18,9 +18,6 @@ public class NewNavigatorSearchMessageHandler(INavigatorService navigatorService
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var blocks = await _navigatorService
             .SearchAsync(ctx.PlayerId, message.SearchCodeOriginal, message.FilteringData, ct)
             .ConfigureAwait(false);

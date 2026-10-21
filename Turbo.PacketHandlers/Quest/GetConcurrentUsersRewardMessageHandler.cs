@@ -19,9 +19,6 @@ public class GetConcurrentUsersRewardMessageHandler(IConcurrentUsersGoalService 
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await goal.ClaimRewardAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

@@ -46,7 +46,7 @@ public class OpenFlatConnectionMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+        if (message.RoomId <= 0)
             return;
 
         var access = await _navigatorService

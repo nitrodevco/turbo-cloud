@@ -19,9 +19,6 @@ public class GetGuildCreationInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var creationInfo = await _grainFactory
             .GetPlayerGuildGrain(ctx.PlayerId)
             .GetCreationInfoAsync(ct)

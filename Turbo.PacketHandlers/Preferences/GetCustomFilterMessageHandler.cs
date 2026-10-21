@@ -24,9 +24,6 @@ public class GetCustomFilterMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var words = await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .GetCustomFilterWordsAsync(ct)

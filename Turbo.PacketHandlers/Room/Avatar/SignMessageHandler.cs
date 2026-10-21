@@ -17,13 +17,7 @@ public class SignMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Si
         CancellationToken ct
     )
     {
-        if (
-            ctx is null
-            || ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
-            || message.SignType < 0
-            || message.SignType > 17
-        )
+        if (ctx is null || ctx.RoomId <= 0 || message.SignType < 0 || message.SignType > 17)
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

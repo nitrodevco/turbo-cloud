@@ -25,9 +25,6 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerSubscriptionGrain(ctx.PlayerId)
             .SendClubInfoAsync(ScrUserInfoResponseType.Normal, ct)

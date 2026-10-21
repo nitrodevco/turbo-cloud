@@ -17,7 +17,7 @@ public class BuildersClubPlaceWallItemMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrEmpty(message.Location))
+        if (string.IsNullOrEmpty(message.Location))
             return;
 
         await _roomService

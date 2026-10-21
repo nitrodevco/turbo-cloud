@@ -23,9 +23,6 @@ public class TurboCommandSuggestMessageHandler(ICommandSuggestionService suggest
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var values = await _suggestionService
             .SuggestAsync(
                 ctx.PlayerId,

@@ -17,7 +17,7 @@ public class GetCraftingRecipeMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || string.IsNullOrEmpty(message.RecipeCode))
+        if (ctx.RoomId <= 0 || string.IsNullOrEmpty(message.RecipeCode))
             return;
 
         await grainFactory

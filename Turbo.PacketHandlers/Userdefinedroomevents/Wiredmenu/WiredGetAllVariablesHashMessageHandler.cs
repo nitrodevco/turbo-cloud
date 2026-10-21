@@ -19,7 +19,7 @@ public class WiredGetAllVariablesHashMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx is null || ctx.RoomId <= 0)
             return;
 
         var variables = await _grainFactory

@@ -19,9 +19,6 @@ public class AvatarEffectActivatedMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerEffectGrain(ctx.PlayerId)
             .ActivateEffectAsync(message.Type, ct)

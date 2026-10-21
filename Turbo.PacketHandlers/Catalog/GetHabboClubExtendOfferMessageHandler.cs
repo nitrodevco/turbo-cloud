@@ -26,9 +26,6 @@ public class GetHabboClubExtendOfferMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // Receiving this opens the confirmation dialog, so a hotel with nothing to renew with
         // answers nothing at all rather than an empty offer.
         if (_catalogService.GetClubExtendOffer() is not { } offer)

@@ -20,8 +20,7 @@ public class WiredGetAllVariableHoldersMessageHandler(IGrainFactory grainFactory
     )
     {
         if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
+            ctx.RoomId <= 0
             || !WiredVariableId.TryParse(message.SelectedVariableId, out var variableId)
         )
             return;

@@ -21,7 +21,7 @@ public class GetBadgeInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.BadgeCode))
+        if (string.IsNullOrWhiteSpace(message.BadgeCode))
             return;
 
         // Independent grains: the hotel-wide figures for the badge, and whether the asker owns it.

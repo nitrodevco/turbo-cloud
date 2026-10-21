@@ -18,12 +18,7 @@ public class UnmuteUserMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
-            || message.RoomId != ctx.RoomId
-            || message.PlayerId <= 0
-        )
+        if (ctx.RoomId <= 0 || message.RoomId != ctx.RoomId || message.PlayerId <= 0)
             return;
 
         await _grainFactory

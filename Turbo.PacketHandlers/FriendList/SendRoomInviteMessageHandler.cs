@@ -21,9 +21,6 @@ public class SendRoomInviteMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .SendRoomInviteAsync(ctx.PlayerId, message.FriendIds, message.Message, ct)
             .ConfigureAwait(false);

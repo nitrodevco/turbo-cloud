@@ -21,9 +21,6 @@ public class VisitUserMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService
             .VisitUserAsync(ctx.PlayerId, message.PlayerName, ct)
             .ConfigureAwait(false);

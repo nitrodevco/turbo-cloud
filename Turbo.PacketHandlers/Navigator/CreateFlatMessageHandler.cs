@@ -18,9 +18,6 @@ public class CreateFlatMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var roomId = await _navigatorService
             .CreateRoomAsync(
                 ctx.PlayerId,

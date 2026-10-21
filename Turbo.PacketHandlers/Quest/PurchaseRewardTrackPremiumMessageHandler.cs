@@ -18,9 +18,6 @@ public class PurchaseRewardTrackPremiumMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerRewardTrackGrain(ctx.PlayerId)
             .PurchasePremiumAsync(message.TrackId, ct)

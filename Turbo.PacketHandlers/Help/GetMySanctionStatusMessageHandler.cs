@@ -28,9 +28,6 @@ public class GetMySanctionStatusMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var permissions = _grainFactory.GetPlayerPermissionGrain(ctx.PlayerId);
         var checks = await Task.WhenAll(
                 SanctionStatuses.NODES.Select(x => permissions.ExplainAsync(x.Node, ct))

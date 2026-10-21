@@ -22,9 +22,6 @@ public class UpdateHomeRoomMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // A non-positive id clears the home room; anything else must be a real room.
         if (
             message.RoomId > 0

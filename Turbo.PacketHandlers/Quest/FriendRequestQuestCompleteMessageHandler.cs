@@ -24,9 +24,6 @@ public class FriendRequestQuestCompleteMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerQuestGrain(ctx.PlayerId)
             .RecordAsync(QuestTypes.FRIEND_REQUEST, string.Empty, ct)

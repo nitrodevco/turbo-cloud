@@ -22,9 +22,6 @@ public class ForwardToARandomPromotedRoomMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var roomId = await _navigatorService
             .GetRandomPromotedRoomAsync(message.Category, ct)
             .ConfigureAwait(false);

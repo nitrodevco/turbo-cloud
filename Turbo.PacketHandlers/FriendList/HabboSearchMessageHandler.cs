@@ -21,9 +21,6 @@ public class HabboSearchMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .SearchAsync(ctx.PlayerId, message.SearchQuery, ct)
             .ConfigureAwait(false);

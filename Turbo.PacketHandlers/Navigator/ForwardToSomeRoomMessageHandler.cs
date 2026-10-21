@@ -28,9 +28,6 @@ public class ForwardToSomeRoomMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         RoomId? roomId =
             message.ForwardData == INoobLobbyDirectory.FORWARD_DATA
                 ? await noobLobbies.PickAsync(ct).ConfigureAwait(false)

@@ -17,7 +17,7 @@ public class DeleteFavouriteRoomMessageHandler(INavigatorService navigatorServic
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.RoomId <= 0)
+        if (message.RoomId <= 0)
             return;
 
         await _navigatorService

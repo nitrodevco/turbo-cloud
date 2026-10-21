@@ -25,7 +25,7 @@ public class GetSongInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.SongIds.Count == 0)
+        if (message.SongIds.Count == 0)
             return;
 
         var songs = await _grainFactory

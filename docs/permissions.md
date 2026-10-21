@@ -501,8 +501,8 @@ depths.
    `SignInGateTests` drives a marketplace packet and the handshake through `PackageHandler` with
    and without a player. Before the gate, each handler was expected to open with
    `if (ctx.PlayerId <= 0) return;`, and dozens of working ones did not (all twelve marketplace
-   handlers among them), so a connection that never sent a ticket reached them as player 0. Those guards are still
-   in place and redundant; a new handler leaves it out.
+   handlers among them), so a connection that never sent a ticket reached them as player 0. The
+   gate made those guards redundant, and they are gone; a new handler leaves it out.
 2. **Inside a grain, asynchronously** — `RoomModerationModule.CanModerateAsync`, catalog
    purchases. One call to `IPlayerPermissionGrain.HasAsync`.
 

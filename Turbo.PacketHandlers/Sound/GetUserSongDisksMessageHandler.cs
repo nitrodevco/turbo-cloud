@@ -27,9 +27,6 @@ public class GetUserSongDisksMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var items = await _grainFactory
             .GetInventoryGrain(ctx.PlayerId)
             .GetAllItemSnapshotsAsync(ct)

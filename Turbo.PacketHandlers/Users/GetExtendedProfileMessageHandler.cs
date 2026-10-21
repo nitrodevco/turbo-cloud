@@ -21,9 +21,6 @@ public class GetExtendedProfileMessageHandler(IPlayerService playerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _playerService
             .GetExtendedProfileAsync(ctx.PlayerId, message.UserId, ct)
             .ConfigureAwait(false);

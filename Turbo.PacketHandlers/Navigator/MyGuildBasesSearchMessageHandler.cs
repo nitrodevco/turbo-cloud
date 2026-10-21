@@ -18,9 +18,6 @@ public class MyGuildBasesSearchMessageHandler(INavigatorService navigatorService
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendLegacySearchResultAsync(
                 _navigatorService,
                 NavigatorSearchType.MyGuildBases,

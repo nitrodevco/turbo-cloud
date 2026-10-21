@@ -18,7 +18,7 @@ public class GetThreadMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.GroupId <= 0)
+        if (message.GroupId <= 0)
             return;
 
         await _grainFactory

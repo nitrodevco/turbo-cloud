@@ -17,7 +17,7 @@ public class NavigatorAddSavedSearchMessageHandler(INavigatorService navigatorSe
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.SearchCode))
+        if (string.IsNullOrWhiteSpace(message.SearchCode))
             return;
 
         await _navigatorService

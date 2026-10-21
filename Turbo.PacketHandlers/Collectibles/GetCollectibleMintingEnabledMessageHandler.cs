@@ -19,9 +19,6 @@ public class GetCollectibleMintingEnabledMessageHandler
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(
                 new CollectibleMintingEnabledMessageComposer { Enabled = true },
                 ct

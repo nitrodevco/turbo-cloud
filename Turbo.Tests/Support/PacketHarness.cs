@@ -83,7 +83,10 @@ public sealed class PacketHarness
         return parser.Parse(new ClientPacket(header, payload));
     }
 
-    /// <summary>Runs the handler for the message and returns what it sent to the session.</summary>
+    /// <summary>
+    /// Runs the handler for the message and returns what it sent to the session; with no player
+    /// (<paramref name="playerId"/> 0) only an <c>[AllowAnonymous]</c> handler runs, as on the server.
+    /// </summary>
     public async Task<List<ClientPacket>> SendAsync(
         int header,
         byte[] payload,
@@ -98,11 +101,22 @@ public sealed class PacketHarness
         var ctx = CreateContext(session, playerId, roomId);
 
         var method = handlerType.GetMethod("HandleAsync")!;
-        var result = method.Invoke(handler, [message, ctx, CancellationToken.None]);
-        if (result is ValueTask vt)
-            await vt;
-        else if (result is Task t)
-            await t;
+        // Through the sign-in gate the server wraps every handler in: a session with no player
+        // reaches only an [AllowAnonymous] handler.
+        var invoke = SignInGate.Wrap(
+            handlerType,
+            NullLogger.Instance,
+            async (inst, env, c, ct) =>
+            {
+                var result = method.Invoke(inst, [env, c, ct]);
+                if (result is ValueTask vt)
+                    await vt;
+                else if (result is Task t)
+                    await t;
+            }
+        );
+
+        await invoke(handler, message, ctx, CancellationToken.None);
 
         return Sent.Select(Encode).ToList();
     }

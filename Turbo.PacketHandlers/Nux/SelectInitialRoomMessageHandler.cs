@@ -30,9 +30,6 @@ public class SelectInitialRoomMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         CreatedStarterRoom? room = null;
 
         if (

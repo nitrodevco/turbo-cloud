@@ -17,9 +17,6 @@ public class GetNftCollectionsMessageHandler : IMessageHandler<GetNftCollections
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new NftCollectionsMessageComposer(), ct).ConfigureAwait(false);
     }
 }

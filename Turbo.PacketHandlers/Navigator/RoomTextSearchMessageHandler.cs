@@ -18,9 +18,6 @@ public class RoomTextSearchMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var query = message.Query?.Trim() ?? string.Empty;
 
         if (query.Length == 0)

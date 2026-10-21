@@ -18,9 +18,6 @@ public class GetDailyQuestMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerQuestGrain(ctx.PlayerId)
             .SendDailyQuestAsync(message.Easy, message.Index, ct)

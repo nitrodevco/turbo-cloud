@@ -21,9 +21,6 @@ public class GetRelationshipStatusInfoMessageHandler(IPlayerService playerServic
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _playerService
             .GetRelationshipStatusInfoAsync(ctx.PlayerId, message.PlayerId, ct)
             .ConfigureAwait(false);

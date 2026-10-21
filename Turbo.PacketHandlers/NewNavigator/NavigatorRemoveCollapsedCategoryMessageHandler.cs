@@ -18,7 +18,7 @@ public class NavigatorRemoveCollapsedCategoryMessageHandler(IGrainFactory grainF
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.CategoryName))
+        if (string.IsNullOrWhiteSpace(message.CategoryName))
             return;
 
         await _grainFactory

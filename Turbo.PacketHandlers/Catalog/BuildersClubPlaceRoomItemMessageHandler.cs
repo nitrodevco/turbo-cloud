@@ -18,9 +18,6 @@ public class BuildersClubPlaceRoomItemMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _roomService
             .PlaceBuildersClubFloorItemInRoomAsync(
                 ctx.AsActionContext(),

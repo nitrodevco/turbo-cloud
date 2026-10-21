@@ -26,9 +26,6 @@ public class InfoRetrieveMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var player = _grainFactory.GetPlayerGrain(ctx.PlayerId);
         var snapshot = await player.GetSummaryAsync(ct).ConfigureAwait(false);
         // Habbo's nameChangeAllowed: true while the name step is still to do.

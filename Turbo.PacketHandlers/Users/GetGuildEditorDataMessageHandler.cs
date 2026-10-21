@@ -19,9 +19,6 @@ public class GetGuildEditorDataMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var editorData = await _grainFactory
             .GetGuildDirectoryGrain()
             .GetEditorDataAsync(ct)

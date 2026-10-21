@@ -18,7 +18,7 @@ public class WiredGetUserPermanentVariablesMessageHandler(IGrainFactory grainFac
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.RoomId <= 0)
             return;
 
         await ctx.SendWiredEntityPermanentVariablesAsync(

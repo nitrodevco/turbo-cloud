@@ -18,7 +18,7 @@ public class SaveWardrobeOutfitMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.Figure))
+        if (string.IsNullOrWhiteSpace(message.Figure))
             return;
 
         await _grainFactory

@@ -26,9 +26,6 @@ public class PurchaseFromCatalogMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
 
         if (snapshot.OffersById.TryGetValue(message.OfferId, out var offer))

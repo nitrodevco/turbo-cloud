@@ -22,9 +22,6 @@ public class GetTargetedOfferMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerTargetedOfferGrain(ctx.PlayerId)
             .SendNextOfferAsync(ct)

@@ -32,9 +32,6 @@ public class ScrGetKickbackInfoMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var club = await _grainFactory
             .GetPlayerSubscriptionGrain(ctx.PlayerId)
             .GetAsync(SubscriptionType.HabboClub, ct)

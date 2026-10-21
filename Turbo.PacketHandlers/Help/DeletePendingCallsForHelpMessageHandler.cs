@@ -23,9 +23,6 @@ public class DeletePendingCallsForHelpMessageHandler(ICallForHelpService callFor
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _callForHelp.DeletePendingAsync(ctx.PlayerId, ct).ConfigureAwait(false);
         await ctx.SendComposerAsync(new CallForHelpPendingCallsDeletedMessageComposer(), ct)
             .ConfigureAwait(false);

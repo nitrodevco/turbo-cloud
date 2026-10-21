@@ -34,9 +34,6 @@ public class TurboClientCapabilitiesMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var accepted = ClientCapabilities.Negotiate(message.Capabilities, _extensions);
         await _grainFactory
             .GetPlayerPresenceGrain(ctx.PlayerId)

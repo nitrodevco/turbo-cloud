@@ -22,9 +22,6 @@ public class SetDiscordPreferencesMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
             .SetDiscordPreferencesAsync(

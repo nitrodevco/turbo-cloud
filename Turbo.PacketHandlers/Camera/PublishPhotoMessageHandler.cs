@@ -34,9 +34,6 @@ public class PublishPhotoMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var photo = store.GetLastPhoto(ctx.PlayerId.Value);
 
         if (photo is null)

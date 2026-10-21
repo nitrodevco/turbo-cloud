@@ -21,9 +21,6 @@ public class IncomeRewardStatusMessageHandler(IIncomeRewardService incomeRewards
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var rewards = await incomeRewards.GetRewardsAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(

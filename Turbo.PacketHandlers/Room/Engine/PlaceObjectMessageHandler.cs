@@ -20,9 +20,6 @@ public class PlaceObjectMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var separator = message.Data.IndexOf(' ');
 
         if (

@@ -18,7 +18,7 @@ public class ApproveMembershipRequestMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.GuildId <= 0 || message.PlayerId <= 0)
+        if (message.GuildId <= 0 || message.PlayerId <= 0)
             return;
 
         var result = await _grainFactory

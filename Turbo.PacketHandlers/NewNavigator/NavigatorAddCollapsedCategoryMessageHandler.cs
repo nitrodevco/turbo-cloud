@@ -17,7 +17,7 @@ public class NavigatorAddCollapsedCategoryMessageHandler(INavigatorService navig
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || string.IsNullOrWhiteSpace(message.CategoryName))
+        if (string.IsNullOrWhiteSpace(message.CategoryName))
             return;
 
         await _navigatorService

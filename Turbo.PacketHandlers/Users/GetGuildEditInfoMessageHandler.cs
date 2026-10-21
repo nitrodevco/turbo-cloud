@@ -19,7 +19,7 @@ public class GetGuildEditInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || message.GuildId <= 0)
+        if (message.GuildId <= 0)
             return;
 
         var guildGrain = _grainFactory.GetGuildGrain(message.GuildId);

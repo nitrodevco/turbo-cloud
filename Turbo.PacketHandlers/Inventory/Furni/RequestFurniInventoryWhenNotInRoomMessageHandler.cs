@@ -18,9 +18,6 @@ public class RequestFurniInventoryWhenNotInRoomMessageHandler(IGrainFactory grai
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetInventoryGrain(ctx.PlayerId)
             .SendFurnitureInventoryAsync(ctx.SessionKey, ct)

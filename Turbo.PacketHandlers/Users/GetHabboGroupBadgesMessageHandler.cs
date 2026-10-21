@@ -30,9 +30,6 @@ public class GetHabboGroupBadgesMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var membershipsTask = _grainFactory
             .GetPlayerGuildGrain(ctx.PlayerId)
             .GetMembershipsAsync(ct);

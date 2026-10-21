@@ -24,9 +24,6 @@ public class ApproveNameMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // The client asks for pet names only; there is no other kind to approve.
         if (message.Type != ApproveNameType.Pet)
             return;

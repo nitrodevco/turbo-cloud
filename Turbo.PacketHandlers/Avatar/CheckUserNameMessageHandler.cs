@@ -17,9 +17,6 @@ public class CheckUserNameMessageHandler(IPlayerOnboardingService onboarding)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var check = await onboarding
             .CheckNameAsync(ctx.PlayerId, message.Name, ct)
             .ConfigureAwait(false);

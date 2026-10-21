@@ -25,9 +25,6 @@ public class CreateGuildMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var result = await _grainFactory
             .GetPlayerGuildGrain(ctx.PlayerId)
             .CreateGuildAsync(message.Request, ct)

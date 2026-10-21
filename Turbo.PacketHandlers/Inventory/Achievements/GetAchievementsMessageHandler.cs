@@ -18,8 +18,6 @@ public class GetAchievementsMessageHandler(IGrainFactory grains, IAchievementCat
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
         var achievements = await grains
             .GetPlayerAchievementGrain(ctx.PlayerId)
             .GetAchievementsAsync(ct)

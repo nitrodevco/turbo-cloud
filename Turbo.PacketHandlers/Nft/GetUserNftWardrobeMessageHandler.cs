@@ -18,9 +18,6 @@ public class GetUserNftWardrobeMessageHandler : IMessageHandler<GetUserNftWardro
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new UserNftWardrobeMessageComposer { Items = [] }, ct)
             .ConfigureAwait(false);
     }

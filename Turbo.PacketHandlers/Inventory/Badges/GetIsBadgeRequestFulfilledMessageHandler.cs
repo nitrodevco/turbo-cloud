@@ -18,9 +18,6 @@ public class GetIsBadgeRequestFulfilledMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var badgeCode = await _grainFactory
             .GetBadgeDirectoryGrain()
             .GetRequestableBadgeAsync(message.RequestCode, ct)

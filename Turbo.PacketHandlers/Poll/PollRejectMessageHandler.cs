@@ -20,9 +20,6 @@ public class PollRejectMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await grainFactory
             .GetPlayerRoomPollGrain(ctx.PlayerId)
             .RejectAsync(message.PollId, ct)

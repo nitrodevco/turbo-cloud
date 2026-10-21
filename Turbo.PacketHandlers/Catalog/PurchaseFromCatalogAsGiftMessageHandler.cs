@@ -28,9 +28,6 @@ public class PurchaseFromCatalogAsGiftMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         try
         {
             var offer = await _grainFactory

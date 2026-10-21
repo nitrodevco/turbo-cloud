@@ -22,7 +22,7 @@ public abstract class UpdateWiredMessageHandler<TMessage>(IGrainFactory grainFac
 
     public async ValueTask HandleAsync(TMessage message, MessageContext ctx, CancellationToken ct)
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.Id <= 0)
+        if (ctx is null || ctx.RoomId <= 0 || message.Id <= 0)
             return;
 
         var result = await _grainFactory

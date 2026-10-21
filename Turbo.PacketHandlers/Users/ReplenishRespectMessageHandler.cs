@@ -21,9 +21,6 @@ public class ReplenishRespectMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerGrain(ctx.PlayerId)
             .ReplenishRespectAsync(ct)

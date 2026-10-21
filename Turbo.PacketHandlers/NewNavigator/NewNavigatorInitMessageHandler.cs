@@ -24,9 +24,6 @@ public class NewNavigatorInitMessageHandler(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var topLevelContexts = await _navigatorService
             .GetTopLevelContextAsync()
             .ConfigureAwait(false);

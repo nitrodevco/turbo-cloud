@@ -21,9 +21,6 @@ public class GetFriendRequestsMessageHandler(IMessengerService messengerService)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var reply = await _messengerService
             .GetFriendRequestsAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);

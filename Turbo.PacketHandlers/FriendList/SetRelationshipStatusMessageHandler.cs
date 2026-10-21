@@ -21,9 +21,6 @@ public class SetRelationshipStatusMessageHandler(IMessengerService messengerServ
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _messengerService
             .SetRelationshipStatusAsync(
                 ctx.PlayerId,

@@ -19,7 +19,7 @@ public class AddItemsToTradeMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ItemIds.IsDefaultOrEmpty)
+        if (ctx.RoomId <= 0 || message.ItemIds.IsDefaultOrEmpty)
             return;
 
         await _grainFactory

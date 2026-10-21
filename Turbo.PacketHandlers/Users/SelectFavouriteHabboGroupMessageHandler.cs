@@ -19,9 +19,6 @@ public class SelectFavouriteHabboGroupMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         // The player's grain owns the choice; it tells the room they are standing in, because
         // the badge on their avatar is what everybody else sees change.
         var changed = await _grainFactory

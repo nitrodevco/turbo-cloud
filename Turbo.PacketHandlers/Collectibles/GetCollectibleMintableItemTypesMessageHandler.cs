@@ -18,9 +18,6 @@ public class GetCollectibleMintableItemTypesMessageHandler
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.SendComposerAsync(new CollectableMintableItemTypesMessageComposer(), ct)
             .ConfigureAwait(false);
     }

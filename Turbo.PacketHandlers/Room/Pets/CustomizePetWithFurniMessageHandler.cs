@@ -30,7 +30,7 @@ public class CustomizePetWithFurniMessageHandler(IGrainFactory grainFactory)
 
         if (message.ObjectId < 0)
         {
-            if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+            if (ctx.RoomId <= 0)
                 return;
 
             await _grainFactory

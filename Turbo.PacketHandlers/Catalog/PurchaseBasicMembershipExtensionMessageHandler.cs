@@ -22,9 +22,6 @@ public class PurchaseBasicMembershipExtensionMessageHandler(IGrainFactory grainF
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await ctx.PurchaseOfferAsync(
                 _grainFactory,
                 CatalogType.Normal,

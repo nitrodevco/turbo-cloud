@@ -17,9 +17,6 @@ public class BlockUserMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         await _grainFactory
             .GetPlayerMessengerGrain(ctx.PlayerId)
             .BlockPlayerAsync(message.PlayerId, ct)

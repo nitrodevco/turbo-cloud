@@ -24,9 +24,6 @@ public class AddToCustomFilterMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
-            return;
-
         var word = message.Word.Trim();
         var added = await _grainFactory
             .GetPlayerSettingsGrain(ctx.PlayerId)
