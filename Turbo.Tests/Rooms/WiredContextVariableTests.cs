@@ -41,7 +41,7 @@ public sealed class WiredContextVariableTests
     {
         _room.Enter(5, 1, 1);
         _room.AddFloorItem(CLICK_ME, 7, 4);
-        _room.AddFloorItem(ANTENNA, 6, 1);
+        _room.AddFloorItem(ANTENNA, 6, 1, "wf_antenna1");
     }
 
     [Fact]

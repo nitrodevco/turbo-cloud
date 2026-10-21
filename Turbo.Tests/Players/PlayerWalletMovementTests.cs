@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
 using Turbo.Database.Configuration;
+using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
@@ -158,6 +159,40 @@ public sealed class PlayerWalletMovementTests : IDisposable
                 (cause.OperationId, (short)2, CurrencyType.Credits, (int?)null, 30L),
                 (cause.OperationId, (short)3, CurrencyType.ActivityPoints, DIAMONDS, 4L)
             );
+    }
+
+    // A debit the database refused answered "insufficient balance" naming the currency, so the
+    // player was told they could not afford what they could.
+    [Fact]
+    public async Task Debit_TheDatabaseRefuses_FailsWithoutSayingTheBalanceWasShort()
+    {
+        Seed(credits: 100);
+        var wallet = await NewWalletAsync();
+        RoomHarness.SetField(wallet, "_dbCtxFactory", new BrokenDb());
+
+        var result = await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 10)], Cause(), Ct);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failure.Should().BeNull("the balance covers it; the write failed");
+        Balance(CREDITS_TYPE_ID).Should().Be(100);
+
+        var short_ = await (await NewWalletAsync()).TryDebitAsync(
+            [Debit(CurrencyKind.Credits, 101)],
+            Cause(),
+            Ct
+        );
+
+        short_.Failure.Should().NotBeNull("a short balance still says which currency");
+    }
+
+    /// <summary>A database that is down: every context it is asked for throws.</summary>
+    private sealed class BrokenDb : IDbContextFactory<TurboDbContext>
+    {
+        public TurboDbContext CreateDbContext() =>
+            throw new InvalidOperationException("database down");
+
+        public Task<TurboDbContext> CreateDbContextAsync(CancellationToken ct = default) =>
+            throw new InvalidOperationException("database down");
     }
 
     [Fact]

@@ -2,23 +2,44 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Moderator;
+using Turbo.Primitives.Messages.Outgoing.Moderation;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Moderator;
 
-/// <summary>
-/// A moderation tool packet. The tool is not built yet, so nothing is done with it; the gate is
-/// in place so that when it is, only players who hold the tool reach it.
-/// </summary>
+/// <summary>The mod action window's "Default sanction" (<c>ModActionCtrl.as:214-231</c>): the player's next default sanction, the one the window's label showed (<c>IssueManager.updateSanctionData</c>). Answered with whether it was given, as the window's other actions are.</summary>
 [RequiresPermission(PermissionNodes.Moderation.TOOL)]
-public class DefaultSanctionMessageHandler : IMessageHandler<DefaultSanctionMessage>
+public class DefaultSanctionMessageHandler(IModerationIssueService issues)
+    : IMessageHandler<DefaultSanctionMessage>
 {
+    private readonly IModerationIssueService _issues = issues;
+
     public async ValueTask HandleAsync(
         DefaultSanctionMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        var given = await _issues
+            .GiveDefaultSanctionAsync(
+                ctx.PlayerId,
+                message.UserId,
+                message.TopicId,
+                message.Message,
+                message.IssueId,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        await ctx.SendComposerAsync(
+                new ModeratorActionResultMessageComposer
+                {
+                    UserId = message.UserId,
+                    Success = given,
+                },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

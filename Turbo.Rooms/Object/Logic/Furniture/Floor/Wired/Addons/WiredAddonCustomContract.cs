@@ -163,6 +163,8 @@ public class WiredAddonCustomContract(
             new WiredEnumParamRule<TradeRequirementNodeType>(TradeRequirementNodeType.Coin),
             new WiredBoolParamRule(false),
             new WiredRangeParamRule(1, MAX_AMOUNT, 1),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            // A fresh box reads context variables on both sides on the official server
+            // (defaults [0,0,0,1,-20,0,0,0,1,-20], 2026-10-14T08-57-35-Open-wait).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
         ];
 }

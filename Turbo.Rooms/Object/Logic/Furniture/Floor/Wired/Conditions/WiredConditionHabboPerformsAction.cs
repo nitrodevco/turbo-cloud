@@ -22,13 +22,13 @@ public class WiredConditionHabboPerformsAction(
     public override int WiredCode => (int)WiredConditionType.PERFORMING_ACTION;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Sit)];
+        [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Wave)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var action = GetIntParamOrDefault(0, WiredAvatarActionType.Sit);
+        var action = GetIntParamOrDefault(0, WiredAvatarActionType.Wave);
         var avatars = GetAvatars(ctx.GetSelection(this));
 
         return Quantify(

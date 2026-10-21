@@ -85,7 +85,8 @@ public sealed class WiredVariableNameRulesTests
         RoomHarness.SetMember(
             _room.Harness.Room,
             "_wiredConfig",
-            new WiredConfig { MaxPermanentFurniVariables = 1 }
+            // One furni variable at the default level's cap of 2500.
+            new WiredConfig { PermanentFurniVariablesPer10000Cap = 4 }
         );
         var first = _room.AddBox<WiredVariableFurni>(FURNI_VAR, 0, 0, "wf_var_furni");
         _room.AddBox<WiredVariableFurni>(OTHER_FURNI_VAR, 2, 0, "wf_var_furni");

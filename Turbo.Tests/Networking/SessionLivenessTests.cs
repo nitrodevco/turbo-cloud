@@ -231,7 +231,10 @@ public sealed class SessionLivenessTests : IAsyncDisposable
             gone.Should()
                 .BeTrue("a session the server closed is let go, with its player, if it stays open");
             SessionAsserts.PresenceObserver(_hotel.Presence).Should().BeNull();
-            session.ServerCloseReason.Should().StartWith("heartbeat timeout");
+            // Either of the heartbeat's checks may close it first: nothing received within the
+            // timeout, or a Ping it cannot send behind the stuck handler. Which one wins is the
+            // runner's timing (windows-latest CI, 2026-10-18: the send stalled first).
+            session.ServerCloseReason.Should().MatchRegex("^heartbeat (timeout|send stalled)");
         }
         finally
         {

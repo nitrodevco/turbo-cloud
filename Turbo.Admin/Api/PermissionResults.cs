@@ -14,28 +14,14 @@ namespace Turbo.Admin.Api;
 /// <summary>What the permission endpoints share: the view gate, durations, and their answers.</summary>
 internal static class PermissionResults
 {
-    private const string NO_ACCESS = "You can't see permissions.";
+    public const string NO_ACCESS = "You can't see permissions.";
 
-    /// <summary>Every permission endpoint needs <c>admin.permissions.view</c>; changes need more, checked by each.</summary>
-    public static Func<
-        EndpointFilterInvocationContext,
-        EndpointFilterDelegate,
-        ValueTask<object?>
-    > RequireView(IGrainFactory grainFactory) =>
-        async (context, next) =>
-        {
-            var http = context.HttpContext;
-
-            return await grainFactory
-                .HasPermissionAsync(
-                    AdminIdentity.Of(http).PlayerId,
-                    PermissionNodes.Admin.PERMISSIONS_VIEW,
-                    http.RequestAborted
-                )
-                .ConfigureAwait(false)
-                ? await next(context).ConfigureAwait(false)
-                : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-        };
+    /// <summary>
+    /// Why a permission change checks in its handler: what may be changed depends on the group's
+    /// weight, the nodes the editor holds and <c>permissions.superuser</c> (<see cref="PermissionEditor"/>).
+    /// </summary>
+    public const string EDITOR =
+        "PermissionEditor decides from the group's weight and the nodes the editor holds.";
 
     /// <summary>
     /// When a duration typed as <c>30m</c>, <c>12h</c>, <c>7d</c> or <c>2w</c> ends, from now;

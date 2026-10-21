@@ -261,6 +261,72 @@ public sealed class HotelViewTests : IDisposable
     }
 
     [Fact]
+    public async Task habbos_variables_under_a_prefix_are_shown_beside_ours_and_change_nothing()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync(
+            "notifications.new_feature.active",
+            "\"rewardtrack_intro\"",
+            STAFF,
+            Ct
+        );
+        await hotel.Variables.SaveAsync(
+            "notifications.new_feature.color.old_promo",
+            "\"#ffffff\"",
+            STAFF,
+            Ct
+        );
+        await hotel.Variables.SaveAsync("notifications.new_feature.enabled", "false", STAFF, Ct);
+        _habbo.Text = string.Join(
+            '\n',
+            "notifications.new_feature.active=rewardtrack_intro,cursed_dragon_adoption",
+            "notifications.new_feature.enabled=false",
+            "notifications.new_feature.expiry.cursed_dragon_adoption=2026-11-05 23:59",
+            "notifications.new_featured=not under the prefix",
+            "socket.url=wss://habbo"
+        );
+
+        var preview = await hotel.Variables.PreviewHabboAsync("notifications.new_feature.", Ct);
+
+        // Only the prefix's keys, each written as the hotel's is: a text, a flag where ours is one.
+        preview
+            .Variables.Select(x => (x.Key, x.Value, x.Current))
+            .Should()
+            .Equal(
+                (
+                    "notifications.new_feature.active",
+                    "\"rewardtrack_intro,cursed_dragon_adoption\"",
+                    "\"rewardtrack_intro\""
+                ),
+                ("notifications.new_feature.enabled", "false", "false"),
+                (
+                    "notifications.new_feature.expiry.cursed_dragon_adoption",
+                    "\"2026-11-05 23:59\"",
+                    null
+                )
+            );
+        preview.Missing.Should().Equal("notifications.new_feature.color.old_promo");
+        preview.Prefix.Should().Be("notifications.new_feature.");
+
+        // Looking changes nothing.
+        (await VariablesAsync(hotel))["notifications.new_feature.active"]!
+            .GetValue<string>()
+            .Should()
+            .Be("rewardtrack_intro");
+
+        var noPrefix = () => hotel.Variables.PreviewHabboAsync(" ", Ct);
+
+        await noPrefix.Should().ThrowAsync<ArgumentException>();
+
+        _habbo.Text = null;
+
+        var unreadable = () => hotel.Variables.PreviewHabboAsync("notifications.new_feature.", Ct);
+
+        await unreadable.Should().ThrowAsync<System.Net.Http.HttpRequestException>();
+    }
+
+    [Fact]
     public async Task habbos_reception_texts_come_from_the_newest_texts_found_beside_ours()
     {
         var hotel = Hotel();
@@ -372,6 +438,7 @@ public sealed class HotelViewTests : IDisposable
                 files,
                 writes,
                 _settings.Settings,
+                new HabboGamedataClient(_habbo, NullLogger<HabboGamedataClient>.Instance),
                 NullLogger<GamedataVariableService>.Instance
             ),
             new GamedataTextService(

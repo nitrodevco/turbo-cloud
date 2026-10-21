@@ -141,8 +141,7 @@ Every `IPlayerWalletGrain` method that moves a balance takes the caller's `Movem
 recording, each currency it moves is one movement (`Wallet` -> `None` for a debit, `None` ->
 `Wallet` for a credit; asset id 0 and its `CurrencyKind`), written in the same transaction as the
 balance. Every call is one transaction (`InTransactionAsync`) with a receipt in
-`wallet_credit_receipts`: the plugin's reference for a referenced credit, the award key for an
-achievement credit, and otherwise the cause's operation id and first seq (`#op:<seq>:<operation>`,
+`wallet_credit_receipts`: the plugin's reference for a referenced credit, and otherwise the cause's operation id and first seq (`#op:<seq>:<operation>`,
 hashed when too long); a debit's receipt is its key behind `#debit:`, so a credit and a debit under one
 reference or cause never answer for each other. The same call made again under the same cause, a retry, changes nothing:
 a debit answers success, a credit true. A debit of several currencies is one operation, numbered
@@ -232,7 +231,7 @@ stays queued, ahead of the next flush's updates, and is written again with its m
 | `room.pickall`, `room.ejectall` | `:pickall` and `:ejectall`, one operation for all the furni |
 | `room.delete`, `room.floorplan`, `room.rent_end`, `group.furni_removed` | furni sent home when the room goes (cause ref: the room), is left off a new floor plan (the room), a rented space ends (the rentable furni), the room's group goes (the room) |
 | `room.delete_item` | a furni the client deletes |
-| `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_supply`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
+| `use.credit_furni`, `use.crackable`, `use.present`, `use.effect_box`, `use.clothing`, `use.pet_product`, `use.pet_package`, `use.monsterplant_seed`, `pet.breed` | the furni a use takes out of the room (cause ref: the furni; `pet.breed`: the nest) |
 
 ## Holders, made-in-room and borrowed furni
 
@@ -358,7 +357,8 @@ consumer wakes it; it then polls every `PollMs`, and a poll that finds no consum
 timer and reads nothing, so a hotel without a consumer never reads the outbox. Each poll:
 
 1. **Prunes** rows older than `OutboxRetentionHours`, oldest first, `BatchSize` at a time and at
-   most once an hour (again at once after a full batch), whatever the consumers have read. The
+   most once an hour (again at once after a full batch), whatever the plugins have read; only
+   the server's own currency ledger, while it is registered, holds it back to its cursor (below). The
    newest row it removes becomes an `outbox.pruned` marker and the previous marker goes: every id
    up to the marker is gone. A consumer whose cursor is below it is given the range as `Gap`;
    the marker itself is never delivered as a row. A plugin that is off longer than the retention
@@ -397,12 +397,19 @@ the player, the currency, the amount (negative when it left), the cause and its 
 and the other side of the move (nowhere, another wallet, an offer, a chest); a movement between
 two wallets is a row for each. Its cursor is in `movement_consumer_cursors`, written in the same
 save as its rows, and `(operation_id, seq, player_id)` is unique, so a batch delivered twice is
-kept once. The admin panel's **Currency** log reads it.
+kept once. The admin panel's **Currency** log reads it. An achievement credit keeps its receipt
+in `achievement_wallet_receipts` instead, under its award key, with what it paid.
+
+It is the hotel's record of currency history: a plugin that wants it reads it rather than keeping
+a second copy from the outbox. So the dispatcher never prunes a row the ledger has not read while
+the ledger is registered, whatever the retention says. Ids pruned before it read them (it was
+not registered while a plugin's dispatcher pruned) are kept as one `ledger.gap` row: no player, no
+amount, the first and last id as its cause ref, so a hole in the history shows where it is.
 
 It is registered only while `Enabled` and `CurrencyLedger` are both on, so a hotel that does not
 record reads nothing, as before. While it is registered the dispatcher runs, and so prunes the
-outbox after `OutboxRetentionHours`: the ledger is where currency history is kept. A plugin's own
-ledger still works beside it. Furni, pets and bots are not in it.
+outbox after `OutboxRetentionHours` up to what the ledger has read. Furni, pets and bots are not
+in it: a plugin still reads those from the outbox.
 
 ## Reversing a movement
 
@@ -460,15 +467,13 @@ var result = await reversals.MoveAsync(
 
 ## The plugin API
 
-A plugin that registers a consumer or moves assets back through `IAssetReversalService` declares
-plugin API 3 (`"ApiVersion": 3` in its manifest, `PluginApi.VERSION`), which servers from this one
-on load. A server still loads plugins built for 1 and 2, but one thing changed under them: every `IPlayerWalletGrain` and `IInventoryGrain` method
-that moves an asset (`TryDebitAsync`, `CreditAsync`, `GrantFurnitureAsync`,
-`ConsumeFurnitureAsync`, `TransferFurnitureAsync`, the present, pet and bot methods) now takes a
-`MovementCause`. A plugin built before that calls one fails when it calls it, and must be rebuilt
-against this server, passing a cause of its own (`MovementCause.New(code, actor, causeRef)`, a code
-of at most 48 characters; core's are in `MovementCauses`). A plugin that calls none of them, one
-that only adds packets, settings or admin pages, loads as it is.
+Consumers and `IAssetReversalService` are part of plugin API 1 (`"ApiVersion": 1` in a
+manifest, `PluginApi.VERSION`): no plugin outside this project has been published, so the API
+stays 1 while it changes. Every `IPlayerWalletGrain` and `IInventoryGrain` method that moves an
+asset (`TryDebitAsync`, `CreditAsync`, `GrantFurnitureAsync`, `ConsumeFurnitureAsync`,
+`TransferFurnitureAsync`, the present, pet and bot methods) takes a `MovementCause`: a plugin
+passes one of its own (`MovementCause.New(code, actor, causeRef)`, a code of at most 48
+characters; core's are in `MovementCauses`).
 
 ## Decided for now
 

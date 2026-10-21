@@ -89,9 +89,8 @@ internal sealed class AdminApiServer(
         app.Use(HandleFailureAsync);
 
         var secured = app.MapGroup("/api")
-            .AddEndpointFilter(
-                new AdminSessionFilter(services.GetRequiredService<IGrainFactory>())
-            );
+            .AddEndpointFilter(new AdminSessionFilter(services.GetRequiredService<IGrainFactory>()))
+            .WithMetadata(new AdminSessionRequired());
 
         var passkeys = ActivatorUtilities.CreateInstance<AdminPasskeys>(services);
 
@@ -117,6 +116,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<WordFilterEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<RoomVisitEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PerformanceEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<ClientTelemetryEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CatalogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CatalogImageEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<GamedataEndpoints>(services).Map(secured);

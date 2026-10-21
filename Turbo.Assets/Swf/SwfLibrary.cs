@@ -25,6 +25,8 @@ public sealed class SwfLibrary : IAssetLibrary
     public const int TAG_DEFINE_BITS_LOSSLESS2 = 36;
     public const int TAG_SYMBOL_CLASS = 76;
     public const int TAG_DEFINE_BINARY_DATA = 87;
+    public const int TAG_DO_ABC = 82;
+    public const int TAG_DO_ABC_PLAIN = 72;
 
     private const int HEADER_LENGTH = 8;
 
@@ -37,6 +39,7 @@ public sealed class SwfLibrary : IAssetLibrary
     private readonly List<(int Id, string Name)> _symbols = [];
     private readonly Dictionary<int, byte[]> _binaries = [];
     private readonly List<SwfImageTag> _images = [];
+    private readonly List<byte[]> _abcs = [];
 
     private SwfLibrary(int version)
     {
@@ -58,6 +61,41 @@ public sealed class SwfLibrary : IAssetLibrary
     /// it took, as Habbo's own SWF reader assigns them. Null for a character with none.
     /// </summary>
     public string? NameOf(int characterId) => _nameByCharacter.GetValueOrDefault(characterId);
+
+    /// <summary>
+    /// The images each class <paramref name="wanted"/> takes embeds, by class and field name: the
+    /// static fields its static initializer sets to a class the symbol table gives an image tag
+    /// (<see cref="AbcStaticClasses"/>), as Habbo's client classes carry their <c>[Embed]</c> bitmaps.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, SwfImageTag>> EmbeddedImages(
+        Func<string, bool> wanted
+    )
+    {
+        var images = new Dictionary<int, SwfImageTag>();
+
+        foreach (var image in _images)
+            images.TryAdd(image.CharacterId, image);
+
+        var found = new Dictionary<string, Dictionary<string, SwfImageTag>>(StringComparer.Ordinal);
+
+        foreach (var abc in _abcs)
+        {
+            foreach (var (className, fields) in AbcStaticClasses.Read(abc, wanted))
+            {
+                if (!found.TryGetValue(className, out var embedded))
+                    found[className] = embedded = new(StringComparer.Ordinal);
+
+                foreach (var (field, assigned) in fields)
+                    if (
+                        _characterByName.TryGetValue(assigned, out var id)
+                        && images.TryGetValue(id, out var image)
+                    )
+                        embedded.TryAdd(field, image);
+            }
+        }
+
+        return found;
+    }
 
     public static bool IsSwf(ReadOnlySpan<byte> data) =>
         data.Length >= HEADER_LENGTH
@@ -126,6 +164,14 @@ public sealed class SwfLibrary : IAssetLibrary
         {
             case TAG_SYMBOL_CLASS:
                 ReadSymbols(tag);
+                break;
+            case TAG_DO_ABC:
+                // UI32 flags, a name, then the ABC block.
+                if (tag.Length > 4 && tag[4..].IndexOf((byte)0) is var end and >= 0)
+                    _abcs.Add(tag[(5 + end)..].ToArray());
+                break;
+            case TAG_DO_ABC_PLAIN:
+                _abcs.Add(tag.ToArray());
                 break;
             case TAG_DEFINE_BINARY_DATA:
                 // UI16 character id, UI32 reserved, then the data.

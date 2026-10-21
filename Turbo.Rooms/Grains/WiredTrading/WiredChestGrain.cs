@@ -236,9 +236,12 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
 
             if (!debit.Succeeded)
                 return (
-                    debit.Failure?.CurrencyKind == credits
-                        ? UpgradeChestResultType.InsufficientCredits
-                        : UpgradeChestResultType.InsufficientDiamonds,
+                    debit.Failure?.CurrencyKind switch
+                    {
+                        null => UpgradeChestResultType.Error4,
+                        var kind when kind == credits => UpgradeChestResultType.InsufficientCredits,
+                        _ => UpgradeChestResultType.InsufficientDiamonds,
+                    },
                     BuildSummary(chest)
                 );
         }
@@ -413,6 +416,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 );
             }
 
+            await TrimLogsAsync(dbCtx, ct);
             await tx.CommitAsync(ct);
         }
 
@@ -538,6 +542,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             );
 
             await dbCtx.SaveChangesAsync(ct);
+            await TrimLogsAsync(dbCtx, ct);
             await tx.CommitAsync(ct);
 
             _state.Coins = row.Coins;
@@ -613,6 +618,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
             RecordChestCredits(dbCtx, cause, amount, credited: false);
 
             await dbCtx.SaveChangesAsync(ct);
+            await TrimLogsAsync(dbCtx, ct);
             await tx.CommitAsync(ct);
 
             _state.Coins = row.Coins;
@@ -720,6 +726,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 );
             }
 
+            await TrimLogsAsync(dbCtx, ct);
             await tx.CommitAsync(ct);
         }
 
@@ -838,6 +845,42 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         _state.RandomOrder.Clear();
 
         await HydrateAsync(ct);
+    }
+
+    /// <summary>
+    /// Keeps the chest's newest <see cref="WiredChestConfig.MaxLogsPerChest"/> transactions. An
+    /// older one goes, or only its entries for this chest when it also moved another chest's.
+    /// </summary>
+    private async Task TrimLogsAsync(TurboDbContext dbCtx, CancellationToken ct)
+    {
+        if (_config.MaxLogsPerChest <= 0)
+            return;
+
+        var chestId = _state.ChestId.Value;
+        var newestDropped = await dbCtx
+            .WiredChestTransactions.Where(x => x.Entries.Any(entry => entry.ChestItemId == chestId))
+            .OrderByDescending(x => x.Id)
+            .Skip(_config.MaxLogsPerChest)
+            .Select(x => (long?)x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (newestDropped is not { } cutoff)
+            return;
+
+        // Entries go with their transaction (cascade).
+        await dbCtx
+            .WiredChestTransactions.Where(x =>
+                x.Id <= cutoff
+                && x.Entries.Any(entry => entry.ChestItemId == chestId)
+                && x.Entries.All(entry => entry.ChestItemId == chestId)
+            )
+            .ExecuteDeleteAsync(ct);
+
+        await dbCtx
+            .WiredChestTransactionEntries.Where(x =>
+                x.ChestItemId == chestId && x.TransactionEntityId <= cutoff
+            )
+            .ExecuteDeleteAsync(ct);
     }
 
     private async Task<WiredChestEntity> GetOrAddChestRowAsync(

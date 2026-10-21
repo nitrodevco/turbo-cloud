@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Crafting;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -61,6 +62,9 @@ public sealed class CraftingTableTests
         new() { [OWNER] = [], [GUEST] = [] };
     private int _nextItemId = 500;
 
+    /// <summary>An item that leaves the inventory (traded, sold) just before the craft uses it up.</summary>
+    private int? _goneBeforeConsume;
+
     public CraftingTableTests()
     {
         var fakes = _room.Harness.Fakes;
@@ -88,8 +92,30 @@ public sealed class CraftingTableTests
         {
             var id = ((RoomObjectId)call.Args[0]!).Value;
 
+            TakeAwayGone(call);
+
             return Task.FromResult(
                 _inventories[Key(call)].Remove(id, out var item) ? Snapshot(id, item) : null
+            );
+        };
+        fakes.Handlers["ConsumeAllFurnitureAsync"] = call =>
+        {
+            var ids = ((ImmutableArray<RoomObjectId>)call.Args[0]!).Select(x => x.Value).ToList();
+            var inventory = _inventories[Key(call)];
+
+            TakeAwayGone(call);
+
+            if (!ids.All(inventory.ContainsKey))
+                return Task.FromResult(ImmutableArray<FurnitureItemSnapshot>.Empty);
+
+            return Task.FromResult(
+                ids.Select(id =>
+                    {
+                        inventory.Remove(id, out var item);
+
+                        return Snapshot(id, item);
+                    })
+                    .ToImmutableArray()
             );
         };
         fakes.Handlers["GrantFurnitureAsync"] = call =>
@@ -217,6 +243,44 @@ public sealed class CraftingTableTests
             .BeEquivalentTo("nail", "craft_throne");
     }
 
+    // The mix was checked, then its ingredients used up one at a time: one that had left the
+    // inventory in between (traded, sold) failed the craft after the ones before it were gone.
+    [Fact]
+    public async Task An_ingredient_gone_before_the_craft_uses_up_none_of_the_others()
+    {
+        var plank = Give(OWNER, "plank");
+        var nail = Give(OWNER, "nail");
+        _goneBeforeConsume = nail;
+
+        await MixAsync([plank, nail], craft: true);
+
+        Results(OWNER).Should().Equal([null]);
+        _inventories[OWNER].Keys.Should().Equal(plank);
+    }
+
+    // CraftingWidgetHandler.registerForFurniListInvalidate: after a craft the widget waits for the
+    // inventory's list to go stale before it takes presses again; a failure stops the wait itself.
+    [Fact]
+    public async Task A_craft_calls_the_crafters_inventory_list_stale_after_its_result()
+    {
+        var plank = Give(OWNER, "plank");
+        var nail = Give(OWNER, "nail");
+
+        await MixAsync([plank], craft: true);
+
+        SentTo(OWNER).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
+
+        await MixAsync([plank, nail], craft: true);
+
+        var sent = SentTo(OWNER).ToList();
+
+        sent.OfType<FurniListInvalidateEventMessageComposer>().Should().ContainSingle();
+        sent.FindIndex(x => x is FurniListInvalidateEventMessageComposer)
+            .Should()
+            .BeGreaterThan(sent.FindLastIndex(x => x is CraftingResultMessageComposer));
+        SentTo(GUEST).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
+    }
+
     [Fact]
     public void Crafting_packets_are_read_and_written_as_Flash_does()
     {
@@ -289,6 +353,14 @@ public sealed class CraftingTableTests
         SentTo(playerId)
             .OfType<CraftingResultMessageComposer>()
             .Select(x => x.Success ? x.Product!.FurnitureClassName : null);
+
+    private void TakeAwayGone(Turbo.Tests.Support.FakeCall call)
+    {
+        if (_goneBeforeConsume is { } gone)
+            _inventories[Key(call)].Remove(gone);
+
+        _goneBeforeConsume = null;
+    }
 
     private int Give(int playerId, string furniClass, bool rented = false)
     {

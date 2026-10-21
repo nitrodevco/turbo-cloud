@@ -43,6 +43,48 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     public bool IsHeavy { get; private set; }
 
+    /// <summary>
+    /// The room's usage cap, sized by its owner's account level as read when the room loaded
+    /// (<see cref="Configuration.WiredConfig.ExecutionCostCap"/>); 0 when there is none.
+    /// </summary>
+    public double ExecutionCostCap =>
+        _roomGrain._wiredConfig.ExecutionCostCap <= 0 ? 0 : OwnerSizedCap;
+
+    /// <summary>
+    /// The permanent variables of a kind the room may hold, scaled with its usage cap; 0 when
+    /// there is no cap.
+    /// </summary>
+    public int GetMaxPermanentVariables(WiredVariableTargetType targetType)
+    {
+        var config = _roomGrain._wiredConfig;
+        var per10000 = targetType switch
+        {
+            WiredVariableTargetType.Furni => config.PermanentFurniVariablesPer10000Cap,
+            WiredVariableTargetType.User => config.PermanentUserVariablesPer10000Cap,
+            WiredVariableTargetType.Global => config.PermanentGlobalVariablesPer10000Cap,
+            _ => 0,
+        };
+
+        return per10000 <= 0 ? 0 : (int)Math.Floor(per10000 * OwnerSizedCap / 10000);
+    }
+
+    private double OwnerSizedCap
+    {
+        get
+        {
+            var config = _roomGrain._wiredConfig;
+
+            return Math.Max(
+                config.ExecutionCostCap,
+                config.ExecutionCostCapPerOwnerLevel
+                    * (
+                        _roomGrain._state.OwnerAccountLevel
+                        + config.ExecutionCostCapOwnerLevelOffset
+                    )
+            );
+        }
+    }
+
     /// <summary>Whether wired in the room is halted after a KILLED.</summary>
     public bool IsKilled(long now) => now < _killedUntilMs;
 
@@ -61,7 +103,7 @@ public sealed partial class RoomWiredSystem
 
         _usage += Math.Max(0, cost);
 
-        var cap = _roomGrain._wiredConfig.ExecutionCostCap;
+        var cap = ExecutionCostCap;
 
         if (cap <= 0 || _usage <= cap)
             return true;
@@ -159,13 +201,7 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        var cap = targetType switch
-        {
-            WiredVariableTargetType.Furni => _roomGrain._wiredConfig.MaxPermanentFurniVariables,
-            WiredVariableTargetType.User => _roomGrain._wiredConfig.MaxPermanentUserVariables,
-            WiredVariableTargetType.Global => _roomGrain._wiredConfig.MaxPermanentGlobalVariables,
-            _ => 0,
-        };
+        var cap = GetMaxPermanentVariables(targetType);
 
         if (cap <= 0)
             return false;

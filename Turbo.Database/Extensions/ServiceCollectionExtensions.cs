@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,8 @@ using Turbo.Database.Context;
 using Turbo.Database.Delegates;
 using Turbo.Database.Migrations;
 using Turbo.Database.Movements;
+using Turbo.Database.Tracking;
+using Turbo.Primitives.Tracking;
 
 namespace Turbo.Database.Extensions;
 
@@ -105,6 +108,43 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<AssetMovementRecorder>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<AssetMovementRecorder>());
+
+        return services;
+    }
+
+    /// <summary>
+    /// The client telemetry recorder and its maintenance (<c>Turbo:ClientTelemetry</c>): what
+    /// clients report about themselves, kept for the admin panel's Client health and Usage pages.
+    /// </summary>
+    public static IServiceCollection AddTurboClientTelemetry(
+        this IServiceCollection services,
+        HostApplicationBuilder builder
+    )
+    {
+        services
+            .AddOptions<ClientTelemetryConfig>()
+            .Bind(builder.Configuration.GetSection(ClientTelemetryConfig.SECTION_NAME))
+            .Validate(
+                x =>
+                    x.RawRetentionDays >= 0
+                    && x.RollupRetentionDays >= 0
+                    && x.QueueCapacity > 0
+                    && x.BatchSize > 0
+                    && x.FlushIntervalMs > 0
+                    && x.MaintenanceIntervalMinutes > 0
+                    && x.LoginTrackingMinutes > 0,
+                "Turbo:ClientTelemetry limits must be positive."
+            )
+            .ValidateOnStart();
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ClientTelemetryRecorder>();
+        services.AddSingleton<IClientTelemetry>(sp =>
+            sp.GetRequiredService<ClientTelemetryRecorder>()
+        );
+        services.AddHostedService(sp => sp.GetRequiredService<ClientTelemetryRecorder>());
+        services.AddSingleton<ClientTelemetryMaintenance>();
+        services.AddHostedService(sp => sp.GetRequiredService<ClientTelemetryMaintenance>());
 
         return services;
     }

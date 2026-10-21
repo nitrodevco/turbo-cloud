@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans.Concurrency;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -40,6 +41,27 @@ public partial interface IRoomGrain
         WiredVariableId variableId,
         SharedWiredVariableChange change,
         RoomId origin,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// "Synchronize" on the share add-on <paramref name="boxId"/>: the rooms using the shared
+    /// variable it stands on take its add-ons again. False when there is no such add-on on a
+    /// shared variable, or the caller may not edit the room's wired.
+    /// </summary>
+    public Task<bool> SynchronizeSharedWiredAddonsAsync(
+        ActionContext ctx,
+        int boxId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The add-ons a shared variable of <paramref name="sourceRoom"/> that this room uses shares
+    /// were synchronized: the boxes using it read them again.
+    /// </summary>
+    public Task OnSharedWiredVariableAddonsChangedAsync(
+        RoomId sourceRoom,
+        WiredVariableId variableId,
         CancellationToken ct
     );
 

@@ -47,7 +47,20 @@ public abstract partial class FurnitureWiredLogic(
 
     protected IWiredData _wiredData = null!;
 
-    public RoomObjectId ObjectId => _ctx.ObjectId;
+    /// <summary>
+    /// The box's id; for a copy imported from another room (<see cref="ImportWiredAsync"/>), the
+    /// id of the box it copies, so what it makes is known by the same ids in both rooms.
+    /// </summary>
+    public RoomObjectId ObjectId => _importedFrom ?? _ctx.ObjectId;
+
+    /// <summary>
+    /// The box in another room this one is a copy of: an add-on a "Variable Add-on: Import"
+    /// takes over, run on the reference box it imports for. It is no furni of its own and never
+    /// saves anything.
+    /// </summary>
+    private RoomObjectId? _importedFrom;
+
+    public bool IsImported => _importedFrom is not null;
 
     private WiredDataSnapshot? _snapshot;
 
@@ -62,6 +75,42 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     public Task EnsureWiredLoadedAsync(CancellationToken ct) =>
         _wiredData is null ? LoadWiredAsync(ct) : Task.CompletedTask;
+
+    /// <summary>
+    /// The box as saved, for a share add-on to pass on as one of <paramref name="category"/>;
+    /// null while it is not loaded.
+    /// </summary>
+    public SharedWiredVariableAddonSnapshot? ToSharedAddon(WiredVariableAddonCategories category) =>
+        _wiredData is null
+            ? null
+            : new SharedWiredVariableAddonSnapshot
+            {
+                BoxId = ObjectId.Value,
+                LogicType = _ctx.Definition.LogicName,
+                Category = category,
+                IntParams = [.. _wiredData.IntParams],
+                StringParam = _wiredData.StringParam ?? string.Empty,
+                VariableIds = [.. _wiredData.VariableIds],
+            };
+
+    /// <summary>
+    /// Makes this box a copy of <paramref name="addon"/>, an add-on of another room, and loads
+    /// it: its params are checked by this room's rules as a save here would be, and variable ids
+    /// this room does not have are dropped.
+    /// </summary>
+    public Task ImportWiredAsync(SharedWiredVariableAddonSnapshot addon, CancellationToken ct)
+    {
+        _importedFrom = RoomObjectId.Parse(addon.BoxId);
+        _wiredData = new WiredData
+        {
+            IntParams = [.. addon.IntParams],
+            StringParam = addon.StringParam,
+            VariableIds = [.. addon.VariableIds],
+        };
+        _wiredData.AttatchRules(GetIntParamRules(), GetIntParamTailRule());
+
+        return LoadWiredAsync(ct);
+    }
 
     /// <summary>The box's activation flash: Habbo flips most boxes between 0 and 1 each time they act.</summary>
     public virtual Task FlashActivationStateAsync(CancellationToken ct) =>
@@ -304,7 +353,7 @@ public abstract partial class FurnitureWiredLogic(
         }
     }
 
-    public List<int> GetDefaultIntParams()
+    public virtual List<int> GetDefaultIntParams()
     {
         var ints = new List<int>();
 
@@ -341,15 +390,6 @@ public abstract partial class FurnitureWiredLogic(
                 return false;
             }
 
-            RefuseUnpickableFurni(update.StuffIds);
-            RefuseUnpickableFurni(update.StuffIds2);
-
-            if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
-                stuffIds = validStuffIds;
-
-            if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
-                stuffIds2 = validStuffIds2;
-
             if (GetValidVariableIds(update.VariableIds, out var validVariableIds))
                 variableIds = [.. validVariableIds.Select(x => x.ToString())];
 
@@ -375,6 +415,16 @@ public abstract partial class FurnitureWiredLogic(
                 furniSources.Add(sourceTypes);
                 index++;
             }
+
+            // Checked against the slots as saved: a slot refuses only picks it reads.
+            RefuseUnpickableFurni(update.StuffIds, secondary: false, furniSources);
+            RefuseUnpickableFurni(update.StuffIds2, secondary: true, furniSources);
+
+            if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
+                stuffIds = validStuffIds;
+
+            if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
+                stuffIds2 = validStuffIds2;
 
             index = 0;
             var validPlayerSources = GetOfferedPlayerSources();
@@ -656,19 +706,58 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>The <c>wiredfurni.error.require_*</c> text for a pick <see cref="CanPickFurni"/> refuses.</summary>
     protected virtual string? PickRefusedErrorKey => null;
 
-    private void RefuseUnpickableFurni(List<int> proposed)
+    /// <summary>
+    /// The <c>wiredfurni.error.require_*</c> text a furni slot refuses the furni with, or null
+    /// when the slot takes it. For boxes whose slots take different furni (Send Signal: antennas,
+    /// then any furni to forward); a save is refused only for a pick list a slot reads as saved,
+    /// and picks stored before are left as they are.
+    /// </summary>
+    protected virtual string? RefusePickInSlot(int slot, IRoomItem item) => null;
+
+    /// <summary>Whether the furni is one of the antennas signals go to (<see cref="Configuration.WiredConfig.AntennaLogicNames"/>).</summary>
+    protected bool IsAntenna(IRoomItem item) =>
+        _roomGrain._wiredConfig.AntennaLogicNames is not { Length: > 0 } antennas
+        || antennas.Contains(item.Definition.LogicName, StringComparer.OrdinalIgnoreCase);
+
+    private void RefuseUnpickableFurni(
+        List<int> proposed,
+        bool secondary,
+        List<WiredFurniSourceType[]> furniSources
+    )
     {
         foreach (var proposedId in proposed)
         {
             if (
-                FurniModule.TryGetItem(
+                !FurniModule.TryGetItem(
                     WiredFurniIds.FromClient(FurniModule, proposedId),
                     out var item
-                ) && !CanPickFurni(item)
+                )
             )
+                continue;
+
+            if (item.IsTemporary && _roomGrain._wiredConfig.RefuseTemporaryFurniPicks)
+                throw new WiredSaveRefusedException(WiredSaveErrors.TEMP_FURNI_NOT_ALLOWED);
+
+            if (!CanPickFurni(item))
                 throw new WiredSaveRefusedException(PickRefusedErrorKey ?? WiredSaveErrors.GENERIC);
+
+            for (var slot = 0; slot < furniSources.Count; slot++)
+            {
+                if (
+                    ReadsPickList(furniSources[slot], secondary)
+                    && RefusePickInSlot(slot, item) is { } errorKey
+                )
+                    throw new WiredSaveRefusedException(errorKey);
+            }
         }
     }
+
+    private static bool ReadsPickList(WiredFurniSourceType[] sources, bool secondary) =>
+        secondary
+            ? sources.Contains(WiredFurniSourceType.SecondaryItems)
+            : sources.Any(x =>
+                x is WiredFurniSourceType.SelectedItems or WiredFurniSourceType.SnapshotItems
+            );
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {
@@ -881,6 +970,10 @@ public abstract partial class FurnitureWiredLogic(
 
             _wiredData.MarkDirty();
         }
+
+        // A copy runs on another box's furni: what it holds is not that furni's to keep.
+        if (IsImported)
+            return Task.CompletedTask;
 
         _wiredData.SetAction(() =>
         {

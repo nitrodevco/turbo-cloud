@@ -19,7 +19,8 @@ namespace Turbo.Web.Api;
 /// <summary>
 /// The public site's API, its own small web host beside the silo like the admin API, on its own
 /// address: the public domain's <c>/api</c> is sent here and reaches nothing of the panel. The site
-/// is served from the same domain, so there are no cross-origin requests to allow.
+/// is served from the same domain, so there are no cross-origin requests to allow, but for the
+/// Wired Variables endpoints' sites (<see cref="WiredApiConfig.AllowedOrigins"/>).
 /// </summary>
 internal sealed class WebApiServer(
     IServiceProvider services,

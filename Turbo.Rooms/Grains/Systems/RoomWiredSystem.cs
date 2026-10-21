@@ -76,6 +76,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // Events turned away because the queue was full, reported once per tick.
     private int _droppedEvents;
 
+    // Queued events the tick and the runs between it and the next may still start.
+    private int _eventsLeftThisTick;
+
     // The switched-on Wired Disablers in the room: while there is one, no trigger fires.
     private readonly HashSet<RoomObjectId> _disabledBy = [];
 
@@ -197,10 +200,62 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (!dormant)
             await ProcessTimedTriggersAsync(now, ct);
 
-        var budget = _roomGrain._wiredConfig.MaxEventsPerTick;
+        _eventsLeftThisTick = _roomGrain._wiredConfig.MaxEventsPerTick;
 
-        while (budget-- > 0 && _eventQueue.Count > 0)
+        await RunQueuedEventsAsync(now, ct);
+    }
+
+    /// <summary>
+    /// Runs the events raised since the wired tick at once, in the turn that raised them, rather
+    /// than on the next tick: Habbo runs a stack in the server tick of what fired it. The lamp a
+    /// Furni Is Used stack toggles changed 0-1 ms after the floor switch flipped, 3 of 3
+    /// (official client capture 2026-10-18, WIN63-202610151745); a Says stack's states came in
+    /// the same ms as the speaker's chat, 3 of 3 (2026-10-14, WIN63-202610131318). The room calls
+    /// it when a call into it ends and after its tick's last system. The events share the tick's
+    /// <c>WiredConfig.MaxEventsPerTick</c>; what is past it, or raised while stacks wait
+    /// to be rebuilt, before the room's initialization or while it is KILLED, waits for the tick.
+    /// </summary>
+    public async Task RunRaisedEventsAsync(CancellationToken ct)
+    {
+        if (_eventQueue.Count == 0 || _eventsLeftThisTick <= 0)
+            return;
+
+        if (_execution is not null || _collectingTickStates)
+            return;
+
+        if (
+            !_initialized
+            || _stacksById.Count == 0
+            || _dirtyStackIds.Count > 0
+            || _dirtyVariableBoxIds.Count > 0
+        )
+            return;
+
+        var now = _roomGrain.NowMs();
+
+        if (IsKilled(now))
+            return;
+
+        _collectingTickStates = true;
+
+        try
         {
+            await RunQueuedEventsAsync(now, ct);
+        }
+        finally
+        {
+            _collectingTickStates = false;
+
+            FlushPendingFloorStates();
+        }
+    }
+
+    private async Task RunQueuedEventsAsync(long now, CancellationToken ct)
+    {
+        while (_eventsLeftThisTick > 0 && _eventQueue.Count > 0)
+        {
+            _eventsLeftThisTick--;
+
             var evt = _eventQueue.Dequeue();
 
             if (evt is WiredSignalEvent signal)
@@ -320,6 +375,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
+                ForgetUserVisualization(playerLeftEvt.ObjectId);
                 QueueEvent(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
@@ -327,6 +383,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ForgetStoredValuesOfUnownedFurni(detatchedEvt.ObjectId);
                 ForgetProjectileFlight(detatchedEvt.ObjectId);
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
+                ForgetFurniVisualization(detatchedEvt.ObjectId);
                 break;
             default:
                 QueueEvent(evt);
@@ -1211,7 +1268,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var composers = ImmutableArray.CreateBuilder<IComposer>(3);
         var shownOrHidden =
             ctx.HiddenBeforeMove.Count > 0
-                ? _roomGrain.FurniModule.TakeHiddenWiredMoves(
+                ? FurniModule.TakeHiddenWiredMoves(
                     ctx.FloorItemMoves,
                     ctx.WallItemMoves,
                     ctx.HiddenBeforeMove

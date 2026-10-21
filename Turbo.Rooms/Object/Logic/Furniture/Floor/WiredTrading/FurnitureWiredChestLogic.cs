@@ -20,6 +20,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -151,7 +152,7 @@ public abstract class FurnitureWiredChestLogic(
                 if (!await CanOpenAsync(ctx))
                     return Reject(ctx, interaction, "may not look inside");
 
-                await _roomGrain.WiredChestSystem.CloseOtherChestsAsync(ctx.PlayerId, this, ct);
+                await WiredChestSystem.CloseOtherChestsAsync(ctx.PlayerId, this, ct);
                 await SetViewerCountAsync(await Chest.OpenAsync(Settings, ctx.PlayerId, ct));
 
                 return true;
@@ -212,6 +213,7 @@ public abstract class FurnitureWiredChestLogic(
                 Summary
             );
 
+        var before = AvailableAmount;
         var result = await Chest.DepositAsync(
             new WiredChestDepositRequest
             {
@@ -227,6 +229,15 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(
+            result,
+            before,
+            deposit: true,
+            WiredTransactionType.Manual,
+            ctx.PlayerId,
+            player.Name,
+            ct
+        );
 
         return result;
     }
@@ -246,6 +257,7 @@ public abstract class FurnitureWiredChestLogic(
         CancellationToken ct
     )
     {
+        var before = AvailableAmount;
         var result = await Chest.WithdrawAsync(
             new WiredChestWithdrawRequest
             {
@@ -262,6 +274,7 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(result, before, deposit: false, type, receiverId, receiverName, ct);
 
         return result;
     }
@@ -279,6 +292,7 @@ public abstract class FurnitureWiredChestLogic(
         CancellationToken ct
     )
     {
+        var before = AvailableAmount;
         var result = await Chest.DepositAsync(
             new WiredChestDepositRequest
             {
@@ -294,6 +308,7 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(result, before, deposit: true, type, depositorId, depositorName, ct);
 
         return result;
     }
@@ -337,6 +352,7 @@ public abstract class FurnitureWiredChestLogic(
         if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var player))
             return Reject(ctx, withdraw, "not in the room");
 
+        var before = AvailableAmount;
         var result = await Chest.WithdrawAsync(
             new WiredChestWithdrawRequest
             {
@@ -353,6 +369,15 @@ public abstract class FurnitureWiredChestLogic(
         );
 
         await ApplySummaryAsync(result.Summary, refresh: true);
+        await NotifyOwnerAsync(
+            result,
+            before,
+            deposit: false,
+            WiredTransactionType.Manual,
+            ctx.PlayerId,
+            player.Name,
+            ct
+        );
         await SendAsync(
             ctx.PlayerId,
             result.Failure is { } failure
@@ -420,6 +445,23 @@ public abstract class FurnitureWiredChestLogic(
             || preferences.Description.Length > config.DescriptionMaxLength
         )
             return Reject(ctx, preferences, "name or description too long");
+
+        if (config.RefuseUnacceptableText && UnacceptableTextError(preferences) is { } errorKey)
+        {
+            // The client shows it as "Update failed" over the settings, which stay open: they
+            // close on the success message only (ChestSettingsUI.as:127-132).
+            await SendAsync(
+                ctx.PlayerId,
+                new WiredValidationErrorEventMessageComposer
+                {
+                    LocalizationKey = errorKey,
+                    Parameters = [],
+                },
+                ct
+            );
+
+            return Reject(ctx, preferences, "name or description not allowed");
+        }
 
         // Flash only fills the preview dropdowns for a furni chest: a coin chest sends them unset
         // (-1 or 0), and so does a furni chest whose amount was never picked. Keep what is stored.
@@ -642,6 +684,73 @@ public abstract class FurnitureWiredChestLogic(
         await ApplyStateAsync();
     }
 
+    /// <summary>
+    /// Tells the chest's owner what a move did, as they asked in its notification settings
+    /// (<see cref="WiredChestNotices"/>): only what they ticked, only on a wired chest for the
+    /// wired-only kinds, and with "Only when I am not in the room" only while they are not in it.
+    /// An offline owner gets it at their next login.
+    /// </summary>
+    private async Task NotifyOwnerAsync(
+        WiredChestMoveResultSnapshot result,
+        int amountBefore,
+        bool deposit,
+        WiredTransactionType type,
+        PlayerId actorId,
+        string actorName,
+        CancellationToken ct
+    )
+    {
+        if (!result.Succeeded || !_roomGrain._wiredChestConfig.NotificationsEnabled)
+            return;
+
+        var ownerId = _ctx.RoomObject.OwnerId;
+
+        if (
+            (WiredChestNotifyMode)Number(WiredChestData.NOTIFY_MODE, 0)
+                == WiredChestNotifyMode.OnlyWhenNotInRoom
+            && AvatarModule.TryGetPlayer(ownerId, out _)
+        )
+            return;
+
+        var kinds = WiredChestNotices.For(
+            deposit,
+            type,
+            byOwner: actorId == ownerId,
+            amountBefore,
+            AvailableAmount,
+            Capacity
+        );
+
+        foreach (var kind in kinds)
+        {
+            var (flag, wiredOnly) = WiredChestNotices.PreferenceOf(kind);
+
+            if (!Flag(flag) || (wiredOnly && !IsWiredEnabled))
+                continue;
+
+            var parameters = ImmutableDictionary<string, string>
+                .Empty.Add(WiredChestNotices.PARAM_CHEST_NAME, ChestName)
+                .Add(WiredChestNotices.PARAM_USER_NAME, actorName);
+            var link = _roomGrain._wiredChestConfig.NotificationLink;
+
+            if (link.Length > 0)
+                parameters = parameters.Add(
+                    WiredChestNotices.PARAM_LINK,
+                    string.Format(CultureInfo.InvariantCulture, link, _ctx.RoomId.Value)
+                );
+
+            await _roomGrain._playerNoticeService.SendPersistentAsync(
+                ownerId,
+                kind,
+                parameters,
+                ct
+            );
+        }
+    }
+
+    private string ChestName =>
+        StuffData is IMapStuffData map ? map.ValueOf(WiredChestData.NAME) : string.Empty;
+
     private bool Changes(IReadOnlyDictionary<string, string> entries)
     {
         if (StuffData is not IMapStuffData map)
@@ -671,6 +780,17 @@ public abstract class FurnitureWiredChestLogic(
             : fallback;
 
     private static string Format(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Habbo's refusal for a name or description the word filter would change
+    /// (<c>wiredfurni.error.unacceptable_chest_name</c> "Chest name is not allowed",
+    /// <c>unacceptable_chest_desc</c>), or null when both are clean.
+    /// </summary>
+    private string? UnacceptableTextError(SetChestPreferencesInteraction preferences) =>
+        !_roomGrain._wordFilter.IsClean(preferences.Name) ? WiredSaveErrors.UNACCEPTABLE_CHEST_NAME
+        : !_roomGrain._wordFilter.IsClean(preferences.Description)
+            ? WiredSaveErrors.UNACCEPTABLE_CHEST_DESC
+        : null;
 
     private Task SendAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
         _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, composer, ct);

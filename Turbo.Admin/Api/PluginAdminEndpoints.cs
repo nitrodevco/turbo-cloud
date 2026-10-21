@@ -11,8 +11,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
-using Turbo.Admin.Plugins;
 using Turbo.Contracts.Plugins.Admin;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
@@ -31,7 +31,7 @@ namespace Turbo.Admin.Api;
 internal sealed class PluginAdminEndpoints(
     IGrainFactory grainFactory,
     IPluginAdminRoutes routes,
-    AdminPluginAudit audit,
+    AdminActionLog audit,
     IOptions<AdminConfig> config,
     ILogger<PluginAdminEndpoints> logger
 )
@@ -42,8 +42,13 @@ internal sealed class PluginAdminEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        secured.MapGet("/plugins/pages", PagesAsync);
-        secured.MapMethods("/plugins/{key}/api/{**path}", METHODS, CallAsync);
+        secured
+            .MapGet("/plugins/pages", PagesAsync)
+            .PanelOnly("Lists only the plugin pages whose node the caller holds.");
+        secured
+            .MapMethods("/plugins/{key}/api/{**path}", METHODS, CallAsync)
+            .PanelOnly("Any staff member may call a plugin route whose node they hold.")
+            .ChecksInHandler("Each plugin route declares its own node, checked when it is called.");
     }
 
     /// <summary>Each live plugin's pages its viewer may see, with the plugin's nodes they hold (for its actions).</summary>
@@ -84,6 +89,7 @@ internal sealed class PluginAdminEndpoints(
         if (method != "GET")
             await audit
                 .WriteAsync(
+                    AdminActionLog.PLUGIN,
                     AdminIdentity.Of(http).PlayerId,
                     $"call {key} {method} /{path} {result.Status}",
                     result.Status switch
@@ -256,7 +262,7 @@ internal sealed class PluginAdminEndpoints(
     }
 
     private Task<bool> HoldsAsync(HttpContext http, string node, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(AdminIdentity.Of(http).PlayerId, node, ct);
+        AdminIdentity.Of(http).HoldsAsync(grainFactory, node, ct);
 
     private sealed record Answer(int Status, string? Error, IResult? Value = null);
 }

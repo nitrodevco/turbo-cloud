@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -11,6 +12,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -198,41 +200,76 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
             return await FailAsync(ctx, interaction, $"no furni {recipe.Product}", ct);
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
-        // One operation: each ingredient used up in turn, then the product.
+        // One operation: the ingredients used up together, then the product.
         var cause = MovementCause.New(
             MovementCauses.USE_CRAFTING,
             ctx.PlayerId.Value,
             _ctx.ObjectId.Value
         );
-        var seq = 0;
 
-        foreach (var item in ingredients)
+        // All or none: one at a time, an ingredient gone since the mix was checked left the ones
+        // before it used up and nothing made.
+        var used = await inventory.ConsumeAllFurnitureAsync(
+            [.. ingredients.Select(x => x.ItemId)],
+            cause,
+            ct
+        );
+
+        if (used.IsEmpty)
         {
-            if (
-                await inventory.ConsumeFurnitureAsync(item.ItemId, cause.StartingAt(seq++), ct)
-                is null
-            )
-            {
-                _roomGrain._logger.LogError(
-                    "Crafting {Recipe} on item {ItemId} in room {RoomId}: ingredient {Ingredient} of player {PlayerId} went missing mid-craft",
-                    recipe.Code,
-                    _ctx.ObjectId,
-                    _ctx.RoomId,
-                    item.ItemId,
-                    ctx.PlayerId
-                );
+            _roomGrain._logger.LogWarning(
+                "Crafting {Recipe} on item {ItemId} in room {RoomId}: an ingredient of player {PlayerId} went missing; none used up",
+                recipe.Code,
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                ctx.PlayerId
+            );
 
-                return await FailAsync(ctx, interaction, "an ingredient went missing", ct);
-            }
+            return await FailAsync(ctx, interaction, "an ingredient went missing", ct);
         }
 
-        await inventory.GrantFurnitureAsync(product.Id, null, cause.StartingAt(seq), ct);
+        try
+        {
+            await inventory.GrantFurnitureAsync(
+                product.Id,
+                null,
+                cause.StartingAt(used.Length),
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Crafting {Recipe} on item {ItemId} in room {RoomId}: the product could not be given to player {PlayerId}; giving the ingredients back",
+                recipe.Code,
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                ctx.PlayerId
+            );
+
+            var giveBack = cause.ForRefund();
+
+            for (var i = 0; i < used.Length; i++)
+                await inventory.GrantFurnitureAsync(
+                    used[i].Definition.Id,
+                    used[i].ExtraData,
+                    giveBack.StartingAt(i),
+                    CancellationToken.None
+                );
+
+            return await FailAsync(ctx, interaction, "the product could not be given", ct);
+        }
 
         await SendAsync(
             ctx,
             new CraftingResultMessageComposer { Success = true, Product = Product(recipe) },
             ct
         );
+        // The widget waits for the inventory to call its list stale after a craft
+        // (CraftingWidgetHandler.registerForFurniListInvalidate), then asks for the list and the
+        // table again; until then its inventory and mixer take no presses (inventoryDirty).
+        await SendAsync(ctx, new FurniListInvalidateEventMessageComposer(), ct);
 
         return true;
     }

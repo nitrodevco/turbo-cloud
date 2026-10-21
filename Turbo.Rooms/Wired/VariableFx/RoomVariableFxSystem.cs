@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -24,6 +25,8 @@ using Turbo.Primitives.Rooms.Snapshots.Wired.VariableFx;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired.VariableFx;
 
@@ -61,6 +64,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
     // The viewers of the flush under way, beside the player each one is.
     private readonly List<(IRoomPlayer Player, VariableFxViewer Viewer)> _flushViewers = [];
+
+    // The fx past their variable box's limit when the bindings were last built.
+    private readonly HashSet<RoomObjectId> _overLimitIds = [];
 
     private bool _configsDirty = true;
     private bool _statusesDirty = true;
@@ -145,12 +151,22 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         _configsDirty = false;
 
         var found = new Dictionary<int, VariableFxBinding>();
+        var countsByVariable = new Dictionary<RoomObjectId, int>();
+        var perVariable = _roomGrain._wiredConfig.VariableFxMaxPerVariable;
 
-        foreach (var item in FurniModule.Items)
+        // The fx an import add-on takes over count as boxes of this room, under their own ids.
+        var boxes = FurniModule.Items.SelectMany<IRoomItem, FurnitureWiredVariableFxLogic>(item =>
+            item.Logic switch
+            {
+                FurnitureWiredVariableFxLogic box => [box],
+                WiredVariableReference reference =>
+                    reference.ImportedAddons.OfType<FurnitureWiredVariableFxLogic>(),
+                _ => [],
+            }
+        );
+
+        foreach (var box in boxes.OrderBy(x => x.ObjectId))
         {
-            if (item.Logic is not FurnitureWiredVariableFxLogic box)
-                continue;
-
             if (!box.IsLoaded)
             {
                 _configsDirty = true;
@@ -161,8 +177,29 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             if (found.Count >= _roomGrain._wiredConfig.VariableFxMaxBoxes)
                 break;
 
-            found[item.ObjectId] = new VariableFxBinding(box, box.BuildConfig());
+            // Past its variable box's limit an fx is kept, and its config sent, but not drawn;
+            // the oldest fx on a variable box (lowest id) are the ones drawn (inferred).
+            var overLimit = false;
+
+            if (perVariable > 0 && box.GetShownVariable() is { } variable)
+            {
+                var count = countsByVariable.GetValueOrDefault(variable.ObjectId) + 1;
+
+                countsByVariable[variable.ObjectId] = count;
+                overLimit = count > perVariable;
+            }
+
+            found[box.ObjectId] = new VariableFxBinding(box, box.BuildConfig(), overLimit);
         }
+
+        foreach (var binding in found.Values.Where(x => x.OverLimit))
+        {
+            if (!_overLimitIds.Contains(binding.Box.ObjectId))
+                WiredSystem.RecordError(WiredErrorKind.VariableFxLimit, _roomGrain.NowMs());
+        }
+
+        _overLimitIds.Clear();
+        _overLimitIds.UnionWith(found.Values.Where(x => x.OverLimit).Select(x => x.Box.ObjectId));
 
         var removed = _bindingsByConfigId
             .Keys.Where(id => !found.ContainsKey(id))
@@ -258,7 +295,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
     {
         var box = binding.Box;
 
-        if (box.GetShownVariable() is not { } variable)
+        if (binding.OverLimit || box.GetShownVariable() is not { } variable)
             return;
 
         var variableId = variable.GetVarSnapshot().VariableId;

@@ -7,6 +7,7 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Room.Session;
 
@@ -17,12 +18,14 @@ namespace Turbo.PacketHandlers.Room.Session;
 public class OpenFlatConnectionMessageHandler(
     IRoomService roomService,
     IGrainFactory grainFactory,
-    INavigatorService navigatorService
+    INavigatorService navigatorService,
+    IClientTelemetry telemetry
 ) : IMessageHandler<OpenFlatConnectionMessage>
 {
     private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly INavigatorService _navigatorService = navigatorService;
+    private readonly IClientTelemetry _telemetry = telemetry;
 
     public ValueTask HandleAsync(
         OpenFlatConnectionMessage message,
@@ -63,6 +66,10 @@ public class OpenFlatConnectionMessageHandler(
             : RoomEntryAccessType.NotFound;
 
         RoomTelemetry.RecordEntryAccess(access);
+
+        // The login's first room; the telemetry keeps only the first per session.
+        if (access == RoomEntryAccessType.Allowed)
+            _telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.ROOM_ENTER);
 
         await _roomService
             .OpenRoomForPlayerIdAsync(

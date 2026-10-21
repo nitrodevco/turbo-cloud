@@ -13,6 +13,7 @@ using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
+using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
@@ -719,6 +720,10 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                 files,
                 writes,
                 _settings.Settings,
+                new HabboGamedataClient(
+                    new Fakes().Create<IHttpClientFactory>(),
+                    NullLogger<HabboGamedataClient>.Instance
+                ),
                 NullLogger<GamedataVariableService>.Instance
             ),
             new GamedataTextService(

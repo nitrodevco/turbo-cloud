@@ -594,7 +594,7 @@ internal sealed partial class RoomService(
 
         // The room as one batch to the player, in Habbo's order (hhus, four entries on two builds,
         // 2026-10-13): RoomReady, RoomEntryTile, the room's properties, the maps, the
-        // visualization, Users, Objects, Items. The rest of the entry, from the player's own
+        // visualization, Users, the kept WIRED visualization states, Objects, Items. The rest of the entry, from the player's own
         // avatar to the raid protection, comes from the room as it makes the avatar
         // (SetActiveRoomAsync). The room's chat settings are not part of it: the client takes
         // them from GetGuestRoomResult.
@@ -673,6 +673,9 @@ internal sealed partial class RoomService(
                 FloorThickness = snapshot.FloorThickness,
             },
             new UsersMessageComposer { Avatars = view.Avatars },
+            // Right after the first Users, before Objects; not sent when empty (official client
+            // capture 2026-10-20, 3 of 3 entries each way).
+            .. view.WiredVisualization,
             new ObjectsMessageComposer
             {
                 OwnerNames = view.OwnerNames,

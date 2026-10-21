@@ -3,8 +3,9 @@ using Orleans;
 namespace Turbo.Primitives.Gamedata.Snapshots;
 
 /// <summary>
-/// One of Habbo's reception values beside the hotel's: a variable (its value as the hotel keeps
-/// it, JSON) or a text (as the file writes it).
+/// One of Habbo's values beside the hotel's - the reception's, or a variable under a prefix
+/// (<see cref="HabboVariablesPreview"/>): a variable (its value as the hotel keeps it, JSON) or a
+/// text (as the file writes it).
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record HotelViewHabboEntry

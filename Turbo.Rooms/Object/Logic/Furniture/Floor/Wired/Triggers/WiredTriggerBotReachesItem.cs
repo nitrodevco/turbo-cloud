@@ -31,6 +31,13 @@ public class WiredTriggerBotReachesItem(
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.PickedFurni];
 
+    // Which bot: the one named in the box, or a selector's, like Bot Reached Avatar (official
+    // server: a fresh box offers users [[100,200]], default [100], 2026-10-20T17-31-49-Open-wait).
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [WiredPlayerSourceType.BotByName, WiredPlayerSourceType.SelectorUsers],
+        ];
+
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is not BotReachedItemEvent reached)
@@ -38,13 +45,18 @@ public class WiredTriggerBotReachesItem(
 
         var botName = GetStringParam();
 
-        if (botName.Length > 0 && !NamesMatch(reached.BotName, botName))
+        if (IsBotByName() && botName.Length > 0 && !NamesMatch(reached.BotName, botName))
             return Task.FromResult(false);
 
         var stuffIds = GetStuffIds();
 
         return Task.FromResult(stuffIds.Count == 0 || stuffIds.Contains(reached.FurniId));
     }
+
+    // A selector's bots are not known before the stack runs, so that source does not narrow
+    // which bot fires the trigger here; only a name does.
+    private bool IsBotByName() =>
+        GetPlayerSources() is not [var slot, ..] || slot.Contains(WiredPlayerSourceType.BotByName);
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {

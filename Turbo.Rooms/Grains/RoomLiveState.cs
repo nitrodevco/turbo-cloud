@@ -19,6 +19,9 @@ internal sealed class RoomLiveState
     public required RoomId RoomId { get; init; }
     public RoomSnapshot RoomSnapshot { get; set; } = default!;
 
+    /// <summary>The owner's account level when the room loaded; it sizes the wired usage cap.</summary>
+    public int OwnerAccountLevel { get; set; } = PlayerAccountLevel.DEFAULT;
+
     public Dictionary<RoomObjectId, IRoomItem> ItemsById { get; } = [];
 
     /// <summary>Counts up each time an item enters or leaves the room; caches of "which of these are here" key on it.</summary>

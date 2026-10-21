@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -12,12 +13,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Assets;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Hab;
 using Turbo.Assets.Nitro;
+using Turbo.Assets.Swf;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
+using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
@@ -41,7 +45,8 @@ namespace Turbo.Gamedata.Habbo.Client;
 /// <item><c>habbo-localization-com</c>: the client's embedded texts, a
 /// <c>DefaultLocalizations_&lt;lang&gt;.json</c> per language;</item>
 /// <item>a window template bundle for each library with a layout, the UI theme in the window
-/// manager's (<see cref="ClientTemplates"/>, <see cref="Theme.ClientTheme"/>).</item>
+/// manager's (<see cref="ClientTemplates"/>, <see cref="Theme.ClientTheme"/>), with the bitmaps
+/// Habbo embeds in its AIR client only (<see cref="ClientAirImages"/>).</item>
 /// </list>
 /// A bundle is stamped with the library's hash, so a release that leaves a library as it was builds
 /// nothing again; one the hotel uploaded itself is left alone. Then the chat styles follow the
@@ -53,6 +58,7 @@ internal sealed partial class ClientBundleBuilder(
     IAssetBundleStore store,
     HabboClientService client,
     IChatStyleService chatStyles,
+    IOptions<GamedataConfig> config,
     TimeProvider time,
     ILogger<ClientBundleBuilder> logger
 ) : IHabboClientBuilds
@@ -70,7 +76,7 @@ internal sealed partial class ClientBundleBuilder(
     private const string TEMPLATES_PREFIX = "templates:";
 
     /// <summary>Changed when the templates are packed differently, so every one is built again.</summary>
-    private const string TEMPLATES_BUILD = "1";
+    private const string TEMPLATES_BUILD = "2";
 
     /// <summary>The libraries with a bundle of their own, built from what the hotel keeps of them: never packed as templates.</summary>
     private static readonly HashSet<string> OWN_BUILDS = new(StringComparer.Ordinal)
@@ -365,8 +371,9 @@ internal sealed partial class ClientBundleBuilder(
     /// <summary>
     /// The window template bundles (<see cref="ClientTemplates"/>): one for each library of the
     /// release with a <c>&lt;layout&gt;</c>, and the window manager's, which every one draws from. All
-    /// are stamped with the release's libraries, so they are built again, together, when one changes;
-    /// a bundle of a library the release no longer has is taken away, and an uploaded one left alone.
+    /// are stamped with the release's libraries and the AIR client their images were taken from, so
+    /// they are built again, together, when one changes; a bundle of a library the release no longer
+    /// has is taken away, and an uploaded one left alone.
     /// </summary>
     private async Task<TemplatesBuilt?> TemplatesAsync(
         TurboDbContext dbCtx,
@@ -381,15 +388,22 @@ internal sealed partial class ClientBundleBuilder(
             .FileHashes.Where(x => x.Key.EndsWith(".hab", StringComparison.Ordinal))
             .OrderBy(x => x.Key, StringComparer.Ordinal)
             .ToList();
-        var revision =
+        var air = config.Value.ClientAirImages
+            ? await client.NewestAirAsync(ct).ConfigureAwait(false)
+            : null;
+
+        string Revision(string? airVersion) =>
             $"{TEMPLATES_PREFIX}{TEMPLATES_BUILD}:"
             + Convert.ToHexStringLower(
                 SHA256.HashData(
                     Encoding.UTF8.GetBytes(
                         string.Join("\n", habs.Select(x => $"{x.Key}={x.Value}"))
+                            + (airVersion is null ? "" : $"\nair={airVersion}")
                     )
                 )
             )[..32];
+
+        var revision = Revision(air?.Version);
         var rows = await dbCtx
             .AssetBundles.Where(x => x.Kind == AssetBundleKind.Template)
             .ToDictionaryAsync(x => x.Name, ct)
@@ -443,7 +457,12 @@ internal sealed partial class ClientBundleBuilder(
             return new TemplatesBuilt(0, [], []);
         }
 
-        var packed = ClientTemplates.Pack(release.Version, libraries, windowManager);
+        var airImages = await AirImagesAsync(air, libraries, note, ct).ConfigureAwait(false);
+
+        // Stamped without the AIR client when its images could not be taken, so the next build tries again.
+        revision = Revision(airImages is null ? null : air?.Version);
+
+        var packed = ClientTemplates.Pack(release.Version, libraries, windowManager, airImages);
         var built = 0;
 
         if (
@@ -491,6 +510,76 @@ internal sealed partial class ClientBundleBuilder(
             [.. packed.Bundles.Keys.Order(StringComparer.Ordinal)],
             packed.Problems
         );
+    }
+
+    /// <summary>
+    /// The bitmaps the libraries' classes embed in Habbo's newest AIR client that the libraries lack
+    /// (<see cref="ClientAirImages"/>), each library's named in the build's notes; null when there is
+    /// no AIR client to take them from, or it could not be read.
+    /// </summary>
+    private async Task<Dictionary<string, Dictionary<string, byte[]>>?> AirImagesAsync(
+        (string Version, string Url)? air,
+        IReadOnlyList<(string Name, HabLibrary Hab)> libraries,
+        Action<string> note,
+        CancellationToken ct
+    )
+    {
+        if (!config.Value.ClientAirImages)
+            return null;
+
+        if (air is not { } newest)
+        {
+            note(
+                "No environment named Habbo's AIR client when last checked: the images it alone has are left out."
+            );
+
+            return null;
+        }
+
+        ClientAirImages.Taken taken;
+
+        try
+        {
+            var swf = SwfLibrary.Read(
+                await client.ReadAirAsync(newest.Version, newest.Url, ct).ConfigureAwait(false)
+            );
+
+            taken = ClientAirImages.Missing(swf, libraries);
+        }
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or InvalidDataException
+                        or IOException
+                        or AssetFormatException
+                        or TaskCanceledException
+                && !ct.IsCancellationRequested
+            )
+        {
+            logger.LogWarning(
+                ex,
+                "Habbo's AIR client {Version} could not be read for its images",
+                newest.Version
+            );
+            note(
+                $"Habbo's AIR client {newest.Version} could not be read: the images it alone has are left out ({ex.Message})."
+            );
+
+            return null;
+        }
+
+        foreach (var (library, images) in taken.Images.OrderBy(x => x.Key, StringComparer.Ordinal))
+            note(
+                $"{library}: {images.Count} images taken from Habbo's AIR client {newest.Version}: {string.Join(", ", images.Keys)}"
+            );
+
+        foreach (var problem in taken.Problems)
+            note($"An image of Habbo's AIR client {newest.Version} could not be read: {problem}");
+
+        if (taken.Images.Count == 0)
+            note($"Habbo's AIR client {newest.Version} has no image the libraries lack.");
+
+        return taken.Images;
     }
 
     /// <summary>

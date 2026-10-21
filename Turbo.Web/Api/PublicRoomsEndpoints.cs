@@ -42,8 +42,12 @@ internal sealed class PublicRoomsEndpoints(
         api.MapGet("/public/users/{id}/rooms", PlayerRoomsAsync);
     }
 
-    private async Task<IResult> RoomAsync(int roomId, CancellationToken ct)
+    // Plain GETs without headers of their own, so a browser asks no preflight; it only needs
+    // leave to read the answer.
+    private async Task<IResult> RoomAsync(HttpContext http, int roomId, CancellationToken ct)
     {
+        ApiCors.AllowOrigin(http, Api.AllowedOrigins);
+
         var rooms = await PublicRoomsAsync(room => room.Id == roomId, ct).ConfigureAwait(false);
 
         return rooms.Length == 0 ? NotFound() : Results.Ok(rooms[0]);
@@ -52,8 +56,10 @@ internal sealed class PublicRoomsEndpoints(
     private static IResult NotFound() => Results.Json(new { error = "not-found" }, statusCode: 404);
 
     /// <summary>The player's rooms, oldest first; 404 for no such player or a hidden profile, not an empty list.</summary>
-    private async Task<IResult> PlayerRoomsAsync(string id, CancellationToken ct)
+    private async Task<IResult> PlayerRoomsAsync(HttpContext http, string id, CancellationToken ct)
     {
+        ApiCors.AllowOrigin(http, Api.AllowedOrigins);
+
         if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var playerId))
             return Results.Json(
                 new

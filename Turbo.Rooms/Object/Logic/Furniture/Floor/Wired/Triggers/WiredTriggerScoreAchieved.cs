@@ -31,7 +31,7 @@ public class WiredTriggerScoreAchieved(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(1, 1000, 1),
+            new WiredRangeParamRule(1, 1000, 100),
             new WiredEnumParamRule<GameTeamType>(GameTeamType.None),
         ];
 
@@ -40,7 +40,7 @@ public class WiredTriggerScoreAchieved(
         if (evt is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
-        var points = GetIntParamOrDefault(0, 1);
+        var points = GetIntParamOrDefault(0, 100);
         var team = GetIntParamOrDefault(1, GameTeamType.None);
 
         if (team != GameTeamType.None && team != score.Team)

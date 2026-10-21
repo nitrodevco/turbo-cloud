@@ -10,6 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -74,8 +75,10 @@ public abstract class FurnitureWiredGiveFromChestLogic(
             ),
             new WiredRangeParamRule(1, int.MaxValue, 1),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
-            new WiredBoolParamRule(false),
+            // The official server opens a fresh box reading a context variable with the pop-up
+            // ticked (both kinds, defaults [0,1,0,-20,1,..], 2026-10-20T17-39-35-Open-wait).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
+            new WiredBoolParamRule(true),
             KindParamRule,
         ];
 
@@ -89,6 +92,17 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users, WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];
+
+    // The chests slot takes Wired chests of the box's kind; a normal chest does not give to an
+    // effect (require_coin_chests / require_furni_chests and their note; which box sends which
+    // text is inferred from the wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot != SLOT_CHESTS
+        || item.Logic is FurnitureWiredChestLogic { IsWiredEnabled: true } chest
+            && chest.Kind == Kind
+            ? null
+        : Kind == WiredChestKind.Coins ? WiredSaveErrors.REQUIRE_COIN_CHESTS
+        : WiredSaveErrors.REQUIRE_FURNI_CHESTS;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -207,7 +221,7 @@ public abstract class FurnitureWiredGiveFromChestLogic(
                             ],
                         },
                         RewardText = _roomGrain._wordFilter.Filter(GetStringParam()),
-                        OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, false),
+                        OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, true),
                     },
                 },
                 ct

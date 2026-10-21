@@ -3,6 +3,7 @@ using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -56,7 +57,9 @@ public class WiredConditionChestHasItems(
         [
             new WiredRangeParamRule(0, MAX_VALUE, 0),
             new WiredBoolParamRule(false),
-            WiredRules.VariableTarget(WiredVariableTargetType.Furni),
+            // A fresh box reads a context variable on the official server (both chest
+            // conditions: defaults [0,0,-20,2], 2026-10-20T17-37-19-Open-wait).
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
         ];
 
@@ -64,6 +67,13 @@ public class WiredConditionChestHasItems(
     // (official client capture).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.Furni, WiredSources.Furni.DefaultingTo(WiredFurniSourceType.SelectorItems)];
+
+    // The chests slot takes chests of either kind (wiredfurni.error.require_chests; which box
+    // the text is for is inferred from its wording).
+    protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
+        slot != ChestSlot || item.Logic is FurnitureWiredChestLogic
+            ? null
+            : WiredSaveErrors.REQUIRE_CHESTS;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users.DefaultingTo(WiredPlayerSourceType.SelectorUsers)];

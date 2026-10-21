@@ -396,6 +396,13 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   tells the player grain with `LogAndForget`: the player grain tells the presence, the presence
   comes back to this room to update the avatar, and a room waiting on that waits on itself.
   The mannequin awaited it and would have hung for the grain timeout on every use.
+- A furni used up for what it gives (credit furni, a crackable, a pet product, a present) goes
+  first and pays second: `RoomActionModule.DeleteItemByIdAsync` writes the item's destruction
+  before it returns and throws when that write fails, and only then does the caller grant. A
+  credit is paid under a reference of the item's own (`FurnitureExchangeLogic.CreditReference`),
+  so a repeat pays nothing, and a grant that is refused gives the item back
+  (`GiveBackUsedItemAsync`). Paid first, a delete that failed or a crash in between left the
+  item to be used again.
 - A furni that lets a player build without room rights implements `IRoomBuildArea`; the
   placement path asks through `RoomFurniModule.HasBuildAreaRights` once room rights said no,
   for a new item and for moving one's own item inside the area. It does not check for a rentable
@@ -1274,6 +1281,15 @@ out of pulling it apart; they hold for any system that grows the same way.
 - Do not send directly to raw sockets/session transports from packet handlers.
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
+
+## Admin API routes
+- Every admin route declares who may call it (`RequirePermission`, `RequirePermissionToChange`,
+  or a note: `PanelOnly`, `ViewIsEnough`, `ChecksInHandler`, each with its reason); the session
+  filter checks it before the handler runs (`docs/admin-panel.md`, *How a route says who may call
+  it*). A handler does not check a node to decide whether it may run: a route whose author forgot
+  that check was open to anyone with `admin.panel`, and the same action needed different nodes
+  in different files. `AdminAccessGuardTests` reads every route and fails on one that declares
+  nothing.
 
 ## Packet handler extensions
 When two or more handlers do the same thing around their grain call — the same grain call, the

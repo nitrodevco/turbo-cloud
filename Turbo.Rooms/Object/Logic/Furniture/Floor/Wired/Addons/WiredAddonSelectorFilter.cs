@@ -48,7 +48,9 @@ public abstract class WiredAddonSelectorFilter(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(1, 1000, 1),
+            // A fresh box keeps 10 on the official server (furni and users filters: defaults
+            // [10,0,1], 2026-10-14T09-35-43-Open-wait, 2026-10-20T17-35-39-Open-wait).
+            new WiredRangeParamRule(1, 1000, 10),
             new WiredBoolParamRule(false),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
@@ -80,7 +82,7 @@ public abstract class WiredAddonSelectorFilter(
 
     private long ResolveCount(IWiredProcessingContext ctx)
     {
-        long count = GetIntParamOrDefault(0, 1);
+        long count = GetIntParamOrDefault(0, 10);
 
         if (!GetIntParamOrDefault(1, false))
             return count;

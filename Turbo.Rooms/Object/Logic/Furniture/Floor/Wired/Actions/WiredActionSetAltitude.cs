@@ -32,7 +32,7 @@ public class WiredActionSetAltitude(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(0, 8000, 0),
-            new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Set),
+            new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Add),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
@@ -40,7 +40,7 @@ public class WiredActionSetAltitude(
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var amount = GetIntParamOrDefault(0, 0);
-        var op = GetIntParamOrDefault(1, WiredOperatorType.Set);
+        var op = GetIntParamOrDefault(1, WiredOperatorType.Add);
         var maxAltitude = _roomGrain._roomConfig.MaxStackHeight.ToInt();
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))

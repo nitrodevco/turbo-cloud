@@ -26,4 +26,12 @@ public sealed class PublicApiConfig
     /// </summary>
     [UrlSetting]
     public string RoomImageUrl { get; init; } = "";
+
+    /// <summary>
+    /// Sites whose pages may read these endpoints from a browser (CORS): their origins
+    /// (<c>https://example.com</c>), or <c>*</c> for any site, never with credentials. Any by
+    /// default, as Habbo's: its API answered cross-origin requests for a room from any origin
+    /// (browser check, 2026-10-20). An empty list allows none.
+    /// </summary>
+    public string[] AllowedOrigins { get; init; } = ["*"];
 }

@@ -562,10 +562,12 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             return carried;
 
         carried.AddRange(
-            AvatarModule.GetAvatarsOnItem(
-                floorItem,
-                standingOnIt: carryMode == WiredCarryUserType.StandingOnFurni
-            )
+            AvatarModule
+                .GetAvatarsOnItem(
+                    floorItem,
+                    standingOnIt: carryMode == WiredCarryUserType.StandingOnFurni
+                )
+                .Where(avatar => Policy.CarryUserIds?.Contains(avatar.ObjectId) ?? true)
         );
 
         return carried;

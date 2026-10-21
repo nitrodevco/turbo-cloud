@@ -62,13 +62,25 @@ public class WiredConfig
     /// The room's wired usage budget, the monitor's "usage" limit. Usage is what recent executions
     /// cost, decaying over time; an execution that takes it past this is cancelled and
     /// EXECUTION_CAP is counted ("an execution is cancelled when it would exceed the usage cap",
-    /// in-client error help). Habbo sizes it per room by a formula it does not disclose, and the
-    /// permanent variable caps below scale with it (official client captures of WiredRoomStats):
-    /// 4687.5 with 23 / 93 / 70 variables for an owner of level 13, 2500 with 12 / 50 / 37 in
-    /// another room (WIN63-202610131318), a factor of about 1.875 throughout. The defaults are the
-    /// first room's, so cap and variable limits come from one room. 0 or less is no cap.
+    /// in-client error help). Habbo sizes it by the room owner's account level when the room
+    /// loads: max(2500, 312.5 x (level + 2)) fits every official client capture of WiredRoomStats
+    /// (2500 for levels 3 and 4, 2812.5 for 7, 4687.5 for 13; WIN63-202610131318 and
+    /// WIN63-202610201032), and a room loaded before its owner levelled up keeps its old cap
+    /// until it unloads. This is the least cap, and every room's when
+    /// <see cref="ExecutionCostCapPerOwnerLevel"/> is 0. 0 or less is no cap. The default keeps
+    /// every room at the level 13 cap, as before: this hotel's account levels are all the default
+    /// one, so Habbo's sizing (2500 and 312.5) would shrink every room. Set those two once
+    /// account levels are earned.
     /// </summary>
     public double ExecutionCostCap { get; init; } = 4687.5;
+
+    /// <summary>
+    /// What each of the owner's account levels (plus <see cref="ExecutionCostCapOwnerLevelOffset"/>)
+    /// is worth in usage cap, when that comes to more than <see cref="ExecutionCostCap"/>; 0 (the
+    /// default) is one cap for every room. Habbo's: 312.5.
+    /// </summary>
+    public double ExecutionCostCapPerOwnerLevel { get; init; }
+    public int ExecutionCostCapOwnerLevelOffset { get; init; } = 2;
 
     // What an execution adds to the usage: each stack it runs, each action, and each furni or
     // user an action works on (a signal's antennas and a call's stacks are not targets). Habbo's
@@ -124,13 +136,21 @@ public class WiredConfig
     public int MaxWallItems { get; init; } = 4000;
 
     /// <summary>
-    /// Permanent variable definitions a room may hold per kind. Habbo sizes these per room with
-    /// its usage cap (<see cref="ExecutionCostCap"/>): official client captures show 23 furni / 93
-    /// user / 70 global with a cap of 4687.5, and 12 / 50 / 37 with 2500.
+    /// Permanent variable definitions a room may hold per kind, per 10000 of its usage cap
+    /// (<see cref="ExecutionCostCap"/> for its owner's level), rounded down: official client
+    /// captures of WiredRoomStats show 12 furni / 50 user / 37 global at 2500, 14 / 56 / 42 at
+    /// 2812.5 and 23 / 93 / 70 at 4687.5. 0 or less is no cap for that kind.
     /// </summary>
-    public int MaxPermanentFurniVariables { get; init; } = 23;
-    public int MaxPermanentUserVariables { get; init; } = 93;
-    public int MaxPermanentGlobalVariables { get; init; } = 70;
+    public int PermanentFurniVariablesPer10000Cap { get; init; } = 50;
+    public int PermanentUserVariablesPer10000Cap { get; init; } = 200;
+    public int PermanentGlobalVariablesPer10000Cap { get; init; } = 150;
+
+    /// <summary>
+    /// Whether only a variable box's owner and the room's owner may save it; anyone else with
+    /// wired rights is refused with <c>wiredfurni.error.variables.permissions.2</c> ("Only the
+    /// owner of this wired variable or room owner has the permission to make this change.").
+    /// </summary>
+    public bool VariableBoxOwnersOnly { get; init; } = true;
 
     // The bounds a saved box is checked against.
     // Tiles an area selector may cover; 0 or less is no cap beyond the room's map, which is how
@@ -149,11 +169,53 @@ public class WiredConfig
     public bool PlaceFurniBuildersClubOnly { get; init; } = true;
 
     /// <summary>
+    /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,
+    /// as on Habbo ("Steady Color Tint only works on BC or temporary furniture. Normal furniture
+    /// cannot use this setting.", <c>wiredfurni.error.set_furni_highlight.normal_furni</c>): a
+    /// save that picks other furni is refused and other furni a selector finds are left out. Off
+    /// lets any furni be tinted.
+    /// </summary>
+    public bool FurniHighlightSteadyTintBuildersClubOnly { get; init; } = true;
+
+    /// <summary>
+    /// The strengths Set Highlight's Darken may be saved with; keep it equal to the client variable
+    /// <c>wired.furni_highlight.darken_levels</c>, which the editor offers. Habbo's is <c>0</c>
+    /// (official external variables 2026-10-20), which hides Darken and refuses any strength above 0
+    /// with <c>wiredfurni.error.set_furni_highlight.invalid_strength</c>.
+    /// </summary>
+    public int[] FurniHighlightDarkenLevels { get; init; } = [0];
+
+    /// <summary>
     /// How long a player told that Place Temporary Furni could not place a copy is not told again;
     /// Habbo's is about 5 s (recorded: none 4.4 s after the last, one 6.6 s after). 0 tells them
     /// on every run that fails.
     /// </summary>
     public int PlacementFailureNotificationCooldownMs { get; init; } = 5000;
+
+    /// <summary>
+    /// Who gets the <c>wired.error</c> bubble when a room hits a wired limit Habbo has a text for
+    /// (<c>room.error.wired.execution_cap</c>, <c>delayed_events_cap</c>, <c>executor_overload</c>,
+    /// <c>marked_as_heavy</c>, <c>too_many_variables</c>, <c>transaction_failure</c>; official texts,
+    /// <c>notification.wired.error={"display":"BUBBLE"}</c> official external variables). Habbo
+    /// told the room's owner of the usage cap (official client capture 2026-10-20, the owner alone
+    /// in the room, timer-driven load); whether others in the room are told too is not known.
+    /// </summary>
+    public WiredErrorNoticeRecipients ErrorNoticeRecipients { get; init; } =
+        WiredErrorNoticeRecipients.Owner;
+
+    /// <summary>
+    /// How long one room does not repeat the bubble for the same error. Habbo repeated the usage
+    /// cap's every 20.0 s while the room stayed over the cap (official client capture 2026-10-20,
+    /// 5 of 5 intervals), and counted EXECUTION_CAP once per bubble; the other errors' interval is
+    /// inferred from it.
+    /// </summary>
+    public int ErrorNoticeCooldownMs { get; init; } = 20000;
+
+    /// <summary>
+    /// The bubble's image; empty lets the client pick its default for the type. Habbo's carries
+    /// <c>album1584/WIRD2.png</c> (usage cap and placement failure, recorded).
+    /// </summary>
+    public string ErrorNoticeImage { get; init; } = "${image.library.url}album1584/WIRD2.png";
 
     /// <summary>
     /// Whether a player entering a room whose wired writes <c>$(trigger_text)</c> is told that the
@@ -164,11 +226,43 @@ public class WiredConfig
     public bool NotifyTriggerTextCaptureOnEntry { get; init; } = true;
 
     /// <summary>
+    /// Whether Says Keyword reads whispers, unless the whisperer ticked "Disable whispering to
+    /// Wired" (<c>memenu.settings.wired_whisper_read_disable</c>, AccountPreferences
+    /// wiredWhisperDisabled). Habbo's does (official client capture 2026-10-20: 5 of 5 whispers
+    /// fired, to an absent name and to oneself alike; 0 of 2 with the box ticked, chat still firing).
+    /// </summary>
+    public bool ReadWhispers { get; init; } = true;
+
+    /// <summary>
+    /// Whether a player whose whisper fired a Says Keyword box is told so
+    /// (<c>room.error.wired.whisper_read</c>, "Wired detected your whisper message"). Off as Habbo
+    /// sent none to a room owner whispering (official client capture 2026-10-20, 0 of 7); whether a
+    /// visitor is told is not known.
+    /// </summary>
+    public bool NotifyWhisperRead { get; init; }
+
+    /// <summary>
     /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
     /// that work on any furni's state, position, type or variables may (the editor's
     /// <c>allowWallFurni</c>, per box); off, none may.
     /// </summary>
     public bool AllowWallFurni { get; init; } = true;
+
+    /// <summary>
+    /// Whether a save that picks a temporary furni (placed by wired) is refused with Habbo's
+    /// <c>wiredfurni.error.temp_furni_not_allowed</c> ("Can not select temporary furni in Wired.").
+    /// Temporary ids are handed out again, so a stored pick could later name another furni.
+    /// That every box refuses them is inferred from the text. Off lets them be picked.
+    /// </summary>
+    public bool RefuseTemporaryFurniPicks { get; init; } = true;
+
+    /// <summary>
+    /// The furni logics Send Signal and Receive Signal take as antennas
+    /// (<c>wiredfurni.error.require_antenna_furni</c>, "Can only select antenna furni."); Habbo's
+    /// antennas are <c>wf_antenna1</c> and <c>wf_antenna2</c> (official furnidata 2026-10-13).
+    /// Empty lets any furni be an antenna.
+    /// </summary>
+    public string[] AntennaLogicNames { get; init; } = ["wf_antenna1", "wf_antenna2"];
     public int MaxIntParams { get; init; } = 16;
     public int MaxCoordinate { get; init; } = 255;
     public int StringParamMaxLength { get; init; } = 2000;
@@ -234,8 +328,21 @@ public class WiredConfig
     /// <summary>The most a wired counter shows: 99:59.5, counted in half seconds.</summary>
     public int ClockMaxHalfSeconds { get; init; } = 11999;
 
-    /// <summary>Variable fx addons a room may hold; each one is drawn over every holder of its variable.</summary>
+    /// <summary>
+    /// Variable fx addons a room may hold; each one is drawn over every holder of its variable.
+    /// A bound of ours on the room's work, not Habbo's: Habbo limits fx per variable box
+    /// (<see cref="VariableFxMaxPerVariable"/>) and drew 7 over 3 boxes in one room.
+    /// </summary>
     public int VariableFxMaxBoxes { get; init; } = 25;
+
+    /// <summary>
+    /// Variable fx one variable box shows. Habbo's is 5 (official client capture 2026-10-20, 2 of
+    /// 2): a 6th fx on the same variable box saves and its config is sent, but it is never drawn
+    /// (no status), the owner gets a <c>wired.error</c> bubble
+    /// (<c>room.error.wired.variable_fx_limit</c>) and VARIABLE_FX_LIMIT counts once; fx on other
+    /// variable boxes still draw. 0 or less shows them all.
+    /// </summary>
+    public int VariableFxMaxPerVariable { get; init; } = 5;
 
     /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
     public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
@@ -268,4 +375,12 @@ public class WiredConfig
     /// limit), so this default is ours. 0 turns the cap off.
     /// </summary>
     public int MaxVariablesPerHolder { get; init; } = 500;
+}
+
+/// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>
+public enum WiredErrorNoticeRecipients
+{
+    None,
+    Owner,
+    Room,
 }

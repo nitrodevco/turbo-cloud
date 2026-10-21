@@ -18,6 +18,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Furniture.Custody;
 using Turbo.Navigator.Configuration;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Movements;
@@ -26,6 +27,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 
 namespace Turbo.Navigator.Onboarding;
 
@@ -281,6 +283,17 @@ public sealed class StarterRoomService(
             .Furnitures.AsNoTracking()
             .Where(x => x.RoomEntityId == source.Id)
             .OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.FurnitureDefinitionEntityId,
+                x.ExtraData,
+                x.FurnitureDefinitionEntity!.Logic,
+                x.X,
+                x.Y,
+                x.Z,
+                x.Rotation,
+                x.WallOffset,
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -297,7 +310,7 @@ public sealed class StarterRoomService(
                     .. items.Select(item => new FurniToPlace(
                         new FurniToMake(
                             item.FurnitureDefinitionEntityId,
-                            WithoutTeleportLink(item.ExtraData)
+                            ForTheCopy(item.ExtraData, item.Logic)
                         ),
                         new RoomPosition(item.X, item.Y, item.Z, item.Rotation, item.WallOffset)
                     )),
@@ -313,16 +326,29 @@ public sealed class StarterRoomService(
         return new(roomId.Value, name);
     }
 
-    /// <summary>The item's data without its teleporter partner, which is the source room's.</summary>
-    private static string? WithoutTeleportLink(string? extraData)
+    /// <summary>
+    /// The item's data without what belongs to the source room: its teleporter partner, and a
+    /// Web API add-on's keys, which open the source room's variables from outside the hotel. The
+    /// add-on is copied as if picked up and placed again, without its wired data
+    /// (<c>wiredfurni.web_api.pickup.body</c>), so the new owner generates keys of their own.
+    /// </summary>
+    private static string? ForTheCopy(string? extraData, string logic)
     {
         if (string.IsNullOrWhiteSpace(extraData))
             return extraData;
 
         try
         {
-            if (JsonNode.Parse(extraData) is JsonObject data && data.Remove(RoomLinkerData.SECTION))
-                return data.ToJsonString();
+            if (JsonNode.Parse(extraData) is JsonObject data)
+            {
+                var removed = data.Remove(RoomLinkerData.SECTION);
+
+                if (logic == WiredWebApiKeys.ADDON_LOGIC)
+                    removed |= data.Remove(ExtraDataSectionType.WIRED);
+
+                if (removed)
+                    return data.ToJsonString();
+            }
         }
         catch (JsonException)
         {

@@ -127,6 +127,12 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
             .GroupBy(x => x.BadgeCode)
             .Select(g => new { Code = g.Key, Count = g.Count() })
             .ToListAsync(ct);
+        var pinned = await db
+            .BadgeDefinitions.AsNoTracking()
+            .Where(x => codes.Contains(x.BadgeCode) && x.Rarity != null)
+            .Select(x => new { x.BadgeCode, Rarity = x.Rarity!.Value })
+            .ToListAsync(ct);
+
         foreach (var code in codes)
         {
             var owners =
@@ -140,6 +146,17 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
                 _state.OwnerCountByCode[code] = owners;
             else
                 _state.OwnerCountByCode.Remove(code);
+
+            // A rarity staff pinned or unpinned in the panel shows at once, not on the next recount.
+            if (
+                pinned.FirstOrDefault(x =>
+                    x.BadgeCode.Equals(code, StringComparison.OrdinalIgnoreCase)
+                ) is
+                { } definition
+            )
+                _state.PinnedRarityByCode[code] = definition.Rarity;
+            else
+                _state.PinnedRarityByCode.Remove(code);
         }
     }
 

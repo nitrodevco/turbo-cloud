@@ -35,10 +35,10 @@ public class WiredTriggerClickUser(
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerClickedAvatarEvent)];
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredBoolParamRule(false), new WiredBoolParamRule(false)];
+        [new WiredBoolParamRule(true), new WiredBoolParamRule(false)];
 
     /// <summary><c>wiredfurni.params.click_user.block_menu_open</c>.</summary>
-    public bool BlocksAvatarMenu => GetIntParamOrDefault(PARAM_BLOCK_MENU, false);
+    public bool BlocksAvatarMenu => GetIntParamOrDefault(PARAM_BLOCK_MENU, true);
 
     /// <summary><c>wiredfurni.params.click_user.do_not_rotate</c>.</summary>
     public bool KeepsClickerFacing => GetIntParamOrDefault(PARAM_DO_NOT_ROTATE, false);

@@ -75,7 +75,7 @@ public class PermissionGateTests
             .And.HaveCountGreaterThan(20);
     }
 
-    private static IEnumerable<Type> HandlerTypes() =>
+    internal static IEnumerable<Type> HandlerTypes() =>
         typeof(ToggleStaffPickMessageHandler)
             .Assembly.GetTypes()
             .Where(x =>
@@ -88,7 +88,7 @@ public class PermissionGateTests
             .OrderBy(x => x.FullName, StringComparer.Ordinal);
 
     /// <summary>The string literals and the methods <c>HandleAsync</c> loads and calls.</summary>
-    private static (HashSet<string> Strings, HashSet<MethodBase> Calls) ReadHandleAsyncBody(
+    internal static (HashSet<string> Strings, HashSet<MethodBase> Calls) ReadHandleAsyncBody(
         Type handler
     )
     {

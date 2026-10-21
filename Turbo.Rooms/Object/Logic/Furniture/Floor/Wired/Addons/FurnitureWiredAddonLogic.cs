@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -24,17 +25,24 @@ public abstract class FurnitureWiredAddonLogic(
     protected FurnitureWiredVariableLogic? GetVariableBoxOnTile() =>
         GetLogicOnTile<FurnitureWiredVariableLogic>();
 
-    /// <summary>The first furni of this kind sharing the addon's tile, if any.</summary>
+    /// <summary>
+    /// The first furni of this kind sharing the addon's tile, else the first of the add-ons a
+    /// "From Another Room" on the tile imports, if any.
+    /// </summary>
     protected TLogic? GetLogicOnTile<TLogic>()
         where TLogic : class
     {
+        WiredVariableReference? reference = null;
+
         foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
         {
             if (item.Logic is TLogic logic)
                 return logic;
+
+            reference ??= item.Logic as WiredVariableReference;
         }
 
-        return null;
+        return reference?.ImportedAddons.OfType<TLogic>().FirstOrDefault();
     }
 
     public virtual Task<bool> MutatePolicyAsync(

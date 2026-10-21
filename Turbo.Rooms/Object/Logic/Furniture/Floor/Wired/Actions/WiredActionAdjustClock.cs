@@ -38,7 +38,7 @@ public class WiredActionAdjustClock(
             new WiredRangeParamRule(0, 59, 0),
             new WiredRangeParamRule(0, 99, 0),
             new WiredRangeParamRule(0, 1, 0),
-            new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Set),
+            new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Add),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
@@ -48,7 +48,7 @@ public class WiredActionAdjustClock(
         var halfSeconds =
             (GetIntParamOrDefault(1, 0) * 60 + GetIntParamOrDefault(0, 0)) * 2
             + GetIntParamOrDefault(2, 0);
-        var op = GetIntParamOrDefault(3, WiredOperatorType.Set);
+        var op = GetIntParamOrDefault(3, WiredOperatorType.Add);
         var adjusted = false;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))

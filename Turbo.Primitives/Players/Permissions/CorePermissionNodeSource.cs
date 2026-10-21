@@ -87,6 +87,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Moderator
         ),
         new(
+            PermissionNodes.Room.WIRED_WEB_API_KEYS_ANY,
+            "See, generate and save the Web API add-on keys of a room one does not own.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Items.REVERSE,
             "Move a furni or a currency back to where it was before a movement, through a plugin that undoes it.",
             ExplicitOnly: true
@@ -438,6 +443,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         new(
             PermissionNodes.Admin.MESSAGES_VIEW,
             "Read players' private messages in the admin panel: what friends sent each other in the messenger."
+        ),
+        new(
+            PermissionNodes.Admin.TELEMETRY_VIEW,
+            "See client health and usage in the admin panel: frame rates, latency, chat lag, login times and the events clients log."
         ),
         new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,

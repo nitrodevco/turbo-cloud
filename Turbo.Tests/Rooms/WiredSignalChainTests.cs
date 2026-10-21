@@ -43,7 +43,7 @@ public sealed class WiredSignalChainTests
         _room.Enter(7, 3, 1);
         _room.AddFloorItem(WALK_ON, 6, 6);
         _room.AddFloorItem(CLICK_ME, 7, 4);
-        _room.AddFloorItem(ANTENNA, 6, 1);
+        _room.AddFloorItem(ANTENNA, 6, 1, "wf_antenna1");
         _room.AddFloorItem(TARGET, 5, 5);
     }
 

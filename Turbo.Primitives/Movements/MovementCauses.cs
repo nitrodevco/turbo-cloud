@@ -100,7 +100,6 @@ public static class MovementCauses
     public const string USE_DECORATION = "use.decoration";
     public const string USE_EFFECT_BOX = "use.effect_box";
     public const string USE_CLOTHING = "use.clothing";
-    public const string USE_PET_SUPPLY = "use.pet_supply";
     public const string USE_PET_PRODUCT = "use.pet_product";
     public const string USE_PET_PACKAGE = "use.pet_package";
     public const string USE_MONSTERPLANT_SEED = "use.monsterplant_seed";

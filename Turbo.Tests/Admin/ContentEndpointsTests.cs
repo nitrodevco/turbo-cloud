@@ -288,6 +288,71 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
         _fakes.Log.Of("RemoveBadgeAsync").Should().ContainSingle().Which.Key.Should().Be(2L);
     }
 
+    // content.manage alone gave and took any badge, which in the hotel needs :givebadge's and
+    // :takebadge's nodes, and left only a server log line.
+    [Fact]
+    public async Task Giving_and_taking_a_badge_needs_the_commands_nodes_and_is_in_the_command_log()
+    {
+        _holds = node =>
+            node != PermissionNodes.Command.GIVEBADGE && node != PermissionNodes.Command.TAKEBADGE;
+        await _server.StartAsync(Ct);
+
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/content/badges/XMAS26/holders",
+                new { playerId = 3 }
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        (await SendAsync(HttpMethod.Delete, "/api/content/badges/XMAS26/holders/2"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        _fakes.Log.Of("GiveBadgeAsync").Should().BeEmpty();
+        _fakes.Log.Of("RemoveBadgeAsync").Should().BeEmpty();
+
+        _holds = _ => true;
+
+        await SendAsync(
+            HttpMethod.Post,
+            "/api/content/badges/XMAS26/holders",
+            new { playerId = 3 }
+        );
+        await SendAsync(HttpMethod.Delete, "/api/content/badges/XMAS26/holders/2");
+
+        await using var db = _db.CreateDbContext();
+        db.CommandLogs.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Command,
+                x.Arguments,
+                x.Outcome,
+                x.Source,
+            })
+            .ToList()
+            .Should()
+            .BeEquivalentTo(
+                [
+                    new
+                    {
+                        Command = "badge",
+                        Arguments = "give XMAS26 3",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                    new
+                    {
+                        Command = "badge",
+                        Arguments = "take XMAS26 2",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                ],
+                options => options.WithStrictOrdering()
+            );
+    }
+
     [Fact]
     public async Task Staff_who_may_only_see_the_content_change_none_of_it()
     {
@@ -316,6 +381,59 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
             .StatusCode.Should()
             .Be(HttpStatusCode.Forbidden);
         _fakes.Log.Of("RemoveBadgeAsync").Should().BeEmpty();
+    }
+
+    // The panel's delete needed only content.manage, which deletes no group in the game, and left
+    // no trace but a server log line: it now needs guild.delete_any and is in the command log.
+    [Fact]
+    public async Task A_group_is_deleted_only_by_staff_who_may_delete_any_group_and_each_try_is_logged()
+    {
+        _fakes.Handlers["StaffDeleteAsync"] = _ => Task.FromResult(true);
+        _holds = node => node != PermissionNodes.Guild.DELETE_ANY;
+        await _server.StartAsync(Ct);
+
+        (await SendAsync(HttpMethod.Delete, "/api/content/groups/10"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden, "content.manage deletes no group");
+        _fakes.Log.Of("StaffDeleteAsync").Should().BeEmpty();
+
+        _holds = _ => true;
+
+        (await SendAsync(HttpMethod.Delete, "/api/content/groups/10"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NoContent);
+        _fakes.Log.Of("StaffDeleteAsync").Should().ContainSingle();
+
+        await using var db = _db.CreateDbContext();
+        db.CommandLogs.OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Command,
+                x.Arguments,
+                x.Outcome,
+                x.Source,
+            })
+            .ToList()
+            .Should()
+            .BeEquivalentTo(
+                [
+                    new
+                    {
+                        Command = "group",
+                        Arguments = "delete 10",
+                        Outcome = "refused",
+                        Source = "panel",
+                    },
+                    new
+                    {
+                        Command = "group",
+                        Arguments = "delete 10",
+                        Outcome = "completed",
+                        Source = "panel",
+                    },
+                ],
+                options => options.WithStrictOrdering()
+            );
     }
 
     private static AchievementDefinition Login() =>

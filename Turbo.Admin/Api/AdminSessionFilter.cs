@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Orleans;
@@ -37,9 +39,23 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
         if (session is null)
             return Results.Unauthorized();
 
+        // Read once for the request: the panel node, the route's declarations and the handler's
+        // own questions all answer from it rather than each asking the grain.
+        var permissions = await grainFactory
+            .GetPlayerPermissionGrain(session.PlayerId)
+            .GetResolvedAsync(ct)
+            .ConfigureAwait(false);
+        var identity = new AdminIdentity(
+            session.PlayerId,
+            string.Empty,
+            token,
+            session.ExpiresAtUtc,
+            permissions
+        );
+
         if (
-            !await grainFactory
-                .HasPermissionAsync(session.PlayerId, PermissionNodes.Admin.PANEL, ct)
+            !await identity
+                .HoldsAsync(grainFactory, PermissionNodes.Admin.PANEL, ct)
                 .ConfigureAwait(false)
         )
             return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -49,8 +65,62 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
             .GetPlayerNameAsync(session.PlayerId, ct)
             .ConfigureAwait(false);
 
-        new AdminIdentity(session.PlayerId, name, token, session.ExpiresAtUtc).AttachTo(http);
+        identity = identity with { Name = name };
+        identity.AttachTo(http);
+
+        if (await RefusalAsync(identity, http, ct).ConfigureAwait(false) is { } refusal)
+            return AdminResults.Error(StatusCodes.Status403Forbidden, refusal);
 
         return await next(context).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The first <see cref="AdminAccess"/> the route declares that the staff member does not
+    /// meet: the group's before the route's, so a staff member who may not see an area is told
+    /// that rather than that they may not change it.
+    /// </summary>
+    private async Task<string?> RefusalAsync(
+        AdminIdentity identity,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (http.GetEndpoint()?.Metadata is not { } metadata)
+            return null;
+
+        var changes =
+            !HttpMethods.IsGet(http.Request.Method) && !HttpMethods.IsHead(http.Request.Method);
+        var exempt =
+            metadata.GetMetadata<AdminAccessNote>() is
+            { Kind: AdminAccessNoteKind.ViewIsEnough or AdminAccessNoteKind.ChecksInHandler };
+
+        foreach (
+            var access in metadata
+                .GetOrderedMetadata<AdminAccess>()
+                .OrderBy(x => x.OnRoute)
+                .ThenBy(x => x.ChangesOnly)
+        )
+        {
+            if (access.ChangesOnly && (!changes || exempt))
+                continue;
+
+            if (!await HoldsAnyAsync(identity, access, ct).ConfigureAwait(false))
+                return access.Refusal;
+        }
+
+        return null;
+    }
+
+    private async Task<bool> HoldsAnyAsync(
+        AdminIdentity identity,
+        AdminAccess access,
+        CancellationToken ct
+    )
+    {
+        foreach (var node in access.AnyOf)
+            if (await identity.HoldsAsync(grainFactory, node, ct).ConfigureAwait(false))
+                return true;
+
+        return false;
     }
 }

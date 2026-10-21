@@ -26,7 +26,8 @@ public sealed class WiredAllowWallFurniTests
     /// <summary>(type, code) of every box Habbo lets pick wall furni.</summary>
     private static readonly HashSet<(WiredType, int)> Official =
     [
-        .. new[] { 0, 3, 4, 15, 29, 33, 34, 39, 40, 41, 45, 46, 47, 55, 57 }.Select(c =>
+        // 61 Set Visibility, 62 Set Highlight: official client captures of their editors, 2026-10-20 (allowWallFurni true).
+        .. new[] { 0, 3, 4, 15, 29, 33, 34, 39, 40, 41, 45, 46, 47, 55, 57, 61, 62 }.Select(c =>
             (WiredType.Action, c)
         ),
         .. new[] { 15, 18, 19, 20 }.Select(c => (WiredType.Addon, c)),

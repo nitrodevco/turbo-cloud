@@ -475,6 +475,7 @@ internal static class MessageEvent
     public const int SetCustomStackingHeightMessageEvent = 2882;
     public const int SetFurnitureLabelDataMessageEvent = 7502;
     public const int SetFurnitureLabelSettingsMessageEvent = 7503;
+    public const int SynchronizeSharedAddonsMessageEvent = 7620;
     public const int SetDiscordPreferencesMessageEvent = 452;
     public const int SetIgnoreRoomInvitesMessageEvent = 1322;
     public const int SetItemDataMessageEvent = 3432;
@@ -1186,9 +1187,12 @@ internal static class MessageComposer
     public const int WiredFurniActionMessageComposer = 2642;
     public const int WiredFurniAddonMessageComposer = 2823;
     public const int WiredFurniConditionMessageComposer = 3980;
+    public const int WiredFurniHighlightMessageComposer = 7600;
     public const int WiredFurniSelectorMessageComposer = 215;
+    public const int WiredFurniTransparencyMessageComposer = 7610;
     public const int WiredFurniTriggerMessageComposer = 354;
     public const int WiredFurniVariableMessageComposer = 3437;
+    public const int WiredFurniVisualizationStateMessageComposer = 7602;
     public const int WiredLinkOperationResultMessageComposer = 3261;
     public const int WiredMenuErrorMessageComposer = 913;
     public const int WiredMovementsMessageComposer = 1959;
@@ -1209,8 +1213,11 @@ internal static class MessageComposer
     public const int WiredTransactionLogDetailsMessageComposer = 114;
     public const int WiredTransactionLogListMessageComposer = 3909;
     public const int WiredTransactionSuccessMessageComposer = 70;
+    public const int WiredUserHighlightMessageComposer = 7601;
     public const int WiredUserPermanentVariablesMessageComposer = 2342;
+    public const int WiredUserTransparencyMessageComposer = 7611;
     public const int WiredUserVariablesListMessageComposer = 2797;
+    public const int WiredUserVisualizationStateMessageComposer = 7603;
     public const int WiredValidationErrorMessageComposer = 940;
     public const int WiredVariablesForObjectMessageComposer = 2945;
     public const int WiredWebApiKeyResultMessageComposer = 59;

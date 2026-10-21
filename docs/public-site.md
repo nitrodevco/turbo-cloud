@@ -158,5 +158,7 @@ All settings live under `Turbo:Web`.
   choosing a name, they sign in with Discord again.
 - **One Discord account, one player.** The site never asks for an email or password. Losing
   the Discord account means losing the way in; staff can still issue a ticket from the panel.
-- **The API answers only `/api`.** It has no CORS. The site calls it on its own origin through
-  nginx, the same as the panel.
+- **The API answers only `/api`.** The site calls it on its own origin through nginx, the same as
+  the panel. Only the Wired Variables and public rooms endpoints answer other sites' pages
+  (CORS), as Habbo's do: any site by default, never with credentials; `WiredApi:AllowedOrigins`
+  and `PublicApi:AllowedOrigins` narrow that to a list (empty for none).

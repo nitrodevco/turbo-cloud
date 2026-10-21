@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
@@ -542,8 +543,15 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
 
             known = summary is null ? (string.Empty, string.Empty) : (summary.Name, summary.Figure);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Variable leaderboard in room {RoomId} could not read player {PlayerId}; shown without a name",
+                _roomGrain.RoomId,
+                playerId
+            );
+
             known = (string.Empty, string.Empty);
         }
 

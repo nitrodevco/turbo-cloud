@@ -78,6 +78,18 @@ public static partial class WiredWebApiJson
         return false;
     }
 
+    /// <summary>
+    /// The member <paramref name="name"/> of a JSON object, null for anything else (an array, a
+    /// bare value, nothing): a body of the wrong shape reads as one missing the member, a 400,
+    /// where indexing it would throw.
+    /// </summary>
+    public static JsonNode? Member(JsonNode? node, string name) =>
+        node is JsonObject json ? json[name] : null;
+
+    /// <summary>The member <paramref name="name"/> of a request body, null when there is no body.</summary>
+    public static JsonNode? BodyMember(string? body, string name) =>
+        body is null ? null : Member(JsonNode.Parse(body), name);
+
     public static string? StringOf(JsonNode? node) =>
         node is JsonValue json && json.TryGetValue<string>(out var text) ? text : null;
 

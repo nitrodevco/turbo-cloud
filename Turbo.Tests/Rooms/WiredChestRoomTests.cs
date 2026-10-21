@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -94,6 +95,43 @@ public class WiredChestRoomTests
             .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
             .Should()
             .ContainSingle(x => x.ChestId == CHEST);
+    }
+
+    [Theory]
+    [InlineData("bad chest", "", "wiredfurni.error.unacceptable_chest_name")]
+    [InlineData("chest", "a bad one", "wiredfurni.error.unacceptable_chest_desc")]
+    public async Task A_name_or_description_the_filter_would_change_is_refused_with_Habbos_text(
+        string name,
+        string description,
+        string errorKey
+    )
+    {
+        var (room, _) = CreateRoomWithChest();
+        AddPlayer(room, OWNER);
+        StubSummary(room);
+        RoomHarness.SetField(room.Room, "_wordFilter", new BadIsUncleanFilter());
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            Preferences(
+                previewMode: WiredChestPreviewMode.None,
+                previewAmount: 1,
+                wired: false
+            ) with
+            {
+                Name = name,
+                Description = description,
+            },
+            Ct
+        );
+
+        done.Should().BeFalse();
+        Sent(room.Fakes)
+            .OfType<WiredValidationErrorEventMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.LocalizationKey == errorKey);
+        Sent(room.Fakes).OfType<ChestPreferencesUpdateSuccessMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -229,15 +267,36 @@ public class WiredChestRoomTests
         await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
         await trade.AddItemsAsync([20], Ct);
 
-        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
         fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Should().BeEmpty();
 
-        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
         await trade.ConfirmAsync(isFinalConfirm: true, Ct);
 
         var deposit = fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Single();
         ((ImmutableArray<RoomObjectId>)deposit.Args[2]!).Should().Equal((RoomObjectId)20);
         Sent(fakes).OfType<WiredTradeCompletedMessageComposer>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_deposit_confirmed_before_it_was_accepted_is_cancelled_as_invalid()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair"));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.AddItemsAsync([20], Ct);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+
+        Sent(fakes)
+            .OfType<WiredTradeCancelledMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Invalid);
+
+        // The trade is over: what was offered stays in the inventory.
+        await trade.ConfirmAsync(isFinalConfirm: false, Ct);
+        await trade.ConfirmAsync(isFinalConfirm: true, Ct);
+        fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Should().BeEmpty();
     }
 
     /// <summary>Names the room grain method the trade grain calls; nameof needs a type.</summary>
@@ -379,6 +438,19 @@ public class WiredChestRoomTests
             createLogic: (stuffDataFactory, ctx) =>
                 new FurnitureWiredFurniChestLogic(stuffDataFactory, ctx)
         );
+
+    private sealed class BadIsUncleanFilter : IWordFilter
+    {
+        public string Replacement => "bobba";
+
+        public string Filter(string text) => text.Replace("bad", Replacement);
+
+        public string Filter(string text, IReadOnlySet<string> extraWords) => Filter(text);
+
+        public bool IsClean(string text) => !text.Contains("bad");
+
+        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
+    }
 
     private static RoomFloorItem CreateCoinChest(RoomHarness room, int id, int x) =>
         room.CreateFloorItem(

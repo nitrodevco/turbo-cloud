@@ -58,7 +58,13 @@ public abstract class FurnitureWiredVariableLogic
     /// <c>name_uniq</c>, official client capture 2026-10-11). Turning a box permanent consumes
     /// one of the room's permanent variable slots for its target type, so the switch is refused
     /// once the configured cap is reached, with the text Habbo sends for it
-    /// (<c>permanent_limit</c>, official client capture 2026-10-11).
+    /// (<c>permanent_limit</c>, official client capture 2026-10-11). "Permanent, shared" is for
+    /// the room's owner only (<c>shared_var_own_room</c>, "You can only set up shared variables in
+    /// your own room."); an availability the box's editor does not offer is refused with
+    /// <c>invalid_availability</c> by its param rule. Only the box's owner or the room's owner
+    /// may change a variable (<c>permissions.2</c>, "Only the owner of this wired variable or room
+    /// owner has the permission to make this change."), unless
+    /// <see cref="Configuration.WiredConfig.VariableBoxOwnersOnly"/> is off.
     /// </summary>
     public override async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -66,6 +72,14 @@ public abstract class FurnitureWiredVariableLogic
         CancellationToken ct
     )
     {
+        if (
+            _roomGrain._wiredConfig.VariableBoxOwnersOnly
+            && ctx.Origin != ActionOrigin.System
+            && ctx.PlayerId != _ctx.RoomObject.OwnerId
+            && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        )
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_OWNER_OR_ROOM_OWNER_ONLY);
+
         var name = VariableNameOf(update.StringParam);
 
         if (!WiredNameRules.HasValidLength(name))
@@ -77,10 +91,21 @@ public abstract class FurnitureWiredVariableLogic
         if (IsNameTaken(name))
             throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_UNIQUE);
 
+        var availability =
+            AvailabilityParamIndex is int index && index < update.IntParams.Count
+                ? (WiredAvailabilityType?)update.IntParams[index]
+                : null;
+
         if (
-            AvailabilityParamIndex is int index
-            && index < update.IntParams.Count
-            && ((WiredAvailabilityType)update.IntParams[index]).IsPermanent()
+            availability == WiredAvailabilityType.Shared
+            && GetIntParamRules()[AvailabilityParamIndex!.Value].IsValid((int)availability)
+            && ctx.Origin != ActionOrigin.System
+            && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        )
+            throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_SHARED_OWN_ROOM);
+
+        if (
+            availability?.IsPermanent() == true
             && !GetVarSnapshot().AvailabilityType.IsPermanent()
             && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )
@@ -578,7 +603,99 @@ public abstract class FurnitureWiredVariableLogic
         {
             Variable = GetVarSnapshot(),
             Values = values.ToImmutable(),
+            Addons = GetSharedAddons(),
         };
+    }
+
+    /// <summary>The rooms using this shared variable.</summary>
+    public IReadOnlyCollection<int> SharedReferrers => Referrers;
+
+    /// <summary>The share add-on on this variable's stack, if any.</summary>
+    public Addons.WiredAddonVariableShare? GetShareAddon() =>
+        FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<Addons.WiredAddonVariableShare>()
+            .FirstOrDefault();
+
+    /// <summary>
+    /// What a share add-on on this variable's stack passes on to the rooms using it ("Place a Share
+    /// Add-on on top of a permanently shared Variable", Wired Faculty 19/10/2026): what it took at
+    /// its last Synchronize. Null without one, or before its first Synchronize: Habbo's importing
+    /// room showed a shared text connector only after one, and the one taken then until the next,
+    /// edits and Share ticks in between notwithstanding (official client capture lab61 (c),
+    /// WIN63-202610201032).
+    /// </summary>
+    public SharedWiredVariableAddonsSnapshot? GetSharedAddons() => GetShareAddon()?.Synchronized;
+
+    /// <summary>
+    /// The add-ons of the categories <paramref name="share"/> ticks, as they stand on this
+    /// variable's stack now: what a Synchronize takes. Text connectors are passed as this
+    /// variable shows them.
+    /// </summary>
+    public SharedWiredVariableAddonsSnapshot BuildSharedAddons(Addons.WiredAddonVariableShare share)
+    {
+        var categories = share.Categories;
+        var addons = GetSharedTileAddons(categories);
+
+        if (!categories.HasFlag(WiredVariableAddonCategories.TextConnectors))
+            return new SharedWiredVariableAddonsSnapshot
+            {
+                Categories = categories,
+                Addons = addons,
+            };
+
+        return new SharedWiredVariableAddonsSnapshot
+        {
+            Categories = categories,
+            HasTextConnector = HasTextConnector(),
+            TextConnectors = GetTextConnectors(),
+            TextConnectorFallback = GetTextConnectorFallback(),
+            Addons = addons,
+        };
+    }
+
+    /// <summary>
+    /// The subvariable creators and variable fx on this variable's stack, of the ticked
+    /// categories, as saved there. A Synchronize loads them first (<see cref="LoadTileAddonsAsync"/>).
+    /// </summary>
+    private ImmutableArray<SharedWiredVariableAddonSnapshot> GetSharedTileAddons(
+        WiredVariableAddonCategories categories
+    )
+    {
+        var addons = ImmutableArray.CreateBuilder<SharedWiredVariableAddonSnapshot>();
+
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        {
+            var category = item.Logic switch
+            {
+                Addons.FurnitureWiredSubVariableAddonLogic =>
+                    WiredVariableAddonCategories.SubVariableCreators,
+                Addons.VariableFx.FurnitureWiredVariableFxLogic =>
+                    WiredVariableAddonCategories.VariableFx,
+                _ => WiredVariableAddonCategories.None,
+            };
+
+            if (
+                category != WiredVariableAddonCategories.None
+                && categories.HasFlag(category)
+                && item.Logic is FurnitureWiredLogic addon
+                && addon.ToSharedAddon(category) is { } shared
+            )
+                addons.Add(shared);
+        }
+
+        return addons.ToImmutable();
+    }
+
+    /// <summary>Loads the add-ons on this variable's stack that the wired system has not reached yet.</summary>
+    public async Task LoadTileAddonsAsync(CancellationToken ct)
+    {
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()).ToList())
+        {
+            if (item.Logic is Addons.FurnitureWiredAddonLogic addon)
+                await addon.EnsureWiredLoadedAsync(ct);
+        }
     }
 
     /// <summary>

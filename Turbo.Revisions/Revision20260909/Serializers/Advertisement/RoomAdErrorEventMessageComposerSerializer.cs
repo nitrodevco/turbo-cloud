@@ -8,6 +8,6 @@ internal class RoomAdErrorEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, RoomAdErrorEventMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.ErrorCode).WriteString(message.FilteredText);
     }
 }

@@ -220,5 +220,15 @@ public class WalletRewardNoticeTests : IDisposable
             IReadOnlyList<string> parameters,
             CancellationToken ct
         ) => Task.FromResult(Delivery);
+
+        public Task<PlayerNoticeDelivery> SendPersistentAsync(
+            PlayerId playerId,
+            string notificationType,
+            System.Collections.Immutable.ImmutableDictionary<string, string> parameters,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
+        public Task DeliverPersistentAsync(PlayerId playerId, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 }

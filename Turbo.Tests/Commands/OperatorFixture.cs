@@ -144,6 +144,7 @@ public sealed class OperatorFixture
             ),
             new PlayerNoticeService(
                 Fakes.Create<Orleans.IGrainFactory>(),
+                Db,
                 Fakes.Create<IHotelTextProvider>(),
                 Options.Create(new PlayerConfig()),
                 new CapturingLogger<IPlayerNoticeService>()

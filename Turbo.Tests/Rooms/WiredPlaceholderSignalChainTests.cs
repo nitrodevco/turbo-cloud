@@ -42,7 +42,7 @@ public sealed class WiredPlaceholderSignalChainTests
         _room.Harness.Fakes.Handlers["Filter"] = call => call.Args[0];
         _room.Enter(PLAYER_INDEX, 1, 1);
         _room.AddFloorItem(CLICK_ME, 7, 4);
-        _room.AddFloorItem(ANTENNA, 6, 1);
+        _room.AddFloorItem(ANTENNA, 6, 1, "wf_antenna1");
 
         var rank = _room.AddBox<WiredVariableUser>(10, 5, 5, "wf_var_user");
         (
@@ -214,7 +214,7 @@ public sealed class WiredPlaceholderSignalChainTests
     {
         _room.Harness.Fakes.Handlers["Filter"] = call => call.Args[0];
         _room.Enter(PLAYER_INDEX, 1, 1);
-        _room.AddFloorItem(ANTENNA, 6, 1);
+        _room.AddFloorItem(ANTENNA, 6, 1, "wf_antenna1");
 
         var rank = _room.AddBox<WiredVariableUser>(10, 5, 5, "wf_var_user");
         (

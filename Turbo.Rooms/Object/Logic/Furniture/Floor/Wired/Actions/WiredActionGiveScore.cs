@@ -27,21 +27,21 @@ public class WiredActionGiveScore(
     public override int WiredCode => (int)WiredActionType.GIVE_SCORE;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(-1000, 1000, 1), new WiredRangeParamRule(0, 10, 1)];
+        [new WiredRangeParamRule(-1000, 1000, 5), new WiredRangeParamRule(0, 10, 0)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var points = GetIntParamOrDefault(0, 1);
-        var timesPerGame = GetIntParamOrDefault(1, 1);
+        var points = GetIntParamOrDefault(0, 5);
+        var timesPerGame = GetIntParamOrDefault(1, 0);
         var selection = ctx.GetSelection(this);
         var scored = false;
 
         foreach (var player in GetPlayers(selection))
         {
             var playerId = player.PlayerId;
-            var team = ResolveTeam(playerId);
+            var team = GameSystem.GetTeam(playerId);
 
             if (team == GameTeamType.None)
                 continue;
@@ -58,6 +58,4 @@ public class WiredActionGiveScore(
 
         return scored;
     }
-
-    protected virtual GameTeamType ResolveTeam(int playerId) => GameSystem.GetTeam(playerId);
 }

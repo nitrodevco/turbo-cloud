@@ -1,14 +1,17 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Concurrency;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Catalog.Configuration;
@@ -61,7 +64,7 @@ namespace Turbo.Rooms.Grains;
 /// compiles once those are internal too, but they then go undiscovered and silently register
 /// nothing at startup.
 /// </summary>
-public sealed partial class RoomGrain : Grain, IRoomGrain
+public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFilter
 {
     internal readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     internal readonly RoomConfig _roomConfig;
@@ -129,6 +132,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
     private IGrainTimer? _tickTimer;
+
+    // Calls into the room still running, and whether its tick is: an interleaving call that ends
+    // inside either must not run wired in the middle of them.
+    private int _callsRunning;
+    private bool _tickRunning;
 
     public RoomId RoomId => _state.RoomId;
 
@@ -265,6 +273,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             () => HydrateRoomStateAsync(ct)
         );
 
+        _state.OwnerAccountLevel = await GetOwnerAccountLevelAsync(ct);
+
         await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot, ct);
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
@@ -288,6 +298,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     private async Task ProcessRoomTickAsync(CancellationToken ct)
     {
+        _tickRunning = true;
+
         try
         {
             var now = NowMs();
@@ -317,6 +329,10 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             }
 
             await TimerSystem.ProcessTimersAsync(now, ct);
+
+            // A floor switch flipping on its timer, or furni a roller moved, fire their stacks
+            // in this tick too.
+            await WiredSystem.RunRaisedEventsAsync(ct);
             await FlushDirtyTilesAsync(ct);
             await HandOverToPersistenceIfDueAsync(now, ct);
         }
@@ -326,10 +342,63 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         }
         finally
         {
+            _tickRunning = false;
+
             // Always re-arm: a failed tick must not stop the room.
             RearmTickTimer();
         }
     }
+
+    /// <summary>
+    /// Every call into the room (a player's use, chat, walk, ...) runs the wired stacks it fired
+    /// before it ends, in the same turn, rather than on the next wired tick
+    /// (<see cref="RoomWiredSystem.RunRaisedEventsAsync"/>). Only a call from outside any grain
+    /// (a packet handler) does: a grain that calls the room (a player's presence, a trade, a
+    /// purchase) waits on it, so an effect calling that grain back from inside its call would wait
+    /// on it in turn until the call timed out; the tick runs outside any caller's call. A call
+    /// that interleaves with others, or whose reply the caller still sends on (an entry's tail:
+    /// the entering avatar and RoomEntryInfo), leaves them to the tick too, so they never run
+    /// inside another call or reach a player before the room it is entering.
+    /// </summary>
+    public async Task Invoke(IIncomingGrainCallContext context)
+    {
+        _callsRunning++;
+
+        try
+        {
+            await context.Invoke();
+        }
+        finally
+        {
+            _callsRunning--;
+        }
+
+        if (_callsRunning > 0 || _tickRunning || !RunsRaisedWired(context))
+            return;
+
+        try
+        {
+            await WiredSystem.RunRaisedEventsAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Room {RoomId} failed to run the wired a call fired", RoomId);
+        }
+    }
+
+    private static readonly ConcurrentDictionary<MethodInfo, bool> _runsRaisedWiredByMethod = new();
+
+    private static bool RunsRaisedWired(IIncomingGrainCallContext context) =>
+        (context.SourceId is not { } source || source.IsClient())
+        && (
+            context.InterfaceMethod is not { } method
+            || _runsRaisedWiredByMethod.GetOrAdd(
+                method,
+                static m =>
+                    !m.IsDefined(typeof(AlwaysInterleaveAttribute), true)
+                    && m.ReturnType != typeof(Task<ImmutableArray<IComposer>>)
+            )
+        );
 
     /// <summary>
     /// A room nobody is in, where no pet or bot is still on its way anywhere, has nothing to

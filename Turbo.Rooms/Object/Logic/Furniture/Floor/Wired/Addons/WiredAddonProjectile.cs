@@ -56,7 +56,6 @@ public class WiredAddonProjectile(
     private const int SLOT_PROJECTILES = 0;
 
     // The bounds of the editor's inputs.
-    private const int TIME_PER_TILE_MIN_MS = 1;
     private const int TIME_PER_TILE_MAX_MS = 100000;
     private const int SPEED_INCREASE_MAX_MS = 100000;
     private const int ROTATION_OFFSET_MAX = 7;
@@ -72,29 +71,31 @@ public class WiredAddonProjectile(
 
     public override int GetMaxVariableIds() => VARIABLE_COUNT;
 
+    // A fresh box's values are the official server's (defaults [1,1,0,0,100,-20,1,1,0,4,0,0,1,1,
+    // 0,0,1,-20,50], 2026-10-20T17-35-39-Open-wait).
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(true),
             new WiredEnumParamRule<WiredDirectionalSystemType>(
-                WiredDirectionalSystemType.EightStraight
+                WiredDirectionalSystemType.EightDiffuse
             ),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, TIME_PER_TILE_MAX_MS, TIME_PER_TILE_MIN_MS),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
+            new WiredRangeParamRule(0, TIME_PER_TILE_MAX_MS, 100),
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
+            new WiredBoolParamRule(true),
+            new WiredBoolParamRule(true),
             new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, SPEED_INCREASE_MAX_MS, 0),
+            new WiredRangeParamRule(0, SPEED_INCREASE_MAX_MS, 4),
             new WiredRangeParamRule(0, ROTATION_OFFSET_MAX, 0),
             new WiredRangeParamRule(0, VARIABLES_MASK_MAX, 0),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(true),
+            new WiredBoolParamRule(true),
             new WiredEnumParamRule<WiredProjectileDistanceType>(WiredProjectileDistanceType.Normal),
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(DISTANCE_TILES_MIN, DISTANCE_TILES_MAX, 0),
-            WiredRules.VariableTarget(WiredVariableTargetType.User),
-            new WiredRangeParamRule(CURVE_STRENGTH_MIN, CURVE_STRENGTH_MAX, 0),
+            new WiredRangeParamRule(DISTANCE_TILES_MIN, DISTANCE_TILES_MAX, 1),
+            WiredRules.VariableTarget(WiredVariableTargetType.Context),
+            new WiredRangeParamRule(CURVE_STRENGTH_MIN, CURVE_STRENGTH_MAX, 50),
         ];
 
     // The projectiles, then where the time and the distance variables are read. The projectiles

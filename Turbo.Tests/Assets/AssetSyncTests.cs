@@ -378,6 +378,10 @@ public sealed class AssetSyncTests : IDisposable
         }
 
         relisted.Should().BeTrue();
+
+        // The preview that saw it read Habbo again behind it too (the lists are always stale
+        // here); the database closes after this test, and that read must be done by then.
+        await sync.WhenRelistedAsync();
     }
 
     [Fact]
@@ -836,6 +840,111 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_bitmap_habbo_embeds_only_in_its_air_client_goes_into_the_libraries_bundle_under_its_name()
+    {
+        const string AIR = "https://images.habbo.com/habbo-clients/air/win/prod/34_x/HabboWin.zip";
+
+        static (string, string, byte[]) Png(string name, int width) =>
+            (name, "image/png", new RgbaImage(width, 2, new byte[width * 2 * 4]).EncodePng());
+
+        // The HTML client's window manager names the icon in a layout but lacks it (build 1745's
+        // cursed dragon notice); its frame_close it has.
+        var windowManager = NitroConverterTests.Hab(
+            (
+                "notice_xml",
+                "text/xml",
+                Encoding.UTF8.GetBytes(
+                    """<layout name="notice" width="20" height="20"><window><bitmap name="icon"><variables><var key="asset_uri" value="cursed_dragon_adoption_icon"/></variables></bitmap></window></layout>"""
+                )
+            ),
+            Png("frame_close_png", 3)
+        );
+        var iconPixels = new byte[13 * 18 * 4];
+
+        for (var i = 0; i < iconPixels.Length; i += 4)
+            (iconPixels[i], iconPixels[i + 3]) = ((byte)200, (byte)255);
+
+        var air = TestAirClient.Swf(
+            (
+                "HabboWindowManagerCom",
+                [
+                    TestAirClient.Png(
+                        "cursed_dragon_adoption_icon",
+                        "icon_png$547e62df365e1b8848caef35dc754d4d-1656250586",
+                        new RgbaImage(13, 18, iconPixels).EncodePng()
+                    ),
+                    // One the HTML client has too: its own stays.
+                    TestAirClient.Argb("frame_close", "close_png$1-2", 2, 2, new byte[16]),
+                ]
+            )
+        );
+
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            ("generated/habbo-window-manager-com.hab", windowManager)
+        );
+        _habbo.Serve(
+            "https://sandbox.habbo.com/gamedata/clienturls",
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                new Dictionary<string, string>
+                {
+                    ["html-windows-version"] = TestClientRelease.VERSION,
+                    ["html-windows"] = TestClientRelease.LISTING,
+                    ["flash-windows-version"] = "34",
+                    ["flash-windows"] = AIR,
+                }
+            )
+        );
+        _habbo.Serve(AIR, TestAirClient.Zip(air));
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var files = NitroBundle
+            .Read(
+                File.ReadAllBytes(
+                    _folder.Store.FullPathOf(
+                        AssetBundleKind.Template,
+                        ClientTemplates.WINDOW_MANAGER
+                    )
+                )
+            )
+            .Files;
+        var icon = RgbaImage.Decode(
+            files["habbo-window-manager-com-cursed_dragon_adoption_icon.png"]
+        );
+
+        icon.Width.Should().Be(13);
+        icon.Height.Should().Be(18);
+        icon.Pixels.Should().Equal(iconPixels);
+        RgbaImage.Decode(files["habbo-window-manager-com-frame_close.png"]).Width.Should().Be(3);
+        JsonNode.Parse(files["habbo-window-manager-com.json"])!["assets"]!
+            .AsArray()
+            .Select(x => x!["name"]!.GetValue<string>())
+            .Should()
+            .Contain("habbo-window-manager-com-cursed_dragon_adoption_icon");
+        JsonNode.Parse(files["templates.json"])!["templates"]![
+            "habbo-window-manager-com/notice_xml"
+        ]!["elements"]![0]!["vars"]!["asset_uri"]!
+            .GetValue<string>()
+            .Should()
+            .Be("habbo-window-manager-com-cursed_dragon_adoption_icon");
+
+        const string NOTE =
+            "habbo-window-manager-com: 1 images taken from Habbo's AIR client 34: cursed_dragon_adoption_icon";
+
+        job.Log.Should().Contain(NOTE).And.NotContain(x => x.StartsWith("Template problem:"));
+        (await Builder().GetAsync(Ct)).Notes.Should().Contain(NOTE);
+
+        // Built again, the AIR client kept is read, not downloaded again.
+        await Builder().BuildAsync(null, PlayerId.Parse(1), force: true, _ => { }, Ct);
+
+        _habbo.Requests.Count(x => x == AIR).Should().Be(1);
+    }
+
+    [Fact]
     public async Task The_window_managers_bundle_carries_the_ui_theme_beside_its_bitmaps()
     {
         TestClientRelease.Serve(
@@ -1183,6 +1292,7 @@ public sealed class AssetSyncTests : IDisposable
             _folder.Store,
             Client(),
             _fakes.Create<IChatStyleService>(),
+            Options.Create(new GamedataConfig()),
             TimeProvider.System,
             NullLogger<ClientBundleBuilder>.Instance
         );

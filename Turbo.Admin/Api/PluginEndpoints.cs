@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
-using Turbo.Admin.Plugins;
+using Turbo.Admin.Commands;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
@@ -25,13 +25,13 @@ namespace Turbo.Admin.Api;
 /// puts server code in place. Checking a link for a new release needs <c>admin.plugins.manage</c>.
 /// Uninstalling one, its dry run and the SQL export of its tables need <c>admin.plugins.uninstall</c>
 /// as well, and the plugin's key typed again. Every action, refused ones too, goes to the command
-/// log (<see cref="AdminPluginAudit"/>).
+/// log (<see cref="AdminActionLog"/>).
 /// </summary>
 internal sealed class PluginEndpoints(
     IGrainFactory grainFactory,
     IPluginAdministration plugins,
     IPluginSources sources,
-    AdminPluginAudit audit
+    AdminActionLog audit
 )
 {
     private const string NO_ACCESS = "You can't see the server's plugins.";
@@ -47,7 +47,12 @@ internal sealed class PluginEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/plugins").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/plugins")
+            .RequirePermission(PermissionNodes.Admin.PLUGINS_VIEW, NO_ACCESS)
+            .ChecksInHandler(
+                "Each change checks its node in the handler, so a refusal is written to the command log too."
+            );
 
         group.MapGet("/", ListAsync);
         group.MapPost("/rescan", RescanAsync);
@@ -159,6 +164,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 arguments,
                 result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -189,6 +195,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 $"export {key}",
                 CommandOutcome.Completed,
@@ -219,7 +226,13 @@ internal sealed class PluginEndpoints(
             return null;
 
         await audit
-            .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+            .WriteAsync(
+                AdminActionLog.PLUGIN,
+                AdminIdentity.Of(http).PlayerId,
+                arguments,
+                CommandOutcome.Refused,
+                ct
+            )
             .ConfigureAwait(false);
 
         return AdminResults.Error(StatusCodes.Status403Forbidden, NO_UNINSTALL);
@@ -265,7 +278,7 @@ internal sealed class PluginEndpoints(
         )
         {
             await audit
-                .WriteAsync(player, "install", CommandOutcome.Refused, ct)
+                .WriteAsync(AdminActionLog.PLUGIN, player, "install", CommandOutcome.Refused, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_INSTALL);
@@ -274,7 +287,7 @@ internal sealed class PluginEndpoints(
         if (!plugins.UploadEnabled)
         {
             await audit
-                .WriteAsync(player, "install", CommandOutcome.Refused, ct)
+                .WriteAsync(AdminActionLog.PLUGIN, player, "install", CommandOutcome.Refused, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, UPLOAD_OFF);
@@ -327,6 +340,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 player,
                 $"install {result.Plugin?.Key ?? file.FileName} {result.Plugin?.Version}".TrimEnd(),
                 result.Ok ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -436,6 +450,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 "stop job",
                 stopped ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -474,6 +489,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 arguments,
                 result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -507,7 +523,13 @@ internal sealed class PluginEndpoints(
         )
         {
             await audit
-                .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+                .WriteAsync(
+                    AdminActionLog.PLUGIN,
+                    AdminIdentity.Of(http).PlayerId,
+                    arguments,
+                    CommandOutcome.Refused,
+                    ct
+                )
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_INSTALL);
@@ -516,7 +538,13 @@ internal sealed class PluginEndpoints(
         if (!plugins.UploadEnabled)
         {
             await audit
-                .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+                .WriteAsync(
+                    AdminActionLog.PLUGIN,
+                    AdminIdentity.Of(http).PlayerId,
+                    arguments,
+                    CommandOutcome.Refused,
+                    ct
+                )
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, UPLOAD_OFF);
@@ -535,7 +563,13 @@ internal sealed class PluginEndpoints(
             return null;
 
         await audit
-            .WriteAsync(AdminIdentity.Of(http).PlayerId, arguments, CommandOutcome.Refused, ct)
+            .WriteAsync(
+                AdminActionLog.PLUGIN,
+                AdminIdentity.Of(http).PlayerId,
+                arguments,
+                CommandOutcome.Refused,
+                ct
+            )
             .ConfigureAwait(false);
 
         return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
@@ -553,6 +587,7 @@ internal sealed class PluginEndpoints(
     {
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 arguments,
                 result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -594,7 +629,7 @@ internal sealed class PluginEndpoints(
         if (!await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false))
         {
             await audit
-                .WriteAsync(player, arguments, CommandOutcome.Refused, ct)
+                .WriteAsync(AdminActionLog.PLUGIN, player, arguments, CommandOutcome.Refused, ct)
                 .ConfigureAwait(false);
 
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
@@ -604,6 +639,7 @@ internal sealed class PluginEndpoints(
 
         await audit
             .WriteAsync(
+                AdminActionLog.PLUGIN,
                 player,
                 arguments,
                 result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
@@ -629,18 +665,5 @@ internal sealed class PluginEndpoints(
             );
 
     private Task<bool> HoldsAsync(HttpContext http, string node, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(AdminIdentity.Of(http).PlayerId, node, ct);
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_VIEW, http.RequestAborted)
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
+        AdminIdentity.Of(http).HoldsAsync(grainFactory, node, ct);
 }

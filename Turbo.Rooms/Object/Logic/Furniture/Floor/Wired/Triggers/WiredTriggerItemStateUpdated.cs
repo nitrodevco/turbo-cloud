@@ -45,14 +45,14 @@ public class WiredTriggerItemStateUpdated(
     /// the current state" (1): only when a picked furni changes to the state it had in the box's
     /// snapshot.
     /// </summary>
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
     public override async Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (!await base.MatchesEventAsync(evt, ct) || evt is not RoomItemStateChangedEvent changed)
             return false;
 
-        if (!GetIntParamOrDefault(0, false))
+        if (!GetIntParamOrDefault(0, true))
             return true;
 
         var furniId = changed.ObjectId.Value;

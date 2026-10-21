@@ -40,7 +40,10 @@ public class WiredVariableRoom(
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.Persistent,
                 WiredAvailabilityType.Shared
-            ),
+            )
+            {
+                ErrorKey = WiredSaveErrors.VARIABLE_INVALID_AVAILABILITY,
+            },
         ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots()

@@ -149,6 +149,10 @@ Then deploy. The deploy applies the `admin_passkeys` migration, and Turbo starts
    - `root` to the site's `dist` folder, for example `/home/ploi/admin.example.com/dist`;
    - the `/api/` `proxy_pass` to Turbo's API. Use `http://127.0.0.1:8090` when Turbo runs on the
      same server; otherwise use its private address, and set `TURBO_ADMIN_URL` to listen there.
+   - and leave its `client_max_body_size` and `proxy_request_buffering off` as they are. Turbo caps each
+     request itself; a lower nginx limit refuses uploads and large saves first (a catalog picture,
+     a hotel view pulled from Habbo), and the panel says "That is too large to send" or, before
+     it knew, "The server answered 413.".
 
    **Delete Ploi's own `location / { ... }` block**, and its `location ~ \.php$` block if there is
    one. The site must have exactly one `location /`, the one from `nginx.conf`, which sends
@@ -331,6 +335,51 @@ admin API is on. A day at 10 seconds is 8,640 samples, which the server merges i
 `PerformanceMaxPoints` points per chart. With more than one silo, the page shows the silo that
 serves the admin API.
 
+## Client health and Usage
+
+Staff with `admin.telemetry.view` get two more tabs under **Overview**. Both read what the
+players' clients report about themselves with Habbo's own messages, and nothing else:
+
+| Message | What the client sends | When |
+| --- | --- | --- |
+| `PerformanceLog` | seconds since it started, user agent, memory, garbage collections, the average time between frames, slow frames | every `performancetest.interval` seconds, at most `performancetest.reportlimit` times |
+| `LatencyPingReport` | the average ping, the average without spikes, the pings counted | after each latency test |
+| `LagWarningReport` | how many of its own chat lines came back late | when chat lag was noticed |
+| `EventLog` | category, type, action, an extra string and number | at the points Habbo's client logs them; `ClientPerformance` / `fps` carries the frame rate in a room |
+
+The server also times the login steps it sees itself, named as Habbo names them
+(`client.init.socket.ok`, `client.init.handshake.start`, `client.init.handshake.ok`,
+`client.init.auth.ok`, `client.init.room.enter`), from the socket opening, and a refused ticket
+(unknown, banned, or the hotel closed to the player) as `client.init.auth.fail`. Habbo's client
+tells its own steps only to its web page, so the funnel is the server's.
+
+Habbo's own external variables never send a performance report or a room's frame rate
+(`performancetest.interval` and `tracking.framerate.reportInterval.seconds` are `2147483647`), so
+the frame rate and memory charts stay empty, and say so, until the hotel sets them: for example
+`performancetest.interval=300` with `performancetest.reportlimit=10` (a report every five minutes for
+the first fifty), and `tracking.framerate.reportInterval.seconds=300` with
+`tracking.framerate.maximumEvents=5` (the client's defaults). Latency (`latencytest.interval=20000`)
+and chat lag (`lagWarningLog.enabled=1`) are on in Habbo's own. Each empty chart or table on the pages names the variable
+it waits for. `admin.telemetry.view` reaches the `admin` group through its `*`, as every `admin.*`
+view node does; give it to anyone else under Access.
+
+- **Client health**: frame rate, memory and latency (median and p95) per day; a table per browser,
+  system and kind of device (read from the user agent); the rooms with the most chat lag, with
+  their frame rate and latency; and the login funnel: how many logins reached each step and how
+  long it took. Filter by dates, browser, system, device or room; a room or a player opens their own
+  reports.
+- **Usage**: events per day, the most logged events and their categories, and a simple funnel: how
+  many players logged each of up to six chosen events and every one before it.
+
+Reports are queued and written in batches, so a client report never waits on the database: one over
+the player's limit per minute (`MaxReportsPerPlayerPerMinute`, `MaxEventsPerPlayerPerMinute`) or
+past a full queue (`QueueCapacity`) is dropped. Raw rows are kept `RawRetentionDays` (30); every
+hour each finished day (UTC) is rolled up into `client_telemetry_daily`, kept `RollupRetentionDays`
+(365), before its raw rows can expire. No address is stored; the player id is kept on raw rows only,
+for the drill-down. The old `performance_logs` table, which nothing writes and which has an address
+column, is left in place: dropping it needs `AllowDestructiveMigrations` for one start. A range of several days weights each day's percentiles by its reports.
+Everything is under `Turbo:ClientTelemetry`; `Enabled` turns it off without a restart.
+
 ## Rooms
 
 Staff with `admin.rooms.view` get a **Rooms** page for finding and inspecting rooms. Staff who
@@ -363,7 +412,7 @@ group rooms' rights, the settings' limits). Buttons only appear for what you may
 | Remove one player's rights, or everyone's | Owning the room, or `room.control.any` | No |
 | Kick, mute (up to an hour) or ban (an hour, a day or for good) a player; lift a ban | Owning the room, or `room.moderate.any` (staff with it act on anyone who lacks it) | Kick and mute: yes. Ban and lift: no |
 | Staff pick | `navigator.staff_pick` | No |
-| Mute the whole room | `command.roommute` or `command.roomunmute` | Yes |
+| Mute the whole room; lift it | `command.roommute` to mute, `command.roomunmute` to lift it (either shows the switch) | Yes |
 | Kick everyone (its owner and room moderators stay) | `command.roomkickall` | Yes |
 | Unload (sends everyone out) | `command.unloadroom` | Yes |
 | Room alert (a pop-up for everyone inside, up to 500 characters) | `command.roomalert` | Yes |
@@ -1037,6 +1086,7 @@ passkey; they add more while signed in instead.
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
+| `admin.telemetry.view` | The Client health and Usage pages under Overview: how clients run (frame rate, memory, latency, chat lag, login times) and the events they log, down to one player's or room's reports. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
@@ -1049,11 +1099,47 @@ passkey; they add more while signed in instead.
 | `admin.settings.view` | The Settings page: every server setting, where its value comes from and what waits on a restart. Secrets are never shown. |
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 | `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
-| `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity and giving or taking them, and the rest of its tabs. |
+| `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity, giving or taking them (with `command.givebadge` or `command.takebadge` as well, as `:givebadge` and `:takebadge` need, each in the command log), and the rest of its tabs. |
 | `admin.plugins.view` | The Plugins page: each plugin's manifest, whether it loaded and why not, and the capabilities, packet headers and migrations it added. |
 | `admin.plugins.manage` | Reloading a plugin, scanning the plugin folders again, and turning a plugin off or on on that page. |
 | `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
 | `admin.plugins.uninstall` | With `admin.plugins.manage`: uninstalling a plugin on that page, its dry run, and the SQL export of its tables. No wildcard grants it. |
+
+### How a route says who may call it
+
+Every route behind the session declares its access, and `AdminSessionFilter` checks it before
+the handler runs, the way `PermissionGate` checks a packet handler's `[RequiresPermission]`:
+
+```csharp
+var group = secured
+    .MapGroup("/word-filter")
+    .RequirePermission(PermissionNodes.Moderation.TOOL, NO_ACCESS)          // to see
+    .RequirePermissionToChange(PermissionNodes.Moderation.FILTER_MANAGE, NO_MANAGE); // to change
+group.MapPost("/test", TestAsync).ViewIsEnough("Trying a line changes nothing.");
+```
+
+- `RequirePermission(node, refusal)` on a group or a route: every request needs the node (a
+  route's own comes on top of its group's). `RequireAnyPermission(refusal, nodes...)` takes any of
+  them.
+- `RequirePermissionToChange(node, refusal)` on a group: anything but a GET needs the node.
+- A note, with its reason, for a route that needs no more: `PanelOnly` (the caller's own account,
+  their session, a list cut to what they hold), `ViewIsEnough` (a request that is not a GET but
+  changes nothing, or an area with one node for both), `ChecksInHandler` (the handler decides from
+  the request: the target's rank, a room's owner, a command's own node, a refusal written to the
+  command log).
+
+`AdminAccessGuardTests` fails for a route that declares none of these, and for a change that does
+not say what changing needs. The session reads what the staff member holds once a request
+(`GetResolvedAsync`), and the declarations and `HoldsAsync` answer from that rather than asking
+the permission grain node by node; a node watched with verbose permission logging is still asked
+of the grain, so it still shows in that log. A handler still asks `grainFactory.HoldsAsync(http, node, ct)` for
+what it shows (a list that says whether it may be changed), never to decide who may call it.
+
+The dashboard needs only `admin.panel`, although it shows the figures `:status` reports in the
+hotel (uptime, players online, rooms loaded, silos, memory, a coming maintenance or shutdown) and
+`:status` needs `command.status`. That is on purpose: it is the panel's front page, its figures
+are counts with no player data in them, and its busiest rooms are in the navigator anyway, so
+every staff member who may open the panel sees it.
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
@@ -1083,7 +1169,11 @@ The **Content** page is the game's content, each change made at once and on reco
   word-filtered), put its badge back to the default, take any member, admin, request or block out,
   or delete it, whatever its size or `Turbo:Guilds:DeletionEnabled`. Each goes through the group's
   grain (`StaffRenameAsync`, ...) as the owner's own change would, the staff member named in the
-  log. Below, the badge parts and colours group badges are built from: added under the next id of
+  log. Deleting needs `guild.delete_any`, the node that deletes any group in the game, rather than
+  `content.manage`, and every delete, refused ones too, is in the command log as `group delete
+  <id>`. The deletion setting and the member cap are left out on purpose: in the client
+  `group.deletion.enabled` hides the button from owners and staff alike, and the panel is where
+  staff remove an abusive group whatever a hotel has set for its players. Below, the badge parts and colours group badges are built from: added under the next id of
   their kind (ids are written into badge codes, so they are never reused), their files or hex
   changed, and read again by the group directory at once.
 - **Pets**: each pet type's palettes (the body the info stand names, the rarity breeding weighs,
@@ -1201,9 +1291,9 @@ Every install keeps the version it replaces, zipped, in `<plugin folder>/.versio
 through the same checks, and the version rolled back from is kept in turn. A new version that does
 not load is taken out again and the one it replaced put back, with why it failed. A manifest may
 say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
-people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` (1 to 3: 2 added plugin
-settings and admin pages, 3 asset movement consumers and reversals, `docs/movements.md`) and
-refuses any other, saying both.
+people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` and refuses any other,
+saying both. Both are 1: no plugin outside this project has been published, so the API stays 1
+while it changes, and counts up from the first one that is.
 
 **Linked from GitHub**: a plugin can be installed from a GitHub repository's releases and kept up
 to date. Link one by its URL (`https://github.com/owner/repo`) or `owner/repo`, following its

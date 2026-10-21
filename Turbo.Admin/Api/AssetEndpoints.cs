@@ -45,7 +45,10 @@ internal sealed class AssetEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/assets").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/assets")
+            .RequirePermission(PermissionNodes.Admin.GAMEDATA_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Gamedata.MANAGE, NO_MANAGE);
 
         group.MapGet("/", OverviewAsync);
         group.MapGet(
@@ -84,7 +87,9 @@ internal sealed class AssetEndpoints(
         Results.Ok(
             AssetOverviewResponse.From(
                 await bundles.GetOverviewAsync(ct).ConfigureAwait(false),
-                await CanManageAsync(http, ct).ConfigureAwait(false),
+                await grainFactory
+                    .HoldsAsync(http, PermissionNodes.Gamedata.MANAGE, ct)
+                    .ConfigureAwait(false),
                 jobs.Current
             )
         );
@@ -138,41 +143,36 @@ internal sealed class AssetEndpoints(
     }
 
     private Task<IResult> UploadAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
+        WithFileAsync(
             http,
             ct,
-            () =>
-                WithFileAsync(
-                    http,
-                    ct,
-                    (form, file, data) =>
-                    {
-                        if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
-                            return Task.FromResult(
-                                AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND)
-                            );
+            (form, file, data) =>
+            {
+                if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
+                    return Task.FromResult(
+                        AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND)
+                    );
 
-                        return RefusedAsync(
-                            http,
-                            file.FileName,
-                            async () =>
-                                Results.Ok(
-                                    AssetBundleResponse.From(
-                                        await bundles
-                                            .UploadAsync(
-                                                kind,
-                                                form["name"].FirstOrDefault(),
-                                                file.FileName,
-                                                data,
-                                                AdminIdentity.Of(http).PlayerId,
-                                                ct
-                                            )
-                                            .ConfigureAwait(false)
+                return RefusedAsync(
+                    http,
+                    file.FileName,
+                    async () =>
+                        Results.Ok(
+                            AssetBundleResponse.From(
+                                await bundles
+                                    .UploadAsync(
+                                        kind,
+                                        form["name"].FirstOrDefault(),
+                                        file.FileName,
+                                        data,
+                                        AdminIdentity.Of(http).PlayerId,
+                                        ct
                                     )
-                                )
-                        );
-                    }
-                )
+                                    .ConfigureAwait(false)
+                            )
+                        )
+                );
+            }
         );
 
     /// <summary>
@@ -181,31 +181,26 @@ internal sealed class AssetEndpoints(
     /// a file it could not take.
     /// </summary>
     private Task<IResult> UploadFileAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
+        WithFileAsync(
             http,
             ct,
-            () =>
-                WithFileAsync(
+            (form, file, data) =>
+                RefusedAsync(
                     http,
-                    ct,
-                    (form, file, data) =>
-                        RefusedAsync(
-                            http,
-                            file.FileName,
-                            async () =>
-                                Results.Ok(
-                                    AssetUploadResponse.From(
-                                        await bundles
-                                            .UploadFileAsync(
-                                                form["name"].FirstOrDefault(),
-                                                file.FileName,
-                                                data,
-                                                AdminIdentity.Of(http).PlayerId,
-                                                ct
-                                            )
-                                            .ConfigureAwait(false)
+                    file.FileName,
+                    async () =>
+                        Results.Ok(
+                            AssetUploadResponse.From(
+                                await bundles
+                                    .UploadFileAsync(
+                                        form["name"].FirstOrDefault(),
+                                        file.FileName,
+                                        data,
+                                        AdminIdentity.Of(http).PlayerId,
+                                        ct
                                     )
-                                )
+                                    .ConfigureAwait(false)
+                            )
                         )
                 )
         );
@@ -319,64 +314,42 @@ internal sealed class AssetEndpoints(
         return await take(form, file, data).ConfigureAwait(false);
     }
 
-    private Task<IResult> DeleteAsync(
+    private async Task<IResult> DeleteAsync(
         string kind,
         string name,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                if (!AssetContractNames.TryParseKind(kind, out var parsed))
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND);
+    )
+    {
+        if (!AssetContractNames.TryParseKind(kind, out var parsed))
+            return AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND);
 
-                return await bundles
-                    .DeleteAsync(parsed, name, AdminIdentity.Of(http).PlayerId, ct)
-                    .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_BUNDLE);
-            }
-        );
+        return await bundles
+            .DeleteAsync(parsed, name, AdminIdentity.Of(http).PlayerId, ct)
+            .ConfigureAwait(false)
+            ? Results.NoContent()
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_BUNDLE);
+    }
 
-    private Task<IResult> SyncAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            () =>
-            {
-                try
-                {
-                    return Task.FromResult(
-                        Results.Ok(
-                            AssetJobResponse.From(sync.Start(AdminIdentity.Of(http).PlayerId))
-                        )
-                    );
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return Task.FromResult(
-                        AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
-                    );
-                }
-            }
-        );
+    private Task<IResult> SyncAsync(HttpContext http, CancellationToken ct)
+    {
+        try
+        {
+            return Task.FromResult(
+                Results.Ok(AssetJobResponse.From(sync.Start(AdminIdentity.Of(http).PlayerId)))
+            );
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Task.FromResult(AdminResults.Error(StatusCodes.Status409Conflict, ex.Message));
+        }
+    }
 
     private Task<IResult> CancelAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            () =>
-                Task.FromResult(
-                    jobs.Cancel()
-                        ? Results.NoContent()
-                        : AdminResults.Error(
-                            StatusCodes.Status409Conflict,
-                            "No asset job is running."
-                        )
-                )
+        Task.FromResult(
+            jobs.Cancel()
+                ? Results.NoContent()
+                : AdminResults.Error(StatusCodes.Status409Conflict, "No asset job is running.")
         );
 
     private async Task<IResult> ChecksAsync(CancellationToken ct) =>
@@ -387,39 +360,4 @@ internal sealed class AssetEndpoints(
                 ),
             ])
         );
-
-    /// <summary>A change by someone who holds <c>gamedata.manage</c>.</summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    ) =>
-        await CanManageAsync(http, ct).ConfigureAwait(false)
-            ? await change().ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Gamedata.MANAGE,
-            ct
-        );
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.GAMEDATA_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

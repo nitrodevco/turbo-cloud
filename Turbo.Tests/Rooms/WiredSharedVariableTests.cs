@@ -11,7 +11,9 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
@@ -117,6 +119,69 @@ public sealed class WiredSharedVariableTests
         (await reference.SetValueAsync(null!, key, new WiredVariableValue(12))).Should().BeTrue();
 
         Read(_coins, Key(_coins, WiredVariableTargetType.Global, 0)).Should().Be(12);
+    }
+
+    [Fact]
+    public async Task The_web_api_reads_a_reference_but_never_writes_the_room_it_lives_in()
+    {
+        const int ADDON = 30;
+        await BuildShopAsync();
+        await SetCoinsAsync(5);
+        await AddReferenceAsync(_coins.GetVarSnapshot().VariableId, readOnly: false);
+        // The room lists the box's variable once its stack is read, as on a move or save.
+        await _other
+            .Harness.Module<RoomWiredSystem>()
+            .OnRoomEventAsync(
+                new RoomWiredStackChangedEvent
+                {
+                    RoomId = 2,
+                    CausedBy = ActionContext.CreateForSystem((RoomId)2),
+                    StackIds = [_other.Map.ToIdx(3, 3)],
+                },
+                Ct
+            );
+        await _other
+            .Harness.Module<RoomWiredSystem>()
+            .ProcessWiredAsync(10_000, dormant: false, Ct);
+        _other.AddBox<WiredAddonVariablesWebApi>(ADDON, 4, 4, "wf_xtra_var_web_api");
+        var system = ActionContext.CreateForSystem((RoomId)2);
+        var read = await _other.Harness.Room.GenerateWiredWebApiKeyAsync(system, ADDON, true, Ct);
+        var write = await _other.Harness.Room.GenerateWiredWebApiKeyAsync(system, ADDON, false, Ct);
+        (
+            await _other.SaveAsync<UpdateAddonMessage>(
+                ADDON,
+                intParams: [1],
+                stringParam: read + "	" + write
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        (
+            await _other.Harness.Room.HandleWiredWebApiAsync(
+                new WiredWebApiRequest
+                {
+                    Operation = WiredWebApiOperation.GetGlobal,
+                    VariableName = "linked",
+                    ReadKey = read,
+                },
+                Ct
+            )
+        ).Status.Should().Be(200);
+        (
+            await _other.Harness.Room.HandleWiredWebApiAsync(
+                new WiredWebApiRequest
+                {
+                    Operation = WiredWebApiOperation.PatchGlobal,
+                    VariableName = "linked",
+                    WriteKey = write,
+                    Body = """{"value":"9"}""",
+                },
+                Ct
+            )
+        ).Should().Be(new WiredWebApiResponse(403, """{"error":"wired.variables.operation_not_allowed"}"""));
+
+        Read(_coins, Key(_coins, WiredVariableTargetType.Global, 0)).Should().Be(5);
     }
 
     [Fact]

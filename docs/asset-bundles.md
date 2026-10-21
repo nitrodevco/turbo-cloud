@@ -186,6 +186,15 @@ What the hotel takes from the followed release:
   are listed in the sync's log as template problems. The bundles are stamped with the release's
   libraries and built again together when one changes; the bundle of a library the release no
   longer has is taken away, and an uploaded one is left alone.
+  Habbo puts some bitmaps in its AIR client only (`cursed_dragon_adoption_icon`, which the window
+  manager's class embeds since build 1745), so the newest AIR client the environments' clienturls
+  name (`flash-windows-version`, `flash-windows`: a `HabboWin.zip`) is downloaded when the
+  templates are built and its `HabboAir.swf` kept in `.habbo-client/air/<version>/`, the newest
+  only. Each image a library's class (the one its manifest names, `HabboWindowManagerCom`) embeds
+  there - a static field its static initializer sets to an image's class - that the library lacks
+  goes into its bundle under the field's name, never over one the library has, and the build's
+  notes list them ("taken from Habbo's AIR client"). The bundles are built again when the AIR
+  release changes. `Turbo:Gamedata:ClientAirImages` (on by default) turns it off.
 - **The UI theme** (`Habbo/Client/Theme/`, nitro-studio's `clientTheme` / `themeVariants` /
   `skinArt`): built from the window manager library's element description, window layouts and
   skins, and put into `habbo-window-manager-com.nitro` beside its templates as Studio's `withTheme`

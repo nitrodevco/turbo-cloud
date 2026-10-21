@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -24,6 +25,12 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
 {
     private const int MASK_START_INDEX = 3;
 
+    // A fresh box opens on the official server merged, rooted on its input, with the 5x5 square
+    // around it painted (spiral ranks 0-24) in 15 mask ints, one more than the editor's drawing
+    // packs into (defaults [1,0,0,33554431,0 x14] for both selectors, 2026-10-20T17-33-23-Open-wait).
+    private const int DEFAULT_MASK_INTS = WiredNeighborhood.MASK_INTS + 1;
+    private const int DEFAULT_MASK_SQUARE = (1 << 25) - 1;
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [
@@ -40,15 +47,23 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredBoolParamRule(false), // merged source
+            new WiredBoolParamRule(true), // merged source
             WiredRules.TileOffset(_roomGrain._wiredConfig), // rootX
             WiredRules.TileOffset(_roomGrain._wiredConfig), // rootY
         ];
 
     public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
 
-    // The editor always sends the whole 21x21 drawing: 3 ints and 14 of mask.
-    protected override int GetMaxIntParams() => MASK_START_INDEX + WiredNeighborhood.MASK_INTS;
+    public override List<int> GetDefaultIntParams() =>
+        [
+            .. base.GetDefaultIntParams(),
+            DEFAULT_MASK_SQUARE,
+            .. Enumerable.Repeat(0, DEFAULT_MASK_INTS - 1),
+        ];
+
+    // The editor always sends the whole 21x21 drawing: 3 ints and 14 of mask; the official
+    // default holds 15.
+    protected override int GetMaxIntParams() => MASK_START_INDEX + DEFAULT_MASK_INTS;
 
     protected abstract void CollectTile(int tileId, WiredSelectionSet output);
 

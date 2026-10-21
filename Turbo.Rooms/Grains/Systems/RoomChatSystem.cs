@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
@@ -122,15 +125,11 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         styleId = await ResolveStyleIdAsync(speaker, styleId, ct);
 
-        IRoomPlayer? recipient = null;
-
-        if (chatType == RoomChatType.Whisper)
-        {
-            recipient = FindPlayerAvatarByName(recipientName);
-
-            if (recipient is null)
-                return false;
-        }
+        // A whisper to a name not in the room still goes out: its speaker sees it and wired reads
+        // it (official client capture 2026-10-20: a whisper to an absent player came back to its
+        // speaker and fired Says Keyword, 2 of 2).
+        var recipient =
+            chatType == RoomChatType.Whisper ? FindPlayerAvatarByName(recipientName) : null;
 
         var evt = new PlayerChatEvent
         {
@@ -144,6 +143,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             TrackingId = trackingId,
             Gesture = GetGestureForText(text),
             TargetPlayerId = recipient?.PlayerId,
+            WiredMayRead =
+                chatType != RoomChatType.Whisper || await WiredMayReadWhisperAsync(speaker, ct),
         };
 
         await _roomGrain._eventSystem.PublishAsync(evt, ct);
@@ -192,8 +193,80 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         await _roomGrain.PublishRoomEventAsync(evt, ct);
 
+        if (
+            chatType == RoomChatType.Whisper
+            && evt.WiredMayRead
+            && _roomGrain._wiredConfig.NotifyWhisperRead
+            && await IsReadByWiredAsync(evt, ct)
+        )
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                speaker.PlayerId,
+                WhisperReadNotice(),
+                ct
+            );
+
         return true;
     }
+
+    /// <summary>
+    /// Whether wired may read a whisper: the hotel lets it, the room has a Says Keyword box to
+    /// read it with, and the whisperer has not ticked "Disable whispering to Wired"
+    /// (wiredWhisperDisabled, saved by WiredSetPreferences). A settings read that fails counts as
+    /// opted out.
+    /// </summary>
+    private async Task<bool> WiredMayReadWhisperAsync(IRoomPlayer speaker, CancellationToken ct)
+    {
+        if (
+            !_roomGrain._wiredConfig.ReadWhispers
+            || !_roomGrain._state.ItemsById.Values.Any(x => x.Logic is WiredTriggerHabboSaysKeyword)
+        )
+            return false;
+
+        try
+        {
+            var settings = await _roomGrain
+                ._grainFactory.GetPlayerSettingsGrain(speaker.PlayerId)
+                .GetSettingsAsync(ct);
+
+            return !settings.WiredWhisperDisabled;
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not read the wired whisper preference of player {PlayerId} in room {RoomId}",
+                speaker.PlayerId,
+                _roomGrain.RoomId
+            );
+
+            return false;
+        }
+    }
+
+    private async Task<bool> IsReadByWiredAsync(PlayerChatEvent evt, CancellationToken ct)
+    {
+        foreach (var item in _roomGrain._state.ItemsById.Values)
+        {
+            if (
+                item.Logic is WiredTriggerHabboSaysKeyword trigger
+                && await trigger.FiresForAsync(evt, ct)
+            )
+                return true;
+        }
+
+        return false;
+    }
+
+    // The text Habbo has for it; the dialog type is the one its other wired notices use.
+    private static NotificationDialogMessageComposer WhisperReadNotice() =>
+        new()
+        {
+            NotificationType = "wired.error",
+            Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                "message",
+                "${room.error.wired.whisper_read}"
+            ),
+        };
 
     /// <summary>
     /// A bubble over an avatar that is not a player typing: a bot's line, a pet's reply, a wired

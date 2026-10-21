@@ -207,7 +207,9 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
                 PlayerId
             );
 
-            return InsufficientBalance(current ?? normalizedRequests[0]);
+            // A fault is not a short balance: the player is told the purchase failed, not that
+            // they cannot afford it.
+            return WalletDebitResult.Failed();
         }
 
         switch (result)

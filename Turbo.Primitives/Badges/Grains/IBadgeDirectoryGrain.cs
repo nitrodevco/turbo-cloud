@@ -32,7 +32,10 @@ public interface IBadgeDirectoryGrain : IGrainWithStringKey
 
     public Task OnBadgeRevokedAsync(string badgeCode, CancellationToken ct);
 
-    /// <summary>Recounts committed ownership for these codes; safe to replay after recovery.</summary>
+    /// <summary>
+    /// Recounts committed ownership for these codes and reads their pinned rarity again; safe to
+    /// replay after recovery.
+    /// </summary>
     public Task RefreshCodesAsync(ImmutableArray<string> badgeCodes, CancellationToken ct);
 
     /// <summary>

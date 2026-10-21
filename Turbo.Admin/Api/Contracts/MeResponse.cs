@@ -21,5 +21,6 @@ public sealed record MeResponse(
     bool CanViewPlugins,
     bool CanManageRewardTracks,
     bool CanHandleReports,
-    bool CanViewMessages
+    bool CanViewMessages,
+    bool CanViewTelemetry
 );

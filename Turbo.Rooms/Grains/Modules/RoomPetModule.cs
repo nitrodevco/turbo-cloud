@@ -405,11 +405,12 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
         }
 
-        // The tile may have been taken while the inventory was consulted.
-        if (!IsTileFreeForNpc(tileIdx) && !TryFindFreeTile(0, 0, out tileIdx))
+        // The tile may have been taken while the inventory was consulted: a chosen tile is then
+        // refused as it would have been before, and only a tile the room picked is picked again.
+        if (!IsTileFreeForNpc(tileIdx) && (chosen || !TryFindFreeTile(0, 0, out tileIdx)))
         {
             await GiveBackAsync(snapshot);
-            await refuseTile(false);
+            await refuseTile(chosen);
 
             return false;
         }

@@ -22,6 +22,18 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Why a Web API call carrying these keys would be refused (a <see cref="WiredWebApiErrors"/>
+    /// code), null when its keys open this room. Asked of a room that is already loaded before the
+    /// call is counted against the room's limits.
+    /// </summary>
+    public Task<string?> CheckWiredWebApiKeysAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    );
+
     /// <summary>Answers one Web API call against this room's variables.</summary>
     public Task<WiredWebApiResponse> HandleWiredWebApiAsync(
         WiredWebApiRequest request,

@@ -31,11 +31,11 @@ public class WiredConditionTimeMatches(
             new WiredBoolParamRule(false), // use minutes
             new WiredBoolParamRule(false), // use hours
             new WiredRangeParamRule(0, 59, 0),
-            new WiredRangeParamRule(0, 59, 59),
             new WiredRangeParamRule(0, 59, 0),
-            new WiredRangeParamRule(0, 59, 59),
+            new WiredRangeParamRule(0, 59, 0),
+            new WiredRangeParamRule(0, 59, 0),
             new WiredRangeParamRule(0, 23, 0),
-            new WiredRangeParamRule(0, 23, 23),
+            new WiredRangeParamRule(0, 23, 0),
         ];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)

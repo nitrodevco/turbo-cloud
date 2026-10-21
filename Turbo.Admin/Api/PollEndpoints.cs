@@ -18,7 +18,7 @@ internal sealed class PollEndpoints(ContentAccess access, AdminPollEditor polls)
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/polls").AddEndpointFilter(access.RequireViewAsync);
+        var group = ContentAccess.Require(secured.MapGroup("/polls"));
 
         group.MapGet(
             "/",
@@ -39,49 +39,38 @@ internal sealed class PollEndpoints(ContentAccess access, AdminPollEditor polls)
         group.MapPost(
             "/",
             (PollRequest request, HttpContext http, CancellationToken ct) =>
-                access.ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        Results.Ok(
-                            new
-                            {
-                                id = await polls
-                                    .SaveAsync(0, request, ContentAccess.Actor(http), ct)
-                                    .ConfigureAwait(false),
-                            }
-                        )
+                ContentAccess.ChangeAsync(async () =>
+                    Results.Ok(
+                        new
+                        {
+                            id = await polls
+                                .SaveAsync(0, request, ContentAccess.Actor(http), ct)
+                                .ConfigureAwait(false),
+                        }
+                    )
                 )
         );
         group.MapPut(
             "/{id:int}",
             (int id, PollRequest request, HttpContext http, CancellationToken ct) =>
-                access.ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        Results.Ok(
-                            new
-                            {
-                                id = await polls
-                                    .SaveAsync(id, request, ContentAccess.Actor(http), ct)
-                                    .ConfigureAwait(false),
-                            }
-                        )
+                ContentAccess.ChangeAsync(async () =>
+                    Results.Ok(
+                        new
+                        {
+                            id = await polls
+                                .SaveAsync(id, request, ContentAccess.Actor(http), ct)
+                                .ConfigureAwait(false),
+                        }
+                    )
                 )
         );
         group.MapDelete(
             "/{id:int}",
             (int id, HttpContext http, CancellationToken ct) =>
-                access.ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        await polls
-                            .RemoveAsync(id, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                            ? Results.NoContent()
-                            : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
+                ContentAccess.ChangeAsync(async () =>
+                    await polls.RemoveAsync(id, ContentAccess.Actor(http), ct).ConfigureAwait(false)
+                        ? Results.NoContent()
+                        : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
                 )
         );
     }

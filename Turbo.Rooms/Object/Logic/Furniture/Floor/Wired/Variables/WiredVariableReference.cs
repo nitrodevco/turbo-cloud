@@ -14,6 +14,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -70,14 +71,17 @@ public class WiredVariableReference(
     private ReferenceData? _reference;
     private Dictionary<int, long> _values = [];
     private ImmutableArray<WiredVariableSharedSnapshot> _sharedVariables = [];
+    private SharedWiredVariableAddonsSnapshot? _sharedAddons;
 
     public override int WiredCode => (int)WiredVariableBoxType.Reference;
 
     public override int GetMaxVariableIds() => 1;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+    // A fresh box is read only on the official server (defaults [1], 3/3 opens, e.g.
+    // 2026-10-20T17-06-11-Open-wait; AS3 wired_setup/variables/ReferenceVariable.as:103).
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
-    private bool IsReadOnly => GetIntParamOrDefault(PARAM_READ_ONLY, false);
+    private bool IsReadOnly => GetIntParamOrDefault(PARAM_READ_ONLY, true);
 
     protected override WiredVariableTargetType TargetType =>
         Reference?.TargetType ?? WiredVariableTargetType.Global;
@@ -88,7 +92,11 @@ public class WiredVariableReference(
     {
         get
         {
-            var flags = Reference?.Flags ?? WiredVariableFlags.None;
+            // Whether a text connector applies is this box's own (its stack, or what an import
+            // add-on imports), not the source's.
+            var flags =
+                (Reference?.Flags ?? WiredVariableFlags.None)
+                & ~WiredVariableFlags.HasTextConnector;
 
             return IsReadOnly
                 ? flags
@@ -205,12 +213,22 @@ public class WiredVariableReference(
         return true;
     }
 
-    /// <summary>Asks the room the variable lives in for its values, and to be told of its changes.</summary>
+    /// <summary>
+    /// Asks the room the variable lives in for its values, and to be told of its changes, then
+    /// takes over the add-ons it shares that this box imports.
+    /// </summary>
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         await base.FillInternalDataAsync(ct);
+        await SubscribeSourceAsync(ct);
+        await ImportAddonsAsync(ct);
+    }
 
+    private async Task SubscribeSourceAsync(CancellationToken ct)
+    {
         _values = [];
+        _sharedAddons = null;
+        _varSnapshot = null;
 
         if (Reference is not { } reference || SourceVariableId is not { } id)
             return;
@@ -223,6 +241,8 @@ public class WiredVariableReference(
             return;
 
         _values = new Dictionary<int, long>(state.Values);
+        _sharedAddons = state.Addons;
+        _varSnapshot = null;
 
         // The variable there may have changed since this box was saved.
         if (
@@ -242,6 +262,110 @@ public class WiredVariableReference(
             _varSnapshot = null;
         }
     }
+
+    /// <summary>Whether this box uses the shared variable <paramref name="variableId"/> of <paramref name="room"/>.</summary>
+    public bool RefersTo(RoomId room, WiredVariableId variableId) =>
+        Reference is { } reference
+        && reference.RoomId == room.Value
+        && SourceVariableId == variableId;
+
+    /// <summary>
+    /// What the variable's room shares of <paramref name="category"/> when an import add-on on this
+    /// box's stack imports it ("place the Import Add-on on top of a WIRED Variable: From Another
+    /// Room", Wired Faculty 19/10/2026), else null.
+    /// </summary>
+    private SharedWiredVariableAddonsSnapshot? Imported(WiredVariableAddonCategories category)
+    {
+        if (_sharedAddons is not { } shared || !shared.Categories.HasFlag(category))
+            return null;
+
+        return FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<Addons.WiredAddonVariableImport>()
+            .Any(import => import.Categories.HasFlag(category))
+            ? shared
+            : null;
+    }
+
+    /// <summary>
+    /// The subvariable creators and variable fx this box takes over from the variable's room: a
+    /// copy of each shared one whose category the import add-on imports too, run on this box as
+    /// if it stood on its stack. Their subvariables and fx are known by the shared boxes' ids,
+    /// as there.
+    /// </summary>
+    public IReadOnlyList<Addons.FurnitureWiredAddonLogic> ImportedAddons => _importedAddons;
+
+    private List<Addons.FurnitureWiredAddonLogic> _importedAddons = [];
+
+    /// <summary>
+    /// Builds <see cref="ImportedAddons"/> afresh from what the variable's room shares. An add-on
+    /// of a kind this box's own stack has already is not taken over, as a text connector of its
+    /// own goes before the imported one (inference: Habbo's choice between the two is not
+    /// recorded). The fx system is told when fx come or go.
+    /// </summary>
+    private async Task ImportAddonsAsync(CancellationToken ct)
+    {
+        var hadFx = _importedAddons.Any(x => x is Addons.VariableFx.FurnitureWiredVariableFxLogic);
+
+        _importedAddons = [];
+
+        if (_sharedAddons is { Addons.Length: > 0 } shared)
+        {
+            var own = new HashSet<int>();
+
+            foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()).ToList())
+            {
+                if (item.Logic is not Addons.FurnitureWiredAddonLogic addon)
+                    continue;
+
+                await addon.EnsureWiredLoadedAsync(ct);
+                own.Add(addon.WiredCode);
+            }
+
+            foreach (var addon in shared.Addons)
+            {
+                if (
+                    Imported(addon.Category) is null
+                    || _roomGrain._logicProvider.CreateLogicInstance(addon.LogicType, _ctx)
+                        is not Addons.FurnitureWiredAddonLogic copy
+                    || own.Contains(copy.WiredCode)
+                )
+                    continue;
+
+                await copy.ImportWiredAsync(addon, ct);
+                _importedAddons.Add(copy);
+            }
+        }
+
+        if (hadFx || _importedAddons.Any(x => x is Addons.VariableFx.FurnitureWiredVariableFxLogic))
+            await _ctx.PublishRoomEventAsync(
+                new WiredVariableFxBoxChangedEvent
+                {
+                    RoomId = _ctx.RoomId,
+                    CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                },
+                ct
+            );
+    }
+
+    /// <summary>A text connector on this box's own stack, else the imported ones.</summary>
+    public override Dictionary<WiredVariableValue, string> GetTextConnectors()
+    {
+        var own = base.GetTextConnectors();
+
+        return own.Count > 0
+            ? own
+            : Imported(WiredVariableAddonCategories.TextConnectors)?.TextConnectors ?? [];
+    }
+
+    public override bool HasTextConnector() =>
+        base.HasTextConnector()
+        || (Imported(WiredVariableAddonCategories.TextConnectors)?.HasTextConnector ?? false);
+
+    public override string? GetTextConnectorFallback() =>
+        base.GetTextConnectorFallback()
+        ?? Imported(WiredVariableAddonCategories.TextConnectors)?.TextConnectorFallback;
 
     /// <summary>
     /// Who holds a value, as the room the variable lives in keeps it: a player by their id (they

@@ -3,6 +3,8 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
@@ -11,6 +13,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Commands;
 using Turbo.Tests.Support;
@@ -139,35 +142,64 @@ public sealed class WiredRoomStateTests
     }
 
     [Fact]
-    public async Task Everyone_sent_out_is_closed_like_habbo_then_sent_back_in_two_seconds_later()
+    public async Task The_wired_menu_button_reloads_through_the_room_service()
     {
         var packets = new PacketHarness();
-        packets.Fakes.Handlers["UpdateWiredRoomStateAsync"] = _ =>
-            Task.FromResult(ImmutableArray.Create<PlayerId>(OWNER, VISITOR));
-        var stamps = new List<(string Call, long At)>();
-        var clock = Stopwatch.StartNew();
-        packets.Fakes.Handlers["OnRemovedFromRoomAsync"] = call =>
-        {
-            stamps.Add(("close", clock.ElapsedMilliseconds));
-            return Task.CompletedTask;
-        };
-        packets.Fakes.Handlers["ForwardToRoomAsync"] = call =>
-        {
-            stamps.Add(("forward", clock.ElapsedMilliseconds));
-            return Task.CompletedTask;
-        };
 
         await packets.SendAsync(
             PacketHarness.Incoming("WiredUpdateRoomMessageEvent"),
-            PacketHarness.Payload(w => w.Bool(false)),
+            PacketHarness.Payload(w => w.Bool(true)),
             playerId: OWNER,
             roomId: 7
         );
 
+        // The handler hands it to the room service, which asks the room for the rollback.
+        packets
+            .Fakes.Log.Of(nameof(IRoomGrain.UpdateWiredRoomStateAsync))
+            .Should()
+            .ContainSingle()
+            .Which.Args[1]
+            .Should()
+            .Be(true, "the button asked for a rollback");
+    }
+
+    [Fact]
+    public async Task Everyone_sent_out_is_closed_like_habbo_then_sent_back_in_two_seconds_later()
+    {
+        var fakes = new Fakes();
+        fakes.Handlers["UpdateWiredRoomStateAsync"] = _ =>
+            Task.FromResult(ImmutableArray.Create<PlayerId>(OWNER, VISITOR));
+        var stamps = new List<(string Call, long At)>();
+        var clock = Stopwatch.StartNew();
+        fakes.Handlers["OnRemovedFromRoomAsync"] = call =>
+        {
+            stamps.Add(("close", clock.ElapsedMilliseconds));
+            return Task.CompletedTask;
+        };
+        fakes.Handlers["ForwardToRoomAsync"] = call =>
+        {
+            stamps.Add(("forward", clock.ElapsedMilliseconds));
+            return Task.CompletedTask;
+        };
+        var service = (IRoomService)
+            Activator.CreateInstance(
+                typeof(RoomConfig).Assembly.GetType("Turbo.Rooms.RoomService")!,
+                NullLogger<IRoomService>.Instance,
+                Options.Create(new RoomConfig()),
+                fakes.Create<Orleans.IGrainFactory>(),
+                TimeProvider.System
+            )!;
+
+        await service.ReloadWiredRoomAsync(
+            ActionContext.CreateForPlayer(OWNER, 7),
+            false,
+            TestContext.Current.CancellationToken
+        );
+
         // Official client capture (2026-10-16, Reload and Rollback): YouArePlayingGame(false) and
         // CloseConnection in the same instant, RoomForward 2001 / 2005 ms later.
-        packets
-            .Fakes.Log.Calls.Where(x =>
+        fakes
+            .Log.Calls.Where(x =>
                 x.Method is "SendComposerAsync" or "OnRemovedFromRoomAsync" or "ForwardToRoomAsync"
             )
             .Select(x =>

@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
@@ -13,7 +12,6 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Hotel;
 using Turbo.Primitives.Hotel.Enums;
 using Turbo.Primitives.Hotel.Snapshots;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 
@@ -26,7 +24,6 @@ namespace Turbo.Admin.Api;
 /// as the hotel view is; changing them needs <c>gamedata.manage</c>.
 /// </summary>
 internal sealed class ReceptionEndpoints(
-    IGrainFactory grainFactory,
     IPromoArticleService articles,
     ICommunityGoalService goals,
     IBonusRareService bonusRare,
@@ -39,7 +36,10 @@ internal sealed class ReceptionEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/hotel-view").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/hotel-view")
+            .RequirePermission(PermissionNodes.Admin.GAMEDATA_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Gamedata.MANAGE, NO_MANAGE);
 
         group.MapGet(
             "/articles",
@@ -101,35 +101,27 @@ internal sealed class ReceptionEndpoints(
         group.MapPut(
             "/expiring-pages/{pageId:int}",
             (int pageId, ExpiringPageRequest request, HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        Results.Ok(
-                            await expiringPages
-                                .SaveAsync(
-                                    pageId,
-                                    Utc(request.ExpiresAt)
-                                        ?? throw new ArgumentException(
-                                            "A page runs out at a time."
-                                        ),
-                                    request.Image ?? string.Empty,
-                                    ct
-                                )
-                                .ConfigureAwait(false)
-                        )
+                ChangeAsync(async () =>
+                    Results.Ok(
+                        await expiringPages
+                            .SaveAsync(
+                                pageId,
+                                Utc(request.ExpiresAt)
+                                    ?? throw new ArgumentException("A page runs out at a time."),
+                                request.Image ?? string.Empty,
+                                ct
+                            )
+                            .ConfigureAwait(false)
+                    )
                 )
         );
         group.MapDelete(
             "/expiring-pages/{pageId:int}",
             (int pageId, HttpContext http, CancellationToken ct) =>
-                ManageAsync(
-                    http,
-                    ct,
-                    async () =>
-                        await expiringPages.DeleteAsync(pageId, ct).ConfigureAwait(false)
-                            ? Results.NoContent()
-                            : Results.NotFound()
+                ChangeAsync(async () =>
+                    await expiringPages.DeleteAsync(pageId, ct).ConfigureAwait(false)
+                        ? Results.NoContent()
+                        : Results.NotFound()
                 )
         );
     }
@@ -140,41 +132,35 @@ internal sealed class ReceptionEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                Results.Ok(
-                    await articles
-                        .SaveAsync(
-                            new PromoArticleSnapshot
-                            {
-                                Id = id,
-                                Title = request.Title ?? string.Empty,
-                                BodyText = request.BodyText ?? string.Empty,
-                                ButtonText = request.ButtonText ?? string.Empty,
-                                LinkType = request.LinkType ?? PromoArticleLinkType.None,
-                                LinkContent = request.LinkContent ?? string.Empty,
-                                ImageUrl = request.ImageUrl ?? string.Empty,
-                                SortOrder = 0,
-                                Visible = request.Visible ?? true,
-                                StartsAt = Utc(request.StartsAt),
-                                EndsAt = Utc(request.EndsAt),
-                            },
-                            ct
-                        )
-                        .ConfigureAwait(false)
-                )
+        ChangeAsync(async () =>
+            Results.Ok(
+                await articles
+                    .SaveAsync(
+                        new PromoArticleSnapshot
+                        {
+                            Id = id,
+                            Title = request.Title ?? string.Empty,
+                            BodyText = request.BodyText ?? string.Empty,
+                            ButtonText = request.ButtonText ?? string.Empty,
+                            LinkType = request.LinkType ?? PromoArticleLinkType.None,
+                            LinkContent = request.LinkContent ?? string.Empty,
+                            ImageUrl = request.ImageUrl ?? string.Empty,
+                            SortOrder = 0,
+                            Visible = request.Visible ?? true,
+                            StartsAt = Utc(request.StartsAt),
+                            EndsAt = Utc(request.EndsAt),
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
         );
 
     private Task<IResult> DeleteArticleAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await articles.DeleteAsync(id, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
+        ChangeAsync(async () =>
+            await articles.DeleteAsync(id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.NotFound()
         );
 
     private Task<IResult> ReorderArticlesAsync(
@@ -182,16 +168,12 @@ internal sealed class ReceptionEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                await articles.ReorderAsync(request.Ids ?? [], ct).ConfigureAwait(false);
+        ChangeAsync(async () =>
+        {
+            await articles.ReorderAsync(request.Ids ?? [], ct).ConfigureAwait(false);
 
-                return Results.NoContent();
-            }
-        );
+            return Results.NoContent();
+        });
 
     private Task<IResult> SaveGoalAsync(
         int id,
@@ -199,39 +181,33 @@ internal sealed class ReceptionEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                Results.Ok(
-                    await goals
-                        .SaveAsync(
-                            new CommunityGoalSnapshot
-                            {
-                                Id = id,
-                                Code = request.Code ?? string.Empty,
-                                Mode = request.Mode ?? CommunityGoalMode.Normal,
-                                StartsAt = Utc(request.StartsAt) ?? DateTime.MinValue,
-                                EndsAt = Utc(request.EndsAt) ?? DateTime.MinValue,
-                                LevelScores = [.. request.LevelScores ?? []],
-                                RewardRanks = [.. request.RewardRanks ?? []],
-                                SideOnePageId = request.SideOnePageId,
-                                SideTwoPageId = request.SideTwoPageId,
-                            },
-                            ct
-                        )
-                        .ConfigureAwait(false)
-                )
+        ChangeAsync(async () =>
+            Results.Ok(
+                await goals
+                    .SaveAsync(
+                        new CommunityGoalSnapshot
+                        {
+                            Id = id,
+                            Code = request.Code ?? string.Empty,
+                            Mode = request.Mode ?? CommunityGoalMode.Normal,
+                            StartsAt = Utc(request.StartsAt) ?? DateTime.MinValue,
+                            EndsAt = Utc(request.EndsAt) ?? DateTime.MinValue,
+                            LevelScores = [.. request.LevelScores ?? []],
+                            RewardRanks = [.. request.RewardRanks ?? []],
+                            SideOnePageId = request.SideOnePageId,
+                            SideTwoPageId = request.SideTwoPageId,
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
         );
 
     private Task<IResult> DeleteGoalAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await goals.DeleteAsync(id, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
+        ChangeAsync(async () =>
+            await goals.DeleteAsync(id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.NotFound()
         );
 
     private Task<IResult> SaveCampaignAsync(
@@ -240,38 +216,32 @@ internal sealed class ReceptionEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                Results.Ok(
-                    await bonusRare
-                        .SaveAsync(
-                            new BonusRareCampaignSnapshot
-                            {
-                                Id = id,
-                                Code = request.Code ?? string.Empty,
-                                FurnitureName = request.FurnitureName ?? string.Empty,
-                                ProductCode = request.ProductCode ?? string.Empty,
-                                CreditsRequired = request.CreditsRequired ?? 0,
-                                Source = request.Source ?? BonusRareSource.PurchasedCredits,
-                                StartsAt = Utc(request.StartsAt) ?? DateTime.UtcNow,
-                                EndsAt = Utc(request.EndsAt),
-                            },
-                            ct
-                        )
-                        .ConfigureAwait(false)
-                )
+        ChangeAsync(async () =>
+            Results.Ok(
+                await bonusRare
+                    .SaveAsync(
+                        new BonusRareCampaignSnapshot
+                        {
+                            Id = id,
+                            Code = request.Code ?? string.Empty,
+                            FurnitureName = request.FurnitureName ?? string.Empty,
+                            ProductCode = request.ProductCode ?? string.Empty,
+                            CreditsRequired = request.CreditsRequired ?? 0,
+                            Source = request.Source ?? BonusRareSource.PurchasedCredits,
+                            StartsAt = Utc(request.StartsAt) ?? DateTime.UtcNow,
+                            EndsAt = Utc(request.EndsAt),
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
         );
 
     private Task<IResult> DeleteCampaignAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-                await bonusRare.DeleteAsync(id, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
+        ChangeAsync(async () =>
+            await bonusRare.DeleteAsync(id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.NotFound()
         );
 
     /// <summary>
@@ -283,32 +253,28 @@ internal sealed class ReceptionEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            async () =>
-            {
-                var result = await bonusRare
-                    .RecordPurchaseAsync(
-                        new PlayerId(request.PlayerId ?? 0),
-                        request.Credits ?? 0,
-                        request.Reference ?? string.Empty,
-                        ct
-                    )
-                    .ConfigureAwait(false);
+        ChangeAsync(async () =>
+        {
+            var result = await bonusRare
+                .RecordPurchaseAsync(
+                    new PlayerId(request.PlayerId ?? 0),
+                    request.Credits ?? 0,
+                    request.Reference ?? string.Empty,
+                    ct
+                )
+                .ConfigureAwait(false);
 
-                logger.LogInformation(
-                    "Staff {StaffId} recorded {Credits} bought credits for player {PlayerId} ({Reference}): {Result}",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    request.Credits,
-                    request.PlayerId,
-                    request.Reference,
-                    result
-                );
+            logger.LogInformation(
+                "Staff {StaffId} recorded {Credits} bought credits for player {PlayerId} ({Reference}): {Result}",
+                AdminIdentity.Of(http).PlayerId.Value,
+                request.Credits,
+                request.PlayerId,
+                request.Reference,
+                result
+            );
 
-                return Results.Ok(new { result });
-            }
-        );
+            return Results.Ok(new { result });
+        });
 
     /// <summary>A time the panel sent, as UTC: the panel sends UTC, marked or not.</summary>
     private static DateTime? Utc(DateTime? time) =>
@@ -319,26 +285,11 @@ internal sealed class ReceptionEndpoints(
             : null;
 
     /// <summary>
-    /// A change by someone who holds <c>gamedata.manage</c>: what it answers, or 400 with why it
+    /// A change: what it answers, or 400 with why it
     /// was refused.
     /// </summary>
-    private async Task<IResult> ManageAsync(
-        HttpContext http,
-        CancellationToken ct,
-        Func<Task<IResult>> change
-    )
+    private async Task<IResult> ChangeAsync(Func<Task<IResult>> change)
     {
-        if (
-            !await grainFactory
-                .HasPermissionAsync(
-                    AdminIdentity.Of(http).PlayerId,
-                    PermissionNodes.Gamedata.MANAGE,
-                    ct
-                )
-                .ConfigureAwait(false)
-        )
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         try
         {
             return await change().ConfigureAwait(false);
@@ -347,23 +298,5 @@ internal sealed class ReceptionEndpoints(
         {
             return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
         }
-    }
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.GAMEDATA_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

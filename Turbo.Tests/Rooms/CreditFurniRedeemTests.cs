@@ -2,9 +2,11 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -37,7 +39,8 @@ public class CreditFurniRedeemTests
     {
         var room = CreateRoomWith(name);
         AddPlayer(room, OWNER);
-        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ => Task.FromResult(true);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
+            Task.FromResult(WalletCreditResult.Applied);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -62,7 +65,8 @@ public class CreditFurniRedeemTests
     {
         var room = CreateRoomWith("CF_5_coin_silver");
         AddPlayer(room, OWNER);
-        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ => Task.FromResult(true);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
+            Task.FromResult(WalletCreditResult.Applied);
 
         await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -76,6 +80,72 @@ public class CreditFurniRedeemTests
             .Should()
             .Equal((RoomObjectId)ITEM);
         room.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
+    }
+
+    // r36's fix wrote the row before the redeem returned, but still after the credit: a delete
+    // that failed after the wallet had paid, or a crash between the two, left the furni to be
+    // redeemed again. The furni goes first, and the value is paid under the furni's own
+    // reference so a repeat pays nothing.
+    [Fact]
+    public async Task The_furni_is_written_away_before_its_value_is_paid_under_its_own_reference()
+    {
+        var room = CreateRoomWith("CF_5_coin_silver");
+        AddPlayer(room, OWNER);
+
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            ITEM,
+            new RedeemCreditsInteraction(),
+            Ct
+        );
+
+        room.Fakes.Log.Calls.Select(x => x.Method)
+            .Where(x => x is "WriteUseAsync" or nameof(IPlayerWalletGrain.CreditAsync))
+            .Should()
+            .Equal("WriteUseAsync", nameof(IPlayerWalletGrain.CreditAsync));
+        room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync))
+            .Should()
+            .ContainSingle(x => x.Args.Contains(FurnitureExchangeLogic.CreditReference(ITEM)));
+    }
+
+    [Fact]
+    public async Task A_redeem_whose_furni_cannot_be_written_away_pays_nothing()
+    {
+        var room = CreateRoomWith("CF_5_coin_silver");
+        AddPlayer(room, OWNER);
+        room.Fakes.Handlers["WriteUseAsync"] = _ =>
+            Task.FromException(new InvalidOperationException("db restarting"));
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            ITEM,
+            new RedeemCreditsInteraction(),
+            Ct
+        );
+
+        done.Should().BeFalse();
+        room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_credit_the_wallet_refuses_gives_the_furni_back_to_its_owner()
+    {
+        var room = CreateRoomWith("CF_5_coin_silver");
+        AddPlayer(room, OWNER);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
+            Task.FromResult(WalletCreditResult.Rejected);
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            ITEM,
+            new RedeemCreditsInteraction(),
+            Ct
+        );
+
+        done.Should().BeFalse();
+        room.Fakes.Log.Of(nameof(IInventoryGrain.GrantFurnitureAsync))
+            .Should()
+            .ContainSingle("the balance would overflow, so the furni is returned");
     }
 
     [Fact]
@@ -124,7 +194,8 @@ public class CreditFurniRedeemTests
     {
         var room = CreateRoomWith("CF_20_moneybag", id);
         AddPlayer(room, OWNER);
-        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ => Task.FromResult(true);
+        room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
+            Task.FromResult(WalletCreditResult.Applied);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),

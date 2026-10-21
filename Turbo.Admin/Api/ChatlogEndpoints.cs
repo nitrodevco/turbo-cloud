@@ -3,21 +3,21 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Orleans;
 using Turbo.Admin.Rooms;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
 
 /// <summary>The room chat log, for staff with <c>admin.chatlog.view</c>. Read only.</summary>
-internal sealed class ChatlogEndpoints(IGrainFactory grainFactory, AdminChatlogQueries chatlog)
+internal sealed class ChatlogEndpoints(AdminChatlogQueries chatlog)
 {
     private const string NO_ACCESS = "You can't read the chat log.";
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/chatlog").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/chatlog")
+            .RequirePermission(PermissionNodes.Admin.CHATLOG_VIEW, NO_ACCESS);
 
         group.MapGet("/", SearchAsync);
         group.MapGet("/{id:int}/context", AroundAsync);
@@ -37,22 +37,4 @@ internal sealed class ChatlogEndpoints(IGrainFactory grainFactory, AdminChatlogQ
 
     private async Task<IResult> AroundAsync(int id, CancellationToken ct) =>
         Results.Ok(await chatlog.AroundAsync(id, ct).ConfigureAwait(false));
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CHATLOG_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
-    }
 }

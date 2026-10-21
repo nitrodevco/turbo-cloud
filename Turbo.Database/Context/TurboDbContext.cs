@@ -95,6 +95,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerUnseenItemEntity> PlayerUnseenItems { get; init; }
 
+    public DbSet<PlayerPendingNotificationEntity> PlayerPendingNotifications { get; init; }
+
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
@@ -220,6 +222,13 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerCustomFilterWordEntity> PlayerCustomFilterWords { get; init; }
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
+
+    public DbSet<ClientPerformanceLogEntity> ClientPerformanceLogs { get; init; }
+    public DbSet<ClientLatencyReportEntity> ClientLatencyReports { get; init; }
+    public DbSet<ClientLagWarningEntity> ClientLagWarnings { get; init; }
+    public DbSet<ClientEventLogEntity> ClientEventLogs { get; init; }
+    public DbSet<ClientLoginStepEntity> ClientLoginSteps { get; init; }
+    public DbSet<ClientTelemetryDailyEntity> ClientTelemetryDaily { get; init; }
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
 

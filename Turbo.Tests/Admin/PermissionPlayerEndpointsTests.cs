@@ -314,6 +314,9 @@ public sealed class PermissionPlayerEndpointsTests : IAsyncDisposable
             ? _superuser
                 ?
                 [
+                    // The panel and its permissions page, which a superuser reaches like anyone.
+                    PermissionNodes.Admin.PANEL,
+                    PermissionNodes.Admin.PERMISSIONS_VIEW,
                     PermissionNodes.Permissions.MANAGE,
                     PermissionNodes.Permissions.SUPERUSER,
                     .. Memberships("ops"),

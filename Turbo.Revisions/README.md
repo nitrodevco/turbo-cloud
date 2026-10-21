@@ -1,6 +1,7 @@
 # Revision Protocol Contract
 
-This folder is the source of truth for plugin protocol revision mappings.
+This folder is the source of truth for the protocol revision mappings: which header is which
+message, and how each is read and written.
 
 ## What lives here
 - Revision definitions:
@@ -10,14 +11,13 @@ This folder is the source of truth for plugin protocol revision mappings.
 - Outgoing message serializers:
   - `Revision<id>/Serializers/<Domain>/*MessageComposerSerializer.cs`
 
-## Cross-repo boundary (important)
-- `turbo-sample-plugin` owns revision parser/serializer code.
-- `turbo-cloud` does not own `Revision<id>/Parsers` or `Revision<id>/Serializers`.
-- `turbo-cloud` owns runtime host/domain handlers; plugin revision folders own packet read/write mappings.
-- For handler/grain architecture rules (for example extended profile flow), follow:
-  - `../turbo-cloud/AGENTS.md`
-  - `../turbo-cloud/CONTEXT.md`
-- For reusable AI task recipes/prompt contract, follow `../turbo-cloud/AGENTS.md`.
+## Boundary
+- `turbo-cloud` owns the revision trees: `Revision<id>/Parsers`, `Revision<id>/Serializers`,
+  `Headers.cs` and the registration in `Revision<id>.cs` (`CONTEXT.md`, "Hard boundaries").
+- A plugin adds packets of its own through the extension packet registry
+  (`docs/plugin-packets.md`), not by editing these folders.
+- Handler and grain rules (for example the extended profile flow) are in `AGENTS.md` and
+  `CONTEXT.md`, as is the packet addition checklist.
 
 ## When adding protocol support
 1. Add parser(s) under `Parsers/<Domain>/`.

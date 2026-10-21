@@ -62,6 +62,12 @@ public sealed class GamedataConfig
     public int ClientDownloadMinutes { get; init; } = 30;
 
     /// <summary>
+    /// The window templates take the bitmaps a library's class embeds in Habbo's newest AIR client
+    /// that its library in the HTML client lacks; the AIR client is downloaded once per release.
+    /// </summary>
+    public bool ClientAirImages { get; init; } = true;
+
+    /// <summary>
     /// Where a furniture's asset file is, read when an update is taken in for its states and the
     /// rest the file says: <c>{domain}</c>, <c>{revision}</c> and <c>{name}</c> (the classname
     /// without its <c>*N</c> colour) are filled in.

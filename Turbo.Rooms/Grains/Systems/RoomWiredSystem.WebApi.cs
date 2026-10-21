@@ -51,29 +51,21 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        var addon = FurniModule
-            .Items.Select(item => item.Logic)
-            .OfType<WiredAddonVariablesWebApi>()
-            .FirstOrDefault();
+        var (addon, refusal) = await OpenWebApiAsync(
+            request.Operation,
+            request.ReadKey,
+            request.WriteKey,
+            ct
+        );
 
-        if (addon is null)
-            return WiredWebApiJson.Error(403, WiredWebApiErrors.API_DISABLED);
-
-        await addon.EnsureWiredLoadedAsync(ct);
-
-        var (reads, writes) = KeysNeeded(request.Operation);
-
-        if (reads && KeyRefusal(request.ReadKey, addon.ReadKey) is { } readRefusal)
-            return readRefusal;
-
-        if (writes && KeyRefusal(request.WriteKey, addon.WriteKey) is { } writeRefusal)
-            return writeRefusal;
+        if (refusal is not null)
+            return WiredWebApiJson.Error(WiredWebApiErrors.StatusOf(refusal), refusal);
 
         ChangeOrigin = WiredVariableChangeOriginType.External;
 
         try
         {
-            return await DispatchWebApiAsync(request, addon, ct);
+            return await DispatchWebApiAsync(request, addon!, ct);
         }
         catch (JsonException)
         {
@@ -85,30 +77,55 @@ public sealed partial class RoomWiredSystem
         }
     }
 
-    private static (bool reads, bool writes) KeysNeeded(WiredWebApiOperation operation) =>
-        operation switch
-        {
-            WiredWebApiOperation.Batch => (true, true),
-            WiredWebApiOperation.PutValue
-            or WiredWebApiOperation.PatchValue
-            or WiredWebApiOperation.DeleteValue
-            or WiredWebApiOperation.BulkDelete
-            or WiredWebApiOperation.PatchGlobal
-            or WiredWebApiOperation.PatchUserProfile
-            or WiredWebApiOperation.DeleteUserProfile
-            or WiredWebApiOperation.PatchFurniProfile
-            or WiredWebApiOperation.PatchGlobalProfile => (false, true),
-            _ => (true, false),
-        };
+    /// <summary>Why a call with these keys is refused, null when they open the room's Web API.</summary>
+    public async Task<string?> CheckWebApiKeysAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    ) => (await OpenWebApiAsync(operation, readKey, writeKey, ct)).Refusal;
 
-    private static WiredWebApiResponse? KeyRefusal(string? sent, string key)
+    /// <summary>
+    /// The add-on whose keys a call needs, or why the call is refused. A room holding more than
+    /// one add-on answers with the one placed first (lowest item id), so its keys are the same
+    /// on every call (inference: Habbo's rule for a second add-on is not documented; its pickup
+    /// text, "The Web API will stop working for this room", speaks of one per room).
+    /// </summary>
+    private async Task<(WiredAddonVariablesWebApi? Addon, string? Refusal)> OpenWebApiAsync(
+        WiredWebApiOperation operation,
+        string? readKey,
+        string? writeKey,
+        CancellationToken ct
+    )
+    {
+        var addon = FurniModule
+            .Items.Where(item => item.Logic is WiredAddonVariablesWebApi)
+            .OrderBy(item => item.ObjectId.Value)
+            .Select(item => (WiredAddonVariablesWebApi)item.Logic)
+            .FirstOrDefault();
+
+        if (addon is null)
+            return (null, WiredWebApiErrors.API_DISABLED);
+
+        await addon.EnsureWiredLoadedAsync(ct);
+
+        var (reads, writes) = WiredWebApiKeys.KeysNeeded(operation);
+
+        if (reads && KeyRefusal(readKey, addon.ReadKey) is { } readRefusal)
+            return (addon, readRefusal);
+
+        if (writes && KeyRefusal(writeKey, addon.WriteKey) is { } writeRefusal)
+            return (addon, writeRefusal);
+
+        return (addon, null);
+    }
+
+    private static string? KeyRefusal(string? sent, string key)
     {
         if (string.IsNullOrEmpty(sent))
-            return WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_MISSING);
+            return WiredWebApiErrors.KEY_MISSING;
 
-        return WiredAddonVariablesWebApi.Matches(sent, key)
-            ? null
-            : WiredWebApiJson.Error(403, WiredWebApiErrors.KEY_INVALID);
+        return WiredWebApiKeys.Matches(sent, key) ? null : WiredWebApiErrors.KEY_INVALID;
     }
 
     private async Task<WiredWebApiResponse> DispatchWebApiAsync(
@@ -141,7 +158,7 @@ public sealed partial class RoomWiredSystem
                     request.Operation,
                     request.TargetKind,
                     request.EntityId,
-                    request.Body is null ? null : JsonNode.Parse(request.Body)?["value"],
+                    WiredWebApiJson.BodyMember(request.Body, "value"),
                     ct
                 );
             }
@@ -163,7 +180,7 @@ public sealed partial class RoomWiredSystem
                         : WiredWebApiOperation.PatchValue,
                     WiredWebApiEntity.GLOBAL,
                     "0",
-                    request.Body is null ? null : JsonNode.Parse(request.Body)?["value"],
+                    WiredWebApiJson.BodyMember(request.Body, "value"),
                     ct
                 );
             }
@@ -206,13 +223,35 @@ public sealed partial class RoomWiredSystem
         }
     }
 
-    /// <summary>The room's variables the Web API knows: its variable boxes, by name and target.</summary>
+    /// <summary>
+    /// The room's variables the Web API knows: its variable boxes, by name and target. A pointer
+    /// only has a target while a stack runs (<see cref="WiredVariableFlags.RequiresExecutionContext"/>),
+    /// so it has none for the API and is not listed.
+    /// </summary>
     private IEnumerable<FurnitureWiredVariableLogic> WebApiVariables(
         WiredVariableTargetType targetType
     ) =>
         GetAllVariables()
             .OfType<FurnitureWiredVariableLogic>()
-            .Where(variable => variable.GetVarSnapshot().TargetType == targetType);
+            .Where(variable =>
+                variable.GetVarSnapshot() is var snapshot
+                && snapshot.TargetType == targetType
+                && !snapshot.Flags.Has(WiredVariableFlags.RequiresExecutionContext)
+            );
+
+    /// <summary>
+    /// What the Web API may do with a variable. A reference ("From Another Room") is read only
+    /// through it: its values live in another room, which this room's keys do not open
+    /// (inference: Habbo's API document says nothing of references).
+    /// </summary>
+    private static WiredVariableFlags WebApiFlags(FurnitureWiredVariableLogic variable)
+    {
+        var flags = variable.GetVarSnapshot().Flags;
+
+        return variable is WiredVariableReference
+            ? flags & ~(WiredVariableFlags.CanWriteValue | WiredVariableFlags.CanCreateAndDelete)
+            : flags;
+    }
 
     private JsonArray NamesOf(WiredVariableTargetType targetType) =>
         [
@@ -411,7 +450,7 @@ public sealed partial class RoomWiredSystem
         if (ResolveEntity(targetKind, entityId) is not { } entity)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET);
 
-        var flags = variable.GetVarSnapshot().Flags;
+        var flags = WebApiFlags(variable);
         var outcome = WiredWebApiErrors.NOT_FOUND;
 
         switch (operation)
@@ -451,15 +490,18 @@ public sealed partial class RoomWiredSystem
     }
 
     /// <summary>Null when written, else the error code that says why not.</summary>
-    private async Task<string?> WriteWebApiValueAsync(
+    /// <summary>
+    /// Why writing (or, with <paramref name="give"/>, giving) <paramref name="variable"/> to
+    /// <paramref name="entity"/> is refused, null when it may be: everything that can be known
+    /// before the write is made.
+    /// </summary>
+    private string? WebApiWriteRefusal(
         FurnitureWiredVariableLogic variable,
         WiredWebApiEntity entity,
-        WiredVariableValue value,
-        bool give,
-        CancellationToken ct
+        bool give
     )
     {
-        var flags = variable.GetVarSnapshot().Flags;
+        var flags = WebApiFlags(variable);
 
         if (give && !flags.Has(WiredVariableFlags.CanCreateAndDelete))
             return WiredWebApiErrors.OPERATION_NOT_ALLOWED;
@@ -472,10 +514,6 @@ public sealed partial class RoomWiredSystem
             )
         )
             return WiredWebApiErrors.OPERATION_NOT_ALLOWED;
-
-        // A variable without a value is only held or not; the number sent is not kept.
-        var written = flags.Has(WiredVariableFlags.HasValue) ? value : WiredVariableValue.Default;
-        var ctx = new WiredExecutionContext(_roomGrain) { CancellationToken = ct };
 
         if (!entity.IsHere)
         {
@@ -490,10 +528,36 @@ public sealed partial class RoomWiredSystem
             if (!give && !variable.TryGetAbsentPlayerValue(entity.ApiId, out _, out _, out _))
                 return WiredWebApiErrors.NOT_FOUND;
 
+            return null;
+        }
+
+        if (!give && !variable.TryGetValue(entity.KeyFor(variable), out _))
+            return WiredWebApiErrors.NOT_FOUND;
+
+        return null;
+    }
+
+    private async Task<string?> WriteWebApiValueAsync(
+        FurnitureWiredVariableLogic variable,
+        WiredWebApiEntity entity,
+        WiredVariableValue value,
+        bool give,
+        CancellationToken ct
+    )
+    {
+        if (WebApiWriteRefusal(variable, entity, give) is { } refusal)
+            return refusal;
+
+        // A variable without a value is only held or not; the number sent is not kept.
+        var written = WebApiFlags(variable).Has(WiredVariableFlags.HasValue)
+            ? value
+            : WiredVariableValue.Default;
+        var ctx = new WiredExecutionContext(_roomGrain) { CancellationToken = ct };
+
+        if (!entity.IsHere)
             return await variable.WriteAbsentPlayerValueAsync(entity.ApiId, written, give, ctx)
                 ? null
                 : WiredWebApiErrors.OPERATION_NOT_ALLOWED;
-        }
 
         var key = entity.KeyFor(variable);
 
@@ -501,9 +565,6 @@ public sealed partial class RoomWiredSystem
             return await variable.GiveValueAsync(key, written, replace: true)
                 ? null
                 : WiredWebApiErrors.OPERATION_NOT_ALLOWED;
-
-        if (!variable.TryGetValue(key, out _))
-            return WiredWebApiErrors.NOT_FOUND;
 
         if (!await variable.SetValueAsync(ctx, key, written))
             return WiredWebApiErrors.OPERATION_NOT_ALLOWED;
@@ -644,7 +705,9 @@ public sealed partial class RoomWiredSystem
     /// the entity's id beside the value and its times (inference: the document leaves the item
     /// shape open); ordered by creation time unless <c>order_by</c> says otherwise. A page below
     /// 1 is refused: Habbo answered page 0 with a 400. Only the status was observed; the error
-    /// code is the document's code for a bad value (inference).
+    /// code is the document's code for a bad value (inference). So is a size outside 1-100 and
+    /// an <c>order_by</c> or <c>order_dir</c> the document does not list (inference: only page 0
+    /// was tried on Habbo).
     /// </summary>
     private WiredWebApiResponse ListHolders(
         FurnitureWiredVariableLogic variable,
@@ -653,15 +716,17 @@ public sealed partial class RoomWiredSystem
     {
         var page = request.Page ?? 1;
 
-        if (page < 1)
+        var size = request.Size ?? DEFAULT_PAGE_SIZE;
+
+        if (
+            page < 1
+            || size is < 1 or > MAX_PAGE_SIZE
+            || request.OrderBy is not (null or "value" or "creation_time" or "update_time")
+            || request.OrderDir is not (null or "asc" or "desc")
+        )
             return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
 
-        var size = Math.Clamp(request.Size ?? DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
-        var descending = string.Equals(
-            request.OrderDir,
-            "desc",
-            StringComparison.OrdinalIgnoreCase
-        );
+        var descending = request.OrderDir == "desc";
         var holders = HoldersOf(variable, request.TargetKind);
         Func<
             (int ApiId, WiredVariableValue Value, long CreatedAtMs, long UpdatedAtMs),
@@ -708,7 +773,7 @@ public sealed partial class RoomWiredSystem
         if (!addon.AllowsBulkDelete)
             return WiredWebApiJson.Error(403, WiredWebApiErrors.BULK_DELETE_NOT_ENABLED);
 
-        var names = body is null ? null : JsonNode.Parse(body)?["variables"] as JsonArray;
+        var names = WiredWebApiJson.BodyMember(body, "variables") as JsonArray;
 
         if (names is null || names.Count == 0)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.BULK_DELETE_EMPTY);
@@ -724,7 +789,10 @@ public sealed partial class RoomWiredSystem
                 : FindWebApiVariable(name, WiredVariableTargetType.User)
                     ?? FindWebApiVariable(name, WiredVariableTargetType.Furni);
 
-            if (variable is null)
+            if (
+                variable is null
+                || !WebApiFlags(variable).Has(WiredVariableFlags.CanCreateAndDelete)
+            )
                 return WiredWebApiJson.Error(400, WiredWebApiErrors.BULK_DELETE_INVALID_VARIABLE);
 
             variables.Add(variable);
@@ -760,7 +828,7 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        var requests = body is null ? null : JsonNode.Parse(body)?["requests"] as JsonArray;
+        var requests = WiredWebApiJson.BodyMember(body, "requests") as JsonArray;
 
         if (requests is null || requests.Count == 0)
             return WiredWebApiJson.Error(400, WiredWebApiErrors.BATCH_EMPTY);
@@ -772,8 +840,8 @@ public sealed partial class RoomWiredSystem
 
         foreach (var node in requests)
         {
-            var opId = WiredWebApiJson.StringOf(node?["op_id"]);
-            var operation = WiredWebApiJson.StringOf(node?["method"]) switch
+            var opId = WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "op_id"));
+            var operation = WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "method")) switch
             {
                 "GET" => WiredWebApiOperation.GetValue,
                 "PUT" => WiredWebApiOperation.PutValue,
@@ -781,7 +849,9 @@ public sealed partial class RoomWiredSystem
                 "DELETE" => WiredWebApiOperation.DeleteValue,
                 _ => (WiredWebApiOperation?)null,
             };
-            var path = (WiredWebApiJson.StringOf(node?["path"]) ?? string.Empty).Split('/');
+            var path = (
+                WiredWebApiJson.StringOf(WiredWebApiJson.Member(node, "path")) ?? string.Empty
+            ).Split('/');
             var response =
                 operation is null || path.Length != 2
                     ? WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_TARGET)
@@ -793,7 +863,7 @@ public sealed partial class RoomWiredSystem
                     operation.Value,
                     path[0],
                     path[1],
-                    node?["body"]?["value"],
+                    WiredWebApiJson.Member(WiredWebApiJson.Member(node, "body"), "value"),
                     ct
                 );
 
@@ -904,25 +974,40 @@ public sealed partial class RoomWiredSystem
         switch (request.Operation)
         {
             case WiredWebApiOperation.DeleteUserProfile:
-                foreach (var variable in WebApiVariables(targetType))
+            {
+                // All or nothing: a variable that may not be taken away refuses the whole call.
+                var held = WebApiVariables(targetType)
+                    .Where(variable => TryReadWebApiValue(variable, entity, out _, out _, out _))
+                    .ToList();
+
+                if (
+                    held.Any(variable =>
+                        !WebApiFlags(variable).Has(WiredVariableFlags.CanCreateAndDelete)
+                    )
+                )
+                    return WiredWebApiJson.Error(403, WiredWebApiErrors.OPERATION_NOT_ALLOWED);
+
+                foreach (var variable in held)
                 {
-                    if (TryReadWebApiValue(variable, entity, out _, out _, out _))
-                        RemoveWebApiValue(variable, entity, variable.GetVarSnapshot().Flags);
+                    if (RemoveWebApiValue(variable, entity, WebApiFlags(variable)) is { } outcome)
+                        return WiredWebApiJson.Error(WiredWebApiErrors.StatusOf(outcome), outcome);
                 }
 
                 return WiredWebApiJson.NoContent;
+            }
             case WiredWebApiOperation.PatchUserProfile:
             case WiredWebApiOperation.PatchFurniProfile:
             case WiredWebApiOperation.PatchGlobalProfile:
             {
-                if (
-                    (request.Body is null ? null : JsonNode.Parse(request.Body)?["variables"])
-                    is not JsonObject changes
-                )
+                if (WiredWebApiJson.BodyMember(request.Body, "variables") is not JsonObject changes)
                     return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
 
                 var planned =
-                    new List<(FurnitureWiredVariableLogic Variable, WiredVariableValue? Value)>();
+                    new List<(
+                        FurnitureWiredVariableLogic Variable,
+                        WiredVariableValue? Value,
+                        bool Give
+                    )>();
 
                 foreach (var (name, node) in changes)
                 {
@@ -931,15 +1016,23 @@ public sealed partial class RoomWiredSystem
                     if (variable is null)
                         return WiredWebApiJson.Error(404, WiredWebApiErrors.NOT_FOUND);
 
+                    var held = TryReadWebApiValue(variable, entity, out _, out _, out _);
+
                     if (node is null)
                     {
-                        if (global)
+                        if (
+                            global
+                            || (
+                                held
+                                && !WebApiFlags(variable).Has(WiredVariableFlags.CanCreateAndDelete)
+                            )
+                        )
                             return WiredWebApiJson.Error(
                                 403,
                                 WiredWebApiErrors.OPERATION_NOT_ALLOWED
                             );
 
-                        planned.Add((variable, null));
+                        planned.Add((variable, null, false));
 
                         continue;
                     }
@@ -947,27 +1040,34 @@ public sealed partial class RoomWiredSystem
                     if (!WiredWebApiJson.TryReadValue(node, out var value))
                         return WiredWebApiJson.Error(400, WiredWebApiErrors.INVALID_VALUE);
 
-                    planned.Add((variable, value));
+                    var give = !global && !held;
+
+                    // Every change is checked before any is made, so a refused one leaves the
+                    // profile as it was.
+                    if (WebApiWriteRefusal(variable, entity, give) is { } refusal)
+                        return WiredWebApiJson.Error(WiredWebApiErrors.StatusOf(refusal), refusal);
+
+                    planned.Add((variable, value, give));
                 }
 
                 // Habbo counts a profile PATCH as a batch: each change is a batched write.
                 if (!TrySpendWebApiWrites(request.BatchWriteBudget, planned.Count))
                     return WiredWebApiJson.Error(429, WiredWebApiErrors.TOO_MANY_REQUESTS);
 
-                foreach (var (variable, value) in planned)
+                foreach (var (variable, value, give) in planned)
                 {
                     string? outcome;
 
                     if (value is null)
                         outcome = TryReadWebApiValue(variable, entity, out _, out _, out _)
-                            ? RemoveWebApiValue(variable, entity, variable.GetVarSnapshot().Flags)
+                            ? RemoveWebApiValue(variable, entity, WebApiFlags(variable))
                             : null;
                     else
                         outcome = await WriteWebApiValueAsync(
                             variable,
                             entity,
                             value.Value,
-                            !global && !TryReadWebApiValue(variable, entity, out _, out _, out _),
+                            give,
                             ct
                         );
 

@@ -266,7 +266,10 @@ public sealed class WiredRoom
             )
         ).IsSaved;
 
-    /// <summary><see cref="SaveAsync"/> with what the editor is told, a refusal's text included.</summary>
+    /// <summary>
+    /// <see cref="SaveAsync"/> with what the editor is told, a refusal's text included; saved by
+    /// <paramref name="actor"/> (the system when null).
+    /// </summary>
     public Task<WiredSaveResult> SaveWithResultAsync<TMessage>(
         int boxId,
         int[]? intParams = null,
@@ -276,7 +279,8 @@ public sealed class WiredRoom
         WiredPlayerSourceType[][]? playerSources = null,
         object[]? definitionSpecifics = null,
         string stringParam = "",
-        string[]? variableIds = null
+        string[]? variableIds = null,
+        ActionContext? actor = null
     )
         where TMessage : UpdateWiredMessage
     {
@@ -295,7 +299,7 @@ public sealed class WiredRoom
         };
 
         return Harness.Room.ApplyWiredUpdateAsync(
-            ActionContext.CreateForSystem(1),
+            actor ?? ActionContext.CreateForSystem(1),
             boxId,
             message,
             CancellationToken.None

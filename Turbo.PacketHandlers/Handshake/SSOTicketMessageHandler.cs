@@ -22,9 +22,11 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
+using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -40,7 +42,9 @@ public class SSOTicketMessageHandler(
     ICallForHelpService callForHelp,
     IPlayerOnboardingService onboarding,
     IModerationToolService moderation,
-    IModerationIssueService issues
+    IModerationIssueService issues,
+    IPlayerNoticeService notices,
+    IClientTelemetry telemetry
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -68,6 +72,7 @@ public class SSOTicketMessageHandler(
 
         if (playerId <= 0)
         {
+            telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("invalid SSO ticket").ConfigureAwait(false);
 
             return;
@@ -86,6 +91,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
+            telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("banned").ConfigureAwait(false);
 
             return;
@@ -104,6 +110,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
+            telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("hotel closed for maintenance").ConfigureAwait(false);
 
             return;
@@ -112,6 +119,7 @@ public class SSOTicketMessageHandler(
         await _sessionGateway
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
+        telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_OK);
 
         // Five reads from five different grains, none depending on another, so they are asked
         // side by side and awaited where their answers are sent. The composers still go out in
@@ -369,5 +377,8 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
+        // Persistent notifications that came while they were away (a wired chest's), last, as
+        // bubbles over a hotel view that is already up.
+        await notices.DeliverPersistentAsync(playerId, ct).ConfigureAwait(false);
     }
 }

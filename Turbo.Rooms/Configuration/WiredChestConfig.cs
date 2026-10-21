@@ -42,6 +42,13 @@ public class WiredChestConfig
     /// <summary>The activity point type diamonds are kept under.</summary>
     public int DiamondsActivityPointType { get; init; } = 5;
 
+    /// <summary>
+    /// Whether chest settings whose name or description the word filter would change are refused
+    /// with Habbo's <c>wiredfurni.error.unacceptable_chest_name</c> / <c>unacceptable_chest_desc</c>
+    /// (when the hotel sends them is inferred from the texts). Off saves them filtered.
+    /// </summary>
+    public bool RefuseUnacceptableText { get; init; } = true;
+
     public int NameMaxLength { get; init; } = 30;
     public int DescriptionMaxLength { get; init; } = 200;
 
@@ -60,8 +67,29 @@ public class WiredChestConfig
     /// <summary>The most transactions one page of the logs window lists.</summary>
     public int MaxLogPageSize { get; init; } = 50;
 
+    /// <summary>
+    /// Transactions one chest's log keeps; each new one past it drops the oldest. The hotel's
+    /// <c>wired.chests_max_logs</c>, which the client does not read. Zero or less keeps them all.
+    /// </summary>
+    public int MaxLogsPerChest { get; init; } = 2000;
+
     /// <summary>Item types one log details window lists before it says there are more.</summary>
     public int MaxLogDetailItemTypes { get; init; } = 100;
+
+    /// <summary>
+    /// Whether a chest's owner gets the notifications they ticked in its notification settings
+    /// (<c>wired_chests.*</c> bubbles, kept for them while offline). Off, the settings are only stored.
+    /// </summary>
+    public bool NotificationsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// The link a chest notification carries, <c>{0}</c> the chest's room id: clicking the bubble
+    /// goes to the chest's room (<c>wiredchests.notification_settings.notification_info.desc</c>).
+    /// The client strips <c>event:</c> and opens the rest as a client link
+    /// (HabboNotifications.showNotification); the room link is the one the client's own room
+    /// links use (<c>navigator/goto/&lt;id&gt;</c>, FurnitureRoomLinkHandler). Empty sends none.
+    /// </summary>
+    public string NotificationLink { get; init; } = "event:navigator/goto/{0}";
 
     // A contract, as its editor bounds it.
 
@@ -91,4 +119,10 @@ public class WiredChestConfig
     /// idleness while the window is open would forget it.
     /// </summary>
     public int TradeKeepAliveMinutes { get; init; } = 30;
+
+    /// <summary>
+    /// Whether a final confirm sent before accepting ends the trade as invalid (nothing moves),
+    /// as official does; otherwise it is ignored and the trade stays open.
+    /// </summary>
+    public bool CancelUnacceptedConfirm { get; init; } = true;
 }

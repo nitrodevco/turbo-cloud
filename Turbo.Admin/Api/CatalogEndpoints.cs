@@ -45,6 +45,7 @@ internal sealed class CatalogEndpoints(
     private const string NO_ACCESS = "You can't see the catalog.";
     private const string NO_MANAGE = "You can't change the catalog.";
     private const string NO_IMPORT = "You can't import a catalog.";
+    private const string PREVIEW = "A preview works out what would change and changes nothing.";
 
     /// <summary>The form's files an import takes its logs from: the normal catalogue's, then the Builders Club's.</summary>
     private static readonly string[] LogFields = ["normal", "buildersClub"];
@@ -54,7 +55,10 @@ internal sealed class CatalogEndpoints(
 
     public void Map(RouteGroupBuilder secured)
     {
-        var group = secured.MapGroup("/catalog").AddEndpointFilter(RequireViewAsync);
+        var group = secured
+            .MapGroup("/catalog")
+            .RequirePermission(PermissionNodes.Admin.CATALOG_VIEW, NO_ACCESS)
+            .RequirePermissionToChange(PermissionNodes.Catalog.MANAGE, NO_MANAGE);
 
         group.MapGet("/", TreeAsync);
         group.MapGet("/pages/{id:int}", PageAsync);
@@ -77,7 +81,7 @@ internal sealed class CatalogEndpoints(
         group.MapPut("/featured", SaveFeaturedAsync);
         group.MapPost("/publish", PublishAsync);
         group.MapGet("/builders/furni-lines", FurniLinesAsync);
-        group.MapPost("/pages/{id:int}/build/preview", PreviewBuildAsync);
+        group.MapPost("/pages/{id:int}/build/preview", PreviewBuildAsync).ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/build", BuildAsync);
         group.MapPost("/pages/{id:int}/furni", AddFurniAsync);
         group.MapPost("/offers/delete", DeleteOffersAsync);
@@ -106,12 +110,22 @@ internal sealed class CatalogEndpoints(
             async (CancellationToken ct) =>
                 Results.Ok(await audit.GetDuplicatesAsync(ct).ConfigureAwait(false))
         );
-        group.MapPost("/generate/preview", PreviewGenerateAsync);
+        group.MapPost("/generate/preview", PreviewGenerateAsync).ViewIsEnough(PREVIEW);
         group.MapPost("/generate", GenerateAsync);
-        group.MapPost("/import/preview", PreviewImportAsync);
-        group.MapPost("/import", ImportAsync);
-        group.MapPost("/import/logs/preview", PreviewLogImportAsync);
-        group.MapPost("/import/logs", LogImportAsync);
+        group
+            .MapPost("/import/preview", PreviewImportAsync)
+            .RequirePermission(PermissionNodes.Admin.CATALOG_IMPORT, NO_IMPORT)
+            .ViewIsEnough(PREVIEW);
+        group
+            .MapPost("/import", ImportAsync)
+            .RequirePermission(PermissionNodes.Admin.CATALOG_IMPORT, NO_IMPORT);
+        group
+            .MapPost("/import/logs/preview", PreviewLogImportAsync)
+            .RequirePermission(PermissionNodes.Admin.CATALOG_IMPORT, NO_IMPORT)
+            .ViewIsEnough(PREVIEW);
+        group
+            .MapPost("/import/logs", LogImportAsync)
+            .RequirePermission(PermissionNodes.Admin.CATALOG_IMPORT, NO_IMPORT);
     }
 
     /// <summary>
@@ -148,7 +162,12 @@ internal sealed class CatalogEndpoints(
     private async Task<IResult> TreeAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(
             await catalog
-                .GetTreeAsync(await CanManageAsync(http, ct).ConfigureAwait(false), ct)
+                .GetTreeAsync(
+                    await grainFactory
+                        .HoldsAsync(http, PermissionNodes.Catalog.MANAGE, ct)
+                        .ConfigureAwait(false),
+                    ct
+                )
                 .ConfigureAwait(false)
         );
 
@@ -162,9 +181,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 request.ParentId is not { } parentId
                     ? Task.FromResult(CatalogEditResult.Refused("Say which page to put it under."))
@@ -178,9 +196,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 Draft(request) is { } draft
                     ? editor.UpdatePageAsync(who, id, draft, ct)
@@ -193,23 +210,21 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who => editor.MovePageAsync(who, id, request.ParentId, request.Index, ct)
         );
 
     private Task<IResult> DeletePageAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(http, ct, who => editor.DeletePageAsync(who, id, ct));
+        ChangeAsync(http, who => editor.DeletePageAsync(who, id, ct));
 
     private Task<IResult> CreateOfferAsync(
         CatalogOfferRequest request,
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 Draft(request) is { } draft
                     ? editor.CreateOfferAsync(who, draft, ct)
@@ -222,9 +237,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 Draft(request) is { } draft
                     ? editor.UpdateOfferAsync(who, id, draft, ct)
@@ -237,14 +251,10 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            ct,
-            who => editor.MoveOfferAsync(who, id, request.PageId, request.Index, ct)
-        );
+        ChangeAsync(http, who => editor.MoveOfferAsync(who, id, request.PageId, request.Index, ct));
 
     private Task<IResult> DeleteOfferAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(http, ct, who => editor.DeleteOfferAsync(who, id, ct));
+        ChangeAsync(http, who => editor.DeleteOfferAsync(who, id, ct));
 
     private async Task<IResult> FeaturedAsync(CancellationToken ct) =>
         Results.Ok(await catalog.GetFeaturedAsync(ct).ConfigureAwait(false));
@@ -254,9 +264,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 Draft(request) is { } items
                     ? editor.SaveFeaturedItemsAsync(who, items, ct)
@@ -269,9 +278,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
+        ChangeAsync(
             http,
-            ct,
             who =>
                 editor.SaveLimitedAsync(
                     who,
@@ -288,16 +296,13 @@ internal sealed class CatalogEndpoints(
         );
 
     private Task<IResult> RemoveLimitedAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(http, ct, who => editor.RemoveLimitedAsync(who, id, ct));
+        ChangeAsync(http, who => editor.RemoveLimitedAsync(who, id, ct));
 
     /// <summary>A time from the panel as UTC: it sends ISO times with their offset.</summary>
     private static DateTime? Utc(DateTime? at) => at?.ToUniversalTime();
 
     private async Task<IResult> PublishAsync(HttpContext http, CancellationToken ct)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var result = await editor
             .PublishAsync(AdminIdentity.Of(http).PlayerId, ct)
             .ConfigureAwait(false);
@@ -323,9 +328,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         return Built(
             await builder
                 .ApplyAsync(AdminIdentity.Of(http).PlayerId, id, request, ct)
@@ -356,9 +358,6 @@ internal sealed class CatalogEndpoints(
         Func<PlayerId, CancellationToken, Task<CatalogEditResult>> step
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var result = await step(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
 
         return result.Saved
@@ -400,14 +399,11 @@ internal sealed class CatalogEndpoints(
         CatalogBackupRequest request,
         HttpContext http,
         CancellationToken ct
-    ) => ManageAsync(http, ct, who => editor.BackupAsync(who, request.Name, ct));
+    ) => ChangeAsync(http, who => editor.BackupAsync(who, request.Name, ct));
 
     /// <summary>A rollback; refused with 409, as an undo is, when the catalog has moved on from under it.</summary>
     private async Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var result = await editor
             .RollbackAsync(AdminIdentity.Of(http).PlayerId, id, ct)
             .ConfigureAwait(false);
@@ -418,7 +414,7 @@ internal sealed class CatalogEndpoints(
     }
 
     private Task<IResult> DeleteBackupAsync(int id, HttpContext http, CancellationToken ct) =>
-        ManageAsync(http, ct, who => editor.DeleteBackupAsync(who, id, ct));
+        ChangeAsync(http, who => editor.DeleteBackupAsync(who, id, ct));
 
     private async Task<IResult> UnofferedAsync(
         string? scope,
@@ -443,9 +439,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var ids = (request.DefinitionIds ?? []).Distinct().ToList();
 
         if (ids.Count == 0)
@@ -505,9 +498,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var ids = (request.OfferIds ?? []).Distinct().ToList();
         var who = AdminIdentity.Of(http).PlayerId;
         var failures = new List<CatalogBuildFailure>();
@@ -547,9 +537,6 @@ internal sealed class CatalogEndpoints(
     /// <summary>A front page made first among the tabs, with the voucher box's line, where the catalogue opens.</summary>
     private async Task<IResult> CreateFrontPageAsync(HttpContext http, CancellationToken ct)
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var tree = await catalog.GetTreeAsync(true, ct).ConfigureAwait(false);
 
         if (tree.RootId == 0)
@@ -611,9 +598,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         return Built(
             await builder
                 .GenerateCatalogAsync(AdminIdentity.Of(http).PlayerId, request, ct)
@@ -628,9 +612,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanImportAsync(http, false, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
-
         return Built(await importer.PlanAsync(request, ct).ConfigureAwait(false));
     }
 
@@ -640,9 +621,6 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     )
     {
-        if (!await CanImportAsync(http, true, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
-
         return Built(
             await importer
                 .ApplyAsync(AdminIdentity.Of(http).PlayerId, request, ct)
@@ -653,9 +631,6 @@ internal sealed class CatalogEndpoints(
     /// <summary>What importing the packet logs would add and change; nothing is changed.</summary>
     private async Task<IResult> PreviewLogImportAsync(HttpContext http, CancellationToken ct)
     {
-        if (!await CanImportAsync(http, false, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
-
         var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
 
         return request is null
@@ -665,9 +640,6 @@ internal sealed class CatalogEndpoints(
 
     private async Task<IResult> LogImportAsync(HttpContext http, CancellationToken ct)
     {
-        if (!await CanImportAsync(http, true, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_IMPORT);
-
         var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
 
         return request is null
@@ -750,16 +722,6 @@ internal sealed class CatalogEndpoints(
     }
 
     /// <summary>Whether the staff member holds <c>admin.catalog.import</c>, and to make it <c>catalog.manage</c> too.</summary>
-    private async Task<bool> CanImportAsync(HttpContext http, bool apply, CancellationToken ct) =>
-        await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CATALOG_IMPORT,
-                ct
-            )
-            .ConfigureAwait(false)
-        && (!apply || await CanManageAsync(http, ct).ConfigureAwait(false));
-
     /// <summary>A page builder's plan or result, or why there is none.</summary>
     private static IResult Built<T>(CatalogBuildOutcome<T> outcome)
         where T : class =>
@@ -779,29 +741,18 @@ internal sealed class CatalogEndpoints(
         "A featured item opens a page, an offer or a product."
     );
 
-    /// <summary>An edit by someone who holds <c>catalog.manage</c>: saved, or why it was not.</summary>
-    private async Task<IResult> ManageAsync(
+    /// <summary>An edit: saved, or why it was not.</summary>
+    private async Task<IResult> ChangeAsync(
         HttpContext http,
-        CancellationToken ct,
         Func<PlayerId, Task<CatalogEditResult>> edit
     )
     {
-        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
-
         var result = await edit(AdminIdentity.Of(http).PlayerId).ConfigureAwait(false);
 
         return result.Saved
             ? Results.Ok(new CatalogSavedResponse(result.Id, editor.UnpublishedChanges))
             : AdminResults.Error(StatusCodes.Status400BadRequest, result.Error ?? "Not saved.");
     }
-
-    private Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
-        grainFactory.HasPermissionAsync(
-            AdminIdentity.Of(http).PlayerId,
-            PermissionNodes.Catalog.MANAGE,
-            ct
-        );
 
     /// <summary>The page as the service takes it; null when the display is not one it knows.</summary>
     private static CatalogPageDraft? Draft(CatalogPageRequest request) =>
@@ -901,23 +852,5 @@ internal sealed class CatalogEndpoints(
         }
 
         return items;
-    }
-
-    private async ValueTask<object?> RequireViewAsync(
-        EndpointFilterInvocationContext context,
-        EndpointFilterDelegate next
-    )
-    {
-        var http = context.HttpContext;
-
-        return await grainFactory
-            .HasPermissionAsync(
-                AdminIdentity.Of(http).PlayerId,
-                PermissionNodes.Admin.CATALOG_VIEW,
-                http.RequestAborted
-            )
-            .ConfigureAwait(false)
-            ? await next(context).ConfigureAwait(false)
-            : AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);
     }
 }

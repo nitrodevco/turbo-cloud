@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Tracking;
 
 internal class LatencyPingReportMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new LatencyPingReportMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new LatencyPingReportMessage
+        {
+            AverageLatency = packet.PopInt(),
+            ValidPingAverage = packet.PopInt(),
+            NumPings = packet.PopInt(),
+        };
 }

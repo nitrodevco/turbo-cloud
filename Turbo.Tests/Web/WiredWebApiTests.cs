@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -13,11 +14,13 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Authentication;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Players.Accounts;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Authentication;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
@@ -31,6 +34,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -77,7 +81,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     public WiredWebApiTests()
         : this(new WiredApiConfig()) { }
 
-    private WiredWebApiTests(WiredApiConfig wiredApi)
+    private WiredWebApiTests(WiredApiConfig wiredApi, PublicApiConfig? publicApi = null)
     {
         _port = TestPorts.Free();
 
@@ -86,8 +90,12 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             Enabled = true,
             Url = $"http://127.0.0.1:{_port}",
             WiredApi = wiredApi,
+            PublicApi = publicApi ?? new PublicApiConfig(),
         };
         _room.Harness.Fakes.Instances[(typeof(IRoomGrain), (long)ROOM)] = _room.Harness.Room;
+        // The room under test is loaded; any other room is asleep until a call wakes it.
+        _room.Harness.Fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
+            Task.FromResult(ImmutableArray.Create(new RoomId(ROOM)));
         InsertRoom();
         _server = Build();
         _http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{_port}") };
@@ -129,6 +137,40 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         // "Allow mass deletion" needs a write key (VariablesWebApiAddon.readIntParamsFromForm).
         addon.AllowsBulkDelete.Should().BeFalse();
         addon.GetPickupConfirmation()!.BodyKey.Should().Be("wiredfurni.web_api.pickup.body");
+    }
+
+    [Fact]
+    public async Task Only_the_last_generated_key_saves_and_a_saved_key_revokes_the_old_one()
+    {
+        var (read, write) = await SetUpAsync();
+        var first = await IssueAsync(true);
+        var last = await IssueAsync(true);
+
+        (
+            await _room.SaveWithResultAsync<UpdateAddonMessage>(
+                ADDON,
+                intParams: [1],
+                stringParam: first + "	" + write
+            )
+        )
+            .ErrorKey.Should()
+            .Be(WiredSaveErrors.INVALID_API_KEYS);
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                ADDON,
+                intParams: [1],
+                stringParam: last + "	" + write
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: last))
+            .Status.Should()
+            .Be(200);
     }
 
     [Fact]
@@ -250,6 +292,28 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .Be((400, "wired.variables.invalid_value"));
     }
 
+    [Theory]
+    [InlineData("size=0")]
+    [InlineData("size=101")]
+    [InlineData("size=ten")]
+    [InlineData("page=one")]
+    [InlineData("order_by=name")]
+    [InlineData("order_dir=up")]
+    public async Task A_list_with_a_query_the_document_does_not_allow_is_refused(string query)
+    {
+        var (read, _) = await SetUpAsync();
+
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                $"/api/public/rooms/1/variables/furni/hp/furni?{query}",
+                read: read
+            )
+        )
+            .Should()
+            .Be((400, "wired.variables.invalid_value"));
+    }
+
     [Fact]
     public async Task Wall_items_go_by_their_positive_id_and_globals_are_patched()
     {
@@ -351,6 +415,46 @@ public sealed class WiredWebApiTests : IAsyncDisposable
             .Be((400, "wired.variables.batch_limit_exceeded"));
     }
 
+    [Theory]
+    [InlineData("[1]")]
+    [InlineData("\"7\"")]
+    [InlineData("7")]
+    [InlineData("null")]
+    [InlineData("{\"value\":[1]}")]
+    public async Task A_body_of_the_wrong_shape_is_refused_as_invalid(string body)
+    {
+        var (read, write) = await SetUpAsync();
+
+        foreach (
+            var (method, path) in new[]
+            {
+                (HttpMethod.Put, $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}"),
+                (HttpMethod.Patch, $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}"),
+                (HttpMethod.Patch, "/api/public/rooms/1/variables/global/round"),
+                (HttpMethod.Post, "/api/public/rooms/1/variables/bulk-delete"),
+                (HttpMethod.Post, "/api/public/rooms/1/variables/user/points/batch"),
+                (HttpMethod.Patch, "/api/public/rooms/1/variables_profile/global"),
+                (HttpMethod.Patch, $"/api/public/rooms/1/variables_profile/furni/furni/{CHAIR}"),
+            }
+        )
+            (await SendAsync(method, path, read, write, body))
+                .Status.Should()
+                .Be(400, $"{method} {path} with {body}");
+
+        // A batch whose operations are not objects answers each one as invalid.
+        var results = (
+            await JsonAsync(
+                HttpMethod.Post,
+                "/api/public/rooms/1/variables/user/points/batch",
+                read: read,
+                write: write,
+                body: $$"""{"requests":[{{body}},{"method":"PUT","path":"users/{{PLAYER_ID}}","body":[1]}]}"""
+            )
+        )!["results"]!.AsArray();
+
+        results.Select(x => (int)x!["status"]!).Should().Equal(400, 400);
+    }
+
     [Fact]
     public async Task Profiles_list_what_an_entity_holds_and_patch_several_at_once()
     {
@@ -398,6 +502,133 @@ public sealed class WiredWebApiTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_profile_patch_with_a_refused_change_changes_nothing()
+    {
+        const int FLAG_VAR = 6;
+        var (read, write) = await SetUpAsync();
+        var profilePath = $"/api/public/rooms/1/variables_profile/user/users/{PLAYER_ID}";
+
+        // A user variable without a value is only held or not: a number cannot be written to it.
+        await AddVariableAsync<WiredVariableUser>(
+            FLAG_VAR,
+            5,
+            4,
+            "wf_var_user",
+            [(int)WiredAvailabilityType.UserActive, 0],
+            "flag"
+        );
+        await JsonAsync(
+            HttpMethod.Patch,
+            profilePath,
+            write: write,
+            body: """{"variables":{"points":"5","flag":"1"}}"""
+        );
+
+        (
+            await SendAsync(
+                HttpMethod.Patch,
+                profilePath,
+                write: write,
+                body: """{"variables":{"points":"9","flag":"3"}}"""
+            )
+        )
+            .Should()
+            .Be((403, "wired.variables.operation_not_allowed"));
+        (await JsonAsync(HttpMethod.Get, profilePath, read: read))!["variables"]!["points"]![
+            "value"
+        ]!
+            .GetValue<string>()
+            .Should()
+            .Be("5");
+    }
+
+    [Fact]
+    public async Task A_pointer_variable_has_no_target_for_the_api()
+    {
+        const int POINTER_VAR = 6;
+        var (read, write) = await SetUpAsync();
+
+        await AddVariableAsync<WiredVariablePointer>(
+            POINTER_VAR,
+            5,
+            4,
+            "wf_var_pointer",
+            [(int)WiredVariableTargetType.User],
+            "aimed"
+        );
+
+        (await JsonAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))!["users"]!
+            .AsArray()
+            .Select(x => x!.GetValue<string>())
+            .Should()
+            .Equal("points");
+        (
+            await SendAsync(
+                HttpMethod.Put,
+                $"/api/public/rooms/1/variables/user/aimed/users/{PLAYER_ID}",
+                write: write,
+                body: """{"value":"1"}"""
+            )
+        )
+            .Should()
+            .Be((404, "wired.variables.not_found"));
+    }
+
+    [Fact]
+    public async Task A_body_past_the_limit_in_bytes_is_refused_whole()
+    {
+        await using var limited = new WiredWebApiTests(new WiredApiConfig { MaxBodyBytes = 16 });
+        var (_, write) = await limited.SetUpAsync();
+        var path = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
+
+        // 16 characters but 18 bytes (an é takes two in UTF-8): counted in characters it fitted.
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: """{"value":"5"} éé"""))
+            .Status.Should()
+            .Be(413);
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: """{"value":"5"}   """))
+            .Status.Should()
+            .Be(200);
+    }
+
+    [Fact]
+    public async Task Mass_deletion_empties_the_named_variables_when_the_box_allows_it()
+    {
+        var (read, write) = await SetUpAsync();
+        var hp = $"/api/public/rooms/1/variables/furni/hp/furni/{CHAIR}";
+
+        await JsonAsync(HttpMethod.Put, hp, write: write, body: """{"value":"3"}""");
+
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/public/rooms/1/variables/bulk-delete",
+                write: write,
+                body: """{"variables":["hp"]}"""
+            )
+        )
+            .Status.Should()
+            .Be(204);
+        (await SendAsync(HttpMethod.Get, hp, read: read))
+            .Should()
+            .Be((404, "wired.variables.not_found"));
+    }
+
+    [Fact]
+    public async Task A_batch_needs_both_keys()
+    {
+        var (read, write) = await SetUpAsync();
+        const string BATCH = "/api/public/rooms/1/variables/user/points/batch";
+        var body = $$"""{"requests":[{"method":"GET","path":"users/{{PLAYER_ID}}"}]}""";
+
+        (await SendAsync(HttpMethod.Post, BATCH, read: read, body: body))
+            .Should()
+            .Be((403, "wired.variables.key_missing"));
+        (await SendAsync(HttpMethod.Post, BATCH, write: write, body: body))
+            .Should()
+            .Be((403, "wired.variables.key_missing"));
+    }
+
+    [Fact]
     public async Task Mass_deletion_only_works_when_the_box_allows_it()
     {
         var (_, write) = await SetUpAsync(allowBulkDelete: false);
@@ -436,6 +667,198 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
             .Should()
             .Be((429, "wired.variables.too_many_requests"));
+    }
+
+    [Fact]
+    public async Task A_room_that_is_not_loaded_is_only_woken_by_a_call_with_its_add_ons_key()
+    {
+        const int ASLEEP = 2;
+        const int WITHOUT_ADDON = 3;
+
+        _db.Insert(NewRoom(ASLEEP, "Asleep"));
+        _db.Insert(NewRoom(WITHOUT_ADDON, "No add-on"));
+        _db.Insert(AddonDefinition());
+        _db.Insert(StoredAddon(50, ASLEEP, "stored-read\tstored-write"));
+        _room.Harness.Fakes.Handlers["HandleWiredWebApiAsync"] = _ =>
+            Task.FromResult(new WiredWebApiResponse(200, "{}"));
+        await _server.StartAsync(Ct);
+
+        var asleep = $"/api/public/rooms/{ASLEEP}/variables";
+
+        (await SendAsync(HttpMethod.Get, asleep)).Should().Be((403, "wired.variables.key_missing"));
+        (await SendAsync(HttpMethod.Get, asleep, read: "guessed"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, asleep, read: "stored-write"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (
+            await SendAsync(
+                HttpMethod.Put,
+                $"/api/public/rooms/{ASLEEP}/variables/furni/hp/furni/{CHAIR}",
+                write: "stored-read",
+                body: """{"value":"1"}"""
+            )
+        )
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await SendAsync(HttpMethod.Get, $"/api/public/rooms/{WITHOUT_ADDON}/variables", read: "x"))
+            .Should()
+            .Be((403, "wired.variables.api_disabled"));
+        _room
+            .Harness.Fakes.Log.Calls.Should()
+            .NotContain(call => call.Interface == typeof(IRoomGrain));
+
+        (await SendAsync(HttpMethod.Get, asleep, read: "stored-read")).Status.Should().Be(200);
+        _room
+            .Harness.Fakes.Log.Of("HandleWiredWebApiAsync")
+            .Should()
+            .ContainSingle()
+            .Which.Interface.Should()
+            .Be(typeof(IRoomGrain));
+    }
+
+    [Fact]
+    public async Task With_two_add_ons_the_one_with_the_lowest_id_holds_the_keys()
+    {
+        const int LOWER_ADDON = 1;
+        var (read, _) = await SetUpAsync();
+
+        _room.AddBox<WiredAddonVariablesWebApi>(LOWER_ADDON, 0, 1, "wf_xtra_var_web_api");
+        var lowerRead = (
+            await _room.Harness.Room.GenerateWiredWebApiKeyAsync(
+                ActionContext.CreateForSystem(ROOM),
+                LOWER_ADDON,
+                true,
+                Ct
+            )
+        )!;
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                LOWER_ADDON,
+                intParams: [0],
+                stringParam: lowerRead + "	"
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        // Every call answers with the same box, whichever the room lists first.
+        for (var i = 0; i < 3; i++)
+        {
+            (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: lowerRead))
+                .Status.Should()
+                .Be(200);
+            (await SendAsync(HttpMethod.Get, "/api/public/rooms/1/variables", read: read))
+                .Should()
+                .Be((403, "wired.variables.key_invalid"));
+        }
+    }
+
+    [Fact]
+    public async Task Refused_calls_count_against_their_caller_not_the_rooms_limit()
+    {
+        await using var limited = new WiredWebApiTests(
+            new WiredApiConfig
+            {
+                SimpleReads = new WiredApiLimit { PerMinute = 300, Burst = 2 },
+                Failures = new WiredApiLimit { PerMinute = 60, Burst = 3 },
+            }
+        );
+        var (read, _) = await limited.SetUpAsync();
+        const string PATH = "/api/public/rooms/1/variables";
+
+        for (var i = 0; i < 2; i++)
+            (await limited.SendAsync(HttpMethod.Get, PATH, read: "guessed"))
+                .Should()
+                .Be((403, "wired.variables.key_invalid"));
+
+        // The room's own allowance is untouched by them.
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read))
+            .Status.Should()
+            .Be(200);
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
+        (await limited.RetryAfterAsync(PATH, read)).Should().Be((429, true));
+
+        // A guesser is slowed down once out of refusals, told when to come back.
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: "guessed"))
+            .Should()
+            .Be((403, "wired.variables.key_invalid"));
+        (await limited.RetryAfterAsync(PATH, "guessed")).Should().Be((429, true));
+    }
+
+    [Fact]
+    public async Task Any_site_may_call_from_a_browser_unless_the_hotel_lists_its_own()
+    {
+        const string EXPLORER = "https://wired.habbo.com";
+        const string OTHER = "https://example.com";
+        await using var listed = new WiredWebApiTests(
+            new WiredApiConfig { AllowedOrigins = [EXPLORER] }
+        );
+        var (listedRead, _) = await listed.SetUpAsync();
+        var (read, _) = await SetUpAsync();
+
+        // By default any site, as Habbo's API answered (browser check, 2026-10-20), with the key
+        // headers allowed and never credentials.
+        foreach (var origin in new[] { EXPLORER, OTHER })
+        {
+            using (var preflight = await CrossSiteAsync(HttpMethod.Options, origin, null))
+            {
+                ((int)preflight.StatusCode).Should().Be(204);
+                preflight.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+                string.Join(",", preflight.Headers.GetValues("Access-Control-Allow-Headers"))
+                    .Should()
+                    .Contain("X-Wired-Read-Key")
+                    .And.Contain("X-Wired-Write-Key");
+                preflight.Headers.Contains("Access-Control-Allow-Credentials").Should().BeFalse();
+            }
+
+            using var call = await CrossSiteAsync(HttpMethod.Get, origin, read);
+
+            ((int)call.StatusCode).Should().Be(200);
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        }
+
+        // A hotel that lists its sites lets those alone.
+        using (var call = await listed.CrossSiteAsync(HttpMethod.Get, EXPLORER, listedRead))
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal(EXPLORER);
+
+        using (var other = await listed.CrossSiteAsync(HttpMethod.Options, OTHER, null))
+            other.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Any_site_may_read_a_public_room_from_a_browser_unless_the_hotel_lists_its_own()
+    {
+        const string EXPLORER = "https://wired.habbo.com";
+        const string OTHER = "https://example.com";
+        await using var listed = new WiredWebApiTests(
+            new WiredApiConfig(),
+            new PublicApiConfig { AllowedOrigins = [EXPLORER] }
+        );
+        await listed._server.StartAsync(Ct);
+        await _server.StartAsync(Ct);
+
+        // By default any site, as Habbo's API answered GET rooms/80462556 from wired.habbo.com and
+        // example.com (browser check, 2026-10-20); a not-found too, so the page can tell.
+        foreach (var origin in new[] { EXPLORER, OTHER })
+        foreach (var path in new[] { "/api/public/rooms/1", "/api/public/users/999/rooms" })
+        {
+            using var call = await PublicCrossSiteAsync(path, origin);
+
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+            call.Headers.Contains("Access-Control-Allow-Credentials").Should().BeFalse();
+        }
+
+        // A hotel that lists its sites lets those alone.
+        using (var call = await listed.PublicCrossSiteAsync("/api/public/rooms/1", EXPLORER))
+            call.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal(EXPLORER);
+
+        using (var other = await listed.PublicCrossSiteAsync("/api/public/rooms/1", OTHER))
+        {
+            ((int)other.StatusCode).Should().Be(200);
+            other.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+        }
     }
 
     [Fact]
@@ -779,6 +1202,88 @@ public sealed class WiredWebApiTests : IAsyncDisposable
 
         return json;
     }
+
+    private async Task<HttpResponseMessage> CrossSiteAsync(
+        HttpMethod method,
+        string origin,
+        string? read
+    )
+    {
+        using var request = new HttpRequestMessage(method, "/api/public/rooms/1/variables");
+        request.Headers.Add("Origin", origin);
+
+        if (read is not null)
+            request.Headers.Add("X-Wired-Read-Key", read);
+        else
+        {
+            request.Headers.Add("Access-Control-Request-Method", "GET");
+            request.Headers.Add("Access-Control-Request-Headers", "x-wired-read-key");
+        }
+
+        return await _http.SendAsync(request, Ct);
+    }
+
+    private async Task<HttpResponseMessage> PublicCrossSiteAsync(string path, string origin)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Origin", origin);
+
+        return await _http.SendAsync(request, Ct);
+    }
+
+    /// <summary>A GET's status and whether it says when to try again (<c>Retry-After</c>, in whole seconds).</summary>
+    private async Task<(int Status, bool HasRetryAfter)> RetryAfterAsync(string path, string read)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("X-Wired-Read-Key", read);
+
+        using var response = await _http.SendAsync(request, Ct);
+
+        return (
+            (int)response.StatusCode,
+            response.Headers.RetryAfter?.Delta is { TotalSeconds: >= 1 }
+        );
+    }
+
+    private static FurnitureDefinitionEntity AddonDefinition() =>
+        new()
+        {
+            Id = 1,
+            SpriteId = 1,
+            Name = "wf_xtra_var_web_api",
+            ProductType = ProductType.Floor,
+            FurniCategory = FurnitureCategory.Default,
+            Logic = "wf_xtra_var_web_api",
+            Width = 1,
+            Length = 1,
+            StackHeight = 1,
+            CanStack = true,
+            CanWalk = false,
+            CanSit = false,
+            CanLay = false,
+            CanRecycle = false,
+            CanTrade = false,
+            CanGroup = false,
+            CanSell = false,
+        };
+
+    /// <summary>A Web API add-on as a room that is not loaded keeps it: its keys in its stored wired data.</summary>
+    private static FurnitureEntity StoredAddon(int id, int roomId, string keys) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = 1,
+            FurnitureDefinitionEntityId = 1,
+            RoomEntityId = roomId,
+            ExtraData = new JsonObject
+            {
+                ["wired"] = new JsonObject
+                {
+                    ["intParams"] = new JsonArray(0),
+                    ["stringParam"] = keys,
+                },
+            }.ToJsonString(),
+        };
 
     private async Task<(int, JsonNode?)> RawAsync(
         HttpMethod method,

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.WiredTrading;
 using Turbo.Furniture.Providers;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -22,6 +23,7 @@ using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
 using Xunit;
@@ -153,6 +155,48 @@ public sealed class WiredChestTests : IDisposable
     }
 
     [Fact]
+    public async Task A_chest_log_keeps_only_its_newest_transactions()
+    {
+        // An old transaction that moved this chest's credits and another chest's.
+        const int OTHER_CHEST = 200;
+        _db.Insert(
+            new WiredChestTransactionEntity
+            {
+                Id = 1,
+                RoomId = 1,
+                PlayerName = "alice",
+                DefinitionInfo = "",
+            }
+        );
+        _db.Insert(Entry(1, 1, CHEST));
+        _db.Insert(Entry(2, 1, OTHER_CHEST));
+        _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
+        _db.Insert(Furni(11, CHAIR_DEFINITION, ALICE));
+        _db.Insert(Furni(12, CHAIR_DEFINITION, ALICE));
+        var chest = await ChestAsync(new WiredChestConfig { MaxLogsPerChest = 2 });
+
+        var kept = new List<long>();
+        foreach (var item in new[] { 10, 11, 12 })
+            kept.Add(
+                (await chest.DepositAsync(Deposit(WiredChestKind.Furni, item), Ct)).TransactionId
+            );
+
+        using var ctx = _db.CreateDbContext();
+        ctx.WiredChestTransactions.AsNoTracking()
+            .Where(x => x.Entries.Any(entry => entry.ChestItemId == CHEST))
+            .Select(x => x.Id)
+            .Should()
+            .BeEquivalentTo(kept.Skip(1));
+        ctx.WiredChestTransactionEntries.AsNoTracking()
+            .Where(x => x.TransactionEntityId == 1)
+            .Select(x => x.ChestItemId)
+            .Should()
+            .Equal([OTHER_CHEST], "the other chest's log keeps its side");
+        ctx.WiredChestTransactions.Count(x => x.Id == kept[0]).Should().Be(0);
+        Rows(10, 11, 12).Should().AllSatisfy(row => row.ChestItemEntityId.Should().Be(CHEST));
+    }
+
+    [Fact]
     public async Task Withdrawn_furni_go_to_the_receiver_oldest_first()
     {
         _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
@@ -228,7 +272,7 @@ public sealed class WiredChestTests : IDisposable
         withdrawal.Summary.Coins.Should().Be(10);
     }
 
-    private async Task<IWiredChestGrain> ChestAsync()
+    private async Task<IWiredChestGrain> ChestAsync(WiredChestConfig? config = null)
     {
         var grain = GrainHarness.Create(
             typeof(RoomGrain).Assembly,
@@ -236,6 +280,9 @@ public sealed class WiredChestTests : IDisposable
             _fakes,
             _db
         );
+
+        if (config is not null)
+            RoomHarness.SetField(grain, "_config", config);
 
         RoomHarness.SetMember(
             RoomHarness.GetField(grain, "_state")!,
@@ -391,6 +438,21 @@ public sealed class WiredChestTests : IDisposable
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
+        };
+
+    private static WiredChestTransactionEntryEntity Entry(
+        int id,
+        long transactionId,
+        int chestId
+    ) =>
+        new()
+        {
+            Id = id,
+            TransactionEntityId = transactionId,
+            ChestItemId = chestId,
+            IsCoins = true,
+            PosterId = "",
+            Count = 1,
         };
 
     private static FurnitureEntity Furni(int id, int definitionId, int ownerId) =>

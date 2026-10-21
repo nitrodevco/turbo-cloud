@@ -365,6 +365,12 @@ public sealed partial class RoomWiredSystem
             _ => [0],
         };
 
+    /// <summary>
+    /// Whether a variable target is in the room right now: a furni or user by object id; the room
+    /// and the context always are.
+    /// </summary>
+    public bool IsLiveVariableTarget(WiredVariableBinding binding) => IsLiveTarget(binding);
+
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch
         {
@@ -434,28 +440,40 @@ public sealed partial class RoomWiredSystem
 
                 _variableIdBoxId[boxId] = snapshot.VariableId;
 
+                // The subvariable creators an import add-on takes over make theirs on this box.
+                if (variable is WiredVariableReference reference)
+                    ProcessSubVariables(
+                        boxId,
+                        reference.ImportedAddons.OfType<IWiredSubVariableProvider>()
+                    );
+
                 break;
             }
             case IWiredSubVariableProvider provider:
             {
                 await provider.LoadWiredAsync(ct);
 
-                var ids = new List<WiredVariableId>();
-
-                foreach (var subVariable in provider.GetSubVariables())
-                {
-                    if (!ProcessVariable(subVariable))
-                        continue;
-
-                    ids.Add(subVariable.GetVarSnapshot().VariableId);
-                }
-
-                if (ids.Count > 0)
-                    _subVariableIdsByBoxId[boxId] = ids;
+                ProcessSubVariables(boxId, [provider]);
 
                 break;
             }
         }
+    }
+
+    private void ProcessSubVariables(int boxId, IEnumerable<IWiredSubVariableProvider> providers)
+    {
+        var ids = new List<WiredVariableId>();
+
+        foreach (var subVariable in providers.SelectMany(x => x.GetSubVariables()))
+        {
+            if (!ProcessVariable(subVariable))
+                continue;
+
+            ids.Add(subVariable.GetVarSnapshot().VariableId);
+        }
+
+        if (ids.Count > 0)
+            _subVariableIdsByBoxId[boxId] = ids;
     }
 
     private bool ProcessVariable(IWiredVariable variable)
