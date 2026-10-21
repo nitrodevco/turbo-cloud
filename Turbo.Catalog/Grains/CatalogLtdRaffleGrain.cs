@@ -619,8 +619,9 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             .OrderBy(s => s.Id)
             .FirstOrDefaultAsync(s => s.Id == _state.SeriesId, ct);
 
-        if (entity != null)
-            _state.Series = entity.ToSnapshot();
+        // A series taken away is gone here too: nobody else is taken in, and a batch being
+        // gathered draws no winner.
+        _state.Series = entity?.ToSnapshot();
     }
 
     private async Task PersistFinishedAsync()

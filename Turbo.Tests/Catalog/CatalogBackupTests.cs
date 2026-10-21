@@ -1,12 +1,16 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Catalog.Editing;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;
@@ -234,7 +238,7 @@ public sealed class CatalogBackupTests : IDisposable
     {
         var before = _catalog.Rows();
 
-        var reset = await _service.ResetAsync(Editor, Ct);
+        var reset = await _service.ResetAsync(Editor, false, Ct);
 
         reset.Error.Should().BeNull();
         _catalog.Rows().Should().Be(RootRow(before), "only the root is left to build under");
@@ -261,7 +265,7 @@ public sealed class CatalogBackupTests : IDisposable
     {
         var before = _catalog.Rows();
 
-        (await _service.ResetAsync(Editor, Ct)).Saved.Should().BeTrue();
+        (await _service.ResetAsync(Editor, false, Ct)).Saved.Should().BeTrue();
         (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
 
         _catalog.Rows().Should().Be(before);
@@ -288,7 +292,7 @@ public sealed class CatalogBackupTests : IDisposable
         }
 
         var before = _catalog.Rows();
-        var reset = await _service.ResetAsync(Editor, Ct);
+        var reset = await _service.ResetAsync(Editor, false, Ct);
 
         reset.Saved.Should().BeFalse();
         reset.Error.Should().Contain("limited series");
@@ -298,11 +302,76 @@ public sealed class CatalogBackupTests : IDisposable
     }
 
     [Fact]
+    public async Task ResettingWithTheLimitedSeries_TakesThemAndTheirSalesAway_ButNotOnUndo()
+    {
+        _catalog.Db.Insert(
+            new PlayerEntity
+            {
+                Id = 1,
+                Name = "buyer",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+                PlayerStatus = PlayerStatusType.Offline,
+            }
+        );
+
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            var product = db.CatalogProducts.First(x => x.CatalogOfferEntityId == SOLD);
+            var series = new LtdSeriesEntity
+            {
+                CatalogProductEntityId = product.Id,
+                TotalQuantity = 10,
+                RemainingQuantity = 9,
+                RaffleWindowSeconds = 30,
+                IsActive = true,
+            };
+
+            db.LtdSeries.Add(series);
+            await db.SaveChangesAsync(Ct);
+            db.LtdRaffleEntries.Add(
+                new LtdRaffleEntryEntity
+                {
+                    SeriesEntityId = series.Id,
+                    PlayerEntityId = 1,
+                    BatchId = "batch",
+                    EnteredAt = DateTime.UtcNow,
+                    Result = "won",
+                    SerialNumber = 1,
+                }
+            );
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var before = _catalog.Rows();
+        var reset = await _service.ResetAsync(Editor, true, Ct);
+
+        reset.Error.Should().BeNull();
+        _catalog.Rows().Should().Be(RootRow(before));
+        (await _service.GetBackupsAsync(Ct)).Single().Id.Should().Be(reset.Id);
+
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            (await db.LtdSeries.CountAsync(Ct)).Should().Be(0);
+            (await db.LtdRaffleEntries.CountAsync(Ct)).Should().Be(0);
+        }
+
+        // The catalog comes back; the series and what it sold do not.
+        (await _service.UndoAsync(Editor, Ct))
+            .Error.Should()
+            .BeNull();
+        _catalog.Rows().Should().Be(before);
+
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+            (await db.LtdSeries.CountAsync(Ct)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task ResettingAnEmptyCatalog_IsRefused()
     {
-        (await _service.ResetAsync(Editor, Ct)).Saved.Should().BeTrue();
+        (await _service.ResetAsync(Editor, false, Ct)).Saved.Should().BeTrue();
 
-        var again = await _service.ResetAsync(Editor, Ct);
+        var again = await _service.ResetAsync(Editor, false, Ct);
 
         again.Saved.Should().BeFalse();
         again.Error.Should().Contain("already empty");

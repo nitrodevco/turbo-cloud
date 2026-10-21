@@ -21,3 +21,6 @@ public sealed record CatalogBackupsResponse(CatalogBackupItem[] Items);
 
 /// <summary>A backup to take; a blank name is named after when it is taken.</summary>
 public sealed record CatalogBackupRequest(string? Name);
+
+/// <summary>A reset; <see cref="RemoveLimited"/> takes every limited series, and its raffle entries and sales, with it.</summary>
+public sealed record CatalogResetRequest(bool RemoveLimited);

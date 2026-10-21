@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
@@ -58,6 +59,7 @@ public sealed partial class CatalogEditService(
     public const int GIFT_DAYS_MAX = 36500;
     public const int LIMITED_TOTAL_MAX = 1_000_000;
     public const int RAFFLE_WINDOW_MAX = 3600;
+
     public const int PRODUCTS_MAX = 20;
 
     /// <summary>The front page draws four: the first large, the next three in a list.</summary>
@@ -812,12 +814,48 @@ public sealed partial class CatalogEditService(
     public async Task<CatalogEditResult> RemoveLimitedAsync(
         PlayerId editor,
         int offerId,
+        bool withSales,
         CancellationToken ct
     )
     {
-        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbScope = db.ConfigureAwait(false);
+        var removed = new List<int>();
+        var result = await dbCtxFactory
+            .InTransactionAsync(
+                async db =>
+                {
+                    var outcome = await RemoveLimitedAsync(db, offerId, withSales, removed, ct)
+                        .ConfigureAwait(false);
 
+                    return outcome.Saved
+                        ? UnitOfWork.Commit(outcome)
+                        : UnitOfWork.Rollback(outcome);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (!result.Saved)
+            return result;
+
+        await ForgetRafflesAsync(removed).ConfigureAwait(false);
+
+        return ChangedOutsideHistory(
+            editor,
+            withSales
+                ? "took the limited series and its sales off offer"
+                : "took the limited series off offer",
+            offerId
+        );
+    }
+
+    private static async Task<CatalogEditResult> RemoveLimitedAsync(
+        TurboDbContext db,
+        int offerId,
+        bool withSales,
+        List<int> removed,
+        CancellationToken ct
+    )
+    {
         var productIds = await db
             .CatalogProducts.Where(x => x.CatalogOfferEntityId == offerId)
             .Select(x => x.Id)
@@ -836,19 +874,82 @@ public sealed partial class CatalogEditService(
 
         // The serials handed out, and the raffle's record of who entered, belong to the series.
         if (
-            sold > 0
-            || await db
-                .LtdRaffleEntries.AnyAsync(x => seriesIds.Contains(x.SeriesEntityId), ct)
-                .ConfigureAwait(false)
+            !withSales
+            && (
+                sold > 0
+                || await db
+                    .LtdRaffleEntries.AnyAsync(x => seriesIds.Contains(x.SeriesEntityId), ct)
+                    .ConfigureAwait(false)
+            )
         )
             return CatalogEditResult.Refused(
-                "Some of it is sold or raffled already; switch the series off instead."
+                "Some of it is sold or raffled already; switch the series off, or remove it with its sales."
             );
 
-        db.LtdSeries.RemoveRange(series);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await RemoveSeriesAsync(db, seriesIds, ct).ConfigureAwait(false);
+        removed.AddRange(seriesIds);
 
-        return ChangedOutsideHistory(editor, "took the limited series off offer", offerId);
+        return CatalogEditResult.Done(offerId);
+    }
+
+    /// <summary>
+    /// Takes limited series away with the raffle's record of them: who entered, who won and the
+    /// serial each was handed. The furni already handed out stays its owner's, still stamped
+    /// with its serial; nothing names the series it came from. Returns how many entries went.
+    /// </summary>
+    private static async Task<int> RemoveSeriesAsync(
+        TurboDbContext db,
+        IReadOnlyCollection<int> seriesIds,
+        CancellationToken ct
+    )
+    {
+        var entries = 0;
+
+        // A thousand at a time, so no statement carries every series of a big catalog.
+        foreach (var chunk in seriesIds.Chunk(1000))
+        {
+            var part = chunk.ToList();
+
+            entries += await db
+                .LtdRaffleEntries.Where(x => part.Contains(x.SeriesEntityId))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+            await db
+                .LtdSeries.Where(x => part.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    /// Tells each removed series' raffle that it is gone, so it takes nobody else in and a batch
+    /// it is gathering draws no winner: everyone in it hears they lost, and nobody is charged.
+    /// The series is gone either way; a raffle that is not told still sells nothing from it.
+    /// </summary>
+    private async Task ForgetRafflesAsync(IReadOnlyCollection<int> seriesIds)
+    {
+        if (seriesIds.Count == 0)
+            return;
+
+        try
+        {
+            await Task.WhenAll(
+                    seriesIds.Select(id =>
+                        grainFactory.GetLtdRaffleGrain(id).ReloadSeriesAsync(CancellationToken.None)
+                    )
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to tell the raffles of {Count} removed limited series they are gone",
+                seriesIds.Count
+            );
+        }
     }
 
     /// <summary>The series a product sells, as the catalog picks it: the active one, else the newest.</summary>

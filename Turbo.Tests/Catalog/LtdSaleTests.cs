@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Timers;
@@ -62,6 +63,37 @@ public sealed class LtdSaleTests : IDisposable
             .BeEquivalentTo([(7, LtdRaffleResultType.Won), (8, LtdRaffleResultType.Won)]);
         _serials.Should().OnlyHaveUniqueItems().And.HaveCount(2);
         Remaining().Should().Be(SIZE - 2);
+    }
+
+    [Fact]
+    public async Task ASeriesRemovedWhileItsRaffleGathers_TakesNobodyElse_AndItsBatchAllLose()
+    {
+        var (grain, _) = await SeriesAsync(raffled: false);
+
+        (await grain.EnterRaffleAsync(7, Ct)).Success.Should().BeTrue();
+        (await grain.EnterRaffleAsync(8, Ct)).Success.Should().BeTrue();
+
+        // Taken away from the editor, which then tells the raffle.
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            await db.LtdRaffleEntries.ExecuteDeleteAsync(Ct);
+            await db.LtdSeries.ExecuteDeleteAsync(Ct);
+        }
+
+        await grain.ReloadSeriesAsync(Ct);
+
+        (await grain.EnterRaffleAsync(9, Ct))
+            .Error.Should()
+            .Be(LtdRaffleEntryErrorType.SeriesNotFound);
+
+        await _timer!(_timerState, _timerToken!.Token);
+
+        // Everyone in the batch is answered, nobody is charged, and nothing is handed out.
+        Results()
+            .Should()
+            .BeEquivalentTo([(7, LtdRaffleResultType.Lost), (8, LtdRaffleResultType.Lost)]);
+        _serials.Should().BeEmpty();
+        _catalog.Fakes.Log.Of("TryDebitAsync").Should().BeEmpty();
     }
 
     [Fact]

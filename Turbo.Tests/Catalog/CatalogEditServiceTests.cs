@@ -679,12 +679,58 @@ public sealed class CatalogEditServiceTests : IDisposable
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.RemainingQuantity, 49), Ct)
         );
 
-        (await _service.RemoveLimitedAsync(Editor, SOLD, Ct)).Error.Should().Contain("sold");
-        (await _service.RemoveLimitedAsync(Editor, IN_DIAMONDS, Ct)).Saved.Should().BeTrue();
+        (await _service.RemoveLimitedAsync(Editor, SOLD, false, Ct)).Error.Should().Contain("sold");
+        (await _service.RemoveLimitedAsync(Editor, IN_DIAMONDS, false, Ct)).Saved.Should().BeTrue();
         (await ReadAsync(db => db.LtdSeries.CountAsync(Ct))).Should().Be(1);
-        (await _service.RemoveLimitedAsync(Editor, IN_DIAMONDS, Ct))
+        (await _service.RemoveLimitedAsync(Editor, IN_DIAMONDS, false, Ct))
             .Error.Should()
             .Contain("not a limited");
+    }
+
+    [Fact]
+    public async Task ASoldSeries_ComesOffWithItsSales_AndItsRaffleIsTold()
+    {
+        await _service.SaveLimitedAsync(Editor, SOLD, Limited(50), Ct);
+        _catalog.Db.Insert(
+            new PlayerEntity
+            {
+                Id = 1,
+                Name = "buyer",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+                PlayerStatus = PlayerStatusType.Offline,
+            }
+        );
+
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            var series = await db.LtdSeries.SingleAsync(Ct);
+
+            series.RemainingQuantity = 49;
+            db.LtdRaffleEntries.Add(
+                new LtdRaffleEntryEntity
+                {
+                    SeriesEntityId = series.Id,
+                    PlayerEntityId = 1,
+                    BatchId = "batch",
+                    EnteredAt = DateTime.UtcNow,
+                    Result = "won",
+                    SerialNumber = 1,
+                }
+            );
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var told = _catalog.Fakes.Log.Of("ReloadSeriesAsync").Count();
+
+        (await _service.RemoveLimitedAsync(Editor, SOLD, true, Ct)).Error.Should().BeNull();
+
+        (await ReadAsync(db => db.LtdSeries.CountAsync(Ct))).Should().Be(0);
+        (await ReadAsync(db => db.LtdRaffleEntries.CountAsync(Ct))).Should().Be(0);
+        (await ReadAsync(db => db.CatalogOffers.AnyAsync(x => x.Id == SOLD, Ct)))
+            .Should()
+            .BeTrue("only the series goes, not the offer");
+        _catalog.Fakes.Log.Of("ReloadSeriesAsync").Count().Should().Be(told + 1);
     }
 
     [Fact]

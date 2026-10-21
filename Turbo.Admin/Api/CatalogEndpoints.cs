@@ -297,8 +297,13 @@ internal sealed class CatalogEndpoints(
                 )
         );
 
-    private Task<IResult> RemoveLimitedAsync(int id, HttpContext http, CancellationToken ct) =>
-        ChangeAsync(http, who => editor.RemoveLimitedAsync(who, id, ct));
+    /// <summary>A series taken off an offer; <paramref name="withSales"/> takes its raffle entries and sales too.</summary>
+    private Task<IResult> RemoveLimitedAsync(
+        int id,
+        bool? withSales,
+        HttpContext http,
+        CancellationToken ct
+    ) => ChangeAsync(http, who => editor.RemoveLimitedAsync(who, id, withSales == true, ct));
 
     /// <summary>A time from the panel as UTC: it sends ISO times with their offset.</summary>
     private static DateTime? Utc(DateTime? at) => at?.ToUniversalTime();
@@ -416,10 +421,14 @@ internal sealed class CatalogEndpoints(
     }
 
     /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
-    private async Task<IResult> ResetAsync(HttpContext http, CancellationToken ct)
+    private async Task<IResult> ResetAsync(
+        CatalogResetRequest? request,
+        HttpContext http,
+        CancellationToken ct
+    )
     {
         var result = await editor
-            .ResetAsync(AdminIdentity.Of(http).PlayerId, ct)
+            .ResetAsync(AdminIdentity.Of(http).PlayerId, request?.RemoveLimited == true, ct)
             .ConfigureAwait(false);
 
         return result.Saved

@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Players;
 
@@ -181,70 +182,106 @@ public sealed partial class CatalogEditService
         }
     }
 
-    public async Task<CatalogEditResult> ResetAsync(PlayerId editor, CancellationToken ct)
+    public async Task<CatalogEditResult> ResetAsync(
+        PlayerId editor,
+        bool withLimited,
+        CancellationToken ct
+    )
     {
         // Not while an undo or a redo is moving rows: both read the rows they then rewrite.
         await _historyGate.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
-            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var dbScope = db.ConfigureAwait(false);
+            CatalogEditStep? done = null;
+            List<int> series = [];
 
-            var current = await CatalogEditJournal.ReadAllAsync(db, ct).ConfigureAwait(false);
-            var step = new CatalogEditStep("reset the catalog", editor, Now);
+            // One transaction: a reset refused, or one that fails, leaves the series, the
+            // catalog and the backups as they were.
+            var result = await dbCtxFactory
+                .InTransactionAsync(
+                    async db =>
+                    {
+                        var current = await CatalogEditJournal
+                            .ReadAllAsync(db, ct)
+                            .ConfigureAwait(false);
+                        var step = new CatalogEditStep("reset the catalog", editor, Now);
 
-            // The root stays: every page is made under one, and the editor never takes it away.
-            step.Add([
-                .. current
-                    .Where(x =>
-                        x.Key.Type != typeof(CatalogPageEntity)
-                        || x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)] is not null
-                    )
-                    .Select(x => new CatalogRowChange(x.Key, x.Value, null)),
-            ]);
+                        // The root stays: every page is made under one, and the editor never
+                        // takes it away.
+                        step.Add([
+                            .. current
+                                .Where(x =>
+                                    x.Key.Type != typeof(CatalogPageEntity)
+                                    || x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)]
+                                        is not null
+                                )
+                                .Select(x => new CatalogRowChange(x.Key, x.Value, null)),
+                        ]);
 
-            if (!step.Changed)
-                return CatalogEditResult.Refused("The catalog is already empty.");
+                        if (!step.Changed)
+                            return UnitOfWork.Rollback(
+                                CatalogEditResult.Refused("The catalog is already empty.")
+                            );
 
-            // Kept before anything is taken away, so a reset that went wrong still has its copy.
-            var kept = await SaveBackupAsync(
-                    db,
-                    editor,
-                    RESET_BACKUP_NAME,
-                    automatic: true,
-                    current,
+                        series = await db
+                            .LtdSeries.Select(x => x.Id)
+                            .ToListAsync(ct)
+                            .ConfigureAwait(false);
+
+                        if (series.Count > 0 && !withLimited)
+                            return UnitOfWork.Rollback(
+                                CatalogEditResult.Refused(
+                                    $"The catalog sells {series.Count} limited series: reset it with them taken away too, with their raffle entries and sales."
+                                )
+                            );
+
+                        // Kept before anything is taken away.
+                        var kept = await SaveBackupAsync(
+                                db,
+                                editor,
+                                RESET_BACKUP_NAME,
+                                automatic: true,
+                                current,
+                                ct
+                            )
+                            .ConfigureAwait(false);
+
+                        await RemoveSeriesAsync(db, series, ct).ConfigureAwait(false);
+
+                        if (
+                            await CatalogEditJournal
+                                .RestoreAsync(db, step, towardsBefore: false, ct)
+                                .ConfigureAwait(false) is
+                            { } error
+                        )
+                            return UnitOfWork.Rollback(CatalogEditResult.Refused(error));
+
+                        done = step;
+
+                        return UnitOfWork.Commit(CatalogEditResult.Done(kept.Id));
+                    },
                     ct
                 )
                 .ConfigureAwait(false);
 
-            if (
-                await CatalogEditJournal
-                    .RestoreAsync(db, step, towardsBefore: false, ct)
-                    .ConfigureAwait(false) is
-                { } error
-            )
-            {
-                // Nothing was taken away, so the copy is of the catalog as it still is.
-                await db
-                    .CatalogBackups.Where(x => x.Id == kept.Id)
-                    .ExecuteDeleteAsync(ct)
-                    .ConfigureAwait(false);
-
-                return CatalogEditResult.Refused(error);
-            }
+            if (done is null)
+                return result;
 
             Interlocked.Increment(ref _unpublished);
-            Push(step);
+            Push(done);
 
             logger.LogWarning(
-                "Player {PlayerId} reset the catalog, taking away {Rows} rows; what was there is backup {KeptId}",
+                "Player {PlayerId} reset the catalog, taking away {Rows} rows and {Series} limited series; what was there is backup {KeptId}",
                 editor,
-                step.Rows.Count(),
-                kept.Id
+                done.Rows.Count(),
+                series.Count,
+                result.Id
             );
 
-            return CatalogEditResult.Done(kept.Id);
+            await ForgetRafflesAsync(series).ConfigureAwait(false);
+
+            return result;
         }
         finally
         {

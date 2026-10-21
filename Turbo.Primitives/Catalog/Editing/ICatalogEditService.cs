@@ -145,8 +145,18 @@ public interface ICatalogEditService
         CancellationToken ct
     );
 
-    /// <summary>Takes the series off an offer, while none of it is sold or raffled.</summary>
-    Task<CatalogEditResult> RemoveLimitedAsync(PlayerId editor, int offerId, CancellationToken ct);
+    /// <summary>
+    /// Takes the series off an offer: while none of it is sold or raffled, or, with
+    /// <paramref name="withSales"/>, with the raffle's record of it - who entered, who won and
+    /// the serial each was handed. The furni already handed out stays its owner's, stamped with
+    /// its serial. Not undone with the editor's history.
+    /// </summary>
+    Task<CatalogEditResult> RemoveLimitedAsync(
+        PlayerId editor,
+        int offerId,
+        bool withSales,
+        CancellationToken ct
+    );
 
     Task<CatalogPublishResult> PublishAsync(PlayerId editor, CancellationToken ct);
 
@@ -172,10 +182,12 @@ public interface ICatalogEditService
     /// Empties the saved catalog: every page but the root, and every offer, product and
     /// featured item, as one step that can be undone and goes live when published. The catalog
     /// is backed up before anything is taken away, so it can be rolled back to after a publish
-    /// or a restart; the id is that backup's. Refused, with why, when it would take away what a
-    /// limited series sells from.
+    /// or a restart; the id is that backup's. A catalog that sells limited series is reset only
+    /// <paramref name="withLimited"/>: then every series goes too, with its raffle entries and
+    /// sales, as <see cref="RemoveLimitedAsync"/> takes one away, and that is not undone. The
+    /// furni already handed out stays its owner's. Nothing changes when it is refused.
     /// </summary>
-    Task<CatalogEditResult> ResetAsync(PlayerId editor, CancellationToken ct);
+    Task<CatalogEditResult> ResetAsync(PlayerId editor, bool withLimited, CancellationToken ct);
 
     Task<CatalogEditResult> DeleteBackupAsync(PlayerId editor, int backupId, CancellationToken ct);
 }

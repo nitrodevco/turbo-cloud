@@ -625,10 +625,12 @@ kept in the database (`catalog_backups`) until deleted.
 **Reset the catalog**, at the foot of the view, empties it to start again or to import a catalog
 into: every page but the root (which every page is made under), and every offer, product and
 featured item. The catalog is backed up first, as *Before resetting the catalog*, before anything
-is taken away. Like a rollback it is one step you can undo, it goes live when you publish, and it
-is refused while an offer sells a limited series (a refused reset keeps no backup). Ids are not
-reused: club gift claims keep naming the offers they came from, so a new offer never takes an old
-one's id.
+is taken away. Like a rollback it is one step you can undo, and it goes live when you publish. A
+catalog that sells limited series is reset only with **Remove limited series too** ticked: then
+every series goes as well, with its raffle entries and the record of what it sold, and an undo
+brings the catalog back without them. Furni players already won or bought stays theirs, with its
+serial. A refused reset changes nothing and keeps no backup. Ids are not reused: club gift claims
+keep naming the offers they came from, so a new offer never takes an old one's id.
 
 **Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
 only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
@@ -671,7 +673,7 @@ step to undo, and nothing goes live until you publish.
 
 Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and `/discard`;
 `GET` and `POST /api/catalog/backups` (a `name`), `POST /api/catalog/backups/{id}/rollback` and
-`DELETE /api/catalog/backups/{id}`; `POST /api/catalog/reset`;
+`DELETE /api/catalog/backups/{id}`; `POST /api/catalog/reset` (`removeLimited`);
 `GET /api/catalog/audit/unoffered` (`scope` = `missing` or `hidden`, `q`, `line`, `category`,
 `page`, `size`) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
 (definition ids and one price) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
@@ -724,8 +726,12 @@ limited:
 - **On sale:** a switch to stop selling it.
 
 The editor never counts what is left; the hotel does. A new total moves what is left by as much,
-and can't drop below what is sold. A series can only come off an offer while none of it is sold or
-raffled; after that, switch it off. A club gift can't be limited. Saving tells an open raffle to
+and can't drop below what is sold. **No longer limited** takes a series off an offer while none of
+it is sold or raffled. After that, switch it off, or **Remove with its sales**: the series goes with
+its raffle entries and the record of who won which serial, for good (an undo does not bring it
+back). It stops selling at once, and a raffle gathering buyers then draws no winner: everyone in it
+hears they lost, and nobody is charged. Furni players already have stays theirs, with its serial;
+nothing on it names the series. A club gift can't be limited. Saving tells an open raffle to
 read the series again, so switching it off stops it at once. Players see the new numbers when you
 publish.
 
