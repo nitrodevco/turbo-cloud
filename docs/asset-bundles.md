@@ -195,6 +195,14 @@ What the hotel takes from the followed release:
   goes into its bundle under the field's name, never over one the library has, and the build's
   notes list them ("taken from Habbo's AIR client"). The bundles are built again when the AIR
   release changes. `Turbo:Gamedata:ClientAirImages` (on by default) turns it off.
+  Some layouts the HTML client has lack what the client looks for, where the AIR client's have it:
+  the Progression menu (`habbo-toolbar-com/prog_menu_view_xml`) adds a reward track's item only
+  into the list named `menu_items` (build 1745's `ProgMenuController.as:185`), which the HTML
+  client 95 leaves unnamed. The layouts `Turbo:Gamedata:ClientAirLayouts` names
+  (`<library>/<asset>`, that one by default) are taken from the AIR client in place of the
+  library's own - the static field its class embeds the layout in, found as an image is - and the
+  build's notes list them ("layouts taken from Habbo's AIR client"); one the AIR client lacks keeps
+  the HTML client's. Changing the list builds the bundles again.
 - **The UI theme** (`Habbo/Client/Theme/`, nitro-studio's `clientTheme` / `themeVariants` /
   `skinArt`): built from the window manager library's element description, window layouts and
   skins, and put into `habbo-window-manager-com.nitro` beside its templates as Studio's `withTheme`

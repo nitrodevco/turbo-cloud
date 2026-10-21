@@ -60,6 +60,44 @@ public sealed class SwfEmbeddedImagesTests
     }
 
     [Fact]
+    public void A_classes_embedded_layouts_are_found_by_its_static_fields()
+    {
+        var swf = SwfLibrary.Read(
+            TestAirClient.Swf(
+                (
+                    "HabboToolbarCom",
+                    [
+                        TestAirClient.Binary(
+                            "prog_menu_view_xml",
+                            "HabboToolbarCom_prog_menu_view_xml",
+                            "<layout/>"
+                        ),
+                        // A bitmap is no file.
+                        TestAirClient.Png(
+                            "coin_icon",
+                            "coin_png$5-6",
+                            new RgbaImage(1, 1, Pixels(1, 1, 1)).EncodePng()
+                        ),
+                    ]
+                ),
+                (
+                    "HabboWindowManagerCom",
+                    [TestAirClient.Binary("purse_xml", "purse_xml$3-4", "<purse/>")]
+                )
+            )
+        );
+
+        var found = swf.EmbeddedBinaries(x => x == "HabboToolbarCom");
+
+        found.Keys.Should().Equal("HabboToolbarCom");
+        found["HabboToolbarCom"].Keys.Should().Equal("prog_menu_view_xml");
+        System
+            .Text.Encoding.UTF8.GetString(found["HabboToolbarCom"]["prog_menu_view_xml"])
+            .Should()
+            .Be("<layout/>");
+    }
+
+    [Fact]
     public void An_swf_without_actionscript_embeds_nothing()
     {
         SwfLibrary.Read(NitroConverterTests.Swf()).EmbeddedImages(_ => true).Should().BeEmpty();

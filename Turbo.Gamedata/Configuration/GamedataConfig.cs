@@ -68,6 +68,14 @@ public sealed class GamedataConfig
     public bool ClientAirImages { get; init; } = true;
 
     /// <summary>
+    /// The window layouts (<c>&lt;library&gt;/&lt;asset&gt;</c>) the templates take from Habbo's newest
+    /// AIR client in place of its HTML client's, whose copy lacks what the client looks for: the
+    /// Progression menu's, whose list of reward track items only the AIR client names
+    /// <c>menu_items</c>. Empty takes none.
+    /// </summary>
+    public string[] ClientAirLayouts { get; init; } = ["habbo-toolbar-com/prog_menu_view_xml"];
+
+    /// <summary>
     /// Where a furniture's asset file is, read when an update is taken in for its states and the
     /// rest the file says: <c>{domain}</c>, <c>{revision}</c> and <c>{name}</c> (the classname
     /// without its <c>*N</c> colour) are filled in.

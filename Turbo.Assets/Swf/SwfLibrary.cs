@@ -76,7 +76,23 @@ public sealed class SwfLibrary : IAssetLibrary
         foreach (var image in _images)
             images.TryAdd(image.CharacterId, image);
 
-        var found = new Dictionary<string, Dictionary<string, SwfImageTag>>(StringComparer.Ordinal);
+        return Embedded(wanted, images);
+    }
+
+    /// <summary>
+    /// The files each class <paramref name="wanted"/> takes embeds as binary data (its layout
+    /// XMLs), by class and field name, found as <see cref="EmbeddedImages"/> finds its bitmaps.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, byte[]>> EmbeddedBinaries(
+        Func<string, bool> wanted
+    ) => Embedded(wanted, _binaries);
+
+    private Dictionary<string, Dictionary<string, T>> Embedded<T>(
+        Func<string, bool> wanted,
+        Dictionary<int, T> byCharacter
+    )
+    {
+        var found = new Dictionary<string, Dictionary<string, T>>(StringComparer.Ordinal);
 
         foreach (var abc in _abcs)
         {
@@ -88,9 +104,9 @@ public sealed class SwfLibrary : IAssetLibrary
                 foreach (var (field, assigned) in fields)
                     if (
                         _characterByName.TryGetValue(assigned, out var id)
-                        && images.TryGetValue(id, out var image)
+                        && byCharacter.TryGetValue(id, out var data)
                     )
-                        embedded.TryAdd(field, image);
+                        embedded.TryAdd(field, data);
             }
         }
 

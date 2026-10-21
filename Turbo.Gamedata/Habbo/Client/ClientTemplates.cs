@@ -56,13 +56,16 @@ internal static partial class ClientTemplates
     /// Every library's templates and bitmaps packed into its bundle; <paramref name="windowManager"/>
     /// is the library every other one falls back to, among <paramref name="libraries"/> or not.
     /// <paramref name="extra"/> are bitmaps a library has elsewhere (<see cref="ClientAirImages"/>),
-    /// by library and asset name: found after its own, and packed with them.
+    /// by library and asset name: found after its own, and packed with them. <paramref name="layouts"/>
+    /// are layouts taken from elsewhere (<see cref="ClientAirLayouts"/>), by library and asset name:
+    /// packed in place of the library's own.
     /// </summary>
     public static Packed Pack(
         string version,
         IReadOnlyList<(string Name, HabLibrary Hab)> libraries,
         HabLibrary windowManager,
-        IReadOnlyDictionary<string, Dictionary<string, byte[]>>? extra = null
+        IReadOnlyDictionary<string, Dictionary<string, byte[]>>? extra = null,
+        IReadOnlyDictionary<string, Dictionary<string, string>>? layouts = null
     )
     {
         var skinLayout = SkinLayouts(windowManager);
@@ -155,10 +158,15 @@ internal static partial class ClientTemplates
                 return null;
             }
 
+            var taken = layouts?.GetValueOrDefault(name) ?? [];
+
             foreach (
                 var (entry, xml) in windowManagerOnly
                     ? Enumerable.Empty<(string Entry, string Xml)>()
-                    : Layouts(hab).OrderBy(x => x.Entry, StringComparer.Ordinal)
+                    : Layouts(hab)
+                        .Where(x => !taken.ContainsKey(x.Entry))
+                        .Concat(taken.Select(x => (Entry: x.Key, Xml: x.Value)))
+                        .OrderBy(x => x.Entry, StringComparer.Ordinal)
             )
             {
                 try

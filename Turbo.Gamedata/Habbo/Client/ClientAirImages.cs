@@ -28,31 +28,7 @@ internal static class ClientAirImages
         IReadOnlyList<(string Name, HabLibrary Hab)> libraries
     )
     {
-        var byClass = new Dictionary<string, List<(string Name, HabLibrary Hab)>>(
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        foreach (var library in libraries)
-        {
-            foreach (
-                var className in new[]
-                {
-                    library.Hab.Manifest.Name,
-                    library.Name.Replace("-", "", StringComparison.Ordinal),
-                }.Distinct(StringComparer.OrdinalIgnoreCase)
-            )
-            {
-                if (className.Length == 0)
-                    continue;
-
-                if (!byClass.TryGetValue(className, out var named))
-                    byClass[className] = named = [];
-
-                if (!named.Contains(library))
-                    named.Add(library);
-            }
-        }
-
+        var byClass = ByClass(libraries);
         var images = new Dictionary<string, Dictionary<string, byte[]>>(StringComparer.Ordinal);
         var problems = new List<string>();
 
@@ -86,5 +62,38 @@ internal static class ClientAirImages
         }
 
         return new Taken(images, problems);
+    }
+
+    /// <summary>The libraries by the class of the AIR client that is theirs, either name in any case.</summary>
+    internal static Dictionary<string, List<(string Name, HabLibrary Hab)>> ByClass(
+        IReadOnlyList<(string Name, HabLibrary Hab)> libraries
+    )
+    {
+        var byClass = new Dictionary<string, List<(string Name, HabLibrary Hab)>>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var library in libraries)
+        {
+            foreach (
+                var className in new[]
+                {
+                    library.Hab.Manifest.Name,
+                    library.Name.Replace("-", "", StringComparison.Ordinal),
+                }.Distinct(StringComparer.OrdinalIgnoreCase)
+            )
+            {
+                if (className.Length == 0)
+                    continue;
+
+                if (!byClass.TryGetValue(className, out var named))
+                    byClass[className] = named = [];
+
+                if (!named.Contains(library))
+                    named.Add(library);
+            }
+        }
+
+        return byClass;
     }
 }

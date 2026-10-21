@@ -956,6 +956,116 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task The_progression_menu_layout_is_taken_from_habbos_air_client_which_names_its_list()
+    {
+        const string AIR = "https://images.habbo.com/habbo-clients/air/win/prod/34_x/HabboWin.zip";
+
+        static string Menu(string boxsizerName) =>
+            $"""<layout name="prog_menu_view" width="362" height="53"><window><border x="0" y="0" width="362" height="53" name="buttons"><children><boxsizer x="3" y="3" width="359" height="50"{boxsizerName}><children><region x="12" y="2" width="60" height="48" name="introduction"/></children></boxsizer></children></border></window></layout>""";
+
+        static (string, string, byte[]) Xml(string name, string xml) =>
+            (name, "text/xml", Encoding.UTF8.GetBytes(xml));
+
+        // Habbo's HTML client 95 leaves the Progression menu's list unnamed; build 1745's AIR client
+        // names it menu_items, where ProgMenuController adds each reward track's item. A layout not
+        // asked for keeps the HTML client's, even where the AIR client's differs.
+        var toolbar = NitroConverterTests.Hab(
+            Xml("prog_menu_view_xml", Menu("")),
+            Xml(
+                "me_menu_view_xml",
+                """<layout name="me_menu_view" width="10" height="10"><window><container x="0" y="0" width="10" height="10" name="html"/></window></layout>"""
+            )
+        );
+        var air = TestAirClient.Swf(
+            (
+                "HabboToolbarCom",
+                [
+                    TestAirClient.Binary(
+                        "prog_menu_view_xml",
+                        "HabboToolbarCom_prog_menu_view_xml",
+                        Menu(" name=\"menu_items\"")
+                    ),
+                    TestAirClient.Binary(
+                        "me_menu_view_xml",
+                        "HabboToolbarCom_me_menu_view_xml",
+                        """<layout name="me_menu_view" width="10" height="10"><window><container x="0" y="0" width="10" height="10" name="air"/></window></layout>"""
+                    ),
+                ]
+            )
+        );
+
+        TestClientRelease.Serve(
+            _habbo.Serve,
+            (
+                "generated/habbo-window-manager-com.hab",
+                NitroConverterTests.Hab(
+                    (
+                        "frame_close_png",
+                        "image/png",
+                        new RgbaImage(3, 2, new byte[3 * 2 * 4]).EncodePng()
+                    )
+                )
+            ),
+            ("generated/habbo-toolbar-com.hab", toolbar)
+        );
+        _habbo.Serve(
+            "https://sandbox.habbo.com/gamedata/clienturls",
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                new Dictionary<string, string>
+                {
+                    ["html-windows-version"] = TestClientRelease.VERSION,
+                    ["html-windows"] = TestClientRelease.LISTING,
+                    ["flash-windows-version"] = "34",
+                    ["flash-windows"] = AIR,
+                }
+            )
+        );
+        _habbo.Serve(AIR, TestAirClient.Zip(air));
+        await Client().CheckAsync(wait: true, Ct);
+
+        var job = await RunAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+
+        var templates = JsonNode.Parse(
+            NitroBundle
+                .Read(
+                    File.ReadAllBytes(
+                        _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-toolbar-com")
+                    )
+                )
+                .Files["templates.json"]
+        )!["templates"]!;
+
+        static IEnumerable<string> Names(JsonNode? node) =>
+            node switch
+            {
+                JsonObject o => (
+                    o["name"]?.GetValue<string>() is { } name ? [name] : Array.Empty<string>()
+                )
+                    .Concat(Names(o["elements"]))
+                    .Concat(Names(o["children"])),
+                JsonArray a => a.SelectMany(Names),
+                _ => [],
+            };
+
+        Names(templates["habbo-toolbar-com/prog_menu_view_xml"])
+            .Should()
+            .Contain("menu_items")
+            .And.Contain("introduction");
+        Names(templates["habbo-toolbar-com/me_menu_view_xml"])
+            .Should()
+            .Contain("html")
+            .And.NotContain("air");
+
+        const string NOTE =
+            "habbo-toolbar-com: layouts taken from Habbo's AIR client 34: prog_menu_view_xml";
+
+        job.Log.Should().Contain(NOTE).And.NotContain(x => x.StartsWith("Template problem:"));
+        (await Builder().GetAsync(Ct)).Notes.Should().Contain(NOTE);
+    }
+
+    [Fact]
     public async Task The_window_managers_bundle_carries_the_ui_theme_beside_its_bitmaps()
     {
         TestClientRelease.Serve(
