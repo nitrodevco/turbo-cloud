@@ -31,6 +31,9 @@ public sealed class ServerSettingsTests : IDisposable
         }
         """;
 
+    private const string MAX_USERS_POSITIVE = "Test:Hotel:MaxUsers must be positive.";
+    private const string A_LAYOUT = "Test:Hotel:Layouts needs a layout.";
+
     private static readonly PlayerId STAFF = new(7);
 
     private readonly SqliteDb _db = new();
@@ -538,6 +541,76 @@ public sealed class ServerSettingsTests : IDisposable
         restarted.Running<FilledInConfig>().Names.Should().Equal("mine");
         restarted.Settings.Get("Test:Filled:Names")!.PendingRestart.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task a_value_its_validators_refuse_is_not_saved_so_a_restart_still_starts()
+    {
+        // A section validated on start refuses to start on a value its validators reject: the
+        // panel refuses to save one, and says what they say.
+        var harness = Harness(register: Validated);
+        var settings = harness.Settings;
+
+        var zero = () => settings.SaveAsync("Test:Hotel:MaxUsers", "0", STAFF, Ct);
+        // Built as the server builds it: the list saved empty is empty, not the file's five.
+        var none = () => settings.SaveAsync("Test:Hotel:Layouts", "[]", STAFF, Ct);
+
+        (await zero.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain(MAX_USERS_POSITIVE);
+        (await none.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain(A_LAYOUT);
+        settings.Get("Test:Hotel:MaxUsers")!.Value.Should().Be("50");
+        settings.Get("Test:Hotel:Layouts")!.Source.Should().Be(ServerSettingSource.AppSettings);
+        (await settings.HistoryAsync(0, Ct)).Total.Should().Be(0);
+        Restart(harness).Running<TestHotelConfig>().MaxUsers.Should().Be(50);
+
+        // A value they take is saved as ever.
+        await settings.SaveAsync("Test:Hotel:MaxUsers", "80", STAFF, Ct);
+
+        Restart(harness).Running<TestHotelConfig>().MaxUsers.Should().Be(80);
+    }
+
+    [Fact]
+    public async Task putting_back_a_setting_over_a_files_value_its_validators_refuse_is_refused()
+    {
+        // The file's value fails; the panel's lets the server start.
+        var harness = Harness("""{ "Test": { "Hotel": { "MaxUsers": 0 } } }""", Validated);
+
+        await harness.Settings.SaveAsync("Test:Hotel:MaxUsers", "80", STAFF, Ct);
+
+        var reset = () => harness.Settings.ResetAsync("Test:Hotel:MaxUsers", STAFF, Ct);
+
+        (await reset.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain(MAX_USERS_POSITIVE);
+        harness.Settings.Get("Test:Hotel:MaxUsers")!.Value.Should().Be("80");
+        (await harness.Settings.HistoryAsync(0, Ct)).Total.Should().Be(1);
+        Restart(harness).Running<TestHotelConfig>().MaxUsers.Should().Be(80);
+    }
+
+    [Fact]
+    public async Task a_section_that_fails_already_can_be_mended_a_setting_at_a_time()
+    {
+        // Both fail in the file: mending either leaves the other's failure, which isn't its own.
+        var harness = Harness(
+            """{ "Test": { "Hotel": { "MaxUsers": 0, "Layouts": [] } } }""",
+            Validated
+        );
+
+        await harness.Settings.SaveAsync("Test:Hotel:MaxUsers", "80", STAFF, Ct);
+        await harness.Settings.SaveAsync("Test:Hotel:Layouts", """["a"]""", STAFF, Ct);
+
+        Restart(harness).Running<TestHotelConfig>().MaxUsers.Should().Be(80);
+    }
+
+    private static void Validated(IServiceCollection services, IConfiguration configuration) =>
+        services
+            .AddOptions<TestHotelConfig>()
+            .Bind(configuration.GetSection(TestHotelConfig.SECTION_NAME))
+            .Validate(x => x.MaxUsers > 0, MAX_USERS_POSITIVE)
+            .Validate(x => x.Layouts.Length > 0, A_LAYOUT)
+            .ValidateOnStart();
 
     private SettingsHarness Harness(
         string appSettings = APP_SETTINGS,

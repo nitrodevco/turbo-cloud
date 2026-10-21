@@ -50,6 +50,14 @@ public static class WholeCollectionBinding
         return services;
     }
 
+    /// <summary>
+    /// Whether <paramref name="step"/> is the rebind <see cref="AddWholeCollectionBinding"/> adds:
+    /// options built from a configuration other than the container's take it out for their own.
+    /// </summary>
+    public static bool IsRebind(object step) =>
+        step.GetType() is { IsGenericType: true } type
+        && type.GetGenericTypeDefinition() == typeof(WholeCollectionPostConfigure<>);
+
     /// <summary>The section a config class names in its <c>SECTION_NAME</c> constant; null for none.</summary>
     public static string? SectionOf(Type type) =>
         type.GetField(SECTION_NAME, BindingFlags.Public | BindingFlags.Static)

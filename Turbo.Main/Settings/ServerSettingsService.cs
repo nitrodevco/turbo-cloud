@@ -127,6 +127,8 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             if (row?.Value == json)
                 return snapshot;
 
+            await CheckStartsAsync(dbCtx, setting, json, ct).ConfigureAwait(false);
+
             // The history keeps the values as staff saw them.
             var before = row is null ? null : snapshot.Value;
 
@@ -174,6 +176,8 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
 
             if (row is null)
                 return false;
+
+            await CheckStartsAsync(dbCtx, setting, null, ct).ConfigureAwait(false);
 
             dbCtx.ServerSettings.Remove(row);
             dbCtx.ServerSettingChanges.Add(Change(setting, snapshot.Value, null, player));
@@ -424,6 +428,77 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         return (setting, snapshot);
     }
 
+    /// <summary>
+    /// Refuses, with what the validators say, the setting's override set to
+    /// <paramref name="value"/> (taken away when null) when a config class it is part of would
+    /// then fail its validators where it passes now: a restart would refuse to start. A failure
+    /// the configuration has already isn't held against the change, so staff can mend one setting
+    /// at a time. Throws <see cref="ArgumentException"/>.
+    /// </summary>
+    private async Task CheckStartsAsync(
+        TurboDbContext dbCtx,
+        ServerSettingRegistry.Setting setting,
+        string? value,
+        CancellationToken ct
+    )
+    {
+        var sections = _registry
+            .Sections.Where(x =>
+                x.Settings.Any(y =>
+                    string.Equals(y.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
+                ) && ServerSettingsCheck.Validates(_services, x.Type)
+            )
+            .ToList();
+
+        if (sections.Count == 0)
+            return;
+
+        var rows = await dbCtx
+            .ServerSettings.AsNoTracking()
+            .OrderBy(x => x.Id)
+            .Select(x => new { x.Path, x.Value })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var now = rows.Select(x => (x.Path, x.Value)).ToList();
+        var changed = now.Where(x =>
+                !string.Equals(x.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+
+        if (value is not null)
+            changed.Add((setting.Path, value));
+
+        using var after = ServerSettingsCheck.Configuration(_configuration, changed);
+        var failures = new List<string>();
+
+        foreach (var section in sections)
+        {
+            var failing = ServerSettingsCheck.Failures(
+                _services,
+                section.Type,
+                after,
+                section.Name
+            );
+
+            if (failing.Count == 0)
+                continue;
+
+            using var before = ServerSettingsCheck.Configuration(_configuration, now);
+
+            failures.AddRange(
+                failing.Except(
+                    ServerSettingsCheck.Failures(_services, section.Type, before, section.Name)
+                )
+            );
+        }
+
+        if (failures.Count > 0)
+            throw new ArgumentException(
+                $"The server wouldn't start with {setting.Path} {(value is null ? "put back" : "set to that")}: {string.Join(" ", failures.Distinct())}",
+                nameof(value)
+            );
+    }
+
     private static ServerSettingChangeEntity Change(
         ServerSettingRegistry.Setting setting,
         string? before,
@@ -444,7 +519,22 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
     {
         if (ServerSettingsConfiguration.Find(_configuration) is { } provider)
         {
-            provider.Refresh();
+            try
+            {
+                provider.Refresh();
+            }
+            catch (AggregateException ex)
+                when (ex.Flatten().InnerExceptions.All(x => x is OptionsValidationException))
+            {
+                // The change is kept already. Options rebuilt as the configuration reloads
+                // (IOptionsMonitor) fail as they failed before it: CheckStartsAsync lets a change
+                // through only when it adds no failure, so one mending a setting at a time can
+                // leave another failing.
+                _logger.LogWarning(
+                    ex,
+                    "The server settings reloaded, but options built from them don't validate"
+                );
+            }
 
             if (provider.LoadError is { } error)
                 _logger.LogWarning("Reading the panel's server settings: {Error}", error);

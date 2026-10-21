@@ -61,6 +61,14 @@ It is checked against the setting's type before it is saved. One pair of quotes 
 typed around the whole of a text value is taken off, so `"https://example.com"` pasted from a
 `.env` file is saved as the address, not with its quotes.
 
+A section a module validates as the server starts (`.Validate(...).ValidateOnStart()`, such as
+`Turbo:Players` or `Turbo:Movements`) is built with the value in place, as a restart would build
+it, before the value is saved. If its validators would refuse it, so would the restart: the value
+is refused with what they say, and nothing is saved or written to the history. **Put back** is
+checked the same way, against the value it would leave. A section that fails already (a file edited
+since the server started) isn't held to it: a change is refused only for a failure it adds, so the
+section can be mended a setting at a time.
+
 If the panel's overrides couldn't be read as the server started (the database unreachable, a value
 that isn't JSON), the server runs without them, logs why, and the Settings page says so above the
 list (`startupError` in `GET /api/settings`) until it restarts and reads them.
