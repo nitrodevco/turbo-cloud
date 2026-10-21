@@ -115,6 +115,20 @@ public sealed class AdminCatalogAuditTests : IDisposable
     }
 
     [Fact]
+    public async Task UnofferedIds_AreEveryFurniTheListHolds_PastItsPages()
+    {
+        (await Audit.GetUnofferedAsync("missing", null, null, null, 0, 1, Ct))
+            .Items.Should()
+            .ContainSingle();
+        (await Audit.GetUnofferedIdsAsync("missing", null, null, null, Ct))
+            .Ids.Should()
+            .Equal(LAMP, POSTER);
+        (await Audit.GetUnofferedIdsAsync("missing", null, "basic", null, Ct))
+            .Ids.Should()
+            .Equal(LAMP);
+    }
+
+    [Fact]
     public async Task Duplicates_ListEachOfferOfAFurniSoldAloneMoreThanOnce_WithWherePlayersSeeIt()
     {
         Sell(202, CHILD, true, CHAIR, SOFA);

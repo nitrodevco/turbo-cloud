@@ -82,7 +82,13 @@ public sealed record CatalogPageMergeResult(
     int UnpublishedChanges
 );
 
-/// <summary>Floor and wall items to sell on a page, one offer each, at one price.</summary>
+/// <summary>Every furni the unoffered list holds as narrowed, by id in its order, past its pages.</summary>
+public sealed record CatalogUnofferedIdsResponse(int[] Ids);
+
+/// <summary>
+/// Floor and wall items to sell on a page, one offer each, at one price; with
+/// <see cref="SubPages"/>, sorted onto a page under it for each kind of furni.
+/// </summary>
 public sealed record CatalogAddFurniRequest(
     int[]? DefinitionIds,
     int CostCredits,
@@ -90,8 +96,15 @@ public sealed record CatalogAddFurniRequest(
     int? CurrencyTypeId,
     int ClubLevel,
     bool CanGift,
-    bool Visible
+    bool Visible,
+    bool SubPages = false
 );
+
+/// <summary>A page the furni would go on: one there already (<see cref="PageId"/>), or one to make.</summary>
+public sealed record CatalogAddFurniPage(string Title, int? PageId, int Count);
+
+/// <summary>The pages adding the furni would put them on, in the order they would be in.</summary>
+public sealed record CatalogAddFurniPlan(CatalogAddFurniPage[] Pages);
 
 /// <summary>Offers to delete at once, as one step to undo.</summary>
 public sealed record CatalogOffersDeleteRequest(int[]? OfferIds);

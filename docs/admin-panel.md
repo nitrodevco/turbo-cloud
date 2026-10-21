@@ -653,8 +653,13 @@ keep naming the offers they came from, so a new offer never takes an old one's i
 **Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
 only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
 and pets are left out, since their builders sell them. The list narrows by name, furni line and
-furnidata category. Pick tiles, choose a page and a price, and **Add**: one offer each, one step to
-undo. **Add furni** on an open page does the same for that page.
+furnidata category. Pick tiles (or **Pick these** for the page shown, **Pick all** for every match),
+choose a page and a price, and **Add**: one offer each, one step to undo. **Sort into sub pages by
+kind** puts them on a page under it for each kind instead, made with them or the one of that title
+there already: the first word of the class name, its colour left off and a first word that is its
+furni line's name passed over, so `pillow*3` and `rare_fan*1` go on Pillow and Fan; kinds of fewer
+than 3 share Other. Furni all of one kind, like a Christmas line's `xmas14_` ones, stay on the page
+itself. The bar lists the pages first. **Add furni** on an open page does the same for that page.
 
 **Duplicates.** Furni sold alone by more than one offer (club gifts and bundles aren't counted),
 each with where its offers are, what they cost, and whether players see them. Open an offer in the
@@ -702,8 +707,10 @@ Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and 
 `GET` and `POST /api/catalog/backups` (a `name`), `POST /api/catalog/backups/{id}/rollback` and
 `DELETE /api/catalog/backups/{id}`; `POST /api/catalog/reset` (`removeLimited`);
 `GET /api/catalog/audit/unoffered` (`scope` = `missing` or `hidden`, `q`, `line`, `category`,
-`page`, `size`) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
-(definition ids and one price) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
+`page`, `size`), `GET /api/catalog/audit/unoffered/ids` (the same less `page` and `size`: every
+id that matches) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
+(definition ids, one price and `subPages`), `POST /api/catalog/pages/{id}/furni/preview` (the pages
+they would go on; changes nothing) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
 and `POST /api/catalog/generate/preview` (changes nothing) and `POST /api/catalog/generate`.
 Reading needs `admin.catalog.view`; changing needs `catalog.manage` as well.
 

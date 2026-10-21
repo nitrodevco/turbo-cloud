@@ -44,6 +44,48 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
         CancellationToken ct
     )
     {
+        var (unoffered, narrowed) = await UnofferedAsync(scope, text, line, category, ct)
+            .ConfigureAwait(false);
+        var take = Math.Clamp(size, 1, PAGE_SIZE_MAX);
+
+        return new CatalogUnofferedResponse(
+            narrowed.Count,
+            [.. narrowed.Skip(Math.Max(0, page) * take).Take(take)],
+            Facets(unoffered.Select(x => x.Line)),
+            Facets(unoffered.Select(x => x.Category))
+        );
+    }
+
+    /// <summary>
+    /// Every furni of <see cref="GetUnofferedAsync"/>'s list as narrowed, by id in its order, past
+    /// its pages: what picking them all picks.
+    /// </summary>
+    public async Task<CatalogUnofferedIdsResponse> GetUnofferedIdsAsync(
+        string? scope,
+        string? text,
+        string? line,
+        string? category,
+        CancellationToken ct
+    )
+    {
+        var (_, narrowed) = await UnofferedAsync(scope, text, line, category, ct)
+            .ConfigureAwait(false);
+
+        return new CatalogUnofferedIdsResponse([.. narrowed.Select(x => x.Id)]);
+    }
+
+    /// <summary>The kind's furni, and those of them the text, line and category leave, in the list's order.</summary>
+    private async Task<(
+        List<CatalogAuditFurni> Unoffered,
+        List<CatalogAuditFurni> Narrowed
+    )> UnofferedAsync(
+        string? scope,
+        string? text,
+        string? line,
+        string? category,
+        CancellationToken ct
+    )
+    {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
@@ -73,14 +115,8 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
             .OrderBy(x => x.Line ?? "￿", StringComparer.Ordinal)
             .ThenBy(x => x.Name, StringComparer.Ordinal)
             .ToList();
-        var take = Math.Clamp(size, 1, PAGE_SIZE_MAX);
 
-        return new CatalogUnofferedResponse(
-            narrowed.Count,
-            [.. narrowed.Skip(Math.Max(0, page) * take).Take(take)],
-            Facets(unoffered.Select(x => x.Line)),
-            Facets(unoffered.Select(x => x.Category))
-        );
+        return (unoffered, narrowed);
     }
 
     /// <summary>

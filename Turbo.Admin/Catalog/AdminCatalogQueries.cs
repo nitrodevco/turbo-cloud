@@ -326,13 +326,6 @@ public sealed class AdminCatalogQueries(
             new(x.Id, x.Name, x.SpriteId, TypeName(x.ProductType));
     }
 
-    /// <summary>Whether a definition is a floor or a wall item, which an offer of furni gives; null when it is neither.</summary>
-    public ProductType? FurniTypeOf(int definitionId) =>
-        definitions.TryGetDefinition(definitionId)?.ProductType is { } type
-        && type is ProductType.Floor or ProductType.Wall
-            ? type
-            : null;
-
     /// <summary>A product type as the panel names it: <c>floor</c>, <c>wall</c>, <c>badge</c>, ...</summary>
     public static string TypeName(ProductType type) =>
         type switch

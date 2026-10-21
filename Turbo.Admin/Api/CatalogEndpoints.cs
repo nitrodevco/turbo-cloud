@@ -40,6 +40,7 @@ internal sealed class CatalogEndpoints(
     AdminCatalogImport importer,
     AdminJobs jobs,
     AdminCatalogPageMerge merger,
+    AdminCatalogAddFurni furni,
     IFurnitureDefinitionProvider definitions,
     IRecolorablePalettes palettes,
     ILogger<CatalogEndpoints> logger
@@ -86,6 +87,13 @@ internal sealed class CatalogEndpoints(
         group.MapGet("/builders/furni-lines", FurniLinesAsync);
         group.MapPost("/pages/{id:int}/build/preview", PreviewBuildAsync).ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/build", BuildAsync);
+        group
+            .MapPost(
+                "/pages/{id:int}/furni/preview",
+                async (int id, CatalogAddFurniRequest request, CancellationToken ct) =>
+                    Built(await furni.PlanAsync(id, request, ct).ConfigureAwait(false))
+            )
+            .ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/furni", AddFurniAsync);
         group.MapPost("/offers/delete", DeleteOffersAsync);
         group.MapPost("/frontpage", CreateFrontPageAsync);
@@ -109,6 +117,21 @@ internal sealed class CatalogEndpoints(
         group.MapDelete("/backups/{id:int}", DeleteBackupAsync);
         group.MapPost("/reset", ResetAsync);
         group.MapGet("/audit/unoffered", UnofferedAsync);
+        group.MapGet(
+            "/audit/unoffered/ids",
+            async (
+                string? scope,
+                string? q,
+                string? line,
+                string? category,
+                CancellationToken ct
+            ) =>
+                Results.Ok(
+                    await audit
+                        .GetUnofferedIdsAsync(scope, q, line, category, ct)
+                        .ConfigureAwait(false)
+                )
+        );
         group.MapGet(
             "/audit/duplicate-pages",
             async (CancellationToken ct) =>
@@ -517,59 +540,12 @@ internal sealed class CatalogEndpoints(
         CatalogAddFurniRequest request,
         HttpContext http,
         CancellationToken ct
-    )
-    {
-        var ids = (request.DefinitionIds ?? []).Distinct().ToList();
-
-        if (ids.Count == 0)
-            return AdminResults.Error(StatusCodes.Status400BadRequest, "Pick the furni to add.");
-
-        var offers = new List<CatalogNewOffer>(ids.Count);
-        var page = CatalogPageRef.Saved(id);
-
-        foreach (var definitionId in ids)
-        {
-            if (catalog.FurniTypeOf(definitionId) is not { } type)
-                return AdminResults.Error(
-                    StatusCodes.Status400BadRequest,
-                    $"There is no floor or wall item {definitionId}."
-                );
-
-            offers.Add(
-                new CatalogNewOffer(
-                    page,
-                    new CatalogOfferDraft(
-                        id,
-                        string.Empty,
-                        request.CostCredits,
-                        request.CostCurrency,
-                        request.CurrencyTypeId,
-                        request.CanGift,
-                        CanBundle: true,
-                        request.ClubLevel,
-                        request.Visible,
-                        Product: null,
-                        Products: [new CatalogProductDraft(type, definitionId, null, 1)]
-                    )
-                )
-            );
-        }
-
-        var result = await editor
-            .BuildTreeAsync(
-                AdminIdentity.Of(http).PlayerId,
-                $"added {ids.Count} furni to page {id}",
-                new CatalogTreeDraft([], offers, [], []),
-                ct
-            )
-            .ConfigureAwait(false);
-
-        return result.Saved
-            ? Results.Ok(
-                new CatalogBulkResponse(result.OffersCreated, editor.UnpublishedChanges, [])
-            )
-            : AdminResults.Error(StatusCodes.Status400BadRequest, result.Error!);
-    }
+    ) =>
+        Built(
+            await furni
+                .AddAsync(AdminIdentity.Of(http).PlayerId, id, request, ct)
+                .ConfigureAwait(false)
+        );
 
     /// <summary>Offers deleted at once, as one step; those the service refuses are listed with why.</summary>
     private async Task<IResult> DeleteOffersAsync(
