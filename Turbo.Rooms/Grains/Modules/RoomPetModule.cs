@@ -323,7 +323,8 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     /// <summary>
     /// Returns every pet to its owner's inventory, as a room deletion requires. Same shape as
-    /// <see cref="RoomBotModule.ReturnAllToOwnersAsync"/>.
+    /// <see cref="RoomBotModule.ReturnAllToOwnersAsync"/>: a pet the inventory refuses is logged
+    /// and left to the deletion's backstop, so one bad pet cannot leave the room half deleted.
     /// </summary>
     internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
     {
@@ -349,8 +350,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
 
             if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), cause, ct))
-                throw new InvalidOperationException(
-                    $"Pet {pet.PetId} could not be returned before room {_roomGrain.RoomId} deletion."
+                _roomGrain._logger.LogError(
+                    "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
+                    pet.PetId,
+                    ownerId,
+                    _roomGrain.RoomId
                 );
         }
     }
