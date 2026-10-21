@@ -311,6 +311,98 @@ public sealed class CatalogLogImportTests : IDisposable
         _service.History.Undo.Should().ContainSingle();
     }
 
+    /// <summary>
+    /// Habbo's "Lodge", shown in both its catalogues, under the furniture tab, and under it a
+    /// page only its Builders Club shows.
+    /// </summary>
+    private const int LODGE = 60;
+    private const int LODGE_EXTRAS = 61;
+    private const int LODGE_CHAIR = 206;
+    private const int EXTRAS_POSTER = 207;
+
+    private async Task<CatalogLogImportRequest> LodgeLogsAsync()
+    {
+        _habbo.Db.Insert(Page(LODGE, FURNITURE, "Lodge", CatalogPageDisplay.Both, sort: 6));
+        _habbo.Db.Insert(
+            Page(LODGE_EXTRAS, LODGE, "Lodge_extras", CatalogPageDisplay.BuildersClubOnly)
+        );
+        HabboOffer(LODGE_CHAIR, LODGE, "lodge_chair", (ProductType.Floor, CHAIR, null));
+        HabboOffer(EXTRAS_POSTER, LODGE_EXTRAS, "extras", (ProductType.Wall, POSTER, "3"));
+
+        return new CatalogLogImportRequest(
+            await HabboLogAsync(CatalogType.Normal),
+            await HabboLogAsync(CatalogType.BuildersClub),
+            false,
+            false
+        );
+    }
+
+    [Fact]
+    public async Task APageInBothLogs_IsMadeOnce_ShownInBoth_WithThePagesOnlyTheBuildersClubHasUnderIt()
+    {
+        var request = await LodgeLogsAsync();
+
+        (await Importer.ApplyLogsAsync(Editor, request, Ct)).Error.Should().BeNull();
+
+        await using (var db = await _hotel.Db.CreateDbContextAsync(Ct))
+        {
+            var lodge = await db.CatalogPages.SingleAsync(x => x.Name == "lodge", Ct);
+            var extras = await db.CatalogPages.SingleAsync(x => x.Name == "lodge_extras", Ct);
+
+            lodge.Display.Should().Be(CatalogPageDisplay.Both);
+            lodge.ParentEntityId.Should().Be(FURNITURE);
+            extras.Display.Should().Be(CatalogPageDisplay.BuildersClubOnly);
+            extras.ParentEntityId.Should().Be(lodge.Id);
+            (await db.CatalogOffers.CountAsync(x => x.CatalogPageEntityId == lodge.Id, Ct))
+                .Should()
+                .Be(1, "the normal catalogue's import says what it sells, once");
+        }
+
+        // Both catalogues show the one page, and the Builders Club's lists the page under it.
+        var normal = _hotel.NormalProvider();
+        var builders = _hotel.BuildersClubProvider();
+        await normal.ReloadAsync(Ct);
+        await builders.ReloadAsync(Ct);
+        normal.Current.PagesById.Values.Count(x => x.Name == "lodge").Should().Be(1);
+        builders.Current.PagesById.Values.Count(x => x.Name == "lodge").Should().Be(1);
+        builders.Current.PagesById.Values.Should().Contain(x => x.Name == "lodge_extras");
+
+        // Neither catalogue's import undoes the other's order, so again there is nothing to do.
+        (await Importer.PlanLogsAsync(request, Ct))
+            .Value!.Changes.Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task ACopyOnlyTheBuildersClubHas_OfAPageInBothLogs_IsTakenOut_AndWhatIsUnderItMoves()
+    {
+        var request = await LodgeLogsAsync();
+
+        // As an import made before the two were one left them: a copy shown only in the
+        // Builders Club, with its page under it.
+        _hotel.Db.Insert(
+            Page(LODGE, FURNITURE, "Lodge", CatalogPageDisplay.BuildersClubOnly, sort: 6)
+        );
+        _hotel.Db.Insert(
+            Page(LODGE_EXTRAS, LODGE, "Lodge_extras", CatalogPageDisplay.BuildersClubOnly)
+        );
+
+        (await Importer.ApplyLogsAsync(Editor, request, Ct)).Error.Should().BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        var lodges = await db.CatalogPages.Where(x => x.Name == "lodge").ToListAsync(Ct);
+        var shown = lodges.Single(x => x.Display != CatalogPageDisplay.Invisible);
+
+        shown.Display.Should().Be(CatalogPageDisplay.Both);
+        lodges
+            .Single(x => x.Id == LODGE)
+            .Display.Should()
+            .Be(CatalogPageDisplay.Invisible, "the page is in the Builders Club once");
+        (await db.CatalogPages.SingleAsync(x => x.Id == LODGE_EXTRAS, Ct))
+            .ParentEntityId.Should()
+            .Be(shown.Id);
+    }
+
     [Fact]
     public async Task BothLogs_AreTakenInAsOneStep()
     {

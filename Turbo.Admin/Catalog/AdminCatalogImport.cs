@@ -37,9 +37,15 @@ namespace Turbo.Admin.Catalog;
 /// too: what this hotel has no item for, rented and limited editions (a series is set up here by
 /// hand), memberships (sold from the club pages), and in the Builders Club anything but one floor
 /// or wall item, and credit furni, which Habbo never lends.</item>
-/// <item>Pages shown in both catalogues are never changed, nor is any page the capture does not
-/// have, unless <c>TakeOthersOut</c> takes the pages it lacks out of that catalogue (in the
-/// normal catalogue, hides them, but for those that lead to Builders Club pages).</item>
+/// <item>A page both logs show is one page here, shown in both catalogues: the normal
+/// catalogue's import makes it so (but for a tab, which the Builders Club never shows) and says
+/// what it is and sells, the Builders Club having no prices; the Builders Club's import leaves
+/// it as it is and puts the pages only it has under it. Given one log, a page shown in both
+/// stays so. Each import puts only its own catalogue's pages in order, so neither undoes the
+/// other's.</item>
+/// <item>No page the capture does not have is changed, unless <c>TakeOthersOut</c> takes the
+/// pages it lacks out of that catalogue (in the normal catalogue, hides them, but for those that
+/// lead to Builders Club pages).</item>
 /// </list>
 /// </summary>
 public sealed class AdminCatalogImport(
@@ -214,9 +220,24 @@ public sealed class AdminCatalogImport(
             sources.Add(new Source(type, root, capture.Pages, capture.Notes));
         }
 
-        return sources.Count == 0
-            ? ("Give the normal catalogue's log, the Builders Club's, or both.", [])
-            : (null, sources);
+        if (sources.Count == 0)
+            return ("Give the normal catalogue's log, the Builders Club's, or both.", []);
+
+        // Given both, each knows which of its pages the other shows, to make them one page.
+        if (sources is [var normal, var buildersClub])
+            sources =
+            [
+                normal with
+                {
+                    Shared = ShownNames(buildersClub.Root),
+                },
+                buildersClub with
+                {
+                    Shared = ShownNames(normal.Root),
+                },
+            ];
+
+        return (null, sources);
     }
 
     private static CatalogLogImportPlan LogPlan(List<Source> sources, List<CatalogImportPlan> plans)
@@ -424,25 +445,28 @@ public sealed class AdminCatalogImport(
 
         // The pages this catalogue's import brings in line: the second of a name in the capture
         // is the second here, so a capture that has a name twice takes in the same pages again.
-        bool Takes(CatalogPageDisplay display) =>
-            builders
-                ? display == CatalogPageDisplay.BuildersClubOnly
-                : display is CatalogPageDisplay.Regular or CatalogPageDisplay.Invisible;
+        // The Builders Club's own pages and those it shares with the normal catalogue are kept
+        // apart, so a page both show is never matched to a copy only the Builders Club has.
+        bool Takes(CatalogPageDisplay display) => display.IsIn(source.Type);
 
-        var ownByName = pages
-            .Where(x =>
-                x.ParentId is not null && Takes(x.Display) && !string.IsNullOrWhiteSpace(x.Name)
-            )
-            .GroupBy(x => x.Name!.Trim(), StringComparer.Ordinal)
-            .ToDictionary(
-                g => g.Key,
-                g => new Queue<SavedPage>(g.OrderBy(x => x.Id)),
-                StringComparer.Ordinal
-            );
-        var sharedNames = pages
-            .Where(x => x.Display == CatalogPageDisplay.Both && !string.IsNullOrWhiteSpace(x.Name))
-            .Select(x => x.Name!.Trim())
-            .ToHashSet(StringComparer.Ordinal);
+        var ownByName = ByName(x =>
+            Takes(x.Display) && !(builders && x.Display == CatalogPageDisplay.Both)
+        );
+        var sharedByName = builders
+            ? ByName(x => x.Display == CatalogPageDisplay.Both)
+            : new Dictionary<string, Queue<SavedPage>>(StringComparer.Ordinal);
+
+        Dictionary<string, Queue<SavedPage>> ByName(Func<SavedPage, bool> include) =>
+            pages
+                .Where(x =>
+                    x.ParentId is not null && include(x) && !string.IsNullOrWhiteSpace(x.Name)
+                )
+                .GroupBy(x => x.Name!.Trim(), StringComparer.Ordinal)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new Queue<SavedPage>(g.OrderBy(x => x.Id)),
+                    StringComparer.Ordinal
+                );
 
         var definitions = await db
             .FurnitureDefinitions.AsNoTracking()
@@ -511,6 +535,8 @@ public sealed class AdminCatalogImport(
             ReferenceEqualityComparer.Instance
         );
         var silvered = 0;
+        var madeShared = new List<string>();
+        var sharedNames = new HashSet<string>(StringComparer.Ordinal);
 
         // Habbo's Builders Club tree is its root, its one category, then the pages; the normal
         // catalogue's is its root, then the tabs.
@@ -525,29 +551,37 @@ public sealed class AdminCatalogImport(
             : [.. (source.Root.Children ?? []).Select(node => (Node: node, Above: string.Empty))];
 
         foreach (var (node, above) in top)
-            Visit(node, CatalogPageRef.Saved(under.Id), above, false);
+            Visit(node, CatalogPageRef.Saved(under.Id), above, false, tab: !builders);
 
         OrderChildren(under.Id, top.Select(x => x.Node));
 
-        if (takeOthersOut)
-            foreach (
-                var page in pages.Where(x =>
-                    x.ParentId is not null
-                    && !matched.Contains(x.Id)
-                    && (
-                        builders
-                            ? x.Display.IsInBuildersClub()
-                            // Hiding a tab or heading that leads to Builders Club pages would
-                            // take them out of the Builders Club too.
-                            : x.Display == CatalogPageDisplay.Regular && !LeadsToBuildersClub(x)
+        foreach (
+            var page in pages.Where(x =>
+                x.ParentId is not null
+                && !matched.Contains(x.Id)
+                && (
+                    takeOthersOut
+                        && (
+                            builders
+                                ? x.Display.IsInBuildersClub()
+                                // Hiding a tab or heading that leads to Builders Club pages
+                                // would take them out of the Builders Club too.
+                                : x.Display == CatalogPageDisplay.Regular && !LeadsToBuildersClub(x)
+                        )
+                    // A copy of a page both show that only the Builders Club has, as an import
+                    // made before they were one, is taken out of it: the page is there once.
+                    || (
+                        x.Display == CatalogPageDisplay.BuildersClubOnly
+                        && sharedNames.Contains(x.Name?.Trim() ?? string.Empty)
                     )
                 )
             )
-                work.TakeOut(page);
+        )
+            work.TakeOut(page);
 
-        foreach (var name in sharedNames.Where(x => work.Names.Contains(x)))
+        if (madeShared.Count > 0)
             work.Warnings.Add(
-                $"{name}: a page shown in both catalogues has this name, so it is left as it is and a page is made beside it."
+                $"{madeShared.Count} pages are in the normal catalogue's log too, and no page here is shown in both catalogues by their names yet: the normal catalogue's import makes them, once, before this one is made, so a plan of both logs lists them in each ({string.Join(", ", madeShared.Take(LISTED_MAX))}{(madeShared.Count > LISTED_MAX ? $" and {madeShared.Count - LISTED_MAX} more" : string.Empty)})."
             );
 
         foreach (var (type, count) in unpriced)
@@ -570,7 +604,13 @@ public sealed class AdminCatalogImport(
 
         return work;
 
-        void Visit(CatalogCaptureNode node, CatalogPageRef parent, string above, bool hiddenAbove)
+        void Visit(
+            CatalogCaptureNode node,
+            CatalogPageRef parent,
+            string above,
+            bool hiddenAbove,
+            bool tab = false
+        )
         {
             var name = node.PageName?.Trim() ?? string.Empty;
             var path = $"{above}/{name}";
@@ -594,6 +634,18 @@ public sealed class AdminCatalogImport(
             if (node.PageId > 0 && captured is null)
                 unopened.Add(path);
 
+            // A page the other log shows too is one page here, shown in both catalogues; never a
+            // tab, which the Builders Club does not show. In the Builders Club, so is one by the
+            // name of a page here that both show already.
+            var shared =
+                !tab
+                && !hidden
+                && name.Length > 0
+                && (
+                    source.Shared?.Contains(name) == true
+                    || (sharedByName.TryGetValue(name, out var left) && left.Count > 0)
+                );
+
             var draft = new CatalogPageDraft(
                 (node.Localization ?? name).Trim(),
                 name.Length == 0 ? null : name,
@@ -601,7 +653,8 @@ public sealed class AdminCatalogImport(
                 captured?.Layout is { Length: > 0 } layout ? layout : HEADING_LAYOUT,
                 [.. captured?.Localization?.ImageDatas ?? []],
                 [.. captured?.Localization?.TextDatas ?? []],
-                builders ? CatalogPageDisplay.BuildersClubOnly
+                shared ? CatalogPageDisplay.Both
+                    : builders ? CatalogPageDisplay.BuildersClubOnly
                     : hidden ? CatalogPageDisplay.Invisible
                     : CatalogPageDisplay.Regular
             );
@@ -615,6 +668,37 @@ public sealed class AdminCatalogImport(
                 return;
             }
 
+            // What a page both show is and sells is the normal catalogue's to say, the Builders
+            // Club having no prices; its import takes in only the pages under it that it alone has.
+            if (
+                builders
+                && shared
+                && sharedByName.TryGetValue(name, out var both)
+                && both.TryDequeue(out var sharedPage)
+            )
+            {
+                work.Names.Add(name);
+                sharedNames.Add(name);
+                matched.Add(sharedPage.Id);
+                matchedNodes[node] = sharedPage.Id;
+                work.Share(sharedPage, path);
+
+                foreach (var child in node.Children ?? [])
+                    Visit(child, CatalogPageRef.Saved(sharedPage.Id), path, hidden);
+
+                OrderChildren(sharedPage.Id, node.Children ?? []);
+
+                return;
+            }
+
+            if (builders && shared)
+            {
+                sharedNames.Add(name);
+
+                if (source.Shared?.Contains(name) == true)
+                    madeShared.Add(path);
+            }
+
             var wanted = new List<CatalogOfferDraft>();
 
             foreach (var offer in capturedOffers)
@@ -625,10 +709,20 @@ public sealed class AdminCatalogImport(
 
             if (
                 name.Length > 0
+                && !(builders && shared)
                 && ownByName.TryGetValue(name, out var same)
                 && same.TryDequeue(out var existing)
             )
             {
+                // Without the Builders Club's log, what it shows is not this import's to change.
+                if (
+                    !builders
+                    && source.Shared is null
+                    && existing.Display == CatalogPageDisplay.Both
+                    && !hidden
+                )
+                    draft = draft with { Display = CatalogPageDisplay.Both };
+
                 matched.Add(existing.Id);
                 matchedNodes[node] = existing.Id;
                 var page = work.Keep(existing, draft, path, parent);
@@ -713,13 +807,20 @@ public sealed class AdminCatalogImport(
             }
         }
 
+        // Each catalogue puts only its own pages in order, and the Builders Club leaves the pages
+        // both show to the normal catalogue's: so neither import undoes the other's order.
+        bool Orders(SavedPage page) =>
+            builders
+                ? page.Display == CatalogPageDisplay.BuildersClubOnly
+                : page.Display != CatalogPageDisplay.BuildersClubOnly;
+
         void OrderChildren(int parentId, IEnumerable<CatalogCaptureNode> nodes)
         {
             var mine = nodes
                 .Select(x => matchedNodes.GetValueOrDefault(x))
-                .Where(x => x != 0 && pagesById[x].ParentId == parentId)
+                .Where(x => x != 0 && pagesById[x].ParentId == parentId && Orders(pagesById[x]))
                 .ToList();
-            var siblings = Children(parentId).Select(x => x.Id).ToList();
+            var siblings = Children(parentId).Where(Orders).Select(x => x.Id).ToList();
             var others = siblings.Count(x => !mine.Contains(x));
 
             if (!mine.Where((id, i) => siblings.IndexOf(id) != others + i).Any())
@@ -968,13 +1069,39 @@ public sealed class AdminCatalogImport(
             .Products.Select(x => x.Quantity)
             .SequenceEqual(Gives(draft).Select(x => x.Quantity));
 
-    /// <summary>A catalogue's capture: its index's root, its pages by id, and notes on reading it.</summary>
+    /// <summary>
+    /// A catalogue's capture: its index's root, its pages by id, and notes on reading it.
+    /// <see cref="Shared"/> names the pages the other catalogue's log, given with it, shows; null
+    /// when it was not given.
+    /// </summary>
     private sealed record Source(
         CatalogType Type,
         CatalogCaptureNode Root,
         IReadOnlyDictionary<int, CatalogCapturePage> Pages,
-        IReadOnlyList<string> Notes
+        IReadOnlyList<string> Notes,
+        IReadOnlySet<string>? Shared = null
     );
+
+    /// <summary>The names of the pages a capture's index shows, every page above them shown too.</summary>
+    private static HashSet<string> ShownNames(CatalogCaptureNode root)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+
+        Add(root.Children ?? []);
+
+        return names;
+
+        void Add(IEnumerable<CatalogCaptureNode> nodes)
+        {
+            foreach (var node in nodes.Where(x => x.Visible))
+            {
+                if (node.PageName?.Trim() is { Length: > 0 } name)
+                    names.Add(name);
+
+                Add(node.Children ?? []);
+            }
+        }
+    }
 
     private sealed record SavedPage(
         int Id,
@@ -1164,6 +1291,18 @@ public sealed class AdminCatalogImport(
 
             return page;
         }
+
+        /// <summary>A page both catalogues show, which the Builders Club's import leaves as it is.</summary>
+        public void Share(SavedPage saved, string path) =>
+            _pages.Add(
+                new PlanPage(
+                    saved.Name ?? string.Empty,
+                    saved.Localization,
+                    path,
+                    CatalogImportPageChange.UNCHANGED,
+                    saved.Id
+                )
+            );
 
         public void AddOffer(PlanPage page, CatalogPageRef target, CatalogOfferDraft draft)
         {
