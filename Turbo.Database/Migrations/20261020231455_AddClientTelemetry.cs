@@ -11,8 +11,9 @@ namespace Turbo.Database.Migrations
     /// <summary>
     /// What clients report about themselves, kept for the admin panel's Client health and Usage
     /// pages: performance, latency, chat lag, logged events and login steps (raw, expiring), and
-    /// their daily figures. Replaces <c>performance_logs</c>, which nothing wrote and which had
-    /// an address column the new tables leave out.
+    /// their daily figures. <c>performance_logs</c>, which nothing writes and which has an address
+    /// column the new tables leave out, stays until it can be dropped: dropping a table needs
+    /// <c>AllowDestructiveMigrations</c> for a start.
     /// </summary>
     [DbContext(typeof(TurboDbContext))]
     [Migration("20261020231455_AddClientTelemetry")]
@@ -21,8 +22,6 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "performance_logs");
-
             migrationBuilder
                 .CreateTable(
                     name: "client_event_logs",
@@ -345,57 +344,6 @@ namespace Turbo.Database.Migrations
             migrationBuilder.DropTable(name: "client_performance_logs");
 
             migrationBuilder.DropTable(name: "client_telemetry_daily");
-
-            migrationBuilder
-                .CreateTable(
-                    name: "performance_logs",
-                    columns: table => new
-                    {
-                        id = table
-                            .Column<int>(type: "int", nullable: false)
-                            .Annotation(
-                                "MySql:ValueGenerationStrategy",
-                                MySqlValueGenerationStrategy.IdentityColumn
-                            ),
-                        average_frame_rate = table.Column<int>(type: "int", nullable: false),
-                        browser = table
-                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                            .Annotation("MySql:CharSet", "utf8mb4"),
-                        elapsed_time = table.Column<int>(type: "int", nullable: false),
-                        flash_version = table
-                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                            .Annotation("MySql:CharSet", "utf8mb4"),
-                        garbage_collections = table.Column<int>(type: "int", nullable: false),
-                        ip_address = table
-                            .Column<string>(type: "varchar(45)", maxLength: 45, nullable: false)
-                            .Annotation("MySql:CharSet", "utf8mb4"),
-                        is_debugger = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                        memory_usage = table.Column<int>(type: "int", nullable: false),
-                        os = table
-                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                            .Annotation("MySql:CharSet", "utf8mb4"),
-                        user_agent = table
-                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                            .Annotation("MySql:CharSet", "utf8mb4"),
-                    },
-                    constraints: table =>
-                    {
-                        table.PrimaryKey("PK_performance_logs", x => x.id);
-                    }
-                )
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_performance_logs_elapsed_time",
-                table: "performance_logs",
-                column: "elapsed_time"
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "IX_performance_logs_ip_address",
-                table: "performance_logs",
-                column: "ip_address"
-            );
         }
     }
 }

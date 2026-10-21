@@ -221,6 +221,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<ChatStyleLibraryBitmapEntity> ChatStyleLibraryBitmaps { get; init; }
     public DbSet<PlayerCustomFilterWordEntity> PlayerCustomFilterWords { get; init; }
 
+    public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
+
     public DbSet<ClientPerformanceLogEntity> ClientPerformanceLogs { get; init; }
     public DbSet<ClientLatencyReportEntity> ClientLatencyReports { get; init; }
     public DbSet<ClientLagWarningEntity> ClientLagWarnings { get; init; }

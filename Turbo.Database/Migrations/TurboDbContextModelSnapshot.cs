@@ -8686,6 +8686,74 @@ namespace Turbo.Database.Migrations
                     b.ToTable("client_telemetry_daily");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Tracking.PerformanceLogEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AverageFrameRate")
+                        .HasColumnType("int")
+                        .HasColumnName("average_frame_rate");
+
+                    b.Property<string>("Browser")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("browser");
+
+                    b.Property<int>("ElapsedTime")
+                        .HasColumnType("int")
+                        .HasColumnName("elapsed_time");
+
+                    b.Property<string>("FlashVersion")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("flash_version");
+
+                    b.Property<int>("GarbageCollections")
+                        .HasColumnType("int")
+                        .HasColumnName("garbage_collections");
+
+                    b.Property<string>("IPAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("varchar(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsDebugger")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_debugger");
+
+                    b.Property<int>("MemoryUsage")
+                        .HasColumnType("int")
+                        .HasColumnName("memory_usage");
+
+                    b.Property<string>("OS")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("os");
+
+                    b.Property<string>("UserAgent")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ElapsedTime");
+
+                    b.HasIndex("IPAddress");
+
+                    b.ToTable("performance_logs");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
                 {
                     b.Property<int>("ItemEntityId")

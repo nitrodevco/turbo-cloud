@@ -364,7 +364,8 @@ the player's limit per minute (`MaxReportsPerPlayerPerMinute`, `MaxEventsPerPlay
 past a full queue (`QueueCapacity`) is dropped. Raw rows are kept `RawRetentionDays` (30); every
 hour each finished day (UTC) is rolled up into `client_telemetry_daily`, kept `RollupRetentionDays`
 (365), before its raw rows can expire. No address is stored; the player id is kept on raw rows only,
-for the drill-down. A range of several days weights each day's percentiles by its reports.
+for the drill-down. The old `performance_logs` table, which nothing writes and which has an address
+column, is left in place: dropping it needs `AllowDestructiveMigrations` for one start. A range of several days weights each day's percentiles by its reports.
 Everything is under `Turbo:ClientTelemetry`; `Enabled` turns it off without a restart.
 
 ## Rooms
