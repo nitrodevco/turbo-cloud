@@ -22,8 +22,9 @@ namespace Turbo.Gamedata.Habbo;
 /// <summary>
 /// Asks Habbo (<see cref="GamedataConfig.HabboDomain"/>) for its external variables and furniture
 /// data, and keeps the furniture data when it is new: one row per furniture data, by its hash,
-/// with the revision its <c>flash.client.url</c> named when it was last seen. Nothing is taken in
-/// here; staff review an import first.
+/// with the revision its <c>flash.client.url</c> named when it was last seen. Its texts, product
+/// data, figure data and the external variables themselves are kept the same way, by hash.
+/// Nothing is taken in here; staff review an import first.
 /// </summary>
 internal sealed class HabboReleaseService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -41,7 +42,10 @@ internal sealed class HabboReleaseService(
     public async Task<HabboCheckResult> CheckAsync(CancellationToken ct)
     {
         var domain = _config.HabboDomain;
-        var variables = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
+        var variablesFile = await habbo
+            .GetExternalVariablesFileAsync(domain, ct)
+            .ConfigureAwait(false);
+        var variables = HabboGamedataClient.ParseVariables(variablesFile);
         var revision =
             RevisionOf(variables)
             ?? throw new HttpRequestException(
@@ -60,6 +64,14 @@ internal sealed class HabboReleaseService(
             .ConfigureAwait(false);
         var (figureVersion, figuresAreNew) = await KeepFiguresAsync(domain, figures, now, ct)
             .ConfigureAwait(false);
+        var (variableVersion, variablesAreNew) = await KeepVariablesAsync(
+                domain,
+                variablesFile,
+                variables.Count,
+                now,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return new HabboCheckResult
         {
@@ -71,7 +83,102 @@ internal sealed class HabboReleaseService(
             ProductsAreNew = productsAreNew,
             Figures = figureVersion,
             FiguresAreNew = figuresAreNew,
+            Variables = variableVersion,
+            VariablesAreNew = variablesAreNew,
         };
+    }
+
+    public async Task<HabboVariableVersionSnapshot?> GetLatestVariablesAsync(CancellationToken ct)
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var latest = await dbCtx
+            .HabboVariableVersions.AsNoTracking()
+            .Where(x => x.Domain == _config.HabboDomain)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        return latest?.ToSnapshot();
+    }
+
+    /// <summary>The version of these external variables: the one kept before, or a new one.</summary>
+    internal async Task<(HabboVariableVersionSnapshot Version, bool IsNew)> KeepVariablesAsync(
+        string domain,
+        byte[] variables,
+        int count,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        var hash = GamedataBytes.Hash(variables);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var known = await dbCtx
+            .HabboVariableVersions.FirstOrDefaultAsync(
+                x => x.Domain == domain && x.Hash == hash,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (known is not null)
+        {
+            known.CheckedAt = now;
+
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            return (known.ToSnapshot(), false);
+        }
+
+        var version = new HabboVariableVersionEntity
+        {
+            Domain = domain,
+            Hash = hash,
+            Content = GamedataBytes.Compress(variables),
+            VariableCount = count,
+            CheckedAt = now,
+        };
+
+        dbCtx.HabboVariableVersions.Add(version);
+
+        try
+        {
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Another silo's check kept the same variables a moment before this one.
+            var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var retryCtxScope = retryCtx.ConfigureAwait(false);
+
+            var kept = await retryCtx
+                .HabboVariableVersions.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
+                .ConfigureAwait(false);
+
+            if (kept is not null)
+                return (kept.ToSnapshot(), false);
+
+            logger.LogError(
+                ex,
+                "Failed to keep habbo.{Domain}'s external variables {Hash}",
+                domain,
+                hash
+            );
+
+            throw;
+        }
+
+        logger.LogInformation(
+            "habbo.{Domain} serves new external variables {Hash}: {Count} variables",
+            domain,
+            hash,
+            count
+        );
+
+        return (version.ToSnapshot(), true);
     }
 
     public async Task<HabboTextVersionSnapshot?> GetLatestTextsAsync(CancellationToken ct)

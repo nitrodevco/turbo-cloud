@@ -7,24 +7,30 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Turbo.Gamedata.Configuration;
 
 namespace Turbo.Gamedata.Habbo;
 
 /// <summary>
-/// Habbo's own gamedata, from <c>www.habbo.&lt;domain&gt;/gamedata/&lt;file&gt;/0</c>, which
-/// redirects to the file's current hash. What is transient (a dropped connection, a timeout, a 5xx,
-/// a 429) is asked again with a growing delay; Habbo's DDoS filter answers a request it refuses
-/// with a page of HTML, so an answer that is not the file is a failure, not data.
+/// Habbo's own gamedata, from <c>www.habbo.&lt;domain&gt;/gamedata/&lt;file&gt;/0</c> (or where
+/// <see cref="GamedataConfig.HabboGamedataUrl"/> says), which redirects to the file's current
+/// hash. What is transient (a dropped connection, a timeout, a 5xx, a 429) is asked again with a
+/// growing delay; Habbo's DDoS filter answers a request it refuses with a page of HTML, so an
+/// answer that is not the file is a failure, not data.
 /// </summary>
 internal sealed class HabboGamedataClient(
     IHttpClientFactory httpClients,
-    ILogger<HabboGamedataClient> logger
+    ILogger<HabboGamedataClient> logger,
+    IOptions<GamedataConfig>? config = null
 )
 {
     public const string HTTP_CLIENT = "habbo-gamedata";
 
     // Habbo's filter refuses a browser's agent from a server, and a request that names none.
     public const string USER_AGENT = "Turbo";
+
+    private const string DEFAULT_URL = "https://www.habbo.{domain}/gamedata/{file}/0";
 
     private const int MAX_ATTEMPTS = 4;
     private static readonly TimeSpan RETRY_DELAY = TimeSpan.FromMilliseconds(750);
@@ -33,11 +39,29 @@ internal sealed class HabboGamedataClient(
     public async Task<IReadOnlyDictionary<string, string>> GetExternalVariablesAsync(
         string domain,
         CancellationToken ct
-    )
+    ) => ParseVariables(await GetExternalVariablesFileAsync(domain, ct).ConfigureAwait(false));
+
+    /// <summary>
+    /// Its external variables, as served: <c>key=value</c> lines. Throws
+    /// <see cref="HttpRequestException"/> when there are none, as when the filter refused the
+    /// request.
+    /// </summary>
+    public async Task<byte[]> GetExternalVariablesFileAsync(string domain, CancellationToken ct)
     {
-        var text = Encoding.UTF8.GetString(
-            await GetAsync(domain, "external_variables", ct).ConfigureAwait(false)
-        );
+        var bytes = await GetAsync(domain, "external_variables", ct).ConfigureAwait(false);
+
+        if (ParseVariables(bytes).Count == 0)
+            throw new HttpRequestException(
+                $"habbo.{domain}'s external variables came back empty or not as variables."
+            );
+
+        return bytes;
+    }
+
+    /// <summary>The <c>key=value</c> lines of an external variables file; a key given twice keeps the last.</summary>
+    public static Dictionary<string, string> ParseVariables(byte[] file)
+    {
+        var text = Encoding.UTF8.GetString(file);
         var variables = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var line in text.Split('\n'))
@@ -49,11 +73,6 @@ internal sealed class HabboGamedataClient(
 
             variables[line[..separator].Trim()] = line[(separator + 1)..].Trim();
         }
-
-        if (variables.Count == 0)
-            throw new HttpRequestException(
-                $"habbo.{domain}'s external variables came back empty or not as variables."
-            );
 
         return variables;
     }
@@ -226,7 +245,12 @@ internal sealed class HabboGamedataClient(
     }
 
     private Task<byte[]> GetAsync(string domain, string file, CancellationToken ct) =>
-        GetUrlAsync($"https://www.habbo.{domain}/gamedata/{file}/0", ct);
+        GetUrlAsync(
+            (config?.Value.HabboGamedataUrl ?? DEFAULT_URL)
+                .Replace("{domain}", domain, StringComparison.Ordinal)
+                .Replace("{file}", file, StringComparison.Ordinal),
+            ct
+        );
 
     private async Task<byte[]> GetUrlAsync(string url, CancellationToken ct)
     {

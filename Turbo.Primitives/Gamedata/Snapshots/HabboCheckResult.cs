@@ -34,4 +34,11 @@ public sealed record HabboCheckResult
 
     [Id(7)]
     public required bool FiguresAreNew { get; init; }
+
+    /// <summary>The version of its external variables Habbo serves now.</summary>
+    [Id(8)]
+    public required HabboVariableVersionSnapshot Variables { get; init; }
+
+    [Id(9)]
+    public required bool VariablesAreNew { get; init; }
 }

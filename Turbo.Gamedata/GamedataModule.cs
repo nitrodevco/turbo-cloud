@@ -93,6 +93,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataTextService, GamedataTextService>();
         services.AddSingleton<IGamedataProductService, GamedataProductService>();
         services.AddSingleton<IGamedataVariableService, GamedataVariableService>();
+        services.AddSingleton<IHabboVariableService, HabboVariableService>();
         services.AddSingleton<IHotelViewService, HotelViewService>();
         services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();

@@ -2681,6 +2681,100 @@ namespace Turbo.Database.Migrations
                     b.ToTable("habbo_text_versions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboVariableEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("HabboVariableVersionEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("version_id");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("variable_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("habbo_variables");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Gamedata.HabboVariableVersionEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("checked_at");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("domain");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("hash");
+
+                    b.Property<DateTime?>("ImportedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("imported_at");
+
+                    b.Property<int>("VariableCount")
+                        .HasColumnType("int")
+                        .HasColumnName("variable_count");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Domain", "Hash")
+                        .IsUnique();
+
+                    b.ToTable("habbo_variable_versions");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildBadgePartEntity", b =>
                 {
                     b.Property<int>("Id")

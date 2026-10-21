@@ -752,10 +752,10 @@ internal sealed class GamedataVariableService(
         return plan;
     }
 
-    private static bool IsManaged(string key) => MANAGED.Contains(key, StringComparer.Ordinal);
+    internal static bool IsManaged(string key) => MANAGED.Contains(key, StringComparer.Ordinal);
 
     /// <summary>One of the reception's variables, kept by the Hotel view page.</summary>
-    private static bool IsHotelView(string key) =>
+    internal static bool IsHotelView(string key) =>
         key.StartsWith(HotelViewService.PREFIX, StringComparison.Ordinal)
         || HotelViewService.OTHER_KEYS.Contains(key, StringComparer.Ordinal);
 

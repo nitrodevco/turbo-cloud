@@ -217,6 +217,16 @@ internal sealed class GamedataHistoryService(
             .GamedataVariables.Where(x => variableKeys.Contains(x.Key))
             .ToDictionaryAsync(x => x.Key, StringComparer.Ordinal, ct)
             .ConfigureAwait(false);
+        var habboVariableKeys = changes
+            .Where(x => x.RecordType == GamedataRecordType.HabboVariable)
+            .Select(x => TextKey(x))
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+        var habboVariables = await dbCtx
+            .HabboVariables.Where(x => habboVariableKeys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
 
         var skipped = new List<string>();
         var reverts = new List<GamedataChangeEntity>();
@@ -250,6 +260,12 @@ internal sealed class GamedataHistoryService(
                     skipped
                 ),
                 GamedataRecordType.Variable => RevertVariable(dbCtx, change, variables, skipped),
+                GamedataRecordType.HabboVariable => RevertHabboVariable(
+                    dbCtx,
+                    change,
+                    habboVariables,
+                    skipped
+                ),
                 _ => null,
             };
 
@@ -793,6 +809,76 @@ internal sealed class GamedataHistoryService(
             After = change.Before,
         };
     }
+
+    /// <summary>
+    /// Habbo's variable as last taken in back as it was before the set - none, another value, or
+    /// one the set removed because Habbo dropped it - when it is still as the set left it.
+    /// </summary>
+    private static GamedataChangeEntity? RevertHabboVariable(
+        TurboDbContext dbCtx,
+        GamedataChangeEntity change,
+        Dictionary<string, HabboVariableEntity> rows,
+        List<string> skipped
+    )
+    {
+        var before = HabboVariableRecord(change.Before);
+        var after = HabboVariableRecord(change.After);
+        var key = before?.Key ?? after?.Key;
+
+        if (key is null)
+            return null;
+
+        rows.TryGetValue(key, out var row);
+
+        if (row?.Value != after?.Value)
+        {
+            skipped.Add($"{key}: Habbo's variable was taken in again since.");
+
+            return null;
+        }
+
+        if (before is null)
+        {
+            dbCtx.HabboVariables.Remove(row!);
+            rows.Remove(key);
+        }
+        else if (row is null)
+        {
+            row = new HabboVariableEntity
+            {
+                Key = key,
+                Value = before.Value.Value,
+                HabboVariableVersionEntityId = before.Value.Version,
+            };
+            dbCtx.HabboVariables.Add(row);
+            rows[key] = row;
+        }
+        else
+        {
+            row.Value = before.Value.Value;
+            row.HabboVariableVersionEntityId = before.Value.Version;
+        }
+
+        return new GamedataChangeEntity
+        {
+            RecordType = GamedataRecordType.HabboVariable,
+            RecordId = change.RecordId,
+            Label = change.Label,
+            Before = change.After,
+            After = change.Before,
+        };
+    }
+
+    private static (string Key, string Value, int Version)? HabboVariableRecord(string? json) =>
+        json is not null
+        && JsonNode.Parse(json) is JsonObject record
+        && record["key"]?.GetValue<string>() is { } key
+            ? (
+                key,
+                record["value"]?.GetValue<string>() ?? string.Empty,
+                record["version"]?.GetValue<int>() ?? 0
+            )
+            : null;
 
     private static GamedataChangeEntity? RevertHabbo(
         TurboDbContext dbCtx,

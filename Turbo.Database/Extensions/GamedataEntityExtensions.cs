@@ -58,6 +58,18 @@ public static class GamedataEntityExtensions
             ImportedAt = entity.ImportedAt,
         };
 
+    public static HabboVariableVersionSnapshot ToSnapshot(this HabboVariableVersionEntity entity) =>
+        new()
+        {
+            Id = entity.Id,
+            Domain = entity.Domain,
+            Hash = entity.Hash,
+            VariableCount = entity.VariableCount,
+            FoundAt = entity.CreatedAt,
+            CheckedAt = entity.CheckedAt,
+            ImportedAt = entity.ImportedAt,
+        };
+
     public static HabboProductVersionSnapshot ToSnapshot(this HabboProductVersionEntity entity) =>
         new()
         {

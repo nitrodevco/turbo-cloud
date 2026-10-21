@@ -65,6 +65,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AssetPublishEntity> AssetPublishes { get; init; }
     public DbSet<HabboTextVersionEntity> HabboTextVersions { get; init; }
     public DbSet<HabboTextEntity> HabboTexts { get; init; }
+    public DbSet<HabboVariableVersionEntity> HabboVariableVersions { get; init; }
+    public DbSet<HabboVariableEntity> HabboVariables { get; init; }
     public DbSet<GamedataTextEntity> GamedataTexts { get; init; }
     public DbSet<HabboProductVersionEntity> HabboProductVersions { get; init; }
     public DbSet<HabboProductEntity> HabboProducts { get; init; }
@@ -305,6 +307,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         mb.Entity<HabboTextEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataTextEntity.KEY_COLLATION);
+        mb.Entity<HabboVariableEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataVariableEntity.KEY_COLLATION);
         mb.Entity<GamedataProductEntity>()
             .Property(x => x.Code)
             .UseCollation(GamedataProductEntity.CODE_COLLATION);

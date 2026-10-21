@@ -40,6 +40,7 @@ internal sealed class GamedataEndpoints(
     IGamedataTextService texts,
     IGamedataProductService products,
     IGamedataVariableService variables,
+    IHabboVariableService habboVariables,
     IHotelViewService hotelView,
     IGamedataFigureService figures,
     IPlayerClothingService clothing,
@@ -54,6 +55,8 @@ internal sealed class GamedataEndpoints(
     private const string NO_PRODUCTS =
         "There is no such version of Habbo's product data. Check Habbo first.";
     private const string NO_TEXTS = "There is no such version of Habbo's texts. Check Habbo first.";
+    private const string NO_VARIABLES =
+        "There is no such version of Habbo's variables. Check Habbo first.";
     private const string NO_FIGURES =
         "There is no such version of Habbo's figure data. Check Habbo first.";
 
@@ -159,6 +162,8 @@ internal sealed class GamedataEndpoints(
             "/variables/habbo",
             (string? prefix, CancellationToken ct) => HabboVariablesAsync(prefix, ct)
         );
+        group.MapGet("/variables/habbo/update", HabboVariableUpdateAsync);
+        group.MapPost("/variables/habbo/update/{versionId:int}", TakeHabboVariablesAsync);
         group.MapPut("/variables", SaveVariableAsync);
         group.MapPut("/variables/link", LinkVariableAsync);
         group.MapDelete("/variables", DeleteVariableAsync);
@@ -231,6 +236,7 @@ internal sealed class GamedataEndpoints(
         var latestTexts = await releases.GetLatestTextsAsync(ct).ConfigureAwait(false);
         var latestProducts = await releases.GetLatestProductsAsync(ct).ConfigureAwait(false);
         var latestFigures = await releases.GetLatestFiguresAsync(ct).ConfigureAwait(false);
+        var latestVariables = await releases.GetLatestVariablesAsync(ct).ConfigureAwait(false);
         var figureData = await files
             .GetCurrentAsync(GamedataFiles.FIGURE_DATA, ct)
             .ConfigureAwait(false);
@@ -259,6 +265,7 @@ internal sealed class GamedataEndpoints(
                 latestTexts,
                 latestProducts,
                 latestFigures,
+                latestVariables,
                 furnitureData.File,
                 externalTexts.File,
                 productData.File,
@@ -458,6 +465,35 @@ internal sealed class GamedataEndpoints(
         catch (ArgumentException ex)
         {
             return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private async Task<IResult> HabboVariableUpdateAsync(int? versionId, CancellationToken ct) =>
+        await habboVariables.PreviewAsync(versionId, ct).ConfigureAwait(false) is { } preview
+            ? Results.Ok(preview)
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_VARIABLES);
+
+    private async Task<IResult> TakeHabboVariablesAsync(
+        int versionId,
+        HabboVariableTakeRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return Results.Ok(
+                new
+                {
+                    changeSet = await habboVariables
+                        .TakeAsync(versionId, request.Keys, AdminIdentity.Of(http).PlayerId, ct)
+                        .ConfigureAwait(false),
+                }
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status404NotFound, ex.Message);
         }
     }
 
