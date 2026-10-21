@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
@@ -256,6 +257,125 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         }
 
         await RemovePetAvatarAsync(ctx, pet, ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Staff taking a pet out of the room from the admin panel: back to its owner's inventory, as
+    /// the owner would pick it up.
+    /// </summary>
+    public async Task<bool> StaffPickupPetAsync(int petId, CancellationToken ct)
+    {
+        if (!TryGetPet(petId, out var pet))
+            return false;
+
+        var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
+
+        if (
+            !await _roomGrain
+                ._grainFactory.GetInventoryGrain(pet.OwnerId)
+                .ReturnPetAsync(
+                    pet.GetPetSnapshot(),
+                    MovementCause.New(MovementCauses.PET_PICKUP, ctx.PlayerId, pet.PetId),
+                    ct
+                )
+        )
+        {
+            _roomGrain._logger.LogError(
+                "Pet {PetId} taken out of room {RoomId} by staff could not be returned to player {OwnerId}",
+                petId,
+                _roomGrain.RoomId,
+                pet.OwnerId
+            );
+            return false;
+        }
+
+        await RemovePetAvatarAsync(ctx, pet, ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Staff setting a pet from the admin panel: each value given, held to the hotel's lengths and
+    /// limits, and the room and its owner told once. A new name re-sends the pet whole, as the
+    /// Users packet is the only carrier of a name. A level sets the experience to where that
+    /// level starts; a monsterplant's level is left alone, as it grows with time.
+    /// </summary>
+    public async Task<bool> StaffUpdatePetAsync(
+        int petId,
+        PetStaffEditSnapshot edit,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetPet(petId, out var pet))
+            return false;
+
+        var name = edit.Name?.Trim();
+
+        if (
+            name is not null
+            && (name.Length < Config.NameMinLength || name.Length > Config.NameMaxLength)
+        )
+            return false;
+
+        if (edit.Energy is { } energy)
+            pet.SetEnergy(Math.Clamp(energy, 0, Config.MaxEnergy));
+
+        if (edit.Nutrition is { } nutrition)
+            pet.SetNutrition(Math.Clamp(nutrition, 0, Config.MaxNutrition));
+
+        if (edit.AnyoneCanRide is { } anyoneCanRide)
+            pet.SetAnyoneCanRide(anyoneCanRide);
+
+        var permissionChanged =
+            edit.HasBreedingPermission is { } permission && permission != pet.HasBreedingPermission;
+
+        if (permissionChanged)
+            pet.SetBreedingPermission(edit.HasBreedingPermission!.Value);
+
+        var level =
+            edit.Level is { } wanted && !pet.IsMonsterplant
+                ? Math.Clamp(wanted, 1, MaxLevelFor(pet))
+                : pet.Level;
+
+        if (level != pet.Level)
+        {
+            pet.SetLevel(level);
+            pet.SetExperience(level > 1 ? ExperienceToLevel(level - 1) : 0);
+            RefreshFlags(pet);
+            RefreshPosture(pet);
+
+            await _roomGrain.SendComposerToRoomAsync(
+                new PetLevelUpdateMessageComposer
+                {
+                    ObjectId = pet.ObjectId,
+                    PetId = pet.PetId,
+                    Level = pet.Level,
+                },
+                ct
+            );
+            permissionChanged = true;
+        }
+
+        if (permissionChanged)
+            await BroadcastStatusAsync(pet, ct);
+
+        if (name is not null && name != pet.Name)
+        {
+            pet.SetName(name);
+
+            await _roomGrain.SendComposerToRoomAsync(
+                new UserRemoveMessageComposer { ObjectId = pet.ObjectId },
+                ct
+            );
+            await _roomGrain.SendComposerToRoomAsync(
+                new UsersMessageComposer { Avatars = [pet.GetSnapshot()] },
+                ct
+            );
+        }
+
+        Persist(pet);
+        await SendInfoToOwnerAsync(pet, ct);
+
         return true;
     }
 

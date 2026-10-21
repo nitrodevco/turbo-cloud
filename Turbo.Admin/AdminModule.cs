@@ -40,6 +40,8 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminLinkPolicy>();
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomVisits>();
+        services.AddSingleton<AdminRoomBots>();
+        services.AddSingleton<AdminRoomPets>();
         services.AddSingleton<AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
@@ -62,7 +64,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminBadgeQueries>();
         services.AddSingleton<AdminNavigatorEditor>();
         services.AddSingleton<AdminGroupQueries>();
-        services.AddSingleton<AdminPetBotEditor>();
+        services.AddSingleton<AdminPetEditor>();
         services.AddSingleton<AdminCurrencyEditor>();
         services.AddSingleton<AdminQuestEditor>();
         services.AddSingleton<AdminPollEditor>();

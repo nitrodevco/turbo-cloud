@@ -4,37 +4,24 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Pets;
-using Turbo.Primitives.Bots.Snapshots;
-using Turbo.Primitives.Movements;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
-using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Admin.Content;
 
 /// <summary>
-/// Pets and bots as staff manage them. Pet breeds and pet speech are rows the server keeps in its
-/// providers: each change reloads them, so pets in rooms use it at once. A bot standing in a room
-/// is its room's, and is changed through the room grain; a bot in an inventory can only be
-/// deleted, through its owner's inventory grain.
+/// Pets as staff manage them. Pet breeds and pet speech are rows the server keeps in its
+/// providers: each change reloads them, so pets in rooms use it at once.
 /// </summary>
-public sealed class AdminPetBotEditor(
+public sealed class AdminPetEditor(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IPetBreedProvider breeds,
-    IPetSpeechProvider speech,
-    IGrainFactory grainFactory,
-    ILogger<AdminPetBotEditor> logger
+    IPetSpeechProvider speech
 )
 {
     public const int SPEECH_MAX_LENGTH = 100;
-    public const int BOT_PAGE_SIZE = 25;
 
     public async Task<PetContentResponse> GetPetsAsync(CancellationToken ct)
     {
@@ -172,141 +159,5 @@ public sealed class AdminPetBotEditor(
         await speech.ReloadAsync(ct).ConfigureAwait(false);
 
         return true;
-    }
-
-    /// <summary>Bots found by name, owner, bot or room id; newest first.</summary>
-    public async Task<BotSearchResponse> SearchBotsAsync(
-        string? query,
-        int page,
-        CancellationToken ct
-    )
-    {
-        var words = (query ?? string.Empty).Trim();
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var bots = dbCtx.Bots.AsNoTracking();
-
-        if (words.Length > 0)
-            bots = int.TryParse(words, out var id)
-                ? bots.Where(x => x.Id == id || x.RoomEntityId == id)
-                : bots.Where(x => x.Name.Contains(words) || x.PlayerEntity!.Name == words);
-
-        var total = await bots.CountAsync(ct).ConfigureAwait(false);
-        var rows = await bots.OrderByDescending(x => x.Id)
-            .Skip(Math.Max(0, page) * BOT_PAGE_SIZE)
-            .Take(BOT_PAGE_SIZE)
-            .Select(x => new BotItem(
-                x.Id,
-                x.Name,
-                x.Motto,
-                x.Figure,
-                x.Gender,
-                x.PlayerEntityId,
-                x.PlayerEntity!.Name,
-                x.RoomEntityId,
-                x.RoomEntity == null ? null : x.RoomEntity.Name,
-                x.ChatText ?? "",
-                x.AutoChat,
-                x.ChatDelaySeconds,
-                x.MixSentences,
-                x.FreeRoam,
-                x.DanceType
-            ))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        return new BotSearchResponse(rows, total, BOT_PAGE_SIZE);
-    }
-
-    /// <summary>Sets a bot standing in a room, through its room; refused for one in an inventory.</summary>
-    public async Task UpdateBotAsync(int id, BotStaffEditRequest request, CancellationToken ct)
-    {
-        var bot = await FindAsync(id, ct).ConfigureAwait(false);
-
-        if (bot.RoomId is not { } roomId)
-            throw new ArgumentException(
-                "The bot is in its owner's inventory: it can be set once it stands in a room."
-            );
-
-        var updated = await grainFactory
-            .GetRoomGrain(new RoomId(roomId))
-            .StaffUpdateBotAsync(
-                id,
-                new BotStaffEditSnapshot
-                {
-                    Name = request.Name ?? string.Empty,
-                    Motto = request.Motto ?? string.Empty,
-                    Figure = request.Figure ?? string.Empty,
-                    Gender = request.Gender ?? AvatarGenderType.Male,
-                    ChatText = request.ChatText ?? string.Empty,
-                    AutoChat = request.AutoChat ?? false,
-                    ChatDelaySeconds = request.ChatDelaySeconds ?? 0,
-                    MixSentences = request.MixSentences ?? false,
-                    FreeRoam = request.FreeRoam ?? false,
-                    Dance = request.Dance ?? AvatarDanceType.None,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        if (!updated)
-            throw new ArgumentException(
-                "Not saved: the name is too short or too long, or the bot has left the room."
-            );
-    }
-
-    /// <summary>Takes a bot out of its room, back to its owner's inventory.</summary>
-    public async Task PickupBotAsync(int id, CancellationToken ct)
-    {
-        var bot = await FindAsync(id, ct).ConfigureAwait(false);
-
-        if (
-            bot.RoomId is not { } roomId
-            || !await grainFactory
-                .GetRoomGrain(new RoomId(roomId))
-                .StaffPickupBotAsync(id, ct)
-                .ConfigureAwait(false)
-        )
-            throw new ArgumentException("The bot doesn't stand in a room.");
-
-        logger.LogInformation("Bot {BotId} taken out of room {RoomId} by staff", id, roomId);
-    }
-
-    /// <summary>Deletes a bot from its owner's inventory; one standing in a room is taken out first.</summary>
-    public async Task DeleteBotAsync(int id, CancellationToken ct)
-    {
-        var bot = await FindAsync(id, ct).ConfigureAwait(false);
-
-        if (bot.RoomId is not null)
-            throw new ArgumentException("Take the bot out of its room first.");
-
-        if (
-            !await grainFactory
-                .GetInventoryGrain(new PlayerId(bot.OwnerId))
-                // The panel does not say which staff member asked.
-                .DeleteBotAsync(id, MovementCause.New(MovementCauses.STAFF_DELETE_BOT, 0, id), ct)
-                .ConfigureAwait(false)
-        )
-            throw new ArgumentException("The bot is no longer in its owner's inventory.");
-
-        logger.LogInformation("Bot {BotId} of player {OwnerId} deleted by staff", id, bot.OwnerId);
-    }
-
-    private async Task<(int OwnerId, int? RoomId)> FindAsync(int id, CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var bot = await dbCtx
-            .Bots.AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new { x.PlayerEntityId, x.RoomEntityId })
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return bot is null
-            ? throw new ArgumentException($"There is no bot {id}.")
-            : (bot.PlayerEntityId, bot.RoomEntityId);
     }
 }

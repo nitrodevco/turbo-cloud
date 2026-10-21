@@ -27,13 +27,15 @@ namespace Turbo.Admin.Api;
 /// (<see cref="AdminRoomAbilities"/>) and goes through the room grain or room service acting as the
 /// staff member, so the room applies its own rules: who outranks whom, group rooms' rights, the
 /// settings' limits. Actions on the people inside need the room loaded; the rest (settings,
-/// rights, bans, staff pick) load it lightly, without its furniture. Each is logged with who made
-/// it.
+/// rights, bans, staff pick) load it lightly, without its furniture, and the bots and pets
+/// standing in it are set through the room grain. Each is logged with who made it.
 /// </summary>
 internal sealed class RoomEndpoints(
     IGrainFactory grainFactory,
     AdminRoomQueries rooms,
     AdminRoomVisits visits,
+    AdminRoomBots bots,
+    AdminRoomPets pets,
     AdminRoomEditor editor,
     IRoomService roomService,
     IOptions<AdminConfig> config,
@@ -60,6 +62,12 @@ internal sealed class RoomEndpoints(
         group.MapGet("/categories", CategoriesAsync);
         group.MapGet("/{id:int}", GetAsync);
         group.MapGet("/{id:int}/visitors", VisitorsAsync);
+        group.MapGet("/{id:int}/bots", BotsAsync);
+        group.MapPut("/{id:int}/bots/{botId:int}", SaveBotAsync);
+        group.MapPost("/{id:int}/bots/{botId:int}/pickup", PickupBotAsync);
+        group.MapGet("/{id:int}/pets", PetsAsync);
+        group.MapPut("/{id:int}/pets/{petId:int}", SavePetAsync);
+        group.MapPost("/{id:int}/pets/{petId:int}/pickup", PickupPetAsync);
         group.MapPut("/{id:int}/settings", SaveSettingsAsync);
         group.MapPut("/{id:int}/staff-pick", SetStaffPickAsync);
         group.MapPost("/{id:int}/kick", KickAsync);
@@ -92,6 +100,104 @@ internal sealed class RoomEndpoints(
 
     private async Task<IResult> VisitorsAsync(int id, CancellationToken ct) =>
         Results.Ok(await visits.ForRoomAsync(id, ct).ConfigureAwait(false));
+
+    private async Task<IResult> BotsAsync(int id, CancellationToken ct) =>
+        Results.Ok(await bots.ListAsync(id, ct).ConfigureAwait(false));
+
+    private async Task<IResult> SaveBotAsync(
+        HttpContext http,
+        int id,
+        int botId,
+        RoomBotRequest request,
+        CancellationToken ct
+    )
+    {
+        if (
+            await RefuseAsync(http, id, x => x.ManageBotsAndPets, ct).ConfigureAwait(false) is
+            { } no
+        )
+            return no;
+
+        if (!await bots.UpdateAsync(id, botId, request, ct).ConfigureAwait(false))
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "Not saved: the name is too short or too long, or the bot has left the room."
+            );
+
+        Log(http, "set bot {BotId} in room {RoomId}", botId, id);
+
+        return Done("Saved.");
+    }
+
+    private async Task<IResult> PickupBotAsync(
+        HttpContext http,
+        int id,
+        int botId,
+        CancellationToken ct
+    )
+    {
+        if (
+            await RefuseAsync(http, id, x => x.ManageBotsAndPets, ct).ConfigureAwait(false) is
+            { } no
+        )
+            return no;
+
+        if (!await bots.PickupAsync(id, botId, ct).ConfigureAwait(false))
+            return Refused("The bot doesn't stand in this room.");
+
+        Log(http, "took bot {BotId} out of room {RoomId}", botId, id);
+
+        return Done("Taken back to its owner's inventory.");
+    }
+
+    private async Task<IResult> PetsAsync(int id, CancellationToken ct) =>
+        Results.Ok(await pets.ListAsync(id, ct).ConfigureAwait(false));
+
+    private async Task<IResult> SavePetAsync(
+        HttpContext http,
+        int id,
+        int petId,
+        RoomPetRequest request,
+        CancellationToken ct
+    )
+    {
+        if (
+            await RefuseAsync(http, id, x => x.ManageBotsAndPets, ct).ConfigureAwait(false) is
+            { } no
+        )
+            return no;
+
+        if (!await pets.UpdateAsync(id, petId, request, ct).ConfigureAwait(false))
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "Not saved: the name is too short or too long, or the pet has left the room."
+            );
+
+        Log(http, "set pet {PetId} in room {RoomId}", petId, id);
+
+        return Done("Saved.");
+    }
+
+    private async Task<IResult> PickupPetAsync(
+        HttpContext http,
+        int id,
+        int petId,
+        CancellationToken ct
+    )
+    {
+        if (
+            await RefuseAsync(http, id, x => x.ManageBotsAndPets, ct).ConfigureAwait(false) is
+            { } no
+        )
+            return no;
+
+        if (!await pets.PickupAsync(id, petId, ct).ConfigureAwait(false))
+            return Refused("The pet doesn't stand in this room.");
+
+        Log(http, "took pet {PetId} out of room {RoomId}", petId, id);
+
+        return Done("Taken back to its owner's inventory.");
+    }
 
     private async Task<IResult> SaveSettingsAsync(
         HttpContext http,

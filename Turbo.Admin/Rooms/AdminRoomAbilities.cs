@@ -12,8 +12,9 @@ namespace Turbo.Admin.Rooms;
 /// What a staff member may do to a room from the panel. The panel asks for the nodes the hotel
 /// asks for, so a room is edited and moderated from the browser exactly as it would be by the same
 /// person standing in it: its owner, or <c>room.control.any</c>, may change its settings and
-/// rights; <c>room.moderate.any</c> kicks, mutes and bans (the room still decides who outranks
-/// whom); and each room-wide action needs its command's node.
+/// rights and set the bots and pets standing in it; <c>room.moderate.any</c> kicks, mutes and
+/// bans (the room still decides who outranks whom); and each room-wide action needs its
+/// command's node.
 /// </summary>
 public static class AdminRoomAbilities
 {
@@ -36,6 +37,7 @@ public static class AdminRoomAbilities
             StaffPick: resolved.Has(PermissionNodes.Navigator.STAFF_PICK),
             Moderate: owns || resolved.Has(PermissionNodes.Room.MODERATE_ANY),
             ManageRights: controls,
+            ManageBotsAndPets: controls,
             KickAll: resolved.Has(PermissionNodes.Command.ROOMKICKALL),
             MuteRoom: resolved.Has(PermissionNodes.Command.ROOMMUTE)
                 || resolved.Has(PermissionNodes.Command.ROOMUNMUTE),

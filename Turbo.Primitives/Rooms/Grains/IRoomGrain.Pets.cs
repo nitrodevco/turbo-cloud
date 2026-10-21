@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -94,4 +95,19 @@ public partial interface IRoomGrain
         int petId,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Staff, from the admin panel: sets a pet standing here - its name, level, energy,
+    /// nutrition and who may ride or breed it - and tells the room and its owner. Not
+    /// word-filtered, but held to the hotel's lengths and limits. False when no such pet stands
+    /// here or the name is too short or long.
+    /// </summary>
+    public Task<bool> StaffUpdatePetAsync(
+        int petId,
+        PetStaffEditSnapshot edit,
+        CancellationToken ct
+    );
+
+    /// <summary>Staff, from the admin panel: takes a pet out of the room, back to its owner's inventory.</summary>
+    public Task<bool> StaffPickupPetAsync(int petId, CancellationToken ct);
 }

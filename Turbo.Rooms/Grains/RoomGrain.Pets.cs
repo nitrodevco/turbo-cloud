@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -187,5 +188,35 @@ public sealed partial class RoomGrain
             "use a pet product from the inventory on pet",
             petId,
             () => PetModule.UsePetProductFromInventoryAsync(ctx, itemId, petId, ct)
+        );
+
+    public Task<bool> StaffUpdatePetAsync(
+        int petId,
+        PetStaffEditSnapshot edit,
+        CancellationToken ct
+    ) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            "staff update pet",
+            petId,
+            async () =>
+            {
+                await PetModule.EnsurePetsLoadedAsync(ct);
+
+                return await PetModule.StaffUpdatePetAsync(petId, edit, ct);
+            }
+        );
+
+    public Task<bool> StaffPickupPetAsync(int petId, CancellationToken ct) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            "staff pick up pet",
+            petId,
+            async () =>
+            {
+                await PetModule.EnsurePetsLoadedAsync(ct);
+
+                return await PetModule.StaffPickupPetAsync(petId, ct);
+            }
         );
 }

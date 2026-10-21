@@ -274,6 +274,8 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminLinkPolicy>();
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomVisits>();
+        services.AddSingleton<AdminRoomBots>();
+        services.AddSingleton<AdminRoomPets>();
         services.AddSingleton<Turbo.Admin.Telemetry.AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
@@ -297,7 +299,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminGroupQueries>();
-        services.AddSingleton<Turbo.Admin.Content.AdminPetBotEditor>();
+        services.AddSingleton<Turbo.Admin.Content.AdminPetEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminCurrencyEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminQuestEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminPollEditor>();

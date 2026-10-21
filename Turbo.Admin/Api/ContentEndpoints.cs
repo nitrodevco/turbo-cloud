@@ -27,7 +27,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The game's content: achievements, badges, the navigator's categories, groups, pets, bots, currencies and chat styles. For staff with <c>admin.content.view</c>;
+/// The game's content: achievements, badges, the navigator's categories, groups, pets, currencies and chat styles. For staff with <c>admin.content.view</c>;
 /// changing anything needs <c>content.manage</c> as well.
 /// <para>
 /// An achievement is published through its catalog (<see cref="IAchievementCatalog.ImportAsync"/>):
@@ -41,7 +41,7 @@ internal sealed partial class ContentEndpoints(
     AdminBadgeQueries badges,
     AdminNavigatorEditor navigator,
     AdminGroupQueries groups,
-    AdminPetBotEditor petsAndBots,
+    AdminPetEditor pets,
     AdminCurrencyEditor currencies,
     IChatStyleService chatStyles,
     AdminActionLog actions,
@@ -212,79 +212,42 @@ internal sealed partial class ContentEndpoints(
         group.MapGet(
             "/pets",
             async (CancellationToken ct) =>
-                Results.Ok(await petsAndBots.GetPetsAsync(ct).ConfigureAwait(false))
+                Results.Ok(await pets.GetPetsAsync(ct).ConfigureAwait(false))
         );
         group.MapPost(
             "/pets/breeds",
             (PetBreedRequest request, HttpContext http, CancellationToken ct) =>
                 ContentAccess.ChangeAsync(async () =>
-                    Saved(await petsAndBots.SaveBreedAsync(0, request, ct).ConfigureAwait(false))
+                    Saved(await pets.SaveBreedAsync(0, request, ct).ConfigureAwait(false))
                 )
         );
         group.MapPut(
             "/pets/breeds/{id:int}",
             (int id, PetBreedRequest request, HttpContext http, CancellationToken ct) =>
                 ContentAccess.ChangeAsync(async () =>
-                    Saved(await petsAndBots.SaveBreedAsync(id, request, ct).ConfigureAwait(false))
+                    Saved(await pets.SaveBreedAsync(id, request, ct).ConfigureAwait(false))
                 )
         );
         group.MapPost(
             "/pets/speech",
             (PetSpeechRequest request, HttpContext http, CancellationToken ct) =>
                 ContentAccess.ChangeAsync(async () =>
-                    Saved(await petsAndBots.SaveSpeechAsync(0, request, ct).ConfigureAwait(false))
+                    Saved(await pets.SaveSpeechAsync(0, request, ct).ConfigureAwait(false))
                 )
         );
         group.MapPut(
             "/pets/speech/{id:int}",
             (int id, PetSpeechRequest request, HttpContext http, CancellationToken ct) =>
                 ContentAccess.ChangeAsync(async () =>
-                    Saved(await petsAndBots.SaveSpeechAsync(id, request, ct).ConfigureAwait(false))
+                    Saved(await pets.SaveSpeechAsync(id, request, ct).ConfigureAwait(false))
                 )
         );
         group.MapDelete(
             "/pets/speech/{id:int}",
             (int id, HttpContext http, CancellationToken ct) =>
                 ContentAccess.ChangeAsync(async () =>
-                    Removed(await petsAndBots.DeleteSpeechAsync(id, ct).ConfigureAwait(false))
+                    Removed(await pets.DeleteSpeechAsync(id, ct).ConfigureAwait(false))
                 )
-        );
-        group.MapGet(
-            "/bots",
-            async (string? q, int? page, CancellationToken ct) =>
-                Results.Ok(
-                    await petsAndBots.SearchBotsAsync(q, page ?? 0, ct).ConfigureAwait(false)
-                )
-        );
-        group.MapPut(
-            "/bots/{id:int}",
-            (int id, BotStaffEditRequest request, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                {
-                    await petsAndBots.UpdateBotAsync(id, request, ct).ConfigureAwait(false);
-
-                    return Results.NoContent();
-                })
-        );
-        group.MapPost(
-            "/bots/{id:int}/pickup",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                {
-                    await petsAndBots.PickupBotAsync(id, ct).ConfigureAwait(false);
-
-                    return Results.NoContent();
-                })
-        );
-        group.MapDelete(
-            "/bots/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                {
-                    await petsAndBots.DeleteBotAsync(id, ct).ConfigureAwait(false);
-
-                    return Results.NoContent();
-                })
         );
         group.MapGet("/chat-styles", ListChatStylesAsync);
         group.MapGet(

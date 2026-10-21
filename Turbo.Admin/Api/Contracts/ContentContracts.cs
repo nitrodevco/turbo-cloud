@@ -6,7 +6,6 @@ using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Guilds.Enums;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Admin.Api.Contracts;
 
@@ -180,41 +179,6 @@ public sealed record PetBreedRequest(
 );
 
 public sealed record PetSpeechRequest(int? TypeId, string? Line);
-
-/// <summary>A bot, where it is and how it is set.</summary>
-public sealed record BotItem(
-    int Id,
-    string Name,
-    string Motto,
-    string Figure,
-    AvatarGenderType Gender,
-    int OwnerId,
-    string OwnerName,
-    int? RoomId,
-    string? RoomName,
-    string ChatText,
-    bool AutoChat,
-    int ChatDelaySeconds,
-    bool MixSentences,
-    bool FreeRoam,
-    AvatarDanceType Dance
-);
-
-public sealed record BotSearchResponse(List<BotItem> Bots, int Total, int PageSize);
-
-/// <summary>A placed bot as staff set it.</summary>
-public sealed record BotStaffEditRequest(
-    string? Name,
-    string? Motto,
-    string? Figure,
-    AvatarGenderType? Gender,
-    string? ChatText,
-    bool? AutoChat,
-    int? ChatDelaySeconds,
-    bool? MixSentences,
-    bool? FreeRoam,
-    AvatarDanceType? Dance
-);
 
 /// <summary>
 /// A currency type: its name (as <c>:give</c> takes it), its type (<c>credits</c>, <c>silver</c>,
