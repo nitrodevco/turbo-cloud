@@ -189,44 +189,42 @@ public abstract class FurnitureWiredGiveFromChestLogic(
         if (coins == 0 && furni.Count == 0)
             return false;
 
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                receiver.PlayerId,
-                new WiredTransactionSuccessMessageComposer
+        await _grainFactory.SendComposerToPlayerAsync(
+            receiver.PlayerId,
+            new WiredTransactionSuccessMessageComposer
+            {
+                Contents = new()
                 {
-                    Contents = new()
+                    Type = WiredTransactionSuccessType.Rewarded,
+                    RewardContents = new()
                     {
-                        Type = WiredTransactionSuccessType.Rewarded,
-                        RewardContents = new()
-                        {
-                            Nodes =
-                            [
-                                .. coins > 0
-                                    ?
-                                    [
-                                        new TradeRequirementNodeSnapshot
-                                        {
-                                            Type = TradeRequirementNodeType.Coin,
-                                            Amount = coins,
-                                            ItemType = null,
-                                        },
-                                    ]
-                                    : Array.Empty<TradeRequirementNodeSnapshot>(),
-                                .. furni.Select(x => new TradeRequirementNodeSnapshot
-                                {
-                                    Type = TradeRequirementNodeType.Furni,
-                                    Amount = x.Value,
-                                    ItemType = x.Key,
-                                }),
-                            ],
-                        },
-                        RewardText = _roomGrain._wordFilter.Filter(GetStringParam()),
-                        OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, true),
+                        Nodes =
+                        [
+                            .. coins > 0
+                                ?
+                                [
+                                    new TradeRequirementNodeSnapshot
+                                    {
+                                        Type = TradeRequirementNodeType.Coin,
+                                        Amount = coins,
+                                        ItemType = null,
+                                    },
+                                ]
+                                : Array.Empty<TradeRequirementNodeSnapshot>(),
+                            .. furni.Select(x => new TradeRequirementNodeSnapshot
+                            {
+                                Type = TradeRequirementNodeType.Furni,
+                                Amount = x.Value,
+                                ItemType = x.Key,
+                            }),
+                        ],
                     },
+                    RewardText = _roomGrain._wordFilter.Filter(GetStringParam()),
+                    OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, true),
                 },
-                ct
-            )
-            .ConfigureAwait(false);
+            },
+            ct
+        );
 
         return true;
     }

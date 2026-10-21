@@ -68,11 +68,17 @@ dotnet_diagnostic.CA2007.severity = warning
 # IDE1006: Naming Styles
 dotnet_diagnostic.IDE1006.severity = none
 
+# Grain code must never use ConfigureAwait(false). It does not only skip a synchronisation
+# context: it ignores TaskScheduler.Current too, and a grain's turns run on its own
+# single-threaded scheduler. The continuation leaves that scheduler for the thread pool and runs
+# alongside the grain's next turn (a room tick, another request), so state written after it is
+# written by two threads at once. Orleans' ORLEANS0014 catches it in a Grain subclass only; the
+# modules, systems and furni logic a grain runs are covered by the folders below. CA2007 is off
+# here because a plain await is the correct one, not because ConfigureAwait is harmless.
 [*Grain.cs]
 dotnet_diagnostic.CA2007.severity = none
 
-# The same, for a grain split across partial files (BuildersClubGrain.Lapse.cs). There is no
-# synchronisation context inside a grain, so ConfigureAwait says nothing there either.
+# The same, for a grain split across partial files (BuildersClubGrain.Lapse.cs).
 [*Grain.*.cs]
 dotnet_diagnostic.CA2007.severity = none
 
@@ -88,8 +94,8 @@ dotnet_diagnostic.CA2007.severity = none
 [Turbo.Players/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 
-# Operator commands run on Orleans' scheduler or a thread pool task, never on a synchronisation
-# context, like the room commands beside them.
+# Chat commands run inside the room grain's turn, so a command awaits plainly, as grain code
+# does (see [*Grain.cs]). A service here that never runs in a turn may still configure its awaits.
 [Turbo.Operations/**.cs]
 dotnet_diagnostic.CA2007.severity = none
 

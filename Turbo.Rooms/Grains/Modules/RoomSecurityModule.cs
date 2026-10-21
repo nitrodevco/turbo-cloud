@@ -287,8 +287,7 @@ public sealed class RoomSecurityModule(
         if (!inRoom || ShownControllerLevel(avatar!) != controllerLevel)
             await _roomGrain
                 ._grainFactory.GetPlayerPresenceGrain(playerId)
-                .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct)
-                .ConfigureAwait(false);
+                .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct);
 
         // Whatever else depends on the level (the wired permissions a player is shown) hears it
         // here, so this module does not have to know who that is.
@@ -517,13 +516,12 @@ public sealed class RoomSecurityModule(
         if (_roomGrain._state.IsRightsLoaded)
             return;
 
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var entities = await dbCtx
             .RoomRights.AsNoTracking()
             .Where(x => x.RoomEntityId == (int)_roomGrain.RoomId)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+            .ToListAsync(ct);
 
         foreach (var entity in entities)
             _roomGrain._state.PlayerIdsWithRights.Add(PlayerId.Parse(entity.PlayerEntityId));

@@ -50,21 +50,19 @@ public sealed class RoomWordQuizSystem(RoomGrain roomGrain) : RoomGrainComponent
 
         _open = question;
 
-        await _roomGrain
-            .SendComposerToRoomAsync(
-                new QuestionEventMessageComposer
-                {
-                    PollType = POLL_TYPE,
-                    PollId = question.PollId,
-                    QuestionId = question.QuestionId,
-                    DurationMs = durationMs,
-                    Number = _questionsAsked,
-                    QuestionType = QUESTION_TYPE,
-                    Content = content.Trim(),
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        await _roomGrain.SendComposerToRoomAsync(
+            new QuestionEventMessageComposer
+            {
+                PollType = POLL_TYPE,
+                PollId = question.PollId,
+                QuestionId = question.QuestionId,
+                DurationMs = durationMs,
+                Number = _questionsAsked,
+                QuestionType = QUESTION_TYPE,
+                Content = content.Trim(),
+            },
+            ct
+        );
 
         TimerSystem.Schedule(TIMER_KEY, durationMs, FinishAsync);
 
@@ -98,17 +96,15 @@ public sealed class RoomWordQuizSystem(RoomGrain roomGrain) : RoomGrainComponent
 
         question.Counts[value] = question.Counts.GetValueOrDefault(value) + 1;
 
-        await _roomGrain
-            .SendComposerToRoomAsync(
-                new QuestionAnsweredEventMessageComposer
-                {
-                    UserId = playerId.Value,
-                    Value = value,
-                    AnswerCounts = question.CountsSnapshot(),
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        await _roomGrain.SendComposerToRoomAsync(
+            new QuestionAnsweredEventMessageComposer
+            {
+                UserId = playerId.Value,
+                Value = value,
+                AnswerCounts = question.CountsSnapshot(),
+            },
+            ct
+        );
 
         return true;
     }
@@ -120,16 +116,14 @@ public sealed class RoomWordQuizSystem(RoomGrain roomGrain) : RoomGrainComponent
 
         _open = null;
 
-        await _roomGrain
-            .SendComposerToRoomAsync(
-                new QuestionFinishedEventMessageComposer
-                {
-                    QuestionId = question.QuestionId,
-                    AnswerCounts = question.CountsSnapshot(),
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        await _roomGrain.SendComposerToRoomAsync(
+            new QuestionFinishedEventMessageComposer
+            {
+                QuestionId = question.QuestionId,
+                AnswerCounts = question.CountsSnapshot(),
+            },
+            ct
+        );
     }
 
     private sealed class OpenQuestion(int pollId, int questionId)
