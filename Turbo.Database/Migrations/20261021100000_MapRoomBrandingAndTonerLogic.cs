@@ -14,8 +14,11 @@ namespace Turbo.Database.Migrations
     /// <c>furniture_background_color</c> (<c>roombg_color</c>, <c>room_info15_bg</c>). A
     /// definition is matched by its name or its colour variants (<c>name*1</c>), and only one
     /// still on the default logic, or already on the one given, is changed, so running it again
-    /// changes nothing and staff choices stand. Data only: the model is unchanged, so there is no
-    /// designer snapshot.
+    /// changes nothing and staff choices stand. The background and the 300 billboard also stack
+    /// nothing on top of them, as Habbo sends them (stack height 0.0; ours was 1, so backgrounds
+    /// stacked on one tile climbed a tile each and their images moved); only a height still the
+    /// one this replaces is changed. Data only: the model is unchanged, so there is no designer
+    /// snapshot.
     /// </summary>
     [DbContext(typeof(TurboDbContext))]
     [Migration("20261021100000_MapRoomBrandingAndTonerLogic")]
@@ -31,12 +34,23 @@ namespace Turbo.Database.Migrations
             ("room_info15_bg", "background_toner"),
         ];
 
+        private static readonly (string Name, string Was, string Height)[] HEIGHTS =
+        [
+            ("ads_background", "1.0", "0.0"),
+            ("ads_mpu_300", "1.0", "0.0"),
+        ];
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             foreach (var (name, logic) in LOGICS)
                 migrationBuilder.Sql(
                     $"UPDATE `furniture_definitions` SET `logic` = '{logic}' WHERE {Named(name)} AND `logic` IN ('default_floor', '{logic}');"
+                );
+
+            foreach (var (name, was, height) in HEIGHTS)
+                migrationBuilder.Sql(
+                    $"UPDATE `furniture_definitions` SET `stack_height` = {height} WHERE {Named(name)} AND `stack_height` = {was};"
                 );
         }
 
@@ -46,6 +60,11 @@ namespace Turbo.Database.Migrations
             foreach (var (name, logic) in LOGICS)
                 migrationBuilder.Sql(
                     $"UPDATE `furniture_definitions` SET `logic` = 'default_floor' WHERE {Named(name)} AND `logic` = '{logic}';"
+                );
+
+            foreach (var (name, was, height) in HEIGHTS)
+                migrationBuilder.Sql(
+                    $"UPDATE `furniture_definitions` SET `stack_height` = {was} WHERE {Named(name)} AND `stack_height` = {height};"
                 );
         }
 

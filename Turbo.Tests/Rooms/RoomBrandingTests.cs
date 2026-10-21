@@ -1,5 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Turbo.Database.Migrations;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.StuffData;
@@ -105,5 +107,30 @@ public sealed class RoomBrandingTests
                 }
             );
         logics.Select(x => x.Logic).Should().OnlyContain(x => registered.Contains(x));
+    }
+
+    /// <summary>
+    /// The capture's <c>Objects</c> gives six backgrounds on one tile at z 0 / 0.000002 and the
+    /// background and the 300 billboard with stack height <c>"0.0"</c> (<c>ObjectDataParser.as:23</c>
+    /// sizeZ); ours were 1, so each background stood a tile above the one below.
+    /// </summary>
+    [Fact]
+    public void The_background_and_the_300_billboard_stack_nothing_on_them()
+    {
+        var builder = new MigrationBuilder("Pomelo.EntityFrameworkCore.MySql");
+
+        typeof(MapRoomBrandingAndTonerLogic)
+            .GetMethod("Up", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(new MapRoomBrandingAndTonerLogic(), [builder]);
+
+        builder
+            .Operations.OfType<SqlOperation>()
+            .Select(x => x.Sql)
+            .Where(x => x.Contains("`stack_height`"))
+            .Should()
+            .BeEquivalentTo(
+                "UPDATE `furniture_definitions` SET `stack_height` = 0.0 WHERE (`name` = 'ads_background' OR (`name` LIKE '%*%' AND SUBSTRING_INDEX(`name`, '*', 1) = 'ads_background')) AND `stack_height` = 1.0;",
+                "UPDATE `furniture_definitions` SET `stack_height` = 0.0 WHERE (`name` = 'ads_mpu_300' OR (`name` LIKE '%*%' AND SUBSTRING_INDEX(`name`, '*', 1) = 'ads_mpu_300')) AND `stack_height` = 1.0;"
+            );
     }
 }
