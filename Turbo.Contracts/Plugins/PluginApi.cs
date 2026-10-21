@@ -11,10 +11,10 @@ public static class PluginApi
     /// <summary>
     /// 1: everything plugins build on today, plugin settings, admin endpoints and pages
     /// (<c>Admin.IPluginAdmin</c>), asset movement consumers and reversals
-    /// (<c>docs/movements.md</c>) included. No plugin outside this project has been published, so
-    /// the API stays 1 while it changes; it counts up from the first one that is: an addition
-    /// raises <see cref="VERSION"/>, a change that breaks a published plugin raises
-    /// <see cref="OLDEST"/> with it.
+    /// (<c>docs/movements.md</c>) and plugin notices (<c>docs/plugin-notices.md</c>) included. No
+    /// plugin outside this project has been published, so the API stays 1 while it changes; it
+    /// counts up from the first one that is: an addition raises <see cref="VERSION"/>, a change
+    /// that breaks a published plugin raises <see cref="OLDEST"/> with it.
     /// </summary>
     public const int VERSION = 1;
 
