@@ -29,6 +29,9 @@ public interface IHabboReleaseService
     /// <summary>The newest version of Habbo's figure data found; null before the first check.</summary>
     public Task<HabboFigureVersionSnapshot?> GetLatestFiguresAsync(CancellationToken ct);
 
+    /// <summary>The newest version of Habbo's external variables found; null before the first check.</summary>
+    public Task<HabboVariableVersionSnapshot?> GetLatestVariablesAsync(CancellationToken ct);
+
     /// <summary>A release by its id; null when there is none.</summary>
     public Task<HabboReleaseSnapshot?> GetAsync(int id, CancellationToken ct);
 }

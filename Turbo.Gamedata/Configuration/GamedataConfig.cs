@@ -27,6 +27,46 @@ public sealed class GamedataConfig
     /// <summary>The Habbo hotel updates are taken from: <c>com</c>, <c>nl</c>, <c>com.br</c>, ...</summary>
     public string HabboDomain { get; init; } = "com";
 
+    /// <summary>
+    /// Where Habbo's gamedata files are asked for: <c>{domain}</c> and <c>{file}</c>
+    /// (<c>external_variables</c>, <c>furnidata_json</c>, ...) are filled in. The address
+    /// redirects to the file's current hash.
+    /// </summary>
+    [UrlSetting]
+    public string HabboGamedataUrl { get; init; } = "https://www.habbo.{domain}/gamedata/{file}/0";
+
+    /// <summary>
+    /// Habbo's external variables the hotel never takes in from Habbo updates, besides those that
+    /// follow a setting or a file, those the hotel keeps itself and the reception's: keys, where
+    /// <c>*</c> stands for any characters (<c>socket.*</c>, <c>*.url</c>), in any case. By default
+    /// the hotel's connection, hosts and addresses.
+    /// </summary>
+    [LiveSetting]
+    public string[] HabboVariableIgnore { get; init; } =
+    [
+        "socket.*",
+        "connection.info.*",
+        "url.prefix",
+        "url.prefix.*",
+        "*url*",
+        "*.uri",
+        "*.host",
+        "*.host.*",
+        "*.domain",
+        "*.port",
+        "*.port.*",
+        "*.path",
+        "external.*.txt",
+        "pocket.api.*",
+    ];
+
+    /// <summary>
+    /// Habbo's external variables whose value is a web address (<c>https://...</c>, <c>//...</c>)
+    /// are not taken in from Habbo updates either: they point at Habbo's hosts.
+    /// </summary>
+    [LiveSetting]
+    public bool HabboVariableSkipAddresses { get; init; } = true;
+
     /// <summary>How often Habbo is asked for a new release, in minutes. Zero checks only when staff ask.</summary>
     public int ReleaseCheckMinutes { get; init; } = 30;
 

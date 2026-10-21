@@ -32,4 +32,7 @@ public enum GamedataRecordType
 
     /// <summary>A row of <c>gamedata_variables</c>: one of the client's external variables.</summary>
     Variable = 8,
+
+    /// <summary>A row of <c>habbo_variables</c>: Habbo's external variable as last taken in.</summary>
+    HabboVariable = 9,
 }
