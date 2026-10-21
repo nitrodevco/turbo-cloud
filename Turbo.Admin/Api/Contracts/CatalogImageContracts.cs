@@ -20,3 +20,6 @@ public sealed record CatalogImageItem(
 
 /// <summary>A page of the catalog pictures, with how many match in all.</summary>
 public sealed record CatalogImagesResponse(int Total, CatalogImageItem[] Items);
+
+/// <summary>Habbo's catalog pictures to take in, by the names the pages give them.</summary>
+public sealed record CatalogPicturesRequest(string[]? Names);

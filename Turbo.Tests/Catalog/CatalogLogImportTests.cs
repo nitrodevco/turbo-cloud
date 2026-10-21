@@ -491,6 +491,50 @@ public sealed class CatalogLogImportTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePlan_NamesThePicturesThisHotelHasNoFileOf()
+    {
+        var page = Page(60, FURNITURE, "Spooky", sort: 6);
+
+        page.ImageData = ["had_it", "spromo_spooky", ""];
+        _habbo.Db.Insert(page);
+
+        using var folder = new Turbo.Tests.Assets.AssetFolder(_hotel.Db);
+        var images = new AdminCatalogImages(
+            _hotel.Db,
+            folder.Store,
+            TimeProvider.System,
+            new CapturingLogger<AdminCatalogImages>()
+        );
+        var had = folder.Store.FullPathOf(
+            Turbo.Primitives.Gamedata.Enums.AssetBundleKind.CatalogImage,
+            "had_it.gif"
+        );
+
+        Directory.CreateDirectory(Path.GetDirectoryName(had)!);
+        await File.WriteAllBytesAsync(had, "GIF89a"u8.ToArray(), Ct);
+
+        var importer = new AdminCatalogImport(
+            _hotel.Db,
+            _service,
+            new CapturingLogger<AdminCatalogImport>(),
+            images
+        );
+        var plan = (
+            await importer.PlanLogsAsync(
+                new CatalogLogImportRequest(
+                    await HabboLogAsync(CatalogType.Normal),
+                    null,
+                    false,
+                    false
+                ),
+                Ct
+            )
+        ).Value!;
+
+        plan.Normal!.MissingPictures.Should().Equal("spromo_spooky");
+    }
+
+    [Fact]
     public async Task ARoomBundle_ComesWithEveryFurniAndItsBadge()
     {
         _habbo.Db.Insert(Page(60, FURNITURE, "Room_bundle", sort: 6));

@@ -784,6 +784,12 @@ picture is picked by typing, among the same list, drawn beside their names, or u
 and `GET /api/catalog/images/{name}/file` need `admin.catalog.view`; `POST /api/catalog/images`
 (a form with `file` and `name`) and `DELETE /api/catalog/images/{name}` need `catalog.manage`.
 
+An import's plan names the headers and teasers its pages show that the hotel has no file of: the
+client shows nothing there until they are taken in. **Fetch from Habbo** takes just those in, as
+an asset job on the Assets page (409 while another runs), recorded as Habbo's as a sync records
+them; a picture staff uploaded is left alone. Players see them once the assets are published.
+`POST /api/catalog/images/habbo` (`{ names }`, as the pages give them) needs `catalog.manage`.
+
 ### Page builders
 
 A page builder fills a page with the offers a kind of page sells, named the way its layout reads

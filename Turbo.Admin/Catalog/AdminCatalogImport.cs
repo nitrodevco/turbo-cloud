@@ -53,7 +53,8 @@ namespace Turbo.Admin.Catalog;
 public sealed class AdminCatalogImport(
     IDbContextFactory<TurboDbContext> database,
     ICatalogEditService editor,
-    ILogger<AdminCatalogImport> logger
+    ILogger<AdminCatalogImport> logger,
+    AdminCatalogImages? images = null
 )
 {
     /// <summary>What Habbo's credit furni class names start with; they are cashed in, never borrowed.</summary>
@@ -623,6 +624,15 @@ public sealed class AdminCatalogImport(
         work.Warnings.AddRange(source.Notes);
         work.MissingClasses.AddRange(missing);
 
+        // The pictures the pages are to show that this hotel has no file of: the client shows
+        // nothing there until they are taken in from Habbo and published.
+        if (images is not null)
+            work.MissingPictures.AddRange(
+                work.Pictures.Where(x => !x.Contains('/') && !x.Contains('\\'))
+                    .Where(x => images.FilePathOf(x) is null)
+                    .Order(StringComparer.Ordinal)
+            );
+
         return work;
 
         void Visit(
@@ -724,6 +734,8 @@ public sealed class AdminCatalogImport(
 
                 return;
             }
+
+            work.Pictures.UnionWith(draft.ImageData.Select(x => x.Trim()).Where(x => x.Length > 0));
 
             if (builders && shared)
             {
@@ -1232,6 +1244,11 @@ public sealed class AdminCatalogImport(
 
         public List<string> MissingClasses { get; } = [];
 
+        /// <summary>The pictures the plan's pages show, by the names the pages give them.</summary>
+        public HashSet<string> Pictures { get; } = new(StringComparer.Ordinal);
+
+        public List<string> MissingPictures { get; } = [];
+
         public List<string> Warnings { get; } = [];
 
         public HashSet<string> Names { get; } = new(StringComparer.Ordinal);
@@ -1430,7 +1447,8 @@ public sealed class AdminCatalogImport(
                 [.. Warnings],
                 saved,
                 published,
-                unpublished
+                unpublished,
+                [.. MissingPictures]
             );
     }
 }

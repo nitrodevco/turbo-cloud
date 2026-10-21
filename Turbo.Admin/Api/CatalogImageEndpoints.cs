@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -7,7 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
@@ -18,6 +21,7 @@ namespace Turbo.Admin.Api;
 /// </summary>
 internal sealed class CatalogImageEndpoints(
     AdminCatalogImages images,
+    IAssetSyncService assets,
     ILogger<CatalogImageEndpoints> logger
 )
 {
@@ -42,6 +46,32 @@ internal sealed class CatalogImageEndpoints(
         group.MapGet("/{name}/file", FileAsync);
         group.MapPost("/", UploadAsync);
         group.MapDelete("/{name}", DeleteAsync);
+        group.MapPost("/habbo", FetchFromHabbo);
+    }
+
+    /// <summary>
+    /// Habbo's pictures of these names that this hotel lacks, taken in as an asset job; 409
+    /// while another asset job runs.
+    /// </summary>
+    private IResult FetchFromHabbo(CatalogPicturesRequest request, HttpContext http)
+    {
+        var names = (request.Names ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
+        if (names.Count == 0)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, "Name the pictures.");
+
+        try
+        {
+            return Results.Ok(
+                AssetJobResponse.From(
+                    assets.StartCatalogPictures(AdminIdentity.Of(http).PlayerId, names)
+                )
+            );
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
+        }
     }
 
     private async Task<IResult> ListAsync(

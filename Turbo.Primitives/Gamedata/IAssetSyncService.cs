@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -30,6 +31,14 @@ public interface IAssetSyncService
     /// its job at once. Throws <see cref="System.InvalidOperationException"/> while another asset job runs.
     /// </summary>
     AssetJobSnapshot StartClientBuild(PlayerId player, bool force);
+
+    /// <summary>
+    /// Starts taking in Habbo's catalog pictures (headers and teasers) by name, those of
+    /// <paramref name="names"/> the hotel lacks, and returns its job at once: what a catalog
+    /// import names, without a whole sync. A picture staff uploaded is left alone. Throws
+    /// <see cref="System.InvalidOperationException"/> while another asset job runs.
+    /// </summary>
+    AssetJobSnapshot StartCatalogPictures(PlayerId player, IReadOnlyCollection<string> names);
 
     /// <summary>
     /// What a sync would download now, without downloading it: Habbo's lists, read again when

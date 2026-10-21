@@ -1393,6 +1393,33 @@ public sealed class AssetSyncTests : IDisposable
         await WaitAsync();
     }
 
+    [Fact]
+    public async Task Catalog_pictures_by_name_take_in_only_those_the_hotel_lacks()
+    {
+        const string CATALOGUE = "https://images.habbo.com/c_images/catalogue";
+        var gif = "GIF89a"u8.ToArray();
+
+        _habbo.Serve($"{CATALOGUE}/had_it.gif", gif);
+        _habbo.Serve($"{CATALOGUE}/spromo_spooky.gif", gif);
+        _sync.StartCatalogPictures(PlayerId.Parse(1), ["had_it"]);
+        (await WaitAsync()).Status.Should().Be(AssetJobStatus.Done);
+        _habbo.ClearRequests();
+
+        // Named as a page names them: without the .gif the client asks for, and once over.
+        _sync.StartCatalogPictures(PlayerId.Parse(1), ["spromo_spooky", "had_it", " ", "had_it"]);
+
+        var job = await WaitAsync();
+
+        job.Status.Should().Be(AssetJobStatus.Done, job.Error);
+        File.Exists(Path.Combine(_folder.Store.Root, "images/catalog/spromo_spooky.gif"))
+            .Should()
+            .BeTrue();
+        _habbo.Requests.Should().Equal($"{CATALOGUE}/spromo_spooky.gif");
+        (await RowsAsync())[(AssetBundleKind.CatalogImage, "spromo_spooky.gif")]
+            .Source.Should()
+            .Be(AssetBundleSource.Habbo, "a publish sends it, and a sync keeps it up to date");
+    }
+
     private AssetSyncService Sync(AssetBundleConfig config) =>
         new(
             _db,

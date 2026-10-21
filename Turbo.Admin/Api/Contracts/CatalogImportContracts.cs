@@ -124,7 +124,8 @@ public sealed record CatalogImportPlan(
     string[] Warnings,
     bool Saved,
     bool Published,
-    int UnpublishedChanges
+    int UnpublishedChanges,
+    string[] MissingPictures
 )
 {
     public bool Changes =>

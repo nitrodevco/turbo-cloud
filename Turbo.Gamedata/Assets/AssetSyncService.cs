@@ -120,6 +120,34 @@ internal sealed class AssetSyncService(
             }
         );
 
+    public AssetJobSnapshot StartCatalogPictures(PlayerId player, IReadOnlyCollection<string> names)
+    {
+        var pictures = HabboFileLists
+            .CatalogImages([names])
+            .Where(x => store.IsValidName(x.Name))
+            .ToList();
+        var domain = gamedataConfig.Value.HabboDomain;
+
+        return jobs.Start(
+            AssetJobKind.Sync,
+            $"Catalog pictures from habbo.{domain}",
+            player,
+            async (progress, ct) =>
+            {
+                var known = await LoadKnownAsync(ct).ConfigureAwait(false);
+                var tally = new Tally();
+
+                // A picture is had by its name alone: no revision, nothing from the client.
+                var context = new SyncContext(domain, HabboFileLists.STABLE, null, progress, tally);
+
+                await SyncAsync("Catalog pictures", pictures, known, context, ct)
+                    .ConfigureAwait(false);
+
+                return tally.ToString();
+            }
+        );
+    }
+
     public AssetJobSnapshot? StartAfterCheck(PlayerId player)
     {
         if (!config.Value.SyncAfterCheck)
