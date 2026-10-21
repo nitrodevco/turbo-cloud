@@ -133,6 +133,9 @@ public static class MovementCauses
     public const string REWARD_DAILY_TASK = "reward.daily_task";
     public const string REWARD_ACHIEVEMENT = "reward.achievement";
 
+    /// <summary>Currency paid for time online (<c>Turbo:OnlineRewards</c>); cause ref: the currency.</summary>
+    public const string REWARD_ONLINE = "reward.online";
+
     public const string STAFF_GIVE_CURRENCY = "staff.give_currency";
     public const string STAFF_GIVE_ITEM = "staff.give_item";
     public const string STAFF_GIFT = "staff.gift";

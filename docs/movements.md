@@ -86,7 +86,7 @@ and fee has a code of its own, so what entered, left or was taken per channel is
 
 | Class | Codes |
 | --- | --- |
-| Sources (currency made) | `vault.<category>` (one per earnings category, below), `reward.achievement`, `reward.quest`, `reward.daily_task`, `reward.track`, `catalog.voucher`, `use.credit_furni`, `use.crackable`, `staff.give_currency` |
+| Sources (currency made) | `vault.<category>` (one per earnings category, below), `reward.achievement`, `reward.quest`, `reward.daily_task`, `reward.track`, `reward.online`, `catalog.voucher`, `use.credit_furni`, `use.crackable`, `staff.give_currency` |
 | Sinks (currency spent) | `catalog.purchase`, `catalog.gift`, `catalog.room_ad`, `catalog.targeted_offer`, `catalog.ltd_raffle`, `catalog.habbicon`, `camera.purchase`, `camera.publish`, `group.create`, `market.tokens`, `market.fee`, `room.rent`, `wired.chest_upgrade`, `reward.track_premium`, `staff.give_currency` (a negative `:give`) |
 | Transfers (between players) | `trade`, `catalog.gift` (the present, below), `market.buy` and `market.redeem` (through the offer), `wired.chest_deposit` and `wired.chest_withdraw` (through the chest) |
 
@@ -170,6 +170,7 @@ the same charge pays nothing twice.
 | `wired.chest_upgrade`, `wired.chest_withdraw` | a chest's upgrade price and its refund, credits a chest pays out (actor 0; cause ref: the chest transaction) |
 | `reward.track`, `reward.quest`, `reward.daily_task`, `reward.achievement` | reward track prizes (cause ref: track and prize), quest, daily task and achievement rewards |
 | `reward.track_premium` | a reward track's premium bought (cause ref: the track) |
+| `reward.online` | currency for time online, [online rewards](online-rewards.md) (actor: the player; cause ref: the currency) |
 | `staff.give_currency` | `:give` (actor: the staff member; one operation per player) |
 
 ## The inventory

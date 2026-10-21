@@ -5953,6 +5953,49 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_navigator_view_modes");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerOnlineRewardEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("CurrencyTypeEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_type_id");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyTypeEntityId");
+
+                    b.HasIndex("PlayerEntityId", "CurrencyTypeEntityId")
+                        .IsUnique();
+
+                    b.ToTable("player_online_rewards");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerOutfitEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -9674,6 +9717,25 @@ namespace Turbo.Database.Migrations
                         .HasForeignKey("PlayerEntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerOnlineRewardEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", "CurrencyTypeEntity")
+                        .WithMany()
+                        .HasForeignKey("CurrencyTypeEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CurrencyTypeEntity");
 
                     b.Navigation("PlayerEntity");
                 });
