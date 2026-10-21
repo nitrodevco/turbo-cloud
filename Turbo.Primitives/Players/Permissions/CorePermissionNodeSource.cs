@@ -445,6 +445,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Read players' private messages in the admin panel: what friends sent each other in the messenger."
         ),
         new(
+            PermissionNodes.Admin.TELEMETRY_VIEW,
+            "See client health and usage in the admin panel: frame rates, latency, chat lag, login times and the events clients log."
+        ),
+        new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,
             "See groups, players' permissions and the permission log in the admin panel."
         ),

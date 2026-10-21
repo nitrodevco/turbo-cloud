@@ -2,17 +2,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Tracking;
+using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Tracking;
 
-public class LagWarningReportMessageHandler : IMessageHandler<LagWarningReportMessage>
+/// <summary>The chat lag the client noticed, kept for the admin panel's Client health page.</summary>
+public class LagWarningReportMessageHandler(IClientTelemetry telemetry)
+    : IMessageHandler<LagWarningReportMessage>
 {
-    public async ValueTask HandleAsync(
+    private readonly IClientTelemetry _telemetry = telemetry;
+
+    public ValueTask HandleAsync(
         LagWarningReportMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        _telemetry.RecordLagWarnings(ctx.PlayerId, ctx.RoomId, message);
+
+        return ValueTask.CompletedTask;
     }
 }

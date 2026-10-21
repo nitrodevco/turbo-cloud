@@ -335,6 +335,51 @@ admin API is on. A day at 10 seconds is 8,640 samples, which the server merges i
 `PerformanceMaxPoints` points per chart. With more than one silo, the page shows the silo that
 serves the admin API.
 
+## Client health and Usage
+
+Staff with `admin.telemetry.view` get two more tabs under **Overview**. Both read what the
+players' clients report about themselves with Habbo's own messages, and nothing else:
+
+| Message | What the client sends | When |
+| --- | --- | --- |
+| `PerformanceLog` | seconds since it started, user agent, memory, garbage collections, the average time between frames, slow frames | every `performancetest.interval` seconds, at most `performancetest.reportlimit` times |
+| `LatencyPingReport` | the average ping, the average without spikes, the pings counted | after each latency test |
+| `LagWarningReport` | how many of its own chat lines came back late | when chat lag was noticed |
+| `EventLog` | category, type, action, an extra string and number | at the points Habbo's client logs them; `ClientPerformance` / `fps` carries the frame rate in a room |
+
+The server also times the login steps it sees itself, named as Habbo names them
+(`client.init.socket.ok`, `client.init.handshake.start`, `client.init.handshake.ok`,
+`client.init.auth.ok`, `client.init.room.enter`), from the socket opening, and a refused ticket
+(unknown, banned, or the hotel closed to the player) as `client.init.auth.fail`. Habbo's client
+tells its own steps only to its web page, so the funnel is the server's.
+
+Habbo's own external variables never send a performance report or a room's frame rate
+(`performancetest.interval` and `tracking.framerate.reportInterval.seconds` are `2147483647`), so
+the frame rate and memory charts stay empty, and say so, until the hotel sets them: for example
+`performancetest.interval=300` with `performancetest.reportlimit=10` (a report every five minutes for
+the first fifty), and `tracking.framerate.reportInterval.seconds=300` with
+`tracking.framerate.maximumEvents=5` (the client's defaults). Latency (`latencytest.interval=20000`)
+and chat lag (`lagWarningLog.enabled=1`) are on in Habbo's own. Each empty chart or table on the pages names the variable
+it waits for. `admin.telemetry.view` reaches the `admin` group through its `*`, as every `admin.*`
+view node does; give it to anyone else under Access.
+
+- **Client health**: frame rate, memory and latency (median and p95) per day; a table per browser,
+  system and kind of device (read from the user agent); the rooms with the most chat lag, with
+  their frame rate and latency; and the login funnel: how many logins reached each step and how
+  long it took. Filter by dates, browser, system, device or room; a room or a player opens their own
+  reports.
+- **Usage**: events per day, the most logged events and their categories, and a simple funnel: how
+  many players logged each of up to six chosen events and every one before it.
+
+Reports are queued and written in batches, so a client report never waits on the database: one over
+the player's limit per minute (`MaxReportsPerPlayerPerMinute`, `MaxEventsPerPlayerPerMinute`) or
+past a full queue (`QueueCapacity`) is dropped. Raw rows are kept `RawRetentionDays` (30); every
+hour each finished day (UTC) is rolled up into `client_telemetry_daily`, kept `RollupRetentionDays`
+(365), before its raw rows can expire. No address is stored; the player id is kept on raw rows only,
+for the drill-down. The old `performance_logs` table, which nothing writes and which has an address
+column, is left in place: dropping it needs `AllowDestructiveMigrations` for one start. A range of several days weights each day's percentiles by its reports.
+Everything is under `Turbo:ClientTelemetry`; `Enabled` turns it off without a restart.
+
 ## Rooms
 
 Staff with `admin.rooms.view` get a **Rooms** page for finding and inspecting rooms. Staff who
@@ -1041,6 +1086,7 @@ passkey; they add more while signed in instead.
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
+| `admin.telemetry.view` | The Client health and Usage pages under Overview: how clients run (frame rate, memory, latency, chat lag, login times) and the events they log, down to one player's or room's reports. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |

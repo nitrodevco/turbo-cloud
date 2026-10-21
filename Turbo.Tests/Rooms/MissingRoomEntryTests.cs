@@ -106,7 +106,8 @@ public sealed class MissingRoomEntryTests
         await new OpenFlatConnectionMessageHandler(
             _fakes.Create<IRoomService>(),
             _fakes.Create<Orleans.IGrainFactory>(),
-            _fakes.Create<INavigatorService>()
+            _fakes.Create<INavigatorService>(),
+            _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>()
         ).HandleAsync(new OpenFlatConnectionMessage { RoomId = MISSING }, Ctx(), Ct);
 
         _fakes.Log.Of("CheckRoomEntryAccessAsync").Should().BeEmpty();

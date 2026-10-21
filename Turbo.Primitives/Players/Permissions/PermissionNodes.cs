@@ -301,6 +301,13 @@ public static class PermissionNodes
         public const string MESSAGES_VIEW = "admin.messages.view";
 
         /// <summary>
+        /// See how clients run and what players use in the panel: frame rates, memory, latency and
+        /// chat lag by browser and room, login times, and the events clients log, down to one
+        /// player's or one room's reports.
+        /// </summary>
+        public const string TELEMETRY_VIEW = "admin.telemetry.view";
+
+        /// <summary>
         /// See the catalog in the panel: its pages, offers and prices. Changing it needs
         /// <see cref="Catalog.MANAGE"/> as well.
         /// </summary>

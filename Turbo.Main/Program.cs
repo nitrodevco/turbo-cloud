@@ -125,6 +125,7 @@ internal class Program
         builder.Services.AddTurboPlugins(builder);
         builder.Services.AddTurboDatabaseContext(builder);
         builder.Services.AddTurboMovements(builder);
+        builder.Services.AddTurboClientTelemetry(builder);
         builder.Services.AddTurboEventSystem();
         builder.Services.AddTurboMessageSystem();
         builder.Services.AddTurboCrypto(builder);

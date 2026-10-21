@@ -6,16 +6,19 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Handshake;
 
 public class CompleteDiffieHandshakeMessageHandler(
     IDiffieService diffieService,
-    IOptions<CryptoConfig> config
+    IOptions<CryptoConfig> config,
+    IClientTelemetry telemetry
 ) : IMessageHandler<CompleteDiffieHandshakeMessage>
 {
     private readonly IDiffieService _diffieService = diffieService;
     private readonly CryptoConfig _config = config.Value;
+    private readonly IClientTelemetry _telemetry = telemetry;
 
     public async ValueTask HandleAsync(
         CompleteDiffieHandshakeMessage message,
@@ -36,5 +39,6 @@ public class CompleteDiffieHandshakeMessageHandler(
             .ConfigureAwait(false);
 
         ctx.SetupEncryption(sharedKey, _config.EnableServerToClientEncryption);
+        _telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.HANDSHAKE_OK);
     }
 }

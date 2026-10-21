@@ -16,9 +16,9 @@ internal class PerformanceLogMessageParser : IParser
             Browser = packet.PopString(),
             IsDebugger = packet.PopBoolean(),
             MemoryUsage = packet.PopInt(),
-            unknownField = packet.PopInt(),
+            Reserved = packet.PopInt(),
             GarbageCollections = packet.PopInt(),
-            AverageFrameRate = packet.PopInt(),
+            AverageUpdateInterval = packet.PopInt(),
             SlowUpdates = packet.PopInt(),
         };
 }
