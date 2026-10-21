@@ -21,6 +21,7 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -35,6 +36,14 @@ namespace Turbo.Tests.Gamedata;
 public sealed class GamedataImportTests : IDisposable
 {
     private static readonly PlayerId STAFF = new(7);
+
+    // The logics the server registers (RoomObjectLogic names), the WIRED Links send box among them.
+    private static readonly IReadOnlyList<string> LOGICS =
+    [
+        "default_floor",
+        "default_wall",
+        "wf_act_send_message",
+    ];
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -76,6 +85,7 @@ public sealed class GamedataImportTests : IDisposable
         );
 
         _files = _fakes.Create<IGamedataFileService>();
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ => LOGICS;
         _furniture = new GamedataFurnitureService(
             _db,
             config,
@@ -86,6 +96,7 @@ public sealed class GamedataImportTests : IDisposable
             furnitureFiles,
             new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
             writes,
+            _fakes.Create<IRoomObjectLogicProvider>(),
             TimeProvider.System,
             NullLogger<GamedataFurnitureService>.Instance
         );
@@ -335,6 +346,117 @@ public sealed class GamedataImportTests : IDisposable
             .OrderByDescending(x => x.Id)
             .Select(x => x.Id)
             .First();
+    }
+
+    /// <summary>
+    /// Habbo's WIRED Links boxes (2026-10) were imported on the default logic, so their windows
+    /// never opened until staff set each one's logic by hand.
+    /// </summary>
+    [Fact]
+    public async Task a_new_item_gets_the_logic_registered_under_its_classname()
+    {
+        var release = Release(
+            1,
+            Item(Chair(xdim: 1), 40, "wf_act_send_message"),
+            Item(Chair(xdim: 1), 41, "wf_act_send_message*2"),
+            Item(Chair(xdim: 1), 42, "wf_act_not_made_yet"),
+            Chair(xdim: 1),
+            Poster()
+        );
+
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+
+        preview!
+            .Items.ToDictionary(x => x.ClassName, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string?>
+                {
+                    ["wf_act_send_message"] = "wf_act_send_message",
+                    ["wf_act_send_message*2"] = "wf_act_send_message",
+                    ["wf_act_not_made_yet"] = "default_floor",
+                    ["chair_norja"] = "default_floor",
+                    ["poster"] = "default_wall",
+                }
+            );
+
+        var changeSet = await _furniture.ImportAsync(release, STAFF, Ct);
+
+        (await DefinitionsAsync())
+            .ToDictionary(x => x.Name, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["wf_act_send_message"] = "wf_act_send_message",
+                    ["wf_act_send_message*2"] = "wf_act_send_message",
+                    ["wf_act_not_made_yet"] = "default_floor",
+                    ["chair_norja"] = "default_floor",
+                    ["poster"] = "default_wall",
+                }
+            );
+
+        // The history says what it was made as.
+        var made = await _history.GetChangesAsync(changeSet!.Id, Ct);
+
+        made!
+            .Value.Single(x =>
+                x.Label == "wf_act_send_message"
+                && x.RecordType == GamedataRecordType.FurnitureDefinition
+            )
+            .After.Should()
+            .Contain("\"logic\":\"wf_act_send_message\"");
+    }
+
+    /// <summary>
+    /// A definition the hotel has keeps its logic, whether staff chose it or it is still the
+    /// default an earlier import gave it: the logic column is the hotel's.
+    /// </summary>
+    [Fact]
+    public async Task a_definition_the_hotel_has_keeps_its_logic_through_an_import()
+    {
+        _db.Insert(Definition(41, "wf_act_send_message*2"));
+
+        await _furniture.ImportAsync(
+            Release(1, Item(Chair(xdim: 1), 40, "wf_act_send_message")),
+            STAFF,
+            Ct
+        );
+
+        var sendId = (await DefinitionsAsync()).Single(x => x.Name == "wf_act_send_message").Id;
+
+        await _furniture.UpdateDefinitionAsync(
+            sendId,
+            new JsonObject { ["logic"] = "my_own_logic" },
+            STAFF,
+            Ct
+        );
+
+        var next = Release(
+            2,
+            Item(Chair(xdim: 2), 40, "wf_act_send_message"),
+            Item(Chair(xdim: 2), 41, "wf_act_send_message*2")
+        );
+        var preview = await _furniture.PreviewImportAsync(next, Ct);
+
+        preview!.Items.Should().OnlyContain(x => x.Action != FurnitureImportAction.Add);
+        preview.Items.Should().OnlyContain(x => x.Logic == null);
+
+        await _furniture.ImportAsync(next, STAFF, Ct);
+
+        var definitions = await DefinitionsAsync();
+
+        definitions.Single(x => x.Id == sendId).Width.Should().Be(2);
+        definitions
+            .ToDictionary(x => x.Name, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["wf_act_send_message"] = "my_own_logic",
+                    ["wf_act_send_message*2"] = "default_floor",
+                }
+            );
     }
 
     [Fact]
@@ -598,6 +720,14 @@ public sealed class GamedataImportTests : IDisposable
             ["tradeable"] = true,
             ["recyclable"] = true,
         };
+
+    private static JsonObject Item(JsonObject item, int id, string className)
+    {
+        item["id"] = id;
+        item["classname"] = className;
+
+        return item;
+    }
 
     private static JsonObject Poster() =>
         new()

@@ -21,6 +21,7 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Providers;
 
 namespace Turbo.Gamedata.Furniture;
 
@@ -28,7 +29,8 @@ namespace Turbo.Gamedata.Furniture;
 /// Habbo's furniture taken in, and definitions edited (<see cref="IGamedataFurnitureService"/>).
 /// Definitions are matched to Habbo's items by kind and classname. Habbo's items the hotel no
 /// longer has a match for are added; the hotel's definitions Habbo dropped are left alone. Every
-/// write reloads the definition provider and has the files built again.
+/// write reloads the definition provider and has the files built again. A definition made for a
+/// new item gets the logic the server registers under its classname, if there is one.
 /// </summary>
 internal sealed class GamedataFurnitureService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -40,6 +42,7 @@ internal sealed class GamedataFurnitureService(
     HabboFurnitureFiles furnitureFiles,
     FurnitureStatusIndex statuses,
     GamedataWriteLock writes,
+    IRoomObjectLogicProvider logics,
     TimeProvider time,
     ILogger<GamedataFurnitureService> logger
 ) : IGamedataFurnitureService
@@ -140,6 +143,7 @@ internal sealed class GamedataFurnitureService(
                     item.ProductType,
                     plan.AllocateSpriteId(item.ProductType, item.SpriteId),
                     item.ClassName,
+                    item.Logic!,
                     item.Habbo
                 );
 
@@ -750,7 +754,7 @@ internal sealed class GamedataFurnitureService(
                 .FirstOrDefaultAsync(ct);
 
     /// <summary>Every item of the release, matched to the hotel's definition of it and to Habbo's last version of it.</summary>
-    private static async Task<ImportPlan> PlanAsync(
+    private async Task<ImportPlan> PlanAsync(
         TurboDbContext dbCtx,
         HabboReleaseEntity release,
         IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files,
@@ -779,6 +783,7 @@ internal sealed class GamedataFurnitureService(
             .GroupBy(x => (x.ProductType, x.Name))
             .ToDictionary(g => g.Key, g => g.MinBy(x => x.Id)!);
         var plan = new ImportPlan(allDefinitions);
+        var registered = logics.LogicTypes.ToHashSet(StringComparer.Ordinal);
         var data = JsonNode.Parse(GamedataBytes.Decompress(release.FurnitureData));
 
         foreach (var (list, type) in ImportPlan.LISTS)
@@ -830,7 +835,12 @@ internal sealed class GamedataFurnitureService(
                         definition,
                         known,
                         fields,
-                        action
+                        action,
+                        // Only a definition being made gets a logic: an existing one keeps the
+                        // logic staff gave it.
+                        definition is null
+                            ? FurnitureRecords.LogicFor(type, className, registered)
+                            : null
                     )
                 );
             }
@@ -865,7 +875,8 @@ internal sealed class GamedataFurnitureService(
         FurnitureDefinitionEntity? Definition,
         HabboFurnitureEntity? Base,
         ImmutableArray<FurnitureFieldChange> Fields,
-        FurnitureImportAction? Action
+        FurnitureImportAction? Action,
+        string? Logic
     )
     {
         public FurnitureImportItem ToSnapshot() =>
@@ -877,6 +888,7 @@ internal sealed class GamedataFurnitureService(
                 DefinitionId = Definition?.Id,
                 Action = Action!.Value,
                 Fields = Fields,
+                Logic = Logic,
             };
     }
 

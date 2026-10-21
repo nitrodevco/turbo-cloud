@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
@@ -17,17 +18,38 @@ internal static class FurnitureRecords
     public const string DEFAULT_FLOOR_LOGIC = "default_floor";
     public const string DEFAULT_WALL_LOGIC = "default_wall";
 
+    // Colour variants are named name*N (wf_link*2); they share their base item's logic.
+    private const char COLOUR_VARIANT_MARK = '*';
+
     // A made definition's record carries what it was made as besides its fields, so it reads
     // whole in the history.
     public const string SPRITE_ID_KEY = "id";
     public const string CLASS_NAME_KEY = "classname";
     public const string LOGIC_KEY = "logic";
 
+    /// <summary>
+    /// The logic a new definition of Habbo's item gets: the one the server registers under its
+    /// classname (the six WIRED Links boxes of 2026-10, <c>wf_link</c> and the rest, each have
+    /// theirs), colour variants that of their base item, otherwise the default, as plain
+    /// furniture until staff give it its own.
+    /// </summary>
+    public static string LogicFor(ProductType type, string className, IReadOnlySet<string> logics)
+    {
+        var mark = className.IndexOf(COLOUR_VARIANT_MARK, StringComparison.Ordinal);
+        var baseName = mark > 0 ? className[..mark] : className;
+
+        if (logics.Contains(baseName))
+            return baseName;
+
+        return type == ProductType.Wall ? DEFAULT_WALL_LOGIC : DEFAULT_FLOOR_LOGIC;
+    }
+
     /// <summary>A definition of one of Habbo's items the hotel does not have, with Habbo's fields.</summary>
     public static FurnitureDefinitionEntity Create(
         ProductType type,
         int spriteId,
         string className,
+        string logic,
         JsonObject habbo
     )
     {
@@ -37,7 +59,7 @@ internal static class FurnitureRecords
             Name = className,
             ProductType = type,
             FurniCategory = FurnitureCategory.Default,
-            Logic = type == ProductType.Wall ? DEFAULT_WALL_LOGIC : DEFAULT_FLOOR_LOGIC,
+            Logic = logic,
             Width = 1,
             Length = 1,
             StackHeight = 0,
