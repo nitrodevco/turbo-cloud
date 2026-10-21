@@ -224,6 +224,91 @@ public sealed class CatalogBackupTests : IDisposable
         _catalog.Rows().Should().NotContain($"offer {created.Id} ");
     }
 
+    /// <summary>The fixture's root page as <see cref="CatalogFixture.Rows"/> writes it.</summary>
+    private static string RootRow(string rows) =>
+        rows.Split(Environment.NewLine).Single(x => x.StartsWith($"page {ROOT} "))
+        + Environment.NewLine;
+
+    [Fact]
+    public async Task Resetting_EmptiesTheCatalogButItsRoot_AndBacksUpWhatWasThereFirst()
+    {
+        var before = _catalog.Rows();
+
+        var reset = await _service.ResetAsync(Editor, Ct);
+
+        reset.Error.Should().BeNull();
+        _catalog.Rows().Should().Be(RootRow(before), "only the root is left to build under");
+        _service.UnpublishedChanges.Should().Be(1, "a reset goes live when published");
+        _service.History.Undo.Select(x => x.Label).Should().Equal("reset the catalog");
+
+        var backup = (await _service.GetBackupsAsync(Ct)).Single();
+
+        backup.Id.Should().Be(reset.Id);
+        (backup.Name, backup.Automatic).Should().Be((CatalogEditService.RESET_BACKUP_NAME, true));
+        backup.Offers.Should().Be(6, "the fixture has six offers");
+
+        // The backup brings it all back, after a publish and a restart too.
+        await _service.PublishAsync(Editor, Ct);
+
+        var restarted = NewService();
+
+        (await restarted.RollbackAsync(Editor, backup.Id, Ct)).Error.Should().BeNull();
+        _catalog.Rows().Should().Be(before);
+    }
+
+    [Fact]
+    public async Task AReset_CanBeUndone()
+    {
+        var before = _catalog.Rows();
+
+        (await _service.ResetAsync(Editor, Ct)).Saved.Should().BeTrue();
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
+
+        _catalog.Rows().Should().Be(before);
+    }
+
+    [Fact]
+    public async Task Resetting_IsRefused_WhenAnOfferSellsALimitedSeries_AndKeepsNoBackup()
+    {
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            var product = db.CatalogProducts.First(x => x.CatalogOfferEntityId == SOLD);
+
+            db.LtdSeries.Add(
+                new LtdSeriesEntity
+                {
+                    CatalogProductEntityId = product.Id,
+                    TotalQuantity = 10,
+                    RemainingQuantity = 10,
+                    RaffleWindowSeconds = 30,
+                    IsActive = true,
+                }
+            );
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var before = _catalog.Rows();
+        var reset = await _service.ResetAsync(Editor, Ct);
+
+        reset.Saved.Should().BeFalse();
+        reset.Error.Should().Contain("limited series");
+        _catalog.Rows().Should().Be(before);
+        (await _service.GetBackupsAsync(Ct)).Should().BeEmpty("nothing was taken away");
+        _service.UnpublishedChanges.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ResettingAnEmptyCatalog_IsRefused()
+    {
+        (await _service.ResetAsync(Editor, Ct)).Saved.Should().BeTrue();
+
+        var again = await _service.ResetAsync(Editor, Ct);
+
+        again.Saved.Should().BeFalse();
+        again.Error.Should().Contain("already empty");
+        (await _service.GetBackupsAsync(Ct)).Should().HaveCount(1);
+    }
+
     [Fact]
     public async Task ADeletedBackup_IsGone()
     {

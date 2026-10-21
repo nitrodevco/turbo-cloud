@@ -169,5 +169,14 @@ public interface ICatalogEditService
     /// </summary>
     Task<CatalogEditResult> RollbackAsync(PlayerId editor, int backupId, CancellationToken ct);
 
+    /// <summary>
+    /// Empties the saved catalog: every page but the root, and every offer, product and
+    /// featured item, as one step that can be undone and goes live when published. The catalog
+    /// is backed up before anything is taken away, so it can be rolled back to after a publish
+    /// or a restart; the id is that backup's. Refused, with why, when it would take away what a
+    /// limited series sells from or what Builders Club furni was placed from.
+    /// </summary>
+    Task<CatalogEditResult> ResetAsync(PlayerId editor, CancellationToken ct);
+
     Task<CatalogEditResult> DeleteBackupAsync(PlayerId editor, int backupId, CancellationToken ct);
 }

@@ -623,6 +623,14 @@ a limited series or that Builders Club furni was placed from, or when the backup
 uses a currency the hotel no longer has. Limited series themselves are not in a backup. Backups are
 kept in the database (`catalog_backups`) until deleted.
 
+**Reset the catalog**, at the foot of the view, empties it to start again or to import a catalog
+into: every page but the root (which every page is made under), and every offer, product and
+featured item. The catalog is backed up first, as *Before resetting the catalog*, before anything
+is taken away. Like a rollback it is one step you can undo, it goes live when you publish, and it
+is refused while an offer sells a limited series or Builders Club furni was placed from one (a
+refused reset keeps no backup). Ids are not reused: club gift claims and placed Builders Club furni
+keep naming the offers they came from, so a new offer never takes an old one's id.
+
 **Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
 only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
 and pets are left out, since their builders sell them. The list narrows by name, furni line and
@@ -664,7 +672,7 @@ step to undo, and nothing goes live until you publish.
 
 Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and `/discard`;
 `GET` and `POST /api/catalog/backups` (a `name`), `POST /api/catalog/backups/{id}/rollback` and
-`DELETE /api/catalog/backups/{id}`;
+`DELETE /api/catalog/backups/{id}`; `POST /api/catalog/reset`;
 `GET /api/catalog/audit/unoffered` (`scope` = `missing` or `hidden`, `q`, `line`, `category`,
 `page`, `size`) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
 (definition ids and one price) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;

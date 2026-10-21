@@ -27,8 +27,9 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// The catalog editor: reading the tree, a page, the front page's featured items, the furniture
 /// and the backups, for staff with <c>admin.catalog.view</c>; changing pages, offers and featured
-/// items, publishing, and taking, rolling back to and deleting backups, for those who also hold
-/// <c>catalog.manage</c>. The changes are <see cref="ICatalogEditService"/>'s, which checks them.
+/// items, publishing, taking, rolling back to and deleting backups, and resetting the catalog, for
+/// those who also hold <c>catalog.manage</c>. The changes are <see cref="ICatalogEditService"/>'s,
+/// which checks them.
 /// </summary>
 internal sealed class CatalogEndpoints(
     IGrainFactory grainFactory,
@@ -104,6 +105,7 @@ internal sealed class CatalogEndpoints(
         group.MapPost("/backups", BackupAsync);
         group.MapPost("/backups/{id:int}/rollback", RollbackAsync);
         group.MapDelete("/backups/{id:int}", DeleteBackupAsync);
+        group.MapPost("/reset", ResetAsync);
         group.MapGet("/audit/unoffered", UnofferedAsync);
         group.MapGet(
             "/audit/duplicates",
@@ -406,6 +408,18 @@ internal sealed class CatalogEndpoints(
     {
         var result = await editor
             .RollbackAsync(AdminIdentity.Of(http).PlayerId, id, ct)
+            .ConfigureAwait(false);
+
+        return result.Saved
+            ? Results.Ok(HistoryResponse())
+            : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
+    }
+
+    /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
+    private async Task<IResult> ResetAsync(HttpContext http, CancellationToken ct)
+    {
+        var result = await editor
+            .ResetAsync(AdminIdentity.Of(http).PlayerId, ct)
             .ConfigureAwait(false);
 
         return result.Saved

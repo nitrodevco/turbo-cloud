@@ -20,6 +20,9 @@ public sealed partial class CatalogEditService
     /// <summary>How many gone furniture or currency ids a refused rollback names.</summary>
     private const int MISSING_SHOWN_MAX = 5;
 
+    /// <summary>The name of the backup a reset takes of the catalog it empties.</summary>
+    public const string RESET_BACKUP_NAME = "Before resetting the catalog";
+
     public async Task<IReadOnlyList<CatalogBackupSummary>> GetBackupsAsync(CancellationToken ct)
     {
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -171,6 +174,77 @@ public sealed partial class CatalogEditService
             );
 
             return CatalogEditResult.Done(backupId);
+        }
+        finally
+        {
+            _historyGate.Release();
+        }
+    }
+
+    public async Task<CatalogEditResult> ResetAsync(PlayerId editor, CancellationToken ct)
+    {
+        // Not while an undo or a redo is moving rows: both read the rows they then rewrite.
+        await _historyGate.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
+
+            var current = await CatalogEditJournal.ReadAllAsync(db, ct).ConfigureAwait(false);
+            var step = new CatalogEditStep("reset the catalog", editor, Now);
+
+            // The root stays: every page is made under one, and the editor never takes it away.
+            step.Add([
+                .. current
+                    .Where(x =>
+                        x.Key.Type != typeof(CatalogPageEntity)
+                        || x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)] is not null
+                    )
+                    .Select(x => new CatalogRowChange(x.Key, x.Value, null)),
+            ]);
+
+            if (!step.Changed)
+                return CatalogEditResult.Refused("The catalog is already empty.");
+
+            // Kept before anything is taken away, so a reset that went wrong still has its copy.
+            var kept = await SaveBackupAsync(
+                    db,
+                    editor,
+                    RESET_BACKUP_NAME,
+                    automatic: true,
+                    current,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            if (
+                await CatalogEditJournal
+                    .RestoreAsync(db, step, towardsBefore: false, ct)
+                    .ConfigureAwait(false) is
+                { } error
+            )
+            {
+                // Nothing was taken away, so the copy is of the catalog as it still is.
+                await db
+                    .CatalogBackups.Where(x => x.Id == kept.Id)
+                    .ExecuteDeleteAsync(ct)
+                    .ConfigureAwait(false);
+
+                return CatalogEditResult.Refused(error);
+            }
+
+            Interlocked.Increment(ref _unpublished);
+            Push(step);
+
+            logger.LogWarning(
+                "Player {PlayerId} reset the catalog, taking away {Rows} rows; what was there is backup {KeptId}",
+                editor,
+                step.Rows.Count(),
+                kept.Id
+            );
+
+            return CatalogEditResult.Done(kept.Id);
         }
         finally
         {
