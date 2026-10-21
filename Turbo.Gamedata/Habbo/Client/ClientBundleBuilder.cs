@@ -388,9 +388,11 @@ internal sealed partial class ClientBundleBuilder(
             .FileHashes.Where(x => x.Key.EndsWith(".hab", StringComparison.Ordinal))
             .OrderBy(x => x.Key, StringComparer.Ordinal)
             .ToList();
-        var air = config.Value.ClientAirImages
-            ? await client.NewestAirAsync(ct).ConfigureAwait(false)
-            : null;
+        var airLayouts = config.Value.ClientAirLayouts;
+        var air =
+            config.Value.ClientAirImages || airLayouts.Length > 0
+                ? await client.NewestAirAsync(ct).ConfigureAwait(false)
+                : null;
 
         string Revision(string? airVersion) =>
             $"{TEMPLATES_PREFIX}{TEMPLATES_BUILD}:"
@@ -399,6 +401,11 @@ internal sealed partial class ClientBundleBuilder(
                     Encoding.UTF8.GetBytes(
                         string.Join("\n", habs.Select(x => $"{x.Key}={x.Value}"))
                             + (airVersion is null ? "" : $"\nair={airVersion}")
+                            + (
+                                airVersion is null || airLayouts.Length == 0
+                                    ? ""
+                                    : $"\nairlayouts={string.Join(",", airLayouts)}"
+                            )
                     )
                 )
             )[..32];
@@ -457,12 +464,18 @@ internal sealed partial class ClientBundleBuilder(
             return new TemplatesBuilt(0, [], []);
         }
 
-        var airImages = await AirImagesAsync(air, libraries, note, ct).ConfigureAwait(false);
+        var fromAir = await AirAsync(air, libraries, note, ct).ConfigureAwait(false);
 
-        // Stamped without the AIR client when its images could not be taken, so the next build tries again.
-        revision = Revision(airImages is null ? null : air?.Version);
+        // Stamped without the AIR client when it could not be read, so the next build tries again.
+        revision = Revision(fromAir is null ? null : air?.Version);
 
-        var packed = ClientTemplates.Pack(release.Version, libraries, windowManager, airImages);
+        var packed = ClientTemplates.Pack(
+            release.Version,
+            libraries,
+            windowManager,
+            fromAir?.Images,
+            fromAir?.Layouts
+        );
         var built = 0;
 
         if (
@@ -512,31 +525,41 @@ internal sealed partial class ClientBundleBuilder(
         );
     }
 
+    /// <summary>What the templates take from Habbo's AIR client: bitmaps, and layouts in place of the libraries' own.</summary>
+    private sealed record FromAir(
+        Dictionary<string, Dictionary<string, byte[]>> Images,
+        Dictionary<string, Dictionary<string, string>> Layouts
+    );
+
     /// <summary>
     /// The bitmaps the libraries' classes embed in Habbo's newest AIR client that the libraries lack
-    /// (<see cref="ClientAirImages"/>), each library's named in the build's notes; null when there is
-    /// no AIR client to take them from, or it could not be read.
+    /// (<see cref="ClientAirImages"/>) and the layouts taken from it (<see cref="ClientAirLayouts"/>),
+    /// each library's named in the build's notes; null when there is no AIR client to take them
+    /// from, or it could not be read.
     /// </summary>
-    private async Task<Dictionary<string, Dictionary<string, byte[]>>?> AirImagesAsync(
+    private async Task<FromAir?> AirAsync(
         (string Version, string Url)? air,
         IReadOnlyList<(string Name, HabLibrary Hab)> libraries,
         Action<string> note,
         CancellationToken ct
     )
     {
-        if (!config.Value.ClientAirImages)
+        var airLayouts = config.Value.ClientAirLayouts;
+
+        if (!config.Value.ClientAirImages && airLayouts.Length == 0)
             return null;
 
         if (air is not { } newest)
         {
             note(
-                "No environment named Habbo's AIR client when last checked: the images it alone has are left out."
+                "No environment named Habbo's AIR client when last checked: the images and layouts it alone has are left out."
             );
 
             return null;
         }
 
         ClientAirImages.Taken taken;
+        ClientAirLayouts.Taken layouts;
 
         try
         {
@@ -544,7 +567,10 @@ internal sealed partial class ClientBundleBuilder(
                 await client.ReadAirAsync(newest.Version, newest.Url, ct).ConfigureAwait(false)
             );
 
-            taken = ClientAirImages.Missing(swf, libraries);
+            taken = config.Value.ClientAirImages
+                ? ClientAirImages.Missing(swf, libraries)
+                : new ClientAirImages.Taken([], []);
+            layouts = ClientAirLayouts.Take(swf, libraries, airLayouts);
         }
         catch (Exception ex)
             when (ex
@@ -558,11 +584,11 @@ internal sealed partial class ClientBundleBuilder(
         {
             logger.LogWarning(
                 ex,
-                "Habbo's AIR client {Version} could not be read for its images",
+                "Habbo's AIR client {Version} could not be read for its images and layouts",
                 newest.Version
             );
             note(
-                $"Habbo's AIR client {newest.Version} could not be read: the images it alone has are left out ({ex.Message})."
+                $"Habbo's AIR client {newest.Version} could not be read: the images and layouts it alone has are left out ({ex.Message})."
             );
 
             return null;
@@ -576,10 +602,22 @@ internal sealed partial class ClientBundleBuilder(
         foreach (var problem in taken.Problems)
             note($"An image of Habbo's AIR client {newest.Version} could not be read: {problem}");
 
-        if (taken.Images.Count == 0)
+        if (config.Value.ClientAirImages && taken.Images.Count == 0)
             note($"Habbo's AIR client {newest.Version} has no image the libraries lack.");
 
-        return taken.Images;
+        foreach (
+            var (library, assets) in layouts.Layouts.OrderBy(x => x.Key, StringComparer.Ordinal)
+        )
+            note(
+                $"{library}: layouts taken from Habbo's AIR client {newest.Version}: {string.Join(", ", assets.Keys.Order(StringComparer.Ordinal))}"
+            );
+
+        foreach (var problem in layouts.Problems)
+            note(
+                $"A layout of Habbo's AIR client {newest.Version} was not taken, the HTML client's is kept: {problem}"
+            );
+
+        return new FromAir(taken.Images, layouts.Layouts);
     }
 
     /// <summary>

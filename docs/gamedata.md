@@ -437,6 +437,7 @@ loading the old build after a change.
 | `ClientChatStyles` | `follow` | What a release with a new chat library does to the chat styles: `follow` takes its styles and updates those not changed here since, `replace` replaces changes made here too, `off` takes nothing. |
 | `ClientDownloadMinutes` | `30` | How long downloading a release may take. |
 | `ClientAirImages` | `true` | The window templates take the bitmaps a library's class embeds in Habbo's newest AIR client that its library in the HTML client lacks (the AIR client is downloaded once per release for it). See `docs/asset-bundles.md`. |
+| `ClientAirLayouts` | `["habbo-toolbar-com/prog_menu_view_xml"]` | The window layouts (`<library>/<asset>`) the templates take from Habbo's newest AIR client in place of its HTML client's, whose copy lacks what the client looks for (the Progression menu's list named `menu_items`). Empty takes none. See `docs/asset-bundles.md`. |
 | `FurnitureFileUrl` | `https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}.swf` | Where a furniture's asset file is, read when an update is taken in. |
 | `FurnitureFileConcurrency` | `8` | Furniture files downloaded at once. |
 | `KeepBuilds` | `10` | Builds of each file kept besides the current one. |
