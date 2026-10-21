@@ -30,4 +30,7 @@ internal sealed class ListRewardTrackStore(Func<IReadOnlyList<RewardTrackDefinit
 
     public Task<bool> DeleteAsync(string trackId, CancellationToken ct) =>
         throw new NotSupportedException();
+
+    public Task ReorderAsync(IReadOnlyList<string> trackIds, CancellationToken ct) =>
+        throw new NotSupportedException();
 }

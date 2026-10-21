@@ -21,6 +21,9 @@ public sealed record RewardTrackListItem(
     int MaxPoints
 );
 
+/// <summary>The tracks in their new order; any not named keep their order after them.</summary>
+public sealed record RewardTrackOrderRequest(string[]? TrackIds);
+
 /// <summary>The furni a furni prize gives here: its definition id and class name.</summary>
 public sealed record RewardTrackPrizeFurni(string PrizeId, int DefinitionId, string Name);
 

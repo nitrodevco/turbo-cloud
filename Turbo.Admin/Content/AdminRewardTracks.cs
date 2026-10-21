@@ -132,6 +132,22 @@ public sealed class AdminRewardTracks(
         return true;
     }
 
+    /// <summary>
+    /// Puts the tracks in this order: the order players are sent them, which the Progression
+    /// menu lists its track items in after Introduction (AS3 ProgMenuController.onRewardTracks).
+    /// </summary>
+    public async Task<IReadOnlyList<RewardTrackListItem>> ReorderAsync(
+        PlayerId staff,
+        IReadOnlyList<string> trackIds,
+        CancellationToken ct
+    )
+    {
+        await store.ReorderAsync(trackIds, ct).ConfigureAwait(false);
+        await ChangedAsync(staff, "order", trackIds, ct).ConfigureAwait(false);
+
+        return List();
+    }
+
     public async Task ReloadAsync(PlayerId staff, CancellationToken ct)
     {
         await store.ReloadAsync(ct).ConfigureAwait(false);

@@ -144,6 +144,59 @@ public sealed class RewardTrackAdminTests : IDisposable
     }
 
     [Fact]
+    public async Task Tracks_are_put_in_order_for_the_progression_menu_and_sent_again()
+    {
+        // AS3 ProgMenuController.onRewardTracks: a track's menu item follows Introduction in the
+        // order RewardTracks lists the tracks, so the panel orders them as the players get them.
+        foreach (var id in new[] { "introduction", "habboween2026", "summer2027" })
+            await _tracks.SaveAsync(STAFF, new() { Id = id }, Ct);
+
+        var listed = await _tracks.ReorderAsync(STAFF, ["introduction", "summer2027"], Ct);
+
+        listed.Select(x => x.Id).Should().Equal("introduction", "summer2027", "habboween2026");
+        _store
+            .LiveAt(DateTime.UtcNow)
+            .Select(x => x.Id)
+            .Should()
+            .Equal("introduction", "summer2027", "habboween2026");
+        await _store.ReloadAsync(Ct);
+        _store
+            .Tracks.Select(x => x.Id)
+            .Should()
+            .Equal("introduction", "summer2027", "habboween2026");
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.CommandLogs.AsNoTracking().OrderBy(x => x.Id).LastAsync(Ct))
+            .Arguments.Should()
+            .Be("order introduction summer2027");
+        _fakes
+            .Log.Of("ReloadTracksAsync")
+            .Should()
+            .HaveCount(8, "two players online, three saves and the order");
+    }
+
+    [Fact]
+    public async Task An_order_naming_a_track_twice_or_one_there_is_not_changes_nothing()
+    {
+        foreach (var id in new[] { "introduction", "habboween2026" })
+            await _tracks.SaveAsync(STAFF, new() { Id = id }, Ct);
+
+        await _tracks
+            .Invoking(x => x.ReorderAsync(STAFF, ["habboween2026", "nope"], Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>()
+            .WithMessage("*nope*");
+        await _tracks
+            .Invoking(x => x.ReorderAsync(STAFF, ["habboween2026", "habboween2026"], Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>()
+            .WithMessage("*twice*");
+
+        await _store.ReloadAsync(Ct);
+        _store.Tracks.Select(x => x.Id).Should().Equal("introduction", "habboween2026");
+    }
+
+    [Fact]
     public void What_this_hotel_cannot_do_of_a_track_is_listed()
     {
         var warnings = _tracks.Plan(Request(actionType: "SOMETHING_NEW")).Tracks[0].Warnings;
@@ -280,6 +333,13 @@ public sealed class RewardTrackAdminTests : IDisposable
                         Content = JsonContent.Create(
                             new { capture = new { tracks = Array.Empty<object>() } }
                         ),
+                    },
+                    new HttpRequestMessage(
+                        HttpMethod.Post,
+                        $"http://127.0.0.1:{port}/api/reward-tracks/order"
+                    )
+                    {
+                        Content = JsonContent.Create(new { trackIds = new[] { "introduction" } }),
                     },
                 }
             )
