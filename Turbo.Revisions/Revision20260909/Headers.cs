@@ -1193,6 +1193,10 @@ internal static class MessageComposer
     public const int WiredFurniTriggerMessageComposer = 354;
     public const int WiredFurniVariableMessageComposer = 3437;
     public const int WiredFurniVisualizationStateMessageComposer = 7602;
+    public const int WiredLinkConfigurationInvalidatedMessageComposer = 7630;
+    public const int WiredLinkConfigurationMessageComposer = 1714;
+    public const int WiredLinkConnectionsMessageComposer = 3320;
+    public const int WiredLinkOpenMessageComposer = 3648;
     public const int WiredLinkOperationResultMessageComposer = 3261;
     public const int WiredMenuErrorMessageComposer = 913;
     public const int WiredMovementsMessageComposer = 1959;

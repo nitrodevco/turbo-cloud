@@ -3763,6 +3763,30 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(WiredLinkConfigurationInvalidatedMessageComposer),
+                new WiredLinkConfigurationInvalidatedMessageComposerSerializer(
+                    MessageComposer.WiredLinkConfigurationInvalidatedMessageComposer
+                )
+            },
+            {
+                typeof(WiredLinkConfigurationMessageComposer),
+                new WiredLinkConfigurationMessageComposerSerializer(
+                    MessageComposer.WiredLinkConfigurationMessageComposer
+                )
+            },
+            {
+                typeof(WiredLinkConnectionsMessageComposer),
+                new WiredLinkConnectionsMessageComposerSerializer(
+                    MessageComposer.WiredLinkConnectionsMessageComposer
+                )
+            },
+            {
+                typeof(WiredLinkOpenMessageComposer),
+                new WiredLinkOpenMessageComposerSerializer(
+                    MessageComposer.WiredLinkOpenMessageComposer
+                )
+            },
+            {
                 typeof(WiredLinkOperationResultMessageComposer),
                 new WiredLinkOperationResultMessageComposerSerializer(
                     MessageComposer.WiredLinkOperationResultMessageComposer

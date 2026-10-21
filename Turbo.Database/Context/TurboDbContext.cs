@@ -24,6 +24,7 @@ using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Settings;
 using Turbo.Database.Entities.Sound;
 using Turbo.Database.Entities.Tracking;
+using Turbo.Database.Entities.WiredLink;
 using Turbo.Database.Entities.WiredTrading;
 
 namespace Turbo.Database.Context;
@@ -90,6 +91,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<WiredChestEntity> WiredChests { get; init; }
     public DbSet<WiredChestTransactionEntity> WiredChestTransactions { get; init; }
     public DbSet<WiredChestTransactionEntryEntity> WiredChestTransactionEntries { get; init; }
+    public DbSet<WiredLinkNetworkEntity> WiredLinkNetworks { get; init; }
+    public DbSet<WiredLinkEndpointEntity> WiredLinkEndpoints { get; init; }
 
     public DbSet<BadgeDefinitionEntity> BadgeDefinitions { get; init; }
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }

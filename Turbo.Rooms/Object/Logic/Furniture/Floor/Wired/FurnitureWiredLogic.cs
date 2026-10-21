@@ -563,7 +563,7 @@ public abstract partial class FurnitureWiredLogic(
     protected string GetStringParam() => _wiredData.StringParam?.Trim() ?? string.Empty;
 
     /// <summary>Whether this box's text writes <c>$(trigger_text)</c>, the full text of the message that triggered it.</summary>
-    public bool UsesTriggerText() =>
+    public virtual bool UsesTriggerText() =>
         GetStringParam().Contains(WiredPlaceholderText.TriggerTextToken, StringComparison.Ordinal);
 
     /// <summary>

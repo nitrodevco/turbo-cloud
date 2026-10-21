@@ -32,10 +32,12 @@ internal static class ChatMessagePayloadSerializer
         // missing receiver and so dropped every such width.
         // WIN63-202610121624 reads a third, hideUsername, the same way, so hiding the name
         // fills both slots before it.
+        // WIN63-202610201032 reads a fourth, the bubble's tile (two ints), after all three.
         if (
             message.ReceiverRoomIndex is null
             && message.ChatBubbleWidthOverride is null
             && !message.HideUsername
+            && message.Location is null
         )
             return;
 
@@ -46,7 +48,12 @@ internal static class ChatMessagePayloadSerializer
             .WriteInteger(message.ReceiverRoomIndex ?? NO_RECEIVER)
             .WriteInteger(message.ChatBubbleWidthOverride ?? NO_BUBBLE_WIDTH);
 
-        if (message.HideUsername)
-            packet.WriteBoolean(true);
+        if (!message.HideUsername && message.Location is null)
+            return;
+
+        packet.WriteBoolean(message.HideUsername);
+
+        if (message.Location is { } location)
+            packet.WriteInteger(location.X).WriteInteger(location.Y);
     }
 }

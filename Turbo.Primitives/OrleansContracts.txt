@@ -496,6 +496,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   9057F93F: CancelNestBreedingAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   F8F69E06: ChangeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<bool>
   7B9EDF14: CheckEntryAccessAsync(Turbo.Primitives.Players.PlayerId, string?, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomEntryAccessType>
+  6AA93F60: CheckWiredLinkAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<(int, bool)>
   861FF388: CheckWiredWebApiKeysAsync(Turbo.Primitives.Rooms.Wired.WebApi.WiredWebApiOperation, string?, string?, System.Threading.CancellationToken) -> Task<string?>
   984036F1: ClearPlayerEffectIfAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<bool>
   C40E984C: ClearRoomBySystemAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<int>
@@ -589,6 +590,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   73BBEBF5: PrepareRoomDeletionAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>?>
   78525494: PublishRoomEventAsync(Turbo.Primitives.Rooms.Events.RoomEvent, System.Threading.CancellationToken) -> Task
   340F1C2A: RateRoomAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
+  08E5C4DE: ReceiveWiredLinkPayloadAsync(System.Collections.Immutable.ImmutableArray<int>, Turbo.Primitives.Rooms.Wired.Link.WiredLinkPayload, System.Threading.CancellationToken) -> Task
   FBF15D6E: RefreshGuildFurniAsync(Turbo.Primitives.Guilds.GuildId, System.Threading.CancellationToken) -> Task
   B8289BDC: RefreshGuildMemberAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   2EDCBBA1: RemoveAllRightsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task
@@ -690,6 +692,16 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Polls.IPlayerRoomPollGrain
   BA44A8DB: OfferAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   B8931EBB: RejectAsync(int, System.Threading.CancellationToken) -> Task
   1D9AED6D: StartAsync(Turbo.Primitives.Rooms.RoomId, int, System.Threading.CancellationToken) -> Task
+
+interface [GrainInterfaceType("Turbo.Primitives.Rooms.Wired.Link.IWiredLinkOwnerGrain")] Turbo.Primitives.Rooms.Wired.Link.IWiredLinkOwnerGrain [Version(0)]
+  30807292: CreateNetworkAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkOperationOutcome>
+  D1B238BB: DeleteNetworkAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkOperationOutcome>
+  E5AA8ED3: DisconnectAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, System.Threading.CancellationToken) -> Task
+  719098B7: GetConfigurationAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkConfigurationSnapshot>
+  BD281D32: GetConnectionsAsync(string, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Wired.Link.WiredLinkConnectionSnapshot>?>
+  4DEA784F: RenameNetworkAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkOperationOutcome>
+  585D65D6: SaveAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, bool, string, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkOperationOutcome>
+  ACDADEC3: SendAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Immutable.ImmutableArray<int>, Turbo.Primitives.Rooms.Wired.Link.WiredLinkPayload, System.Threading.CancellationToken) -> Task<int>
 
 interface [GrainInterfaceType("Turbo.Primitives.Sound.Grains.IJukeboxGrain")] Turbo.Primitives.Sound.Grains.IJukeboxGrain [Version(0)]
   AAFA99F7: AddDiskAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Object.RoomObjectId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Sound.Snapshots.JukeboxChangeResultSnapshot>
