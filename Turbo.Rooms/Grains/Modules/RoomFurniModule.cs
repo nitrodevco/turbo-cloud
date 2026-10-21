@@ -36,17 +36,17 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
     // instead of reading the room state, so how furni is indexed can change in one place.
 
     /// <summary>Every floor and wall item in the room.</summary>
-    public IReadOnlyCollection<IRoomItem> Items => _roomGrain._state.ItemsById.Values;
+    public IReadOnlyCollection<IRoomItem> Items => State.ItemsById.Values;
 
-    public int ItemCount => _roomGrain._state.ItemsById.Count;
+    public int ItemCount => State.ItemsById.Count;
 
-    public bool HasItem(RoomObjectId itemId) => _roomGrain._state.ItemsById.ContainsKey(itemId);
+    public bool HasItem(RoomObjectId itemId) => State.ItemsById.ContainsKey(itemId);
 
     /// <inheritdoc cref="RoomLiveState.ItemsVersion"/>
-    public long ItemsVersion => _roomGrain._state.ItemsVersion;
+    public long ItemsVersion => State.ItemsVersion;
 
     public bool TryGetItem(RoomObjectId itemId, [NotNullWhen(true)] out IRoomItem? item) =>
-        _roomGrain._state.ItemsById.TryGetValue(itemId, out item);
+        State.ItemsById.TryGetValue(itemId, out item);
 
     public bool TryGetFloorItem(RoomObjectId itemId, [NotNullWhen(true)] out IRoomFloorItem? item)
     {
@@ -66,7 +66,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         if (!MapModule.InBounds(tileIdx))
             yield break;
 
-        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
+        foreach (var itemId in State.TileFloorStacks[tileIdx])
         {
             if (TryGetFloorItem(itemId, out var item))
                 yield return item;
@@ -75,8 +75,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
 
     /// <summary>Whether this item is the top of the stack on a tile, the one an avatar there stands on.</summary>
     public bool IsHighestOnTile(IRoomFloorItem item, int tileIdx) =>
-        MapModule.InBounds(tileIdx)
-        && _roomGrain._state.TileHighestFloorItems[tileIdx] == item.ObjectId;
+        MapModule.InBounds(tileIdx) && State.TileHighestFloorItems[tileIdx] == item.ObjectId;
 
     /// <summary>
     /// Whether some furni in the room lets this player build where a floor item of this size
@@ -120,7 +119,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
     }
 
     public ImmutableDictionary<PlayerId, string> GetOwnerNames() =>
-        _roomGrain._state.OwnerNamesById.ToImmutableDictionary();
+        State.OwnerNamesById.ToImmutableDictionary();
 
     public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
         Task.FromResult(Items.Count(item => item.OwnerId == ownerId));
@@ -131,7 +130,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
     /// </summary>
     public async Task<RoomId?> GetRoomIdOfItemAsync(int itemId, CancellationToken ct)
     {
-        if (_roomGrain._state.ItemsById.ContainsKey(itemId))
+        if (State.ItemsById.ContainsKey(itemId))
             return _roomGrain.RoomId;
 
         await using var dbCtx = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
@@ -238,7 +237,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsFurniLoaded)
+        if (State.IsFurniLoaded)
             return;
 
         var (floorItems, wallItems, ownerNames) = await _roomGrain._itemsLoader.LoadByRoomIdAsync(
@@ -247,25 +246,25 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         );
 
         foreach (var (id, name) in ownerNames)
-            _roomGrain._state.OwnerNamesById.TryAdd(id, name);
+            State.OwnerNamesById.TryAdd(id, name);
 
-        _roomGrain._state.IsTileComputationPaused = true;
+        State.IsTileComputationPaused = true;
 
         foreach (var item in floorItems)
             await ObjectModule.AttatchObjectAsync(item, ct);
 
-        _roomGrain._state.IsTileComputationPaused = false;
+        State.IsTileComputationPaused = false;
 
         MapModule.ComputeAllTiles();
-        _roomGrain._state.DirtyHeightTileIds.Clear();
-        _roomGrain._state.DirtyHeightSentValues.Clear();
+        State.DirtyHeightTileIds.Clear();
+        State.DirtyHeightSentValues.Clear();
 
         foreach (var item in wallItems)
             await ObjectModule.AttatchObjectAsync(item, ct);
 
         CaptureLoadedItems();
 
-        _roomGrain._state.IsFurniLoaded = true;
+        State.IsFurniLoaded = true;
     }
 
     /// <summary>
@@ -274,11 +273,11 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
     /// </summary>
     internal void CaptureLoadedItems()
     {
-        var snapshots = _roomGrain._state.LoadedItemSnapshots;
+        var snapshots = State.LoadedItemSnapshots;
 
         snapshots.Clear();
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in State.ItemsById.Values)
         {
             if (!item.IsTemporary)
                 snapshots[item.ObjectId] = item.GetSnapshot();
@@ -290,8 +289,6 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComp
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _roomGrain._state.ItemsById.TryGetValue(objectId, out var item)
-                ? item.GetSnapshot()
-                : null
+            State.ItemsById.TryGetValue(objectId, out var item) ? item.GetSnapshot() : null
         );
 }

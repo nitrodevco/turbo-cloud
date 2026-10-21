@@ -42,7 +42,7 @@ public class WiredActionGiveEffect(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(0, _roomGrain._wiredConfig.MaxEffectId, DEFAULT_EFFECT),
+            new WiredRangeParamRule(0, WiredConfig.MaxEffectId, DEFAULT_EFFECT),
             new WiredRangeParamRule(0, MAX_PRIORITY, MAX_PRIORITY),
             new WiredBoolParamRule(false),
         ];

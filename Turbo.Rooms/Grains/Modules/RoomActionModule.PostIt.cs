@@ -42,7 +42,7 @@ public sealed partial class RoomActionModule
         if (!WallPosition.TryParse(location, out var position))
             return RejectPostIt(ctx, padId, "the location is no wall position");
 
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
+        var inventory = GrainFactory.GetInventoryGrain(ctx.PlayerId);
 
         if (!await SecurityModule.CanPlaceFurniAsync(ctx))
         {
@@ -56,7 +56,7 @@ public sealed partial class RoomActionModule
             if (pad is null || !PostItPads.IsPad(pad.Definition))
                 return RejectPostIt(ctx, padId, "no post-it pad of theirs");
 
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 ctx.PlayerId,
                 new RequestSpamWallPostItMessageComposer { ItemId = padId, Location = location },
                 ct
@@ -87,7 +87,7 @@ public sealed partial class RoomActionModule
         if (!HasSpamWall())
             return RejectPostIt(ctx, padId, "the room has no post-it wall");
 
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
 
         if (
             !StickieColors.IsValid(color)
@@ -101,7 +101,7 @@ public sealed partial class RoomActionModule
 
         return await StickPostItSheetAsync(
             ctx,
-            _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId),
+            GrainFactory.GetInventoryGrain(ctx.PlayerId),
             padId,
             position,
             StickieColors.Compose(color.ToUpperInvariant(), text),
@@ -138,7 +138,7 @@ public sealed partial class RoomActionModule
             stuck = await FurniModule.CreateWallItemAsync(
                 ctx,
                 taken.Pad.Definition,
-                _roomGrain._state.RoomSnapshot.OwnerId,
+                State.RoomSnapshot.OwnerId,
                 position,
                 PostItPads.NoteExtraData(noteData),
                 new LegacyStuffSnapshot { StuffBitmask = 0, Data = noteData },
@@ -180,7 +180,7 @@ public sealed partial class RoomActionModule
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to give player {PlayerId} back a sheet of post-it pad {ItemId} (definition {DefinitionId}) in room {RoomId}",
                 ctx.PlayerId,
@@ -194,7 +194,7 @@ public sealed partial class RoomActionModule
     /// <summary>Logs a refused note with the ids that identify it, and yields false.</summary>
     private bool RejectPostIt(ActionContext ctx, RoomObjectId padId, string reason)
     {
-        _roomGrain._logger.LogWarning(
+        Logger.LogWarning(
             "Rejected a note from post-it pad {ItemId} in room {RoomId} by player {PlayerId}: {Reason}",
             padId,
             _roomGrain.RoomId,

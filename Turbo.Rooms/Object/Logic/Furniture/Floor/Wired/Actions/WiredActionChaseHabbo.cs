@@ -35,7 +35,7 @@ public class WiredActionChaseHabbo(
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var map = MapModule;
-        var range = _roomGrain._wiredConfig.ChaseRange;
+        var range = WiredConfig.ChaseRange;
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {

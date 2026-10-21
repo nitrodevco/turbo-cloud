@@ -61,7 +61,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var speaker))
             return false;
 
-        var maxLength = _roomGrain._roomConfig.ChatMaxLength;
+        var maxLength = RoomConfig.ChatMaxLength;
 
         if (text.Length == 0)
             return false;
@@ -133,7 +133,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         var evt = new PlayerChatEvent
         {
-            RoomId = _roomGrain._state.RoomId,
+            RoomId = State.RoomId,
             CausedBy = ctx,
             PlayerId = ctx.PlayerId,
             ObjectId = speaker.ObjectId,
@@ -156,7 +156,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         // alone gets it back, as a whisper over their own avatar (hhus, 2026-10-13: Chat and
         // Shout both came back as Whisper with the speaker as receiver). The wired still fires.
         if (chatType != RoomChatType.Whisper && await IsHiddenByWiredAsync(evt, ct))
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 speaker.PlayerId,
                 CreateComposer(
                     RoomChatType.Whisper,
@@ -180,7 +180,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         // Kept by the room and handed to persistence with the rest of what changed, rather than
         // a grain call per line.
-        if (_roomGrain._roomConfig.ChatlogEnabled)
+        if (RoomConfig.ChatlogEnabled)
             _roomGrain.QueueChatlog(
                 new RoomChatlogSnapshot
                 {
@@ -196,14 +196,10 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (
             chatType == RoomChatType.Whisper
             && evt.WiredMayRead
-            && _roomGrain._wiredConfig.NotifyWhisperRead
+            && WiredConfig.NotifyWhisperRead
             && await IsReadByWiredAsync(evt, ct)
         )
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                speaker.PlayerId,
-                WhisperReadNotice(),
-                ct
-            );
+            await GrainFactory.SendComposerToPlayerAsync(speaker.PlayerId, WhisperReadNotice(), ct);
 
         return true;
     }
@@ -217,8 +213,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     private async Task<bool> WiredMayReadWhisperAsync(IRoomPlayer speaker, CancellationToken ct)
     {
         if (
-            !_roomGrain._wiredConfig.ReadWhispers
-            || !_roomGrain._state.ItemsById.Values.Any(x => x.Logic is WiredTriggerHabboSaysKeyword)
+            !WiredConfig.ReadWhispers
+            || !State.ItemsById.Values.Any(x => x.Logic is WiredTriggerHabboSaysKeyword)
         )
             return false;
 
@@ -232,7 +228,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not read the wired whisper preference of player {PlayerId} in room {RoomId}",
                 speaker.PlayerId,
@@ -245,7 +241,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
     private async Task<bool> IsReadByWiredAsync(PlayerChatEvent evt, CancellationToken ct)
     {
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in State.ItemsById.Values)
         {
             if (
                 item.Logic is WiredTriggerHabboSaysKeyword trigger
@@ -287,7 +283,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         text = ModerationModule.ApplyFilter(text);
 
         if (speech.OnlyFor is { } listener)
-            return _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            return GrainFactory.SendComposerToPlayerAsync(
                 listener.PlayerId,
                 CreateComposer(
                     RoomChatType.Whisper,
@@ -318,20 +314,20 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         // The room setting "Mute all pets" (navigator.roomsettings.mute_all_pets, RoomSettingsCtrl
         // mute_all_pets_checkbox): no one in the room is sent what pets say. Inference from the
         // setting's name; not recorded.
-        if (speaker is IRoomPet && _roomGrain._state.RoomSnapshot.MuteAllPets)
+        if (speaker is IRoomPet && State.RoomSnapshot.MuteAllPets)
             return Task.CompletedTask;
 
         // ":mutepets Ignore pet chats" and ":mutebots Ignore bot chats" (habbopages/chat/commands):
         // whoever said it is not sent what pets, or bots, say.
         var mutedBy = speaker switch
         {
-            IRoomPet => _roomGrain._state.PetsMutedBy,
-            IRoomBot => _roomGrain._state.BotsMutedBy,
+            IRoomPet => State.PetsMutedBy,
+            IRoomBot => State.BotsMutedBy,
             _ => null,
         };
 
         if (mutedBy is { Count: > 0 })
-            return _roomGrain._grainFactory.SendComposerToPlayersAsync(
+            return GrainFactory.SendComposerToPlayersAsync(
                 [.. AvatarModule.Players.Select(x => x.PlayerId).Where(x => !mutedBy.Contains(x))],
                 composer,
                 ct
@@ -372,7 +368,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
     private async Task<bool> IsHiddenByWiredAsync(PlayerChatEvent evt, CancellationToken ct)
     {
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in State.ItemsById.Values)
         {
             if (
                 item.Logic is WiredTriggerHabboSaysKeyword trigger
@@ -407,7 +403,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 );
 
             foreach (var (playerId, text) in masked)
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     playerId,
                     CreateComposer(evt, text),
                     ct
@@ -425,14 +421,14 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             if (masked.Count == 0)
                 targets.Add(recipient.PlayerId);
             else
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     recipient.PlayerId,
                     CreateComposer(evt, masked[0].Text),
                     ct
                 );
         }
 
-        await _roomGrain._grainFactory.SendComposerToPlayersAsync(targets, composer, ct);
+        await GrainFactory.SendComposerToPlayersAsync(targets, composer, ct);
     }
 
     /// <summary>
@@ -553,8 +549,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         IRoomPlayer? recipient
     )
     {
-        var range = _roomGrain._roomConfig.ChatLookAtRange;
-        var revertAtMs = _roomGrain.NowMs() + _roomGrain._roomConfig.ChatLookAtRevertMs;
+        var range = RoomConfig.ChatLookAtRange;
+        var revertAtMs = _roomGrain.NowMs() + RoomConfig.ChatLookAtRevertMs;
 
         foreach (var avatar in AvatarModule.Avatars)
         {
@@ -653,7 +649,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         if (remainingSeconds > 0)
         {
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new RemainingMutePeriodMessageComposer { SecondsRemaining = remainingSeconds },
                 ct
@@ -687,7 +683,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             .ExplainAsync(PermissionNodes.Chat.SPEAK, ct);
 
         if (check.Decision?.ExpiresAt is { } until && until > DateTime.UtcNow)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new RemainingMutePeriodMessageComposer
                 {
@@ -701,9 +697,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
     private int GetFloodMaxMessages()
     {
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
 
-        return _roomGrain._state.RoomSnapshot.ChatProtection switch
+        return State.RoomSnapshot.ChatProtection switch
         {
             ChatFloodSensitivityType.Extra => config.ChatFloodMaxMessagesExtraSensitivity,
             ChatFloodSensitivityType.Minimal => config.ChatFloodMaxMessagesMinimalSensitivity,
@@ -723,7 +719,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
         var now = _roomGrain.NowMs();
 
         if (_floodMutedUntilByPlayerId.TryGetValue(playerId, out var mutedUntil))
@@ -756,7 +752,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             _floodMutedUntilByPlayerId[playerId] = now + config.ChatFloodMuteMs;
             timestamps.Clear();
 
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new FloodControlMessageComposer
                 {

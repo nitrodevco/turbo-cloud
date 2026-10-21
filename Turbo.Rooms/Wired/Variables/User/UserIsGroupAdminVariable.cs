@@ -24,6 +24,6 @@ public sealed class UserIsGroupAdminVariable(RoomGrain roomGrain)
     protected override ushort Order => 20;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        _roomGrain._state.GroupLevelByPlayerId.TryGetValue(avatar.PlayerId, out var level)
+        State.GroupLevelByPlayerId.TryGetValue(avatar.PlayerId, out var level)
         && level == RoomControllerType.GroupAdmin;
 }

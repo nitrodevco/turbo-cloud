@@ -75,7 +75,7 @@ public class FurniturePresentLogic : FurnitureFloorLogic
 
         TimerSystem.Schedule(
             _ctx.ObjectId,
-            _roomGrain._roomConfig.PresentOpenMs,
+            RoomConfig.PresentOpenMs,
             token => OpenedAsync(ctx, token)
         );
 
@@ -107,7 +107,7 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Present {ItemId} in room {RoomId} could not give badge {BadgeCode} to player {PlayerId}",
                 _ctx.ObjectId,
@@ -137,7 +137,7 @@ public class FurniturePresentLogic : FurnitureFloorLogic
 
         if (wrapped is null)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Present {ItemId} in room {RoomId} opened by player {PlayerId} holds nothing; it stays wrapped",
                 _ctx.ObjectId,
                 _ctx.RoomId,
@@ -179,7 +179,7 @@ public class FurniturePresentLogic : FurnitureFloorLogic
             catch (TurboException ex)
             {
                 // Nothing fits where the present stood; the item stays in the inventory.
-                _roomGrain._logger.LogDebug(
+                Logger.LogDebug(
                     ex,
                     "Unwrapped item {ItemId} could not be placed in room {RoomId}; it stays in the inventory",
                     wrapped.ItemId,
@@ -191,7 +191,7 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         // Habbo's staff gift says "you got a new badge" before the card.
         await GiveBadgeAsync(ctx, ct);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PresentOpenedMessageComposer
             {
@@ -214,6 +214,6 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         FurnitureExtraDataSections.Read<PresentStorage>(
             _ctx.RoomObject.ExtraData,
             PresentStorage.SECTION,
-            _roomGrain._logger
+            Logger
         );
 }

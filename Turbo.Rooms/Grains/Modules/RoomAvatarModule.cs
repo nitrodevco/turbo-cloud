@@ -41,9 +41,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     )
     {
         var objectId = GetNextObjectId();
-        var startX = _roomGrain._state.Model?.DoorX ?? 0;
-        var startY = _roomGrain._state.Model?.DoorY ?? 0;
-        var startRot = _roomGrain._state.Model?.DoorRotation ?? Rotation.North;
+        var startX = State.Model?.DoorX ?? 0;
+        var startY = State.Model?.DoorY ?? 0;
+        var startRot = State.Model?.DoorRotation ?? Rotation.North;
 
         if (!MapModule.InBounds(startX, startY))
         {
@@ -107,7 +107,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         await ObjectModule.AttatchObjectAsync(avatar, ct);
 
-        _roomGrain._state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
+        State.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
 
         _roomGrain.WakeTick();
 
@@ -171,7 +171,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not load the permissions of player {PlayerId} entering room {RoomId}",
                 playerId,
@@ -220,7 +220,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not load the badges of player {PlayerId} entering room {RoomId}",
                 player.PlayerId,
@@ -249,7 +249,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         catch (Exception ex)
         {
             // Unread, the player sees chat unmasked, as before they set the filter.
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not load the word filter of player {PlayerId} entering room {RoomId}",
                 player.PlayerId,
@@ -281,7 +281,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         {
             // A player whose membership could not be read is treated as holding none, which is
             // the safe way round: wired grants nothing it should not.
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not load the Habbo Club membership of player {PlayerId} entering room {RoomId}",
                 player.PlayerId,
@@ -303,7 +303,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     {
         try
         {
-            var playerGuilds = _roomGrain._grainFactory.GetPlayerGuildGrain(playerId);
+            var playerGuilds = GrainFactory.GetPlayerGuildGrain(playerId);
             var guildId = await playerGuilds.GetFavouriteGuildIdAsync(ct);
 
             if (guildId is not { } favourite)
@@ -320,7 +320,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         {
             // A player whose group could not be read wears none, which is the safe way round:
             // the wired group boxes grant nothing they should not.
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not load the favourite group of player {PlayerId} entering room {RoomId}",
                 playerId,
@@ -398,14 +398,14 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
             await ObjectModule.RemoveObjectAsync(ctx, avatar, ct, -1);
 
-            _roomGrain._state.AvatarsByPlayerId.Remove(playerId);
+            State.AvatarsByPlayerId.Remove(playerId);
 
             // Keeps the group level cache to the people in the room; one who comes back is asked again.
             SecurityModule.ForgetGroupLevel(playerId);
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to remove the avatar of player {PlayerId} from room {RoomId}",
                 playerId,
@@ -418,12 +418,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     // instead of reading the room state, so how avatars are indexed can change in one place.
 
     /// <summary>Every avatar in the room: players, pets and bots.</summary>
-    public IReadOnlyCollection<IRoomAvatar> Avatars => _roomGrain._state.AvatarsByObjectId.Values;
+    public IReadOnlyCollection<IRoomAvatar> Avatars => State.AvatarsByObjectId.Values;
 
     public IEnumerable<IRoomPlayer> Players => Avatars.OfType<IRoomPlayer>();
 
     public bool TryGetAvatar(RoomObjectId objectId, [NotNullWhen(true)] out IRoomAvatar? avatar) =>
-        _roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out avatar);
+        State.AvatarsByObjectId.TryGetValue(objectId, out avatar);
 
     /// <summary>The avatars on a tile; none for a tile outside the room.</summary>
     public IEnumerable<IRoomAvatar> GetAvatarsOnTile(int tileIdx)
@@ -431,15 +431,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (!MapModule.InBounds(tileIdx))
             yield break;
 
-        foreach (var objectId in _roomGrain._state.TileAvatarStacks[tileIdx])
+        foreach (var objectId in State.TileAvatarStacks[tileIdx])
         {
-            if (_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+            if (State.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
                 yield return avatar;
         }
     }
 
     public bool HasAvatarOnTile(int tileIdx) =>
-        MapModule.InBounds(tileIdx) && _roomGrain._state.TileAvatarStacks[tileIdx].Count > 0;
+        MapModule.InBounds(tileIdx) && State.TileAvatarStacks[tileIdx].Count > 0;
 
     /// <summary>
     /// The avatars on any tile a floor item covers. With <paramref name="standingOnIt"/> only
@@ -505,7 +505,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         if (
             playerId <= 0
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
+            || !State.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
             || !TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomPlayer roomPlayer
         )
@@ -524,7 +524,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         TryGetPlayer(playerId, out var avatar)
             ? new RoomAvatarPositionSnapshot
             {
-                RoomId = _roomGrain._state.RoomId,
+                RoomId = State.RoomId,
                 X = avatar.X,
                 Y = avatar.Y,
                 Z = avatar.Z,
@@ -609,7 +609,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Avatar {ObjectId} failed to set out for ({X}, {Y}) in room {RoomId}",
                 avatar.ObjectId,
@@ -687,7 +687,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     internal void RecordFollow(IRoomFollower follower, int targetIdx, bool found, long now)
     {
         follower.FollowBlockedTileIdx = found ? -1 : targetIdx;
-        follower.FollowRetryAtMs = found ? 0 : now + _roomGrain._roomConfig.NpcFollowRetryMs;
+        follower.FollowRetryAtMs = found ? 0 : now + RoomConfig.NpcFollowRetryMs;
     }
 
     public ImmutableArray<RoomAvatarSnapshot> GetAvatarSnapshots() =>
@@ -715,7 +715,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to stop the avatar {ObjectId} in room {RoomId}",
                 avatar.ObjectId,
@@ -742,7 +742,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             // it still takes the tile, or it blocks nobody until it first moves.
             if (prevTileId == nextTileId)
             {
-                if (!_roomGrain._state.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId))
+                if (!State.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId))
                     MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
                 return;
@@ -762,7 +762,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Avatar {ObjectId} failed to finish its step in room {RoomId}; stopping the walk",
                 avatar.ObjectId,
@@ -898,7 +898,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             ._grainFactory.GetPlayerGrain(playerId)
             .SetFigureAsync(figure, gender, CancellationToken.None)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "change the figure of player {PlayerId} from room {RoomId}",
                 playerId,
                 _roomGrain.RoomId
@@ -931,7 +931,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         // landing view avatar take as theirs (SessionDataManager.as:443, MeMenuIconLoader.as:119,
         // AvatarImageWidget.as:80); official client captures: 9 of 9 own changes (figure 2,
         // achievement score 7), each followed by the room's.
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             snapshot.PlayerId,
             change with
             {
@@ -1177,7 +1177,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         avatar.HeadRevertAtMs =
             avatar.HeadRotation == avatar.Rotation
                 ? 0
-                : _roomGrain.NowMs() + _roomGrain._roomConfig.LookToRevertMs;
+                : _roomGrain.NowMs() + RoomConfig.LookToRevertMs;
 
         return Task.FromResult(true);
     }
@@ -1234,11 +1234,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 },
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "publish an idle change in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "publish an idle change in room {RoomId}", _roomGrain.RoomId);
     }
 
     /// <summary>
@@ -1279,7 +1275,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (handItemId > 0)
             TimerSystem.Schedule(
                 avatar.ObjectId,
-                _roomGrain._roomConfig.HandItemExpireMs,
+                RoomConfig.HandItemExpireMs,
                 _ => SetHandItemAsync(avatar, 0, CancellationToken.None)
             );
         else
@@ -1318,7 +1314,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         await SetHandItemAsync(giver, 0, ct);
         await SetHandItemAsync(receiver, handItemId, ct);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             targetId,
             new HandItemReceivedMessageComposer
             {
@@ -1357,7 +1353,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         switch (postureType)
         {
             case AvatarPostureType.Sit:
-                avatar.Sit(true, _roomGrain._roomConfig.FloorSitHeight);
+                avatar.Sit(true, RoomConfig.FloorSitHeight);
                 PublishAction(avatar, AvatarActionType.Posture, (int)AvatarPostureType.Sit);
                 break;
             case AvatarPostureType.Stand:
@@ -1387,11 +1383,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 },
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "publish an event in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "publish an event in room {RoomId}", _roomGrain.RoomId);
 
     internal int GetNextObjectId()
     {

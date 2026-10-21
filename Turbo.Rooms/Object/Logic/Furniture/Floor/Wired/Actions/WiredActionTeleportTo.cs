@@ -114,7 +114,7 @@ public class WiredActionTeleportTo(
         if (MapModule.ToIdx(avatar.X, avatar.Y) == tileIdx)
             return false;
 
-        var config = _roomGrain._wiredConfig;
+        var config = WiredConfig;
         var effectId = fast ? config.TeleportFastEffectId : config.TeleportEffectId;
 
         if (effectId > 0)

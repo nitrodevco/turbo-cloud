@@ -164,7 +164,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
         if (now < _nextFlushAtMs || (!_overlaysDirty && !_rowsDirty))
             return;
 
-        _nextFlushAtMs = now + _roomGrain._wiredConfig.VariableLeaderboardFlushMs;
+        _nextFlushAtMs = now + WiredConfig.VariableLeaderboardFlushMs;
 
         if (_overlaysDirty && RebuildOverlays() && _viewers.Count > 0)
             Send(_viewers, BuildSnapshot());
@@ -545,7 +545,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Variable leaderboard in room {RoomId} could not read player {PlayerId}; shown without a name",
                 _roomGrain.RoomId,
@@ -589,7 +589,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
             _roomGrain
                 ._grainFactory.SendComposerToPlayerAsync(playerId, composer, CancellationToken.None)
                 .LogAndForget(
-                    _roomGrain._logger,
+                    Logger,
                     "send a variable leaderboard to player {PlayerId} in room {RoomId}",
                     playerId,
                     _roomGrain.RoomId

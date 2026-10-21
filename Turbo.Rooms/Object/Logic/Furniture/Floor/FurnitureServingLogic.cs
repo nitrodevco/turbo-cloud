@@ -42,7 +42,7 @@ public abstract class FurnitureServingLogic : FurnitureWalkToUseLogic
     /// <summary>Hands the avatar, which stands beside it facing it, what it serves.</summary>
     protected abstract Task HandOverAsync(IRoomAvatar avatar, CancellationToken ct);
 
-    protected override int WalkTimeoutMs => _roomGrain._roomConfig.VendingWalkTimeoutMs;
+    protected override int WalkTimeoutMs => RoomConfig.VendingWalkTimeoutMs;
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
@@ -106,7 +106,7 @@ public abstract class FurnitureServingLogic : FurnitureWalkToUseLogic
             if (GetState() != DISPENSING_STATE)
                 await SetStateAsync(DISPENSING_STATE);
 
-            _dispensingUntilMs = _roomGrain.NowMs() + _roomGrain._roomConfig.VendingDispenseMs;
+            _dispensingUntilMs = _roomGrain.NowMs() + RoomConfig.VendingDispenseMs;
             ScheduleTick();
         }
 

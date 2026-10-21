@@ -117,7 +117,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Completion hooks failed for command {Command} in room {RoomId}; outcome remains {Outcome}",
                     descriptor.Name,
@@ -148,13 +148,13 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
             roomPlayerIds.Add(player.PlayerId);
 
         var executor = new PlayerOperatorExecutor(
-            _roomGrain._grainFactory,
+            GrainFactory,
             speaker.PlayerId,
             speaker.Name,
             _roomGrain.RoomId,
             roomPlayerIds,
             _roomGrain._playerNoticeService,
-            _roomGrain._logger
+            Logger
         );
 
         _roomGrain
@@ -166,7 +166,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
                 CancellationToken.None
             )
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "run operator command {Command} for player {PlayerId} in room {RoomId}",
                 descriptor.Name,
                 speaker.PlayerId,
@@ -193,7 +193,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Command {Command} pipeline failed for player {PlayerId} in room {RoomId}",
                 descriptor.Name,
@@ -289,7 +289,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Command {Command} failed for player {PlayerId} in room {RoomId}",
                 descriptor.Name,
@@ -304,8 +304,8 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         var elapsed = Stopwatch.GetElapsedTime(started);
 
-        if (elapsed.TotalMilliseconds > _roomGrain._roomConfig.CommandSlowWarningMs)
-            _roomGrain._logger.LogWarning(
+        if (elapsed.TotalMilliseconds > RoomConfig.CommandSlowWarningMs)
+            Logger.LogWarning(
                 "Command {Command} held room {RoomId} for {ElapsedMs} ms",
                 descriptor.Name,
                 _roomGrain.RoomId,
@@ -418,7 +418,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not whisper command reply {TextKey} to player {PlayerId} in room {RoomId}",
                 key,
@@ -437,7 +437,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
                 ct
             );
             if (delivery == PlayerNoticeDelivery.Failed)
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     "Could not deliver command reply {TextKey} to player {PlayerId} in room {RoomId}",
                     key,
                     speaker.PlayerId,
@@ -446,7 +446,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not deliver command reply {TextKey} to player {PlayerId} in room {RoomId}",
                 key,

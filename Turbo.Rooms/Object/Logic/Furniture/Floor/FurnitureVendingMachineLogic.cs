@@ -34,7 +34,7 @@ public class FurnitureVendingMachineLogic : FurnitureServingLogic
                 ctx.RoomObject.ExtraData,
                 ctx.Definition.ExtraData,
                 VendingMachineData.SECTION,
-                _roomGrain._logger
+                Logger
             ) ?? new VendingMachineData();
     }
 

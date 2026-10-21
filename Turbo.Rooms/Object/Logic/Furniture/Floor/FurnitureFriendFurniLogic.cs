@@ -45,7 +45,7 @@ public class FurnitureFriendFurniLogic(
         if (IsLocked || !IsAvatarAdjacent(ctx))
             return;
 
-        var pending = _roomGrain._state.PendingFriendFurniLocks;
+        var pending = State.PendingFriendFurniLocks;
 
         if (pending.ContainsKey(_ctx.ObjectId))
             return;
@@ -61,7 +61,7 @@ public class FurnitureFriendFurniLogic(
             PartnerId = partner.Value,
         };
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new FriendFurniStartConfirmationMessageComposer
             {
@@ -70,7 +70,7 @@ public class FurnitureFriendFurniLogic(
             },
             ct
         );
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             partner.Value,
             new FriendFurniStartConfirmationMessageComposer
             {
@@ -80,11 +80,7 @@ public class FurnitureFriendFurniLogic(
             ct
         );
 
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            _roomGrain._roomConfig.FriendFurniLockTimeoutMs,
-            CancelAsync
-        );
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.FriendFurniLockTimeoutMs, CancelAsync);
     }
 
     public override async Task<bool> OnInteractAsync(
@@ -97,7 +93,7 @@ public class FurnitureFriendFurniLogic(
             return false;
 
         if (
-            !_roomGrain._state.PendingFriendFurniLocks.TryGetValue(_ctx.ObjectId, out var request)
+            !State.PendingFriendFurniLocks.TryGetValue(_ctx.ObjectId, out var request)
             || !request.Involves(ctx.PlayerId)
         )
             return Reject(ctx, interaction, "no pending lock for this player");
@@ -116,7 +112,7 @@ public class FurnitureFriendFurniLogic(
 
         if (!(request.InitiatorConfirmed && request.PartnerConfirmed))
         {
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 request.OtherOf(ctx.PlayerId),
                 new FriendFurniOtherLockConfirmedMessageComposer { ItemId = _ctx.ObjectId },
                 ct
@@ -133,7 +129,7 @@ public class FurnitureFriendFurniLogic(
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
         TimerSystem.Cancel(_ctx.ObjectId);
-        _roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
+        State.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -141,7 +137,7 @@ public class FurnitureFriendFurniLogic(
     private async Task LockAsync(FriendFurniLockRequest request, CancellationToken ct)
     {
         TimerSystem.Cancel(_ctx.ObjectId);
-        _roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
+        State.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
 
         var left = await _roomGrain
             ._grainFactory.GetPlayerGrain(request.InitiatorId)
@@ -171,13 +167,13 @@ public class FurnitureFriendFurniLogic(
     {
         TimerSystem.Cancel(_ctx.ObjectId);
 
-        if (!_roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId, out var request))
+        if (!State.PendingFriendFurniLocks.Remove(_ctx.ObjectId, out var request))
             return;
 
         var cancel = new FriendFurniCancelLockMessageComposer { ItemId = _ctx.ObjectId };
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(request.InitiatorId, cancel, ct);
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(request.PartnerId, cancel, ct);
+        await GrainFactory.SendComposerToPlayerAsync(request.InitiatorId, cancel, ct);
+        await GrainFactory.SendComposerToPlayerAsync(request.PartnerId, cancel, ct);
     }
 
     /// <summary>Another player's avatar standing on or next to the lock, if exactly one is there.</summary>

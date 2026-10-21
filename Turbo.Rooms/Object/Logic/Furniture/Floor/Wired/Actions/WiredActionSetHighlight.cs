@@ -97,7 +97,7 @@ public class WiredActionSetHighlight(
     {
         if (
             ParamAt(update.IntParams, PARAM_TYPE) == TYPE_DARKEN
-            && !_roomGrain._wiredConfig.FurniHighlightDarkenLevels.Contains(
+            && !WiredConfig.FurniHighlightDarkenLevels.Contains(
                 ParamAt(update.IntParams, PARAM_STRENGTH)
             )
         )
@@ -183,11 +183,7 @@ public class WiredActionSetHighlight(
                 composer,
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "send a wired highlight in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "send a wired highlight in room {RoomId}", _roomGrain.RoomId);
 
         return Task.FromResult(true);
     }
@@ -216,7 +212,7 @@ public class WiredActionSetHighlight(
         type == TYPE_COLOR_TINT
         && animation == ANIMATION_STEADY
         && !targetUsers
-        && _roomGrain._wiredConfig.FurniHighlightSteadyTintBuildersClubOnly;
+        && WiredConfig.FurniHighlightSteadyTintBuildersClubOnly;
 
     private static bool MayBeTinted(IRoomItem item) => item.IsBuildersClub || item.IsTemporary;
 

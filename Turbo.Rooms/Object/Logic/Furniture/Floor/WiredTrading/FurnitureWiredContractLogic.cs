@@ -41,7 +41,7 @@ public abstract class FurnitureWiredContractLogic(
                 .Read<WiredContractData>(
                     _ctx.RoomObject.ExtraData,
                     WiredContractData.SECTION,
-                    _roomGrain._logger
+                    Logger
                 )
                 ?.Contract
             ?? Empty()
@@ -58,7 +58,7 @@ public abstract class FurnitureWiredContractLogic(
         if (!(await GetPermissionsAsync(ctx)).CanRead)
             return;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new WiredOpenContractMessageComposer { ContractId = _ctx.ObjectId },
             ct
@@ -77,7 +77,7 @@ public abstract class FurnitureWiredContractLogic(
                 if (!(await GetPermissionsAsync(ctx)).CanRead)
                     return Reject(ctx, interaction, "may not read wired");
 
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     ctx.PlayerId,
                     new WiredContractContentsMessageComposer { Contract = Contract },
                     ct
@@ -96,7 +96,7 @@ public abstract class FurnitureWiredContractLogic(
                         new WiredContractData { Contract = saved }
                     );
 
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     ctx.PlayerId,
                     new WiredContractUpdateResultMessageComposer
                     {

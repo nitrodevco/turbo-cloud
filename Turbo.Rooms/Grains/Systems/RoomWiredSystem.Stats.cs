@@ -47,8 +47,7 @@ public sealed partial class RoomWiredSystem
     /// The room's usage cap, sized by its owner's account level as read when the room loaded
     /// (<see cref="Configuration.WiredConfig.ExecutionCostCap"/>); 0 when there is none.
     /// </summary>
-    public double ExecutionCostCap =>
-        _roomGrain._wiredConfig.ExecutionCostCap <= 0 ? 0 : OwnerSizedCap;
+    public double ExecutionCostCap => WiredConfig.ExecutionCostCap <= 0 ? 0 : OwnerSizedCap;
 
     /// <summary>
     /// The permanent variables of a kind the room may hold, scaled with its usage cap; 0 when
@@ -56,7 +55,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     public int GetMaxPermanentVariables(WiredVariableTargetType targetType)
     {
-        var config = _roomGrain._wiredConfig;
+        var config = WiredConfig;
         var per10000 = targetType switch
         {
             WiredVariableTargetType.Furni => config.PermanentFurniVariablesPer10000Cap,
@@ -72,15 +71,12 @@ public sealed partial class RoomWiredSystem
     {
         get
         {
-            var config = _roomGrain._wiredConfig;
+            var config = WiredConfig;
 
             return Math.Max(
                 config.ExecutionCostCap,
                 config.ExecutionCostCapPerOwnerLevel
-                    * (
-                        _roomGrain._state.OwnerAccountLevel
-                        + config.ExecutionCostCapOwnerLevelOffset
-                    )
+                    * (State.OwnerAccountLevel + config.ExecutionCostCapOwnerLevelOffset)
             );
         }
     }
@@ -116,7 +112,7 @@ public sealed partial class RoomWiredSystem
 
     private void DecayUsage(long now)
     {
-        var stepMs = _roomGrain._wiredConfig.ExecutionCostDecayMs;
+        var stepMs = WiredConfig.ExecutionCostDecayMs;
 
         if (_usageStepAtMs == 0 || stepMs <= 0)
         {
@@ -130,7 +126,7 @@ public sealed partial class RoomWiredSystem
         if (steps <= 0)
             return;
 
-        _usage *= Math.Pow(_roomGrain._wiredConfig.ExecutionCostDecayFactor, steps);
+        _usage *= Math.Pow(WiredConfig.ExecutionCostDecayFactor, steps);
         _usageStepAtMs += steps * stepMs;
     }
 
@@ -140,7 +136,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private void RollHeavyWindow(long now)
     {
-        var windowMs = Math.Max(1, _roomGrain._wiredConfig.HeavyWindowMs);
+        var windowMs = Math.Max(1, WiredConfig.HeavyWindowMs);
 
         if (_heavyWindowStartMs == 0)
         {
@@ -152,7 +148,7 @@ public sealed partial class RoomWiredSystem
         if (now - _heavyWindowStartMs < windowMs)
             return;
 
-        var threshold = _roomGrain._wiredConfig.HeavyBusyMsPerWindow;
+        var threshold = WiredConfig.HeavyBusyMsPerWindow;
         var busyMs = _busyTicksInWindow * 1000.0 / Stopwatch.Frequency;
         var wasHeavy = IsHeavy;
 
@@ -171,12 +167,12 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private void KillIfOverrun(WiredExecution execution)
     {
-        var limit = _roomGrain._wiredConfig.KillExecutionMs;
+        var limit = WiredConfig.KillExecutionMs;
 
         if (limit <= 0 || _wallClockMs() - execution.StartedAtWallMs <= limit)
             return;
 
-        _killedUntilMs = execution.Now + _roomGrain._wiredConfig.KilledDurationMs;
+        _killedUntilMs = execution.Now + WiredConfig.KilledDurationMs;
 
         _eventQueue.Clear();
         _pendingStackExecutions.Clear();
@@ -184,10 +180,10 @@ public sealed partial class RoomWiredSystem
 
         RecordError(WiredErrorKind.Killed, execution.Now);
 
-        _roomGrain._logger.LogWarning(
+        Logger.LogWarning(
             "Wired in room {RoomId} is halted for {Ms} ms: one execution ran past {Limit} ms",
             _roomGrain.RoomId,
-            _roomGrain._wiredConfig.KilledDurationMs,
+            WiredConfig.KilledDurationMs,
             limit
         );
     }

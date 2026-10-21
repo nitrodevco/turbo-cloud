@@ -72,7 +72,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                 ctx.RoomObject.ExtraData,
                 ctx.Definition.ExtraData,
                 CrackableData.SECTION,
-                _roomGrain._logger
+                Logger
             ) ?? new CrackableData();
 
         if (StuffData is ICrackableStuffData crackable)
@@ -111,7 +111,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     }
 
     private void ScheduleTick() =>
-        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, TickAsync);
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.AvatarTickMs, TickAsync);
 
     /// <summary>
     /// Hits for whoever a use sent over once they step onto the tile they were sent to - Habbo's
@@ -184,7 +184,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
         if (Hits + 1 >= Target && !_data.HasReward)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Crackable {ItemId} ({Definition}, reward set {RewardSet}) in room {RoomId} holds nothing the room can give, so it is not cracked",
                 _ctx.ObjectId,
                 _ctx.Definition.Name,
@@ -259,7 +259,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
                     _ctx.ObjectId.Value
                 ),
                 ct,
-                removeDelayMs: _roomGrain._roomConfig.CrackableRemoveDelayMs,
+                removeDelayMs: RoomConfig.CrackableRemoveDelayMs,
                 byOwner: false
             )
         )
@@ -268,7 +268,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         foreach (var reward in DrawRewards())
             await GiveAsync(recipient, reward, x, y, rotation, ct);
 
-        _roomGrain._logger.LogInformation(
+        Logger.LogInformation(
             "Crackable {ItemId} ({Definition}, reward set {RewardSet}) in room {RoomId} was cracked by player {PlayerId} for player {RecipientId}",
             _ctx.ObjectId,
             _ctx.Definition.Name,
@@ -385,7 +385,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     {
         if (_roomGrain._definitionProvider.TryGetDefinitionByName(name) is not { } definition)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Crackable {ItemId} ({Definition}) names reward {Reward}, which is no furni definition",
                 _ctx.ObjectId,
                 _ctx.Definition.Name,
@@ -420,7 +420,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         catch (TurboException ex)
         {
             // It does not fit there, or the recipient may not place furni in this room.
-            _roomGrain._logger.LogDebug(
+            Logger.LogDebug(
                 ex,
                 "Reward {ItemId} of crackable {CrackableId} stays in the inventory of player {PlayerId}",
                 item.ItemId,

@@ -50,11 +50,7 @@ public abstract class FurnitureWiredActionLogic(
                 },
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "publish an event in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "publish an event in room {RoomId}", _roomGrain.RoomId);
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
@@ -62,7 +58,7 @@ public abstract class FurnitureWiredActionLogic(
 
         _delayMs = WiredPulses.ActionDelayToMs(
             _wiredData.GetDefinitionParam<int>(0),
-            _roomGrain._wiredConfig.ActionDelayMaxPulses
+            WiredConfig.ActionDelayMaxPulses
         );
     }
 }

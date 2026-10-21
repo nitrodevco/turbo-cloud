@@ -1,3 +1,7 @@
+using Microsoft.Extensions.Logging;
+using Orleans;
+using Turbo.Primitives.Rooms.Grains;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Wired.Leaderboard;
@@ -9,8 +13,10 @@ namespace Turbo.Rooms.Grains;
 /// Anything that lives inside one room grain and works through its siblings: the modules, the
 /// systems, and every object logic. It names the siblings the way the grain's own partials do,
 /// so a call reads <c>ObjectModule.RemoveObjectAsync(...)</c> rather than
-/// <c>_roomGrain.ObjectModule.RemoveObjectAsync(...)</c>. The grain itself stays reachable as
-/// <see cref="_roomGrain"/> for its state, config and services.
+/// <c>_roomGrain.ObjectModule.RemoveObjectAsync(...)</c>. The grain's live state, logger, grain
+/// factory and room and wired configs are named the same way (<see cref="State"/>,
+/// <see cref="Logger"/>, ...); the grain itself stays reachable as <see cref="_roomGrain"/> for
+/// its other services.
 /// <para>
 /// A new module or system on <see cref="RoomGrain"/> gets its shorthand here as well; this is
 /// the one list, so nothing else keeps its own.
@@ -19,6 +25,13 @@ namespace Turbo.Rooms.Grains;
 public abstract class RoomGrainComponent(RoomGrain roomGrain)
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
+
+    // private protected: the grain's fields are internal, and RoomLiveState is internal too.
+    private protected RoomLiveState State => _roomGrain._state;
+    private protected ILogger<IRoomGrain> Logger => _roomGrain._logger;
+    private protected IGrainFactory GrainFactory => _roomGrain._grainFactory;
+    private protected RoomConfig RoomConfig => _roomGrain._roomConfig;
+    private protected WiredConfig WiredConfig => _roomGrain._wiredConfig;
 
     protected RoomEventModule EventModule => _roomGrain.EventModule;
     protected RoomSecurityModule SecurityModule => _roomGrain.SecurityModule;

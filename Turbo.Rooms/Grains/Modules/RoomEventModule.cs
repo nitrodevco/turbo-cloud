@@ -58,7 +58,7 @@ public sealed class RoomEventModule(RoomGrain roomGrain) : RoomGrainComponent(ro
             catch (Exception ex)
                 when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Room event listener {Listener} failed on {Event} in room {RoomId}",
                     listener.GetType().Name,

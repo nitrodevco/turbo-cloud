@@ -45,7 +45,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         // A variable box takes what it stored with it, so only the room's owner and its own may
@@ -56,7 +56,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             && !await SecurityModule.CanPickUpVariableAsync(ctx, item)
         )
         {
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 ctx.PlayerId,
                 new NotificationDialogMessageComposer
                 {
@@ -142,7 +142,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
             .WritePickupAsync(_roomGrain.RoomId, [snapshot], cause, ct);
 
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(snapshot.OwnerId);
+        var inventory = GrainFactory.GetInventoryGrain(snapshot.OwnerId);
 
         await inventory.AddFurnitureFromRoomItemSnapshotAsync(snapshot, ct);
 
@@ -163,7 +163,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (item.Logic.GetPickupConfirmation() is not { } confirmation)
             return false;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new ObjectRemoveConfirmMessageComposer
             {
@@ -216,7 +216,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (await SecurityModule.GetFurniPickupTypeAsync(ctx) == FurniturePickupType.None)
             return null;
 
-        var roomOwnerId = _roomGrain._state.RoomSnapshot.OwnerId;
+        var roomOwnerId = State.RoomSnapshot.OwnerId;
         var mayTakeVariables = await SecurityModule.GetIsRoomOwnerAsync(ctx);
         var items = _roomGrain
             ._state.ItemsById.Values.Where(x =>
@@ -343,7 +343,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     ct
                 );
 
-        var buildersClub = _roomGrain._grainFactory.GetBuildersClubGrain();
+        var buildersClub = GrainFactory.GetBuildersClubGrain();
 
         foreach (var (playerId, logicNames) in borrowsGivenBack)
             await buildersClub.OnReturnedAsync(playerId, [.. logicNames], ct);
@@ -379,7 +379,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         int param = -1
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         // A find task completes on the double-click itself ("find the BBQ and double-click on
@@ -393,7 +393,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     CancellationToken.None
                 )
                 .LogAndForget(
-                    _roomGrain._logger,
+                    Logger,
                     "count the use of item {ItemId} by player {PlayerId} for daily tasks",
                     itemId,
                     ctx.PlayerId
@@ -466,7 +466,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         return await item.Logic.OnInteractAsync(ctx, interaction, ct);
@@ -501,7 +501,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     {
         // The client can click its placement preview before PlaceObject arrives, or an item
         // another player has just picked up. Neither click targets a live room item yet.
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             return false;
 
         await item.Logic.OnClickAsync(ctx, param, ct);
@@ -517,17 +517,17 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         if (!await CanEditItemAsync(ctx, item))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
 
         if (!StickieColors.IsValid(color) || text.Length > config.StickieTextMaxLength)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Rejected item data on {ItemId} in room {RoomId} from player {PlayerId}: colour {Color}, {Length} characters",
                 itemId,
                 _roomGrain.RoomId,
@@ -568,7 +568,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         // Every client path that sends object data is a staff one: saving an ad furni's branding
@@ -577,7 +577,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!await CanSetObjectDataAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
 
         if (
             entries.Count > config.ObjectDataMaxEntries
@@ -588,7 +588,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
             )
         )
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Rejected object data on {ItemId} in room {RoomId} from player {PlayerId}: {Count} entries",
                 itemId,
                 _roomGrain.RoomId,
@@ -616,7 +616,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         bool byOwner = true
     )
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (!await CanEditItemAsync(ctx, item))
@@ -654,7 +654,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     {
         if (item.IsBuildersClub || item.IsTemporary)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Used item {ItemId} in room {RoomId} is borrowed or temporary; its refused grant is not given back",
                 item.ObjectId,
                 _roomGrain.RoomId

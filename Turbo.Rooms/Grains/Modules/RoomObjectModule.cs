@@ -29,26 +29,26 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
         {
             case IRoomItem item:
             {
-                if (!_roomGrain._state.ItemsById.TryAdd(item.ObjectId, item))
+                if (!State.ItemsById.TryAdd(item.ObjectId, item))
                     throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-                _roomGrain._state.ItemsVersion++;
+                State.ItemsVersion++;
 
-                if (!_roomGrain._state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+                if (!State.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
                 {
                     var ownerName = await _roomGrain
                         ._grainFactory.GetPlayerDirectoryGrain()
                         .GetPlayerNameAsync(item.OwnerId, ct);
 
                     value = ownerName;
-                    _roomGrain._state.OwnerNamesById[item.OwnerId] = value;
+                    State.OwnerNamesById[item.OwnerId] = value;
                 }
 
                 item.SetOwnerName(value ?? string.Empty);
 
                 // A temporary furni has no row to write, so its changes are not queued.
                 if (!item.IsTemporary)
-                    item.SetAction(objectId => _roomGrain._state.DirtyItemIds.Add(objectId));
+                    item.SetAction(objectId => State.DirtyItemIds.Add(objectId));
 
                 if (!await AttatchLogicAsync(roomObject, ct) || !MapModule.AddItem(item))
                     return false;
@@ -56,13 +56,13 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
             }
             case IRoomAvatar avatar:
             {
-                if (!_roomGrain._state.AvatarsByObjectId.TryAdd(avatar.ObjectId, avatar))
+                if (!State.AvatarsByObjectId.TryAdd(avatar.ObjectId, avatar))
                     throw new TurboException(TurboErrorCodeEnum.AvatarNotFound);
 
                 if (avatar is IRoomPet pet)
-                    _roomGrain._state.Pets.Add(pet);
+                    State.Pets.Add(pet);
                 else if (avatar is IRoomBot bot)
-                    _roomGrain._state.Bots.Add(bot);
+                    State.Bots.Add(bot);
 
                 await AttatchLogicAsync(avatar, ct);
                 await AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
@@ -79,11 +79,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                             [player.PlayerId],
                             CancellationToken.None
                         )
-                        .LogAndForget(
-                            _roomGrain._logger,
-                            "send a new avatar to room {RoomId}",
-                            _roomGrain._state.RoomId
-                        );
+                        .LogAndForget(Logger, "send a new avatar to room {RoomId}", State.RoomId);
                 else
                     _roomGrain.SendComposerToRoomAndForget(users);
                 break;
@@ -135,11 +131,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                     await _roomGrain.SendComposersToRoomExceptAsync(composers, [playerId], ct);
 
                     foreach (var composer in composers)
-                        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                            playerId,
-                            composer,
-                            ct
-                        );
+                        await GrainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
                 }
                 else if (announce)
                     await _roomGrain.SendComposerToRoomAsync(
@@ -152,8 +144,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
 
                 item.SetAction(null);
 
-                _roomGrain._state.ItemsById.Remove(item.ObjectId);
-                _roomGrain._state.ItemsVersion++;
+                State.ItemsById.Remove(item.ObjectId);
+                State.ItemsVersion++;
 
                 // Nobody owns a borrowed furni, so leaving the room is the end of it, and the
                 // borrow goes back to the club.
@@ -181,12 +173,12 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                     ct
                 );
 
-                _roomGrain._state.AvatarsByObjectId.Remove(avatar.ObjectId);
+                State.AvatarsByObjectId.Remove(avatar.ObjectId);
 
                 if (avatar is IRoomPet pet)
-                    _roomGrain._state.Pets.Remove(pet);
+                    State.Pets.Remove(pet);
                 else if (avatar is IRoomBot bot)
-                    _roomGrain._state.Bots.Remove(bot);
+                    State.Bots.Remove(bot);
                 break;
             }
         }

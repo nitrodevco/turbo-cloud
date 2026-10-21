@@ -283,7 +283,7 @@ public class WiredActionGiveReward(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Wired reward {Code} could not be granted to player {PlayerId} in room {RoomId}",
                 reward.Code,
@@ -300,7 +300,7 @@ public class WiredActionGiveReward(
         WiredRewardResultType result,
         CancellationToken ct
     ) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             player.PlayerId,
             new WiredRewardResultMessageComposer { Reason = result },
             ct
@@ -345,7 +345,7 @@ public class WiredActionGiveReward(
                 )
             );
 
-            if (rewards.Count >= _roomGrain._wiredConfig.MaxRewardsPerBox)
+            if (rewards.Count >= WiredConfig.MaxRewardsPerBox)
                 break;
         }
 
@@ -356,7 +356,7 @@ public class WiredActionGiveReward(
         FurnitureExtraDataSections.Read<Dictionary<int, WiredRewardClaim>>(
             _ctx.RoomObject.ExtraData,
             WiredRewardClaim.SECTION,
-            _roomGrain._logger
+            Logger
         ) ?? [];
 
     private void SaveClaims(Dictionary<int, WiredRewardClaim> claims) =>

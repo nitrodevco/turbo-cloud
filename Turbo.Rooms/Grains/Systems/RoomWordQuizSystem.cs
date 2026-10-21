@@ -46,7 +46,7 @@ public sealed class RoomWordQuizSystem(RoomGrain roomGrain) : RoomGrainComponent
 
         // Inference: the poll is the room's, and question ids only need to be unique in it; the
         // client matches a QuestionFinished to its question by id (WordQuizWidget.questionFinished).
-        var question = new OpenQuestion(_roomGrain._state.RoomId.Value, _questionsAsked);
+        var question = new OpenQuestion(State.RoomId.Value, _questionsAsked);
 
         _open = question;
 

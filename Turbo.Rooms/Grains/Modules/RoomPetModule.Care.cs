@@ -25,7 +25,7 @@ public sealed partial class RoomPetModule
         if (!TryGetPet(petId, out var pet) || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
-        var playerGrain = _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId);
+        var playerGrain = GrainFactory.GetPlayerGrain(ctx.PlayerId);
 
         if (Config.RespectMinAccountAgeDays > 0)
         {
@@ -34,7 +34,7 @@ public sealed partial class RoomPetModule
 
             if (ageDays < Config.RespectMinAccountAgeDays)
             {
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     ctx.PlayerId,
                     new PetRespectFailedMessageComposer
                     {
@@ -70,10 +70,10 @@ public sealed partial class RoomPetModule
             pet.SetEnergy(
                 Math.Min(Config.MaxEnergy, pet.Energy + Config.MonsterplantSupplementEnergy)
             );
-            _roomGrain._grainFactory.CountRewardTrackAction(
+            GrainFactory.CountRewardTrackAction(
                 ctx.PlayerId,
                 RewardTrackActionTypes.TREAT_MONSTER_PLANT,
-                _roomGrain._logger
+                Logger
             );
         }
         else if (!pet.IsRiding)
@@ -186,7 +186,7 @@ public sealed partial class RoomPetModule
 
         if (definition is null)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Seed definition {Name} is missing; monsterplant {PetId} cannot be harvested",
                 Config.MonsterplantSeedDefinitionName,
                 petId
@@ -299,7 +299,7 @@ public sealed partial class RoomPetModule
 
         pet.TargetItemId = -1;
 
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
+        if (!State.ItemsById.TryGetValue(itemId, out var item))
             return;
 
         switch (item.Logic)

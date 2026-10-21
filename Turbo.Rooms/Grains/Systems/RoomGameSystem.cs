@@ -338,11 +338,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
                 new YouArePlayingGameMessageComposer { IsPlaying = team != GameTeamType.None },
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "tell player {PlayerId} whether they are playing",
-                playerId
-            );
+            .LogAndForget(Logger, "tell player {PlayerId} whether they are playing", playerId);
 
         return _roomGrain.PublishRoomEventAsync(
             new GameTeamChangedEvent
@@ -363,9 +359,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     {
         var effectIds = teamType switch
         {
-            WiredTeamType.BattleBanzai => _roomGrain._roomConfig.BanzaiTeamEffectIds,
-            WiredTeamType.Freeze => _roomGrain._roomConfig.FreezeTeamEffectIds,
-            _ => _roomGrain._roomConfig.GameTeamEffectIds,
+            WiredTeamType.BattleBanzai => RoomConfig.BanzaiTeamEffectIds,
+            WiredTeamType.Freeze => RoomConfig.FreezeTeamEffectIds,
+            _ => RoomConfig.GameTeamEffectIds,
         };
 
         return (int)team < effectIds.Length ? effectIds[(int)team] : NO_EFFECT;

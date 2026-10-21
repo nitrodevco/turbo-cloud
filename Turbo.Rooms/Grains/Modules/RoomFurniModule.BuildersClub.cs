@@ -184,7 +184,7 @@ public sealed partial class RoomFurniModule
         if (
             !SecurityModule.IsRoomOwner(ctx.PlayerId)
             && await _roomGrain.GetIsGroupRoomAsync(ct)
-            && !_roomGrain._roomConfig.BuildersClubInGroupRooms
+            && !RoomConfig.BuildersClubInGroupRooms
         )
             return Refuse(ctx, offerId, "the hotel does not lend furni to group rooms");
 
@@ -198,7 +198,7 @@ public sealed partial class RoomFurniModule
 
         if (borrowedCount >= subscription.FurniLimit)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Player {PlayerId} may not borrow offer {OfferId} into room {RoomId}: they hold {BorrowedCount} of their {FurniLimit} furni",
                 ctx.PlayerId,
                 offerId,
@@ -258,10 +258,10 @@ public sealed partial class RoomFurniModule
         }
 
         // A room that is already off the navigator has nothing left to agree to.
-        if (_roomGrain._state.RoomSnapshot.HiddenByBc || confirmedHideRoom)
+        if (State.RoomSnapshot.HiddenByBc || confirmedHideRoom)
             return true;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(ctx.PlayerId, warning, ct);
+        await GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, warning, ct);
 
         return false;
     }
@@ -339,7 +339,7 @@ public sealed partial class RoomFurniModule
                 return (RoomObjectId)objectId;
         }
 
-        _roomGrain._logger.LogError(
+        Logger.LogError(
             "Room {RoomId} has no Builders Club id left to hand out",
             _roomGrain.RoomId
         );
@@ -349,7 +349,7 @@ public sealed partial class RoomFurniModule
 
     private BuildersClubBorrow? Refuse(ActionContext ctx, int offerId, string reason)
     {
-        _roomGrain._logger.LogWarning(
+        Logger.LogWarning(
             "Player {PlayerId} may not borrow offer {OfferId} into room {RoomId}: {Reason}",
             ctx.PlayerId,
             offerId,

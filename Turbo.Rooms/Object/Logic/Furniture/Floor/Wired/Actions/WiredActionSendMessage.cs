@@ -59,7 +59,7 @@ public class WiredActionSendMessage(
     // default, or a selector's, a signal's or the triggering furni (recorded [0,100,200,201]).
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    protected override int GetStringParamMaxLength() => _roomGrain._wiredConfig.LinkMessageMaxBytes;
+    protected override int GetStringParamMaxLength() => WiredConfig.LinkMessageMaxBytes;
 
     protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
         WiredLinkBoxes.IsLink(item) ? null : WiredLinkBoxes.REQUIRE_LINK_FURNI;
@@ -75,16 +75,11 @@ public class WiredActionSendMessage(
     {
         if (
             WiredLinkBoxes.Utf8Length(update.StringParam ?? string.Empty)
-            > _roomGrain._wiredConfig.LinkMessageMaxBytes
+            > WiredConfig.LinkMessageMaxBytes
         )
             throw new WiredSaveRefusedException(
                 TOO_MUCH_TEXT,
-                (
-                    "limit",
-                    _roomGrain._wiredConfig.LinkMessageMaxBytes.ToString(
-                        CultureInfo.InvariantCulture
-                    )
-                )
+                ("limit", WiredConfig.LinkMessageMaxBytes.ToString(CultureInfo.InvariantCulture))
             );
 
         return base.ApplyWiredUpdateAsync(ctx, update, ct);
@@ -114,10 +109,7 @@ public class WiredActionSendMessage(
         var payload = new WiredLinkPayload
         {
             SourceRoomId = _roomGrain.RoomId,
-            Message = WiredLinkBoxes.TruncateUtf8(
-                message,
-                _roomGrain._wiredConfig.LinkMessageMaxBytes
-            ),
+            Message = WiredLinkBoxes.TruncateUtf8(message, WiredConfig.LinkMessageMaxBytes),
         };
 
         return await WiredLinkBoxes.SendAsync(_grainFactory, _roomGrain.RoomId, links, payload, ct)

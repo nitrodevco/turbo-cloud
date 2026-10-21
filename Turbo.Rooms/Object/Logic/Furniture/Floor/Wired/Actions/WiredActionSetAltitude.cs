@@ -41,7 +41,7 @@ public class WiredActionSetAltitude(
     {
         var amount = GetIntParamOrDefault(0, 0);
         var op = GetIntParamOrDefault(1, WiredOperatorType.Add);
-        var maxAltitude = _roomGrain._roomConfig.MaxStackHeight.ToInt();
+        var maxAltitude = RoomConfig.MaxStackHeight.ToInt();
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {

@@ -33,9 +33,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     private RoomMapSnapshot? _mapSnapshot = null;
     private bool _dirty = true;
 
-    public int Width => _roomGrain._state.Model?.Width ?? 0;
-    public int Height => _roomGrain._state.Model?.Height ?? 0;
-    public int Size => _roomGrain._state.Model?.Size ?? 0;
+    public int Width => State.Model?.Width ?? 0;
+    public int Height => State.Model?.Height ?? 0;
+    public int Size => State.Model?.Size ?? 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int ToIdx(int x, int y) => y * Width + x;
@@ -90,7 +90,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     /// <summary>A tile that is no part of the room: a hole in the model, or outside it.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsTileDisabled(int tileIdx) =>
-        !InBounds(tileIdx) || _roomGrain._state.TileFlags[tileIdx].Has(RoomTileFlags.Disabled);
+        !InBounds(tileIdx) || State.TileFlags[tileIdx].Has(RoomTileFlags.Disabled);
 
     /// <summary>
     /// The furni on top of a tile, the one an avatar there stands on. None off the map. The one
@@ -102,10 +102,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
         if (
             !InBounds(tileIdx)
-            || !_roomGrain._state.ItemsById.TryGetValue(
-                _roomGrain._state.TileHighestFloorItems[tileIdx],
-                out var found
-            )
+            || !State.ItemsById.TryGetValue(State.TileHighestFloorItems[tileIdx], out var found)
             || found is not IRoomFloorItem floorItem
         )
             return false;
@@ -117,7 +114,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
     /// <summary>How high the top of a tile is: what a furni put there lands on. Zero outside the room.</summary>
     public Altitude GetTileHeight(int tileIdx) =>
-        InBounds(tileIdx) ? _roomGrain._state.TileHeights[tileIdx] : Altitude.Zero;
+        InBounds(tileIdx) ? State.TileHeights[tileIdx] : Altitude.Zero;
 
     /// <summary>
     /// The neighbouring tiles that bring <paramref name="fromIdx"/> closer to
@@ -240,10 +237,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     /// </summary>
     public async Task ClickTileAsync(ActionContext ctx, int x, int y, CancellationToken ct)
     {
-        if (
-            !InBounds(x, y)
-            || !_roomGrain._state.TileFlags[ToIdx(x, y)].Has(RoomTileFlags.TileClickListener)
-        )
+        if (!InBounds(x, y) || !State.TileFlags[ToIdx(x, y)].Has(RoomTileFlags.TileClickListener))
             return;
 
         foreach (var item in FurniModule.GetFloorItemsOnTile(ToIdx(x, y)))
@@ -276,10 +270,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
     public void ComputeTile(int id)
     {
-        if (_roomGrain._state.IsTileComputationPaused)
+        if (State.IsTileComputationPaused)
             return;
 
-        foreach (var objectId in _roomGrain._state.TileAvatarStacks[id])
+        foreach (var objectId in State.TileAvatarStacks[id])
         {
             if (AvatarModule.TryGetAvatar(objectId, out var avatar))
                 avatar.NeedsInvoke = true;
@@ -291,11 +285,11 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
             static item => item.Z
         );
 
-        _roomGrain._state.TileHeights[id] = nextHeight;
-        _roomGrain._state.TileFlags[id] = nextFlags;
-        _roomGrain._state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? NO_ITEM;
+        State.TileHeights[id] = nextHeight;
+        State.TileFlags[id] = nextFlags;
+        State.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? NO_ITEM;
 
-        var prevEncoded = _roomGrain._state.TileEncodedHeights[id];
+        var prevEncoded = State.TileEncodedHeights[id];
         // A tile nothing may be stacked on shows the height its top furni stands at, not that
         // furni's top: a chair on the floor is 0, a bed on a 0.01 floor tile 0.01 (hhus, 2026-10-13).
         var nextEncoded = EncodeHeight(
@@ -307,10 +301,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
         if (prevEncoded != nextEncoded)
         {
-            _roomGrain._state.TileEncodedHeights[id] = nextEncoded;
+            State.TileEncodedHeights[id] = nextEncoded;
 
-            if (_roomGrain._state.DirtyHeightTileIds.Add(id))
-                _roomGrain._state.DirtyHeightSentValues[id] = prevEncoded;
+            if (State.DirtyHeightTileIds.Add(id))
+                State.DirtyHeightSentValues[id] = prevEncoded;
         }
 
         _dirty = true;
@@ -320,11 +314,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     {
         TryGetHighestFloorItem(tileIdx, out var highest);
 
-        return new(
-            _roomGrain._state.TileHeights[tileIdx],
-            _roomGrain._state.TileFlags[tileIdx],
-            highest
-        );
+        return new(State.TileHeights[tileIdx], State.TileFlags[tileIdx], highest);
     }
 
     /// <summary>
@@ -338,16 +328,15 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         Func<IRoomFloorItem, Altitude> zOf
     )
     {
-        Altitude nextHeight = _roomGrain._state.Model?.BaseHeights[id] ?? 0.0;
+        Altitude nextHeight = State.Model?.BaseHeights[id] ?? 0.0;
         var nextFlags =
-            _roomGrain._state.Model?.BaseFlags[id]
-            ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
+            State.Model?.BaseFlags[id] ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
 
         IRoomFloorItem? nextHighestItem = null;
         IRoomFloorItem? stackHelper = null;
         Altitude stackHelperZ = 0.0;
 
-        if (_roomGrain._state.TileAvatarStacks[id].Count > 0)
+        if (State.TileAvatarStacks[id].Count > 0)
             nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
 
         foreach (var item in floorItems)
@@ -421,14 +410,14 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         Task.FromResult(
             new RoomTileSnapshot
             {
-                X = (byte)(id % (_roomGrain._state.Model?.Width ?? 0)),
-                Y = (byte)(id / (_roomGrain._state.Model?.Width ?? 0)),
-                Height = _roomGrain._state.TileHeights[id],
-                EncodedHeight = _roomGrain._state.TileEncodedHeights[id],
-                Flags = _roomGrain._state.TileFlags[id],
-                HighestObjectId = _roomGrain._state.TileHighestFloorItems[id],
-                FloorObjectIds = [.. _roomGrain._state.TileFloorStacks[id]],
-                AvatarObjectIds = [.. _roomGrain._state.TileAvatarStacks[id]],
+                X = (byte)(id % (State.Model?.Width ?? 0)),
+                Y = (byte)(id / (State.Model?.Width ?? 0)),
+                Height = State.TileHeights[id],
+                EncodedHeight = State.TileEncodedHeights[id],
+                Flags = State.TileFlags[id],
+                HighestObjectId = State.TileHighestFloorItems[id],
+                FloorObjectIds = [.. State.TileFloorStacks[id]],
+                AvatarObjectIds = [.. State.TileAvatarStacks[id]],
             }
         );
 
@@ -436,15 +425,15 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     {
         return new()
         {
-            ModelName = _roomGrain._state.Model?.Name ?? string.Empty,
-            ModelData = _roomGrain._state.Model?.Model ?? string.Empty,
-            Width = _roomGrain._state.Model?.Width ?? 0,
-            Height = _roomGrain._state.Model?.Height ?? 0,
-            Size = _roomGrain._state.Model?.Size ?? 0,
-            DoorX = _roomGrain._state.Model?.DoorX ?? 0,
-            DoorY = _roomGrain._state.Model?.DoorY ?? 0,
-            DoorRotation = _roomGrain._state.Model?.DoorRotation ?? 0,
-            TileEncodedHeights = [.. _roomGrain._state.TileEncodedHeights],
+            ModelName = State.Model?.Name ?? string.Empty,
+            ModelData = State.Model?.Model ?? string.Empty,
+            Width = State.Model?.Width ?? 0,
+            Height = State.Model?.Height ?? 0,
+            Size = State.Model?.Size ?? 0,
+            DoorX = State.Model?.DoorX ?? 0,
+            DoorY = State.Model?.DoorY ?? 0,
+            DoorRotation = State.Model?.DoorRotation ?? 0,
+            TileEncodedHeights = [.. State.TileEncodedHeights],
         };
     }
 
@@ -459,7 +448,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         if (height < Altitude.Zero || flags.Has(RoomTileFlags.Disabled))
             return -1;
 
-        int stackingMask = 1 << _roomGrain._roomConfig.StackingBlockedMaskBit;
+        int stackingMask = 1 << RoomConfig.StackingBlockedMaskBit;
         int heightMask = stackingMask - 1;
         // Truncated, as Habbo does: a 2.05 high stack is 524, not 525 (hhus, 2026-10-12).
         int raw = (int)(height.Value * 256.0);
@@ -483,9 +472,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
     internal Task EnsureMapBuiltAsync(CancellationToken ct)
     {
-        if (!_roomGrain._state.IsMapReady)
+        if (!State.IsMapReady)
         {
-            var size = _roomGrain._state.Model?.Size ?? 0;
+            var size = State.Model?.Size ?? 0;
 
             var tileHeights = new Altitude[size];
             var tileEncodedHeights = new short[size];
@@ -496,9 +485,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
             for (int id = 0; id < size; id++)
             {
-                var height = _roomGrain._state.Model?.BaseHeights[id] ?? Altitude.Zero;
+                var height = State.Model?.BaseHeights[id] ?? Altitude.Zero;
                 var flags =
-                    _roomGrain._state.Model?.BaseFlags[id]
+                    State.Model?.BaseFlags[id]
                     ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
 
                 tileHeights[id] = height;
@@ -509,13 +498,13 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
                 tileAvatarStacks[id] = [];
             }
 
-            _roomGrain._state.TileHeights = tileHeights;
-            _roomGrain._state.TileEncodedHeights = tileEncodedHeights;
-            _roomGrain._state.TileFlags = tileFlags;
-            _roomGrain._state.TileHighestFloorItems = tileHighestFloorItems;
-            _roomGrain._state.TileFloorStacks = tileFloorStacks;
-            _roomGrain._state.TileAvatarStacks = tileAvatarStacks;
-            _roomGrain._state.IsMapReady = true;
+            State.TileHeights = tileHeights;
+            State.TileEncodedHeights = tileEncodedHeights;
+            State.TileFlags = tileFlags;
+            State.TileHighestFloorItems = tileHighestFloorItems;
+            State.TileFloorStacks = tileFloorStacks;
+            State.TileAvatarStacks = tileAvatarStacks;
+            State.IsMapReady = true;
         }
 
         return Task.CompletedTask;

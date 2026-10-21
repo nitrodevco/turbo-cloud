@@ -66,7 +66,7 @@ public sealed class RoomWaterAreaSystem(RoomGrain roomGrain)
     private bool TryGetWater(RoomObjectId id, out IRoomFloorItem item)
     {
         if (
-            _roomGrain._state.ItemsById.TryGetValue(id, out var found)
+            State.ItemsById.TryGetValue(id, out var found)
             && found is IRoomFloorItem floor
             && floor.Logic is FurnitureWaterAreaLogic
         )

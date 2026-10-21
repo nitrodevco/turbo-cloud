@@ -73,11 +73,7 @@ public class WiredActionCancelTransaction(
             _grainFactory
                 .GetWiredTradeGrain(player.PlayerId)
                 .CancelByWiredAsync(contracts, CancellationToken.None)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "cancel a wired trade in room {RoomId}",
-                    _roomGrain.RoomId
-                );
+                .LogAndForget(Logger, "cancel a wired trade in room {RoomId}", _roomGrain.RoomId);
 
         return Task.FromResult(true);
     }

@@ -79,7 +79,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         var (exitX, exitY) = map.GetTileXY(backIdx);
 
         // Shut again even if the avatar never steps in (its walk was taken over).
-        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.OneWayDoorCloseMs, CloseAsync);
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.OneWayDoorCloseMs, CloseAsync);
 
         if (!await AvatarModule.WalkAvatarToAsync(avatar, exitX, exitY, ct))
         {
@@ -97,7 +97,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         // Off the gate onto the tile behind: shut as the step there ends, when it arrives.
         if (_passing == ctx.ObjectId)
-            TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, CloseAsync);
+            TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.AvatarTickMs, CloseAsync);
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
@@ -115,11 +115,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         // Never close on top of someone still crossing; try again shortly.
         if (tile.Flags.Has(RoomTileFlags.AvatarOccupied))
         {
-            TimerSystem.Schedule(
-                _ctx.ObjectId,
-                _roomGrain._roomConfig.OneWayDoorCloseMs,
-                CloseAsync
-            );
+            TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.OneWayDoorCloseMs, CloseAsync);
 
             return;
         }

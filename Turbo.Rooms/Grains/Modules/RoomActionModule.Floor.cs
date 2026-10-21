@@ -53,7 +53,7 @@ public sealed partial class RoomActionModule
 
         await WritePlacementAsync(ctx, item, ct);
 
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
+        var inventory = GrainFactory.GetInventoryGrain(item.OwnerId);
 
         await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
 

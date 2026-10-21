@@ -52,7 +52,7 @@ public class WiredActionResetRewardTrack(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Wired reward track {TrackId} could not be reset for player {PlayerId} in room {RoomId}",
                     trackId,

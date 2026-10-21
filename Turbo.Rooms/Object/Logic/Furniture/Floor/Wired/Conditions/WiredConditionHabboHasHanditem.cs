@@ -21,8 +21,7 @@ public class WiredConditionHabboHasHanditem(
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_HAS_HANDITEM;
 
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.HandItem(_roomGrain._wiredConfig)];
+    public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.HandItem(WiredConfig)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

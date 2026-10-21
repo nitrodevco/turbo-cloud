@@ -26,8 +26,7 @@ public class WiredActionBotGiveHandItem(
 
     protected override bool IsBotOptional => true;
 
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.HandItem(_roomGrain._wiredConfig)];
+    public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.HandItem(WiredConfig)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
 

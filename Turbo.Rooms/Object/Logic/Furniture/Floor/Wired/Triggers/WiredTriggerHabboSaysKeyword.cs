@@ -104,10 +104,7 @@ public class WiredTriggerHabboSaysKeyword(
         var keyword = GetStringParam();
 
         // The editor takes far more than Habbo fires on: a longer pattern never matches.
-        if (
-            keyword.Length == 0
-            || keyword.Length > _roomGrain._wiredConfig.ChatTriggerPatternMaxLength
-        )
+        if (keyword.Length == 0 || keyword.Length > WiredConfig.ChatTriggerPatternMaxLength)
             return Task.FromResult(false);
 
         var text = chatEvt.Text.Trim();
@@ -187,7 +184,7 @@ public class WiredTriggerHabboSaysKeyword(
                 text,
                 pattern.ToString(),
                 RegexOptions.IgnoreCase | RegexOptions.Singleline,
-                TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
+                TimeSpan.FromMilliseconds(WiredConfig.RegexMatchTimeoutMs)
             );
         }
         catch (RegexMatchTimeoutException ex)

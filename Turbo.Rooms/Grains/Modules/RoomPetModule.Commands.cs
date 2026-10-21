@@ -45,7 +45,7 @@ public sealed partial class RoomPetModule
         if (!TryGetPet(petId, out var pet))
             return false;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetCommandsMessageComposer
             {
@@ -141,7 +141,7 @@ public sealed partial class RoomPetModule
 
         if (pet.Energy < Config.CommandEnergyCost || pet.Nutrition < Config.CommandNutritionCost)
         {
-            _roomGrain._logger.LogDebug(
+            Logger.LogDebug(
                 "Pet {PetId} in room {RoomId} is too tired for {Command}",
                 pet.PetId,
                 _roomGrain.RoomId,
@@ -400,7 +400,7 @@ public sealed partial class RoomPetModule
             ct
         );
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             pet.OwnerId,
             new PetLevelNotificationEventMessageComposer
             {
@@ -492,7 +492,7 @@ public sealed partial class RoomPetModule
         if (!MapModule.InBounds(idx))
             return false;
 
-        var flags = _roomGrain._state.TileFlags[idx];
+        var flags = State.TileFlags[idx];
 
         return !flags.Has(RoomTileFlags.Disabled)
             && !flags.Has(RoomTileFlags.Closed)

@@ -58,7 +58,7 @@ public abstract class FurnitureAreaHideFlagVariable(RoomGrain roomGrain)
         logic
             .SetValueAtAsync(Index, 0)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "turn off an area hide setting in room {RoomId}",
                 _roomGrain.RoomId
             );

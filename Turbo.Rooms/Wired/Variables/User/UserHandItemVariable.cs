@@ -27,8 +27,7 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanCreateAndDelete
         | WiredVariableFlags.HasTextConnector;
 
-    private IEnumerable<int> TextIds =>
-        WiredTextConnectors.UpTo(_roomGrain._wiredConfig.MaxHandItemId);
+    private IEnumerable<int> TextIds => WiredTextConnectors.UpTo(WiredConfig.MaxHandItemId);
 
     protected internal override string TextPrefix =>
         WiredTextConnectors.Prefix(WiredTextConnectors.HAND_ITEM_KEY);
@@ -72,11 +71,7 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
 
         AvatarModule
             .SetHandItemAsync(avatar, 0, CancellationToken.None)
-            .LogAndForget(
-                _roomGrain._logger,
-                "empty a hand from wired in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "empty a hand from wired in room {RoomId}", _roomGrain.RoomId);
 
         return true;
     }
@@ -87,7 +82,7 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
     /// </summary>
     private async Task<bool> PutInHandAsync(IRoomAvatar avatar, WiredVariableValue value)
     {
-        if (value.Value < 0 || value.Value > _roomGrain._wiredConfig.MaxHandItemId)
+        if (value.Value < 0 || value.Value > WiredConfig.MaxHandItemId)
             return false;
 
         await AvatarModule.SetHandItemAsync(avatar, value.ClampToInt(), CancellationToken.None);

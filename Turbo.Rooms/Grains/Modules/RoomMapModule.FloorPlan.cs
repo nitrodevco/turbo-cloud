@@ -58,7 +58,7 @@ public sealed partial class RoomMapModule
     {
         if (!TryReadFloorPlan(modelData, allowLarge, out var rows, out var reason, out var error))
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Room {RoomId} refused a floor plan: {Reason}",
                 _roomGrain.RoomId,
                 reason
@@ -69,7 +69,7 @@ public sealed partial class RoomMapModule
 
         var width = rows.Max(x => x.Length);
         var height = rows.Count;
-        var model = _roomGrain._state.Model;
+        var model = State.Model;
 
         // Keeping the door where it was is the answer both to a save that does not mention one
         // and to one whose door the new plan has no tile for.
@@ -88,7 +88,7 @@ public sealed partial class RoomMapModule
         {
             reason = "it has no tile for the door, old or new";
 
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Room {RoomId} refused a floor plan: {Reason}",
                 _roomGrain.RoomId,
                 reason
@@ -109,7 +109,7 @@ public sealed partial class RoomMapModule
         if (reloaded is null)
             return GeneralError;
 
-        _roomGrain._logger.LogInformation(
+        Logger.LogInformation(
             "Room {RoomId} saved a floor plan of {Width}x{Height} on model {ModelId}",
             _roomGrain.RoomId,
             width,
@@ -175,7 +175,7 @@ public sealed partial class RoomMapModule
 
         var width = rows.Max(x => x.Length);
         var height = rows.Count;
-        var maxAxis = _roomGrain._roomConfig.FloorPlanMaxAxisLength;
+        var maxAxis = RoomConfig.FloorPlanMaxAxisLength;
 
         if (width > maxAxis || height > maxAxis)
         {
@@ -189,11 +189,11 @@ public sealed partial class RoomMapModule
         }
 
         // Counted the way the editor counts it, so the two agree on what is too big.
-        if (!allowLarge && (width - 1) * (height - 1) > _roomGrain._roomConfig.FloorPlanMaxArea)
+        if (!allowLarge && (width - 1) * (height - 1) > RoomConfig.FloorPlanMaxArea)
         {
-            reason = $"it covers more than {_roomGrain._roomConfig.FloorPlanMaxArea} tiles";
+            reason = $"it covers more than {RoomConfig.FloorPlanMaxArea} tiles";
             error =
-                $"{ErrorText("too_large_area")} ({ErrorText("max")} {_roomGrain._roomConfig.FloorPlanMaxArea} {ErrorText("tiles")})";
+                $"{ErrorText("too_large_area")} ({ErrorText("max")} {RoomConfig.FloorPlanMaxArea} {ErrorText("tiles")})";
 
             return false;
         }
@@ -311,7 +311,7 @@ public sealed partial class RoomMapModule
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to save the floor plan of room {RoomId}",
                 _roomGrain.RoomId
@@ -340,7 +340,7 @@ public sealed partial class RoomMapModule
 
         if (homeless.Count > 0)
         {
-            _roomGrain._logger.LogInformation(
+            Logger.LogInformation(
                 "The new floor plan of room {RoomId} has no tile for {Count} furni, which went home",
                 _roomGrain.RoomId,
                 homeless.Count
@@ -353,22 +353,22 @@ public sealed partial class RoomMapModule
             );
         }
 
-        var avatars = _roomGrain._state.AvatarsByObjectId.Values.ToList();
+        var avatars = State.AvatarsByObjectId.Values.ToList();
 
         foreach (var avatar in avatars)
             RemoveAvatar(avatar, false);
 
-        var items = _roomGrain._state.ItemsById.Values.ToList();
+        var items = State.ItemsById.Values.ToList();
 
         foreach (var item in items)
             RemoveItem(item);
 
-        _roomGrain._state.Model = model;
-        _roomGrain._state.IsMapReady = false;
+        State.Model = model;
+        State.IsMapReady = false;
 
         await EnsureMapBuiltAsync(ct);
 
-        _roomGrain._state.IsTileComputationPaused = true;
+        State.IsTileComputationPaused = true;
 
         foreach (var item in items)
             AddItem(item);
@@ -383,11 +383,11 @@ public sealed partial class RoomMapModule
             AddAvatar(avatar, false);
         }
 
-        _roomGrain._state.IsTileComputationPaused = false;
+        State.IsTileComputationPaused = false;
 
         ComputeAllTiles();
-        _roomGrain._state.DirtyHeightTileIds.Clear();
-        _roomGrain._state.DirtyHeightSentValues.Clear();
+        State.DirtyHeightTileIds.Clear();
+        State.DirtyHeightSentValues.Clear();
 
         foreach (var avatar in avatars)
         {

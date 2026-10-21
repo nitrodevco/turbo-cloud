@@ -44,7 +44,7 @@ public sealed partial class RoomPetModule
 
         if (nests.Count == 0)
         {
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 ctx.PlayerId,
                 new GoToBreedingNestFailureEventMessageComposer
                 {
@@ -86,14 +86,14 @@ public sealed partial class RoomPetModule
     {
         if (
             avatar is not IRoomPet pet
-            || !_roomGrain._state.ItemsById.TryGetValue(pet.TargetItemId, out var item)
+            || !State.ItemsById.TryGetValue(pet.TargetItemId, out var item)
             || item.Logic is not FurniturePetBreedingNestLogic nest
             || MapModule.ToIdx(item.X, item.Y) != tileIdx
             || !nest.CanAccept(pet)
         )
             return false;
 
-        foreach (var objectId in _roomGrain._state.TileAvatarStacks[tileIdx])
+        foreach (var objectId in State.TileAvatarStacks[tileIdx])
         {
             if (objectId == pet.ObjectId)
                 continue;
@@ -135,7 +135,7 @@ public sealed partial class RoomPetModule
     {
         var nestId = nest.Context.ObjectId;
 
-        if (_roomGrain._state.PendingNestBreedings.ContainsKey(nestId))
+        if (State.PendingNestBreedings.ContainsKey(nestId))
             return;
 
         if (
@@ -152,7 +152,7 @@ public sealed partial class RoomPetModule
             OwnerIds = [pet1.OwnerId, pet2.OwnerId],
         };
 
-        _roomGrain._state.PendingNestBreedings[nestId] = session;
+        State.PendingNestBreedings[nestId] = session;
 
         var request = new ConfirmBreedingRequestEventMessageComposer
         {
@@ -164,7 +164,7 @@ public sealed partial class RoomPetModule
         };
 
         foreach (var ownerId in session.OwnerIds)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(ownerId, request, ct);
+            await GrainFactory.SendComposerToPlayerAsync(ownerId, request, ct);
     }
 
     public async Task<bool> ConfirmNestBreedingAsync(
@@ -177,7 +177,7 @@ public sealed partial class RoomPetModule
     )
     {
         if (
-            !_roomGrain._state.PendingNestBreedings.TryGetValue(nestId, out var session)
+            !State.PendingNestBreedings.TryGetValue(nestId, out var session)
             || !session.OwnerIds.Contains(ctx.PlayerId)
             || !session.Involves(petId)
             || !session.Involves(otherPetId)
@@ -237,7 +237,7 @@ public sealed partial class RoomPetModule
 
         if (offspring is null)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Nest breeding in room {RoomId} produced no pet for player {OwnerId}; the inventory refused it",
                 _roomGrain.RoomId,
                 pet1.OwnerId
@@ -250,7 +250,7 @@ public sealed partial class RoomPetModule
         }
 
         foreach (var ownerId in session.OwnerIds)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 ownerId,
                 new NestBreedingSuccessEventMessageComposer
                 {
@@ -272,7 +272,7 @@ public sealed partial class RoomPetModule
     )
     {
         if (
-            !_roomGrain._state.PendingNestBreedings.TryGetValue(nestId, out var session)
+            !State.PendingNestBreedings.TryGetValue(nestId, out var session)
             || !session.OwnerIds.Contains(ctx.PlayerId)
         )
             return false;
@@ -293,10 +293,10 @@ public sealed partial class RoomPetModule
     )
     {
         // Out of the pending list first, so taking the nest away does not end this breeding.
-        _roomGrain._state.PendingNestBreedings.Remove(session.NestId);
+        State.PendingNestBreedings.Remove(session.NestId);
 
         if (
-            !_roomGrain._state.ItemsById.TryGetValue(session.NestId, out var nest)
+            !State.ItemsById.TryGetValue(session.NestId, out var nest)
             || !await ObjectModule.RemoveObjectAsync(ctx, nest, ct)
         )
         {
@@ -327,7 +327,7 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        _roomGrain._state.PendingNestBreedings.Remove(session.NestId);
+        State.PendingNestBreedings.Remove(session.NestId);
 
         foreach (var ownerId in session.OwnerIds)
             await SendResultAsync(ownerId, session.NestId, result, ct);
@@ -345,7 +345,7 @@ public sealed partial class RoomPetModule
         ConfirmBreedingResultType result,
         CancellationToken ct
     ) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             playerId,
             new ConfirmBreedingResultEventMessageComposer { NestId = nestId, Result = result },
             ct
@@ -354,9 +354,7 @@ public sealed partial class RoomPetModule
     /// <summary>Takes the pet out of any nest it occupies, ending a breeding that depended on it.</summary>
     internal async Task LeaveNestAsync(IRoomPet pet, CancellationToken ct)
     {
-        var session = _roomGrain._state.PendingNestBreedings.Values.FirstOrDefault(x =>
-            x.Involves(pet.PetId)
-        );
+        var session = State.PendingNestBreedings.Values.FirstOrDefault(x => x.Involves(pet.PetId));
 
         if (session is not null)
             await EndNestSessionAsync(session, ConfirmBreedingResultType.PetsMissing, ct);
@@ -366,7 +364,7 @@ public sealed partial class RoomPetModule
 
     private void ReleaseFromNest(IRoomPet pet)
     {
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in State.ItemsById.Values)
         {
             if (item.Logic is FurniturePetBreedingNestLogic nest)
                 nest.RemoveOccupant(pet.PetId);
@@ -379,11 +377,11 @@ public sealed partial class RoomPetModule
     /// <summary>The nest was picked up from under its occupants.</summary>
     internal async Task OnNestRemovedAsync(RoomObjectId nestId, CancellationToken ct)
     {
-        if (_roomGrain._state.PendingNestBreedings.TryGetValue(nestId, out var session))
+        if (State.PendingNestBreedings.TryGetValue(nestId, out var session))
             await EndNestSessionAsync(session, ConfirmBreedingResultType.NoNest, ct);
 
         if (
-            _roomGrain._state.ItemsById.TryGetValue(nestId, out var item)
+            State.ItemsById.TryGetValue(nestId, out var item)
             && item.Logic is FurniturePetBreedingNestLogic nest
         )
         {
@@ -568,13 +566,13 @@ public sealed partial class RoomPetModule
             return false;
 
         if (
-            _roomGrain._state.PendingPlantBreedings.Values.Any(x =>
+            State.PendingPlantBreedings.Values.Any(x =>
                 x.Involves(pet.PetId) || x.Involves(other.PetId)
             )
         )
             return false;
 
-        _roomGrain._state.PendingPlantBreedings[pet.PetId] = new PlantBreedingRequest
+        State.PendingPlantBreedings[pet.PetId] = new PlantBreedingRequest
         {
             PetId = pet.PetId,
             OtherPetId = other.PetId,
@@ -582,7 +580,7 @@ public sealed partial class RoomPetModule
             OtherOwnerId = other.OwnerId,
         };
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             other.OwnerId,
             new PetBreedingEventMessageComposer
             {
@@ -592,7 +590,7 @@ public sealed partial class RoomPetModule
             },
             ct
         );
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetBreedingEventMessageComposer
             {
@@ -644,7 +642,7 @@ public sealed partial class RoomPetModule
 
         if (definition is null)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Seed definition {Name} is missing; monsterplants {PetId} and {OtherPetId} cannot breed",
                 Config.MonsterplantSeedDefinitionName,
                 pet.PetId,
@@ -719,7 +717,7 @@ public sealed partial class RoomPetModule
             HasMutation = false,
         };
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             request.RequesterId,
             new PetBreedingResultEventMessageComposer
             {
@@ -730,7 +728,7 @@ public sealed partial class RoomPetModule
         );
 
         if (request.OtherOwnerId != request.RequesterId)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 request.OtherOwnerId,
                 new PetBreedingResultEventMessageComposer
                 {
@@ -741,10 +739,10 @@ public sealed partial class RoomPetModule
             );
 
         foreach (var ownerId in new[] { request.RequesterId, request.OtherOwnerId }.Distinct())
-            _roomGrain._grainFactory.CountRewardTrackAction(
+            GrainFactory.CountRewardTrackAction(
                 ownerId,
                 RewardTrackActionTypes.BREED_MONSTER_PLANT,
-                _roomGrain._logger
+                Logger
             );
 
         return true;
@@ -781,7 +779,7 @@ public sealed partial class RoomPetModule
     }
 
     private PlantBreedingRequest? FindPlantRequest(int petId, int otherPetId) =>
-        _roomGrain._state.PendingPlantBreedings.Values.FirstOrDefault(x =>
+        State.PendingPlantBreedings.Values.FirstOrDefault(x =>
             x.Involves(petId) && x.Involves(otherPetId)
         );
 
@@ -791,9 +789,9 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        _roomGrain._state.PendingPlantBreedings.Remove(request.PetId);
+        State.PendingPlantBreedings.Remove(request.PetId);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             request.RequesterId,
             new PetBreedingEventMessageComposer
             {
@@ -805,7 +803,7 @@ public sealed partial class RoomPetModule
         );
 
         if (request.OtherOwnerId != request.RequesterId)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 request.OtherOwnerId,
                 new PetBreedingEventMessageComposer
                 {

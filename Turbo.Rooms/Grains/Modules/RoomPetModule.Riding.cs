@@ -265,7 +265,7 @@ public sealed partial class RoomPetModule
 
         if (definition is null)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Saddle definition {Id} ({Name}) is missing; the saddle of pet {PetId} stays on",
                 pet.SaddleDefinitionId,
                 Config.SaddleDefinitionName,

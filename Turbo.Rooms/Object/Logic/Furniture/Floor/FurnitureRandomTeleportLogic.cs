@@ -76,7 +76,7 @@ public class FurnitureRandomTeleportLogic(
         }
 
         if (_arriving.Count > 0 || _flashUntilMs > 0)
-            TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, TickAsync);
+            TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.AvatarTickMs, TickAsync);
     }
 
     private async Task SendArrivingAsync(CancellationToken ct)
@@ -129,8 +129,8 @@ public class FurnitureRandomTeleportLogic(
         if (GetState() != FLASH_STATE)
             await SetStateAsync(FLASH_STATE);
 
-        _flashUntilMs = _roomGrain.NowMs() + _roomGrain._roomConfig.RandomTeleportFlashMs;
-        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.AvatarTickMs, TickAsync);
+        _flashUntilMs = _roomGrain.NowMs() + RoomConfig.RandomTeleportFlashMs;
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.AvatarTickMs, TickAsync);
     }
 
     // Mid-step an avatar is already on the tile it steps onto, though its position is not.

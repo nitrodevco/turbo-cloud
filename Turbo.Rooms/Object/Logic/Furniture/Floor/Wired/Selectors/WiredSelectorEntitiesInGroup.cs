@@ -35,8 +35,7 @@ public class WiredSelectorEntitiesInGroup(
     )
     {
         var output = new WiredSelectionSet();
-        var wantedGroupId =
-            GetPositiveIdParam() ?? _roomGrain._state.RoomSnapshot?.Guild?.GuildId.Value;
+        var wantedGroupId = GetPositiveIdParam() ?? State.RoomSnapshot?.Guild?.GuildId.Value;
 
         if (wantedGroupId is not > 0)
             return Task.FromResult<IWiredSelectionSet>(output);

@@ -30,7 +30,7 @@ public sealed partial class RoomWiredSystem
 
     private bool ErrorNoticeCoolingDown(WiredErrorKind kind, long now) =>
         _errorNoticeSent[(int)kind]
-        && now - _errorNoticeLastMs[(int)kind] < _roomGrain._wiredConfig.ErrorNoticeCooldownMs;
+        && now - _errorNoticeLastMs[(int)kind] < WiredConfig.ErrorNoticeCooldownMs;
 
     /// <summary>
     /// The <c>wired.error</c> bubble for a monitor error that has a <c>room.error.wired.*</c> text,
@@ -39,7 +39,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private void SendErrorNotice(WiredErrorKind kind, long now)
     {
-        var config = _roomGrain._wiredConfig;
+        var config = WiredConfig;
 
         if (!ERROR_NOTICE_TEXTS.TryGetValue(kind, out var message))
             return;
@@ -72,13 +72,13 @@ public sealed partial class RoomWiredSystem
             return;
         }
 
-        if (_roomGrain._state.RoomSnapshot is not { } room)
+        if (State.RoomSnapshot is not { } room)
             return;
 
         _roomGrain
             ._grainFactory.SendComposerToPlayerAsync(room.OwnerId, notice, default)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "send a wired error notice to the owner of room {RoomId}",
                 _roomGrain.RoomId
             );

@@ -74,10 +74,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (
-            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-            || item is not IRoomWallItem wall
-        )
+        if (!State.ItemsById.TryGetValue(itemId, out var item) || item is not IRoomWallItem wall)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         return await MoveWallItemAsync(ctx, wall, x, y, z, wallOffset, rot, announce: true, ct);

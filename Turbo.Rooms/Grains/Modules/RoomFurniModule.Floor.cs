@@ -75,7 +75,7 @@ public sealed partial class RoomFurniModule
             await _roomGrain.SendComposersToRoomExceptAsync(composers, [playerId], ct);
 
             foreach (var composer in composers)
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
+                await GrainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
         }
         else
         {
@@ -95,10 +95,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (
-            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-            || item is not IRoomFloorItem floor
-        )
+        if (!State.ItemsById.TryGetValue(itemId, out var item) || item is not IRoomFloorItem floor)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         return await MoveFloorItemAsync(
@@ -196,7 +193,7 @@ public sealed partial class RoomFurniModule
 
             if (
                 tileFlags.Has(RoomTileFlags.Disabled)
-                || tileHeight + stackHeight > _roomGrain._roomConfig.MaxStackHeight
+                || tileHeight + stackHeight > RoomConfig.MaxStackHeight
                 || (
                     tileFlags.Has(RoomTileFlags.StackBlocked)
                     && !isSelf
@@ -210,7 +207,7 @@ public sealed partial class RoomFurniModule
                 // Turning an item in place never lands it on anyone new.
                 var turningInPlace = isSelf && item.Rotation != rot;
 
-                if (!_roomGrain._roomConfig.PlaceItemsOnAvatars && !turningInPlace)
+                if (!RoomConfig.PlaceItemsOnAvatars && !turningInPlace)
                     return false;
 
                 // The avatars there end up on the item being placed, so it is that item which

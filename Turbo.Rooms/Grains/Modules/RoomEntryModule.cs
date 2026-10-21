@@ -36,17 +36,17 @@ public sealed class RoomEntryModule(
         bool bypassDoor
     )
     {
-        if (_roomGrain._state.IsDeleting)
+        if (State.IsDeleting)
             return RoomEntryAccessType.Closed;
 
         var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
-        var snapshot = _roomGrain._state.RoomSnapshot;
+        var snapshot = State.RoomSnapshot;
 
         // A player with an avatar here is reloading the room they are already standing in. They
         // already hold a slot and are already past the door, so counting them against capacity or
         // sending them back to the doorbell would eject them from a room they legitimately
         // occupy. Bans still apply, so a ban placed while they are inside takes effect.
-        var isReentering = _roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId);
+        var isReentering = State.AvatarsByPlayerId.ContainsKey(playerId);
 
         if (controllerLevel < RoomControllerType.Owner)
         {
@@ -70,7 +70,7 @@ public sealed class RoomEntryModule(
             if (
                 !isReentering
                 && snapshot.PlayersMax > 0
-                && _roomGrain._state.AvatarsByPlayerId.Count >= snapshot.PlayersMax
+                && State.AvatarsByPlayerId.Count >= snapshot.PlayersMax
                 && !await SecurityModule.HasPermissionAsync(
                     playerId,
                     PermissionNodes.Room.ENTER_FULL
@@ -120,9 +120,9 @@ public sealed class RoomEntryModule(
         if (controllerIds.Count == 0)
             return false;
 
-        _roomGrain._state.DoorbellRingersByName[playerName] = playerId;
+        State.DoorbellRingersByName[playerName] = playerId;
 
-        await _roomGrain._grainFactory.SendComposerToPlayersAsync(
+        await GrainFactory.SendComposerToPlayersAsync(
             controllerIds,
             new DoorbellMessageComposer { Username = playerName },
             ct
@@ -148,7 +148,7 @@ public sealed class RoomEntryModule(
         if (controllerLevel < RoomControllerType.Rights)
             return null;
 
-        if (!_roomGrain._state.DoorbellRingersByName.Remove(playerName, out var ringerId))
+        if (!State.DoorbellRingersByName.Remove(playerName, out var ringerId))
             return null;
 
         var controllerIds = await GetPresentControllerIdsAsync();
@@ -165,14 +165,14 @@ public sealed class RoomEntryModule(
                 Username = playerName,
             };
 
-        await _roomGrain._grainFactory.SendComposerToPlayersAsync(controllerIds, composer, ct);
+        await GrainFactory.SendComposerToPlayersAsync(controllerIds, composer, ct);
 
         return ringerId;
     }
 
     public void RemoveDoorbellRinger(PlayerId playerId)
     {
-        var ringers = _roomGrain._state.DoorbellRingersByName;
+        var ringers = State.DoorbellRingersByName;
 
         foreach (var name in ringers.Where(x => x.Value == playerId).Select(x => x.Key).ToList())
             ringers.Remove(name);
@@ -180,20 +180,20 @@ public sealed class RoomEntryModule(
 
     public bool GetIsBanned(PlayerId playerId)
     {
-        if (!_roomGrain._state.BannedUntilByPlayerId.TryGetValue(playerId, out var bannedUntil))
+        if (!State.BannedUntilByPlayerId.TryGetValue(playerId, out var bannedUntil))
             return false;
 
         if (bannedUntil > DateTime.UtcNow)
             return true;
 
-        _roomGrain._state.BannedUntilByPlayerId.Remove(playerId);
+        State.BannedUntilByPlayerId.Remove(playerId);
 
         return false;
     }
 
     internal async Task EnsureBansLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsBansLoaded)
+        if (State.IsBansLoaded)
             return;
 
         var now = DateTime.UtcNow;
@@ -206,10 +206,9 @@ public sealed class RoomEntryModule(
             .ToListAsync(ct);
 
         foreach (var entity in entities)
-            _roomGrain._state.BannedUntilByPlayerId[PlayerId.Parse(entity.PlayerEntityId)] =
-                entity.DateExpires;
+            State.BannedUntilByPlayerId[PlayerId.Parse(entity.PlayerEntityId)] = entity.DateExpires;
 
-        _roomGrain._state.IsBansLoaded = true;
+        State.IsBansLoaded = true;
     }
 
     private static RoomEntryAccessType CheckPassword(string expected, string? provided)
@@ -231,7 +230,7 @@ public sealed class RoomEntryModule(
     /// </summary>
     private async Task<List<PlayerId>> GetPresentControllerIdsAsync()
     {
-        var playerIds = _roomGrain._state.AvatarsByPlayerId.Keys.ToList();
+        var playerIds = State.AvatarsByPlayerId.Keys.ToList();
         var levels = await Task.WhenAll(
             playerIds.Select(x => SecurityModule.GetControllerLevelAsync(x))
         );

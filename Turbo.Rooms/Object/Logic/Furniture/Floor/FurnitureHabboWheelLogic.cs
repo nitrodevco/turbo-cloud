@@ -38,7 +38,7 @@ public class FurnitureHabboWheelLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         await SetStateAsync(WheelStates.SPINNING);
 
-        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.WheelSpinMs, StopAsync);
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.WheelSpinMs, StopAsync);
 
         return true;
     }

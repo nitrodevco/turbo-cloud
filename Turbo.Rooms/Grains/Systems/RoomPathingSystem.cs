@@ -69,7 +69,7 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to find a path for avatar {ObjectId} from tile {From} to tile {To} in room {RoomId}",
                 avatar.ObjectId,
@@ -120,7 +120,7 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain) : RoomGrainComponent(
         var map = MapModule;
         var width = map.Width;
         var height = map.Height;
-        var maxNodes = _roomGrain._roomConfig.MaxPathNodes;
+        var maxNodes = RoomConfig.MaxPathNodes;
         var goalX = goalIdx % width;
         var goalY = goalIdx / width;
         var stamp = BeginSearch(map.Size);

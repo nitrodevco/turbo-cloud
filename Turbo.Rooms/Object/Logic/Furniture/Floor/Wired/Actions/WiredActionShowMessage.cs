@@ -45,8 +45,7 @@ public class WiredActionShowMessage(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
-    protected override int GetStringParamMaxLength() =>
-        _roomGrain._wiredConfig.ShowMessageMaxLength;
+    protected override int GetStringParamMaxLength() => WiredConfig.ShowMessageMaxLength;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         TextPlaceholdersContext();

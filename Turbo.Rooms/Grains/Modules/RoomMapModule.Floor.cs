@@ -22,7 +22,7 @@ public sealed partial class RoomMapModule
 
         foreach (var idx in tileIds)
         {
-            _roomGrain._state.TileFloorStacks[idx].Add(item.ObjectId);
+            State.TileFloorStacks[idx].Add(item.ObjectId);
 
             ComputeTile(idx);
         }
@@ -50,7 +50,7 @@ public sealed partial class RoomMapModule
 
             // Measured once it is off its own tiles, so an item turned in place under a stack
             // lands on top of it, as the hotel does, rather than keeping its height.
-            var finalZ = z ?? _roomGrain._state.TileHeights[tileIdx];
+            var finalZ = z ?? State.TileHeights[tileIdx];
 
             item.SetPosition(targetX, targetY);
             item.SetPositionZ(finalZ);
@@ -97,7 +97,7 @@ public sealed partial class RoomMapModule
 
         foreach (var idx in tileIds)
         {
-            _roomGrain._state.TileFloorStacks[idx].Remove(item.ObjectId);
+            State.TileFloorStacks[idx].Remove(item.ObjectId);
 
             ComputeTile(idx);
         }

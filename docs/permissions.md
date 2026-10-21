@@ -515,7 +515,7 @@ depths.
 
    ```csharp
    public bool IsRoomOwner(PlayerId playerId) =>
-       _roomGrain._state.RoomSnapshot.OwnerId == playerId
+       State.RoomSnapshot.OwnerId == playerId
        || HasPermission(playerId, PermissionNodes.Room.CONTROL_ANY);
    ```
 

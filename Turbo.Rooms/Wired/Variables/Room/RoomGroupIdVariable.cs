@@ -28,5 +28,5 @@ public sealed class RoomGroupIdVariable(RoomGrain roomGrain) : RoomVariable(room
     protected override WiredVariableValue GetValueForRoom(RoomGrain roomGrain) =>
         WiredVariableValue.Parse(GroupId);
 
-    private int GroupId => _roomGrain._state.RoomSnapshot.Guild?.GuildId.Value ?? 0;
+    private int GroupId => State.RoomSnapshot.Guild?.GuildId.Value ?? 0;
 }

@@ -39,14 +39,14 @@ public sealed class RoomModerationModule(
     /// </summary>
     public int GetRemainingMuteSeconds(PlayerId playerId)
     {
-        if (!_roomGrain._state.MutedUntilByPlayerId.TryGetValue(playerId, out var mutedUntil))
+        if (!State.MutedUntilByPlayerId.TryGetValue(playerId, out var mutedUntil))
             return 0;
 
         var remaining = mutedUntil - DateTime.UtcNow;
 
         if (remaining <= TimeSpan.Zero)
         {
-            _roomGrain._state.MutedUntilByPlayerId.Remove(playerId);
+            State.MutedUntilByPlayerId.Remove(playerId);
 
             return 0;
         }
@@ -59,7 +59,7 @@ public sealed class RoomModerationModule(
     /// </summary>
     public async Task<bool> IsSilencedByRoomMuteAsync(PlayerId playerId)
     {
-        if (!_roomGrain._state.IsRoomMuted)
+        if (!State.IsRoomMuted)
             return false;
 
         var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
@@ -109,10 +109,7 @@ public sealed class RoomModerationModule(
     /// <summary>Writes the mute, capped at the room's maximum, and starts applying it.</summary>
     private async Task StoreMuteAsync(PlayerId playerId, int durationMinutes, CancellationToken ct)
     {
-        durationMinutes = Math.Min(
-            durationMinutes,
-            _roomGrain._roomConfig.ChatMuteMaxDurationMinutes
-        );
+        durationMinutes = Math.Min(durationMinutes, RoomConfig.ChatMuteMaxDurationMinutes);
 
         var expiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
 
@@ -143,7 +140,7 @@ public sealed class RoomModerationModule(
 
         await dbCtx.SaveChangesAsync(ct);
 
-        _roomGrain._state.MutedUntilByPlayerId[playerId] = expiresAt;
+        State.MutedUntilByPlayerId[playerId] = expiresAt;
     }
 
     public async Task<bool> UnmutePlayerAsync(
@@ -163,7 +160,7 @@ public sealed class RoomModerationModule(
             )
             .ExecuteDeleteAsync(ct);
 
-        return _roomGrain._state.MutedUntilByPlayerId.Remove(playerId);
+        return State.MutedUntilByPlayerId.Remove(playerId);
     }
 
     public async Task<bool> ToggleRoomMuteAsync(ActionContext ctx, CancellationToken ct)
@@ -173,10 +170,10 @@ public sealed class RoomModerationModule(
         if (controllerLevel < RoomControllerType.Owner)
             return false;
 
-        _roomGrain._state.IsRoomMuted = !_roomGrain._state.IsRoomMuted;
+        State.IsRoomMuted = !State.IsRoomMuted;
 
         await _roomGrain.SendComposerToRoomAsync(
-            new MuteAllInRoomEventMessageComposer { IsMuted = _roomGrain._state.IsRoomMuted },
+            new MuteAllInRoomEventMessageComposer { IsMuted = State.IsRoomMuted },
             ct
         );
 
@@ -185,7 +182,7 @@ public sealed class RoomModerationModule(
 
     internal async Task EnsureMutesLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsMutesLoaded)
+        if (State.IsMutesLoaded)
             return;
 
         var now = DateTime.UtcNow;
@@ -198,10 +195,9 @@ public sealed class RoomModerationModule(
             .ToListAsync(ct);
 
         foreach (var entity in entities)
-            _roomGrain._state.MutedUntilByPlayerId[PlayerId.Parse(entity.PlayerEntityId)] =
-                entity.DateExpires;
+            State.MutedUntilByPlayerId[PlayerId.Parse(entity.PlayerEntityId)] = entity.DateExpires;
 
-        _roomGrain._state.IsMutesLoaded = true;
+        State.IsMutesLoaded = true;
     }
 
     public async Task<bool> KickPlayerAsync(
@@ -210,13 +206,7 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (
-            !await CanModerateAsync(
-                ctx,
-                playerId,
-                _roomGrain._state.RoomSnapshot.ModSettings.WhoCanKick
-            )
-        )
+        if (!await CanModerateAsync(ctx, playerId, State.RoomSnapshot.ModSettings.WhoCanKick))
             return false;
 
         if (!AvatarModule.TryGetPlayer(playerId, out _))
@@ -261,7 +251,7 @@ public sealed class RoomModerationModule(
             ._grainFactory.GetPlayerPresenceGrain(playerId)
             .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "close the room session of player {PlayerId} kicked from room {RoomId}",
                 playerId,
                 _roomGrain.RoomId
@@ -301,10 +291,10 @@ public sealed class RoomModerationModule(
     /// </summary>
     public async Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct)
     {
-        if (_roomGrain._state.IsRoomMuted == muted)
+        if (State.IsRoomMuted == muted)
             return false;
 
-        _roomGrain._state.IsRoomMuted = muted;
+        State.IsRoomMuted = muted;
 
         await _roomGrain.SendComposerToRoomAsync(
             new MuteAllInRoomEventMessageComposer { IsMuted = muted },
@@ -327,7 +317,7 @@ public sealed class RoomModerationModule(
                 ._grainFactory.GetPlayerPresenceGrain(playerId)
                 .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
                 .LogAndForget(
-                    _roomGrain._logger,
+                    Logger,
                     "close the room session of player {PlayerId} when room {RoomId} unloads",
                     playerId,
                     _roomGrain.RoomId
@@ -364,16 +354,10 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (
-            !await CanModerateAsync(
-                ctx,
-                playerId,
-                _roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan
-            )
-        )
+        if (!await CanModerateAsync(ctx, playerId, State.RoomSnapshot.ModSettings.WhoCanBan))
             return false;
 
-        var config = _roomGrain._roomConfig;
+        var config = RoomConfig;
         var expiresAt = duration switch
         {
             RoomBanDurationType.Hour => DateTime.UtcNow.AddMinutes(config.BanHourMinutes),
@@ -409,7 +393,7 @@ public sealed class RoomModerationModule(
 
         await dbCtx.SaveChangesAsync(ct);
 
-        _roomGrain._state.BannedUntilByPlayerId[playerId] = expiresAt;
+        State.BannedUntilByPlayerId[playerId] = expiresAt;
 
         if (AvatarModule.TryGetPlayer(playerId, out _))
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
@@ -434,7 +418,7 @@ public sealed class RoomModerationModule(
             )
             .ExecuteDeleteAsync(ct);
 
-        return _roomGrain._state.BannedUntilByPlayerId.Remove(playerId);
+        return State.BannedUntilByPlayerId.Remove(playerId);
     }
 
     public async Task<ImmutableArray<RoomBannedPlayerSnapshot>?> GetBannedPlayersAsync(
@@ -453,8 +437,7 @@ public sealed class RoomModerationModule(
         // request would never end.
         if (
             _banListSentAt.TryGetValue(ctx.PlayerId, out var sentAt)
-            && now - sentAt
-                < TimeSpan.FromMilliseconds(_roomGrain._roomConfig.BanListRepeatIgnoreMs)
+            && now - sentAt < TimeSpan.FromMilliseconds(RoomConfig.BanListRepeatIgnoreMs)
         )
             return null;
 
@@ -490,7 +473,7 @@ public sealed class RoomModerationModule(
     {
         var level = await SecurityModule.GetControllerLevelAsync(ctx);
 
-        return level.IsAllowedBy(_roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan)
+        return level.IsAllowedBy(State.RoomSnapshot.ModSettings.WhoCanBan)
             || await SecurityModule.HasPermissionAsync(
                 ctx.PlayerId,
                 PermissionNodes.Room.MODERATE_ANY
@@ -507,7 +490,7 @@ public sealed class RoomModerationModule(
 
         await EnsureFilterLoadedAsync(ct);
 
-        return [.. _roomGrain._state.FilterWords.Order(StringComparer.OrdinalIgnoreCase)];
+        return [.. State.FilterWords.Order(StringComparer.OrdinalIgnoreCase)];
     }
 
     public async Task<bool> UpdateRoomFilterAsync(
@@ -522,8 +505,8 @@ public sealed class RoomModerationModule(
 
         await EnsureFilterLoadedAsync(ct);
 
-        var config = _roomGrain._roomConfig;
-        var words = _roomGrain._state.FilterWords;
+        var config = RoomConfig;
+        var words = State.FilterWords;
 
         word = word.Trim();
 
@@ -534,7 +517,7 @@ public sealed class RoomModerationModule(
             || (isAdding && !words.Contains(word) && words.Count >= config.RoomFilterMaxWords)
         )
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Rejected room filter change in room {RoomId} by player {PlayerId}: adding={IsAdding}, {Length} characters, {Count} words",
                 _roomGrain.RoomId,
                 ctx.PlayerId,
@@ -583,11 +566,11 @@ public sealed class RoomModerationModule(
     /// The text with the hotel's filtered words and this room's replaced (<see cref="FilterWords"/>).
     /// </summary>
     public string ApplyFilter(string text) =>
-        _roomGrain._wordFilter.Filter(text, _roomGrain._state.FilterWords);
+        _roomGrain._wordFilter.Filter(text, State.FilterWords);
 
     internal async Task EnsureFilterLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsFilterLoaded)
+        if (State.IsFilterLoaded)
             return;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -598,12 +581,12 @@ public sealed class RoomModerationModule(
             .Select(x => x.Word)
             .ToListAsync(ct);
 
-        _roomGrain._state.FilterWords.UnionWith(words);
-        _roomGrain._state.IsFilterLoaded = true;
+        State.FilterWords.UnionWith(words);
+        State.IsFilterLoaded = true;
     }
 
     private Task<bool> CanMutePlayerAsync(ActionContext ctx, PlayerId targetId) =>
-        CanModerateAsync(ctx, targetId, _roomGrain._state.RoomSnapshot.ModSettings.WhoCanMute);
+        CanModerateAsync(ctx, targetId, State.RoomSnapshot.ModSettings.WhoCanMute);
 
     /// <summary>
     /// Whether the actor may apply a moderation action to the target under the room's setting

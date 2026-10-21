@@ -101,7 +101,7 @@ public class FurnitureGuildCustomizedLogic(
         {
             // A piece of furni that cannot reach the directory draws in its placeholder colours
             // rather than stopping the room from loading around it.
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Could not resolve group {GuildId} for guild furni in room {RoomId}",
                 guildId.Value,

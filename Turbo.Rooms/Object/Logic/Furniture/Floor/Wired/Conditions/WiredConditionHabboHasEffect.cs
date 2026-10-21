@@ -21,8 +21,7 @@ public class WiredConditionHabboHasEffect(
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_EFFECT;
 
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.Effect(_roomGrain._wiredConfig)];
+    public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.Effect(WiredConfig)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

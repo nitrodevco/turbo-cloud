@@ -48,8 +48,8 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(true), // merged source
-            WiredRules.TileOffset(_roomGrain._wiredConfig), // rootX
-            WiredRules.TileOffset(_roomGrain._wiredConfig), // rootY
+            WiredRules.TileOffset(WiredConfig), // rootX
+            WiredRules.TileOffset(WiredConfig), // rootY
         ];
 
     public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();

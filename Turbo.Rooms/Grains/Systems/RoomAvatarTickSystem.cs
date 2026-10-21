@@ -21,18 +21,18 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
 
     public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
     {
-        if (now < _roomGrain._state.NextAvatarBoundaryMs)
+        if (now < State.NextAvatarBoundaryMs)
             return;
 
-        while (now >= _roomGrain._state.NextAvatarBoundaryMs)
-            _roomGrain._state.NextAvatarBoundaryMs += _roomGrain._roomConfig.AvatarTickMs;
+        while (now >= State.NextAvatarBoundaryMs)
+            State.NextAvatarBoundaryMs += RoomConfig.AvatarTickMs;
 
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
         // A step can take an avatar out of the room (a furni it lands on), so the loop walks a
         // copy; the copy's list is kept rather than made again every boundary.
         _avatars.Clear();
-        _avatars.AddRange(_roomGrain._state.AvatarsByObjectId.Values);
+        _avatars.AddRange(State.AvatarsByObjectId.Values);
 
         foreach (var avatar in _avatars)
         {
@@ -61,7 +61,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Avatar {ObjectId} in room {RoomId} failed to step",
                     avatar.ObjectId,
@@ -73,7 +73,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         // Ridden pets copy their rider's step, so they are updated once every rider has moved.
         await PetModule.SyncRidingPetsAsync(ct);
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in State.AvatarsByObjectId.Values)
         {
             if (!avatar.IsDirty)
                 continue;
@@ -112,7 +112,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
     /// </summary>
     private void CheckIdle(IRoomAvatar avatar, long now)
     {
-        var room = _roomGrain._state.RoomSnapshot;
+        var room = State.RoomSnapshot;
 
         if (avatar.IsIdle || !room.IdleSleepEnabled || avatar.AvatarType != RoomObjectType.Player)
             return;
@@ -145,7 +145,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
     /// </summary>
     private async Task CheckIdleKickAsync(IRoomAvatar avatar, long now, CancellationToken ct)
     {
-        var room = _roomGrain._state.RoomSnapshot;
+        var room = State.RoomSnapshot;
 
         if (
             !room.IdleAutokickEnabled
@@ -176,10 +176,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         avatar.TilePath.RemoveAt(avatar.TilePath.Count - 1);
 
         if (avatar.TilePath.Count == 0)
-            avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(
-                now,
-                _roomGrain._roomConfig.AvatarTickMs
-            );
+            avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(now, RoomConfig.AvatarTickMs);
 
         await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
     }
@@ -191,17 +188,17 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
     /// </summary>
     private async Task<bool> TryLeaveByDoorAsync(IRoomAvatar avatar, int nextTileId)
     {
-        var model = _roomGrain._state.Model;
+        var model = State.Model;
 
         if (
             avatar is not IRoomPlayer player
-            || !_roomGrain._state.RoomSnapshot.LeaveOnDoorTile
+            || !State.RoomSnapshot.LeaveOnDoorTile
             || model is null
             || nextTileId != MapModule.ToIdx(model.DoorX, model.DoorY)
         )
             return false;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             player.PlayerId,
             new YouArePlayingGameMessageComposer { IsPlaying = false },
             CancellationToken.None
@@ -218,7 +215,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             ._grainFactory.GetPlayerPresenceGrain(player.PlayerId)
             .OnRemovedFromRoomAsync(_roomGrain.RoomId, false, CancellationToken.None)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "close the room session of player {PlayerId} leaving room {RoomId} by the door",
                 player.PlayerId,
                 _roomGrain.RoomId
@@ -281,7 +278,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Avatar {ObjectId} failed to step in room {RoomId}; stopping the walk",
                 avatar.ObjectId,

@@ -143,7 +143,7 @@ public class WiredActionProgressAchievement(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Wired achievement {Code} could not be progressed for player {PlayerId} in room {RoomId}",
                     code,

@@ -76,7 +76,7 @@ public sealed class RoomSecurityModule(
     public async Task<bool> CanPlaceFurniAsync(ActionContext ctx)
     {
         if (await GetControllerLevelAsync(ctx) == RoomControllerType.Rights)
-            return _roomGrain._roomConfig.RightsHoldersCanPlaceFurni;
+            return RoomConfig.RightsHoldersCanPlaceFurni;
 
         return await CanManipulateFurniAsync(ctx);
     }
@@ -116,7 +116,7 @@ public sealed class RoomSecurityModule(
     /// Asks the permission grain for a player who is not here.
     /// </summary>
     public async Task<bool> GetIsRoomOwnerAsync(PlayerId playerId) =>
-        _roomGrain._state.RoomSnapshot.OwnerId == playerId
+        State.RoomSnapshot.OwnerId == playerId
         || await HasPermissionAsync(playerId, PermissionNodes.Room.CONTROL_ANY);
 
     /// <summary>
@@ -125,7 +125,7 @@ public sealed class RoomSecurityModule(
     /// not standing in the room counts only through <see cref="GetIsRoomOwnerAsync(PlayerId)"/>.
     /// </summary>
     public bool IsRoomOwner(PlayerId playerId) =>
-        _roomGrain._state.RoomSnapshot.OwnerId == playerId
+        State.RoomSnapshot.OwnerId == playerId
         || HasPermission(playerId, PermissionNodes.Room.CONTROL_ANY);
 
     /// <summary>
@@ -133,7 +133,7 @@ public sealed class RoomSecurityModule(
     /// (an owner does not rate their own room; the wired `@is_owner` flag), not for what an owner
     /// may do, which staff controlling every room may do too.
     /// </summary>
-    public bool IsOwnedBy(PlayerId playerId) => _roomGrain._state.RoomSnapshot.OwnerId == playerId;
+    public bool IsOwnedBy(PlayerId playerId) => State.RoomSnapshot.OwnerId == playerId;
 
     /// <summary>
     /// Whether a player holds a permission node, from their avatar: synchronous, for a player in
@@ -154,19 +154,19 @@ public sealed class RoomSecurityModule(
 
         // Only a denial can be for an unregistered node, so a grant skips the registry.
         if (!held && !_roomGrain._permissionRegistryProvider.Current.IsCheckable(node))
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Permission check for unregistered node {Node} on player {PlayerId} in room {RoomId}; denied",
                 node,
                 player.PlayerId,
-                _roomGrain._state.RoomId
+                State.RoomId
             );
 
         if (player.Permissions.IsWatched(node))
-            _roomGrain._logger.LogInformation(
+            Logger.LogInformation(
                 "Verbose: player {PlayerId} checked {Node} in room {RoomId}: {Held}",
                 player.PlayerId,
                 node,
-                _roomGrain._state.RoomId,
+                State.RoomId,
                 held
             );
 
@@ -183,19 +183,14 @@ public sealed class RoomSecurityModule(
             return HasPermission(player, node);
 
         return playerId > 0
-            && await _roomGrain._grainFactory.HasPermissionAsync(
-                playerId,
-                node,
-                CancellationToken.None
-            );
+            && await GrainFactory.HasPermissionAsync(playerId, node, CancellationToken.None);
     }
 
     /// <summary>
     /// Whether this player was given rights here. Rights are loaded with the room, so this
     /// needs no await; it says nothing about the owner, who needs no rights.
     /// </summary>
-    public bool HasRights(PlayerId playerId) =>
-        _roomGrain._state.PlayerIdsWithRights.Contains(playerId);
+    public bool HasRights(PlayerId playerId) => State.PlayerIdsWithRights.Contains(playerId);
 
     /// <summary>
     /// System-originated actions act as a moderator; everything else resolves by player id.
@@ -247,7 +242,7 @@ public sealed class RoomSecurityModule(
         PlayerId playerId
     )
     {
-        var levels = _roomGrain._state.GroupLevelByPlayerId;
+        var levels = State.GroupLevelByPlayerId;
 
         if (levels.TryGetValue(playerId, out var known))
             return known;
@@ -271,10 +266,10 @@ public sealed class RoomSecurityModule(
 
     /// <summary>One player's standing in the group changed, or they left the room.</summary>
     internal void ForgetGroupLevel(PlayerId playerId) =>
-        _roomGrain._state.GroupLevelByPlayerId.Remove(playerId);
+        State.GroupLevelByPlayerId.Remove(playerId);
 
     /// <summary>The group changed, or the room stopped or started being its homeroom.</summary>
-    internal void ForgetGroupLevels() => _roomGrain._state.GroupLevelByPlayerId.Clear();
+    internal void ForgetGroupLevels() => State.GroupLevelByPlayerId.Clear();
 
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
@@ -305,7 +300,7 @@ public sealed class RoomSecurityModule(
         // Then, as in the entry, whether they may manage raid protection (official client
         // captures: after WiredPermissions on every level refresh, 7 of 7).
         if (inRoom)
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new RaidProtectionCapabilityMessageComposer
                 {
@@ -351,11 +346,11 @@ public sealed class RoomSecurityModule(
     {
         if (
             await _roomGrain.GetIsGroupRoomAsync(ct)
-            || !_roomGrain._state.PlayerIdsWithRights.Contains(playerId)
+            || !State.PlayerIdsWithRights.Contains(playerId)
         )
             return false;
 
-        await RevokeRightsAsync(playerId, _roomGrain._state.RoomSnapshot.OwnerId, ct);
+        await RevokeRightsAsync(playerId, State.RoomSnapshot.OwnerId, ct);
 
         return true;
     }
@@ -380,13 +375,13 @@ public sealed class RoomSecurityModule(
             )
             .ExecuteDeleteAsync(ct);
 
-        _roomGrain._state.PlayerIdsWithRights.Remove(playerId);
+        State.PlayerIdsWithRights.Remove(playerId);
 
         await PublishRightsChangedAsync([playerId], ct);
 
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             toldPlayerId,
             RightsRemovedComposer(playerId),
             ct
@@ -432,7 +427,7 @@ public sealed class RoomSecurityModule(
 
         await dbCtx.SaveChangesAsync(ct);
 
-        _roomGrain._state.PlayerIdsWithRights.Add(playerId);
+        State.PlayerIdsWithRights.Add(playerId);
 
         await PublishRightsChangedAsync([playerId], ct);
 
@@ -443,7 +438,7 @@ public sealed class RoomSecurityModule(
             ._grainFactory.GetPlayerDirectoryGrain()
             .GetPlayerNameAsync(playerId, ct);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new FlatControllerAddedEventMessageComposer
             {
@@ -485,7 +480,7 @@ public sealed class RoomSecurityModule(
         if (!await GetIsRoomOwnerAsync(ctx) || isGroupRoom)
             return;
 
-        var playerIds = _roomGrain._state.PlayerIdsWithRights.ToList();
+        var playerIds = State.PlayerIdsWithRights.ToList();
 
         if (playerIds.Count == 0)
             return;
@@ -497,7 +492,7 @@ public sealed class RoomSecurityModule(
             .Where(x => x.RoomEntityId == _roomGrain.RoomId.Value)
             .ExecuteDeleteAsync(ct);
 
-        _roomGrain._state.PlayerIdsWithRights.Clear();
+        State.PlayerIdsWithRights.Clear();
 
         await PublishRightsChangedAsync(playerIds, ct);
 
@@ -513,7 +508,7 @@ public sealed class RoomSecurityModule(
 
     internal async Task EnsureRightsLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsRightsLoaded)
+        if (State.IsRightsLoaded)
             return;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -524,8 +519,8 @@ public sealed class RoomSecurityModule(
             .ToListAsync(ct);
 
         foreach (var entity in entities)
-            _roomGrain._state.PlayerIdsWithRights.Add(PlayerId.Parse(entity.PlayerEntityId));
+            State.PlayerIdsWithRights.Add(PlayerId.Parse(entity.PlayerEntityId));
 
-        _roomGrain._state.IsRightsLoaded = true;
+        State.IsRightsLoaded = true;
     }
 }

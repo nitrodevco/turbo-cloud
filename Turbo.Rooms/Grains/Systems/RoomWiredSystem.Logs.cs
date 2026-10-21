@@ -40,14 +40,9 @@ public sealed partial class RoomWiredSystem
             _ => LogLevel.Debug,
         };
 
-        _roomGrain._logger.Log(
-            logLevel,
-            "Wired log in room {RoomId}: {Message}",
-            _roomGrain.RoomId,
-            message
-        );
+        Logger.Log(logLevel, "Wired log in room {RoomId}: {Message}", _roomGrain.RoomId, message);
 
-        var cap = _roomGrain._wiredConfig.MaxRoomLogEntries;
+        var cap = WiredConfig.MaxRoomLogEntries;
 
         if (cap <= 0)
             return;

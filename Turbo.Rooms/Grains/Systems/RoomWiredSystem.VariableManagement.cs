@@ -241,7 +241,7 @@ public sealed partial class RoomWiredSystem
 
         var ownerFigure = AvatarModule.TryGetPlayer(ownerId, out var owner)
             ? owner.Figure
-            : (await _roomGrain._grainFactory.GetPlayerGrain(ownerId).GetSummaryAsync(ct)).Figure;
+            : (await GrainFactory.GetPlayerGrain(ownerId).GetSummaryAsync(ct)).Figure;
 
         return snapshot with
         {

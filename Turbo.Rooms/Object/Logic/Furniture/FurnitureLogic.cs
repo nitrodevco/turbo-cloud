@@ -174,7 +174,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     /// <inheritdoc cref="CountRewardTrackAction(IRoomAvatar, string)"/>
     protected void CountRewardTrackAction(PlayerId playerId, string actionType) =>
-        _roomGrain._grainFactory.CountRewardTrackAction(playerId, actionType, _roomGrain._logger);
+        GrainFactory.CountRewardTrackAction(playerId, actionType, Logger);
 
     /// <summary>
     /// Whether the acting player owns this item itself. The room's owner may not turn a guest's
@@ -207,7 +207,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// <summary>Logs a refused interaction with the ids that identify it, and yields false.</summary>
     protected bool Reject(ActionContext ctx, FurnitureInteraction interaction, string reason)
     {
-        _roomGrain._logger.LogWarning(
+        Logger.LogWarning(
             "Rejected {Interaction} on item {ItemId} in room {RoomId} by player {PlayerId}: {Reason}",
             interaction.GetType().Name,
             _ctx.ObjectId,
@@ -264,11 +264,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
         if (refresh)
             _ctx.RefreshStuffDataAsync()
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "refresh furni data in room {RoomId}",
-                    _roomGrain.RoomId
-                );
+                .LogAndForget(Logger, "refresh furni data in room {RoomId}", _roomGrain.RoomId);
     }
 
     public override Task OnAttachAsync(CancellationToken ct) =>

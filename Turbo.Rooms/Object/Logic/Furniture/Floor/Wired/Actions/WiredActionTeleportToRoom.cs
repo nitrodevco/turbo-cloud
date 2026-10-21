@@ -64,7 +64,7 @@ public class WiredActionTeleportToRoom(
                     CancellationToken.None
                 )
                 .LogAndForget(
-                    _roomGrain._logger,
+                    Logger,
                     "forward player {PlayerId} to room {RoomId}",
                     player.PlayerId,
                     roomId
@@ -90,7 +90,7 @@ public class WiredActionTeleportToRoom(
                 item.ExtraData,
                 item.Definition.ExtraData,
                 RoomLinkerData.SECTION,
-                _roomGrain._logger
+                Logger
             );
 
             if (linker is { RoomId: > 0 })

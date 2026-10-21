@@ -28,7 +28,7 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
-        if (!_roomGrain._wiredConfig.NotifyTriggerTextCaptureOnEntry)
+        if (!WiredConfig.NotifyTriggerTextCaptureOnEntry)
             return null;
 
         foreach (

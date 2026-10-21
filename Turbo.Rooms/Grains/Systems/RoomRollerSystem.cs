@@ -45,14 +45,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 
     public Task ProcessRollersAsync(long now, CancellationToken ct)
     {
-        var state = _roomGrain._state;
+        var state = State;
 
         if (now < state.NextRollerBoundaryMs)
             return Task.CompletedTask;
 
         // Moves fall on the cycle; the speed says how many cycles apart, so a new speed takes
         // over from the next move and picking the controller up slows the rollers at once.
-        var step = Math.Max(1, _roomGrain._roomConfig.RollerStepMs);
+        var step = Math.Max(1, RoomConfig.RollerStepMs);
         var boundary =
             state.NextRollerBoundaryMs + (now - state.NextRollerBoundaryMs) / step * step;
 
@@ -104,8 +104,8 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                     )
                         continue;
 
-                    var toTileState = _roomGrain._state.TileFlags[toIdx];
-                    var toTileHeight = _roomGrain._state.TileHeights[toIdx];
+                    var toTileState = State.TileFlags[toIdx];
+                    var toTileHeight = State.TileHeights[toIdx];
                     var rollerHeight = roller.Height;
 
                     if (
@@ -122,7 +122,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                     items.Clear();
                     avatars.Clear();
 
-                    foreach (var itemId in _roomGrain._state.TileFloorStacks[fromIdx])
+                    foreach (var itemId in State.TileFloorStacks[fromIdx])
                     {
                         if (
                             !FurniModule.TryGetItem(itemId, out var item)
@@ -137,7 +137,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                         items.Add(item);
                     }
 
-                    foreach (var avatarId in _roomGrain._state.TileAvatarStacks[fromIdx])
+                    foreach (var avatarId in State.TileAvatarStacks[fromIdx])
                     {
                         if (
                             !AvatarModule.TryGetAvatar(avatarId, out var avatar)
@@ -195,7 +195,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                 catch (Exception ex)
                 {
                     // One roller that cannot be planned must not stop the others this tick.
-                    _roomGrain._logger.LogError(
+                    Logger.LogError(
                         ex,
                         "Roller {RollerId} in room {RoomId} failed to plan its move",
                         rollerId,
@@ -261,7 +261,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                 AvatarModule
                     .PublishMovedAsync(avatar, avatarFromX, avatarFromY, CancellationToken.None)
                     .LogAndForget(
-                        _roomGrain._logger,
+                        Logger,
                         "publish an avatar move in room {RoomId}",
                         _roomGrain.RoomId
                     );
@@ -296,7 +296,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
             item.Logic is FurnitureRollerSpeedControlLogic
             && FurniModule.Items.Count(x =>
                 x.ObjectId != item.ObjectId && x.Logic is FurnitureRollerSpeedControlLogic
-            ) >= _roomGrain._roomConfig.MaxRollerSpeedControls
+            ) >= RoomConfig.MaxRollerSpeedControls
         )
             throw new TurboException(TurboErrorCodeEnum.FurniTypeLimitReached);
     }
@@ -311,7 +311,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
         && FurniModule.TryGetItem(_speedControlIds[0], out var item)
         && item.Logic is FurnitureRollerSpeedControlLogic control
             ? control.TickMs
-            : _roomGrain._roomConfig.RollerTickMs;
+            : RoomConfig.RollerTickMs;
 
     /// <summary>
     /// Sends one move's slides with the controllers' new states after them, in one room message
@@ -365,7 +365,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 
     private void ComputeRollers()
     {
-        if (!_isDirtyRollers || !_roomGrain._state.IsFurniLoaded)
+        if (!_isDirtyRollers || !State.IsFurniLoaded)
             return;
 
         _rollerIdSets.Clear();

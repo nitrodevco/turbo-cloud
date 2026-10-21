@@ -45,7 +45,7 @@ public sealed partial class RoomWiredSystem
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "Deferred wired work failed in room {RoomId}",
                     _roomGrain.RoomId

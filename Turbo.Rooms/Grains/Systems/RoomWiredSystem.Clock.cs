@@ -18,7 +18,7 @@ public sealed partial class RoomWiredSystem
 
     public TimeZoneInfo GetRoomTimeZone()
     {
-        var timezoneId = _roomGrain._state.RoomSnapshot.WiredTimezone;
+        var timezoneId = State.RoomSnapshot.WiredTimezone;
 
         if (string.Equals(timezoneId, _cachedTimezoneId, StringComparison.Ordinal))
             return _cachedTimezone;
@@ -35,7 +35,7 @@ public sealed partial class RoomWiredSystem
         }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Unknown wired timezone {Timezone} for room {RoomId}; falling back to UTC",
                 timezoneId,

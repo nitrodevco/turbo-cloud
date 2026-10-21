@@ -30,10 +30,10 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
 
         if (item is IRoomWallItem)
         {
-            if (wall >= _roomGrain._wiredConfig.MaxWallItems)
+            if (wall >= WiredConfig.MaxWallItems)
                 throw new TurboException(TurboErrorCodeEnum.WiredWallItemLimitReached);
         }
-        else if (floor >= _roomGrain._wiredConfig.MaxFloorItems)
+        else if (floor >= WiredConfig.MaxFloorItems)
         {
             throw new TurboException(TurboErrorCodeEnum.WiredFloorItemLimitReached);
         }

@@ -35,11 +35,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     private PetConfig Config => _roomGrain._petConfig;
 
-    public IReadOnlyList<IRoomPet> Pets => _roomGrain._state.Pets;
+    public IReadOnlyList<IRoomPet> Pets => State.Pets;
 
     internal async Task EnsurePetsLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsPetsLoaded)
+        if (State.IsPetsLoaded)
             return;
 
         var pets = await _roomGrain._npcProvider.LoadPetsByRoomIdAsync(_roomGrain.RoomId, ct);
@@ -50,7 +50,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
             if (tileIdx < 0 && !TryFindFreeTile(0, 0, out tileIdx))
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     "Pet {PetId} has no tile to stand on in room {RoomId}; leaving it unplaced",
                     pet.Id,
                     _roomGrain.RoomId
@@ -62,7 +62,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             await AttachPetAsync(pet, tileIdx, pet.Rotation, ct);
         }
 
-        _roomGrain._state.IsPetsLoaded = true;
+        State.IsPetsLoaded = true;
     }
 
     public bool TryGetPet(int petId, [NotNullWhen(true)] out IRoomPet? pet)
@@ -70,7 +70,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         pet = null;
 
         if (
-            !_roomGrain._state.AvatarsByPetId.TryGetValue(petId, out var objectId)
+            !State.AvatarsByPetId.TryGetValue(petId, out var objectId)
             || !AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomPet roomPet
         )
@@ -86,7 +86,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         PetPlacingErrorType error,
         CancellationToken ct
     ) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetPlacingErrorMessageComposer { Error = error },
             ct
@@ -110,7 +110,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         // Anyone may place a pet in a room that allows pets, and only the room owner in one that
         // does not. Bots are the owner's alone (RoomBotModule.PlaceBotAsync); the two differ on
         // purpose.
-        var room = _roomGrain._state.RoomSnapshot;
+        var room = State.RoomSnapshot;
 
         if (!room.AllowPets && !await SecurityModule.GetIsRoomOwnerAsync(ctx))
         {
@@ -175,12 +175,12 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             if (
                 pet.OwnerId == ctx.PlayerId
                 && !pet.IsMonsterplant
-                && _roomGrain._state.RoomSnapshot.OwnerId != ctx.PlayerId
+                && State.RoomSnapshot.OwnerId != ctx.PlayerId
             )
-                _roomGrain._grainFactory.CountRewardTrackAction(
+                GrainFactory.CountRewardTrackAction(
                     ctx.PlayerId,
                     RewardTrackActionTypes.PET_OTHER_USERS_ROOM,
-                    _roomGrain._logger
+                    Logger
                 );
         }
 
@@ -247,7 +247,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
                 )
         )
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Pet {PetId} picked up from room {RoomId} could not be returned to player {OwnerId}",
                 petId,
                 _roomGrain.RoomId,
@@ -421,7 +421,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         pet.SetRotation(rotation == Rotation.None ? Rotation.South : rotation);
 
-        _roomGrain._state.AvatarsByPetId[pet.PetId] = pet.ObjectId;
+        State.AvatarsByPetId[pet.PetId] = pet.ObjectId;
         _lastPersistedTileByPetId[pet.PetId] = tileIdx;
 
         return true;
@@ -437,7 +437,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         await ObjectModule.RemoveObjectAsync(ctx, pet, ct);
 
-        _roomGrain._state.AvatarsByPetId.Remove(pet.PetId);
+        State.AvatarsByPetId.Remove(pet.PetId);
         _lastPersistedTileByPetId.Remove(pet.PetId);
     }
 
@@ -463,14 +463,14 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         CancellationToken ct
     )
     {
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ownerId);
+        var inventory = GrainFactory.GetInventoryGrain(ownerId);
 
         foreach (var pet in pets)
         {
             var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
 
             if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), cause, ct))
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
                     pet.PetId,
                     ownerId,
@@ -518,7 +518,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         if (snapshot is null)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Player {PlayerId} tried to place {Kind} {Id} they do not hold in room {RoomId}",
                 ctx.PlayerId,
                 kind,
@@ -551,7 +551,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         async Task GiveBackAsync(TSnapshot taken)
         {
             if (!await giveBack(taken))
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     "{Kind} {Id} could not be placed in room {RoomId} nor returned to player {PlayerId}",
                     kind,
                     id,
@@ -581,7 +581,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             return true;
         }
 
-        var model = _roomGrain._state.Model;
+        var model = State.Model;
         var startX = model?.DoorX ?? 0;
         var startY = model?.DoorY ?? 0;
         var maxRadius = Math.Max(map.Width, map.Height);
@@ -625,7 +625,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         if (!MapModule.InBounds(tileIdx))
             return false;
 
-        var flags = _roomGrain._state.TileFlags[tileIdx];
+        var flags = State.TileFlags[tileIdx];
 
         if (flags.Has(RoomTileFlags.Disabled) || flags.Has(RoomTileFlags.Closed))
             return false;
@@ -652,7 +652,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         if (!CanRest(pet))
             return false;
 
-        var flags = _roomGrain._state.TileFlags[tileIdx];
+        var flags = State.TileFlags[tileIdx];
 
         return flags.Has(RoomTileFlags.Sittable)
             && !flags.Has(RoomTileFlags.Disabled)
@@ -741,7 +741,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
     internal void Persist(IRoomPet pet)
     {
         _lastPersistedTileByPetId[pet.PetId] = MapModule.ToIdx(pet.X, pet.Y);
-        _roomGrain._state.DirtyPetIds.Add(pet.PetId);
+        State.DirtyPetIds.Add(pet.PetId);
     }
 
     /// <summary>
@@ -772,7 +772,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
                 Persist(pet);
         }
 
-        var dirtyIds = _roomGrain._state.DirtyPetIds;
+        var dirtyIds = State.DirtyPetIds;
         var snapshots = new List<PetSnapshot>(dirtyIds.Count);
 
         foreach (var petId in dirtyIds)
@@ -815,7 +815,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         RefreshFlags(pet);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetInfoMessageComposer { Info = BuildInfo(pet) },
             ct
@@ -825,7 +825,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
     }
 
     internal Task SendInfoToOwnerAsync(IRoomPet pet, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             pet.OwnerId,
             new PetInfoMessageComposer { Info = BuildInfo(pet) },
             ct

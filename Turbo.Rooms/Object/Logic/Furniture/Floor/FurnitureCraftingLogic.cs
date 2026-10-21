@@ -47,7 +47,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
                 ctx.RoomObject.ExtraData,
                 ctx.Definition.ExtraData,
                 CraftingData.SECTION,
-                _roomGrain._logger
+                Logger
             ) ?? new CraftingData();
     }
 
@@ -199,7 +199,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
         )
             return await FailAsync(ctx, interaction, $"no furni {recipe.Product}", ct);
 
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
+        var inventory = GrainFactory.GetInventoryGrain(ctx.PlayerId);
         // One operation: the ingredients used up together, then the product.
         var cause = MovementCause.New(
             MovementCauses.USE_CRAFTING,
@@ -217,7 +217,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
 
         if (used.IsEmpty)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Crafting {Recipe} on item {ItemId} in room {RoomId}: an ingredient of player {PlayerId} went missing; none used up",
                 recipe.Code,
                 _ctx.ObjectId,
@@ -239,7 +239,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Crafting {Recipe} on item {ItemId} in room {RoomId}: the product could not be given to player {PlayerId}; giving the ingredients back",
                 recipe.Code,
@@ -289,7 +289,7 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
     }
 
     private Task SendAsync(ActionContext ctx, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(ctx.PlayerId, composer, ct);
+        GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, composer, ct);
 
     private static CraftableProductSnapshot Product(CraftingRecipeData recipe) =>
         new()

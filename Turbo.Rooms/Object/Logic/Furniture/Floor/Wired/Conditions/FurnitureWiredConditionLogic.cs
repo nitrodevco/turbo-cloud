@@ -58,7 +58,7 @@ public abstract class FurnitureWiredConditionLogic(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Wired condition {WiredCode} failed in room {RoomId}",
                 WiredCode,

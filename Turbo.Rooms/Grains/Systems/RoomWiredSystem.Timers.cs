@@ -63,7 +63,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private long FirstPeriodicAt(long now, long delayMs)
     {
-        var avatarTickMs = _roomGrain._roomConfig.AvatarTickMs;
+        var avatarTickMs = RoomConfig.AvatarTickMs;
 
         return avatarTickMs > 0 && delayMs % avatarTickMs == 0
             ? _roomGrain.AlignToNextBoundary(now + delayMs, avatarTickMs)
@@ -76,7 +76,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private long RestartedPeriodicAt(long now, long delayMs)
     {
-        var avatarTickMs = _roomGrain._roomConfig.AvatarTickMs;
+        var avatarTickMs = RoomConfig.AvatarTickMs;
 
         return avatarTickMs > 0 && delayMs % avatarTickMs == 0
             ? _roomGrain.AlignToNextBoundary(now, avatarTickMs) + delayMs - avatarTickMs

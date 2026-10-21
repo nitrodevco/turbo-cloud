@@ -76,6 +76,6 @@ public class FurnitureClothingChangeLogic(
     /// </summary>
     private bool IsFigure(string figure) =>
         figure.Length > 0
-        && figure.Length <= _roomGrain._roomConfig.FigureMaxLength
+        && figure.Length <= RoomConfig.FigureMaxLength
         && figure.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-');
 }

@@ -45,7 +45,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     private int _position = -1;
     private long _startedAtMs;
 
-    private IJukeboxGrain Jukebox => _roomGrain._grainFactory.GetJukeboxGrain(_ctx.ObjectId);
+    private IJukeboxGrain Jukebox => GrainFactory.GetJukeboxGrain(_ctx.ObjectId);
 
     private bool IsPlaying => _position >= 0;
 
@@ -63,7 +63,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         catch (Exception ex)
         {
             // The jukebox still stands; it plays once switched on again.
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to start jukebox {JukeboxId} in room {RoomId}",
                 _ctx.ObjectId,
@@ -111,25 +111,17 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         {
             case RequestJukeboxPlaylistInteraction:
                 await EnsureLoadedAsync(ct);
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                    ctx.PlayerId,
-                    ComposePlaylist(),
-                    ct
-                );
+                await GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, ComposePlaylist(), ct);
 
                 return true;
             case RequestNowPlayingInteraction:
                 await EnsureLoadedAsync(ct);
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                    ctx.PlayerId,
-                    ComposeNowPlaying(),
-                    ct
-                );
+                await GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, ComposeNowPlaying(), ct);
 
                 return true;
             case RequestSoundMachinePlaylistInteraction:
                 await EnsureLoadedAsync(ct);
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                await GrainFactory.SendComposerToPlayerAsync(
                     ctx.PlayerId,
                     ComposeSoundMachinePlaylist(),
                     ct
@@ -177,7 +169,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     {
         if (result.Result == JukeboxChangeResultType.Full)
         {
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 ctx.PlayerId,
                 new JukeboxPlayListFullMessageComposer(),
                 ct
@@ -318,11 +310,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     private int ElapsedMs() => (int)Math.Max(0, _roomGrain.NowMs() - _startedAtMs);
 
     private JukeboxSongDisksMessageComposer ComposePlaylist() =>
-        new()
-        {
-            MaxLength = _roomGrain._roomConfig.JukeboxMaxDisks,
-            Disks = _disks.IsDefault ? [] : _disks,
-        };
+        new() { MaxLength = RoomConfig.JukeboxMaxDisks, Disks = _disks.IsDefault ? [] : _disks };
 
     private NowPlayingMessageComposer ComposeNowPlaying()
     {

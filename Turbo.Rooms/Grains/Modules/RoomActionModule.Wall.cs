@@ -33,7 +33,7 @@ public sealed partial class RoomActionModule
         if (item is not IRoomWallItem wallItem)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
+        var inventory = GrainFactory.GetInventoryGrain(item.OwnerId);
 
         // The spot and the room's limits are checked by the placement itself. Habbo takes a
         // wall item out of the inventory before it shows it on the wall (official client

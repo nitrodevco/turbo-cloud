@@ -42,12 +42,12 @@ public class FurnitureEffectBoxLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         try
         {
-            var effects = _roomGrain._grainFactory.GetPlayerEffectGrain(ctx.PlayerId);
+            var effects = GrainFactory.GetPlayerEffectGrain(ctx.PlayerId);
             var result = await effects.GiveEffectAsync(_effectId, 0, 0, true, ct);
 
             if (result != EffectGrantResult.Granted)
             {
-                _roomGrain._logger.LogInformation(
+                Logger.LogInformation(
                     "Effect box {ItemId} ({Definition}) in room {RoomId} was not opened for player {PlayerId}: {Result}",
                     _ctx.ObjectId,
                     _ctx.Definition.Name,
@@ -69,7 +69,7 @@ public class FurnitureEffectBoxLogic(IStuffDataFactory stuffDataFactory, IRoomFl
             // Wearing goes through the presence and back to this room, so it is told, not awaited.
             effects
                 .SelectEffectAsync(_effectId, ct)
-                .LogAndForget(_roomGrain._logger, "wear the effect of an opened effect box");
+                .LogAndForget(Logger, "wear the effect of an opened effect box");
         }
         finally
         {

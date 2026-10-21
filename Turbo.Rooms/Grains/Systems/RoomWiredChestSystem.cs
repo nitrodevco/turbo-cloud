@@ -69,7 +69,7 @@ public sealed class RoomWiredChestSystem(RoomGrain roomGrain)
 
         if (everyChest && !await SecurityModule.GetIsRoomOwnerAsync(ctx))
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Player {PlayerId} asked to lock every wired chest in room {RoomId} without owning it; refused",
                 ctx.PlayerId,
                 _roomGrain.RoomId

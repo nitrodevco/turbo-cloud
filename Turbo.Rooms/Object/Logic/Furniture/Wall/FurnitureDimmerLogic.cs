@@ -111,7 +111,7 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
     {
         var (state, presetId, presets) = Current();
 
-        return _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        return GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new RoomDimmerPresetsMessageComposer
             {

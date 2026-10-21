@@ -44,8 +44,8 @@ public class FurnitureRecolorableLogic(
     /// <summary>The colours this furni may take, in palette order.</summary>
     public IReadOnlyList<int> Palette =>
         RecolorableData.GetPalette(
-            _roomGrain._roomConfig.RecolorablePaletteToFurni,
-            _roomGrain._roomConfig.RecolorablePalettes,
+            RoomConfig.RecolorablePaletteToFurni,
+            RoomConfig.RecolorablePalettes,
             RecolorableData.ClassName(_ctx.Definition.Name)
         );
 

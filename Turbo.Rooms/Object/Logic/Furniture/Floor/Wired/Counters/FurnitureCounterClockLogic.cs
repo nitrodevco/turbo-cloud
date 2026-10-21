@@ -109,7 +109,7 @@ public class FurnitureCounterClockLogic(
             _ => halfSeconds,
         };
 
-        _halfSeconds = Math.Clamp(next, 0, _roomGrain._wiredConfig.ClockMaxHalfSeconds);
+        _halfSeconds = Math.Clamp(next, 0, WiredConfig.ClockMaxHalfSeconds);
 
         return PublishAsync(ct);
     }
@@ -128,7 +128,7 @@ public class FurnitureCounterClockLogic(
         // the walking avatar's status updates kept).
         _nextHalfSecondAtMs = _roomGrain.AlignToNextBoundary(
             _roomGrain.NowMs() + 1,
-            _roomGrain._roomConfig.AvatarTickMs
+            RoomConfig.AvatarTickMs
         );
 
         Schedule();
@@ -164,7 +164,7 @@ public class FurnitureCounterClockLogic(
         if (!_isRunning)
             return;
 
-        if (_halfSeconds >= _roomGrain._wiredConfig.ClockMaxHalfSeconds)
+        if (_halfSeconds >= WiredConfig.ClockMaxHalfSeconds)
         {
             await StopAsync();
 

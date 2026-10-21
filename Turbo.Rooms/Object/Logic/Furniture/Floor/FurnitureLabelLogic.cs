@@ -32,7 +32,7 @@ public class FurnitureLabelLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         FurnitureExtraDataSections.Read<FurnitureLabelData>(
             _ctx.RoomObject.ExtraData,
             FurnitureLabelData.SECTION,
-            _roomGrain._logger
+            Logger
         ) ?? new();
 
     public FurnitureLabelSnapshot GetLabelSnapshot()
@@ -116,7 +116,7 @@ public class FurnitureLabelLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     private string Cut(string text)
     {
-        var max = _roomGrain._wiredConfig.FurnitureLabelMaxLength;
+        var max = WiredConfig.FurnitureLabelMaxLength;
 
         return text.Length > max ? text[..max] : text;
     }

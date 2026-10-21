@@ -61,7 +61,7 @@ public sealed class RoomTradeModule(RoomGrain roomGrain) : RoomGrainComponent(ro
         && player.HasStatus(AvatarStatusType.Trading);
 
     private async Task<bool> AllowsTradeByAsync(PlayerId playerId) =>
-        _roomGrain._state.RoomSnapshot.TradeType switch
+        State.RoomSnapshot.TradeType switch
         {
             RoomTradeModeType.Disabled => false,
             RoomTradeModeType.RoomOwnerAndRights => await SecurityModule.GetControllerLevelAsync(

@@ -42,12 +42,12 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (TemporaryItemCount >= _roomGrain._roomConfig.TemporaryFurniMax)
+        if (TemporaryItemCount >= RoomConfig.TemporaryFurniMax)
         {
-            _roomGrain._logger.LogDebug(
+            Logger.LogDebug(
                 "Room {RoomId} holds its {Max} temporary furni; none was added",
                 _roomGrain.RoomId,
-                _roomGrain._roomConfig.TemporaryFurniMax
+                RoomConfig.TemporaryFurniMax
             );
 
             return null;

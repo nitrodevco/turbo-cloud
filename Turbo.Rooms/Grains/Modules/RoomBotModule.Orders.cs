@@ -154,5 +154,5 @@ public sealed partial class RoomBotModule
     }
 
     private bool CanShareTile(IRoomBot bot, int tileIdx) =>
-        _roomGrain._state.TileAvatarStacks[tileIdx].Contains(bot.ObjectId);
+        State.TileAvatarStacks[tileIdx].Contains(bot.ObjectId);
 }

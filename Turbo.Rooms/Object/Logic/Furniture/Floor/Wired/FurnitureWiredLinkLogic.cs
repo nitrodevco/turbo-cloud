@@ -30,7 +30,7 @@ public class FurnitureWiredLinkLogic(IStuffDataFactory stuffDataFactory, IRoomFl
     public override Task<bool> CanUseAsync(ActionContext ctx) => Task.FromResult(IsItemOwner(ctx));
 
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new WiredLinkOpenMessageComposer { FurniId = _ctx.ObjectId.Value },
             ct

@@ -20,7 +20,7 @@ public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
 {
     protected readonly TObject _roomObject = roomObject;
 
-    public RoomId RoomId => _roomGrain._state.RoomId;
+    public RoomId RoomId => State.RoomId;
     public IRoomGrain Room => _roomGrain;
 
     public RoomObjectId ObjectId => _roomObject.ObjectId;

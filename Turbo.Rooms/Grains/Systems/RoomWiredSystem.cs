@@ -83,7 +83,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // The switched-on Wired Disablers in the room: while there is one, no trigger fires.
     private readonly HashSet<RoomObjectId> _disabledBy = [];
 
-    private int _tickMs => _roomGrain._wiredConfig.TickMs;
+    private int _tickMs => WiredConfig.TickMs;
     private bool _firstRun = true;
     private bool _initialized;
     private long _nextStackExecutionId = 0;
@@ -104,18 +104,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// </param>
     public async Task ProcessWiredAsync(long now, bool dormant, CancellationToken ct)
     {
-        if (now < _roomGrain._state.NextWiredBoundaryMs)
+        if (now < State.NextWiredBoundaryMs)
             return;
 
-        while (now >= _roomGrain._state.NextWiredBoundaryMs)
-            _roomGrain._state.NextWiredBoundaryMs += _tickMs;
+        while (now >= State.NextWiredBoundaryMs)
+            State.NextWiredBoundaryMs += _tickMs;
 
         if (_droppedEvents > 0)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Wired event queue of room {RoomId} was full ({Max}); {Count} events were dropped",
                 _roomGrain.RoomId,
-                _roomGrain._wiredConfig.MaxQueuedEvents,
+                WiredConfig.MaxQueuedEvents,
                 _droppedEvents
             );
 
@@ -136,7 +136,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             if (now >= _nextStateUpdateMs)
             {
-                var stateUpdateMs = Math.Max(1, _roomGrain._wiredConfig.StateUpdateMs);
+                var stateUpdateMs = Math.Max(1, WiredConfig.StateUpdateMs);
                 _nextStateUpdateMs = now - now % stateUpdateMs + stateUpdateMs;
 
                 FlushPendingFloorStates();
@@ -201,7 +201,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (!dormant)
             await ProcessTimedTriggersAsync(now, ct);
 
-        _eventsLeftThisTick = _roomGrain._wiredConfig.MaxEventsPerTick;
+        _eventsLeftThisTick = WiredConfig.MaxEventsPerTick;
 
         await RunQueuedEventsAsync(now, ct);
     }
@@ -322,7 +322,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (execution.IsStopped)
             return Task.CompletedTask;
 
-        var timeoutMs = _roomGrain._wiredConfig.RecursionTimeoutMs;
+        var timeoutMs = WiredConfig.RecursionTimeoutMs;
 
         if (timeoutMs > 0 && _wallClockMs() - execution.StartedAtWallMs > timeoutMs)
         {
@@ -410,7 +410,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         )
             return;
 
-        if (_eventQueue.Count >= _roomGrain._wiredConfig.MaxQueuedEvents)
+        if (_eventQueue.Count >= WiredConfig.MaxQueuedEvents)
         {
             _droppedEvents++;
             RecordError(WiredErrorKind.ExecutorOverload, _roomGrain.NowMs());
@@ -566,7 +566,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         if (
             _execution is { } execution
-            && !ChargeExecution(execution, _roomGrain._wiredConfig.ExecutionCostPerStack)
+            && !ChargeExecution(execution, WiredConfig.ExecutionCostPerStack)
         )
             return;
 
@@ -724,7 +724,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "Wired action {WiredCode} failed to plan its moves in room {RoomId}",
                     action.WiredCode,
@@ -936,12 +936,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// </summary>
     private bool TryVisitReceiver(int stackId, long now)
     {
-        var limit = _roomGrain._wiredConfig.MaxStackVisitsPerWindow;
+        var limit = WiredConfig.MaxStackVisitsPerWindow;
 
         if (limit <= 0)
             return true;
 
-        var windowMs = Math.Max(1, _roomGrain._wiredConfig.StackVisitWindowMs);
+        var windowMs = Math.Max(1, WiredConfig.StackVisitWindowMs);
         var windowStart = now - now % windowMs;
 
         if (windowStart != _visitWindowStartMs)
@@ -1017,7 +1017,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// </summary>
     private bool TryHoldPending(WiredExecutionKey key, WiredPendingStackExecution pending, long now)
     {
-        var cap = _roomGrain._wiredConfig.MaxDelayedEvents;
+        var cap = WiredConfig.MaxDelayedEvents;
 
         if (
             cap > 0
@@ -1038,7 +1038,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
     {
-        var budget = _roomGrain._wiredConfig.MaxScheduledPerTick;
+        var budget = WiredConfig.MaxScheduledPerTick;
 
         while (budget-- > 0 && _stackSchedule.Count > 0)
         {
@@ -1149,11 +1149,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 action
                     .FlashActivationStateAsync(ct)
-                    .LogAndForget(
-                        _roomGrain._logger,
-                        "flash a wired box in room {RoomId}",
-                        _roomGrain.RoomId
-                    );
+                    .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
 
                 var outer = _contextValues;
                 var outerRunning = _running;
@@ -1185,7 +1181,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "Wired action {WiredType} {WiredCode} failed in room {RoomId}",
                     action.WiredType,
@@ -1245,7 +1241,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Combined wired variable change failed in room {RoomId}",
                 _roomGrain.RoomId
@@ -1278,7 +1274,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// </summary>
     private double ActionCost(IWiredAction action, WiredExecutionContext ctx)
     {
-        var config = _roomGrain._wiredConfig;
+        var config = WiredConfig;
         var cost = config.ExecutionCostPerAction;
 
         // A signal's antennas and a call's stacks are where it goes, not what it works on.
@@ -1443,7 +1439,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             {
                 var box = (IWiredBox)item.Logic!;
 
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "Failed to load wired item {ObjectId} ({WiredType} {WiredCode}) in room {RoomId}",
                     item.ObjectId,
@@ -1669,11 +1665,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     private void Flash(IWiredBox box) =>
         box.FlashActivationStateAsync(CancellationToken.None)
-            .LogAndForget(
-                _roomGrain._logger,
-                "flash a wired box in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
 
     /// <summary>
     /// A signal flashes each antenna it is delivered to once (recorded on hhus,
@@ -1687,11 +1679,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 continue;
 
             SetFlashStateAsync(antenna, antenna.Logic.GetState() == 1 ? 0 : 1)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "flash an antenna in room {RoomId}",
-                    _roomGrain.RoomId
-                );
+                .LogAndForget(Logger, "flash an antenna in room {RoomId}", _roomGrain.RoomId);
         }
     }
 

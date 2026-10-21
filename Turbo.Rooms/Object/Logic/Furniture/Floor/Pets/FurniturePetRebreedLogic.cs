@@ -26,7 +26,7 @@ public class FurniturePetRebreedLogic(IStuffDataFactory stuffDataFactory, IRoomF
                 _ctx.RoomObject.ExtraData,
                 _ctx.Definition.ExtraData,
                 PetRebreedData.SECTION,
-                _roomGrain._logger
+                Logger
             ) ?? new PetRebreedData();
 
         return null;

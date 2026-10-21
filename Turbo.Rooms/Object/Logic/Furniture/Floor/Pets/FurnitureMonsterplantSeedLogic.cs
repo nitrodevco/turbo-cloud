@@ -32,7 +32,7 @@ public class FurnitureMonsterplantSeedLogic(
             _ctx.RoomObject.ExtraData,
             _ctx.Definition.ExtraData,
             MonsterplantSeedData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 
         await PetModule.PlantSeedAsync(ctx, _ctx.RoomObject, data?.MinRarityLevel ?? 0, ct);

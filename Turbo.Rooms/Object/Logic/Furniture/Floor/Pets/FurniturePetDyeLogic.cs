@@ -30,7 +30,7 @@ public class FurniturePetDyeLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             _ctx.RoomObject.ExtraData,
             _ctx.Definition.ExtraData,
             PetDyeData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 
         if (_dye is null && PetProductParams.ParseDye(_ctx.Definition.CustomParams) is { } dye)

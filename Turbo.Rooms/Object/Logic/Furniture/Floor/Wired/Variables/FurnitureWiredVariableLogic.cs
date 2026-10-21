@@ -73,7 +73,7 @@ public abstract class FurnitureWiredVariableLogic
     )
     {
         if (
-            _roomGrain._wiredConfig.VariableBoxOwnersOnly
+            WiredConfig.VariableBoxOwnersOnly
             && ctx.Origin != ActionOrigin.System
             && ctx.PlayerId != _ctx.RoomObject.OwnerId
             && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
@@ -209,7 +209,7 @@ public abstract class FurnitureWiredVariableLogic
     /// </summary>
     private bool IsHolderFull(in WiredVariableKey key)
     {
-        var max = _roomGrain._wiredConfig.MaxVariablesPerHolder;
+        var max = WiredConfig.MaxVariablesPerHolder;
 
         if (
             max <= 0
@@ -520,11 +520,7 @@ public abstract class FurnitureWiredVariableLogic
             var resting = value.Value > previous.Value ? 2 : 4;
 
             FlashWithinAsync(resting, resting + 1)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "flash a wired box in room {RoomId}",
-                    _roomGrain.RoomId
-                );
+                .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
         }
 
         _ctx.PublishRoomEventAsync(
@@ -543,11 +539,7 @@ public abstract class FurnitureWiredVariableLogic
                 },
                 System.Threading.CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "publish an event in room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "publish an event in room {RoomId}", _roomGrain.RoomId);
     }
 
     /// <summary>
@@ -570,7 +562,7 @@ public abstract class FurnitureWiredVariableLogic
             FurnitureExtraDataSections.Read<HashSet<int>>(
                 _ctx.RoomObject.ExtraData,
                 SHARED_REFERRERS_SECTION,
-                _roomGrain._logger
+                Logger
             ) ?? [];
 
     /// <summary>

@@ -1455,10 +1455,12 @@ finishing a change, check it against this list; each line is a mistake that was 
 - **Room code names its siblings the way the grain does.** Every module, system, object logic and
   wired context derives from `RoomGrainComponent`, which exposes the grain's modules and systems
   by name: write `ObjectModule.RemoveObjectAsync(...)`, not
-  `_roomGrain.ObjectModule.RemoveObjectAsync(...)`. `_roomGrain` stays for the grain's state,
-  config and services. A new module or system gets its shorthand in `RoomGrainComponent` (the one
-  list), and a new class that holds the room grain derives from it rather than keeping its own
-  `_roomGrain` field. Static helpers that take the grain as a parameter (`WiredArea`,
+  `_roomGrain.ObjectModule.RemoveObjectAsync(...)`. The same goes for the grain's `State`,
+  `Logger`, `GrainFactory`, `RoomConfig` and `WiredConfig`: write `State.ItemsById`, not
+  `_roomGrain._state.ItemsById`. `_roomGrain` stays for the grain's other services (database,
+  providers, the rarer configs). A new module or system gets its shorthand in
+  `RoomGrainComponent` (the one list), and a new class that holds the room grain derives from it
+  rather than keeping its own `_roomGrain` field. Static helpers that take the grain as a parameter (`WiredArea`,
   `WiredTimeZones`) are the exception.
 - **The same holds for every grain that splits its work into helper classes.** A grain with
   modules holds them as named fields and gives them one `<Grain>Component` base that names what

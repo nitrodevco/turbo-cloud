@@ -95,7 +95,7 @@ public class WiredActionProgressRewardTrack(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Wired reward track {TrackId}/{TaskId} could not be progressed for player {PlayerId} in room {RoomId}",
                     ids[0],

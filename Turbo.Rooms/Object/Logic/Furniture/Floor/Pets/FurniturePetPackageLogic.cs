@@ -37,7 +37,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
     {
         var contents = ReadContents();
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenPetPackageRequestedMessageComposer
             {
@@ -127,7 +127,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
         PetNameValidationType status,
         CancellationToken ct
     ) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenPetPackageResultMessageComposer
             {
@@ -144,7 +144,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
             _ctx.RoomObject.ExtraData,
             _ctx.Definition.ExtraData,
             PetPackageData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 
         return contents is null || !PetFigure.IsValidColor(contents.Color) ? null : contents;

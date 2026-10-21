@@ -93,7 +93,7 @@ public abstract class FurnitureWiredChestLogic(
             PreviewAmount = Number(WiredChestData.PREVIEW_AMOUNT, 1),
         };
 
-    private IWiredChestGrain Chest => _roomGrain._grainFactory.GetWiredChestGrain(_ctx.ObjectId);
+    private IWiredChestGrain Chest => GrainFactory.GetWiredChestGrain(_ctx.ObjectId);
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Everybody;
 
@@ -108,7 +108,7 @@ public abstract class FurnitureWiredChestLogic(
         catch (Exception ex)
         {
             // The chest still stands and opens; its counts show once its grain answers.
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to read wired chest {ChestId} in room {RoomId}",
                 _ctx.ObjectId,
@@ -133,7 +133,7 @@ public abstract class FurnitureWiredChestLogic(
         if (!await CanOpenAsync(ctx))
             return;
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenChestMessageComposer { ChestId = _ctx.ObjectId },
             ct
@@ -169,7 +169,7 @@ public abstract class FurnitureWiredChestLogic(
                     ._grainFactory.GetWiredTradeGrain(ctx.PlayerId)
                     .StartChestDepositAsync(_ctx.RoomId, _ctx.ObjectId, Kind, ct)
                     .LogAndForget(
-                        _roomGrain._logger,
+                        Logger,
                         "start a deposit into wired chest {ChestId}",
                         _ctx.ObjectId
                     );
@@ -793,5 +793,5 @@ public abstract class FurnitureWiredChestLogic(
         : null;
 
     private Task SendAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
+        GrainFactory.SendComposerToPlayerAsync(playerId, composer, ct);
 }

@@ -22,7 +22,7 @@ public abstract partial class FurnitureWiredLogic
         FurnitureExtraDataSections.Read<Dictionary<int, WiredFurniSnapshotEntry>>(
             _ctx.RoomObject.ExtraData,
             WiredFurniSnapshotEntry.SECTION,
-            _roomGrain._logger
+            Logger
         ) ?? [];
 
     /// <summary>How <paramref name="item"/> stands now, as a snapshot keeps it.</summary>

@@ -32,7 +32,7 @@ public class FurniturePetCustomPartLogic(
             _ctx.RoomObject.ExtraData,
             _ctx.Definition.ExtraData,
             PetCustomPartData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 
         _paramsPetType = _part is null

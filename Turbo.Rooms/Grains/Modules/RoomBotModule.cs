@@ -37,11 +37,11 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
     private BotConfig Config => _roomGrain._botConfig;
 
-    public IReadOnlyList<IRoomBot> Bots => _roomGrain._state.Bots;
+    public IReadOnlyList<IRoomBot> Bots => State.Bots;
 
     internal async Task EnsureBotsLoadedAsync(CancellationToken ct)
     {
-        if (_roomGrain._state.IsBotsLoaded)
+        if (State.IsBotsLoaded)
             return;
 
         var bots = await _roomGrain._npcProvider.LoadBotsByRoomIdAsync(_roomGrain.RoomId, ct);
@@ -52,7 +52,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
             if (tileIdx < 0 && !PetModule.TryFindFreeTile(0, 0, out tileIdx))
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     "Bot {BotId} has no tile to stand on in room {RoomId}; leaving it unplaced",
                     bot.Id,
                     _roomGrain.RoomId
@@ -64,7 +64,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             await AttachBotAsync(bot, tileIdx, bot.Rotation, ct);
         }
 
-        _roomGrain._state.IsBotsLoaded = true;
+        State.IsBotsLoaded = true;
     }
 
     public bool TryGetBot(int botId, [NotNullWhen(true)] out IRoomBot? bot)
@@ -72,7 +72,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         bot = null;
 
         if (
-            !_roomGrain._state.AvatarsByBotId.TryGetValue(botId, out var objectId)
+            !State.AvatarsByBotId.TryGetValue(botId, out var objectId)
             || !AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomBot roomBot
         )
@@ -84,7 +84,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
     }
 
     private Task SendErrorAsync(ActionContext ctx, BotErrorType error, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new BotErrorMessageComposer { Error = error },
             ct
@@ -170,7 +170,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
                 CancellationToken.None
             )
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "open the menu of bot {BotId} for player {PlayerId}",
                 botId,
                 ctx.PlayerId
@@ -311,7 +311,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
         await ObjectModule.RemoveObjectAsync(ctx, bot, ct);
 
-        _roomGrain._state.AvatarsByBotId.Remove(botId);
+        State.AvatarsByBotId.Remove(botId);
         _lastPersistedTileByBotId.Remove(botId);
 
         if (
@@ -324,7 +324,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
                 )
         )
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Bot {BotId} picked up from room {RoomId} could not be returned to player {OwnerId}",
                 botId,
                 _roomGrain.RoomId,
@@ -369,7 +369,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             case BotSkillType.ChangeName:
                 return await RenameAsync(ctx, bot, data, ct);
             default:
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     "Bot skill {Skill} on bot {BotId} in room {RoomId} has no behaviour",
                     skill,
                     botId,
@@ -409,7 +409,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
                 return false;
         }
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new BotCommandConfigurationMessageComposer
             {
@@ -425,7 +425,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
     private async Task<bool> DressUpAsync(ActionContext ctx, IRoomBot bot, CancellationToken ct)
     {
-        var owner = await _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
+        var owner = await GrainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
 
         await SetFigureAsync(bot, owner.Figure, owner.Gender, ct);
 
@@ -449,7 +449,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             )
         )
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Player {PlayerId} sent an unreadable chat setup for bot {BotId} in room {RoomId}",
                 ctx.PlayerId,
                 bot.BotId,
@@ -548,7 +548,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
         bot.SetRotation(rotation == Rotation.None ? Rotation.South : rotation);
 
-        _roomGrain._state.AvatarsByBotId[bot.BotId] = bot.ObjectId;
+        State.AvatarsByBotId[bot.BotId] = bot.ObjectId;
         _lastPersistedTileByBotId[bot.BotId] = tileIdx;
 
         if (bot.DanceType != AvatarDanceType.None)
@@ -588,7 +588,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
                 ct
             );
 
-            _roomGrain._state.AvatarsByBotId.Remove(bot.BotId);
+            State.AvatarsByBotId.Remove(bot.BotId);
             _lastPersistedTileByBotId.Remove(bot.BotId);
         }
 
@@ -603,14 +603,14 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         CancellationToken ct
     )
     {
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ownerId);
+        var inventory = GrainFactory.GetInventoryGrain(ownerId);
 
         foreach (var bot in bots)
         {
             var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
 
             if (!await inventory.ReturnBotAsync(bot.GetBotSnapshot(), cause, ct))
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
                     bot.BotId,
                     ownerId,
@@ -623,7 +623,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
     internal void Persist(IRoomBot bot)
     {
         _lastPersistedTileByBotId[bot.BotId] = MapModule.ToIdx(bot.X, bot.Y);
-        _roomGrain._state.DirtyBotIds.Add(bot.BotId);
+        State.DirtyBotIds.Add(bot.BotId);
     }
 
     /// <summary>The rows of the bots marked since the last hand-over, as <see cref="RoomPetModule.TakeDirtySnapshots"/>.</summary>
@@ -640,7 +640,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
                 Persist(bot);
         }
 
-        var dirtyIds = _roomGrain._state.DirtyBotIds;
+        var dirtyIds = State.DirtyBotIds;
         var snapshots = new List<BotSnapshot>(dirtyIds.Count);
 
         foreach (var botId in dirtyIds)

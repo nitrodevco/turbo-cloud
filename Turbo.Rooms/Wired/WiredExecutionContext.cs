@@ -64,7 +64,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Wired could not set state {State} on item {ItemId} in room {RoomId}",
                 state,
@@ -214,7 +214,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Wired could not move item {ItemId} to tile {TileIdx} in room {RoomId}",
                 floorItem.ObjectId,
@@ -283,7 +283,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Wired could not move wall item {ItemId} in room {RoomId}",
                 wallItem.ObjectId,
@@ -376,7 +376,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Wired could not move avatar {ObjectId} to tile {TileIdx} in room {RoomId}",
                 avatar.ObjectId,
@@ -488,7 +488,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "A wired text placeholder failed in room {RoomId}",
                     _roomGrain.RoomId
@@ -522,7 +522,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     ex,
                     "A wired text placeholder failed in room {RoomId}",
                     _roomGrain.RoomId
@@ -539,7 +539,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         // Placeholders expand the text, and a box can repeat one many times over.
         // Cut by hand rather than through ClientText.Truncate, which also trims: the text is
         // the box's own, spacing included, and only its length is capped here.
-        var maxLength = _roomGrain._wiredConfig.StringParamMaxLength;
+        var maxLength = WiredConfig.StringParamMaxLength;
 
         return text.Length > maxLength ? text[..maxLength] : text;
     }

@@ -50,7 +50,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Pet {PetId} in room {RoomId} failed to tick",
                     pet.PetId,

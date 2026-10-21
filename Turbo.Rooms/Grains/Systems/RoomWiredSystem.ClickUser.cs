@@ -67,7 +67,7 @@ public sealed partial class RoomWiredSystem
             ct
         );
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new WiredClickUserResponseMessageComposer
             {

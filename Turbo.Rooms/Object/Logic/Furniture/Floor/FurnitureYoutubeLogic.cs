@@ -175,27 +175,25 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         if (_startedAtMs == 0 && GetPlaylist() is { Videos.Count: > 0 })
             await StartVideoAsync(0, ct);
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new YoutubeDisplayPlaylistsMessageComposer
             {
                 FurniId = _ctx.ObjectId,
                 Playlists =
                 [
-                    .. _roomGrain._roomConfig.YoutubePlaylists.Select(
-                        x => new YoutubePlaylistSnapshot
-                        {
-                            PlaylistId = x.Id,
-                            Title = x.Title,
-                            Description = x.Description,
-                        }
-                    ),
+                    .. RoomConfig.YoutubePlaylists.Select(x => new YoutubePlaylistSnapshot
+                    {
+                        PlaylistId = x.Id,
+                        Title = x.Title,
+                        Description = x.Description,
+                    }),
                 ],
                 SelectedPlaylistId = GetPlaylist()?.Id ?? string.Empty,
             },
             ct
         );
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(ctx.PlayerId, ComposeVideo(), ct);
+        await GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, ComposeVideo(), ct);
     }
 
     private YoutubeDisplayVideoMessageComposer ComposeVideo()
@@ -228,7 +226,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         var stored = FurnitureExtraDataSections.Read<YoutubeDisplayData>(
             _ctx.RoomObject.ExtraData,
             YoutubeDisplayData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 
         return FindPlaylist(stored?.PlaylistId);
@@ -237,5 +235,5 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     private YoutubePlaylistConfig? FindPlaylist(string? playlistId) =>
         string.IsNullOrEmpty(playlistId)
             ? null
-            : _roomGrain._roomConfig.YoutubePlaylists.FirstOrDefault(x => x.Id == playlistId);
+            : RoomConfig.YoutubePlaylists.FirstOrDefault(x => x.Id == playlistId);
 }

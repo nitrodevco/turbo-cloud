@@ -123,8 +123,7 @@ public class FurnitureRentableSpaceLogic(
                 .GetSummaryAsync(ct);
 
             expiresAt =
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-                + _roomGrain._roomConfig.RentableSpaceDurationSeconds;
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds() + RoomConfig.RentableSpaceDurationSeconds;
 
             _ctx.RoomObject.ExtraData.UpdateSection(
                 RentableSpaceData.SECTION,
@@ -139,11 +138,11 @@ public class FurnitureRentableSpaceLogic(
         catch
         {
             if (paid is { Count: > 0 })
-                await _roomGrain._grainFactory.RefundAsync(
+                await GrainFactory.RefundAsync(
                     ctx.PlayerId,
                     paid,
                     cause,
-                    _roomGrain._logger,
+                    Logger,
                     $"renting space {_ctx.ObjectId} in room {_ctx.RoomId}"
                 );
 
@@ -217,7 +216,7 @@ public class FurnitureRentableSpaceLogic(
         if (RentsAnotherSpace(ctx.PlayerId))
             return RentableSpaceRentFailedType.CanRentOnlyOneSpace;
 
-        var price = _roomGrain._roomConfig.RentableSpacePriceCredits;
+        var price = RoomConfig.RentableSpacePriceCredits;
 
         if (price <= 0)
             return RentableSpaceRentFailedType.None;
@@ -245,7 +244,7 @@ public class FurnitureRentableSpaceLogic(
         CancellationToken ct
     )
     {
-        var price = _roomGrain._roomConfig.RentableSpacePriceCredits;
+        var price = RoomConfig.RentableSpacePriceCredits;
 
         if (price <= 0)
             return [];
@@ -320,14 +319,14 @@ public class FurnitureRentableSpaceLogic(
                 TimeRemaining = rent is null
                     ? 0
                     : (int)Math.Max(0, rent.ExpiresAt - DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
-                Price = _roomGrain._roomConfig.RentableSpacePriceCredits,
+                Price = RoomConfig.RentableSpacePriceCredits,
             },
             ct
         );
     }
 
     private Task SendAsync(ActionContext ctx, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(ctx.PlayerId, composer, ct);
+        GrainFactory.SendComposerToPlayerAsync(ctx.PlayerId, composer, ct);
 
     /// <summary>The rent while it lasts; a rent whose time is up reads as none even before it is cleared.</summary>
     private RentableSpaceData? GetActiveRent() =>
@@ -340,6 +339,6 @@ public class FurnitureRentableSpaceLogic(
         FurnitureExtraDataSections.Read<RentableSpaceData>(
             _ctx.RoomObject.ExtraData,
             RentableSpaceData.SECTION,
-            _roomGrain._logger
+            Logger
         );
 }

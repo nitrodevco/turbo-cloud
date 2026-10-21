@@ -37,10 +37,9 @@ public class FurnitureFloorSwitchLogic(
 {
     public override bool CanWiredToggle() => false;
 
-    protected override int WalkTimeoutMs => _roomGrain._roomConfig.FloorSwitchWalkTimeoutMs;
+    protected override int WalkTimeoutMs => RoomConfig.FloorSwitchWalkTimeoutMs;
 
-    protected override int UseAfterLastStepMs =>
-        _roomGrain._roomConfig.FloorSwitchUseAfterLastStepMs;
+    protected override int UseAfterLastStepMs => RoomConfig.FloorSwitchUseAfterLastStepMs;
 
     public override bool ReportsOwnUse() => true;
 

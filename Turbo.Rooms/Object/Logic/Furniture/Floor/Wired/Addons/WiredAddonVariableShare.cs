@@ -60,7 +60,7 @@ public class WiredAddonVariableShare(
             _synchronized = FurnitureExtraDataSections.Read<SynchronizedData>(
                 _ctx.RoomObject.ExtraData,
                 SECTION,
-                _roomGrain._logger
+                Logger
             )
                 is { } data
                 ? new SharedWiredVariableAddonsSnapshot

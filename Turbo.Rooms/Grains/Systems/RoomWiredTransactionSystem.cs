@@ -84,7 +84,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
             return refused;
         }
 
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        await GrainFactory.SendComposerToPlayerAsync(
             player.PlayerId,
             new WiredTransactionSuccessMessageComposer
             {
@@ -147,7 +147,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
     ) =>
         Task.WhenAll(
             notify
-                ? _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                ? GrainFactory.SendComposerToPlayerAsync(
                     playerId,
                     new WiredTransactionFailMessageComposer { FailureType = reason },
                     ct
@@ -292,7 +292,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
 
             if (remaining > 0)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     "Reward to player {PlayerId} in room {RoomId} came {Remaining} short of {Amount} after the chests said they held it",
                     player.PlayerId,
                     _roomGrain.RoomId,

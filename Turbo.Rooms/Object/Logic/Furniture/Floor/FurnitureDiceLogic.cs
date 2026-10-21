@@ -43,7 +43,7 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
                 await SetStateAsync(DiceStates.ROLLING);
 
-                TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.DiceRollMs, LandAsync);
+                TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.DiceRollMs, LandAsync);
 
                 return true;
 

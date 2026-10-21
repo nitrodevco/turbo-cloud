@@ -143,7 +143,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     /// </summary>
     protected void ScheduleTick()
     {
-        var tickMs = _roomGrain._roomConfig.AvatarTickMs;
+        var tickMs = RoomConfig.AvatarTickMs;
 
         if (UseAfterLastStepMs < 0)
         {
@@ -153,7 +153,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
         }
 
         var now = _roomGrain.NowMs();
-        var boundary = _roomGrain._state.NextAvatarBoundaryMs;
+        var boundary = State.NextAvatarBoundaryMs;
         var dueAtMs = boundary > now ? boundary : now + tickMs;
 
         foreach (var approach in _approaching.Values)

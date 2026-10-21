@@ -191,11 +191,7 @@ public class WiredActionInitiateTransaction(
             _grainFactory
                 .GetWiredTradeGrain(player.PlayerId)
                 .StartContractAsync(request, CancellationToken.None)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "offer contract {SourceId} to a player",
-                    sourceId.Value
-                );
+                .LogAndForget(Logger, "offer contract {SourceId} to a player", sourceId.Value);
 
         return true;
     }

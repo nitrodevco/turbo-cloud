@@ -160,7 +160,7 @@ public class WiredActionPlaceFurni(
     /// every furni that turns into something of value, which no hotel may let wired copy.
     /// </summary>
     private bool CanBeCopied(IRoomItem item) =>
-        (item.IsBuildersClub || !_roomGrain._wiredConfig.PlaceFurniBuildersClubOnly)
+        (item.IsBuildersClub || !WiredConfig.PlaceFurniBuildersClubOnly)
         && item.Logic
             is not (
                 FurnitureExchangeLogic
@@ -267,7 +267,7 @@ public class WiredActionPlaceFurni(
                 _ctx.RoomObject.OwnerId,
                 x,
                 y,
-                Math.Clamp(z, 0, _roomGrain._roomConfig.MaxStackHeight),
+                Math.Clamp(z, 0, RoomConfig.MaxStackHeight),
                 (Rotation)source.Rotation,
                 ct
             );
@@ -314,8 +314,8 @@ public class WiredActionPlaceFurni(
     private async Task NotifyPlacementFailureAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var now = _roomGrain.NowMs();
-        var cooldown = _roomGrain._wiredConfig.PlacementFailureNotificationCooldownMs;
-        var notified = _roomGrain._state.WiredPlacementFailureNotifiedMs;
+        var cooldown = WiredConfig.PlacementFailureNotificationCooldownMs;
+        var notified = State.WiredPlacementFailureNotifiedMs;
 
         // Only who is still waiting is kept, so the list does not grow with every visitor.
         foreach (
@@ -339,7 +339,7 @@ public class WiredActionPlaceFurni(
 
             notified[player.PlayerId] = now;
 
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            await GrainFactory.SendComposerToPlayerAsync(
                 player.PlayerId,
                 new NotificationDialogMessageComposer
                 {

@@ -75,12 +75,12 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         {
             var name = rename.Name.Trim();
 
-            if (name.Length == 0 || name.Length > _roomGrain._roomConfig.MannequinNameMaxLength)
+            if (name.Length == 0 || name.Length > RoomConfig.MannequinNameMaxLength)
                 return Reject(ctx, interaction, "name length");
 
             name = _roomGrain._wordFilter.FilterAndTruncate(
                 name,
-                _roomGrain._roomConfig.MannequinNameMaxLength
+                RoomConfig.MannequinNameMaxLength
             );
 
             return await SetMapDataAsync(
@@ -88,7 +88,7 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
             );
         }
 
-        var owner = await _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
+        var owner = await GrainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
 
         return await SetMapDataAsync(
             new Dictionary<string, string>

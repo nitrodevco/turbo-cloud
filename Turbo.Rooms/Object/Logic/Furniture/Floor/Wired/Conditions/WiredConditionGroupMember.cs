@@ -29,8 +29,7 @@ public class WiredConditionGroupMember(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var wantedGroupId =
-            GetPositiveIdParam() ?? _roomGrain._state.RoomSnapshot?.Guild?.GuildId.Value;
+        var wantedGroupId = GetPositiveIdParam() ?? State.RoomSnapshot?.Guild?.GuildId.Value;
         var players = GetPlayers(ctx.GetSelection(this));
 
         if (wantedGroupId is not > 0)

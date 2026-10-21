@@ -138,7 +138,7 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         if (!await HasRightsAsync(ctx))
             return Reject(ctx, interaction, "no rights");
 
-        var maxSize = _roomGrain._roomConfig.AreaHideMaxSize;
+        var maxSize = RoomConfig.AreaHideMaxSize;
 
         if (
             area.Width < 1

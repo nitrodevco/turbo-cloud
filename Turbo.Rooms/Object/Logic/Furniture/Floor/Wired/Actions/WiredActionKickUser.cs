@@ -29,8 +29,7 @@ public class WiredActionKickUser(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
-    protected override int GetStringParamMaxLength() =>
-        _roomGrain._wiredConfig.KickMessageMaxLength;
+    protected override int GetStringParamMaxLength() => WiredConfig.KickMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

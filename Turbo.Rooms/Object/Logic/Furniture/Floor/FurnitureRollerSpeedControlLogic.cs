@@ -29,16 +29,16 @@ public class FurnitureRollerSpeedControlLogic(
 {
     private const int STATES_PER_SPEED = 3;
 
-    private int Speeds => Math.Max(1, _roomGrain._roomConfig.RollerSpeedControlTickMs.Length);
+    private int Speeds => Math.Max(1, RoomConfig.RollerSpeedControlTickMs.Length);
 
     /// <summary>The speed it is at, from 0, the fastest.</summary>
     public int Speed => Math.Clamp(GetState() / STATES_PER_SPEED, 0, Speeds - 1);
 
     /// <summary>How often the room's rollers move at this speed.</summary>
     public int TickMs =>
-        _roomGrain._roomConfig.RollerSpeedControlTickMs is { Length: > 0 } ticks
+        RoomConfig.RollerSpeedControlTickMs is { Length: > 0 } ticks
             ? ticks[Speed]
-            : _roomGrain._roomConfig.RollerTickMs;
+            : RoomConfig.RollerTickMs;
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 

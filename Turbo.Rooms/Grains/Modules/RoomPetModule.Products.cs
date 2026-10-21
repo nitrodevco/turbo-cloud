@@ -38,7 +38,7 @@ public sealed partial class RoomPetModule
     {
         if (Pets.Count >= Config.MaxPetsPerRoom)
         {
-            _roomGrain._logger.LogDebug(
+            Logger.LogDebug(
                 "Seed {ItemId} in room {RoomId} not planted: the room holds its maximum of pets",
                 seed.ObjectId,
                 _roomGrain.RoomId
@@ -101,10 +101,10 @@ public sealed partial class RoomPetModule
         if (!await PlacePetAsync(ctx, plant.Id, x, y, ct))
             return false;
 
-        _roomGrain._grainFactory.CountRewardTrackAction(
+        GrainFactory.CountRewardTrackAction(
             ctx.PlayerId,
             RewardTrackActionTypes.PLANT_MONSTER_PLANT,
-            _roomGrain._logger
+            Logger
         );
 
         return true;
@@ -125,7 +125,7 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
+        var inventory = GrainFactory.GetInventoryGrain(ctx.PlayerId);
         var snapshot = await inventory.GetItemSnapshotAsync(itemId, ct);
 
         if (snapshot is null)
@@ -164,7 +164,7 @@ public sealed partial class RoomPetModule
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to use item {ItemId} of player {PlayerId} on pet {PetId} in room {RoomId}; giving it back",
                 itemId,
@@ -212,7 +212,7 @@ public sealed partial class RoomPetModule
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to give player {PlayerId} back definition {DefinitionId} with {ExtraData}",
                 consumed.OwnerId,
@@ -230,7 +230,7 @@ public sealed partial class RoomPetModule
         string reason
     )
     {
-        _roomGrain._logger.LogWarning(
+        Logger.LogWarning(
             "Rejected using inventory item {ItemId} on pet {PetId} in room {RoomId} by player {PlayerId}: {Reason}",
             itemId,
             petId,

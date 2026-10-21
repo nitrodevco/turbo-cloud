@@ -36,7 +36,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Bot {BotId} in room {RoomId} failed to tick",
                     bot.BotId,

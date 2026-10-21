@@ -19,7 +19,7 @@ public sealed partial class RoomWiredSystem
     /// <summary>The owner and staff always pass; group admins count as group members.</summary>
     public (bool canModify, bool canRead) GetPermissions(RoomControllerType controllerLevel)
     {
-        var snapshot = _roomGrain._state.RoomSnapshot;
+        var snapshot = State.RoomSnapshot;
 
         return (
             IsPermitted(snapshot.WiredModifyPermissionMask, controllerLevel),
@@ -58,7 +58,7 @@ public sealed partial class RoomWiredSystem
 
         var (canModify, canRead) = GetPermissions(controllerLevel);
 
-        return _roomGrain._grainFactory.SendComposerToPlayerAsync(
+        return GrainFactory.SendComposerToPlayerAsync(
             playerId,
             new WiredPermissionsEventMessageComposer { CanModify = canModify, CanRead = canRead },
             ct

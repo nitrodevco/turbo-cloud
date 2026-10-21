@@ -20,8 +20,7 @@ public sealed class UserEffectVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
-    private IEnumerable<int> TextIds =>
-        WiredTextConnectors.UpTo(_roomGrain._wiredConfig.MaxEffectId);
+    private IEnumerable<int> TextIds => WiredTextConnectors.UpTo(WiredConfig.MaxEffectId);
 
     protected internal override string TextPrefix =>
         WiredTextConnectors.Prefix(WiredTextConnectors.EFFECT_KEY);

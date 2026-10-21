@@ -109,7 +109,7 @@ public class WiredVariableReference(
         _reference ??= FurnitureExtraDataSections.Read<ReferenceData>(
             _ctx.RoomObject.ExtraData,
             SECTION,
-            _roomGrain._logger
+            Logger
         );
 
     private WiredVariableId? SourceVariableId =>
@@ -517,11 +517,7 @@ public class WiredVariableReference(
                 _ctx.RoomId,
                 CancellationToken.None
             )
-            .LogAndForget(
-                _roomGrain._logger,
-                "change a shared variable of room {RoomId}",
-                reference.RoomId
-            );
+            .LogAndForget(Logger, "change a shared variable of room {RoomId}", reference.RoomId);
     }
 
     /// <summary>

@@ -82,7 +82,7 @@ public sealed class RoomTimerSystem(RoomGrain roomGrain) : RoomGrainComponent(ro
             }
             catch (Exception ex)
             {
-                _roomGrain._logger.LogError(
+                Logger.LogError(
                     ex,
                     "Timer for object {ObjectId} failed in room {RoomId}",
                     objectId,

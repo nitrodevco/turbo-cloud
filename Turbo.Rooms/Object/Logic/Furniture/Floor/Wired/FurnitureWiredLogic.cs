@@ -515,7 +515,7 @@ public abstract partial class FurnitureWiredLogic(
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to apply a wired update to item {ItemId} in room {RoomId} for player {PlayerId}",
                 _ctx.ObjectId,
@@ -531,7 +531,7 @@ public abstract partial class FurnitureWiredLogic(
     /// Longest text this box stores. The client caps every input itself, so anything longer
     /// did not come from the editor; boxes with a smaller input override this.
     /// </summary>
-    protected virtual int GetStringParamMaxLength() => _roomGrain._wiredConfig.StringParamMaxLength;
+    protected virtual int GetStringParamMaxLength() => WiredConfig.StringParamMaxLength;
 
     /// <summary>
     /// The text as it is stored: control characters dropped (tab and line breaks stay, boxes
@@ -590,7 +590,7 @@ public abstract partial class FurnitureWiredLogic(
         specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;
 
     /// <summary>The most ints a save may carry; a box whose editor sends more says so.</summary>
-    protected virtual int GetMaxIntParams() => _roomGrain._wiredConfig.MaxIntParams;
+    protected virtual int GetMaxIntParams() => WiredConfig.MaxIntParams;
 
     /// <summary>
     /// How many of the fixed int params a save or a stored box must carry. A client release
@@ -701,7 +701,7 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     protected virtual bool AllowsWallFurni => false;
 
-    private bool MayPickWallFurni => AllowsWallFurni && _roomGrain._wiredConfig.AllowWallFurni;
+    private bool MayPickWallFurni => AllowsWallFurni && WiredConfig.AllowWallFurni;
 
     /// <summary>The <c>wiredfurni.error.require_*</c> text for a pick <see cref="CanPickFurni"/> refuses.</summary>
     protected virtual string? PickRefusedErrorKey => null;
@@ -716,7 +716,7 @@ public abstract partial class FurnitureWiredLogic(
 
     /// <summary>Whether the furni is one of the antennas signals go to (<see cref="Configuration.WiredConfig.AntennaLogicNames"/>).</summary>
     protected bool IsAntenna(IRoomItem item) =>
-        _roomGrain._wiredConfig.AntennaLogicNames is not { Length: > 0 } antennas
+        WiredConfig.AntennaLogicNames is not { Length: > 0 } antennas
         || antennas.Contains(item.Definition.LogicName, StringComparer.OrdinalIgnoreCase);
 
     private void RefuseUnpickableFurni(
@@ -735,7 +735,7 @@ public abstract partial class FurnitureWiredLogic(
             )
                 continue;
 
-            if (item.IsTemporary && _roomGrain._wiredConfig.RefuseTemporaryFurniPicks)
+            if (item.IsTemporary && WiredConfig.RefuseTemporaryFurniPicks)
                 throw new WiredSaveRefusedException(WiredSaveErrors.TEMP_FURNI_NOT_ALLOWED);
 
             if (!CanPickFurni(item))
@@ -763,7 +763,7 @@ public abstract partial class FurnitureWiredLogic(
     {
         stuffIds = [];
 
-        var limit = _roomGrain._wiredConfig.SelectedItemsLimit;
+        var limit = WiredConfig.SelectedItemsLimit;
         var seen = new HashSet<int>();
 
         foreach (var proposedId in proposed)
@@ -900,7 +900,7 @@ public abstract partial class FurnitureWiredLogic(
             // by hand). They never reach the box unchecked: it starts over from its defaults. A
             // box never saved has none stored, and taking its defaults is not news.
             if (_wiredData.IntParams.Count > 0)
-                _roomGrain._logger.LogWarning(
+                Logger.LogWarning(
                     "Wired item {ItemId} in room {RoomId} held int params that fail its rules; reset to defaults",
                     _ctx.ObjectId,
                     _ctx.RoomId
@@ -1005,7 +1005,7 @@ public abstract partial class FurnitureWiredLogic(
         new()
         {
             WiredType = WiredType,
-            FurniLimit = _roomGrain._wiredConfig.SelectedItemsLimit,
+            FurniLimit = WiredConfig.SelectedItemsLimit,
             StuffIds = GetValidStuffIds(_wiredData.StuffIds, out var validStuffIds)
                 ? WiredFurniIds.ToClient(FurniModule, validStuffIds)
                 : [],
@@ -1107,7 +1107,7 @@ public abstract partial class FurnitureWiredLogic(
     /// replaced by defaults; the fault is logged so the loss is visible.
     /// </summary>
     protected void LogWiredDataFault(Exception ex) =>
-        _roomGrain._logger.LogDebug(
+        Logger.LogDebug(
             ex,
             "Wired item {ItemId} in room {RoomId} carried data its box could not read",
             _ctx.ObjectId,
@@ -1185,7 +1185,7 @@ public abstract partial class FurnitureWiredLogic(
         }
         catch (WiredParamTypeMismatchException ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Wired box {Logic} (item {ItemId}, room {RoomId}) reads int param {Index} as the wrong type",
                 GetType().Name,

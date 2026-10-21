@@ -114,7 +114,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         var placed = FurniModule.Items.Count(x => x.Logic is FurnitureWiredVariableFxLogic);
 
-        if (placed >= _roomGrain._wiredConfig.VariableFxMaxBoxes)
+        if (placed >= WiredConfig.VariableFxMaxBoxes)
             throw new TurboException(TurboErrorCodeEnum.WiredVariableFxLimitReached);
     }
 
@@ -123,7 +123,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         if (now < _nextFlushAtMs)
             return Task.CompletedTask;
 
-        _nextFlushAtMs = now + _roomGrain._wiredConfig.VariableFxFlushMs;
+        _nextFlushAtMs = now + WiredConfig.VariableFxFlushMs;
 
         if (_configsDirty)
             RebuildBindings();
@@ -152,7 +152,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         var found = new Dictionary<int, VariableFxBinding>();
         var countsByVariable = new Dictionary<RoomObjectId, int>();
-        var perVariable = _roomGrain._wiredConfig.VariableFxMaxPerVariable;
+        var perVariable = WiredConfig.VariableFxMaxPerVariable;
 
         // The fx an import add-on takes over count as boxes of this room, under their own ids.
         var boxes = FurniModule.Items.SelectMany<IRoomItem, FurnitureWiredVariableFxLogic>(item =>
@@ -174,7 +174,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 continue;
             }
 
-            if (found.Count >= _roomGrain._wiredConfig.VariableFxMaxBoxes)
+            if (found.Count >= WiredConfig.VariableFxMaxBoxes)
                 break;
 
             // Past its variable box's limit an fx is kept, and its config sent, but not drawn;
@@ -300,7 +300,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         var variableId = variable.GetVarSnapshot().VariableId;
         var audience = GetAudience(box, players);
-        var cap = _roomGrain._wiredConfig.VariableFxMaxStatusesPerViewer;
+        var cap = WiredConfig.VariableFxMaxStatusesPerViewer;
 
         void Hand(VariableFxStatusSnapshot status, IRoomPlayer? holder)
         {
@@ -504,14 +504,14 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             ._grainFactory.GetPlayerPresenceGrain(playerId)
             .SendComposerAsync(batch, CancellationToken.None)
             .LogAndForget(
-                _roomGrain._logger,
+                Logger,
                 "send variable fx to player {PlayerId} in room {RoomId}",
                 playerId,
                 _roomGrain.RoomId
             );
     }
 
-    private long ReadyAt() => _roomGrain.NowMs() + _roomGrain._wiredConfig.VariableFxEntryDelayMs;
+    private long ReadyAt() => _roomGrain.NowMs() + WiredConfig.VariableFxEntryDelayMs;
 
     /// <summary>Takes out the entries whose delay is over; says whether any are still waiting.</summary>
     private static HashSet<TKey> TakeReady<TKey>(

@@ -123,13 +123,12 @@ public class FurnitureGameTimerLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         _started = false;
 
-        await SetStateAsync(_roomGrain._roomConfig.GameDefaultDurationSeconds);
+        await SetStateAsync(RoomConfig.GameDefaultDurationSeconds);
     }
 
     private async Task StartAsync(CancellationToken ct)
     {
-        var duration =
-            GetState() > 0 ? GetState() : _roomGrain._roomConfig.GameDefaultDurationSeconds;
+        var duration = GetState() > 0 ? GetState() : RoomConfig.GameDefaultDurationSeconds;
 
         _remainingSeconds = duration;
         _isRunning = true;

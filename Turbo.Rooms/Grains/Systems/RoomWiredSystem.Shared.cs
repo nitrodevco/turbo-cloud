@@ -102,11 +102,7 @@ public sealed partial class RoomWiredSystem
         RoomId? except
     ) =>
         ShareVariableChangeAsync(variableId, change, referrers, except)
-            .LogAndForget(
-                _roomGrain._logger,
-                "share a variable change of room {RoomId}",
-                _roomGrain.RoomId
-            );
+            .LogAndForget(Logger, "share a variable change of room {RoomId}", _roomGrain.RoomId);
 
     private async Task ShareVariableChangeAsync(
         WiredVariableId variableId,
@@ -116,7 +112,7 @@ public sealed partial class RoomWiredSystem
     )
     {
         var active = (
-            await _roomGrain._grainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
+            await GrainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
         ).ToHashSet();
 
         foreach (var referrer in referrers)
@@ -129,11 +125,7 @@ public sealed partial class RoomWiredSystem
             _roomGrain
                 ._grainFactory.GetRoomGrain(roomId)
                 .OnSharedWiredVariableChangedAsync(_roomGrain.RoomId, variableId, change, default)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "send a shared variable change to room {RoomId}",
-                    roomId
-                );
+                .LogAndForget(Logger, "send a shared variable change to room {RoomId}", roomId);
         }
     }
 
@@ -177,7 +169,7 @@ public sealed partial class RoomWiredSystem
     )
     {
         var active = (
-            await _roomGrain._grainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
+            await GrainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
         ).ToHashSet();
 
         foreach (var referrer in referrers)
@@ -190,11 +182,7 @@ public sealed partial class RoomWiredSystem
             _roomGrain
                 ._grainFactory.GetRoomGrain(roomId)
                 .OnSharedWiredVariableAddonsChangedAsync(_roomGrain.RoomId, variableId, default)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    "send shared variable add-ons to room {RoomId}",
-                    roomId
-                );
+                .LogAndForget(Logger, "send shared variable add-ons to room {RoomId}", roomId);
         }
     }
 

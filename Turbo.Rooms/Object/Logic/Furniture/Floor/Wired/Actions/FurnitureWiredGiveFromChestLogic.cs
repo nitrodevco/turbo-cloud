@@ -242,7 +242,7 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
         if (!TryReadVariableOperand(VARIABLE_AMOUNT, PARAM_AMOUNT_TARGET, reference, out var value))
         {
-            _roomGrain._logger.LogDebug(
+            Logger.LogDebug(
                 "Give-from-chest box {BoxId} in room {RoomId} found no amount in its variable",
                 ObjectId,
                 _roomGrain.RoomId

@@ -79,7 +79,7 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         if (height < 0)
             return null;
 
-        var max = _roomGrain._roomConfig.MaxStackHeight.Value;
+        var max = RoomConfig.MaxStackHeight.Value;
 
         return Math.Min(Altitude.FromInt(height).Value, max);
     }
@@ -109,12 +109,10 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
                 .DefaultIfEmpty(0)
                 .Max();
 
-            return step > 0
-                ? Math.Min(current + step, _roomGrain._roomConfig.MaxStackHeight.Value)
-                : current;
+            return step > 0 ? Math.Min(current + step, RoomConfig.MaxStackHeight.Value) : current;
         }
 
-        var floor = _roomGrain._state.Model?.BaseHeights[_ctx.GetTileIdx()].Value ?? 0;
+        var floor = State.Model?.BaseHeights[_ctx.GetTileIdx()].Value ?? 0;
         var below = others
             .Select(x => x.Z.Value + x.GetStackHeight().Value)
             .Where(x => x < current && x > floor)

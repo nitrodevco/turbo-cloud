@@ -71,7 +71,7 @@ public sealed partial class RoomMapModule
         }
         catch (Exception ex)
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 ex,
                 "Failed to update the tile state of avatar {ObjectId} in room {RoomId}",
                 avatar.ObjectId,
@@ -96,18 +96,18 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             return false;
 
-        var tileFlags = _roomGrain._state.TileFlags[tileIdx];
+        var tileFlags = State.TileFlags[tileIdx];
 
         if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
             return false;
 
         if (!ignoreAvatars && tileFlags.Has(RoomTileFlags.AvatarOccupied))
         {
-            if (_roomGrain._state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
+            if (State.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
                 return true;
 
             if (
-                (isGoal || _roomGrain._state.RoomSnapshot.AllowBlocking)
+                (isGoal || State.RoomSnapshot.AllowBlocking)
                 && !PetModule.CanJoinNestOn(avatar, tileIdx)
             )
                 return false;
@@ -149,14 +149,14 @@ public sealed partial class RoomMapModule
         // than over it and then refused on the first tick.
         if (
             Math.Abs(GetTileHeightForAvatar(nTileIdx) - GetTileHeightForAvatar(pTileIdx))
-            > Math.Abs(_roomGrain._roomConfig.MaxStepHeight)
+            > Math.Abs(RoomConfig.MaxStepHeight)
         )
             return false;
 
         var (fromX, fromY) = GetTileXY(pTileIdx);
         var (toX, toY) = GetTileXY(nTileIdx);
 
-        if (_roomGrain._roomConfig.EnableDiagonalChecking && IsDiagonal(pTileIdx, nTileIdx))
+        if (RoomConfig.EnableDiagonalChecking && IsDiagonal(pTileIdx, nTileIdx))
         {
             var left = CanAvatarWalk(avatar, ToIdx(toX, fromY), true, true);
             var right = CanAvatarWalk(avatar, ToIdx(fromX, toY), true, true);
@@ -196,7 +196,7 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _roomGrain._state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId);
+        State.TileAvatarStacks[tileIdx].Add(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 
@@ -215,7 +215,7 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _roomGrain._state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId);
+        State.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 
@@ -228,7 +228,7 @@ public sealed partial class RoomMapModule
 
         if (!InBounds(tileIdx))
         {
-            _roomGrain._logger.LogWarning(
+            Logger.LogWarning(
                 "Avatar {ObjectId} stands off the map of room {RoomId}; its height is left as it was",
                 avatar.ObjectId,
                 _roomGrain.RoomId
@@ -241,15 +241,13 @@ public sealed partial class RoomMapModule
 
         avatar.PostureOffset = postureOffset;
         avatar.SetPositionZ(
-            _roomGrain._state.TileHeights[tileIdx] - postureOffset + PetModule.GetRiderLift(avatar)
+            State.TileHeights[tileIdx] - postureOffset + PetModule.GetRiderLift(avatar)
         );
     }
 
     /// <summary>The height an avatar on this tile is drawn at; zero off the map.</summary>
     public Altitude GetTileHeightForAvatar(int tileIdx) =>
-        InBounds(tileIdx)
-            ? _roomGrain._state.TileHeights[tileIdx] - GetPostureOffset(tileIdx)
-            : Altitude.Zero;
+        InBounds(tileIdx) ? State.TileHeights[tileIdx] - GetPostureOffset(tileIdx) : Altitude.Zero;
 
     /// <summary>
     /// How far the furni on top of a tile lowers an avatar standing there (a seat, a bed); zero
