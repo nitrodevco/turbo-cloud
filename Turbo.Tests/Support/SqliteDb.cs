@@ -15,6 +15,17 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 {
     private readonly SqliteConnection _conn;
     private readonly DbContextOptions<TurboDbContext> _options;
+    private readonly BeforeTransaction _beforeTransaction = new();
+
+    /// <summary>
+    /// Runs once, just before the next transaction begins, and is then cleared: what another
+    /// activation commits between a caller's reads and its transaction, a race to interleave.
+    /// </summary>
+    public Func<Task>? BeforeNextTransaction
+    {
+        get => _beforeTransaction.Next;
+        set => _beforeTransaction.Next = value;
+    }
 
     public SqliteDb()
     {
@@ -22,7 +33,7 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
         _conn.Open();
         _options = new DbContextOptionsBuilder<TurboDbContext>()
             .UseSqlite(_conn)
-            .AddInterceptors(new StampTimestamps(), new NoRowLocks())
+            .AddInterceptors(new StampTimestamps(), new NoRowLocks(), _beforeTransaction)
             .ConfigureWarnings(w =>
             {
                 w.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning);
@@ -156,6 +167,29 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
                 )
                     entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
             }
+        }
+    }
+
+    private sealed class BeforeTransaction : DbTransactionInterceptor
+    {
+        public Func<Task>? Next { get; set; }
+
+        public override async ValueTask<
+            InterceptionResult<System.Data.Common.DbTransaction>
+        > TransactionStartingAsync(
+            System.Data.Common.DbConnection connection,
+            TransactionStartingEventData eventData,
+            InterceptionResult<System.Data.Common.DbTransaction> result,
+            CancellationToken ct = default
+        )
+        {
+            // Cleared first: what it runs begins transactions of its own.
+            var next = Next;
+            Next = null;
+            if (next is not null)
+                await next();
+
+            return result;
         }
     }
 

@@ -223,6 +223,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     }
 
     [Fact]
+    public async Task AchievementCredit_RacedByAnotherActivation_PaysOnceAndSucceeds()
+    {
+        // Two activations of one wallet (a reactivation on another silo while this one is still
+        // running): the other credits the award between this one's arrival and its transaction.
+        var wallet = await NewWalletAsync(PLAYER_ID);
+        var other = await NewWalletAsync(PLAYER_ID);
+        _db.BeforeNextTransaction = () =>
+            other.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Cause, Ct);
+
+        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 25, Cause, Ct))
+            .Should()
+            .BeTrue();
+
+        (await BalanceAsync(PLAYER_ID)).Should().Be(25);
+        (await wallet.GetAmountForCurrencyAsync(CurrencyKind.Credits, Ct)).Should().Be(25);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementWalletReceipts.CountAsync(Ct)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task UnreferencedCredit_KeepsAReceiptOfItsOperation_ThatNoPluginReferenceCanBe()
     {
         var wallet = await NewWalletAsync(PLAYER_ID);

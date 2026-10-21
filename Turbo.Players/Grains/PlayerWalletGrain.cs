@@ -311,25 +311,31 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
         );
 
         if (result == WalletCreditResult.Applied)
-        {
-            // Both money and receipt are committed. Delivery cannot turn this into a failed grant.
-            try
-            {
-                if (balance is not null)
-                    await _grainFactory.TrySendComposerToPlayerAsync(PlayerId, balance, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "Reward saved but balance update failed for player {PlayerId}",
-                    PlayerId
-                );
-            }
-            await DeliverPendingRewardsAsync(ct);
-        }
+            await AnnounceRewardAsync(balance, ct);
 
         return result != WalletCreditResult.Rejected;
+    }
+
+    /// <summary>
+    /// Tells the player of a committed reward: the balance redraw, then the reward notices.
+    /// Both money and receipt are committed, so delivery cannot turn this into a failed grant.
+    /// </summary>
+    private async Task AnnounceRewardAsync(IComposer? balance, CancellationToken ct)
+    {
+        try
+        {
+            if (balance is not null)
+                await _grainFactory.TrySendComposerToPlayerAsync(PlayerId, balance, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Reward saved but balance update failed for player {PlayerId}",
+                PlayerId
+            );
+        }
+        await DeliverPendingRewardsAsync(ct);
     }
 
     /// <summary>
