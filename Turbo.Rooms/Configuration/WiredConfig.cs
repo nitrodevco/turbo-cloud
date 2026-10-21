@@ -375,6 +375,29 @@ public class WiredConfig
     /// limit), so this default is ours. 0 turns the cap off.
     /// </summary>
     public int MaxVariablesPerHolder { get; init; } = 500;
+
+    /// <summary>
+    /// WIRED Links networks one player may own; creating one more is refused with
+    /// <c>wiredlink.error.8</c> ("You have reached the network limit for your account"). Habbo's
+    /// is above 264 (official client capture 2026-10-21: 264 created, none refused) and not
+    /// disclosed, so this default is ours. 0 turns the cap off.
+    /// </summary>
+    public int LinkNetworkLimit { get; init; } = 500;
+
+    /// <summary>
+    /// Longest message, in UTF-8 bytes, a Send Link Message box stores and sends (AS3
+    /// <c>SendLinkMessage.validate</c>: <c>wiredfurni.params.link.message_too_large</c>, "the
+    /// 1,000-byte text limit").
+    /// </summary>
+    public int LinkMessageMaxBytes { get; init; } = 1000;
+
+    /// <summary>
+    /// Whether a message or dataframe sent through a network also reaches its Links in rooms that
+    /// are not loaded, loading those rooms for it. Off: only loaded rooms receive, as a room with
+    /// nobody in it runs no wired, as Habbo's (official client capture 2026-10-21: a send to an
+    /// empty room is dropped, not delivered when someone enters later).
+    /// </summary>
+    public bool LinkDeliversToUnloadedRooms { get; init; }
 }
 
 /// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>

@@ -36,4 +36,15 @@ public record ChatMessageComposer : IComposer
     /// <summary>The bubble shows no "name: " before the text (a bot box with "hide bot name").</summary>
     [Id(8)]
     public bool HideUsername { get; init; }
+
+    /// <summary>
+    /// The tile the bubble rises from instead of the speaker's: a WIRED Link Speaker's furni
+    /// (WIN63-202610201032 <c>ChatMessageParser</c> reads it last, as two ints).
+    /// </summary>
+    [Id(9)]
+    public ChatBubbleLocation? Location { get; init; }
 }
+
+/// <summary>A tile a chat bubble is drawn at.</summary>
+[GenerateSerializer, Immutable]
+public readonly record struct ChatBubbleLocation([property: Id(0)] int X, [property: Id(1)] int Y);

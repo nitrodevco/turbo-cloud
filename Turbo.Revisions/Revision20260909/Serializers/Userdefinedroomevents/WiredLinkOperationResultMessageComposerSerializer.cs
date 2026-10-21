@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Wired.Link;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Userdefinedroomevents;
 
@@ -24,12 +25,14 @@ internal class WiredLinkOperationResultMessageComposerSerializer(int header)
         packet.WriteString(message.RemovedNetworkId).WriteInteger(message.Networks.Length);
 
         foreach (var network in message.Networks)
-        {
-            packet
-                .WriteString(network.NetworkId)
-                .WriteString(network.Name)
-                .WriteInteger(network.ConnectionCount)
-                .WriteBoolean(network.LinkedInCurrentRoom);
-        }
+            WriteNetwork(packet, network);
     }
+
+    /// <summary>One network as AS3 <c>WiredLinkNetwork</c> reads it.</summary>
+    internal static void WriteNetwork(IServerPacket packet, WiredLinkNetworkSnapshot network) =>
+        packet
+            .WriteString(network.NetworkId)
+            .WriteString(network.Name)
+            .WriteInteger(network.ConnectionCount)
+            .WriteBoolean(network.LinkedInCurrentRoom);
 }

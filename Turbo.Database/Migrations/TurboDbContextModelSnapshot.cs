@@ -8794,6 +8794,74 @@ namespace Turbo.Database.Migrations
                     b.ToTable("performance_logs");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.WiredLink.WiredLinkEndpointEntity", b =>
+                {
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("FurniId")
+                        .HasColumnType("int")
+                        .HasColumnName("furni_id");
+
+                    b.Property<bool>("IsBuildersClub")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("builders_club");
+
+                    b.Property<int?>("NetworkEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("network_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<bool>("ReceiveLocal")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("receive_local");
+
+                    b.HasKey("RoomEntityId", "FurniId");
+
+                    b.HasIndex("NetworkEntityId");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.ToTable("wired_link_endpoints");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredLink.WiredLinkNetworkEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.ToTable("wired_link_networks");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
                 {
                     b.Property<int>("ItemEntityId")
@@ -10187,6 +10255,43 @@ namespace Turbo.Database.Migrations
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Security.WebSessionEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredLink.WiredLinkEndpointEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.WiredLink.WiredLinkNetworkEntity", "NetworkEntity")
+                        .WithMany()
+                        .HasForeignKey("NetworkEntityId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("NetworkEntity");
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("RoomEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredLink.WiredLinkNetworkEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany()

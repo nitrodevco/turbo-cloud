@@ -29,8 +29,15 @@ public abstract partial class FurnitureWiredLogic
             .ToList();
         var placeholderNames = new List<string>();
 
-        if (logics.Any(logic => logic is WiredTriggerHabboSaysKeyword))
+        if (
+            logics.Any(logic => logic is WiredTriggerHabboSaysKeyword or WiredTriggerReceiveMessage)
+        )
             placeholderNames.Add(WiredPlaceholderText.TRIGGER_TEXT_NAME);
+
+        // A Receive Link Dataframe fills the placeholders its rows capture into.
+        placeholderNames.AddRange(
+            logics.OfType<WiredTriggerReceiveDataframe>().SelectMany(x => x.PlaceholderNames())
+        );
 
         placeholderNames.AddRange(
             logics

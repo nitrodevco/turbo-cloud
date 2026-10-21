@@ -24,6 +24,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Link;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -491,6 +492,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (trigger is WiredTriggerHabboSaysKeyword && evt is PlayerChatEvent chat)
             ctx.CarriedPlaceholders[WiredPlaceholderText.TriggerTextToken] = chat.Text;
 
+        // A received link message is the stack's $(trigger_text) the same way
+        // (wiredfurni.params.link.receive_message_info); a dataframe fills the placeholders and
+        // context variables its receiver maps its keys to, and leaves $(trigger_text) alone
+        // (official client capture 2026-10-21, 3 of 3).
+        if (evt is WiredLinkReceivedEvent link)
+            await CaptureLinkPayloadAsync(trigger, link.Payload, ctx);
+
         SeedSelectionFromEvent(ctx, evt);
 
         var selection = ctx.GetSelection(trigger);
@@ -504,6 +512,38 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             ctx.Selected.UnionWith(selection);
 
         await RunStackAsync(ctx, now, calledByStack: false, ct);
+    }
+
+    private static async Task CaptureLinkPayloadAsync(
+        IWiredTrigger trigger,
+        WiredLinkPayload payload,
+        WiredProcessingContext ctx
+    )
+    {
+        if (trigger is WiredTriggerReceiveMessage && payload.Message is { } message)
+            ctx.CarriedPlaceholders[WiredPlaceholderText.TriggerTextToken] = message;
+
+        if (trigger is WiredTriggerReceiveDataframe receiver)
+            await receiver.CaptureAsync(payload, ctx.CarriedPlaceholders, ctx.ContextValues);
+    }
+
+    /// <summary>
+    /// The room's Link Speakers listening through <paramref name="linkIds"/> say
+    /// <paramref name="payload"/>; a speaker needs no trigger or effect beside it.
+    /// </summary>
+    public async Task SpeakLinkPayloadAsync(
+        ImmutableArray<int> linkIds,
+        WiredLinkPayload payload,
+        CancellationToken ct
+    )
+    {
+        foreach (
+            var speaker in _stacksById
+                .OrderBy(x => x.Key)
+                .SelectMany(x => x.Value.Addons.OfType<WiredAddonLinkSpeaker>())
+                .ToList()
+        )
+            await speaker.SpeakAsync(linkIds, payload, ct);
     }
 
     /// <summary>

@@ -27,7 +27,8 @@ public sealed class WiredAllowWallFurniTests
     private static readonly HashSet<(WiredType, int)> Official =
     [
         // 61 Set Visibility, 62 Set Highlight: official client captures of their editors, 2026-10-20 (allowWallFurni true).
-        .. new[] { 0, 3, 4, 15, 29, 33, 34, 39, 40, 41, 45, 46, 47, 55, 57, 61, 62 }.Select(c =>
+        // 64 Send Link Dataframe: official client capture of its editor, 2026-10-21.
+        .. new[] { 0, 3, 4, 15, 29, 33, 34, 39, 40, 41, 45, 46, 47, 55, 57, 61, 62, 64 }.Select(c =>
             (WiredType.Action, c)
         ),
         .. new[] { 15, 18, 19, 20 }.Select(c => (WiredType.Addon, c)),

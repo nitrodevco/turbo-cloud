@@ -27,3 +27,5 @@ class [GrainType("wiredchest")] Turbo.Rooms.Grains.WiredTrading.WiredChestGrain
 class [GrainType("wiredtrade")] Turbo.Rooms.Grains.WiredTrading.WiredTradeGrain
 
 class [GrainType("wiredtransactionlog")] Turbo.Rooms.Grains.WiredTrading.WiredTransactionLogGrain
+
+class [GrainType("wiredlinkowner")] Turbo.Rooms.Wired.Link.WiredLinkOwnerGrain

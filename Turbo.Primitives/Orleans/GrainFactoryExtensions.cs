@@ -35,6 +35,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Polls;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Wired.Link;
 using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.WiredTrading.Grains;
 
@@ -75,6 +76,11 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IWiredTradeGrain>(playerId.Value);
+
+    public static IWiredLinkOwnerGrain GetWiredLinkOwnerGrain(
+        this IGrainFactory factory,
+        PlayerId ownerId
+    ) => factory.GetGrain<IWiredLinkOwnerGrain>(ownerId.Value);
 
     public static IRoomDirectoryGrain GetRoomDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IRoomDirectoryGrain>(SingletonGrainId.GLOBAL);
