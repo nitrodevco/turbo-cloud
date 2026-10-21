@@ -157,12 +157,12 @@ public interface IFurnitureCustody
 
     /// <summary>
     /// None -> room for a borrowed furni already standing in <paramref name="roomId"/>: its row in
-    /// the Builders Club's own table, lent under <paramref name="offerId"/>. Nobody owns it.
+    /// the Builders Club's own table. Nobody owns it, and it stands on its furniture alone: the
+    /// offer it was lent from may go.
     /// </summary>
     Task BorrowIntoRoomAsync(
         RoomId roomId,
         RoomItemSnapshot item,
-        int offerId,
         MovementCause cause,
         CancellationToken ct
     );

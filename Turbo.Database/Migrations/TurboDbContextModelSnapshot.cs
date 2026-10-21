@@ -1590,10 +1590,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("room_object_id");
 
-                    b.Property<int>("CatalogOfferEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("offer_id");
-
                     b.Property<string>("ExtraData")
                         .HasMaxLength(512)
                         .HasColumnType("longtext")
@@ -6024,6 +6020,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Parameters")
                         .IsRequired()
+                        .HasMaxLength(512)
                         .HasColumnType("text")
                         .HasColumnName("parameters");
 

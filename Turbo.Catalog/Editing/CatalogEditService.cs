@@ -622,16 +622,6 @@ public sealed partial class CatalogEditService(
                 "This offer sells a limited series, which would go with it; hide it instead."
             );
 
-        // Builders Club furni stays tied to the offer it was placed from.
-        var placed = await db
-            .BuildersClubFurnitures.CountAsync(x => x.CatalogOfferEntityId == offerId, ct)
-            .ConfigureAwait(false);
-
-        if (placed > 0)
-            return CatalogEditResult.Refused(
-                $"{placed} Builders Club items were placed from this offer; hide it instead."
-            );
-
         db.CatalogOffers.Remove(offer);
         var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 

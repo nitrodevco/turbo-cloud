@@ -88,10 +88,7 @@ public sealed class BuildersClubUncountedLogicTests
                 DefinitionEntity(TILE_DEFINITION, STACK_TILE),
                 DefinitionEntity(TABLE_DEFINITION, TABLE)
             );
-            db.BuildersClubFurnitures.AddRange(
-                Row(1, TILE_DEFINITION, TILE_OFFER),
-                Row(2, TABLE_DEFINITION, TABLE_OFFER)
-            );
+            db.BuildersClubFurnitures.AddRange(Row(1, TILE_DEFINITION), Row(2, TABLE_DEFINITION));
             await db.SaveChangesAsync(Ct);
         }
 
@@ -244,13 +241,12 @@ public sealed class BuildersClubUncountedLogicTests
             CanSell = false,
         };
 
-    private static BuildersClubFurnitureEntity Row(int objectId, int definitionId, int offerId) =>
+    private static BuildersClubFurnitureEntity Row(int objectId, int definitionId) =>
         new()
         {
             RoomEntityId = 1,
             RoomObjectId = objectId,
             FurnitureDefinitionEntityId = definitionId,
             PlacedByPlayerEntityId = OWNER,
-            CatalogOfferEntityId = offerId,
         };
 }

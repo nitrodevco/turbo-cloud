@@ -366,9 +366,9 @@ public sealed class CatalogEditServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOfferBuildersClubFurniWasPlacedFrom_IsNotDeleted()
+    public async Task AnOfferBuildersClubFurniWasPlacedFrom_IsDeleted_AndTheFurniStays()
     {
-        // The furni sits in a room someone placed it in.
+        // The chair SOLD gives, borrowed into a room someone placed it in.
         _catalog.Db.Insert(
             new PlayerEntity
             {
@@ -425,12 +425,19 @@ public sealed class CatalogEditServiceTests : IDisposable
                 RoomObjectId = 1,
                 FurnitureDefinitionEntityId = CHAIR,
                 PlacedByPlayerEntityId = 1,
-                CatalogOfferEntityId = SOLD,
             }
         );
 
-        (await _service.DeleteOfferAsync(Editor, SOLD, Ct)).Error.Should().Contain("Builders Club");
-        (await _service.DeleteOfferAsync(Editor, IN_DIAMONDS, Ct)).Saved.Should().BeTrue();
+        // It stands on its furniture alone, so nothing it came from has to stay.
+        (await _service.DeleteOfferAsync(Editor, SOLD, Ct))
+            .Error.Should()
+            .BeNull();
+        (await ReadAsync(db => db.CatalogOffers.AnyAsync(x => x.Id == SOLD, Ct)))
+            .Should()
+            .BeFalse();
+        (await ReadAsync(db => db.BuildersClubFurnitures.SingleAsync(Ct)))
+            .FurnitureDefinitionEntityId.Should()
+            .Be(CHAIR);
     }
 
     private static CatalogProductDraft Membership(

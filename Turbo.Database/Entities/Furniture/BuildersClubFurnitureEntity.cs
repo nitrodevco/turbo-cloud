@@ -40,10 +40,6 @@ public class BuildersClubFurnitureEntity : IPlacedFurnitureEntity
     [Column("placed_by_player_id")]
     public required int PlacedByPlayerEntityId { get; set; }
 
-    /// <summary>The Builders Club offer it came from, so a pickup can warn when it is gone.</summary>
-    [Column("offer_id")]
-    public required int CatalogOfferEntityId { get; set; }
-
     [Column("x")]
     [DefaultValue(0)]
     public int X { get; set; }

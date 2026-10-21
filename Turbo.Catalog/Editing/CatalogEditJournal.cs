@@ -303,8 +303,8 @@ internal static class CatalogEditJournal
 
     /// <summary>
     /// What taking rows away would take with it that is not the editor's to take: a limited
-    /// series sold from a product, Builders Club furni placed from an offer, or a page's offers
-    /// and pages that are staying.
+    /// series sold from a product, or a page's offers and pages that are staying. Builders Club
+    /// furni placed from an offer does not lean on it: it stands on its furniture alone.
     /// </summary>
     private static async Task<string?> CheckRemovalAsync(
         TurboDbContext db,
@@ -330,13 +330,6 @@ internal static class CatalogEditJournal
                     .ToListAsync(ct)
                     .ConfigureAwait(false)
             );
-
-            if (
-                await db
-                    .BuildersClubFurnitures.AnyAsync(x => part.Contains(x.CatalogOfferEntityId), ct)
-                    .ConfigureAwait(false)
-            )
-                return "Builders Club furni was placed from an offer it would take away.";
         }
 
         foreach (var chunk in products.Chunk(1000))

@@ -1170,9 +1170,6 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             RoomObjectId = item.ObjectId.Value,
             FurnitureDefinitionEntityId = item.DefinitionId,
             PlacedByPlayerEntityId = item.OwnerId.Value,
-            // Only the columns marked modified are written; the rest are here to satisfy the
-            // entity and never reach the database.
-            CatalogOfferEntityId = 0,
         };
 
         dbCtx.Attach(dbEntity);
@@ -1221,7 +1218,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     {
         try
         {
-            await _custody.BorrowIntoRoomAsync(_state.RoomId, snapshot, offerId, cause, ct);
+            await _custody.BorrowIntoRoomAsync(_state.RoomId, snapshot, cause, ct);
 
             return true;
         }

@@ -279,9 +279,9 @@ public sealed class HolderCustodyMovementTests : IDisposable
         var borrow = MovementCause.New(MovementCauses.ROOM_BC_BORROW, OTHER, 123);
         var pickup = MovementCause.New(MovementCauses.ROOM_PICKUP, OTHER);
 
-        await custody.BorrowIntoRoomAsync((RoomId)ROOM, item, 123, borrow, Ct);
+        await custody.BorrowIntoRoomAsync((RoomId)ROOM, item, borrow, Ct);
 
-        BorrowedRows().Should().ContainSingle().Which.CatalogOfferEntityId.Should().Be(123);
+        BorrowedRows().Should().ContainSingle();
 
         (
             await InUnitAsync(db =>

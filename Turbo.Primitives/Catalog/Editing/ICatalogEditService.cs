@@ -164,8 +164,7 @@ public interface ICatalogEditService
     /// Puts the saved catalog back as a backup has it, ids included, as one step that can be
     /// undone and goes live when published; the catalog it replaces is backed up first. Limited
     /// series stay as they are, and the rollback is refused, with why, when it would take away
-    /// what one sells from or what Builders Club furni was placed from, or names furniture or a
-    /// currency that is gone.
+    /// what one sells from, or names furniture or a currency that is gone.
     /// </summary>
     Task<CatalogEditResult> RollbackAsync(PlayerId editor, int backupId, CancellationToken ct);
 
@@ -174,7 +173,7 @@ public interface ICatalogEditService
     /// featured item, as one step that can be undone and goes live when published. The catalog
     /// is backed up before anything is taken away, so it can be rolled back to after a publish
     /// or a restart; the id is that backup's. Refused, with why, when it would take away what a
-    /// limited series sells from or what Builders Club furni was placed from.
+    /// limited series sells from.
     /// </summary>
     Task<CatalogEditResult> ResetAsync(PlayerId editor, CancellationToken ct);
 

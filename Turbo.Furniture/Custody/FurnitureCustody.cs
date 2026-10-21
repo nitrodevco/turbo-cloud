@@ -269,7 +269,6 @@ public sealed class FurnitureCustody(
     public Task BorrowIntoRoomAsync(
         RoomId roomId,
         RoomItemSnapshot item,
-        int offerId,
         MovementCause cause,
         CancellationToken ct
     ) =>
@@ -283,7 +282,6 @@ public sealed class FurnitureCustody(
                         RoomObjectId = item.ObjectId.Value,
                         FurnitureDefinitionEntityId = item.DefinitionId,
                         PlacedByPlayerEntityId = item.OwnerId.Value,
-                        CatalogOfferEntityId = offerId,
                         X = item.X,
                         Y = item.Y,
                         Z = item.Z,

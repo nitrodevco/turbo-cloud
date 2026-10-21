@@ -592,8 +592,8 @@ What other things depend on is protected:
 - An offer that sells a **limited series** keeps its one item (its price can change), stays in the
   normal catalog, and can't be deleted. Hide it instead. What is left of the series is never
   touched by the editor.
-- A **club gift** offer, and one that **Builders Club furni** was placed from, can't be deleted
-  either; hide them.
+- A **club gift** offer can't be deleted either; hide it. Builders Club furni already placed
+  from an offer stays where it is when the offer goes: it stands on its furni alone.
 
 **Publishing.** Edits are saved straight away but players don't see them yet. **Publish** reloads
 both catalogs (the same as `:reload catalog`) and tells every client online the catalog changed:
@@ -607,10 +607,9 @@ which lists the steps and undoes or redoes back to any of them. An undo puts the
 ids and order included. A page build, a bulk add or a generated catalog is one step, however many
 edits it made. **Discard** undoes every step since the last publish, so the saved catalog is the
 one players have; the steps can still be redone. An undo is refused, with why, when a row it would
-put back was changed since, or when it would take away an offer that now sells a limited series or
-that Builders Club furni was placed from. Limited series themselves are not undone: the raffle
-sells from them at once. The history is kept in memory: a publish or a restart starts it afresh,
-and the 500 newest steps are kept.
+put back was changed since, or when it would take away an offer that now sells a limited series.
+Limited series themselves are not undone: the raffle sells from them at once. The history is
+kept in memory: a publish or a restart starts it afresh, and the 500 newest steps are kept.
 
 **Backups.** The **Backups** view keeps copies of the catalog to go back to. **Back up now** saves
 every page, offer, product and featured item as they are saved at that moment, published or not,
@@ -619,7 +618,7 @@ ids and order included. It is one step in the history: it can be undone, and pla
 you publish. Before it changes anything, the catalog it replaces is backed up as *Before rolling
 back to …*, so you can still go back after a publish or a restart. A rollback is refused, with
 why, when the catalog is already as the backup has it, when it would take away an offer that sells
-a limited series or that Builders Club furni was placed from, or when the backup sells furniture or
+a limited series, or when the backup sells furniture or
 uses a currency the hotel no longer has. Limited series themselves are not in a backup. Backups are
 kept in the database (`catalog_backups`) until deleted.
 
@@ -627,9 +626,9 @@ kept in the database (`catalog_backups`) until deleted.
 into: every page but the root (which every page is made under), and every offer, product and
 featured item. The catalog is backed up first, as *Before resetting the catalog*, before anything
 is taken away. Like a rollback it is one step you can undo, it goes live when you publish, and it
-is refused while an offer sells a limited series or Builders Club furni was placed from one (a
-refused reset keeps no backup). Ids are not reused: club gift claims and placed Builders Club furni
-keep naming the offers they came from, so a new offer never takes an old one's id.
+is refused while an offer sells a limited series (a refused reset keeps no backup). Ids are not
+reused: club gift claims keep naming the offers they came from, so a new offer never takes an old
+one's id.
 
 **Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
 only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
