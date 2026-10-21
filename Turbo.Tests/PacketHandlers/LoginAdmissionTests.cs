@@ -103,6 +103,10 @@ public class LoginAdmissionTests
 
     private bool Bound => _fakes.Log.Of("AddSessionToPlayerAsync").Any();
 
+    /// <summary>The login steps the handler recorded for the admin panel's login funnel.</summary>
+    private IEnumerable<string> Steps =>
+        _fakes.Log.Of("RecordLoginStep").Select(x => (string)x.Args[2]!);
+
     [Fact]
     public async Task ABannedPlayer_IsToldWhy_AndTurnedAwayBeforeTheSessionKnowsWhoTheyAre()
     {
@@ -121,6 +125,7 @@ public class LoginAdmissionTests
             );
         Closed.Should().BeTrue();
         Bound.Should().BeFalse();
+        Steps.Should().Equal(Turbo.Primitives.Tracking.ClientLoginSteps.AUTH_FAIL);
     }
 
     [Fact]
@@ -168,6 +173,7 @@ public class LoginAdmissionTests
             .Be("The hotel is now in maintenance. Please come back later.");
         Closed.Should().BeTrue();
         Bound.Should().BeFalse();
+        Steps.Should().Equal(Turbo.Primitives.Tracking.ClientLoginSteps.AUTH_FAIL);
     }
 
     [Fact]
@@ -195,6 +201,7 @@ public class LoginAdmissionTests
         Bound.Should().BeTrue();
         Closed.Should().BeFalse();
         SentToSession().OfType<UserBannedMessageComposer>().Should().BeEmpty();
+        Steps.Should().Equal(Turbo.Primitives.Tracking.ClientLoginSteps.AUTH_OK);
     }
 
     [Fact]

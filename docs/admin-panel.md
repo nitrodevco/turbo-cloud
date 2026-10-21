@@ -349,7 +349,17 @@ players' clients report about themselves with Habbo's own messages, and nothing 
 
 The server also times the login steps it sees itself, named as Habbo names them
 (`client.init.socket.ok`, `client.init.handshake.start`, `client.init.handshake.ok`,
-`client.init.auth.ok`, `client.init.room.enter`), from the socket opening.
+`client.init.auth.ok`, `client.init.room.enter`), from the socket opening, and a refused ticket
+(unknown, banned, or the hotel closed to the player) as `client.init.auth.fail`. Habbo's client
+tells its own steps only to its web page, so the funnel is the server's.
+
+Habbo's own external variables never send a performance report or a room's frame rate
+(`performancetest.interval` and `tracking.framerate.reportInterval.seconds` are `2147483647`), so
+the frame rate and memory charts stay empty, and say so, until the hotel sets them: for example
+`performancetest.interval=60` with `performancetest.reportlimit=10` (a report a minute for the first
+ten minutes), and `tracking.framerate.reportInterval.seconds=300` with
+`tracking.framerate.maximumEvents=5` (the client's defaults). Latency (`latencytest.interval=20000`)
+and chat lag (`lagWarningLog.enabled=1`) are on in Habbo's own.
 
 - **Client health**: frame rate, memory and latency (median and p95) per day; a table per browser,
   system and kind of device (read from the user agent); the rooms with the most chat lag, with

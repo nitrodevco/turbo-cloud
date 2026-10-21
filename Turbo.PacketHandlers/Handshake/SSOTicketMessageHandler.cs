@@ -72,6 +72,7 @@ public class SSOTicketMessageHandler(
 
         if (playerId <= 0)
         {
+            telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("invalid SSO ticket").ConfigureAwait(false);
 
             return;
@@ -90,6 +91,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
+            telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("banned").ConfigureAwait(false);
 
             return;
@@ -108,6 +110,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
+            telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("hotel closed for maintenance").ConfigureAwait(false);
 
             return;
