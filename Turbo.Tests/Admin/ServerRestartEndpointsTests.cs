@@ -72,7 +72,11 @@ public sealed class ServerRestartEndpointsTests : IAsyncDisposable
         _fakes.Handlers["get_MaxCountdown"] = _ => _availability.MaxCountdown;
         _fakes.Handlers["get_RestartExitCode"] = _ => _availability.RestartExitCode;
         _fakes.Handlers["ScheduleRestart"] = call =>
-            _availability.ScheduleRestart((TimeSpan)call.Args[0]!, (string)call.Args[1]!);
+            _availability.ScheduleRestart(
+                (TimeSpan)call.Args[0]!,
+                (string)call.Args[1]!,
+                (string)call.Args[2]!
+            );
         _fakes.Handlers["ScheduleShutdown"] = call =>
         {
             _availability.ScheduleShutdown((TimeSpan)call.Args[0]!, (string)call.Args[1]!);
@@ -160,6 +164,42 @@ public sealed class ServerRestartEndpointsTests : IAsyncDisposable
             .Should()
             .BeTrue();
         Log().Should().Equal(("2 Applying settings", "completed"));
+    }
+
+    [Fact]
+    public async Task A_restart_names_where_its_notice_links_and_a_link_that_is_none_is_refused()
+    {
+        _fakes.Handlers["IsEnabled"] = _ => true;
+        _fakes.Handlers["DefaultLink"] = _ => "https://hotel.example/news";
+        await _server.StartAsync(Ct);
+
+        var before = await JsonAsync(await SendAsync(HttpMethod.Get, "/api/server/restart"));
+
+        before.GetProperty("notice").GetBoolean().Should().BeTrue();
+        before.GetProperty("noticeLink").GetString().Should().Be("https://hotel.example/news");
+
+        (
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/server/restart",
+                new { minutes = 3, link = "javascript:alert(1)" }
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.BadRequest);
+        _availability.Current.Should().Be(HotelAvailabilitySnapshot.Open);
+
+        var status = await JsonAsync(
+            await SendAsync(
+                HttpMethod.Post,
+                "/api/server/restart",
+                new { minutes = 3, link = " habbopages/changelog " }
+            )
+        );
+
+        _availability.Current.NoticeLink.Should().Be("habbopages/changelog");
+        status.GetProperty("noticeLink").GetString().Should().Be("habbopages/changelog");
+        Log().Should().Equal(("3", "bind_failed"), ("3", "completed"));
     }
 
     [Fact]

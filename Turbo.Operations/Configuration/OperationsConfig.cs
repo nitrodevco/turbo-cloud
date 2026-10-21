@@ -41,6 +41,15 @@ public class OperationsConfig
     [LiveSetting]
     public int RestartExitCode { get; init; } = 75;
 
+    /// <summary>The notice players are shown while a restart counts down. Off until turned on.</summary>
+    public CountdownNoticeConfig RestartNotice { get; init; } = new();
+
+    /// <summary>The notice players are shown while a shutdown counts down. Off until turned on.</summary>
+    public CountdownNoticeConfig ShutdownNotice { get; init; } = new();
+
+    /// <summary>The notice players are shown while a maintenance counts down. Off until turned on.</summary>
+    public CountdownNoticeConfig MaintenanceNotice { get; init; } = new();
+
     /// <summary>The most one <c>:give</c> may add or take, so a typo is not a hotel's economy.</summary>
     public int MaxCurrencyAmount { get; init; } = 10_000_000;
 

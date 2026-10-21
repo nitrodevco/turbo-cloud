@@ -5105,6 +5105,10 @@ public class Revision20260909 : IRevision
                     MessageComposer.TurboStarterRoomPictureResultMessageComposer
                 )
             },
+            {
+                typeof(TurboNoticeMessage),
+                new TurboNoticeMessageSerializer(MessageComposer.TurboNoticeMessageComposer)
+            },
             #endregion
 
             #region Userclassification

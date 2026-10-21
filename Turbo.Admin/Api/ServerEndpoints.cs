@@ -26,6 +26,7 @@ namespace Turbo.Admin.Api;
 internal sealed class ServerEndpoints(
     IGrainFactory grainFactory,
     IHotelAvailability availability,
+    IHotelCountdownNotice countdownNotice,
     AdminActionLog audit
 )
 {
@@ -93,7 +94,27 @@ internal sealed class ServerEndpoints(
             );
         }
 
-        if (!availability.ScheduleRestart(TimeSpan.FromMinutes(minutes), reason))
+        var link = request.Link?.Trim() ?? string.Empty;
+
+        if (link.Length > 0 && !CountdownNoticeLink.TryRead(link, out _, out _))
+        {
+            await audit
+                .WriteAsync(
+                    AdminActionLog.RESTART,
+                    player,
+                    arguments,
+                    CommandOutcome.BindFailed,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "Link to a web address (https://...) or a client link (habbopages/...), or leave it empty."
+            );
+        }
+
+        if (!availability.ScheduleRestart(TimeSpan.FromMinutes(minutes), reason, link))
         {
             await audit
                 .WriteAsync(AdminActionLog.RESTART, player, arguments, CommandOutcome.Failed, ct)
@@ -161,7 +182,11 @@ internal sealed class ServerEndpoints(
             restart ? current.AtUtc : null,
             restart ? current.Reason : string.Empty,
             availability.RestartExitCode,
-            (int)availability.MaxCountdown.TotalMinutes
+            (int)availability.MaxCountdown.TotalMinutes,
+            countdownNotice.IsEnabled(HotelCountdownKind.Restart),
+            restart && current.NoticeLink.Length > 0
+                ? current.NoticeLink
+                : countdownNotice.DefaultLink(HotelCountdownKind.Restart)
         );
     }
 }

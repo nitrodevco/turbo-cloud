@@ -45,6 +45,13 @@ public sealed class OperationsModule : IHostPluginModule
         );
         services.AddHostedService(sp => sp.GetRequiredService<HotelAvailabilityService>());
 
+        // The countdown's notice follows it on a loop of its own (docs/client-capabilities.md).
+        services.AddSingleton<HotelCountdownNoticeService>();
+        services.AddSingleton<IHotelCountdownNotice>(sp =>
+            sp.GetRequiredService<HotelCountdownNoticeService>()
+        );
+        services.AddHostedService(sp => sp.GetRequiredService<HotelCountdownNoticeService>());
+
         // Plugins register asset movement consumers; each dispatcher activation has its own
         // cursors (docs/movements.md).
         services.AddSingleton<AssetMovementConsumerRegistry>();

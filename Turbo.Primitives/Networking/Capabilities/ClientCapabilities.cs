@@ -33,6 +33,12 @@ public static class ClientCapabilities
     /// </summary>
     public const string STARTER_ROOMS = "starter.rooms";
 
+    /// <summary>
+    /// <c>TurboNoticeMessage</c>: a notice under the purse put up or taken down while the client
+    /// runs, as the countdown notice of a restart, a shutdown or a maintenance.
+    /// </summary>
+    public const string LIVE_NOTICES = "notices.live";
+
     /// <summary>Maximum preceding argument text in a suggestion request.</summary>
     public const int MAX_SUGGEST_CONTEXT = 1024;
 
@@ -54,6 +60,7 @@ public static class ClientCapabilities
         [PERMISSION_NODES] = 1,
         [CHAT_COMMANDS] = 1,
         [STARTER_ROOMS] = 1,
+        [LIVE_NOTICES] = 1,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
