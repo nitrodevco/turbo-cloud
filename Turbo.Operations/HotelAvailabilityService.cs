@@ -109,7 +109,7 @@ public sealed class HotelAvailabilityService(
         }
     }
 
-    public bool ScheduleRestart(TimeSpan delay, string reason)
+    public bool ScheduleRestart(TimeSpan delay, string reason, string noticeLink = "")
     {
         lock (_gate)
         {
@@ -120,7 +120,13 @@ public sealed class HotelAvailabilityService(
             )
                 return false;
 
-            Schedule(HotelAvailabilityPhase.ShutdownScheduled, delay, reason, restart: true);
+            Schedule(
+                HotelAvailabilityPhase.ShutdownScheduled,
+                delay,
+                reason,
+                restart: true,
+                noticeLink: noticeLink
+            );
         }
 
         return true;
@@ -205,12 +211,13 @@ public sealed class HotelAvailabilityService(
         HotelAvailabilityPhase phase,
         TimeSpan delay,
         string reason,
-        bool restart = false
+        bool restart = false,
+        string noticeLink = ""
     )
     {
         var at = timeProvider.GetUtcNow().UtcDateTime + delay;
 
-        _current = new HotelAvailabilitySnapshot(phase, at, reason, restart);
+        _current = new HotelAvailabilitySnapshot(phase, at, reason, restart, noticeLink);
         _announced.Clear();
         _announcePending = true;
 

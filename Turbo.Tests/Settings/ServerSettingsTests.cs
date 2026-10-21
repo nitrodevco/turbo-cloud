@@ -123,7 +123,7 @@ public sealed class ServerSettingsTests : IDisposable
     }
 
     [Fact]
-    public void the_restart_and_countdown_settings_apply_at_once_the_other_operations_ones_after_a_restart()
+    public void the_restart_countdown_and_countdown_notice_settings_apply_at_once_the_other_operations_ones_after_a_restart()
     {
         var harness = Harness(
             "{}",
@@ -140,12 +140,24 @@ public sealed class ServerSettingsTests : IDisposable
             .Where(x => x.Live)
             .Select(x => x.Path)
             .Should()
-            .BeEquivalentTo(
+            .BeEquivalentTo([
                 "Turbo:Operations:CountdownReminderMinutes",
                 "Turbo:Operations:DefaultShutdownMinutes",
                 "Turbo:Operations:MaxCountdownMinutes",
-                "Turbo:Operations:RestartExitCode"
-            );
+                "Turbo:Operations:RestartExitCode",
+                .. new[] { "RestartNotice", "ShutdownNotice", "MaintenanceNotice" }.SelectMany(
+                    notice =>
+                        new[]
+                        {
+                            "Enabled",
+                            "PostAtMinutes",
+                            "DefaultLink",
+                            "Dismissible",
+                            "Image",
+                            "Color",
+                        }.Select(x => $"Turbo:Operations:{notice}:{x}")
+                ),
+            ]);
     }
 
     [Fact]

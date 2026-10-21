@@ -273,3 +273,24 @@ data alone. The picture is served by the gamedata host at `/gamedata/starter-roo
 
 Only a player holding `command.starterroom`, in that room, for one of the hotel's starter rooms, is
 answered; the view is trusted because only staff send it.
+
+## `notices.live` (version 1)
+
+The client's notices under the purse (Habbo's `NewFeatureNotification`) are read from the external
+variables once, as the client starts (`SingularNotificationController.initComponent`). This puts
+one up, or takes it down, while the client runs: the notice a restart, a shutdown or a maintenance
+shows while it counts down (`docs/admin-panel.md`, *Restarting the server*).
+
+| Direction | Header | Packet | Body |
+| --- | --- | --- | --- |
+| server → client | 30008 | `TurboNoticeMessage` | `string key`, `bool shown`, `int count`, then `string name`, `string value` per variable, then `string desc` |
+
+Each variable stands for `notifications.new_feature.<name>.<key>` (`type`, `count_down_to`,
+`expiry`, `external_link` or `internal_link`, `image`, `color`, `close`), and `desc` for the text
+`notifications.new_feature.<key>.desc`. The client takes them in, then shows the notice as it shows
+one listed in `notifications.new_feature.active`, conditions and all; `shown` false takes it down.
+A countdown notice asks `GetSecondsUntil` for its `count_down_to`, as Habbo's does, so it counts
+down by the server's clock. A client that accepts the extension while a notice is up is sent it
+after the capability answer. Clients that don't (the Flash client) see only Habbo's own closing
+alerts.
+

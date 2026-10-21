@@ -305,6 +305,20 @@ supervisor (`dotnet Turbo.Main.dll` in a terminal), a restart stops the server l
 and nothing brings it back. A restart does not overrule a shutdown that is counting down or under
 way; a shutdown replaces a restart.
 
+**A countdown notice** can be shown too, on top of Habbo's own closing alerts (which are never
+changed): the client's countdown notice under the purse, counting down to the end. It is off until
+the hotel turns it on, for each kind on its own, on the Settings page under
+`Turbo:Operations:RestartNotice`, `ShutdownNotice` and `MaintenanceNotice` (all apply at once):
+`Enabled`, `PostAtMinutes` (when it goes up, the largest first, and again at each smaller one for
+a player who closed it; empty, as the countdown starts), `DefaultLink` (a web address, opened in
+the browser, or a client link such as `habbopages/...`), `Dismissible`, `Image` and `Color`. A
+restart from the panel may name a link of its own (`"link"` in the request); `:shutdown` and
+`:maintenance` use the default. Its text is the hotel text `hotel.countdown_notice.restart`
+(`.shutdown`, `.maintenance`), where `{minutes}`, `{time}` (the end, `HH:mm` UTC) and `{reason}`
+are filled in as it goes up; without one it reads "Hotel restart in", "Hotel closing in" or
+"Maintenance break in". Calling the countdown off takes the notice down, and so does its end. Only
+clients that speak `notices.live` (`docs/client-capabilities.md`) are sent it.
+
 The welcome message is kept in the `hotel_settings` table (the `AddHotelSettings` migration) and
 read from memory at each login, so a change applies from the next login on; players already
 online are not shown it. It keeps its line breaks, and can be up to 4000 characters.

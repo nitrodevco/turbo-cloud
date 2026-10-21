@@ -32,9 +32,10 @@ public interface IHotelAvailability
     /// Counts down to a restart: a shutdown that ends the process with
     /// <c>Turbo:Operations:RestartExitCode</c>, for the host (Supervisor, systemd) to start it
     /// again. Replaces a maintenance or restart scheduled; false when a shutdown is counting down
-    /// or under way, which it does not overrule.
+    /// or under way, which it does not overrule. <paramref name="noticeLink"/> is where its
+    /// countdown notice links to; empty, the hotel's default.
     /// </summary>
-    bool ScheduleRestart(TimeSpan delay, string reason);
+    bool ScheduleRestart(TimeSpan delay, string reason, string noticeLink = "");
 
     /// <summary>The longest countdown that may be started (<c>Turbo:Operations:MaxCountdownMinutes</c>).</summary>
     TimeSpan MaxCountdown { get; }

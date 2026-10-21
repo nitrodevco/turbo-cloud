@@ -208,6 +208,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IHotelTextProvider),
                 typeof(ISessionGateway),
                 typeof(IHotelAvailability),
+                typeof(IHotelCountdownNotice),
                 typeof(IPermissionEditService),
                 typeof(IPermissionRegistryProvider),
                 typeof(IPlayerNoticeService),

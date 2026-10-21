@@ -1241,5 +1241,6 @@ internal static class MessageComposer
     public const int TurboCommandSuggestionsMessageComposer = 30004;
     public const int TurboStarterRoomCameraMessageComposer = 30005;
     public const int TurboStarterRoomPictureResultMessageComposer = 30007;
+    public const int TurboNoticeMessageComposer = 30008;
     #endregion
 }
