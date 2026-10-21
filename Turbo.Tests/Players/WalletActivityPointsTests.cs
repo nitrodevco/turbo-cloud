@@ -60,8 +60,7 @@ public sealed class WalletActivityPointsTests
         );
 
         _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
+            .Sent()
             .Should()
             .ContainSingle()
             .Which.Should()

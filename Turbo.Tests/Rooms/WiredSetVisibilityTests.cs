@@ -9,7 +9,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -94,7 +93,8 @@ public sealed class WiredSetVisibilityTests
 
         await ClickAsync();
 
-        var sent = SentTo<WiredFurniTransparencyMessageComposer>(CLICKER)
+        var sent = _room
+            .Harness.Fakes.SentToPlayer<WiredFurniTransparencyMessageComposer>(100 + CLICKER)
             .Should()
             .ContainSingle()
             .Subject;
@@ -103,8 +103,11 @@ public sealed class WiredSetVisibilityTests
         sent.Transparency.Should().Be(100);
         sent.AllowClickThrough.Should().BeTrue();
         sent.EasingMode.Should().Be(2);
-        SentTo<WiredFurniTransparencyMessageComposer>(OTHER).Should().BeEmpty();
-        SentToRoom<WiredFurniTransparencyMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniTransparencyMessageComposer>(100 + OTHER)
+            .Should()
+            .BeEmpty();
+        _room.Harness.Fakes.SentToRoom<WiredFurniTransparencyMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -114,12 +117,16 @@ public sealed class WiredSetVisibilityTests
 
         await ClickAsync();
 
-        SentToRoom<WiredFurniTransparencyMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<WiredFurniTransparencyMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.FurniIds.Should()
             .Equal(TARGET);
-        SentTo<WiredFurniTransparencyMessageComposer>(CLICKER).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniTransparencyMessageComposer>(100 + CLICKER)
+            .Should()
+            .BeEmpty();
     }
 
     /// <summary>
@@ -279,7 +286,8 @@ public sealed class WiredSetVisibilityTests
 
         await ClickAsync();
 
-        SentTo<WiredFurniTransparencyMessageComposer>(CLICKER)
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniTransparencyMessageComposer>(100 + CLICKER)
             .Should()
             .ContainSingle()
             .Which.FurniIds.Should()
@@ -293,14 +301,18 @@ public sealed class WiredSetVisibilityTests
 
         await ClickAsync();
 
-        var sent = SentTo<WiredUserTransparencyMessageComposer>(CLICKER)
+        var sent = _room
+            .Harness.Fakes.SentToPlayer<WiredUserTransparencyMessageComposer>(100 + CLICKER)
             .Should()
             .ContainSingle()
             .Subject;
 
         sent.RoomIndices.Should().Equal(CLICKER);
         sent.EasingMode.Should().Be(1);
-        SentTo<WiredFurniTransparencyMessageComposer>(CLICKER).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniTransparencyMessageComposer>(100 + CLICKER)
+            .Should()
+            .BeEmpty();
     }
 
     private async Task SetUpAsync(int[] intParams, int[]? stuffIds = null)
@@ -369,20 +381,6 @@ public sealed class WiredSetVisibilityTests
             x.Transparency.AllowClickThrough,
             x.Transparency.EasingMode
         );
-
-    private IEnumerable<T> SentTo<T>(int objectId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(x => Equals(x.Key, (long)(100 + objectId)))
-            .SelectMany(x => x.Args)
-            .OfType<T>();
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 
     private async Task RebuildAsync()
     {

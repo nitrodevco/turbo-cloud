@@ -33,9 +33,7 @@ public sealed class UnansweredLoginRequestsTests
             Ct
         );
 
-        var composer = Assert.IsType<BlockListMessageComposer>(
-            _fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<BlockListMessageComposer>(_fakes.Sent().Single());
         Assert.Equal([5, 7], composer.BlockedUserIds);
     }
 

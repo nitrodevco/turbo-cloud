@@ -3,7 +3,6 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -91,9 +90,5 @@ public sealed class FurniturePickupConfirmTests
     private IDictionary ItemsById => _room.Harness.State.ItemsById;
 
     private IEnumerable<ObjectRemoveConfirmMessageComposer> ConfirmsSentToOwner() =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
-            .Select(c => c.Args[0])
-            .OfType<ObjectRemoveConfirmMessageComposer>();
+        _room.Harness.Fakes.SentToPlayer<ObjectRemoveConfirmMessageComposer>(OWNER);
 }

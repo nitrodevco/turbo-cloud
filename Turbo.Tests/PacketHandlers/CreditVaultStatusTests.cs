@@ -41,6 +41,6 @@ public sealed class CreditVaultStatusTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Empty(fakes.Log.Of("SendComposerAsync"));
+        Assert.Empty(fakes.Sent());
     }
 }

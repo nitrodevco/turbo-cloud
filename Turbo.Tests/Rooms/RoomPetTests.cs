@@ -16,7 +16,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -74,7 +73,8 @@ public sealed class RoomPetTests
 
         (await Pets.RespectPetAsync(Owner, PET, Ct)).Should().BeTrue();
 
-        SentToRoom<PetRespectNotificationEventMessageComposer>()
+        _harness
+            .Fakes.SentToRoom<PetRespectNotificationEventMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Pet.Id.Should()
@@ -158,7 +158,8 @@ public sealed class RoomPetTests
         await PlaceAsync();
         await SayAsync("Rex speak");
 
-        SentToRoom<ChatMessageComposer>()
+        _harness
+            .Fakes.SentToRoom<ChatMessageComposer>()
             .Where(x => x.ObjectId != _owner.ObjectId)
             .Select(x => x.Text)
             .Should()
@@ -223,7 +224,8 @@ public sealed class RoomPetTests
             .Select(x => ((PetSnapshot)x.Args[0]!).Id)
             .Should()
             .Equal(PET2);
-        Sent<PetPlacingErrorMessageComposer>()
+        _harness
+            .Fakes.Sent<PetPlacingErrorMessageComposer>()
             .Select(x => x.Error)
             .Should()
             .Equal(PetPlacingErrorType.SelectedTileNotFree);
@@ -266,7 +268,8 @@ public sealed class RoomPetTests
             .Select(x => ((BotSnapshot)x.Args[0]!).Id)
             .Should()
             .Equal(BOT2);
-        Sent<BotErrorMessageComposer>()
+        _harness
+            .Fakes.Sent<BotErrorMessageComposer>()
             .Select(x => x.Error)
             .Should()
             .Equal(BotErrorType.SelectedTileNotFree);
@@ -274,9 +277,6 @@ public sealed class RoomPetTests
 
     private async Task PlaceAsync() =>
         (await Pets.PlacePetAsync(Owner, PET, 4, 4, Ct)).Should().BeTrue();
-
-    private IEnumerable<T> Sent<T>() =>
-        _harness.Fakes.Log.Calls.SelectMany(x => x.Args).OfType<T>();
 
     private static BotSnapshot Bot(int id) =>
         new()
@@ -320,13 +320,6 @@ public sealed class RoomPetTests
 
         return (RoomPetAvatarSnapshot)pet!.GetSnapshot();
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _harness
-            .Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 
     private static PetSnapshot Pet() =>
         new()

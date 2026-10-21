@@ -27,9 +27,7 @@ public sealed class UserNameChangedTests
     [InlineData("oldname", false)]
     public async Task A_new_name_is_told_to_the_room_by_room_index(string name, bool told)
     {
-        var avatar = _room.Enter(PLAYER, 1, 1);
-
-        avatar.UseName("oldname");
+        var avatar = _room.Enter(PLAYER, 1, 1, "oldname");
 
         (
             await _room
@@ -39,12 +37,7 @@ public sealed class UserNameChangedTests
             .Should()
             .BeTrue();
 
-        var sent = _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<UserNameChangedMessageComposer>()
-            .ToList();
+        var sent = _room.Harness.Fakes.SentToRoom<UserNameChangedMessageComposer>().ToList();
 
         if (told)
             sent.Should()

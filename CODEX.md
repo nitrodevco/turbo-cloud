@@ -32,7 +32,13 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
   `.ItemsById`, `.Fakes`, `.Clock` (a `ManualTimeProvider` from a fixed start: room time moves
   only on `.Clock.AdvanceMs(ms)`, never wait with `Task.Delay`) and `.NowMs()`. `LiveRoomHarness`:
   the same built by the grain's real constructor (every system, event listener and logic
-  registered); use it when events or logic assignment matter.
+  registered); use it when events or logic assignment matter. `RoomHarness.AddPlayer(id)` puts a
+  fake `IRoomPlayer` in the room as object `id` whose `PlayerId` is `id`.
+- `WiredRoom(width, height, ..., avatarContexts?)`: a `LiveRoomHarness` with users, furni and wired
+  boxes; `.Enter(objectId, x, y, name?, rotation?, playerId?)` stands a user in it (player
+  `100 + objectId` by default), `.ContextFor(avatar or objectId)` is that user's `ActionContext`.
+  `avatarContexts: true` makes a user's context answer `RoomObject` with the real avatar (walk-ons,
+  teleports, doors).
 - `GrainHarness.Create(assembly, typeName, fakes, db?, playerId?)`: any other grain with its live
   state, the given database, default configs and a recording grain factory.
 - `SessionHarness`: the real session gateway with the real presence grain; `.NewSession(n)`,
@@ -46,7 +52,12 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
 - `Fakes`: an unconfigured call returns a completed task, `default`, or another fake for an
   interface, so a grain method returning a record or class gives null. Stub it with
   `Fakes.Handlers["MethodName"] = call => ...` or `Fakes.Instances[(typeof(IMyGrain), key)] = ...`;
-  `Fakes.Log` records the calls made.
+  `Fakes.Log` records the calls made. What was sent, in order (`SentComposers`):
+  `.Sent<T>(route?)` by any route (`SendRoute.Session`, `.Player`, `.Room`, `.Direct`, `.Any`),
+  `.SentToRoom<T>()` (each room publish unwrapped), `.SentToPlayer<T>(playerId)` (presence sends,
+  batches unwrapped), `.RoomPublishes()` (whole `RoomOutboundSnapshot`s) and `.AvatarUpdates()`
+  (each `UserUpdateMessageComposer`'s avatars). `TrySendComposerAsync` is not a send there; read
+  the log for it.
 - Copy the shape of the one example test closest to your subject; there is no need to read them all.
 
 ### Verification loop (once each, in this order)

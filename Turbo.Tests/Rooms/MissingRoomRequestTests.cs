@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Messages.Registry;
@@ -87,20 +86,7 @@ public sealed class MissingRoomRequestTests
                 )!;
         await result;
 
-        Sent().Should().BeEmpty();
+        _fakes.Sent().Should().BeEmpty();
         _fakes.Log.On<IRoomGrain>().Should().BeEmpty();
     }
-
-    private IEnumerable<IComposer> Sent() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(call => call.Args)
-            .SelectMany(arg =>
-                arg switch
-                {
-                    IComposer one => [one],
-                    IEnumerable many => many.OfType<IComposer>(),
-                    _ => [],
-                }
-            );
 }

@@ -2,10 +2,10 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -126,11 +126,7 @@ public sealed class TemporaryFurniIdBandTests
 
         var copy = await PlaceAsync(definition, 2, 2, owner: 7);
 
-        var composers = _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .ToList();
+        var composers = _room.Harness.Fakes.SentToRoom<IComposer>().ToList();
 
         composers.OfType<ObjectAddMessageComposer>().Should().BeEmpty();
         var objects = composers.OfType<ObjectsMessageComposer>().Should().ContainSingle().Subject;

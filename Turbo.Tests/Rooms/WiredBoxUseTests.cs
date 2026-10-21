@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Tests.Support;
@@ -44,9 +43,5 @@ public sealed class WiredBoxUseTests
     }
 
     private IEnumerable<OpenEventMessageComposer> OpensSentToOwner() =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
-            .Select(c => c.Args[0])
-            .OfType<OpenEventMessageComposer>();
+        _room.Harness.Fakes.SentToPlayer<OpenEventMessageComposer>(OWNER);
 }

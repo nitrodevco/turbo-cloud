@@ -2,11 +2,11 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Respect;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
 using Xunit;
@@ -41,9 +41,7 @@ public sealed class RespectGestureTests
 
     private List<object> Sent() =>
         _harness
-            .Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
+            .Fakes.SentToRoom<IComposer>()
             .Where(x => x is RespectNotificationMessageComposer or ExpressionMessageComposer)
             .Cast<object>()
             .ToList();

@@ -72,10 +72,7 @@ public class PersistentNoticeTests
     }
 
     private static List<NotificationDialogMessageComposer> Delivered(Fakes fakes) =>
-        fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x => x.Args.OfType<NotificationDialogMessageComposer>())
-            .ToList();
+        fakes.Sent<NotificationDialogMessageComposer>().ToList();
 
     private static ImmutableDictionary<string, string> Params(int i) =>
         ImmutableDictionary<string, string>

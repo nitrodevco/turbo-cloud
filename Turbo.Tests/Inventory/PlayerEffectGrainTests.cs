@@ -86,10 +86,6 @@ public sealed class PlayerEffectGrainTests : IDisposable
     private static EffectGrantRequest Request(int effectId, int copies) =>
         new() { EffectId = effectId, Copies = copies };
 
-    private IEnumerable<T> Sent<T>()
-        where T : class =>
-        _fakes.Log.Of("SendComposerAsync").Select(call => call.Args[0]).OfType<T>();
-
     private IReadOnlyList<(int EffectId, ImmutableArray<int> Owned)> WornCalls() =>
         [
             .. _fakes
@@ -136,7 +132,8 @@ public sealed class PlayerEffectGrainTests : IDisposable
         row.EffectId.Should().Be(EFFECT);
         row.InactiveCount.Should().Be(3);
         row.ExpiresAt.Should().BeNull();
-        Sent<AvatarEffectAddedMessageComposer>()
+        _fakes
+            .Sent<AvatarEffectAddedMessageComposer>()
             .Should()
             .HaveCount(3)
             .And.OnlyContain(x => x.Type == EFFECT && x.Duration == DURATION && !x.IsPermanent);
@@ -168,7 +165,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
             .Be(EffectGrantResult.Invalid);
 
         (await RowsAsync()).Should().BeEmpty();
-        Sent<AvatarEffectAddedMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<AvatarEffectAddedMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -216,7 +213,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
             .Be(EffectGrantResult.Invalid);
 
         (await RowsAsync()).Should().BeEmpty();
-        Sent<AvatarEffectAddedMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<AvatarEffectAddedMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -260,7 +257,8 @@ public sealed class PlayerEffectGrainTests : IDisposable
                 _clock.GetUtcNow().UtcDateTime.AddSeconds(DURATION),
                 TimeSpan.FromSeconds(1)
             );
-        Sent<AvatarEffectActivatedMessageComposer>()
+        _fakes
+            .Sent<AvatarEffectActivatedMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -284,7 +282,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
             .BeTrue();
 
         (await RowsAsync()).Single().InactiveCount.Should().Be(1);
-        Sent<AvatarEffectActivatedMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<AvatarEffectActivatedMessageComposer>().Should().ContainSingle();
         WornCalls().Should().HaveCount(2);
     }
 
@@ -297,7 +295,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         (await effects.ActivateEffectAsync(-1, Ct)).Should().BeFalse();
 
         WornCalls().Should().BeEmpty();
-        Sent<AvatarEffectActivatedMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<AvatarEffectActivatedMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -361,7 +359,8 @@ public sealed class PlayerEffectGrainTests : IDisposable
         await TickAsync(grain);
 
         (await RowsAsync()).Select(x => x.EffectId).Should().Equal(OTHER_EFFECT);
-        Sent<AvatarEffectExpiredMessageComposer>()
+        _fakes
+            .Sent<AvatarEffectExpiredMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Type.Should()
@@ -405,7 +404,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         await TickAsync(grain);
 
         (await RowsAsync()).Should().ContainSingle();
-        Sent<AvatarEffectExpiredMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<AvatarEffectExpiredMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -425,7 +424,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         (await effects.SelectEffectAsync(EFFECT, Ct)).Should().BeFalse();
 
         (await RowsAsync()).Should().BeEmpty();
-        Sent<AvatarEffectExpiredMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<AvatarEffectExpiredMessageComposer>().Should().ContainSingle();
     }
 
     [Fact]
@@ -461,7 +460,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         rows[0].ExpiresAt.Should().BeNull();
 
         // Nobody was shown them running, so nobody is told they ended.
-        Sent<AvatarEffectExpiredMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<AvatarEffectExpiredMessageComposer>().Should().BeEmpty();
         WornCalls().Should().BeEmpty();
         (await effects.GetEffectsAsync(Ct)).Should().ContainSingle();
     }
@@ -542,7 +541,8 @@ public sealed class PlayerEffectGrainTests : IDisposable
         var rows = await RowsAsync();
         rows.Single(x => x.EffectId == EFFECT).SubType.Should().Be(1);
         rows.Single(x => x.EffectId == OTHER_EFFECT).SubType.Should().Be(0);
-        Sent<AvatarEffectAddedMessageComposer>()
+        _fakes
+            .Sent<AvatarEffectAddedMessageComposer>()
             .Single(x => x.Type == EFFECT)
             .SubType.Should()
             .Be(1);
@@ -567,7 +567,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
             .Be(EffectGrantResult.LimitReached);
 
         (await RowsAsync()).Single().InactiveCount.Should().Be(1);
-        Sent<AvatarEffectAddedMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<AvatarEffectAddedMessageComposer>().Should().ContainSingle();
     }
 
     [Fact]

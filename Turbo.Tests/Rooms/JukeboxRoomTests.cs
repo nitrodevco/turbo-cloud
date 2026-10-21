@@ -85,7 +85,7 @@ public sealed class JukeboxRoomTests
     {
         (await MusicAsync(GUEST, new RequestJukeboxPlaylistInteraction())).Should().BeTrue();
 
-        var playlist = SentTo(GUEST).OfType<JukeboxSongDisksMessageComposer>().Single();
+        var playlist = _room.Fakes.SentToPlayer<JukeboxSongDisksMessageComposer>(GUEST).Single();
         playlist.MaxLength.Should().Be(10);
         playlist.Disks.Should().Equal(_disks);
     }
@@ -96,7 +96,7 @@ public sealed class JukeboxRoomTests
         _room.ItemsById.Remove((RoomObjectId)JUKEBOX);
 
         (await MusicAsync(GUEST, new RequestNowPlayingInteraction())).Should().BeFalse();
-        SentTo(GUEST).Should().BeEmpty();
+        _room.Fakes.SentToPlayer<IComposer>(GUEST).Should().BeEmpty();
     }
 
     [Fact]
@@ -132,7 +132,11 @@ public sealed class JukeboxRoomTests
             .Should()
             .BeTrue();
 
-        Broadcast().OfType<JukeboxSongDisksMessageComposer>().Single().Disks.Should().Equal(added);
+        _room
+            .Fakes.SentToRoom<JukeboxSongDisksMessageComposer>()
+            .Single()
+            .Disks.Should()
+            .Equal(added);
 
         _room.Fakes.Handlers[nameof(IJukeboxGrain.AddDiskAsync)] = _ =>
             Task.FromResult(
@@ -147,8 +151,11 @@ public sealed class JukeboxRoomTests
             .Should()
             .BeFalse();
 
-        SentTo(ROOM_OWNER).OfType<JukeboxPlayListFullMessageComposer>().Should().ContainSingle();
-        Broadcast().OfType<JukeboxSongDisksMessageComposer>().Should().ContainSingle();
+        _room
+            .Fakes.SentToPlayer<JukeboxPlayListFullMessageComposer>(ROOM_OWNER)
+            .Should()
+            .ContainSingle();
+        _room.Fakes.SentToRoom<JukeboxSongDisksMessageComposer>().Should().ContainSingle();
     }
 
     [Fact]
@@ -157,34 +164,34 @@ public sealed class JukeboxRoomTests
         (await UseAsync(ROOM_OWNER, param: 1)).Should().BeTrue();
 
         _jukebox.Logic.GetState().Should().Be(JukeboxStates.ON);
-        var playing = Broadcast().OfType<NowPlayingMessageComposer>().Last();
+        var playing = _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Last();
         playing.CurrentSongId.Should().Be(SONG_B);
         playing.CurrentPosition.Should().Be(1);
         playing.NextSongId.Should().Be(SONG_A);
         playing.NextPosition.Should().Be(0);
 
-        var before = Broadcast().OfType<NowPlayingMessageComposer>().Count();
+        var before = _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Count();
 
         // The room's clock at the moment the song is due to end, and not past it.
         await _room.Module<RoomTimerSystem>().ProcessTimersAsync(SongEndsAtMs(), Ct);
 
-        var next = Broadcast().OfType<NowPlayingMessageComposer>().Skip(before).First();
+        var next = _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Skip(before).First();
         next.CurrentSongId.Should().Be(SONG_A);
         next.CurrentPosition.Should().Be(0);
 
         // A late arrival asks what plays and joins it.
         await MusicAsync(GUEST, new RequestNowPlayingInteraction());
-        SentTo(GUEST)
-            .OfType<NowPlayingMessageComposer>()
+        _room
+            .Fakes.SentToPlayer<NowPlayingMessageComposer>(GUEST)
             .Single()
             .CurrentSongId.Should()
-            .Be(Broadcast().OfType<NowPlayingMessageComposer>().Last().CurrentSongId);
+            .Be(_room.Fakes.SentToRoom<NowPlayingMessageComposer>().Last().CurrentSongId);
 
         (await UseAsync(ROOM_OWNER, param: -1)).Should().BeTrue();
 
         _jukebox.Logic.GetState().Should().Be(JukeboxStates.OFF);
-        Broadcast()
-            .OfType<NowPlayingMessageComposer>()
+        _room
+            .Fakes.SentToRoom<NowPlayingMessageComposer>()
             .Last()
             .Should()
             .Be(NowPlayingMessageComposer.Nothing());
@@ -196,7 +203,7 @@ public sealed class JukeboxRoomTests
         (await UseAsync(GUEST, param: 0)).Should().BeFalse();
 
         _jukebox.Logic.GetState().Should().Be(JukeboxStates.OFF);
-        Broadcast().OfType<NowPlayingMessageComposer>().Should().BeEmpty();
+        _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -216,7 +223,7 @@ public sealed class JukeboxRoomTests
             .Should()
             .BeTrue();
 
-        var playing = Broadcast().OfType<NowPlayingMessageComposer>().Last();
+        var playing = _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Last();
         playing.CurrentSongId.Should().Be(SONG_B);
         playing.CurrentPosition.Should().Be(0);
     }
@@ -229,7 +236,7 @@ public sealed class JukeboxRoomTests
         await UseAsync(ROOM_OWNER, param: 0);
 
         _jukebox.Logic.GetState().Should().Be(JukeboxStates.OFF);
-        Broadcast().OfType<NowPlayingMessageComposer>().Should().BeEmpty();
+        _room.Fakes.SentToRoom<NowPlayingMessageComposer>().Should().BeEmpty();
     }
 
     /// <summary>When the jukebox's pending timer, the end of the song playing, is due.</summary>
@@ -255,17 +262,6 @@ public sealed class JukeboxRoomTests
 
     private Task<bool> UseAsync(int playerId, int param) =>
         _room.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(playerId, 1), JUKEBOX, Ct, param);
-
-    private IEnumerable<IComposer> Broadcast() =>
-        _room
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(call => ((RoomOutboundSnapshot)call.Args[0]!).Composers);
-
-    private IEnumerable<IComposer> SentTo(int playerId) =>
-        _room
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(call => Equals(call.Key, (long)playerId))
-            .SelectMany(call => call.Args.OfType<IComposer>());
 
     private static SongSnapshot Song(int id) =>
         new()

@@ -16,7 +16,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -101,12 +100,16 @@ public sealed class WiredLabelTests
         var label = Label(10);
 
         (await WriteAsync(VISITOR, 10, "nope")).Should().BeFalse();
-        SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
+            .Should()
+            .BeEmpty();
 
         (await WriteAsync(OWNER, 10, "Hello")).Should().BeTrue();
 
         LabelOf(label).Text.Should().Be("Hello");
-        var update = SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
+        var update = _room
+            .Harness.Fakes.SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
             .Should()
             .ContainSingle()
             .Subject;
@@ -124,7 +127,7 @@ public sealed class WiredLabelTests
         await WriteAsync(OWNER, 10, "parity label");
 
         // Official client capture 2026-10-13 11:18: ObjectDataUpdate (data ""), then the label's update.
-        var sent = SentToRoom<IComposer>().ToList();
+        var sent = _room.Harness.Fakes.SentToRoom<IComposer>().ToList();
         sent.FindIndex(x => x is ObjectDataUpdateMessageComposer { ObjectId.Value: 10 })
             .Should()
             .BeGreaterThanOrEqualTo(0)
@@ -144,7 +147,7 @@ public sealed class WiredLabelTests
             .Should()
             .BeTrue();
 
-        SentToRoom<IComposer>().Should().HaveCount(sent.Count);
+        _room.Harness.Fakes.SentToRoom<IComposer>().Should().HaveCount(sent.Count);
     }
 
     [Fact]
@@ -170,7 +173,10 @@ public sealed class WiredLabelTests
             .Should()
             .BeTrue();
         LabelOf(label).AlwaysOpen.Should().BeFalse();
-        SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>().Should().HaveCount(2);
+        _room
+            .Harness.Fakes.SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
+            .Should()
+            .HaveCount(2);
 
         (
             await SettingsAsync(
@@ -224,7 +230,8 @@ public sealed class WiredLabelTests
             .BeTrue();
 
         item.Logic.Should().BeOfType<FurnitureLabelLogic>();
-        SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.AddedOrUpdated.Should()
@@ -236,7 +243,8 @@ public sealed class WiredLabelTests
             .Should()
             .BeTrue();
 
-        SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurnitureLabelsAndRegionsUpdateMessageComposer>()
             .Last()
             .RemovedIds.Should()
             .Equal((RoomObjectId)20);
@@ -414,13 +422,6 @@ public sealed class WiredLabelTests
             },
             Ct
         );
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 
     private static IEnumerable<string> MigrationSql(Migration migration, bool up)
     {

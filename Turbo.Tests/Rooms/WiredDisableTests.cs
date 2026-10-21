@@ -11,7 +11,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -67,7 +66,7 @@ public sealed class WiredDisableTests
 
         await ClickAsync();
         pad.Logic.GetState().Should().Be(0, "wired fires again");
-        SentToRoom<ConfigurationItemStatesMessageComposer>().Should().BeEmpty();
+        _room.Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -95,7 +94,7 @@ public sealed class WiredDisableTests
         var disabler = await AddDisablerAsync();
         await disabler.Logic.OnUseAsync(Owner, 0, Ct);
         await _room.Harness.Module<RoomObjectModule>().RemoveObjectAsync(Owner, disabler, Ct, 1);
-        var addsBefore = SentToRoom<ObjectAddMessageComposer>().Count();
+        var addsBefore = _room.Harness.Fakes.SentToRoom<ObjectAddMessageComposer>().Count();
 
         (
             await _room
@@ -108,7 +107,11 @@ public sealed class WiredDisableTests
         disabler.Logic.GetState().Should().Be(0);
         (
             (LegacyStuffSnapshot)
-                SentToRoom<ObjectAddMessageComposer>().Skip(addsBefore).Single().FloorItem.StuffData
+                _room
+                    .Harness.Fakes.SentToRoom<ObjectAddMessageComposer>()
+                    .Skip(addsBefore)
+                    .Single()
+                    .FloorItem.StuffData
         )
             .Data.Should()
             .Be("0", "the room is told of it off");
@@ -294,11 +297,4 @@ public sealed class WiredDisableTests
             await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
         }
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

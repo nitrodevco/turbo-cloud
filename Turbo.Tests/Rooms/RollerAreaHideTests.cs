@@ -7,7 +7,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -83,17 +82,19 @@ public sealed class RollerAreaHideTests
         );
 
         // Switching the hider on took the two rollers inside the area away, as it should.
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Select(x => x.ObjectId)
             .Should()
             .Equal((RoomObjectId)ROLLER_INSIDE, (RoomObjectId)ROLLER_OUT);
-        var removedBefore = SentToRoom<ObjectRemoveMessageComposer>().Count();
+        var removedBefore = _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().Count();
 
         await TickAsync();
 
         crate.X.Should().Be(2);
         SlidFurni().Should().BeEmpty("the crate rolled out of sight");
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Skip(removedBefore)
             .Select(x => x.ObjectId)
             .Should()
@@ -108,7 +109,8 @@ public sealed class RollerAreaHideTests
 
         crate.X.Should().Be(4);
         SlidFurni().Should().BeEmpty("it is sent again instead");
-        SentToRoom<ObjectAddMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectAddMessageComposer>()
             .Select(x => x.FloorItem.ObjectId)
             .Should()
             .Equal((RoomObjectId)CRATE);
@@ -134,14 +136,8 @@ public sealed class RollerAreaHideTests
     }
 
     private IEnumerable<int> SlidFurni() =>
-        SentToRoom<SlideObjectBundleMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<SlideObjectBundleMessageComposer>()
             .SelectMany(x => x.FloorItemHeights)
             .Select(x => x.Item1);
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

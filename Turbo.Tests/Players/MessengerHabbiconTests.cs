@@ -6,7 +6,6 @@ using Turbo.Players.Configuration;
 using Turbo.Players.Grains.Messenger;
 using Turbo.Players.Messenger;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Messenger;
@@ -62,7 +61,8 @@ public sealed class MessengerHabbiconTests : IDisposable
             .Should()
             .BeNull();
 
-        var confirmation = Sent<NewConsoleMessageMessageComposer>()
+        var confirmation = _fakes
+            .Sent<NewConsoleMessageMessageComposer>()
             .Should()
             .ContainSingle()
             .Subject;
@@ -197,18 +197,4 @@ public sealed class MessengerHabbiconTests : IDisposable
             PetRespectsLeft = 0,
             RespectReplenishesLeft = 0,
         };
-
-    private IEnumerable<T> Sent<T>()
-        where T : IComposer =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .OfType<T>();
 }

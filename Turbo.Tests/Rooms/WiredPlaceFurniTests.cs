@@ -284,7 +284,8 @@ public sealed class WiredPlaceFurniTests
             .. _room
                 .Harness.Fakes.Log.Of("SendComposerAsync")
                 // The placement failure's own: a room this busy on a loaded machine may also be
-                // marked heavy, which tells its owner too.
+                // marked heavy, which tells its owner too. Read from the log itself: the answer
+                // is whom each dialog went to, which the shared SentToPlayer does not say.
                 .Where(x =>
                     x.Args[0] is NotificationDialogMessageComposer dialog
                     && dialog.Parameters["message"] == "${room.error.wired.placement_failure}"
@@ -295,9 +296,7 @@ public sealed class WiredPlaceFurniTests
     private List<T> Dialogs<T>(Func<NotificationDialogMessageComposer, T> select) =>
         [
             .. _room
-                .Harness.Fakes.Log.Of("SendComposerAsync")
-                .Select(x => x.Args[0])
-                .OfType<NotificationDialogMessageComposer>()
+                .Harness.Fakes.Sent<NotificationDialogMessageComposer>(SendRoute.Direct)
                 .Select(select),
         ];
 

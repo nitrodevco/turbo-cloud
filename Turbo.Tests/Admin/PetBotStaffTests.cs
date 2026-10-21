@@ -15,7 +15,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Providers;
@@ -80,7 +79,8 @@ public sealed class PetBotStaffTests : IDisposable
             .Be(new BotConfig().ChatDelayMinSeconds, "held to the hotel's shortest delay");
         bot.FreeRoam.Should().BeTrue();
 
-        SentToRoom<UsersMessageComposer>()
+        _harness
+            .Fakes.SentToRoom<UsersMessageComposer>()
             .SelectMany(x => x.Avatars)
             .Should()
             .Contain(x => x.Name == "Greeter", "the room is sent the renamed bot");
@@ -127,11 +127,13 @@ public sealed class PetBotStaffTests : IDisposable
         pet.Nutrition.Should().Be(40, "a value not given is left as it was");
         pet.HasBreedingPermission.Should().BeTrue();
 
-        SentToRoom<UsersMessageComposer>()
+        _harness
+            .Fakes.SentToRoom<UsersMessageComposer>()
             .SelectMany(x => x.Avatars)
             .Should()
             .Contain(x => x.Name == "Buddy", "the room is sent the renamed pet");
-        SentToRoom<PetLevelUpdateMessageComposer>()
+        _harness
+            .Fakes.SentToRoom<PetLevelUpdateMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Level.Should()
@@ -180,13 +182,6 @@ public sealed class PetBotStaffTests : IDisposable
 
         await twice.Should().ThrowAsync<ArgumentException>();
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _harness
-            .Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 
     private static BotSnapshot Bot() =>
         new()

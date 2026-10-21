@@ -189,7 +189,7 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         marks[0].Args[0].Should().Be(UnseenItemCategory.Badge);
         ((IEnumerable<int>)marks[0].Args[1]!).Should().Equal(granted.Id);
         _fakes
-            .Log.Of(nameof(IPlayerPresenceGrain.SendComposerAsync))
+            .Sent()
             .Should()
             .BeEmpty("the notification carries the new badge; the list is not sent again");
         _fakes.Log.Of(nameof(IPlayerPresenceGrain.OnSelectedBadgesChangedAsync)).Should().BeEmpty();

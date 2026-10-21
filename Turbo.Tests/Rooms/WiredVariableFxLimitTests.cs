@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
@@ -117,30 +116,22 @@ public sealed class WiredVariableFxLimitTests
         }
     }
 
-    private List<IComposer> SentToPlayer() =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(call => Equals(call.Key, 101L))
-            .SelectMany(call => call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
-            .ToList();
-
     private IEnumerable<int> Configs() =>
-        SentToPlayer()
-            .OfType<VariableFxConfigsMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<VariableFxConfigsMessageComposer>(101)
             .SelectMany(x => x.Configs)
             .Select(x => x.ConfigId)
             .Distinct();
 
     private IEnumerable<int> DrawnConfigs() =>
-        SentToPlayer()
-            .OfType<VariableFxStatusMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<VariableFxStatusMessageComposer>(101)
             .SelectMany(x => x.Statuses)
             .Select(x => x.Key.ConfigId)
             .Distinct();
 
     private IEnumerable<string> Notices() =>
         _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .SelectMany(call => call.Args.OfType<NotificationDialogMessageComposer>())
+            .Harness.Fakes.Sent<NotificationDialogMessageComposer>(SendRoute.Direct)
             .Select(x => x.Parameters["message"]);
 }

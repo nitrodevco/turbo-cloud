@@ -9,9 +9,9 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Wall;
 using Turbo.Tests.Support;
@@ -71,10 +71,7 @@ public sealed class DimmerOnWallTests
             .Should()
             .BeTrue();
 
-        var sent = _room
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .ToList();
+        var sent = _room.Fakes.SentToRoom<IComposer>().ToList();
 
         sent.OfType<ItemDataUpdateMessageComposer>().Should().BeEmpty();
         sent.OfType<ItemUpdateMessageComposer>()
@@ -121,9 +118,7 @@ public sealed class DimmerOnWallTests
             .BeTrue();
 
         _room
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .OfType<ItemUpdateMessageComposer>()
+            .Fakes.SentToRoom<ItemUpdateMessageComposer>()
             .Select(u => ((LegacyStuffSnapshot)u.WallItem.StuffData).Data)
             .Should()
             .Equal("2,2,2,#0053F7,255", "1,2,2,#0053F7,255");

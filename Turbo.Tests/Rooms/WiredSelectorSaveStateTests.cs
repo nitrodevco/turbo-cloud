@@ -9,7 +9,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -108,18 +107,12 @@ public sealed class WiredSelectorSaveStateTests
         );
 
         fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => x.Interface == typeof(IPlayerPresenceGrain) && Equals(x.Key, (long)OWNER))
-            .Select(x => x.Args[0])
+            .SentToPlayer<IComposer>(OWNER)
             .Should()
             .ContainSingle()
             .Which.Should()
             .BeOfType<WiredSaveSuccessEventMessageComposer>();
-        fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => x.Interface == typeof(ISessionContext))
-            .Should()
-            .BeEmpty();
+        fakes.Sent(SendRoute.Session).Should().BeEmpty();
     }
 
     private WiredSelectorItemsByType AddSelector()
@@ -165,20 +158,14 @@ public sealed class WiredSelectorSaveStateTests
     private List<string> StatesSentTo(int player) =>
         [
             .. _room
-                .Harness.Fakes.Log.Of("SendComposerAsync")
-                .Where(x =>
-                    x.Interface == typeof(IPlayerPresenceGrain) && Equals(x.Key, (long)player)
-                )
-                .Select(x => x.Args[0])
-                .OfType<ObjectDataUpdateMessageComposer>()
+                .Harness.Fakes.SentToPlayer<ObjectDataUpdateMessageComposer>(player)
                 .Select(x => ((LegacyStuffSnapshot)x.StuffData).Data),
         ];
 
     private List<RoomOutboundSnapshot> Published() =>
         [
             .. _room
-                .Harness.Fakes.Log.Of("OnNextAsync")
-                .Select(call => (RoomOutboundSnapshot)call.Args[0]!)
+                .Harness.Fakes.RoomPublishes()
                 .Where(x => x.Composers.Any(c => c is ObjectDataUpdateMessageComposer)),
         ];
 }

@@ -8,9 +8,7 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Rooms.Grains.Modules;
-using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Tests.Support;
 using Xunit;
@@ -88,15 +86,8 @@ public sealed class RoomControllerLevelTests
     }
 
     /// <summary>The room's owner (player 1) standing in it with these permission nodes.</summary>
-    private void EnterOwner(string[] nodes)
-    {
-        var avatar = new RoomPlayerAvatar { ObjectId = OWNER_OBJECT, PlayerId = 1 };
-
-        avatar.SetPosition(1, 1);
-        avatar.SetLogic(_room.Harness.Fakes.Create<IRoomPlayerLogic>(OWNER_OBJECT));
-        avatar.SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
-        _room.Harness.State.AvatarsByObjectId[OWNER_OBJECT] = avatar;
-        _room.Harness.State.AvatarsByPlayerId[(PlayerId)1] = OWNER_OBJECT;
-        _room.Map.AddAvatar(avatar, false);
-    }
+    private void EnterOwner(string[] nodes) =>
+        _room
+            .Enter(OWNER_OBJECT, 1, 1, playerId: 1)
+            .SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
 }

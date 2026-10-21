@@ -14,7 +14,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -41,7 +40,7 @@ public class PurchasableClothingTests
     public async Task The_owner_binds_its_sets_and_the_furni_is_gone()
     {
         var room = CreateRoomWith("6621,6622");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -87,7 +86,7 @@ public class PurchasableClothingTests
     public async Task Someone_else_cannot_bind_it()
     {
         var room = CreateRoomWith("6621,6622");
-        AddPlayer(room, GUEST);
+        room.AddPlayer(GUEST);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(GUEST, 1),
@@ -109,7 +108,7 @@ public class PurchasableClothingTests
     public async Task A_borrowed_or_temporary_furni_is_not_bound_by_its_owner(int id)
     {
         var room = CreateRoomWith("6621,6622", id);
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -127,7 +126,7 @@ public class PurchasableClothingTests
     public async Task A_furni_that_lists_no_sets_is_kept()
     {
         var room = CreateRoomWith(null);
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -258,18 +257,5 @@ public class PurchasableClothingTests
         );
 
         return room;
-    }
-
-    private static void AddPlayer(RoomHarness room, int playerId)
-    {
-        var player = room.Fakes.Create<IRoomPlayer>(playerId);
-
-        room.Fakes.Handlers["get_PlayerId"] = call =>
-            call.Interface == typeof(IRoomPlayer) && call.Key is int id
-                ? (PlayerId)id
-                : Fakes.NotHandled;
-
-        room.State.AvatarsByPlayerId[playerId] = playerId;
-        room.State.AvatarsByObjectId[playerId] = player;
     }
 }

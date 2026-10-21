@@ -144,8 +144,7 @@ public sealed class RoomEntryTailTests
         await EnterAsync(VISITOR);
 
         var broadcast = _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => (RoomOutboundSnapshot)call.Args[0]!)
+            .Harness.Fakes.RoomPublishes()
             .Single(x => x.Composers.Any(c => c is UsersMessageComposer));
 
         broadcast.ExcludedPlayerIds.Should().Equal((PlayerId)VISITOR);
@@ -200,8 +199,7 @@ public sealed class RoomEntryTailTests
 
         // Everyone already here: the Users that draws the newcomer, then their status.
         var toOthers = _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => (RoomOutboundSnapshot)call.Args[0]!)
+            .Harness.Fakes.RoomPublishes()
             .Where(x => x.ExcludedPlayerIds?.Contains((PlayerId)VISITOR) == true)
             .SelectMany(x => x.Composers)
             .ToList();

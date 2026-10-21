@@ -38,9 +38,7 @@ public sealed class KickbackInfoTests
             TestContext.Current.CancellationToken
         );
 
-        return Assert.IsType<ScrSendKickbackInfoMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        return Assert.IsType<ScrSendKickbackInfoMessageComposer>(fakes.Sent().Single());
     }
 
     private static PlayerSubscriptionSnapshot Club(

@@ -28,9 +28,7 @@ public sealed class AchievementBadgeLimitsTests
             new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
             TestContext.Current.CancellationToken
         );
-        var composer = Assert.IsType<BadgePointLimitsEventMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<BadgePointLimitsEventMessageComposer>(fakes.Sent().Single());
         var login = composer.LimitsByBadgeCodePrefix.Single(x => x.BadgeCodePrefix == "Login");
         Assert.Equal(1, login.Levels[0].Level);
         Assert.Equal(5, login.Levels[0].Limit);
@@ -63,9 +61,7 @@ public sealed class AchievementBadgeLimitsTests
             TestContext.Current.CancellationToken
         );
 
-        var composer = Assert.IsType<BadgePointLimitsEventMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<BadgePointLimitsEventMessageComposer>(fakes.Sent().Single());
         Assert.Equal(
             ["Alpha", "Beta", "Gamma"],
             composer.LimitsByBadgeCodePrefix.Select(x => x.BadgeCodePrefix).Order()

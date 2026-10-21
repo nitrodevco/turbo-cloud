@@ -103,7 +103,7 @@ public sealed class DailyTaskTests : IDisposable
         await Grain().SendTasksAsync(Ct);
         await Grain().SendTasksAsync(Ct);
 
-        var lists = Sent<DailyTasksActiveListMessageComposer>().ToList();
+        var lists = _fakes.Sent<DailyTasksActiveListMessageComposer>().ToList();
 
         lists.Should().HaveCount(2);
         lists[1].Tasks.Select(x => x.TaskId).Should().Equal(lists[0].Tasks.Select(x => x.TaskId));
@@ -118,7 +118,8 @@ public sealed class DailyTaskTests : IDisposable
         await grain.RecordActivityAsync(DailyTaskActivity.RoomVisit, "7", Ct);
         await grain.RecordActivityAsync(DailyTaskActivity.RoomVisit, "8", Ct);
 
-        Sent<DailyTasksTaskUpdateMessageComposer>()
+        _fakes
+            .Sent<DailyTasksTaskUpdateMessageComposer>()
             .Select(x => (x.Repeats, x.Status))
             .Should()
             .Equal((1, DailyTaskStatus.Active), (2, DailyTaskStatus.Completed));
@@ -132,7 +133,8 @@ public sealed class DailyTaskTests : IDisposable
         await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "chair_basic", Ct);
         await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "BBQ_GRILL", Ct);
 
-        Sent<DailyTasksTaskUpdateMessageComposer>()
+        _fakes
+            .Sent<DailyTasksTaskUpdateMessageComposer>()
             .Select(x => (x.Repeats, x.Status))
             .Should()
             .Equal((1, DailyTaskStatus.Completed));
@@ -144,7 +146,7 @@ public sealed class DailyTaskTests : IDisposable
         var grain = Grain();
 
         await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "bbq_grill", Ct);
-        Sent<DailyTasksTasksAddedMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<DailyTasksTasksAddedMessageComposer>().Should().BeEmpty();
 
         await grain.RecordActivityAsync(DailyTaskActivity.RoomVisit, "7", Ct);
         await grain.RecordActivityAsync(DailyTaskActivity.RoomVisit, "8", Ct);
@@ -168,7 +170,8 @@ public sealed class DailyTaskTests : IDisposable
         credit.Args[0].Should().Be(CurrencyKind.ActivityPoints(0));
         credit.Args[1].Should().Be(20);
         credit.Args[2].Should().Be($"dailytask:{taskId}");
-        Sent<DailyTasksTaskUpdateMessageComposer>()
+        _fakes
+            .Sent<DailyTasksTaskUpdateMessageComposer>()
             .Last()
             .Status.Should()
             .Be(DailyTaskStatus.Claimed);
@@ -235,16 +238,16 @@ public sealed class DailyTaskTests : IDisposable
 
         // The day's definitions are kept until they are read again.
         await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "rubber_duck", Ct);
-        Sent<DailyTasksTaskUpdateMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<DailyTasksTaskUpdateMessageComposer>().Should().BeEmpty();
 
         await grain.ReloadAsync(Ct);
         await grain.RecordActivityAsync(DailyTaskActivity.FurniUse, "rubber_duck", Ct);
 
-        Sent<DailyTasksTaskUpdateMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<DailyTasksTaskUpdateMessageComposer>().Should().ContainSingle();
 
         // The day's tasks are the same ones: nothing is given again.
         await grain.SendTasksAsync(Ct);
-        var lists = Sent<DailyTasksActiveListMessageComposer>().ToList();
+        var lists = _fakes.Sent<DailyTasksActiveListMessageComposer>().ToList();
         lists[1].Tasks.Select(x => x.TaskId).Should().Equal(lists[0].Tasks.Select(x => x.TaskId));
     }
 
@@ -256,22 +259,8 @@ public sealed class DailyTaskTests : IDisposable
         return (IPlayerDailyTaskGrain)grain;
     }
 
-    private IEnumerable<T> Sent<T>()
-        where T : IComposer =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .OfType<T>();
-
     private T Single<T>()
-        where T : IComposer => Sent<T>().Should().ContainSingle().Subject;
+        where T : IComposer => _fakes.Sent<T>().Should().ContainSingle().Subject;
 
     private static DailyTaskDefinitionEntity Definition(
         int id,

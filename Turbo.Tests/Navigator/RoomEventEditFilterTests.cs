@@ -3,7 +3,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Advertisement;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Moderation;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
 using Xunit;
@@ -105,27 +105,10 @@ public sealed class RoomEventEditFilterTests : IDisposable
             CancellationToken.None
         );
 
-    private IEnumerable<object?> SentToOwner() =>
-        _room
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(c =>
-                c.Key switch
-                {
-                    PlayerId p => p.Value == OWNER,
-                    int n => n == OWNER,
-                    long n => n == OWNER,
-                    _ => false,
-                }
-            )
-            .Select(c => c.Args[0]);
+    private IEnumerable<IComposer> SentToOwner() => _room.Fakes.SentToPlayer<IComposer>(OWNER);
 
     private List<RoomEventMessageComposer> RoomEventSends() =>
-        [
-            .. _room
-                .Fakes.Log.Of("OnNextAsync")
-                .Select(c => (RoomOutboundSnapshot)c.Args[0]!)
-                .SelectMany(x => x.Composers.OfType<RoomEventMessageComposer>()),
-        ];
+        [.. _room.Fakes.SentToRoom<RoomEventMessageComposer>()];
 
     private sealed class BadIsUncleanFilter : IWordFilter
     {

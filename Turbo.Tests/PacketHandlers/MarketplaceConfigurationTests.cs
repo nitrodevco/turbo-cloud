@@ -30,7 +30,7 @@ public sealed class MarketplaceConfigurationTests
         );
 
         var composer = Assert.IsType<MarketplaceConfigurationEventMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
+            fakes.Sent().Single()
         );
         var packet = PacketHarness.Encode(composer);
 
@@ -62,7 +62,7 @@ public sealed class MarketplaceConfigurationTests
         );
 
         var composer = Assert.IsType<MarketplaceConfigurationEventMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
+            fakes.Sent().Single()
         );
 
         Assert.True(PacketHarness.Encode(composer).PopBoolean());

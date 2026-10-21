@@ -191,7 +191,7 @@ public sealed class ProductFurniGrantTests : IDisposable
         consumed.Should().NotBeNull();
         consumed!.StuffData.Should().Be(paper.StuffData);
         (await inventory.GetAllItemSnapshotsAsync(Ct)).Should().BeEmpty();
-        _fakes.Log.Of("SendComposerAsync").Should().NotBeEmpty("the client is told it is gone");
+        _fakes.Sent().Should().NotBeEmpty("the client is told it is gone");
 
         await using var db = await _db.CreateDbContextAsync(Ct);
 

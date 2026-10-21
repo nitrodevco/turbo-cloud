@@ -35,9 +35,7 @@ public sealed class FurnitureAliasesTests
             TestContext.Current.CancellationToken
         );
 
-        var composer = Assert.IsType<FurnitureAliasesMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<FurnitureAliasesMessageComposer>(fakes.Sent().Single());
         Assert.Equal(
             [("ads_711", "ads_711c"), ("ads_pepsi0", "ads_pepsi0_camp")],
             composer.Aliases

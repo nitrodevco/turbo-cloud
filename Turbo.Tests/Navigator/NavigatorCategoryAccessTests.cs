@@ -134,7 +134,7 @@ public class NavigatorCategoryAccessTests
         await new GetUserFlatCatsMessageHandler(service).HandleAsync(new(), ctx, ct);
         await new GetUserEventCatsMessageHandler(service).HandleAsync(new(), ctx, ct);
 
-        var sent = fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]).ToList();
+        var sent = fakes.Sent().ToList();
         sent.OfType<UserFlatCatsMessageComposer>().Single().Categories.Should().HaveCount(2);
         sent.OfType<UserEventCatsMessageComposer>()
             .Single()
@@ -183,8 +183,8 @@ public class NavigatorCategoryAccessTests
         ).HandleAsync(new(), ctx, TestContext.Current.CancellationToken);
 
         fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0]!.GetType().Name)
+            .Sent()
+            .Select(x => x.GetType().Name)
             .Should()
             .Equal(
                 nameof(UserFlatCatsMessageComposer),

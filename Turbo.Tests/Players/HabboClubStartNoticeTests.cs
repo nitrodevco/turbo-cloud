@@ -74,24 +74,12 @@ public sealed class HabboClubStartNoticeTests : IDisposable
                 nameof(ClubGiftNotificationEventMessageComposer)
             );
         _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<ScrSendUserInfoMessageComposer>()
+            .Sent<ScrSendUserInfoMessageComposer>()
             .Single()
             .ResponseType.Should()
             .Be(ScrUserInfoResponseType.SubscriptionChanged);
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<ClubGiftNotificationEventMessageComposer>()
-            .Single()
-            .NumGifts.Should()
-            .Be(1);
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .Should()
-            .NotContain(x => x is BuildersClubSubscriptionStatusMessageComposer);
+        _fakes.Sent<ClubGiftNotificationEventMessageComposer>().Single().NumGifts.Should().Be(1);
+        _fakes.Sent().Should().NotContain(x => x is BuildersClubSubscriptionStatusMessageComposer);
     }
 
     /// <summary>
@@ -197,11 +185,7 @@ public sealed class HabboClubStartNoticeTests : IDisposable
         (IPlayerSubscriptionGrain)GrainHarness.Create<PlayerSubscriptionGrain>(_fakes, _db);
 
     private ScrSendUserInfoMessageComposer SentClubInfo() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<ScrSendUserInfoMessageComposer>()
-            .Single();
+        _fakes.Sent<ScrSendUserInfoMessageComposer>().Single();
 
     [Fact]
     public async Task The_club_info_asked_for_is_followed_by_the_gift_notice_when_gifts_wait()
@@ -210,13 +194,7 @@ public sealed class HabboClubStartNoticeTests : IDisposable
             .HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
 
         _fakes.Log.Of("SendClubInfoAsync").Should().ContainSingle();
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<ClubGiftNotificationEventMessageComposer>()
-            .Single()
-            .NumGifts.Should()
-            .Be(1);
+        _fakes.Sent<ClubGiftNotificationEventMessageComposer>().Single().NumGifts.Should().Be(1);
     }
 
     [Fact]
@@ -227,10 +205,7 @@ public sealed class HabboClubStartNoticeTests : IDisposable
         await Handler()
             .HandleAsync(new ScrGetUserInfoMessage { ProductName = "habbo_club" }, Context(), Ct);
 
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Should()
-            .NotContain(x => x.Args[0] is ClubGiftNotificationEventMessageComposer);
+        _fakes.Sent().Should().NotContain(x => x is ClubGiftNotificationEventMessageComposer);
     }
 
     private ScrGetUserInfoMessageHandler Handler() => new(_fakes.Create<IGrainFactory>());

@@ -204,8 +204,6 @@ public sealed class RightsHolderBuildingTests
     /// <summary>The <c>message</c> of every placement dialog the room service sent.</summary>
     private static IEnumerable<string> DialogMessages(WiredRoom room) =>
         room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<NotificationDialogMessageComposer>()
+            .Harness.Fakes.Sent<NotificationDialogMessageComposer>(SendRoute.Direct)
             .Select(x => x.Parameters["message"]);
 }

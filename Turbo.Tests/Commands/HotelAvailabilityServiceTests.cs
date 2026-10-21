@@ -63,10 +63,6 @@ public class HotelAvailabilityServiceTests
 
     private Task TickAsync() => _service.TickAsync(CancellationToken.None);
 
-    /// <summary>What one player was sent, in order.</summary>
-    private IEnumerable<object?> SentTo(int id) =>
-        _fakes.Log.Of("SendComposerAsync").Where(x => (long)x.Key! == id).Select(x => x.Args[0]);
-
     [Fact]
     public void AHotelThatNobodyTouched_IsOpen_AndLetsEveryoneIn()
     {
@@ -85,15 +81,15 @@ public class HotelAvailabilityServiceTests
 
         await TickAsync();
 
-        var first = SentTo(GUEST)
-            .OfType<MaintenanceStatusMessageComposer>()
+        var first = _fakes
+            .SentToPlayer<MaintenanceStatusMessageComposer>(GUEST)
             .Should()
             .ContainSingle();
         first
             .Which.Should()
             .BeEquivalentTo(new { IsInMaintenance = false, MinutesUntilMaintenance = 10 });
-        SentTo(GUEST)
-            .OfType<HabboBroadcastMessageComposer>()
+        _fakes
+            .SentToPlayer<HabboBroadcastMessageComposer>(GUEST)
             .Should()
             .ContainSingle()
             .Which.Message.Should()
@@ -101,14 +97,14 @@ public class HotelAvailabilityServiceTests
 
         // The same instant again says nothing new.
         await TickAsync();
-        SentTo(GUEST).OfType<MaintenanceStatusMessageComposer>().Should().HaveCount(1);
+        _fakes.SentToPlayer<MaintenanceStatusMessageComposer>(GUEST).Should().HaveCount(1);
 
         _clock.Advance(TimeSpan.FromSeconds(5 * 60 + 1)); // 4:59 left: the five minute reminder
         await TickAsync();
         await TickAsync();
 
-        SentTo(GUEST)
-            .OfType<MaintenanceStatusMessageComposer>()
+        _fakes
+            .SentToPlayer<MaintenanceStatusMessageComposer>(GUEST)
             .Select(x => x.MinutesUntilMaintenance)
             .Should()
             .Equal(10, 5);
@@ -125,8 +121,8 @@ public class HotelAvailabilityServiceTests
         _clock.Advance(TimeSpan.FromSeconds(31)); // 1:59 left: the two minute reminder
         await TickAsync();
 
-        SentTo(GUEST)
-            .OfType<MaintenanceStatusMessageComposer>()
+        _fakes
+            .SentToPlayer<MaintenanceStatusMessageComposer>(GUEST)
             .Select(x => x.MinutesUntilMaintenance)
             .Should()
             .Equal(3, 2);
@@ -197,8 +193,8 @@ public class HotelAvailabilityServiceTests
 
         await TickAsync();
 
-        SentTo(STAFF)
-            .OfType<InfoHotelClosingMessageComposer>()
+        _fakes
+            .SentToPlayer<InfoHotelClosingMessageComposer>(STAFF)
             .Should()
             .ContainSingle()
             .Which.MinutesUntilClosing.Should()
@@ -242,14 +238,14 @@ public class HotelAvailabilityServiceTests
         await TickAsync();
 
         _service.Current.Restart.Should().BeTrue();
-        SentTo(GUEST)
-            .OfType<InfoHotelClosingMessageComposer>()
+        _fakes
+            .SentToPlayer<InfoHotelClosingMessageComposer>(GUEST)
             .Should()
             .ContainSingle()
             .Which.MinutesUntilClosing.Should()
             .Be(2);
-        SentTo(GUEST)
-            .OfType<HabboBroadcastMessageComposer>()
+        _fakes
+            .SentToPlayer<HabboBroadcastMessageComposer>(GUEST)
             .Should()
             .ContainSingle()
             .Which.Message.Should()
@@ -327,8 +323,8 @@ public class HotelAvailabilityServiceTests
         _clock.Advance(TimeSpan.FromMinutes(3));
         await TickAsync();
 
-        SentTo(GUEST)
-            .OfType<InfoHotelClosingMessageComposer>()
+        _fakes
+            .SentToPlayer<InfoHotelClosingMessageComposer>(GUEST)
             .Select(x => x.MinutesUntilClosing)
             .Should()
             .Equal(10, 7);

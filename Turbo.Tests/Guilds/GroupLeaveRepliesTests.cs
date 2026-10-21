@@ -167,7 +167,8 @@ public sealed class GroupLeaveRepliesTests : IDisposable
         var result = await group.KickAsync(ALICE, ALICE, false, Ct);
 
         result.Should().Be(GuildMemberMgmtResultSnapshot.Success());
-        Sent(ALICE)
+        _fakes
+            .SentToPlayer<IComposer>(ALICE)
             .Select(x => x.GetType().Name)
             .Should()
             .Equal(
@@ -175,11 +176,11 @@ public sealed class GroupLeaveRepliesTests : IDisposable
                 nameof(ExtendedProfileChangedMessageComposer),
                 nameof(GroupDetailsChangedMessageComposer)
             );
-        var rejected = Sent(ALICE).OfType<GuildMembershipRejectedMessageComposer>().Single();
+        var rejected = _fakes.SentToPlayer<GuildMembershipRejectedMessageComposer>(ALICE).Single();
         rejected.GuildId.Should().Be(new GuildId(GROUP));
         rejected.PlayerId.Should().Be(PlayerId.Parse(ALICE));
-        Sent(ALICE)
-            .OfType<ExtendedProfileChangedMessageComposer>()
+        _fakes
+            .SentToPlayer<ExtendedProfileChangedMessageComposer>(ALICE)
             .Single()
             .UserId.Should()
             .Be(ALICE);
@@ -194,9 +195,9 @@ public sealed class GroupLeaveRepliesTests : IDisposable
 
         foreach (var manager in new[] { OWNER, BOB })
         {
-            Sent(manager).OfType<GuildMembershipUpdatedMessageComposer>().Should().BeEmpty();
-            Sent(manager)
-                .OfType<GuildMembershipRejectedMessageComposer>()
+            _fakes.SentToPlayer<GuildMembershipUpdatedMessageComposer>(manager).Should().BeEmpty();
+            _fakes
+                .SentToPlayer<GuildMembershipRejectedMessageComposer>(manager)
                 .Should()
                 .ContainSingle(x => x.PlayerId == PlayerId.Parse(ALICE));
         }
@@ -209,8 +210,8 @@ public sealed class GroupLeaveRepliesTests : IDisposable
 
         await group.KickAsync(OWNER, ALICE, true, Ct);
 
-        Sent(OWNER)
-            .OfType<GuildMembershipUpdatedMessageComposer>()
+        _fakes
+            .SentToPlayer<GuildMembershipUpdatedMessageComposer>(OWNER)
             .Should()
             .ContainSingle(x => x.Member.Rank == GuildMemberRank.Blocked);
     }
@@ -223,9 +224,9 @@ public sealed class GroupLeaveRepliesTests : IDisposable
         var result = await group.KickAsync(BOB, ALICE, false, Ct);
 
         result.Should().Be(GuildMemberMgmtResultSnapshot.Success());
-        Sent(ALICE).Should().BeEmpty();
-        Sent(OWNER)
-            .OfType<GuildMembershipRejectedMessageComposer>()
+        _fakes.SentToPlayer<IComposer>(ALICE).Should().BeEmpty();
+        _fakes
+            .SentToPlayer<GuildMembershipRejectedMessageComposer>(OWNER)
             .Should()
             .ContainSingle(x => x.PlayerId == PlayerId.Parse(ALICE));
         HomeroomRefreshed().Should().Contain(PlayerId.Parse(ALICE));
@@ -244,9 +245,9 @@ public sealed class GroupLeaveRepliesTests : IDisposable
         var result = await group.SetAdminAsync(OWNER, target, isAdmin, Ct);
 
         result.Should().Be(GuildMemberMgmtResultSnapshot.Success());
-        Sent(target).Should().BeEmpty();
-        Sent(OWNER)
-            .OfType<GuildMembershipUpdatedMessageComposer>()
+        _fakes.SentToPlayer<IComposer>(target).Should().BeEmpty();
+        _fakes
+            .SentToPlayer<GuildMembershipUpdatedMessageComposer>(OWNER)
             .Should()
             .ContainSingle(x =>
                 x.Member.Rank == (isAdmin ? GuildMemberRank.Admin : GuildMemberRank.Member)
@@ -261,24 +262,15 @@ public sealed class GroupLeaveRepliesTests : IDisposable
 
         await group.KickAsync(OWNER, ALICE, true, Ct);
 
-        Sent(OWNER).OfType<GuildMembershipUpdatedMessageComposer>().Should().BeEmpty();
-        Sent(OWNER)
-            .OfType<GuildMembershipRejectedMessageComposer>()
+        _fakes.SentToPlayer<GuildMembershipUpdatedMessageComposer>(OWNER).Should().BeEmpty();
+        _fakes
+            .SentToPlayer<GuildMembershipRejectedMessageComposer>(OWNER)
             .Should()
             .ContainSingle(x => x.PlayerId == PlayerId.Parse(ALICE));
     }
 
     private List<PlayerId> HomeroomRefreshed() =>
         [.. _fakes.Log.Of("RefreshGuildMemberAsync").Select(x => (PlayerId)x.Args[0]!)];
-
-    private List<IComposer> Sent(int player) =>
-        [
-            .. _fakes
-                .Log.Of("SendComposerAsync")
-                .Where(x => Convert.ToInt64(x.Key) == player)
-                .Select(x => x.Args[0])
-                .OfType<IComposer>(),
-        ];
 
     private async Task<IGuildGrain> GroupAsync(GuildConfig? config = null)
     {

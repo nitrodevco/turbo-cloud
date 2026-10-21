@@ -1,11 +1,8 @@
 using FluentAssertions;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -52,8 +49,8 @@ public sealed class ChatHeadRevertTests
     )
     {
         // The recorded positions: the listener at the door facing east, the speaker on a chair.
-        Enter(SPEAKER, "speaker", 7, 7, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
+        _room.Enter(SPEAKER, 7, 7, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 3, 5, "listener", Rotation.East);
         var start = Now();
 
         var said = await SayAsync(chatType, "listener");
@@ -66,21 +63,21 @@ public sealed class ChatHeadRevertTests
         await TickAsync(said + 4_999);
 
         listener.HeadRotation.Should().Be(Rotation.SouthEast);
-        Updates().Should().HaveCount(1);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(1);
 
         await TickAsync(said + 5_000);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.East, Rotation.East));
         listener.HeadRotation.Should().Be(Rotation.East);
-        Updates().Should().HaveCount(2);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(2);
     }
 
     [Fact]
     public async Task A_whisper_turns_its_recipient_only()
     {
-        Enter(SPEAKER, "speaker", 7, 7, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
-        var bystander = Enter(BYSTANDER, "bystander", 3, 7, Rotation.East);
+        _room.Enter(SPEAKER, 7, 7, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 3, 5, "listener", Rotation.East);
+        var bystander = _room.Enter(BYSTANDER, 3, 7, "bystander", Rotation.East);
 
         await SayAsync(RoomChatType.Whisper, "listener");
 
@@ -93,23 +90,23 @@ public sealed class ChatHeadRevertTests
     {
         // The recorded positions: the listener sits on the floor facing north, its head still
         // north-west from a look at the door, where the speaker talks.
-        Enter(SPEAKER, "speaker", 3, 5, Rotation.East);
-        var listener = Enter(LISTENER, "listener", 7, 7, Rotation.North);
+        _room.Enter(SPEAKER, 3, 5, "speaker", Rotation.East);
+        var listener = _room.Enter(LISTENER, 7, 7, "listener", Rotation.North);
         listener.Sit(true, rot: Rotation.North);
         listener.SetHeadRotation(Rotation.NorthWest);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 4_000);
 
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
 
         await TickAsync(said + 5_000);
 
         LastUpdateOf(LISTENER).Should().Be((Rotation.North, Rotation.North));
-        Updates().Should().HaveCount(before + 1);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before + 1);
     }
 
     [Fact]
@@ -117,8 +114,8 @@ public sealed class ChatHeadRevertTests
     {
         // The recorded positions: the listener faces south, the speaker one tile west of its line
         // of sight; a look straight ahead puts the head back on the body before the time is up.
-        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        _room.Enter(SPEAKER, 5, 8, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 6, 2, "listener", Rotation.South);
         var start = Now();
 
         var said = await SayAsync(RoomChatType.Chat);
@@ -126,29 +123,29 @@ public sealed class ChatHeadRevertTests
         listener.HeadRotation.Should().Be(Rotation.SouthWest);
 
         await _room.Harness.Room.LookToAsync(
-            ActionContext.CreateForPlayer(100 + LISTENER, _room.Harness.Room.RoomId),
+            _room.ContextFor(LISTENER),
             6,
             8,
             CancellationToken.None
         );
         await TickAsync(start + 2_500);
         LastUpdateOf(LISTENER).Should().Be((Rotation.South, Rotation.South));
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         await TickAsync(said + 5_000);
 
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
     }
 
     [Fact]
     public async Task A_sleeping_listener_neither_turns_nor_wakes()
     {
-        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        _room.Enter(SPEAKER, 5, 8, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 6, 2, "listener", Rotation.South);
         listener.SetIdle(true);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
@@ -156,14 +153,14 @@ public sealed class ChatHeadRevertTests
 
         listener.HeadRotation.Should().Be(Rotation.South);
         listener.IsIdle.Should().BeTrue();
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
     }
 
     [Fact]
     public async Task A_look_back_still_comes_when_the_listener_falls_asleep()
     {
-        Enter(SPEAKER, "speaker", 5, 8, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 6, 2, Rotation.South);
+        _room.Enter(SPEAKER, 5, 8, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 6, 2, "listener", Rotation.South);
         var start = Now();
 
         var said = await SayAsync(RoomChatType.Chat);
@@ -178,18 +175,18 @@ public sealed class ChatHeadRevertTests
     public async Task A_listener_behind_the_speaker_neither_turns_nor_gets_an_update()
     {
         // The recorded positions: the listener east of the speaker, facing away from it.
-        Enter(SPEAKER, "speaker", 3, 5, Rotation.East);
-        var listener = Enter(LISTENER, "listener", 8, 7, Rotation.East);
+        _room.Enter(SPEAKER, 3, 5, "speaker", Rotation.East);
+        var listener = _room.Enter(LISTENER, 8, 7, "listener", Rotation.East);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 4_000);
         await TickAsync(said + 5_000);
 
         listener.HeadRotation.Should().Be(Rotation.East);
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
     }
 
     /// <summary>
@@ -216,25 +213,28 @@ public sealed class ChatHeadRevertTests
         Rotation? expected
     )
     {
-        var listener = Enter(LISTENER, "listener", 6, 6, body);
-        Enter(SPEAKER, "speaker", 6 + dx, 6 + dy, Rotation.North);
+        var listener = _room.Enter(LISTENER, 6, 6, "listener", body);
+        _room.Enter(SPEAKER, 6 + dx, 6 + dy, "speaker", Rotation.North);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
 
         listener.HeadRotation.Should().Be(expected ?? body);
         listener.Rotation.Should().Be(body);
-        Updates().Should().HaveCount(expected is null ? before : before + 1);
+        _room
+            .Harness.Fakes.AvatarUpdates()
+            .Should()
+            .HaveCount(expected is null ? before : before + 1);
     }
 
     [Fact]
     public async Task A_floor_sitter_turns_its_head_and_keeps_its_sit()
     {
-        Enter(SPEAKER, "speaker", 6, 7, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 6, 6, Rotation.East);
+        _room.Enter(SPEAKER, 6, 7, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 6, 6, "listener", Rotation.East);
         listener.Sit(true, rot: Rotation.East);
 
         await SayAsync(RoomChatType.Chat);
@@ -260,20 +260,20 @@ public sealed class ChatHeadRevertTests
         _room
             .AddFloorItem(50, 5, 6, canSit: seat == "chair", canLay: seat == "bed")
             .SetRotation(Rotation.East);
-        Enter(SPEAKER, "speaker", speakerX, speakerY, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 5, 6, Rotation.East);
+        _room.Enter(SPEAKER, speakerX, speakerY, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 5, 6, "listener", Rotation.East);
         if (seat == "chair")
             listener.Sit(true, rot: Rotation.East);
         else
             listener.Lay(true, rot: Rotation.East);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
 
-        Updates().Should().HaveCount(before + 1);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before + 1);
         LastUpdateOf(LISTENER).Should().Be((Rotation.East, Rotation.East));
         listener
             .HasStatus(seat == "chair" ? AvatarStatusType.Sit : AvatarStatusType.Lay)
@@ -283,7 +283,7 @@ public sealed class ChatHeadRevertTests
         await TickAsync(said + 5_000);
         await TickAsync(said + 7_000);
 
-        Updates().Should().HaveCount(before + 1);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before + 1);
     }
 
     /// <summary>
@@ -313,15 +313,15 @@ public sealed class ChatHeadRevertTests
         _room
             .AddFloorItem(50, 8, 8, canSit: seat == "chair", canLay: seat == "bed")
             .SetRotation(body);
-        Enter(SPEAKER, "speaker", 8 + dx, 8 + dy, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 8, 8, body);
+        _room.Enter(SPEAKER, 8 + dx, 8 + dy, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 8, 8, "listener", body);
         if (seat == "chair")
             listener.Sit(true, rot: body);
         else
             listener.Lay(true, rot: body);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
@@ -329,7 +329,7 @@ public sealed class ChatHeadRevertTests
 
         listener.HeadRotation.Should().Be(body);
         listener.Rotation.Should().Be(body);
-        Updates().Should().HaveCount(updated ? before + 1 : before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(updated ? before + 1 : before);
     }
 
     [Fact]
@@ -337,27 +337,27 @@ public sealed class ChatHeadRevertTests
     {
         // The recorded positions: the speaker 2 east 1 north of the chair, ahead of it (2/2).
         _room.AddFloorItem(50, 5, 6, canSit: true).SetRotation(Rotation.East);
-        Enter(SPEAKER, "speaker", 7, 5, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 5, 6, Rotation.East);
+        _room.Enter(SPEAKER, 7, 5, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 5, 6, "listener", Rotation.East);
         listener.Sit(true, rot: Rotation.East);
         var start = Now();
         await TickAsync(start);
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         var said = await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
         await TickAsync(said + 5_000);
         await TickAsync(said + 7_000);
 
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
     }
 
     [Fact]
     public async Task A_listener_on_its_last_step_turns_as_it_arrives()
     {
         // The recorded walk: the listener steps east onto 11,12 while the speaker at 11,8 talks.
-        Enter(SPEAKER, "speaker", 11, 8, Rotation.South);
-        var listener = Enter(LISTENER, "listener", 10, 12, Rotation.East);
+        _room.Enter(SPEAKER, 11, 8, "speaker", Rotation.South);
+        var listener = _room.Enter(LISTENER, 10, 12, "listener", Rotation.East);
         listener.IsWalking = true;
         listener.NextTileId = _room.Map.ToIdx(11, 12);
         var start = Now();
@@ -365,7 +365,12 @@ public sealed class ChatHeadRevertTests
         await SayAsync(RoomChatType.Chat);
         await TickAsync(start + 1_000);
 
-        var update = Updates().Last().Should().ContainSingle(a => a.ObjectId == LISTENER).Subject;
+        var update = _room
+            .Harness.Fakes.AvatarUpdates()
+            .Last()
+            .Should()
+            .ContainSingle(a => a.ObjectId == LISTENER)
+            .Subject;
         (update.X, update.Y, update.HeadRotation, update.BodyRotation)
             .Should()
             .Be((11, 12, Rotation.NorthEast, Rotation.East));
@@ -374,8 +379,8 @@ public sealed class ChatHeadRevertTests
     [Fact]
     public async Task A_later_line_starts_the_5_s_again()
     {
-        Enter(SPEAKER, "speaker", 7, 7, Rotation.North);
-        var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
+        _room.Enter(SPEAKER, 7, 7, "speaker", Rotation.North);
+        var listener = _room.Enter(LISTENER, 3, 5, "listener", Rotation.East);
 
         await SayAsync(RoomChatType.Chat);
         _room.Clock.AdvanceMs(1_500);
@@ -408,12 +413,12 @@ public sealed class ChatHeadRevertTests
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )
         );
-        room.Enter(SPEAKER, 13, 7).UseName("speaker");
+        room.Enter(SPEAKER, 13, 7, "speaker");
         var listener = room.Enter(LISTENER, 6, 6);
         listener.SetRotation(Rotation.East);
 
         await room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
-            ActionContext.CreateForPlayer(100 + SPEAKER, room.Harness.Room.RoomId),
+            room.ContextFor(SPEAKER),
             RoomChatType.Chat,
             "hello",
             0,
@@ -425,14 +430,6 @@ public sealed class ChatHeadRevertTests
         listener.HeadRotation.Should().Be(Rotation.East);
     }
 
-    private RoomPlayerAvatar Enter(int id, string name, int x, int y, Rotation body)
-    {
-        var avatar = _room.Enter(id, x, y);
-        avatar.UseName(name);
-        avatar.SetRotation(body);
-        return avatar;
-    }
-
     /// <summary>The room's clock, which moves only when <see cref="TickAsync"/> moves it.</summary>
     private long Now() => _room.Harness.NowMs();
 
@@ -440,7 +437,7 @@ public sealed class ChatHeadRevertTests
     private async Task<long> SayAsync(RoomChatType type, string? recipient = null)
     {
         await _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
-            ActionContext.CreateForPlayer(100 + SPEAKER, _room.Harness.Room.RoomId),
+            _room.ContextFor(SPEAKER),
             type,
             "hello",
             0,
@@ -460,18 +457,14 @@ public sealed class ChatHeadRevertTests
         return _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(Now(), Ct);
     }
 
-    private List<RoomAvatarSnapshot[]> Updates() =>
-        [
-            .. _room
-                .Harness.Fakes.Log.Of("OnNextAsync")
-                .Select(c => (RoomOutboundSnapshot)c.Args[0]!)
-                .SelectMany(x => x.Composers.OfType<UserUpdateMessageComposer>())
-                .Select(x => x.Avatars.ToArray()),
-        ];
-
     private (Rotation Head, Rotation Body) LastUpdateOf(int objectId)
     {
-        var snapshot = Updates().Last().Should().ContainSingle(a => a.ObjectId == objectId).Subject;
+        var snapshot = _room
+            .Harness.Fakes.AvatarUpdates()
+            .Last()
+            .Should()
+            .ContainSingle(a => a.ObjectId == objectId)
+            .Subject;
         return (snapshot.HeadRotation, snapshot.BodyRotation);
     }
 }

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -8,7 +7,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
@@ -33,18 +31,12 @@ public sealed class RandomTeleportTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private readonly WiredRoom _room = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10, avatarContexts: true);
     private long _now;
 
     public RandomTeleportTests()
     {
         _room.Harness.Room.UseRoomConfig(new RoomConfig { RandomTeleportFlashMs = 60_000 });
-        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
-            call.Interface == typeof(IRoomPlayerContext)
-            && call.Key is int id
-            && _room.Avatars.TryGetValue(id, out var avatar)
-                ? avatar
-                : Fakes.NotHandled;
     }
 
     [Fact]
@@ -94,14 +86,7 @@ public sealed class RandomTeleportTests
     /// <summary>Walks the avatar there tick by tick, running the room's timers between ticks.</summary>
     private async Task WalkToAsync(RoomPlayerAvatar avatar, int x, int y, Action? onEachStep = null)
     {
-        (
-            await _room.Harness.Room.WalkAvatarToAsync(
-                ActionContext.CreateForPlayer(100 + (int)avatar.ObjectId, 1),
-                x,
-                y,
-                Ct
-            )
-        )
+        (await _room.Harness.Room.WalkAvatarToAsync(_room.ContextFor(avatar), x, y, Ct))
             .Should()
             .BeTrue();
 

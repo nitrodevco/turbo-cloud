@@ -36,9 +36,7 @@ public sealed class AccountPreferencesRequestTests
             Ct
         );
 
-        Assert.IsType<AccountPreferencesEventMessageComposer>(
-            _fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        Assert.IsType<AccountPreferencesEventMessageComposer>(_fakes.Sent().Single());
     }
 
     // Flash reads the boolean after the volumes and discards it (AccountPreferencesParser.parse); the
@@ -61,9 +59,7 @@ public sealed class AccountPreferencesRequestTests
             Ct
         );
 
-        var sent = Assert.IsType<AccountPreferencesEventMessageComposer>(
-            _fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var sent = Assert.IsType<AccountPreferencesEventMessageComposer>(_fakes.Sent().Single());
         Assert.Equal(ChatModeType.Old, sent.ChatMode);
         Assert.False(sent.FreeFlowChatDisabled);
     }
@@ -77,10 +73,7 @@ public sealed class AccountPreferencesRequestTests
             Ct
         );
 
-        Assert.DoesNotContain(
-            _fakes.Log.Of("SendComposerAsync"),
-            x => x.Args[0] is AccountPreferencesEventMessageComposer
-        );
+        Assert.DoesNotContain(_fakes.Sent(), x => x is AccountPreferencesEventMessageComposer);
     }
 
     private MessageContext Context() => new(_fakes.Create<ISessionContext>(), 1, -1);

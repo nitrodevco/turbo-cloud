@@ -4,6 +4,7 @@ using Turbo.Events;
 using Turbo.Events.Registry;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -66,9 +67,7 @@ public sealed class IdleWakeTests
         );
 
         var sent = _harness
-            .Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
+            .Fakes.SentToRoom<IComposer>()
             .Select(x => x.GetType().Name)
             .Where(x => x is "DanceMessageComposer" or "SleepMessageComposer")
             .ToList();

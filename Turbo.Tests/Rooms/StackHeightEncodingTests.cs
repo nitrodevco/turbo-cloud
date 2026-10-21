@@ -158,10 +158,7 @@ public sealed class StackHeightEncodingTests
                 .Invoke(_room.Harness.Room, [CancellationToken.None])!;
 
         _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<Turbo.Primitives.Messages.Outgoing.Room.Engine.HeightMapUpdateMessageComposer>()
+            .Harness.Fakes.SentToRoom<Turbo.Primitives.Messages.Outgoing.Room.Engine.HeightMapUpdateMessageComposer>()
             .Should()
             .BeEmpty();
     }

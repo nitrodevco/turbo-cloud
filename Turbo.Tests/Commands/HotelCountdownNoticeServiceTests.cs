@@ -85,13 +85,8 @@ public class HotelCountdownNoticeServiceTests
         await _notice.SyncAsync(CancellationToken.None);
     }
 
-    private IEnumerable<object?> Sent() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => (long)x.Key! == PLAYER)
-            .Select(x => x.Args[0]);
-
-    private List<TurboNoticeMessage> Notices() => [.. Sent().OfType<TurboNoticeMessage>()];
+    private List<TurboNoticeMessage> Notices() =>
+        [.. _fakes.SentToPlayer<TurboNoticeMessage>(PLAYER)];
 
     [Fact]
     public async Task A_hotel_that_never_turned_it_on_shows_no_notice_only_Habbos_own_alert()
@@ -102,7 +97,7 @@ public class HotelCountdownNoticeServiceTests
 
         Notices().Should().BeEmpty();
         _notice.Current.Should().BeNull();
-        Sent().OfType<InfoHotelClosingMessageComposer>().Should().ContainSingle();
+        _fakes.SentToPlayer<InfoHotelClosingMessageComposer>(PLAYER).Should().ContainSingle();
     }
 
     [Fact]
@@ -136,8 +131,8 @@ public class HotelCountdownNoticeServiceTests
             );
         _notice.Current.Should().Be(notice);
         // Habbo's own alert is untouched: one, with the minutes.
-        Sent()
-            .OfType<InfoHotelClosingMessageComposer>()
+        _fakes
+            .SentToPlayer<InfoHotelClosingMessageComposer>(PLAYER)
             .Should()
             .ContainSingle()
             .Which.MinutesUntilClosing.Should()

@@ -127,11 +127,7 @@ public sealed class HighscoreBoardTests
 
     private static RoomPlayerAvatar Player(WiredRoom room, int index, string name)
     {
-        var avatar = room.Enter(index, index - 4, 1);
-
-        avatar.GetType().GetProperty("Name")!.SetValue(avatar, name);
-
-        return avatar;
+        return room.Enter(index, index - 4, 1, name);
     }
 
     private static List<string> Rows(

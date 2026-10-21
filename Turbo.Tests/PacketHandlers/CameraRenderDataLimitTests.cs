@@ -68,10 +68,7 @@ public class CameraRenderDataLimitTests
     }
 
     private IEnumerable<CameraStorageUrlMessageComposer> Answers =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<CameraStorageUrlMessageComposer>();
+        _fakes.Sent<CameraStorageUrlMessageComposer>();
 
     private async Task<string> SendAsync(byte[] data)
     {

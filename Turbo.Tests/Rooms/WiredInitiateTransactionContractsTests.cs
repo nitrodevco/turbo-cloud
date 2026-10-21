@@ -79,8 +79,7 @@ public sealed class WiredInitiateTransactionContractsTests
         await action.ExecuteAsync(ctx, Ct);
 
         _room
-            .Harness.Fakes.Log.Calls.SelectMany(call => call.Args)
-            .OfType<WiredTransactionFailMessageComposer>()
+            .Harness.Fakes.Sent<WiredTransactionFailMessageComposer>()
             .Select(x => x.FailureType)
             .Should()
             .Equal(failure);

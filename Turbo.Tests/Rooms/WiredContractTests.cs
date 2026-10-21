@@ -9,7 +9,6 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -116,8 +115,7 @@ public class WiredContractTests
 
         saved.Should().BeFalse();
         contract.Contract.Definition.YouGive!.Value.Should().BeEmpty();
-        Sent(room.Fakes)
-            .OfType<WiredContractUpdateResultMessageComposer>()
+        room.Fakes.Sent<WiredContractUpdateResultMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => !x.IsSuccess && x.FailCode == WiredContractFailCodes.INVALID_RULES);
     }
@@ -161,8 +159,8 @@ public class WiredContractTests
         await trade.ConfirmAsync(false, Ct);
         await trade.ConfirmAsync(true, Ct);
         fakes.Log.Of("CompleteWiredContractTradeAsync").Should().BeEmpty();
-        Sent(fakes)
-            .OfType<WiredTradeItemsUpdateMessageComposer>()
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
             .Last()
             .CanAccept.Should()
             .BeFalse();
@@ -176,8 +174,8 @@ public class WiredContractTests
             .Select(x => x.ItemId.Value)
             .Should()
             .BeEquivalentTo([1, 2]);
-        Sent(fakes)
-            .OfType<WiredTransactionSuccessMessageComposer>()
+        fakes
+            .Sent<WiredTransactionSuccessMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.Contents.Type == WiredTransactionSuccessType.Payment);
     }
@@ -200,8 +198,8 @@ public class WiredContractTests
 
         await trade.ConfirmAsync(true, Ct);
 
-        Sent(fakes)
-            .OfType<WiredTradeCancelledMessageComposer>()
+        fakes
+            .Sent<WiredTradeCancelledMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Invalid);
         fakes
@@ -275,7 +273,7 @@ public class WiredContractTests
         await trade.StartContractAsync(request, Ct);
         await trade.StartContractAsync(request, Ct);
 
-        Sent(fakes).OfType<WiredTradeInitiateMessageComposer>().Should().ContainSingle();
+        fakes.Sent<WiredTradeInitiateMessageComposer>(SendRoute.Direct).Should().ContainSingle();
         fakes
             .Log.Of("ReportWiredTransactionFailedAsync")
             .Should()
@@ -344,9 +342,9 @@ public class WiredContractTests
         await trade.CancelByWiredAsync([], Ct);
         await trade.StartContractAsync(request, Ct);
 
-        Sent(fakes).OfType<WiredTradeCancelledMessageComposer>().Should().BeEmpty();
-        Sent(fakes)
-            .OfType<WiredTradeInitiateMessageComposer>()
+        fakes.Sent<WiredTradeCancelledMessageComposer>(SendRoute.Direct).Should().BeEmpty();
+        fakes
+            .Sent<WiredTradeInitiateMessageComposer>(SendRoute.Direct)
             .Select(x => x.OverridePreviousTrade)
             .Should()
             .Equal(false, true);
@@ -443,7 +441,9 @@ public class WiredContractTests
         )
             .Amount.Should()
             .Be(10);
-        var shown = Sent(room.Fakes).OfType<WiredTransactionSuccessMessageComposer>().Single();
+        var shown = room
+            .Fakes.Sent<WiredTransactionSuccessMessageComposer>(SendRoute.Direct)
+            .Single();
         shown.Contents.Type.Should().Be(WiredTransactionSuccessType.Rewarded);
         shown.Contents.RewardContents!.Nodes.Single().Amount.Should().Be(10);
         shown.Contents.RewardText.Should().Be("well done");
@@ -463,15 +463,6 @@ public class WiredContractTests
 
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>
         (IWiredTradeGrain)GrainHarness.Create<WiredTradeGrain>(fakes, playerId: PLAYER);
-
-    private static IEnumerable<IComposer> Sent(Fakes fakes) =>
-        fakes.Log.Calls.SelectMany(call =>
-            call.Method is "SendComposerAsync" or "SendComposerToPlayerAsync"
-                ? call
-                    .Args.OfType<IComposer>()
-                    .Concat(call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
-                : []
-        );
 
     private static (RoomHarness Room, FurnitureWiredContractLogic Contract) CreateRoomWithContract(
         bool reward = false

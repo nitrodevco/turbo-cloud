@@ -6,7 +6,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -69,13 +68,15 @@ public sealed class AreaHideStateTests
         // As wired's toggle and match-to-snapshot set it (WiredExecutionContext).
         await _hider.Logic.SetStateAsync(1, false);
 
-        SentToRoom<AreaHideMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<AreaHideMessageComposer>()
             .Skip(sentBefore.Areas)
             .Should()
             .ContainSingle()
             .Which.AreaHideData.On.Should()
             .BeTrue();
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Skip(sentBefore.Removes)
             .Select(x => x.ObjectId)
             .Should()
@@ -100,13 +101,15 @@ public sealed class AreaHideStateTests
             .Should()
             .BeTrue();
 
-        SentToRoom<AreaHideMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<AreaHideMessageComposer>()
             .Skip(sentBefore.Areas)
             .Should()
             .ContainSingle()
             .Which.AreaHideData.On.Should()
             .BeTrue();
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Skip(sentBefore.Removes)
             .Select(x => x.ObjectId)
             .Should()
@@ -115,14 +118,7 @@ public sealed class AreaHideStateTests
 
     private (int Areas, int Removes) SentCount() =>
         (
-            SentToRoom<AreaHideMessageComposer>().Count(),
-            SentToRoom<ObjectRemoveMessageComposer>().Count()
+            _room.Harness.Fakes.SentToRoom<AreaHideMessageComposer>().Count(),
+            _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().Count()
         );
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

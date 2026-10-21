@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -59,19 +58,6 @@ public sealed class MissingRoomEntryTests
 
     private MessageContext Ctx() => new(_fakes.Create<ISessionContext>(), PLAYER, -1);
 
-    private IEnumerable<IComposer> Sent() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(call => call.Args)
-            .SelectMany(arg =>
-                arg switch
-                {
-                    IComposer one => [one],
-                    IEnumerable many => many.OfType<IComposer>(),
-                    _ => [],
-                }
-            );
-
     private IEnumerable<FakeCall> RoomGrainCalls() => _fakes.Log.On<IRoomGrain>();
 
     [Theory]
@@ -97,7 +83,7 @@ public sealed class MissingRoomEntryTests
             Ct
         );
 
-        Sent().Should().BeEmpty();
+        _fakes.Sent().Should().BeEmpty();
         RoomGrainCalls().Should().BeEmpty();
     }
 
@@ -140,7 +126,8 @@ public sealed class MissingRoomEntryTests
             Ct
         );
 
-        Sent()
+        _fakes
+            .Sent()
             .Select(x => x.GetType())
             .Should()
             .Equal(
@@ -149,7 +136,7 @@ public sealed class MissingRoomEntryTests
                 typeof(NoSuchFlatEventMessageComposer),
                 typeof(CloseConnectionMessageComposer)
             );
-        Sent().OfType<NoSuchFlatEventMessageComposer>().Single().RoomId.Value.Should().Be(MISSING);
+        _fakes.Sent<NoSuchFlatEventMessageComposer>().Single().RoomId.Value.Should().Be(MISSING);
         RoomGrainCalls().Should().BeEmpty();
     }
 }

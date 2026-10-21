@@ -36,11 +36,6 @@ public sealed class FavouriteGroupOnEntryTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private IEnumerable<IComposer> Broadcast() =>
-        _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .SelectMany(call => ((RoomOutboundSnapshot)call.Args[0]!).Composers);
-
     [Fact]
     public async Task The_avatar_goes_out_wearing_its_favourite_group_with_the_badge_ahead_of_it()
     {
@@ -101,7 +96,7 @@ public sealed class FavouriteGroupOnEntryTests
                 Ct
             );
 
-        var sent = Broadcast().ToList();
+        var sent = _room.Harness.Fakes.SentToRoom<IComposer>().ToList();
         var users = sent.OfType<UsersMessageComposer>().First();
         var avatar = users.Avatars.OfType<RoomPlayerAvatarSnapshot>().Single();
 

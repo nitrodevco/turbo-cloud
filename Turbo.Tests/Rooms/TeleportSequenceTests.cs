@@ -8,7 +8,6 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
@@ -33,19 +32,13 @@ public sealed class TeleportSequenceTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private readonly WiredRoom _room = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10, avatarContexts: true);
     private readonly List<string> _states = [];
     private long _now;
 
     public TeleportSequenceTests()
     {
         _room.Harness.Room.UseRoomConfig(new RoomConfig { TeleportStepMs = 1, AvatarTickMs = 1 });
-        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
-            call.Interface == typeof(IRoomPlayerContext)
-            && call.Key is int id
-            && _room.Avatars.TryGetValue(id, out var avatar)
-                ? avatar
-                : Fakes.NotHandled;
     }
 
     [Fact]

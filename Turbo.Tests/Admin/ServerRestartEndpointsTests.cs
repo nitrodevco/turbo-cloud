@@ -144,9 +144,7 @@ public sealed class ServerRestartEndpointsTests : IAsyncDisposable
         await _availability.TickAsync(Ct);
 
         _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<InfoHotelClosingMessageComposer>()
+            .Sent<InfoHotelClosingMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.MinutesUntilClosing.Should()

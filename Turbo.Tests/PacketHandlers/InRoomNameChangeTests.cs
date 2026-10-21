@@ -59,9 +59,7 @@ public sealed class InRoomNameChangeTests
         );
 
         var choice = fakes.Log.Of(nameof(IPlayerOnboardingService.ChooseNameAsync)).Single();
-        var reply = Assert.IsType<ChangeUserNameResultMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var reply = Assert.IsType<ChangeUserNameResultMessageComposer>(fakes.Sent().Single());
 
         Assert.Equal("NewName", request.Name);
         Assert.Equal("NewName", choice.Args[1]);
@@ -96,9 +94,7 @@ public sealed class InRoomNameChangeTests
             TestContext.Current.CancellationToken
         );
 
-        var userObject = Assert.IsType<UserObjectMessage>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var userObject = Assert.IsType<UserObjectMessage>(fakes.Sent().Single());
 
         Assert.Equal(namePending, userObject.NameChangeAllowed);
     }

@@ -73,8 +73,7 @@ public sealed class WiredContractShopTutorialTests
 
         // The contract is found; what stops the trade is that no chest was picked to pay into.
         _room
-            .Harness.Fakes.Log.Calls.SelectMany(call => call.Args)
-            .OfType<WiredTransactionFailMessageComposer>()
+            .Harness.Fakes.Sent<WiredTransactionFailMessageComposer>()
             .Select(x => x.FailureType)
             .Should()
             .Equal(WiredTransactionFailureType.NoOrLockedChests);

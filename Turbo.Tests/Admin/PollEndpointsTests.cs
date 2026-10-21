@@ -133,7 +133,7 @@ public sealed class PollEndpointsTests : IAsyncDisposable
         var grain = Grain();
 
         await grain.OfferAsync(new RoomId(ROOM_ID), Ct);
-        Sent<PollOfferEventMessageComposer>().Single().Headline.Should().Be("Tell us");
+        _fakes.Sent<PollOfferEventMessageComposer>().Single().Headline.Should().Be("Tell us");
         await grain.StartAsync(new RoomId(ROOM_ID), id, Ct);
         (await grain.AnswerAsync(id, choiceQuestion, ["yes"], Ct)).Should().BeTrue();
         (await grain.AnswerAsync(id, textQuestion, ["it is fun"], Ct)).Should().BeTrue();
@@ -254,9 +254,6 @@ public sealed class PollEndpointsTests : IAsyncDisposable
 
     private IPlayerRoomPollGrain Grain() =>
         (IPlayerRoomPollGrain)GrainHarness.Create<PlayerRoomPollGrain>(_fakes, _db, VOTER);
-
-    private IEnumerable<T> Sent<T>() =>
-        _fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]).OfType<T>();
 
     private sealed record PollBody(
         int roomId,

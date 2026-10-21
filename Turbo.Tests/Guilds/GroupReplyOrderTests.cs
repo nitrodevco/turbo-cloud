@@ -381,13 +381,7 @@ public sealed class GroupReplyOrderTests : IDisposable
             Ct
         );
 
-        var published = room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(x => x.Args[0])
-            .OfType<RoomOutboundSnapshot>()
-            .Should()
-            .ContainSingle()
-            .Subject;
+        var published = room.Harness.Fakes.RoomPublishes().Should().ContainSingle().Subject;
         published
             .Composers.Should()
             .ContainSingle()

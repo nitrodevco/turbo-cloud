@@ -224,11 +224,7 @@ public class RoomOperatorCommandsTests
         await _room.SayAsync(2, ":roommute");
 
         _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c =>
-                ((Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot)c.Args[0]!).Composers
-            )
-            .OfType<Turbo.Primitives.Messages.Outgoing.Roomsettings.MuteAllInRoomEventMessageComposer>()
+            .Harness.Fakes.SentToRoom<Turbo.Primitives.Messages.Outgoing.Roomsettings.MuteAllInRoomEventMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.IsMuted.Should()
@@ -296,11 +292,5 @@ public class RoomOperatorCommandsTests
     }
 
     private IEnumerable<SpecialRoomEffectType> EffectsSentToRoom() =>
-        _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c =>
-                ((Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot)c.Args[0]!).Composers
-            )
-            .OfType<SpecialRoomEffectMessageComposer>()
-            .Select(c => c.Effect);
+        _room.Harness.Fakes.SentToRoom<SpecialRoomEffectMessageComposer>().Select(c => c.Effect);
 }

@@ -13,7 +13,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Systems;
@@ -243,31 +242,23 @@ public sealed class WiredSameTickTests
         _room.Harness.Fakes.Handlers["get_SourceId"] = c =>
             c.Interface == typeof(IIncomingGrainCallContext) ? source : Fakes.NotHandled;
 
-        var before = _room.Harness.Fakes.Log.Calls.Count;
+        var before = _room.Harness.Fakes.SentToRoom<IComposer>().Count();
         await filter!.Invoke(_room.Harness.Fakes.Create<IIncomingGrainCallContext>());
 
-        return Sent(before);
+        return [.. _room.Harness.Fakes.SentToRoom<IComposer>().Skip(before)];
     }
 
     private async Task<List<IComposer>> RoomTickAsync()
     {
-        var before = _room.Harness.Fakes.Log.Calls.Count;
+        var before = _room.Harness.Fakes.SentToRoom<IComposer>().Count();
         var tick = typeof(RoomGrain).GetMethod(
             "ProcessRoomTickAsync",
             BindingFlags.Instance | BindingFlags.NonPublic
         )!;
         await (Task)tick.Invoke(_room.Harness.Room, [Ct])!;
 
-        return Sent(before);
+        return [.. _room.Harness.Fakes.SentToRoom<IComposer>().Skip(before)];
     }
-
-    private List<IComposer> Sent(int before) =>
-        _room
-            .Harness.Fakes.Log.Calls.Skip(before)
-            .SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .ToList();
 
     private async Task<IRoomFloorItem> BuildFurniIsUsedStackAsync(bool initialize = true)
     {

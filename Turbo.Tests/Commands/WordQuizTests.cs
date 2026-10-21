@@ -3,9 +3,7 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Poll;
 using Turbo.Primitives.Messages.Outgoing.Poll;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Commands;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Tests.Support;
@@ -38,8 +36,8 @@ public class WordQuizTests
         await _room.SayAsync(STAFF, ":wordquiz Vanilla is my jam...");
         await _room.SayAsync(GUEST, ":wordquiz Me too?");
 
-        var question = SentToRoom()
-            .OfType<QuestionEventMessageComposer>()
+        var question = _room
+            .Harness.Fakes.SentToRoom<QuestionEventMessageComposer>()
             .Should()
             .ContainSingle()
             .Subject;
@@ -68,8 +66,8 @@ public class WordQuizTests
         (await AnswerAsync(STAFF, question with { QuestionId = 9 }, "1")).Should().BeFalse();
         (await AnswerAsync(STAFF, question, "0")).Should().BeTrue();
 
-        SentToRoom()
-            .OfType<QuestionAnsweredEventMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<QuestionAnsweredEventMessageComposer>()
             .Select(x => (x.UserId, x.Value, Counts(x.AnswerCounts)))
             .Should()
             .Equal((GUEST, "1", "1=1"), (STAFF, "0", "1=1,0=1"));
@@ -81,7 +79,9 @@ public class WordQuizTests
             .Harness.Module<RoomTimerSystem>()
             .ProcessTimersAsync(long.MaxValue / 2, CancellationToken.None);
 
-        var finished = SentToRoom().OfType<QuestionFinishedEventMessageComposer>().Single();
+        var finished = _room
+            .Harness.Fakes.SentToRoom<QuestionFinishedEventMessageComposer>()
+            .Single();
 
         (finished.QuestionId, Counts(finished.AnswerCounts)).Should().Be((1, "1=1,0=1"));
         (await AnswerAsync(GUEST, question, "1")).Should().BeFalse("the question is closed");
@@ -160,9 +160,4 @@ public class WordQuizTests
 
     private static string Counts(IReadOnlyList<KeyValuePair<string, int>> counts) =>
         string.Join(",", counts.Select(x => $"{x.Key}={x.Value}"));
-
-    private IEnumerable<IComposer> SentToRoom() =>
-        _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers);
 }

@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -83,7 +82,8 @@ public sealed class WiredMessageEditorTests
         await SayAsync("hello there");
         await TickAsync(2);
 
-        SentToRoom<ChatMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ChatMessageComposer>()
             .Select(x => x.Text)
             .Should()
             .Contain("hello there - ", "the harness avatar has no name for $(who)");
@@ -267,11 +267,4 @@ public sealed class WiredMessageEditorTests
             await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
         }
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

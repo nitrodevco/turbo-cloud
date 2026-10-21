@@ -40,9 +40,7 @@ public sealed class HotLooksTests
             TestContext.Current.CancellationToken
         );
 
-        var composer = Assert.IsType<HotLooksMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<HotLooksMessageComposer>(fakes.Sent().Single());
         var packet = PacketHarness.Encode(composer);
 
         Assert.Equal(2, request.Amount);

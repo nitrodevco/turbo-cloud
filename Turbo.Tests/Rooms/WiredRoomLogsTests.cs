@@ -3,7 +3,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
@@ -163,9 +162,7 @@ public sealed class WiredRoomLogsTests
     }
 
     private Task ClickAsync() =>
-        _room
-            .FloorItem(CLICK_ME)
-            .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
+        _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(5), 0, Ct);
 
     private async Task TickAsync(int ticks)
     {

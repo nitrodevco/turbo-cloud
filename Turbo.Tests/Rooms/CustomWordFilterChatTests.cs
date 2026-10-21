@@ -39,9 +39,9 @@ public sealed class CustomWordFilterChatTests
             )
         );
 
-        _room.Enter(SPEAKER, 1, 1).UseName("speaker");
-        _room.Enter(FILTERING, 2, 2).UseName("filtering");
-        _room.Enter(BYSTANDER, 3, 3).UseName("bystander");
+        _room.Enter(SPEAKER, 1, 1, "speaker");
+        _room.Enter(FILTERING, 2, 2, "filtering");
+        _room.Enter(BYSTANDER, 3, 3, "bystander");
     }
 
     [Theory]
@@ -61,7 +61,11 @@ public sealed class CustomWordFilterChatTests
         toRoom.ExcludedPlayerIds.Should().Equal((PlayerId)(100 + FILTERING));
         toRoom.Composers.OfType<ChatMessageComposer>().Single().Text.Should().Be(typed);
 
-        var own = SentTo(FILTERING).Should().ContainSingle().Subject;
+        var own = _room
+            .Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + FILTERING)
+            .Should()
+            .ContainSingle()
+            .Subject;
         own.GetType().Should().Be(toRoom.Composers[0].GetType());
         own.Text.Should().Be(masked);
         own.ObjectId.Value.Should().Be(SPEAKER);
@@ -74,9 +78,17 @@ public sealed class CustomWordFilterChatTests
 
         await SayAsync("secret pineapple", RoomChatType.Whisper, "filtering");
 
-        SentTo(FILTERING).Select(c => c.Text).Should().Equal("secret bobba");
-        SentTo(SPEAKER).Select(c => c.Text).Should().Equal("secret pineapple");
-        SentTo(BYSTANDER).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + FILTERING)
+            .Select(c => c.Text)
+            .Should()
+            .Equal("secret bobba");
+        _room
+            .Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + SPEAKER)
+            .Select(c => c.Text)
+            .Should()
+            .Equal("secret pineapple");
+        _room.Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + BYSTANDER).Should().BeEmpty();
     }
 
     [Fact]
@@ -94,7 +106,7 @@ public sealed class CustomWordFilterChatTests
             .Select(c => c.Text)
             .Should()
             .Equal("plain hello", "I like pineapple pizza");
-        SentTo(FILTERING).Should().BeEmpty();
+        _room.Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + FILTERING).Should().BeEmpty();
     }
 
     [Fact]
@@ -109,7 +121,7 @@ public sealed class CustomWordFilterChatTests
         await SayAsync("I like pineapple pizza", RoomChatType.Chat);
 
         RoomSends().Single().ExcludedPlayerIds.Should().BeNull();
-        SentTo(SPEAKER).Should().BeEmpty();
+        _room.Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + SPEAKER).Should().BeEmpty();
     }
 
     [Fact]
@@ -156,7 +168,11 @@ public sealed class CustomWordFilterChatTests
         await SayAsync("I like pineapple pizza", RoomChatType.Chat);
 
         RoomSends().Single().ExcludedPlayerIds.Should().Equal((PlayerId)42);
-        SentToPlayer(42).Select(c => c.Text).Should().Equal("I like bobba pizza");
+        _room
+            .Harness.Fakes.SentToPlayer<ChatMessageComposer>(42)
+            .Select(c => c.Text)
+            .Should()
+            .Equal("I like bobba pizza");
         arrived.Should().NotBeNull();
     }
 
@@ -170,7 +186,7 @@ public sealed class CustomWordFilterChatTests
 
     private Task SayAsync(string text, RoomChatType type, string? recipient = null) =>
         _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
-            ActionContext.CreateForPlayer(100 + SPEAKER, _room.Harness.Room.RoomId),
+            _room.ContextFor(SPEAKER),
             type,
             text,
             0,
@@ -179,28 +195,11 @@ public sealed class CustomWordFilterChatTests
             CancellationToken.None
         );
 
+    /// <summary>Each publish to the room that carried a chat line.</summary>
     private List<RoomOutboundSnapshot> RoomSends() =>
         [
             .. _room
-                .Harness.Fakes.Log.Of("OnNextAsync")
-                .Select(c => (RoomOutboundSnapshot)c.Args[0]!)
+                .Harness.Fakes.RoomPublishes()
                 .Where(x => x.Composers.OfType<ChatMessageComposer>().Any()),
         ];
-
-    private IEnumerable<ChatMessageComposer> SentTo(int objectId) => SentToPlayer(100 + objectId);
-
-    private IEnumerable<ChatMessageComposer> SentToPlayer(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c =>
-                c.Key switch
-                {
-                    PlayerId p => p.Value == playerId,
-                    int n => n == playerId,
-                    long n => n == playerId,
-                    _ => false,
-                }
-            )
-            .Select(c => c.Args[0])
-            .OfType<ChatMessageComposer>();
 }

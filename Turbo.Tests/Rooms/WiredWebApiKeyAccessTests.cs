@@ -7,9 +7,7 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Tests.Support;
 using Xunit;
@@ -126,15 +124,8 @@ public sealed class WiredWebApiKeyAccessTests
         ActionContext.CreateForPlayer((PlayerId)playerId, (RoomId)1);
 
     /// <summary>A player standing in the room with these permission nodes (player 1 owns it).</summary>
-    private void Enter(int playerId, string[] nodes)
-    {
-        var avatar = new RoomPlayerAvatar { ObjectId = playerId, PlayerId = playerId };
-
-        avatar.SetPosition(playerId, 1);
-        avatar.SetLogic(_room.Harness.Fakes.Create<IRoomPlayerLogic>(playerId));
-        avatar.SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
-        _room.Harness.State.AvatarsByObjectId[playerId] = avatar;
-        _room.Harness.State.AvatarsByPlayerId[(PlayerId)playerId] = playerId;
-        _room.Map.AddAvatar(avatar, false);
-    }
+    private void Enter(int playerId, string[] nodes) =>
+        _room
+            .Enter(playerId, playerId, 1, playerId: playerId)
+            .SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
 }

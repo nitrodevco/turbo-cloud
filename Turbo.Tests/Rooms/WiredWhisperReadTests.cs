@@ -1,9 +1,8 @@
 using FluentAssertions;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Snapshots.Settings;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
@@ -42,8 +41,8 @@ public sealed class WiredWhisperReadTests
             )
         );
 
-        _room.Enter(SPEAKER, 1, 1).UseName("speaker");
-        _room.Enter(LISTENER, 2, 2).UseName("listener");
+        _room.Enter(SPEAKER, 1, 1, "speaker");
+        _room.Enter(LISTENER, 2, 2, "listener");
     }
 
     [Fact]
@@ -63,8 +62,11 @@ public sealed class WiredWhisperReadTests
 
         await SayAsync("lab63kw", RoomChatType.Whisper, "nobody");
 
-        SentTo(SPEAKER).OfType<ChatMessageComposer>().Should().ContainSingle();
-        SentTo(LISTENER).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<ChatMessageComposer>(100 + SPEAKER)
+            .Should()
+            .ContainSingle();
+        _room.Harness.Fakes.SentToPlayer<IComposer>(100 + LISTENER).Should().BeEmpty();
         (await FiresAsync()).Should().BeTrue();
     }
 
@@ -85,13 +87,16 @@ public sealed class WiredWhisperReadTests
     {
         await BuildAsync(whisperDisabled: false);
         await SayAsync("lab63kw", RoomChatType.Whisper, "listener");
-        SentTo(SPEAKER).OfType<NotificationDialogMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<NotificationDialogMessageComposer>(100 + SPEAKER)
+            .Should()
+            .BeEmpty();
 
         _room.Harness.Room.UseWiredConfig(new WiredConfig { NotifyWhisperRead = true });
         await SayAsync("lab63kw", RoomChatType.Whisper, "listener");
 
-        SentTo(SPEAKER)
-            .OfType<NotificationDialogMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<NotificationDialogMessageComposer>(100 + SPEAKER)
             .Should()
             .ContainSingle(x =>
                 x.NotificationType == "wired.error"
@@ -121,7 +126,7 @@ public sealed class WiredWhisperReadTests
 
     private Task SayAsync(string text, RoomChatType type, string? recipient = null) =>
         _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
-            ActionContext.CreateForPlayer(100 + SPEAKER, _room.Harness.Room.RoomId),
+            _room.ContextFor(SPEAKER),
             type,
             text,
             0,
@@ -129,20 +134,6 @@ public sealed class WiredWhisperReadTests
             recipient,
             Ct
         );
-
-    private IEnumerable<object?> SentTo(int objectId) =>
-        _room
-            .Harness.Fakes.Log.Calls.Where(c =>
-                c.Method is "SendComposerAsync"
-                && c.Key switch
-                {
-                    PlayerId p => p.Value == 100 + objectId,
-                    int n => n == 100 + objectId,
-                    long n => n == 100 + objectId,
-                    _ => false,
-                }
-            )
-            .Select(c => c.Args[0]);
 
     private static PlayerSettingsSnapshot Settings(bool whisperDisabled) =>
         new()

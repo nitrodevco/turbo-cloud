@@ -14,7 +14,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -49,7 +48,7 @@ public sealed class CrackableFurniTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private readonly WiredRoom _room = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10, avatarContexts: true);
 
     public CrackableFurniTests()
     {
@@ -58,13 +57,6 @@ public sealed class CrackableFurniTests
         {
             OwnerId = (PlayerId)OWNER,
         };
-        // A walk-on hands the furni the walking avatar's context.
-        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
-            call.Interface == typeof(IRoomPlayerContext)
-            && call.Key is int id
-            && _room.Avatars.TryGetValue(id, out var avatar)
-                ? avatar
-                : Fakes.NotHandled;
     }
 
     [Fact]
@@ -554,12 +546,7 @@ public sealed class CrackableFurniTests
     }
 
     private List<ObjectRemoveMessageComposer> Removes() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<ObjectRemoveMessageComposer>()
-            .ToList();
+        _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().ToList();
 
     private Task RunTimersAsync() =>
         _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(long.MaxValue / 2, Ct);

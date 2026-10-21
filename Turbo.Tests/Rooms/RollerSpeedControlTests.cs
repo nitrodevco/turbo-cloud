@@ -220,6 +220,5 @@ public sealed class RollerSpeedControlTests
             .Where(x => x.ObjectId == CONTROLLER)
             .Select(x => int.Parse(((LegacyStuffSnapshot)x.StuffData).Data));
 
-    private IEnumerable<RoomOutboundSnapshot> Outbound() =>
-        _room.Harness.Fakes.Log.Calls.SelectMany(x => x.Args).OfType<RoomOutboundSnapshot>();
+    private IEnumerable<RoomOutboundSnapshot> Outbound() => _room.Harness.Fakes.RoomPublishes();
 }

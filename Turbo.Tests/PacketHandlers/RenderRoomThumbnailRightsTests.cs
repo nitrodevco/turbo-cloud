@@ -91,10 +91,7 @@ public class RenderRoomThumbnailRightsTests
     }
 
     private IEnumerable<ThumbnailStatusMessageComposer> Answers =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<ThumbnailStatusMessageComposer>();
+        _fakes.Sent<ThumbnailStatusMessageComposer>();
 
     private string ThumbnailJson => Path.Combine(_storage, "thumbnails", $"{ROOM}.json");
 

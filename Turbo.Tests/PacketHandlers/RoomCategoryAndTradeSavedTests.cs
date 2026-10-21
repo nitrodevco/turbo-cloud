@@ -30,8 +30,7 @@ public sealed class RoomCategoryAndTradeSavedTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private IEnumerable<IComposer> Replies() =>
-        _fakes.Log.Of("SendComposerAsync").SelectMany(call => call.Args.OfType<IComposer>());
+    private IEnumerable<IComposer> Replies() => _fakes.Sent();
 
     private Task SaveAsync(RoomSettingsSaveResultSnapshot result)
     {

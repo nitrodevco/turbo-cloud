@@ -66,8 +66,7 @@ public sealed class PlaceFurniOrderTests
         await PlaceAsync();
 
         var published = _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => (RoomOutboundSnapshot)call.Args[0]!)
+            .Harness.Fakes.RoomPublishes()
             .Single(x => x.Composers.Any(c => c is ObjectAddMessageComposer));
 
         published

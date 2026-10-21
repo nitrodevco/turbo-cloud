@@ -76,12 +76,7 @@ public sealed class CameraPhotoPurchaseTests
             Ct
         );
 
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<CameraPurchaseOKMessageComposer>()
-            .Should()
-            .ContainSingle();
+        _fakes.Sent<CameraPurchaseOKMessageComposer>().Should().ContainSingle();
 
         granted.Should().NotBeNull();
         var state = JsonDocument

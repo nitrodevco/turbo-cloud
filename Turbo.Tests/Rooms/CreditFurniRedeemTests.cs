@@ -4,12 +4,10 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Inventory.Grains;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -39,7 +37,7 @@ public class CreditFurniRedeemTests
     public async Task The_owner_gets_its_value_and_the_furni_is_gone(string name, int credits)
     {
         var room = CreateRoomWith(name);
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
         room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
             Task.FromResult(WalletCreditResult.Applied);
 
@@ -65,7 +63,7 @@ public class CreditFurniRedeemTests
     public async Task The_redeemed_furni_is_deleted_from_the_database_before_the_redeem_returns()
     {
         var room = CreateRoomWith("CF_5_coin_silver");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
         room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
             Task.FromResult(WalletCreditResult.Applied);
 
@@ -91,7 +89,7 @@ public class CreditFurniRedeemTests
     public async Task The_furni_is_written_away_before_its_value_is_paid_under_its_own_reference()
     {
         var room = CreateRoomWith("CF_5_coin_silver");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
 
         await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -113,7 +111,7 @@ public class CreditFurniRedeemTests
     public async Task A_redeem_whose_furni_cannot_be_written_away_pays_nothing()
     {
         var room = CreateRoomWith("CF_5_coin_silver");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
         room.Fakes.Handlers["WriteUseAsync"] = _ =>
             Task.FromException(new InvalidOperationException("db restarting"));
 
@@ -132,7 +130,7 @@ public class CreditFurniRedeemTests
     public async Task A_credit_the_wallet_refuses_gives_the_furni_back_to_its_owner()
     {
         var room = CreateRoomWith("CF_5_coin_silver");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
         room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
             Task.FromResult(WalletCreditResult.Rejected);
 
@@ -153,7 +151,7 @@ public class CreditFurniRedeemTests
     public async Task Someone_else_cannot_redeem_it()
     {
         var room = CreateRoomWith("CF_10_coin_gold");
-        AddPlayer(room, GUEST);
+        room.AddPlayer(GUEST);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(GUEST, 1),
@@ -171,7 +169,7 @@ public class CreditFurniRedeemTests
     public async Task A_furni_whose_name_carries_no_value_is_kept()
     {
         var room = CreateRoomWith("nft_emerald_eggmerald");
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -194,7 +192,7 @@ public class CreditFurniRedeemTests
     public async Task A_borrowed_or_temporary_furni_is_not_redeemed_by_its_owner(int id)
     {
         var room = CreateRoomWith("CF_20_moneybag", id);
-        AddPlayer(room, OWNER);
+        room.AddPlayer(OWNER);
         room.Fakes.Handlers[nameof(IPlayerWalletGrain.CreditAsync)] = _ =>
             Task.FromResult(WalletCreditResult.Applied);
 
@@ -233,18 +231,5 @@ public class CreditFurniRedeemTests
         );
 
         return room;
-    }
-
-    private static void AddPlayer(RoomHarness room, int playerId)
-    {
-        var player = room.Fakes.Create<IRoomPlayer>(playerId);
-
-        room.Fakes.Handlers["get_PlayerId"] = call =>
-            call.Interface == typeof(IRoomPlayer) && call.Key is int id
-                ? (PlayerId)id
-                : Fakes.NotHandled;
-
-        room.State.AvatarsByPlayerId[playerId] = playerId;
-        room.State.AvatarsByObjectId[playerId] = player;
     }
 }

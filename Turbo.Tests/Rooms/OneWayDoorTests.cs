@@ -15,9 +15,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -41,7 +39,7 @@ public sealed class OneWayDoorTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private readonly WiredRoom _room = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10, avatarContexts: true);
     private long _now;
 
     public OneWayDoorTests()
@@ -50,12 +48,6 @@ public sealed class OneWayDoorTests
         {
             OwnerId = (PlayerId)OWNER,
         };
-        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
-            call.Interface == typeof(IRoomPlayerContext)
-            && call.Key is int id
-            && _room.Avatars.TryGetValue(id, out var avatar)
-                ? avatar
-                : Fakes.NotHandled;
     }
 
     [Fact]
@@ -89,7 +81,7 @@ public sealed class OneWayDoorTests
             .Should()
             .BeFalse("it shuts once the avatar is off it, on its way to the back");
         gate.Logic.GetLegacyString().Should().Be(legacy);
-        SentToRoom<ObjectDataUpdateMessageComposer>().Should().BeEmpty();
+        _room.Harness.Fakes.SentToRoom<ObjectDataUpdateMessageComposer>().Should().BeEmpty();
         _room.TileFlags()[gateIdx].Has(RoomTileFlags.Walkable).Should().BeFalse();
     }
 
@@ -214,14 +206,7 @@ public sealed class OneWayDoorTests
         );
 
     private IEnumerable<int> Statuses() =>
-        SentToRoom<OneWayDoorStatusMessageComposer>().Select(x => x.Status);
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
+        _room.Harness.Fakes.SentToRoom<OneWayDoorStatusMessageComposer>().Select(x => x.Status);
 
     // One avatar tick ahead: far enough for the gate's own timer, short of its fallback.
     private Task RunTimersAsync() =>

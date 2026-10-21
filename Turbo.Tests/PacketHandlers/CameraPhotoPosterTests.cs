@@ -71,11 +71,7 @@ public sealed class CameraPhotoPosterTests
             CancellationToken.None
         );
 
-        var answers = () =>
-            _fakes
-                .Log.Of("SendComposerAsync")
-                .Select(x => x.Args[0])
-                .OfType<CameraStorageUrlMessageComposer>();
+        var answers = () => _fakes.Sent<CameraStorageUrlMessageComposer>();
 
         // Drawn and answered off the packet (CameraCaptureJobs), within the renderer's timeout.
         var waited = Stopwatch.StartNew();

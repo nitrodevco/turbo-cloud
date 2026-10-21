@@ -164,10 +164,7 @@ public sealed class GroupStaffTests : IDisposable
             .Log.Of("OnGuildChangedAsync")
             .Should()
             .NotBeEmpty("the directory learns the new name");
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Should()
-            .Contain(x => x.Args[0] is GroupDetailsChangedMessageComposer && (long)x.Key! == OWNER);
+        _fakes.SentToPlayer<GroupDetailsChangedMessageComposer>(OWNER).Should().NotBeEmpty();
 
         (await group.StaffRenameAsync(STAFF, "   ", "x", Ct))
             .Should()

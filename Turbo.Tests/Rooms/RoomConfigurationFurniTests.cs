@@ -52,7 +52,8 @@ public sealed class RoomConfigurationFurniTests
 
         await controller.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.InvisibleFurni.Should()
@@ -61,7 +62,8 @@ public sealed class RoomConfigurationFurniTests
 
         await controller.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Last()
             .InvisibleFurni.Should()
             .BeFalse();
@@ -83,7 +85,8 @@ public sealed class RoomConfigurationFurniTests
 
         await blocker.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -101,7 +104,8 @@ public sealed class RoomConfigurationFurniTests
 
         await blocker.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Last()
             .IsHanditemControlBlocked.Should()
             .BeFalse();
@@ -123,7 +127,8 @@ public sealed class RoomConfigurationFurniTests
 
         await disabler.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.ChooserDisabled.Should()
@@ -132,7 +137,8 @@ public sealed class RoomConfigurationFurniTests
 
         await disabler.Logic.OnDetachAsync(Ct);
 
-        SentToRoom<ConfigurationItemStatesMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ConfigurationItemStatesMessageComposer>()
             .Last()
             .ChooserDisabled.Should()
             .BeFalse("the switched-on disabler is the one leaving");
@@ -167,11 +173,15 @@ public sealed class RoomConfigurationFurniTests
                 Ct
             )
         ).Should().BeTrue();
-        SentToRoom<ObjectRemoveMessageComposer>().Should().BeEmpty("the hider is still off");
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
+            .Should()
+            .BeEmpty("the hider is still off");
 
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Select(x => x.ObjectId)
             .Should()
             .Equal((RoomObjectId)INSIDE);
@@ -183,11 +193,16 @@ public sealed class RoomConfigurationFurniTests
 
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
 
-        SentToRoom<ObjectAddMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectAddMessageComposer>()
             .Select(x => x.FloorItem.ObjectId)
             .Should()
             .Equal((RoomObjectId)INSIDE);
-        SentToRoom<AreaHideMessageComposer>().Last().AreaHideData.On.Should().BeFalse();
+        _room
+            .Harness.Fakes.SentToRoom<AreaHideMessageComposer>()
+            .Last()
+            .AreaHideData.On.Should()
+            .BeFalse();
         (await EntryViewAsync()).AreaHides.Should().BeEmpty();
     }
 
@@ -222,7 +237,8 @@ public sealed class RoomConfigurationFurniTests
         await WiredMoveXAsync(INSIDE, 5);
 
         WiredMoves().Should().BeEmpty("the furni went out of sight");
-        SentToRoom<ObjectRemoveMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
             .Select(x => x.ObjectId)
             .Should()
             .Equal((RoomObjectId)INSIDE);
@@ -234,7 +250,8 @@ public sealed class RoomConfigurationFurniTests
         await WiredMoveXAsync(INSIDE, 2);
 
         WiredMoves().Should().BeEmpty("it is sent again instead");
-        SentToRoom<ObjectAddMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectAddMessageComposer>()
             .Select(x => x.FloorItem.ObjectId)
             .Should()
             .Equal((RoomObjectId)INSIDE);
@@ -266,7 +283,11 @@ public sealed class RoomConfigurationFurniTests
     }
 
     private List<Turbo.Primitives.Rooms.Snapshots.Wired.WiredFloorItemMovementSnapshot> WiredMoves() =>
-        [.. SentToRoom<WiredMovementsMessageComposer>().SelectMany(x => x.FloorItems)];
+        [
+            .. _room
+                .Harness.Fakes.SentToRoom<WiredMovementsMessageComposer>()
+                .SelectMany(x => x.FloorItems),
+        ];
 
     // Player 101 (object 1) hands what they hold to player 102 (object 2), standing beside them.
     private Task<bool> PassHandItemAsync() =>
@@ -280,11 +301,4 @@ public sealed class RoomConfigurationFurniTests
         FurnitureConfigurationControlLogic.GetConfigurationItemStates(
             _room.Harness.Module<RoomFurniModule>()
         );
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

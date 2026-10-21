@@ -137,10 +137,5 @@ public sealed class FurniRemoveByAreaHideFlagTests
     }
 
     private static List<ObjectRemoveMessageComposer> Removes(WiredRoom room) =>
-        room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<ObjectRemoveMessageComposer>()
-            .ToList();
+        room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().ToList();
 }

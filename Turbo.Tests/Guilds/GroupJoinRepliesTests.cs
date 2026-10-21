@@ -177,19 +177,21 @@ public sealed class GroupJoinRepliesTests : IDisposable
 
         await JoinAsync(CAROL);
 
-        Replies()
+        _fakes
+            .Sent(SendRoute.Session)
             .Select(x => x.GetType().Name)
             .Should()
             .Equal(
                 nameof(GuildMembershipsMessageComposer),
                 nameof(HabboGroupDetailsMessageComposer)
             );
-        var details = Replies().OfType<HabboGroupDetailsMessageComposer>().Single();
+        var details = _fakes.Sent<HabboGroupDetailsMessageComposer>(SendRoute.Session).Single();
         details.View.Status.Should().Be(GuildMembershipStatus.Member);
         details.OpenDetails.Should().BeFalse();
 
         // Through the presence, behind the room's badge messages (GroupReplyOrderTests).
-        Sent(CAROL)
+        _fakes
+            .SentToPlayer<IComposer>(CAROL)
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -218,8 +220,8 @@ public sealed class GroupJoinRepliesTests : IDisposable
 
         wear.Should().BeGreaterThan(details).And.BeLessThan(profile);
         // Habbo's details still said not favourite: the badge is put on after them.
-        Replies()
-            .OfType<HabboGroupDetailsMessageComposer>()
+        _fakes
+            .Sent<HabboGroupDetailsMessageComposer>(SendRoute.Session)
             .Single()
             .IsFavourite.Should()
             .BeFalse();
@@ -280,11 +282,11 @@ public sealed class GroupJoinRepliesTests : IDisposable
 
         await JoinAsync(CAROL);
 
-        Sent(CAROL).OfType<GuildMembershipUpdatedMessageComposer>().Should().BeEmpty();
+        _fakes.SentToPlayer<GuildMembershipUpdatedMessageComposer>(CAROL).Should().BeEmpty();
 
         foreach (var manager in new[] { OWNER, BOB })
-            Sent(manager)
-                .OfType<GuildMembershipUpdatedMessageComposer>()
+            _fakes
+                .SentToPlayer<GuildMembershipUpdatedMessageComposer>(manager)
                 .Should()
                 .ContainSingle(x => x.Member.PlayerId == PlayerId.Parse(CAROL));
     }
@@ -302,7 +304,8 @@ public sealed class GroupJoinRepliesTests : IDisposable
 
         await JoinAsync(CAROL);
 
-        Replies()
+        _fakes
+            .Sent(SendRoute.Session)
             .Select(x => x.GetType().Name)
             .Should()
             .Equal(nameof(GroupDetailsChangedMessageComposer));
@@ -314,28 +317,6 @@ public sealed class GroupJoinRepliesTests : IDisposable
             new MessageContext(_fakes.Create<ISessionContext>(), player, -1),
             Ct
         );
-
-    /// <summary>What the join handler sent to the joining session.</summary>
-    private List<IComposer> Replies() =>
-        [
-            .. _fakes
-                .Log.Of("SendComposerAsync")
-                .Where(x => x.Interface == typeof(ISessionContext))
-                .Select(x => x.Args[0])
-                .OfType<IComposer>(),
-        ];
-
-    /// <summary>What the group sent to a player through their presence.</summary>
-    private List<IComposer> Sent(int player) =>
-        [
-            .. _fakes
-                .Log.Of("SendComposerAsync")
-                .Where(x =>
-                    x.Interface != typeof(ISessionContext) && Convert.ToInt64(x.Key) == player
-                )
-                .Select(x => x.Args[0])
-                .OfType<IComposer>(),
-        ];
 
     private async Task<bool> WearsAsync(int player, int group)
     {

@@ -2,14 +2,12 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -45,7 +43,8 @@ public sealed class WiredClickUserEnvironmentTests
     {
         await PlaceTriggerAsync(blockMenu: false, doNotRotate: false);
 
-        SentToRoom<WiredEnvironmentMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<WiredEnvironmentMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.HasClickUserWired.Should()
@@ -96,7 +95,8 @@ public sealed class WiredClickUserEnvironmentTests
             Ct
         );
 
-        var answer = SentTo<WiredClickUserResponseMessageComposer>(100 + CLICKER)
+        var answer = _room
+            .Harness.Fakes.SentToPlayer<WiredClickUserResponseMessageComposer>(100 + CLICKER)
             .Should()
             .ContainSingle()
             .Subject;
@@ -190,22 +190,4 @@ public sealed class WiredClickUserEnvironmentTests
         _now += 1_000;
         await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
-
-    private IEnumerable<T> SentTo<T>(long playerId) =>
-        _room
-            .Harness.Fakes.Log.Calls.Where(x =>
-                x.Method == "SendComposerAsync" && x.Key is long key && key == playerId
-            )
-            .SelectMany(x =>
-                x.Args.OfType<IComposer>()
-                    .Concat(x.Args.OfType<IEnumerable<IComposer>>().SelectMany(c => c))
-            )
-            .OfType<T>();
 }

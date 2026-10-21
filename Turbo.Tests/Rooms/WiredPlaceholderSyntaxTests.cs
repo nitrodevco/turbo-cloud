@@ -29,9 +29,7 @@ public sealed class WiredPlaceholderSyntaxTests
     [InlineData("Hi $user!", "Hi $user!")]
     public async Task The_username_placeholder_is_written_in_brackets(string text, string shown)
     {
-        var avatar = _room.Enter(PLAYER_INDEX, 1, 1);
-
-        avatar.GetType().GetProperty("Name")!.SetValue(avatar, "Alice");
+        _room.Enter(PLAYER_INDEX, 1, 1, "Alice");
 
         var placeholder = _room.AddBox<WiredAddonUsernamePlaceholder>(
             1,
@@ -60,11 +58,8 @@ public sealed class WiredPlaceholderSyntaxTests
     [Fact]
     public async Task Each_placeholder_names_the_users_of_its_own_source()
     {
-        var alice = _room.Enter(PLAYER_INDEX, 1, 1);
-        var bob = _room.Enter(PLAYER_INDEX + 1, 2, 2);
-
-        alice.GetType().GetProperty("Name")!.SetValue(alice, "Alice");
-        bob.GetType().GetProperty("Name")!.SetValue(bob, "Bob");
+        _room.Enter(PLAYER_INDEX, 1, 1, "Alice");
+        _room.Enter(PLAYER_INDEX + 1, 2, 2, "Bob");
 
         var triggering = _room.AddBox<WiredAddonUsernamePlaceholder>(
             1,

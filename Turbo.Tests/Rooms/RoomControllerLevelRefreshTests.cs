@@ -49,15 +49,16 @@ public sealed class RoomControllerLevelRefreshTests
         await Security.RefreshControllerLevelForPlayerAsync(Player, Ct);
 
         _room.Harness.Fakes.Log.Of("OnControllerLevelUpdatedAsync").Should().BeEmpty();
-        Sent()
+        _room
+            .Harness.Fakes.Sent(SendRoute.Direct)
             .Select(x => x.GetType())
             .Should()
             .Equal(
                 typeof(WiredPermissionsEventMessageComposer),
                 typeof(RaidProtectionCapabilityMessageComposer)
             );
-        Sent()
-            .OfType<RaidProtectionCapabilityMessageComposer>()
+        _room
+            .Harness.Fakes.Sent<RaidProtectionCapabilityMessageComposer>(SendRoute.Direct)
             .Single()
             .CanManage.Should()
             .BeFalse();
@@ -78,20 +79,18 @@ public sealed class RoomControllerLevelRefreshTests
             .Which.Args[1]
             .Should()
             .Be(RoomControllerType.Rights);
-        Sent()
+        _room
+            .Harness.Fakes.Sent(SendRoute.Direct)
             .Select(x => x.GetType())
             .Should()
             .Equal(
                 typeof(WiredPermissionsEventMessageComposer),
                 typeof(RaidProtectionCapabilityMessageComposer)
             );
-        Sent()
-            .OfType<RaidProtectionCapabilityMessageComposer>()
+        _room
+            .Harness.Fakes.Sent<RaidProtectionCapabilityMessageComposer>(SendRoute.Direct)
             .Single()
             .CanManage.Should()
             .BeTrue();
     }
-
-    private List<object> Sent() =>
-        [.. _room.Harness.Fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]!)];
 }

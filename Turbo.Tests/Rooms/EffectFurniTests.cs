@@ -10,7 +10,6 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
@@ -40,7 +39,7 @@ public sealed class EffectFurniTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private readonly WiredRoom _room = new(10, 10);
+    private readonly WiredRoom _room = new(10, 10, avatarContexts: true);
     private long _now;
 
     public EffectFurniTests()
@@ -50,12 +49,6 @@ public sealed class EffectFurniTests
         {
             OwnerId = (PlayerId)OWNER,
         };
-        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
-            call.Interface == typeof(IRoomPlayerContext)
-            && call.Key is int id
-            && _room.Avatars.TryGetValue(id, out var avatar)
-                ? avatar
-                : Fakes.NotHandled;
     }
 
     [Fact]
@@ -223,14 +216,7 @@ public sealed class EffectFurniTests
     /// <summary>Walks the avatar there tick by tick, running the room's timers between ticks.</summary>
     private async Task WalkToAsync(RoomPlayerAvatar avatar, int x, int y, Action? onEachStep = null)
     {
-        (
-            await _room.Harness.Room.WalkAvatarToAsync(
-                ActionContext.CreateForPlayer(100 + (int)avatar.ObjectId, 1),
-                x,
-                y,
-                Ct
-            )
-        )
+        (await _room.Harness.Room.WalkAvatarToAsync(_room.ContextFor(avatar), x, y, Ct))
             .Should()
             .BeTrue();
 
@@ -270,11 +256,7 @@ public sealed class EffectFurniTests
     private List<int> EffectMessages(RoomPlayerAvatar avatar) =>
         [
             .. _room
-                .Harness.Fakes.Log.Of("OnNextAsync")
-                .Select(x => x.Args[0])
-                .OfType<Turbo.Primitives.Rooms.Snapshots.RoomOutboundSnapshot>()
-                .SelectMany(x => x.Composers)
-                .OfType<Turbo.Primitives.Messages.Outgoing.Room.Action.AvatarEffectMessageComposer>()
+                .Harness.Fakes.SentToRoom<Turbo.Primitives.Messages.Outgoing.Room.Action.AvatarEffectMessageComposer>()
                 .Where(x => x.ObjectId == avatar.ObjectId)
                 .Select(x => x.EffectId),
         ];

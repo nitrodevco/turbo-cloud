@@ -25,9 +25,7 @@ public sealed class FavouriteGroupProfileChangedTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private IEnumerable<ExtendedProfileChangedMessageComposer> ProfileChanged() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(call => call.Args.OfType<ExtendedProfileChangedMessageComposer>());
+        _fakes.Sent<ExtendedProfileChangedMessageComposer>();
 
     private MessageContext Ctx() => new(_fakes.Create<ISessionContext>(), PLAYER, -1);
 

@@ -8,7 +8,6 @@ using Turbo.PacketHandlers.Camera;
 using Turbo.Primitives.Messages.Outgoing.Camera;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Navigator;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -110,38 +109,29 @@ public sealed class CameraCaptureOffThePacketTests : IDisposable
             .WaitAsync(Prompt, Ct);
     }
 
-    private List<T> Sent<T>(Type through)
-        where T : IComposer =>
-        _harness
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(x => x.Interface == through)
-            .Where(x => through != typeof(IPlayerPresenceGrain) || Equals(x.Key, (long)PLAYER))
-            .Select(x => x.Args[0])
-            .OfType<T>()
-            .ToList();
-
-    private List<T> ToPlayer<T>()
-        where T : IComposer => Sent<T>(typeof(IPlayerPresenceGrain));
-
-    private List<T> ToSession<T>()
-        where T : IComposer => Sent<T>(typeof(ISessionContext));
-
     [Fact]
     public async Task APhoto_IsAnsweredWhenDrawn_WithoutHoldingUpTheSession()
     {
         await SendAsync("RenderRoomMessageEvent", RenderData());
 
-        ToPlayer<CameraStorageUrlMessageComposer>().Should().BeEmpty("it is still being drawn");
+        _harness
+            .Fakes.SentToPlayer<CameraStorageUrlMessageComposer>(PLAYER)
+            .Should()
+            .BeEmpty("it is still being drawn");
 
         _render.SetResult(true);
-        await CountWait.ForAsync(() => ToPlayer<CameraStorageUrlMessageComposer>().Count, 1);
+        await CountWait.ForAsync(
+            () => _harness.Fakes.SentToPlayer<CameraStorageUrlMessageComposer>(PLAYER).Count(),
+            1
+        );
 
-        ToPlayer<CameraStorageUrlMessageComposer>()
+        _harness
+            .Fakes.SentToPlayer<CameraStorageUrlMessageComposer>(PLAYER)
             .Should()
             .ContainSingle()
             .Which.Url.Should()
             .StartWith("photos/");
-        ToSession<CameraStorageUrlMessageComposer>().Should().BeEmpty();
+        _harness.Fakes.Sent<CameraStorageUrlMessageComposer>(SendRoute.Session).Should().BeEmpty();
     }
 
     [Fact]
@@ -150,16 +140,21 @@ public sealed class CameraCaptureOffThePacketTests : IDisposable
         await SendAsync("RenderRoomMessageEvent", RenderData());
         await SendAsync("RenderRoomMessageEvent", RenderData());
 
-        ToSession<CameraStorageUrlMessageComposer>()
+        _harness
+            .Fakes.Sent<CameraStorageUrlMessageComposer>(SendRoute.Session)
             .Should()
             .ContainSingle()
             .Which.Url.Should()
             .BeEmpty("one capture per player is drawn at a time");
 
         _render.SetResult(true);
-        await CountWait.ForAsync(() => ToPlayer<CameraStorageUrlMessageComposer>().Count, 1);
+        await CountWait.ForAsync(
+            () => _harness.Fakes.SentToPlayer<CameraStorageUrlMessageComposer>(PLAYER).Count(),
+            1
+        );
 
-        ToPlayer<CameraStorageUrlMessageComposer>()
+        _harness
+            .Fakes.SentToPlayer<CameraStorageUrlMessageComposer>(PLAYER)
             .Should()
             .ContainSingle()
             .Which.Url.Should()
@@ -175,12 +170,22 @@ public sealed class CameraCaptureOffThePacketTests : IDisposable
     {
         await SendAsync("RenderRoomThumbnailMessageEvent", RenderData());
 
-        ToPlayer<ThumbnailStatusMessageComposer>().Should().BeEmpty("it is still being drawn");
+        _harness
+            .Fakes.SentToPlayer<ThumbnailStatusMessageComposer>(PLAYER)
+            .Should()
+            .BeEmpty("it is still being drawn");
 
         _render.SetResult(true);
-        await CountWait.ForAsync(() => ToPlayer<ThumbnailStatusMessageComposer>().Count, 1);
+        await CountWait.ForAsync(
+            () => _harness.Fakes.SentToPlayer<ThumbnailStatusMessageComposer>(PLAYER).Count(),
+            1
+        );
 
-        var status = ToPlayer<ThumbnailStatusMessageComposer>().Should().ContainSingle().Subject;
+        var status = _harness
+            .Fakes.SentToPlayer<ThumbnailStatusMessageComposer>(PLAYER)
+            .Should()
+            .ContainSingle()
+            .Subject;
 
         status.IsOk.Should().BeTrue();
         status.IsRenderLimitHit.Should().BeFalse();
@@ -205,12 +210,19 @@ public sealed class CameraCaptureOffThePacketTests : IDisposable
 
         await SendAsync("TurboStarterRoomPictureMessageEvent", RenderData(ROOM));
 
-        ToPlayer<TurboStarterRoomPictureResultMessage>().Should().BeEmpty();
+        _harness
+            .Fakes.SentToPlayer<TurboStarterRoomPictureResultMessage>(PLAYER)
+            .Should()
+            .BeEmpty();
 
         _render.SetResult(false);
-        await CountWait.ForAsync(() => ToPlayer<TurboStarterRoomPictureResultMessage>().Count, 1);
+        await CountWait.ForAsync(
+            () => _harness.Fakes.SentToPlayer<TurboStarterRoomPictureResultMessage>(PLAYER).Count(),
+            1
+        );
 
-        var result = ToPlayer<TurboStarterRoomPictureResultMessage>()
+        var result = _harness
+            .Fakes.SentToPlayer<TurboStarterRoomPictureResultMessage>(PLAYER)
             .Should()
             .ContainSingle()
             .Subject;

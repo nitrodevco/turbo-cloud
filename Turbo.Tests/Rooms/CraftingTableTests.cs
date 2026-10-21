@@ -10,6 +10,7 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Crafting;
 using Turbo.Primitives.Messages.Outgoing.Crafting;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -134,7 +135,9 @@ public sealed class CraftingTableTests
     {
         (await InteractAsync(GUEST, new GetCraftableProductsInteraction())).Should().BeTrue();
 
-        var products = SentTo(GUEST).OfType<CraftableProductsMessageComposer>().Single();
+        var products = _room
+            .Harness.Fakes.SentToPlayer<CraftableProductsMessageComposer>(GUEST)
+            .Single();
 
         // Secret recipes are found in the mixer, not listed; their ingredients still go in it.
         products
@@ -168,8 +171,8 @@ public sealed class CraftingTableTests
             .Should()
             .BeFalse("a secret recipe is not given away");
 
-        SentTo(GUEST)
-            .OfType<CraftingRecipeMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<CraftingRecipeMessageComposer>(GUEST)
             .Single()
             .Ingredients.Select(x => (x.Count, x.FurnitureClassName))
             .Should()
@@ -218,8 +221,8 @@ public sealed class CraftingTableTests
         // Gold and nail: no recipe has both.
         await MixAsync([gold, nail], craft: false);
 
-        SentTo(OWNER)
-            .OfType<CraftingRecipesAvailableMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<CraftingRecipesAvailableMessageComposer>(OWNER)
             .Select(x => (x.Count, x.RecipeComplete))
             .Should()
             .Equal((2, false), (0, true), (1, false), (0, false));
@@ -228,8 +231,8 @@ public sealed class CraftingTableTests
         await MixAsync([plank1, plank2, gold], craft: true);
 
         Results(OWNER).Should().Equal(null, "craft_throne");
-        SentTo(OWNER)
-            .OfType<CraftingResultMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<CraftingResultMessageComposer>(OWNER)
             .Last()
             .Product!.ProductCode.Should()
             .Be("throne_product");
@@ -264,17 +267,23 @@ public sealed class CraftingTableTests
 
         await MixAsync([plank], craft: true);
 
-        SentTo(OWNER).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<FurniListInvalidateEventMessageComposer>(OWNER)
+            .Should()
+            .BeEmpty();
 
         await MixAsync([plank, nail], craft: true);
 
-        var sent = SentTo(OWNER).ToList();
+        var sent = _room.Harness.Fakes.SentToPlayer<IComposer>(OWNER).ToList();
 
         sent.OfType<FurniListInvalidateEventMessageComposer>().Should().ContainSingle();
         sent.FindIndex(x => x is FurniListInvalidateEventMessageComposer)
             .Should()
             .BeGreaterThan(sent.FindLastIndex(x => x is CraftingResultMessageComposer));
-        SentTo(GUEST).OfType<FurniListInvalidateEventMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<FurniListInvalidateEventMessageComposer>(GUEST)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -339,15 +348,9 @@ public sealed class CraftingTableTests
             }
         );
 
-    private IEnumerable<object?> SentTo(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(x => Convert.ToInt64(x.Key) == playerId)
-            .Select(x => x.Args[0]);
-
     private IEnumerable<string?> Results(int playerId) =>
-        SentTo(playerId)
-            .OfType<CraftingResultMessageComposer>()
+        _room
+            .Harness.Fakes.SentToPlayer<CraftingResultMessageComposer>(playerId)
             .Select(x => x.Success ? x.Product!.FurnitureClassName : null);
 
     private void TakeAwayGone(Turbo.Tests.Support.FakeCall call)

@@ -59,7 +59,7 @@ public sealed class DiscordPreferencesTests : IDisposable
         var settings = await SettingsAsync();
 
         await SetAsync(settings, Convert.FromHexString("0000000101010101"));
-        _fakes.Log.Of("SendComposerAsync").Should().BeEmpty("nothing answers the save");
+        _fakes.Sent().Should().BeEmpty("nothing answers the save");
         await ((Grain)settings).OnDeactivateAsync(new(DeactivationReasonCode.None, ""), Ct);
 
         var reply = await GetAsync(await SettingsAsync());
@@ -113,9 +113,7 @@ public sealed class DiscordPreferencesTests : IDisposable
         );
 
         var packet = PacketHarness.Encode(
-            Assert.IsType<DiscordPreferencesMessageComposer>(
-                _fakes.Log.Of("SendComposerAsync").Single().Args[0]
-            )
+            Assert.IsType<DiscordPreferencesMessageComposer>(_fakes.Sent().Single())
         );
 
         return packet.PopBytes(packet.Remaining);

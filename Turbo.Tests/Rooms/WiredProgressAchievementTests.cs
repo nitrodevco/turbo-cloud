@@ -10,7 +10,6 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -49,7 +48,8 @@ public sealed class WiredProgressAchievementTests
     {
         await PlaceEnablerAsync("Lap\r\n  Goal \n\nLap\n");
 
-        SentToRoom<WiredEnvironmentMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<WiredEnvironmentMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.EnabledAchievements.Should()
@@ -198,11 +198,4 @@ public sealed class WiredProgressAchievementTests
         _now += 1_000;
         await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
     }
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 }

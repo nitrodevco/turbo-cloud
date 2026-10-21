@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.Variables.Furniture;
 using Turbo.Tests.Support;
@@ -46,11 +45,7 @@ public sealed class WiredMenuPositionWriteTests
         lamp.X.Should().Be(5);
 
         var moves = _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => call.Args[0])
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<WiredMovementsMessageComposer>()
+            .Harness.Fakes.SentToRoom<WiredMovementsMessageComposer>()
             .SelectMany(x => x.FloorItems)
             .ToList();
 

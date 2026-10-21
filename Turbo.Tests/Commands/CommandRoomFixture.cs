@@ -12,7 +12,6 @@ using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
@@ -133,45 +132,20 @@ public sealed class CommandRoomFixture
 
     /// <summary>What was said to the whole room, in order.</summary>
     public IEnumerable<string> SaidToRoom() =>
-        Harness
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .OfType<ChatMessageComposer>()
-            .Select(c => c.Text);
+        Harness.Fakes.SentToRoom<ChatMessageComposer>().Select(c => c.Text);
 
     /// <summary>What was whispered to one player by the room.</summary>
     public IEnumerable<string> WhispersTo(int id) =>
-        Harness
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(c => KeyIs(c.Key, id))
-            .Select(c => c.Args[0])
-            .OfType<WhisperMessageComposer>()
-            .Select(c => c.Text);
+        Harness.Fakes.SentToPlayer<WhisperMessageComposer>(id).Select(c => c.Text);
 
     /// <summary>The scrollable notices sent to one player, each as its list of lines.</summary>
     public IEnumerable<IReadOnlyList<string>> NoticesTo(int id) =>
         Harness
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(c => KeyIs(c.Key, id))
-            .Select(c => c.Args[0])
-            .OfType<MOTDNotificationEventMessageComposer>()
+            .Fakes.SentToPlayer<MOTDNotificationEventMessageComposer>(id)
             .Select(c => (IReadOnlyList<string>)c.Messages);
 
     public IEnumerable<FloodControlMessageComposer> FloodNoticesTo(int id) =>
-        Harness
-            .Fakes.Log.Of("SendComposerAsync")
-            .Where(c => KeyIs(c.Key, id))
-            .Select(c => c.Args[0])
-            .OfType<FloodControlMessageComposer>();
-
-    private static bool KeyIs(object? key, int id) =>
-        key switch
-        {
-            PlayerId player => player.Value == id,
-            int number => number == id,
-            long number => number == id,
-            _ => false,
-        };
+        Harness.Fakes.SentToPlayer<FloodControlMessageComposer>(id);
 
     private static Func<FakeCall, object?> ForPlayer(Func<int, object?> value) =>
         call =>

@@ -13,7 +13,6 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Texts;
@@ -343,10 +342,7 @@ public sealed class PetSaddleTests
         await _room.Harness.Room.TimerSystem.ProcessTimersAsync(long.MaxValue, Ct);
 
         _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<ChatMessageComposer>()
+            .Harness.Fakes.SentToRoom<ChatMessageComposer>()
             .Where(x => x.ObjectId != _owner.ObjectId)
             .Select(x => x.Text)
             .Should()

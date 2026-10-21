@@ -169,7 +169,8 @@ public sealed class RewardTrackTests : IDisposable
         foreach (var room in new[] { "1", "1", "2", "3", "4", "5" })
             await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, room, Ct);
 
-        Sent<RewardTrackProgressMessageComposer>()
+        _fakes
+            .Sent<RewardTrackProgressMessageComposer>()
             .Select(x => (x.TaskId, x.ProgressCount, x.Points))
             .Should()
             .Equal(
@@ -193,7 +194,7 @@ public sealed class RewardTrackTests : IDisposable
                 Ct
             );
 
-        var last = Sent<RewardTrackProgressMessageComposer>().ToList();
+        var last = _fakes.Sent<RewardTrackProgressMessageComposer>().ToList();
         last.Should().HaveCount(20);
         last[^1].Points.Should().Be(60);
     }
@@ -207,7 +208,8 @@ public sealed class RewardTrackTests : IDisposable
         await grain.RecordActionAsync(RewardTrackActionTypes.CHANGE_FIGURE, "", Ct);
         await grain.RecordActionAsync(RewardTrackActionTypes.CHANGE_FIGURE, "", Ct);
 
-        Sent<RewardTrackProgressMessageComposer>()
+        _fakes
+            .Sent<RewardTrackProgressMessageComposer>()
             .Select(x => (x.TaskId, x.ProgressCount, x.Points))
             .Should()
             .Equal(("change_outfit", 1, 10), ("change_outfit", 2, 10));
@@ -234,7 +236,8 @@ public sealed class RewardTrackTests : IDisposable
                 x.Cause == MovementCauses.REWARD_TRACK_PREMIUM && x.CauseRef == TRACK
             );
         // 10 earned, 100 instant, the passed premium level's 40 boosted by 1.5.
-        Sent<RewardTrackPremiumPurchaseResultMessageComposer>()
+        _fakes
+            .Sent<RewardTrackPremiumPurchaseResultMessageComposer>()
             .Select(x => (x.Result, x.Points))
             .Should()
             .Equal(
@@ -305,7 +308,8 @@ public sealed class RewardTrackTests : IDisposable
         await grain.PurchasePremiumAsync(TRACK, Ct);
         await grain.PurchasePremiumAsync("nope", Ct);
 
-        Sent<RewardTrackPremiumPurchaseResultMessageComposer>()
+        _fakes
+            .Sent<RewardTrackPremiumPurchaseResultMessageComposer>()
             .Select(x => x.Result)
             .Should()
             .Equal(RewardTrackPremiumResult.NotConfigured, RewardTrackPremiumResult.TrackNotFound);
@@ -324,7 +328,8 @@ public sealed class RewardTrackTests : IDisposable
         await grain.ClaimPrizeAsync(TRACK, "nope", Ct);
         await grain.ClaimPrizeAsync("nope", "duckets", Ct);
 
-        Sent<RewardTrackClaimResultMessageComposer>()
+        _fakes
+            .Sent<RewardTrackClaimResultMessageComposer>()
             .Select(x => x.Result)
             .Should()
             .Equal(
@@ -375,7 +380,8 @@ public sealed class RewardTrackTests : IDisposable
         await grain.ClaimPrizeAsync(TRACK, "free_010", Ct);
 
         _fakes.Log.Of("GrantFurnitureAsync").Select(x => x.Args[0]).Should().Equal(77, 77);
-        Sent<RewardTrackClaimResultMessageComposer>()
+        _fakes
+            .Sent<RewardTrackClaimResultMessageComposer>()
             .Single()
             .Result.Should()
             .Be(RewardTrackClaimResult.Success);
@@ -439,7 +445,8 @@ public sealed class RewardTrackTests : IDisposable
         await grain.ClaimPrizeAsync(TRACK, "chairs", Ct);
 
         given.Should().Be(3, "the prize is three chairs, however many tries it took");
-        Sent<RewardTrackClaimResultMessageComposer>()
+        _fakes
+            .Sent<RewardTrackClaimResultMessageComposer>()
             .Select(x => x.Result)
             .Should()
             .Equal(RewardTrackClaimResult.Success, RewardTrackClaimResult.AlreadyClaimed);
@@ -597,7 +604,8 @@ public sealed class RewardTrackTests : IDisposable
             .BeFalse("a premium task counts only for a premium owner");
         (await grain.ProgressTaskAsync(TRACK, "nope", 1, add: true, Ct)).Should().BeFalse();
 
-        Sent<RewardTrackProgressMessageComposer>()
+        _fakes
+            .Sent<RewardTrackProgressMessageComposer>()
             .Select(x => (x.ProgressCount, x.Points))
             .Should()
             .Equal((5, 30), (20, 60));
@@ -612,7 +620,7 @@ public sealed class RewardTrackTests : IDisposable
 
         (await grain.ResetTrackAsync(TRACK, Ct)).Should().BeTrue();
 
-        var sent = Sent<RewardTracksMessageComposer>().Should().ContainSingle().Subject;
+        var sent = _fakes.Sent<RewardTracksMessageComposer>().Should().ContainSingle().Subject;
         sent.Reload.Should().BeTrue();
         sent.Tracks[0].Points.Should().Be(0);
         sent.Tracks[0].Tasks[0].ProgressCount.Should().Be(0);
@@ -637,7 +645,7 @@ public sealed class RewardTrackTests : IDisposable
         await grain.ClaimPrizeAsync(TRACK, "duckets", Ct);
 
         Single<RewardTracksMessageComposer>().Tracks.Should().BeEmpty();
-        Sent<RewardTrackProgressMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<RewardTrackProgressMessageComposer>().Should().BeEmpty();
         Single<RewardTrackClaimResultMessageComposer>()
             .Result.Should()
             .Be(RewardTrackClaimResult.TrackNotFound);
@@ -805,22 +813,8 @@ public sealed class RewardTrackTests : IDisposable
             OccurredAtUtc = DateTime.UtcNow,
         };
 
-    private IEnumerable<T> Sent<T>()
-        where T : IComposer =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .OfType<T>();
-
     private T Single<T>()
-        where T : IComposer => Sent<T>().Should().ContainSingle().Subject;
+        where T : IComposer => _fakes.Sent<T>().Should().ContainSingle().Subject;
 
     private sealed class HeardListener(List<string> heard) : IAchievementFactListener
     {

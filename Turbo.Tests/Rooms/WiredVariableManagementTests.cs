@@ -392,8 +392,8 @@ public sealed class WiredVariableManagementTests
     /// </summary>
     private async Task<WiredVariableId> SetUpAsync()
     {
-        Enter(ALICE_INDEX, "alice");
-        Enter(BOB_INDEX, "bob");
+        _room.Enter(ALICE_INDEX, 1, 1, "alice");
+        _room.Enter(BOB_INDEX, 1, 1, "bob");
 
         var coins = await AddUserVariableAsync(
             COINS_BOX,
@@ -441,8 +441,6 @@ public sealed class WiredVariableManagementTests
                 x => (x.VariableId, x.Value)
             ),
         ];
-
-    private void Enter(int roomIndex, string name) => _room.Enter(roomIndex, 1, 1).UseName(name);
 
     private void Leave(int roomIndex)
     {

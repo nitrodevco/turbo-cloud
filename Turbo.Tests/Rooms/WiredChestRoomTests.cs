@@ -11,7 +11,6 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Moderation;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -71,8 +70,7 @@ public class WiredChestRoomTests
 
         done.Should().BeTrue();
         chest.IsWiredEnabled.Should().BeTrue();
-        Sent(room.Fakes)
-            .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
+        room.Fakes.Sent<ChestPreferencesUpdateSuccessMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.ChestId == CHEST);
     }
@@ -93,8 +91,7 @@ public class WiredChestRoomTests
 
         done.Should().BeTrue();
         chest.Settings.PreviewAmount.Should().Be(1);
-        Sent(room.Fakes)
-            .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
+        room.Fakes.Sent<ChestPreferencesUpdateSuccessMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.ChestId == CHEST);
     }
@@ -129,11 +126,12 @@ public class WiredChestRoomTests
         );
 
         done.Should().BeFalse();
-        Sent(room.Fakes)
-            .OfType<WiredValidationErrorEventMessageComposer>()
+        room.Fakes.Sent<WiredValidationErrorEventMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.LocalizationKey == errorKey);
-        Sent(room.Fakes).OfType<ChestPreferencesUpdateSuccessMessageComposer>().Should().BeEmpty();
+        room.Fakes.Sent<ChestPreferencesUpdateSuccessMessageComposer>(SendRoute.Direct)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -174,8 +172,7 @@ public class WiredChestRoomTests
         );
 
         room.Fakes.Log.Of(nameof(IWiredChestGrain.WithdrawAsync)).Should().ContainSingle();
-        Sent(room.Fakes)
-            .OfType<WiredTransactionFailMessageComposer>()
+        room.Fakes.Sent<WiredTransactionFailMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Empty);
     }
@@ -219,9 +216,12 @@ public class WiredChestRoomTests
         await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
         await trade.AddItemsAsync([20], Ct);
 
-        Sent(fakes).OfType<WiredTradeTransactionNotificationMessageComposer>().Should().BeEmpty();
-        Sent(fakes)
-            .OfType<WiredTradeItemsUpdateMessageComposer>()
+        fakes
+            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
+            .Should()
+            .BeEmpty();
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
             .Last()
             .FirstItems.Should()
             .ContainSingle();
@@ -237,12 +237,12 @@ public class WiredChestRoomTests
         await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
         await trade.AddItemsAsync([20], Ct);
 
-        Sent(fakes)
-            .OfType<WiredTradeTransactionNotificationMessageComposer>()
+        fakes
+            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.Error == WiredTradeErrorType.InvalidItem);
-        Sent(fakes)
-            .OfType<WiredTradeItemsUpdateMessageComposer>()
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
             .Last()
             .FirstItems.Should()
             .BeEmpty();
@@ -276,7 +276,7 @@ public class WiredChestRoomTests
 
         var deposit = fakes.Log.Of(nameof(IRoomGrainDeposit.DepositIntoWiredChestAsync)).Single();
         ((ImmutableArray<RoomObjectId>)deposit.Args[2]!).Should().Equal((RoomObjectId)20);
-        Sent(fakes).OfType<WiredTradeCompletedMessageComposer>().Should().ContainSingle();
+        fakes.Sent<WiredTradeCompletedMessageComposer>(SendRoute.Direct).Should().ContainSingle();
     }
 
     [Fact]
@@ -290,8 +290,8 @@ public class WiredChestRoomTests
         await trade.AddItemsAsync([20], Ct);
         await trade.ConfirmAsync(isFinalConfirm: true, Ct);
 
-        Sent(fakes)
-            .OfType<WiredTradeCancelledMessageComposer>()
+        fakes
+            .Sent<WiredTradeCancelledMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Invalid);
 
@@ -309,16 +309,6 @@ public class WiredChestRoomTests
 
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>
         (IWiredTradeGrain)GrainHarness.Create<WiredTradeGrain>(fakes, playerId: GUEST);
-
-    /// <summary>Every composer sent to a player, single or batched.</summary>
-    private static IEnumerable<IComposer> Sent(Fakes fakes) =>
-        fakes.Log.Calls.SelectMany(call =>
-            call.Method is "SendComposerAsync" or "SendComposerToPlayerAsync"
-                ? call
-                    .Args.OfType<IComposer>()
-                    .Concat(call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
-                : []
-        );
 
     private static ImmutableArray<FurnitureItemSnapshot> Offer(string name) =>
         [
@@ -361,19 +351,11 @@ public class WiredChestRoomTests
 
     private static void AddPlayer(RoomHarness room, int playerId)
     {
-        var player = room.Fakes.Create<IRoomPlayer>(playerId);
-
-        room.Fakes.Handlers["get_PlayerId"] = call =>
-            call.Interface == typeof(IRoomPlayer) && call.Key is int id
-                ? (PlayerId)id
-                : Fakes.NotHandled;
+        room.AddPlayer(playerId);
         room.Fakes.Handlers["get_Name"] = call =>
             call.Interface == typeof(IRoomPlayer) && call.Key is int id
                 ? $"player{id}"
                 : Fakes.NotHandled;
-
-        room.State.AvatarsByPlayerId[playerId] = playerId;
-        room.State.AvatarsByObjectId[playerId] = player;
     }
 
     private static void StubSummary(RoomHarness room) =>

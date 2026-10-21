@@ -6,10 +6,10 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -41,7 +41,9 @@ public class RoomSettingsSavedRepliesTests
         );
 
         result.Error.Should().Be(RoomSettingsSaveErrorType.None);
-        SentToRoom(harness)
+        harness
+            .Fakes.SentToRoom<IComposer>()
+            .Select(c => c.GetType().Name)
             .Should()
             .Equal(
                 nameof(RoomInfoUpdatedMessageComposer),
@@ -88,7 +90,9 @@ public class RoomSettingsSavedRepliesTests
         );
 
         result.Error.Should().Be(RoomSettingsSaveErrorType.None);
-        SentToRoom(harness)
+        harness
+            .Fakes.SentToRoom<IComposer>()
+            .Select(c => c.GetType().Name)
             .Should()
             .Equal(
                 nameof(RoomInfoUpdatedMessageComposer),
@@ -96,12 +100,6 @@ public class RoomSettingsSavedRepliesTests
                 nameof(RoomChatSettingsMessageComposer)
             );
     }
-
-    private static IEnumerable<string> SentToRoom(LiveRoomHarness harness) =>
-        harness
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .Select(c => c.GetType().Name);
 
     private static async Task<LiveRoomHarness> OwnedRoomAsync()
     {

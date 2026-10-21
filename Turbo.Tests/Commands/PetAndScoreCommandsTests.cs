@@ -205,12 +205,7 @@ public class PetAndScoreCommandsTests
         _room.Harness.Room.ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), Ct);
 
     private IEnumerable<string> PetLinesTo(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => Convert.ToInt64(c.Key) == playerId)
-            .Select(c => c.Args[0])
-            .OfType<ChatMessageComposer>()
-            .Select(c => c.Text);
+        _room.Harness.Fakes.SentToPlayer<ChatMessageComposer>(playerId).Select(c => c.Text);
 
     private IRoomPet AddPet(int petId, int objectId, int ownerId)
     {

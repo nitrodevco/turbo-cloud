@@ -10,7 +10,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
@@ -78,7 +77,8 @@ public sealed class WiredSetHighlightTests
             AnimationMode = 1,
             EasingMode = 0,
         };
-        var sent = SentToRoom<WiredFurniHighlightMessageComposer>()
+        var sent = _room
+            .Harness.Fakes.SentToRoom<WiredFurniHighlightMessageComposer>()
             .Should()
             .ContainSingle()
             .Subject;
@@ -137,13 +137,17 @@ public sealed class WiredSetHighlightTests
 
         await ClickAsync();
 
-        SentTo<WiredFurniHighlightMessageComposer>(100 + CLICKER)
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniHighlightMessageComposer>(100 + CLICKER)
             .Should()
             .ContainSingle()
             .Which.FurniIds.Should()
             .Equal(LAMP);
-        SentTo<WiredFurniHighlightMessageComposer>(100 + CLICKED).Should().BeEmpty();
-        SentToRoom<WiredFurniHighlightMessageComposer>().Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<WiredFurniHighlightMessageComposer>(100 + CLICKED)
+            .Should()
+            .BeEmpty();
+        _room.Harness.Fakes.SentToRoom<WiredFurniHighlightMessageComposer>().Should().BeEmpty();
         EntryView().OfType<WiredFurniVisualizationStateMessageComposer>().Should().BeEmpty();
     }
 
@@ -154,7 +158,8 @@ public sealed class WiredSetHighlightTests
 
         await ClickAsync();
 
-        SentToRoom<WiredUserHighlightMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<WiredUserHighlightMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.RoomIndices.Should()
@@ -382,22 +387,4 @@ public sealed class WiredSetHighlightTests
 
     /// <summary>What a player walking in is sent of the kept effects, right after Users (RoomService).</summary>
     private List<IComposer> EntryView() => [.. Wired.GetVisualizationEntryState()];
-
-    private IEnumerable<T> SentToRoom<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
-
-    private IEnumerable<T> SentTo<T>(long playerId) =>
-        _room
-            .Harness.Fakes.Log.Calls.Where(x =>
-                x.Method == "SendComposerAsync" && x.Key is long key && key == playerId
-            )
-            .SelectMany(x =>
-                x.Args.OfType<IComposer>()
-                    .Concat(x.Args.OfType<IEnumerable<IComposer>>().SelectMany(c => c))
-            )
-            .OfType<T>();
 }

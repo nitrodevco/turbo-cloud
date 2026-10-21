@@ -27,7 +27,7 @@ public sealed class LoginRequestRepliesTests
     {
         await handle(_fakes.Create<IGrainFactory>());
 
-        return [.. _fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0])];
+        return [.. _fakes.Sent()];
     }
 
     private MessageContext Context() => new(_fakes.Create<ISessionContext>(), 1, -1);

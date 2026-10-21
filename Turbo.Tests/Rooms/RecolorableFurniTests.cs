@@ -22,7 +22,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Configuration;
@@ -82,7 +81,8 @@ public sealed class RecolorableFurniTests
 
         ColorOf(block).Should().Be(ORANGE);
         ColorOf(other).Should().Be(RecolorableData.WHITE);
-        Broadcast<FurniRecolorUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Updates.Should()
@@ -97,7 +97,7 @@ public sealed class RecolorableFurniTests
                     Blue = 0,
                 }
             );
-        Broadcast<ObjectDataUpdateMessageComposer>().Should().BeEmpty();
+        _room.Harness.Fakes.SentToRoom<ObjectDataUpdateMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -109,7 +109,8 @@ public sealed class RecolorableFurniTests
 
         (await RecolorAsync(OWNER, 10, RecolorScopeType.SameType, BLUE)).Should().BeTrue();
 
-        Broadcast<FurniRecolorUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
             .Single()
             .Updates.Single()
             .ObjectIds.Should()
@@ -131,7 +132,8 @@ public sealed class RecolorableFurniTests
             .Should()
             .BeTrue();
 
-        Broadcast<FurniRecolorUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
             .Last()
             .Updates.Single()
             .ObjectIds.Should()
@@ -149,7 +151,8 @@ public sealed class RecolorableFurniTests
 
         (await RecolorAsync(OWNER, 10, RecolorScopeType.SameTypeAndColor, BLUE)).Should().BeTrue();
 
-        Broadcast<FurniRecolorUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
             .Last()
             .Updates.Single()
             .ObjectIds.Should()
@@ -166,7 +169,7 @@ public sealed class RecolorableFurniTests
         (await RecolorAsync(OWNER, 10, RecolorScopeType.OnlyThis, TEAL)).Should().BeFalse();
 
         ColorOf(block).Should().Be(RecolorableData.WHITE);
-        Broadcast<FurniRecolorUpdateMessageComposer>().Should().BeEmpty();
+        _room.Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -370,7 +373,8 @@ public sealed class RecolorableFurniTests
 
         item.Logic.Should().BeOfType<FurnitureRecolorableLogic>();
         item.GetStackHeight().ToInt().Should().Be(50);
-        Broadcast<ObjectUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectUpdateMessageComposer>()
             .Should()
             .Contain(x => x.FloorItem.ObjectId == 20 && x.FloorItem.StackHeight.ToInt() == 50);
     }
@@ -402,7 +406,8 @@ public sealed class RecolorableFurniTests
 
         (await rgb.SetValueAsync(ctx, Key(rgb, 10), BLUE)).Should().BeTrue();
         ColorOf(block).Should().Be(BLUE);
-        Broadcast<FurniRecolorUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
             .Last()
             .Updates.Single()
             .Should()
@@ -529,13 +534,6 @@ public sealed class RecolorableFurniTests
 
     private static int ColorOf(IRoomFloorItem item) =>
         ((FurnitureRecolorableLogic)item.Logic).Color;
-
-    private IEnumerable<T> Broadcast<T>() =>
-        _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<T>();
 
     private static IEnumerable<string> MigrationSql(Migration migration, bool up)
     {

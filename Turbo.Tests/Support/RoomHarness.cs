@@ -6,8 +6,10 @@ using Turbo.Furniture.Providers;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -187,6 +189,25 @@ public sealed class RoomHarness
     {
         ItemsById.Add(item.ObjectId, item);
         Room.MapModule.AddItem(item);
+    }
+
+    /// <summary>
+    /// A player in the room as a fake <see cref="IRoomPlayer"/> whose room object id is its player
+    /// id, and whose <c>PlayerId</c> answers that id (as every fake room player's does after).
+    /// </summary>
+    public IRoomPlayer AddPlayer(int playerId)
+    {
+        var player = Fakes.Create<IRoomPlayer>(playerId);
+
+        Fakes.Handlers["get_PlayerId"] = call =>
+            call.Interface == typeof(IRoomPlayer) && call.Key is int id
+                ? (PlayerId)id
+                : Fakes.NotHandled;
+
+        State.AvatarsByPlayerId[playerId] = playerId;
+        State.AvatarsByObjectId[playerId] = player;
+
+        return player;
     }
 
     private void FillServices()

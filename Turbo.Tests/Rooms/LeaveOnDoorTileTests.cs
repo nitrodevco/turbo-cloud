@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
-using Turbo.Primitives.Networking;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -48,8 +47,7 @@ public sealed class LeaveOnDoorTileTests
         if (leave)
         {
             room.Harness.Fakes.Log.Of("OnRemovedFromRoomAsync").Should().ContainSingle();
-            Sent(room.Harness.Fakes)
-                .OfType<YouArePlayingGameMessageComposer>()
+            room.Harness.Fakes.Sent<YouArePlayingGameMessageComposer>(SendRoute.Direct)
                 .Should()
                 .ContainSingle(composer => !composer.IsPlaying);
             (avatar.X, avatar.Y).Should().NotBe((0, 0), "the walk stops beside the door");
@@ -57,17 +55,10 @@ public sealed class LeaveOnDoorTileTests
         else
         {
             room.Harness.Fakes.Log.Of("OnRemovedFromRoomAsync").Should().BeEmpty();
-            Sent(room.Harness.Fakes).OfType<YouArePlayingGameMessageComposer>().Should().BeEmpty();
+            room.Harness.Fakes.Sent<YouArePlayingGameMessageComposer>(SendRoute.Direct)
+                .Should()
+                .BeEmpty();
             (avatar.X, avatar.Y).Should().Be((0, 0));
         }
     }
-
-    private static IEnumerable<IComposer> Sent(Fakes fakes) =>
-        fakes.Log.Calls.SelectMany(call =>
-            call.Method is "SendComposerAsync" or "SendComposerToPlayerAsync"
-                ? call
-                    .Args.OfType<IComposer>()
-                    .Concat(call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
-                : []
-        );
 }

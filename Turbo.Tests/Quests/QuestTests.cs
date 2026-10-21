@@ -90,7 +90,7 @@ public sealed class QuestTests : IDisposable
             .Quests.Select(x => (x.Id, x.CampaignCode, x.IsSeasonal, x.SecondsLeft))
             .Should()
             .Equal((FIRST_BADGE, "bawcollab_worlds", true, 86400));
-        Sent<QuestsMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<QuestsMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -101,7 +101,8 @@ public sealed class QuestTests : IDisposable
         await Grain().SendDailyQuestAsync(false, 2, Ct);
         await Grain().SendDailyQuestAsync(true, 1, Ct);
 
-        Sent<QuestDailyMessageComposer>()
+        _fakes
+            .Sent<QuestDailyMessageComposer>()
             .Select(x => (x.Quest!.Id, x.EasyQuestCount, x.HardQuestCount))
             .Should()
             .Equal((FIRST_BADGE, 0, 2), (PET_FOOD, 0, 2), (FIRST_BADGE, 0, 2), (PET_FOOD, 0, 2));
@@ -137,7 +138,7 @@ public sealed class QuestTests : IDisposable
         GrainHarness.Replace<PlayerId>(other, (PlayerId)(PLAYER + 1));
         await other.SendDailyQuestAsync(true, 0, Ct);
 
-        Sent<QuestDailyMessageComposer>().Last().Quest.Should().BeNull();
+        _fakes.Sent<QuestDailyMessageComposer>().Last().Quest.Should().BeNull();
     }
 
     [Fact]
@@ -171,7 +172,7 @@ public sealed class QuestTests : IDisposable
 
         await Grain().StartCampaignAsync("connect_dots26", Ct);
 
-        Sent<QuestMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<QuestMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -180,7 +181,8 @@ public sealed class QuestTests : IDisposable
         await Grain().AcceptAsync(FIRST_BADGE, Ct);
         await Grain().AcceptAsync(PET_FOOD, Ct);
 
-        Sent<QuestMessageComposer>()
+        _fakes
+            .Sent<QuestMessageComposer>()
             .Select(x => (x.Quest.Id, x.Quest.Accepted))
             .Should()
             .Equal((FIRST_BADGE, true), (PET_FOOD, true));
@@ -197,7 +199,7 @@ public sealed class QuestTests : IDisposable
         await Grain().AcceptAsync(SECOND_BADGE, Ct);
         await Grain().AcceptAsync(999, Ct);
 
-        Sent<QuestMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<QuestMessageComposer>().Should().BeEmpty();
         (await _db.CreateDbContextAsync(Ct)).PlayerQuests.Should().BeEmpty();
     }
 
@@ -222,7 +224,9 @@ public sealed class QuestTests : IDisposable
         await Grain().AcceptFromWindowAsync(PET_FOOD, Ct);
         await Grain().RejectFromWindowAsync(PET_FOOD, Ct);
 
-        SentNames()
+        _fakes
+            .Sent()
+            .Select(x => x.GetType().Name)
             .Should()
             .Equal(
                 nameof(QuestsMessageComposer),
@@ -230,7 +234,7 @@ public sealed class QuestTests : IDisposable
                 nameof(QuestsMessageComposer),
                 nameof(QuestCancelledMessageComposer)
             );
-        var lists = Sent<QuestsMessageComposer>().ToList();
+        var lists = _fakes.Sent<QuestsMessageComposer>().ToList();
         lists.Select(x => x.OpenWindow).Should().Equal(false, true);
         lists[0].Quests.Single(x => x.Id == PET_FOOD).Accepted.Should().BeTrue();
         lists[1].Quests.Should().OnlyContain(x => !x.Accepted);
@@ -249,7 +253,10 @@ public sealed class QuestTests : IDisposable
             .Should()
             .Be((true, FIRST_BADGE, 1));
         completed.Quest.CompletedQuestsInCampaign.Should().Be(1);
-        Sent<QuestMessageComposer>().Should().ContainSingle("the wrong badge counts nothing");
+        _fakes
+            .Sent<QuestMessageComposer>()
+            .Should()
+            .ContainSingle("the wrong badge counts nothing");
         Single<QuestsMessageComposer>()
             .Quests[0]
             .Should()
@@ -265,7 +272,11 @@ public sealed class QuestTests : IDisposable
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
 
-        Sent<QuestMessageComposer>().Select(x => x.Quest.CompletedSteps).Should().Equal(0, 1);
+        _fakes
+            .Sent<QuestMessageComposer>()
+            .Select(x => x.Quest.CompletedSteps)
+            .Should()
+            .Equal(0, 1);
         Single<QuestCompletedMessageComposer>().Quest.CompletedSteps.Should().Be(2);
         var credit = _fakes.Log.Of("CreditAsync").Should().ContainSingle().Subject;
         (credit.Args[0], credit.Args[1], credit.Args[2])
@@ -285,7 +296,7 @@ public sealed class QuestTests : IDisposable
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
 
-        Sent<QuestCompletedMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<QuestCompletedMessageComposer>().Should().BeEmpty();
         (await _db.CreateDbContextAsync(Ct))
             .PlayerQuests.Single()
             .Should()
@@ -364,11 +375,12 @@ public sealed class QuestTests : IDisposable
     {
         await Grain().AcceptAsync(FIRST_BADGE, Ct);
         await Grain().RecordAsync(QuestTypes.WEAR_BADGE, "W2601", Ct);
-        var sentBefore = Sent<QuestMessageComposer>().Count();
+        var sentBefore = _fakes.Sent<QuestMessageComposer>().Count();
 
         await Grain().OpenTrackerAsync(Ct);
 
-        Sent<QuestMessageComposer>()
+        _fakes
+            .Sent<QuestMessageComposer>()
             .Skip(sentBefore)
             .Select(x => (x.Quest.Id, x.Quest.Accepted))
             .Should()
@@ -385,11 +397,11 @@ public sealed class QuestTests : IDisposable
         await Grain().AcceptAsync(PET_FOOD, Ct);
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
-        var sentBefore = Sent<QuestMessageComposer>().Count();
+        var sentBefore = _fakes.Sent<QuestMessageComposer>().Count();
 
         await Grain().OpenTrackerAsync(Ct);
 
-        Sent<QuestMessageComposer>().Skip(sentBefore).Should().BeEmpty();
+        _fakes.Sent<QuestMessageComposer>().Skip(sentBefore).Should().BeEmpty();
         (await _db.CreateDbContextAsync(Ct)).PlayerQuests.Should().NotContain(x => x.Accepted);
     }
 
@@ -401,7 +413,8 @@ public sealed class QuestTests : IDisposable
 
         await Grain().OpenTrackerAsync(Ct);
 
-        Sent<QuestMessageComposer>()
+        _fakes
+            .Sent<QuestMessageComposer>()
             .Last()
             .Quest.Should()
             .Match<Turbo.Primitives.Quests.Snapshots.QuestSnapshot>(x =>
@@ -477,40 +490,13 @@ public sealed class QuestTests : IDisposable
         return (IPlayerQuestGrain)grain;
     }
 
-    private IEnumerable<T> Sent<T>()
-        where T : IComposer =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .OfType<T>();
-
     private IEnumerable<FakeCall> FriendTells() =>
         _fakes
             .Log.On<IPlayerMessengerGrain>()
             .Where(x => x.Method == nameof(IPlayerMessengerGrain.NotifyFriendsAsync));
 
-    private IEnumerable<string> SentNames() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .Select(x => x.GetType().Name);
-
     private T Single<T>()
-        where T : IComposer => Sent<T>().Should().ContainSingle().Subject;
+        where T : IComposer => _fakes.Sent<T>().Should().ContainSingle().Subject;
 
     private static QuestEntity Quest(
         int id,

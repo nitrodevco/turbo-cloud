@@ -79,7 +79,7 @@ public sealed class CustomWordFilterTests : IDisposable
                 break;
         }
 
-        return [.. fakes.Log.Of("SendComposerAsync").Select(x => (IComposer)x.Args[0]!)];
+        return [.. fakes.Sent()];
     }
 
     [Fact]

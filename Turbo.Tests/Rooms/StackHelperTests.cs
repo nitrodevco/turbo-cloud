@@ -2,9 +2,9 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
 using Xunit;
@@ -74,14 +74,6 @@ public sealed class StackHelperTests
                 Ct
             );
 
-    private List<object> SentToRoom() =>
-        [
-            .. _room
-                .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-                .OfType<RoomOutboundSnapshot>()
-                .SelectMany(x => x.Composers),
-        ];
-
     private async Task<List<double>> ClicksAsync(IRoomFloorItem helper, params bool[] downs)
     {
         var seen = new List<double>();
@@ -115,8 +107,8 @@ public sealed class StackHelperTests
         AddBlock(HIGH, 3, 2, 0);
 
         (await ClicksAsync(helper, false, false, true, true)).Should().Equal(0, 0, 0, 0);
-        SentToRoom()
-            .OfType<ObjectUpdateMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectUpdateMessageComposer>()
             .Should()
             .HaveCount(4, "each click is answered with the helper's ObjectUpdate");
 
@@ -165,7 +157,8 @@ public sealed class StackHelperTests
 
         await MoveAsync(down: false);
 
-        SentToRoom()
+        _room
+            .Harness.Fakes.SentToRoom<IComposer>()
             .Select(x => x.GetType().Name)
             .Should()
             .Contain(nameof(ObjectUpdateMessageComposer))

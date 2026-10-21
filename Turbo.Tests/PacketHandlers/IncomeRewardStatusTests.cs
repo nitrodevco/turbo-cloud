@@ -46,9 +46,7 @@ public sealed class IncomeRewardStatusTests : IDisposable
             TestContext.Current.CancellationToken
         );
 
-        var composer = Assert.IsType<IncomeRewardStatusMessageComposer>(
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
-        );
+        var composer = Assert.IsType<IncomeRewardStatusMessageComposer>(fakes.Sent().Single());
         Assert.Empty(composer.IncomeRewards);
     }
 
@@ -74,7 +72,7 @@ public sealed class IncomeRewardStatusTests : IDisposable
                 RewardCategory = category,
                 Result = result,
             },
-            fakes.Log.Of("SendComposerAsync").Single().Args[0]
+            fakes.Sent().Single()
         );
     }
 }

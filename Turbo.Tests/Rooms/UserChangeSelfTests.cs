@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Support;
 using Xunit;
@@ -38,9 +37,7 @@ public sealed class UserChangeSelfTests
             .BeTrue();
 
         var own = _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<UserChangeMessageComposer>()
+            .Harness.Fakes.Sent<UserChangeMessageComposer>(SendRoute.Direct)
             .Should()
             .ContainSingle()
             .Subject;
@@ -49,10 +46,7 @@ public sealed class UserChangeSelfTests
         own.AchievementScore.Should().Be(456);
 
         _room
-            .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<UserChangeMessageComposer>()
+            .Harness.Fakes.SentToRoom<UserChangeMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()

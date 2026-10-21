@@ -1,8 +1,6 @@
 using FluentAssertions;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
@@ -36,15 +34,15 @@ public sealed class LookToHeadRevertTests
 
         await TickAsync(start + 1_000);
         LastUpdate().Should().Be((Rotation.NorthEast, Rotation.East));
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         await TickAsync(looked + 4_999);
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
 
         await TickAsync(looked + 5_000);
 
         LastUpdate().Should().Be((Rotation.East, Rotation.East));
-        Updates().Should().HaveCount(before + 1);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before + 1);
     }
 
     [Fact]
@@ -55,11 +53,11 @@ public sealed class LookToHeadRevertTests
 
         await TickAsync(start + 1_000);
         LastUpdate().Should().Be((Rotation.West, Rotation.West));
-        var before = Updates().Count;
+        var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
         await TickAsync(looked + 5_000);
 
-        Updates().Should().HaveCount(before);
+        _room.Harness.Fakes.AvatarUpdates().Should().HaveCount(before);
     }
 
     /// <summary>The room's clock, which moves only when <see cref="TickAsync"/> moves it.</summary>
@@ -68,7 +66,7 @@ public sealed class LookToHeadRevertTests
     private async Task<long> LookToAsync(int x, int y)
     {
         await _room.Harness.Room.LookToAsync(
-            ActionContext.CreateForPlayer(100 + AVATAR, _room.Harness.Room.RoomId),
+            _room.ContextFor(AVATAR),
             x,
             y,
             CancellationToken.None
@@ -88,18 +86,14 @@ public sealed class LookToHeadRevertTests
         );
     }
 
-    private List<RoomAvatarSnapshot[]> Updates() =>
-        [
-            .. _room
-                .Harness.Fakes.Log.Of("OnNextAsync")
-                .Select(c => (RoomOutboundSnapshot)c.Args[0]!)
-                .SelectMany(x => x.Composers.OfType<UserUpdateMessageComposer>())
-                .Select(x => x.Avatars.ToArray()),
-        ];
-
     private (Rotation Head, Rotation Body) LastUpdate()
     {
-        var snapshot = Updates().Last().Should().ContainSingle(a => a.ObjectId == AVATAR).Subject;
+        var snapshot = _room
+            .Harness.Fakes.AvatarUpdates()
+            .Last()
+            .Should()
+            .ContainSingle(a => a.ObjectId == AVATAR)
+            .Subject;
         return (snapshot.HeadRotation, snapshot.BodyRotation);
     }
 }

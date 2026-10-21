@@ -402,11 +402,7 @@ public sealed class WiredLinkBoxesTests
     }
 
     private IEnumerable<ChatMessageComposer> BubblesTo(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => Convert.ToInt32(c.Key) == playerId)
-            .Select(c => c.Args[0])
-            .OfType<ChatMessageComposer>();
+        _room.Harness.Fakes.SentToPlayer<ChatMessageComposer>(playerId);
 
     private async Task ReceiveAsync(WiredLinkPayload payload, int link = LINK)
     {

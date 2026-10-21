@@ -10,10 +10,10 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Commands;
 using Turbo.Rooms.Grains.Modules;
@@ -116,7 +116,7 @@ public class FurniCommandsTests
         await _room.SayAsync(BUILDER, ":pickall");
 
         ItemIds().Should().BeEmpty();
-        var sent = SentToRoom();
+        var sent = _room.Harness.Fakes.SentToRoom<IComposer>();
         sent.OfType<ObjectRemoveMultipleMessageComposer>()
             .Should()
             .ContainSingle()
@@ -144,8 +144,8 @@ public class FurniCommandsTests
         await _room.SayAsync(BUILDER, ":pickallbc");
 
         ItemIds().Should().BeEmpty();
-        SentToRoom()
-            .OfType<ObjectRemoveMultipleMessageComposer>()
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.ObjectIdsToRemove.Should()
@@ -305,15 +305,6 @@ public class FurniCommandsTests
         _room.Harness.State.ItemsById.Add((RoomObjectId)id, item);
         _room.Harness.Module<RoomMapModule>().AddItem(item);
     }
-
-    /// <summary>Every composer the room was told, in order.</summary>
-    private List<object> SentToRoom() =>
-        [
-            .. _room
-                .Harness.Fakes.Log.Calls.SelectMany(x => x.Args)
-                .OfType<RoomOutboundSnapshot>()
-                .SelectMany(x => x.Composers),
-        ];
 
     private IEnumerable<int> ItemIds() =>
         _room.Harness.State.ItemsById.Keys.Cast<RoomObjectId>().Select(x => x.Value);

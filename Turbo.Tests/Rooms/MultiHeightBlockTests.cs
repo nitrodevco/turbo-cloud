@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -46,11 +45,7 @@ public sealed class MultiHeightBlockTests
         await block.Logic.SetStateAsync(2);
 
         _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => call.Args[0])
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .OfType<ObjectUpdateMessageComposer>()
+            .Harness.Fakes.SentToRoom<ObjectUpdateMessageComposer>()
             .Should()
             .Contain(x => x.FloorItem.ObjectId == BLOCK && x.FloorItem.StackHeight.ToInt() == 50);
     }

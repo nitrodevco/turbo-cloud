@@ -1,10 +1,7 @@
 using FluentAssertions;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -77,7 +74,7 @@ public sealed class WiredSaysKeywordHideTests
 
     private Task SayAsync(string text, RoomChatType type) =>
         _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
-            ActionContext.CreateForPlayer(100 + SPEAKER, _room.Harness.Room.RoomId),
+            _room.ContextFor(SPEAKER),
             type,
             text,
             0,
@@ -88,23 +85,9 @@ public sealed class WiredSaysKeywordHideTests
 
     private IEnumerable<ChatMessageComposer> ToRoom() =>
         _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .OfType<ChatMessageComposer>()
+            .Harness.Fakes.SentToRoom<ChatMessageComposer>()
             .Where(c => c is not WhisperMessageComposer);
 
     private IEnumerable<WhisperMessageComposer> WhispersTo(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c =>
-                c.Key switch
-                {
-                    PlayerId p => p.Value == playerId,
-                    int n => n == playerId,
-                    long n => n == playerId,
-                    _ => false,
-                }
-            )
-            .Select(c => c.Args[0])
-            .OfType<WhisperMessageComposer>();
+        _room.Harness.Fakes.SentToPlayer<WhisperMessageComposer>(playerId);
 }

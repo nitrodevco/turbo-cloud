@@ -119,11 +119,12 @@ public sealed class RoomPollTests : IDisposable
     public async Task Entering_the_polls_room_offers_it_and_another_room_does_not()
     {
         await Grain().OfferAsync(new RoomId(ROOM_ID + 1), Ct);
-        Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
 
         await Grain().OfferAsync(new RoomId(ROOM_ID), Ct);
 
-        Sent<PollOfferEventMessageComposer>()
+        _fakes
+            .Sent<PollOfferEventMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -143,7 +144,7 @@ public sealed class RoomPollTests : IDisposable
     {
         await Grain().StartAsync(new RoomId(ROOM_ID), POLL_ID, Ct);
 
-        var contents = Sent<PollContentsEventMessageComposer>().Single();
+        var contents = _fakes.Sent<PollContentsEventMessageComposer>().Single();
 
         contents.StartMessage.Should().Be("Here we go");
         contents.EndMessage.Should().Be("Thanks!");
@@ -159,8 +160,8 @@ public sealed class RoomPollTests : IDisposable
     {
         await Grain().StartAsync(new RoomId(ROOM_ID + 1), POLL_ID, Ct);
 
-        Sent<PollErrorEventMessageComposer>().Should().ContainSingle();
-        Sent<PollContentsEventMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<PollErrorEventMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<PollContentsEventMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -183,7 +184,7 @@ public sealed class RoomPollTests : IDisposable
 
         State().Should().Be(RoomPollState.Finished);
         await grain.OfferAsync(new RoomId(ROOM_ID), Ct);
-        Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
     }
 
     [Fact]
@@ -204,8 +205,8 @@ public sealed class RoomPollTests : IDisposable
         await grain.StartAsync(new RoomId(ROOM_ID), POLL_ID, Ct);
 
         State().Should().Be(RoomPollState.Rejected);
-        Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
-        Sent<PollErrorEventMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<PollOfferEventMessageComposer>().Should().BeEmpty();
+        _fakes.Sent<PollErrorEventMessageComposer>().Should().ContainSingle();
     }
 
     [Fact]
@@ -216,7 +217,7 @@ public sealed class RoomPollTests : IDisposable
         await grain.StartAsync(new RoomId(ROOM_ID), POLL_ID, Ct);
         await grain.OfferAsync(new RoomId(ROOM_ID), Ct);
 
-        Sent<PollOfferEventMessageComposer>().Should().ContainSingle();
+        _fakes.Sent<PollOfferEventMessageComposer>().Should().ContainSingle();
     }
 
     [Fact]
@@ -327,9 +328,6 @@ public sealed class RoomPollTests : IDisposable
 
     private IPlayerRoomPollGrain Grain() =>
         (IPlayerRoomPollGrain)GrainHarness.Create<PlayerRoomPollGrain>(_fakes, _db);
-
-    private IEnumerable<T> Sent<T>() =>
-        _fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]).OfType<T>();
 
     private List<(int, string)> Answers()
     {

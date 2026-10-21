@@ -1,4 +1,3 @@
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -49,7 +48,7 @@ public class LookToDirectionTests
 
         Assert.True(
             await room.Harness.Room.LookToAsync(
-                ActionContext.CreateForPlayer(101, 1),
+                room.ContextFor(avatar),
                 4 + offset.X,
                 4 + offset.Y,
                 CancellationToken.None

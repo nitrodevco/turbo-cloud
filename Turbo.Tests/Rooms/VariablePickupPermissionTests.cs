@@ -9,7 +9,6 @@ using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -63,7 +62,8 @@ public sealed class VariablePickupPermissionTests
             .BeFalse();
 
         ItemsById.Contains((RoomObjectId)VARIABLE).Should().BeTrue();
-        SentTo<NotificationDialogMessageComposer>(ADMIN)
+        _room
+            .Harness.Fakes.SentToPlayer<NotificationDialogMessageComposer>(ADMIN)
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -83,7 +83,10 @@ public sealed class VariablePickupPermissionTests
             .BeTrue();
 
         ItemsById.Contains((RoomObjectId)CHAIR).Should().BeFalse();
-        SentTo<NotificationDialogMessageComposer>(ADMIN).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<NotificationDialogMessageComposer>(ADMIN)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -95,13 +98,19 @@ public sealed class VariablePickupPermissionTests
         (await _room.Harness.Room.RemoveItemByIdAsync(As(ADMIN), VARIABLE, false, Ct))
             .Should()
             .BeFalse();
-        SentTo<ObjectRemoveConfirmMessageComposer>(ADMIN).Should().ContainSingle();
+        _room
+            .Harness.Fakes.SentToPlayer<ObjectRemoveConfirmMessageComposer>(ADMIN)
+            .Should()
+            .ContainSingle();
 
         (await _room.Harness.Room.RemoveItemByIdAsync(As(ADMIN), VARIABLE, true, Ct))
             .Should()
             .BeTrue();
         ItemsById.Contains((RoomObjectId)VARIABLE).Should().BeFalse();
-        SentTo<NotificationDialogMessageComposer>(ADMIN).Should().BeEmpty();
+        _room
+            .Harness.Fakes.SentToPlayer<NotificationDialogMessageComposer>(ADMIN)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -137,13 +146,4 @@ public sealed class VariablePickupPermissionTests
     private static ActionContext As(int playerId) => ActionContext.CreateForPlayer(playerId, 1);
 
     private IDictionary ItemsById => _room.Harness.State.ItemsById;
-
-    private IEnumerable<T> SentTo<T>(int playerId) =>
-        _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c =>
-                c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)playerId)
-            )
-            .Select(c => c.Args[0])
-            .OfType<T>();
 }

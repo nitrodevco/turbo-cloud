@@ -12,7 +12,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -106,7 +105,8 @@ public sealed class RoomDecorationTests : IDisposable
 
         (await ApplyAsync(OWNER)).Should().BeTrue();
 
-        Broadcast()
+        _room
+            .Fakes.SentToRoom<RoomPropertyMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -235,12 +235,6 @@ public sealed class RoomDecorationTests : IDisposable
             Task.FromResult<FurnitureItemSnapshot?>(item);
     }
 
-    private IEnumerable<object> Broadcast() =>
-        _room
-            .Fakes.Log.Of("OnNextAsync")
-            .SelectMany(c => ((RoomOutboundSnapshot)c.Args[0]!).Composers)
-            .OfType<RoomPropertyMessageComposer>();
-
     /// <summary>The papers a player entering the room now is sent.</summary>
     private async Task<
         IEnumerable<KeyValuePair<RoomPropertyType, string>>
@@ -249,7 +243,7 @@ public sealed class RoomDecorationTests : IDisposable
     private async Task NothingChangedAsync()
     {
         _room.Fakes.Log.Of("ConsumeFurnitureAsync").Should().BeEmpty();
-        Broadcast().Should().BeEmpty();
+        _room.Fakes.SentToRoom<RoomPropertyMessageComposer>().Should().BeEmpty();
         (await EntryPropertiesAsync()).Should().BeEmpty();
 
         await using var db = await _db.CreateDbContextAsync(Ct);

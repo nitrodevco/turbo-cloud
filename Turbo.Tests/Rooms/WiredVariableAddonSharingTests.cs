@@ -432,11 +432,7 @@ public sealed class WiredVariableAddonSharingTests
             await _other.Harness.Room.VariableFxSystem.ProcessAsync(_now, Ct);
         }
 
-        var sent = _other
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(call => Equals(call.Key, 101L))
-            .SelectMany(call => call.Args.OfType<IEnumerable<IComposer>>().SelectMany(x => x))
-            .ToList();
+        var sent = _other.Harness.Fakes.SentToPlayer<IComposer>(101).ToList();
 
         sent.OfType<VariableFxConfigsMessageComposer>()
             .SelectMany(x => x.Configs)

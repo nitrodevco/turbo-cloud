@@ -71,7 +71,7 @@ public sealed class ClubExtendOfferTests
             TestContext.Current.CancellationToken
         );
 
-        return [.. fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0])];
+        return [.. fakes.Sent()];
     }
 
     [Fact]

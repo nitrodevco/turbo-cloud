@@ -10,7 +10,6 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -224,10 +223,7 @@ public sealed class PetBreedingNestTests
         await TickAsync(second);
 
         var request = _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
-            .Select(c => c.Args[0])
-            .OfType<ConfirmBreedingRequestEventMessageComposer>()
+            .Harness.Fakes.SentToPlayer<ConfirmBreedingRequestEventMessageComposer>(OWNER)
             .Single();
 
         request.RarityCategories.Select(x => x.Chance).Should().Equal(3, 7, 20, 70);
@@ -266,10 +262,7 @@ public sealed class PetBreedingNestTests
         await TickAsync(second);
 
         var request = _room
-            .Harness.Fakes.Log.Of("SendComposerAsync")
-            .Where(c => c.Interface == typeof(IPlayerPresenceGrain) && Equals(c.Key, (long)OWNER))
-            .Select(c => c.Args[0])
-            .OfType<ConfirmBreedingRequestEventMessageComposer>()
+            .Harness.Fakes.SentToPlayer<ConfirmBreedingRequestEventMessageComposer>(OWNER)
             .Single();
 
         // Rarest first: EPIC (level 3) .. COMMON (level 0).

@@ -354,10 +354,7 @@ public sealed class OnlineRewardServiceTests : IDisposable
         await RunMinutesAsync(2, ALICE);
 
         _fakes
-            .Log.Of(nameof(IPlayerPresenceGrain.SendComposerAsync))
-            .Where(x => (long?)x.Key == ALICE)
-            .Select(x => x.Args[0])
-            .OfType<HabboActivityPointNotificationMessageComposer>()
+            .SentToPlayer<HabboActivityPointNotificationMessageComposer>(ALICE)
             .Select(x => (x.ActivityPointType, x.Amount, x.Change))
             .Should()
             .Equal((0, 5, 5), (0, 10, 5));

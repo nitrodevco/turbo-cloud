@@ -122,8 +122,5 @@ public sealed class PickupFurniOrderTests
                 ),
         ];
 
-    private IEnumerable<RoomOutboundSnapshot> Published() =>
-        _room
-            .Harness.Fakes.Log.Of("OnNextAsync")
-            .Select(call => (RoomOutboundSnapshot)call.Args[0]!);
+    private IEnumerable<RoomOutboundSnapshot> Published() => _room.Harness.Fakes.RoomPublishes();
 }

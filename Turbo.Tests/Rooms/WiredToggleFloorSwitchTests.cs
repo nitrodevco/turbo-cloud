@@ -7,7 +7,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -112,15 +111,10 @@ public sealed class WiredToggleFloorSwitchTests
 
     private async Task<List<IComposer>> TickAsync()
     {
-        var before = _room.Harness.Fakes.Log.Calls.Count;
+        var before = _room.Harness.Fakes.SentToRoom<IComposer>().Count();
         _now += 50;
         await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
 
-        return _room
-            .Harness.Fakes.Log.Calls.Skip(before)
-            .SelectMany(x => x.Args)
-            .OfType<RoomOutboundSnapshot>()
-            .SelectMany(x => x.Composers)
-            .ToList();
+        return [.. _room.Harness.Fakes.SentToRoom<IComposer>().Skip(before)];
     }
 }

@@ -57,11 +57,7 @@ public class CommandTreeDeliveryTests
         };
 
     private IEnumerable<TurboCommandTreeMessage> TreesTo(int player) =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => x.Key is long key && key == player)
-            .Select(x => x.Args[0])
-            .OfType<TurboCommandTreeMessage>();
+        _fakes.SentToPlayer<TurboCommandTreeMessage>(player);
 
     /// <summary>
     /// A registry change sends its trees without awaiting them: waits until each player was sent

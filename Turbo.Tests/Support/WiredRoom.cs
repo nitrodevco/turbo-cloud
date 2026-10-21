@@ -26,6 +26,10 @@ namespace Turbo.Tests.Support;
 /// A live room (every module and the wired system real) with the things a wired test needs to
 /// stand in it: users with a logic and a context, floor furni, and wired boxes saved the way the
 /// client's editor saves them.
+/// <para>
+/// With <c>avatarContexts</c>, a user's context answers <c>RoomObject</c> with the avatar that
+/// entered (what a furni walked on, a teleport or a door reads); without it, a fake.
+/// </para>
 /// </summary>
 public sealed class WiredRoom
 {
@@ -33,7 +37,8 @@ public sealed class WiredRoom
         int width = 8,
         int height = 8,
         RoomConfig? roomConfig = null,
-        ManualTimeProvider? clock = null
+        ManualTimeProvider? clock = null,
+        bool avatarContexts = false
     )
     {
         Harness = new LiveRoomHarness(width, height, roomConfig, clock: clock);
@@ -50,6 +55,15 @@ public sealed class WiredRoom
             call.Interface == typeof(IRoomPlayerContext) && call.Key is int id
                 ? (RoomObjectId)id
                 : Fakes.NotHandled;
+        // Off unless asked: other wired tests pass with a fake room object behind the context,
+        // and handing them the real avatar would change what the code under them reads.
+        if (avatarContexts)
+            Harness.Fakes.Handlers["get_RoomObject"] = call =>
+                call.Interface == typeof(IRoomPlayerContext)
+                && call.Key is int id
+                && Avatars.TryGetValue(id, out var avatar)
+                    ? avatar
+                    : Fakes.NotHandled;
     }
 
     public LiveRoomHarness Harness { get; }
@@ -75,19 +89,44 @@ public sealed class WiredRoom
     public string[] Positions() =>
         [.. Avatars.OrderBy(a => a.Key).Select(a => $"{a.Key}@{a.Value.X},{a.Value.Y}")];
 
-    public RoomPlayerAvatar Enter(int objectId, int x, int y)
+    /// <summary>
+    /// A user standing on a tile, as player <c>100 + objectId</c> unless
+    /// <paramref name="playerId"/> says otherwise; named and turned when asked (the room names
+    /// avatars from their snapshots, so the name is set as <see cref="RoomSetup.UseName"/> does).
+    /// </summary>
+    public RoomPlayerAvatar Enter(
+        int objectId,
+        int x,
+        int y,
+        string? name = null,
+        Rotation? rotation = null,
+        int? playerId = null
+    )
     {
-        var avatar = new RoomPlayerAvatar { ObjectId = objectId, PlayerId = 100 + objectId };
+        var player = playerId ?? 100 + objectId;
+        var avatar = new RoomPlayerAvatar { ObjectId = objectId, PlayerId = player };
 
         avatar.SetPosition(x, y);
         avatar.SetLogic(Harness.Fakes.Create<IRoomPlayerLogic>(objectId));
         Avatars[objectId] = avatar;
         Harness.State.AvatarsByObjectId[objectId] = avatar;
-        Harness.State.AvatarsByPlayerId[100 + objectId] = objectId;
+        Harness.State.AvatarsByPlayerId[player] = objectId;
         Map.AddAvatar(avatar, false);
+
+        if (name is not null)
+            avatar.UseName(name);
+        if (rotation is { } turned)
+            avatar.SetRotation(turned);
 
         return avatar;
     }
+
+    /// <summary>What a request from this user's client carries: its player, in this room.</summary>
+    public ActionContext ContextFor(IRoomPlayer avatar) =>
+        ActionContext.CreateForPlayer(avatar.PlayerId, Harness.Room.RoomId);
+
+    /// <summary><see cref="ContextFor(IRoomPlayer)"/> for the user who entered as <paramref name="objectId"/>.</summary>
+    public ActionContext ContextFor(int objectId) => ContextFor(Avatars[objectId]);
 
     /// <summary>
     /// A floor furni on a tile. Two with the same <paramref name="definitionId"/> are the same

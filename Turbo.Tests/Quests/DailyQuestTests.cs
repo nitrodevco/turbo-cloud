@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Achievements.Grains;
 using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Messages.Outgoing.Quest;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Quests.Grains;
@@ -61,7 +60,8 @@ public sealed class DailyQuestTests : IDisposable
             await Grain().SendDailyQuestAsync(true, index, Ct);
         await Grain().SendDailyQuestAsync(false, 0, Ct);
 
-        Sent()
+        _fakes
+            .Sent<QuestDailyMessageComposer>()
             .Select(x => (x.Quest!.Id, x.Quest.Easy, x.EasyQuestCount, x.HardQuestCount))
             .Should()
             .Equal(
@@ -79,7 +79,11 @@ public sealed class DailyQuestTests : IDisposable
 
         await Grain().SendDailyQuestAsync(true, 0, Ct);
 
-        Sent().Single().Quest.Should().Match<QuestSnapshot>(x => x.Id == HARD && x.Accepted);
+        _fakes
+            .Sent<QuestDailyMessageComposer>()
+            .Single()
+            .Quest.Should()
+            .Match<QuestSnapshot>(x => x.Id == HARD && x.Accepted);
     }
 
     [Fact]
@@ -89,7 +93,7 @@ public sealed class DailyQuestTests : IDisposable
 
         await Grain().SendDailyQuestAsync(false, 0, Ct);
 
-        var daily = Sent().Single();
+        var daily = _fakes.Sent<QuestDailyMessageComposer>().Single();
         (daily.Quest!.Id, daily.EasyQuestCount, daily.HardQuestCount).Should().Be((EASY_ONE, 3, 0));
     }
 
@@ -101,7 +105,7 @@ public sealed class DailyQuestTests : IDisposable
 
         await Grain().SendDailyQuestAsync(true, 0, Ct);
 
-        Sent().Single().Quest.Should().BeNull();
+        _fakes.Sent<QuestDailyMessageComposer>().Single().Quest.Should().BeNull();
     }
 
     [Fact]
@@ -195,19 +199,6 @@ public sealed class DailyQuestTests : IDisposable
 
         return (IPlayerQuestGrain)grain;
     }
-
-    private IEnumerable<QuestDailyMessageComposer> Sent() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .SelectMany(x =>
-                x.Args[0] switch
-                {
-                    IReadOnlyList<IComposer> many => many,
-                    IComposer one => [one],
-                    _ => [],
-                }
-            )
-            .OfType<QuestDailyMessageComposer>();
 
     private static QuestEntity Quest(int id, int campaign, bool easy, int order) =>
         new()

@@ -85,7 +85,8 @@ public sealed class PetPurchaseNamingTests : IDisposable
     {
         await NewInventory().SendPetNameApprovalAsync(name, Ct);
 
-        Sent<ApproveNameMessageComposer>()
+        _fakes
+            .SentToPlayer<ApproveNameMessageComposer>(BUYER)
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -101,7 +102,8 @@ public sealed class PetPurchaseNamingTests : IDisposable
 
         await inventory.SendPetNameApprovalAsync("Rex", Ct);
 
-        Sent<ApproveNameMessageComposer>()
+        _fakes
+            .SentToPlayer<ApproveNameMessageComposer>(BUYER)
             .Should()
             .ContainSingle()
             .Which.Result.Should()
@@ -113,7 +115,8 @@ public sealed class PetPurchaseNamingTests : IDisposable
     {
         await NewInventory().SendPetNameApprovalAsync("Rex Junior", Ct);
 
-        Sent<ApproveNameMessageComposer>()
+        _fakes
+            .SentToPlayer<ApproveNameMessageComposer>(BUYER)
             .Should()
             .ContainSingle()
             .Which.Should()
@@ -138,7 +141,11 @@ public sealed class PetPurchaseNamingTests : IDisposable
                 Ct
             );
 
-        var received = Sent<PetReceivedMessageComposer>().Should().ContainSingle().Subject;
+        var received = _fakes
+            .SentToPlayer<PetReceivedMessageComposer>(BUYER)
+            .Should()
+            .ContainSingle()
+            .Subject;
 
         received.BoughtAsGift.Should().BeFalse();
         received.Pet.Name.Should().Be("Rex");
@@ -159,15 +166,8 @@ public sealed class PetPurchaseNamingTests : IDisposable
                 );
 
         await purchase.Should().ThrowAsync<Exception>();
-        Sent<PetReceivedMessageComposer>().Should().BeEmpty();
+        _fakes.SentToPlayer<PetReceivedMessageComposer>(BUYER).Should().BeEmpty();
     }
-
-    private IEnumerable<T> Sent<T>() =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => (long)x.Key! == BUYER)
-            .SelectMany(x => x.Args[0] is IEnumerable<object> many ? many : [x.Args[0]!])
-            .OfType<T>();
 
     private static CatalogOfferSnapshot PetOffer()
     {

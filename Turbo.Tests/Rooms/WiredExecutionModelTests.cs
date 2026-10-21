@@ -426,6 +426,7 @@ public sealed class WiredExecutionModelTests
         ErrorNotices().Should().BeEmpty();
     }
 
+    // Read from the log itself, not the shared Sent helpers: each notice is paired with whom it went to.
     private List<(object? Owner, NotificationDialogMessageComposer Notice)> ErrorNotices() =>
         [
             .. _room

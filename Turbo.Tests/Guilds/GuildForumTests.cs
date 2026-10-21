@@ -18,7 +18,6 @@ using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Groupforums;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -174,7 +173,7 @@ public sealed class GuildForumTests : IDisposable
     {
         await (await ForumAsync()).SendForumAsync(STRANGER, Ct);
 
-        var forum = Sent<ForumDataMessageComposer>(STRANGER).Single().Forum;
+        var forum = _fakes.SentToPlayer<ForumDataMessageComposer>(STRANGER).Single().Forum;
         forum.Name.Should().Be("Group 10");
         (forum.ReadError, forum.PostMessageError, forum.PostThreadError, forum.ModerateError)
             .Should()
@@ -189,8 +188,12 @@ public sealed class GuildForumTests : IDisposable
         await (await ForumAsync()).SendForumAsync(OWNER, Ct);
         await (await ForumAsync()).SendForumAsync(STAFF, Ct);
 
-        Sent<ForumDataMessageComposer>(OWNER).Single().Forum.CanChangeSettings.Should().BeTrue();
-        var staff = Sent<ForumDataMessageComposer>(STAFF).Single().Forum;
+        _fakes
+            .SentToPlayer<ForumDataMessageComposer>(OWNER)
+            .Single()
+            .Forum.CanChangeSettings.Should()
+            .BeTrue();
+        var staff = _fakes.SentToPlayer<ForumDataMessageComposer>(STAFF).Single().Forum;
         (staff.ModerateError, staff.IsStaff).Should().Be(("", true));
     }
 
@@ -200,7 +203,7 @@ public sealed class GuildForumTests : IDisposable
         var forum = await ForumAsync();
 
         await forum.PostAsync(MEMBER, 0, "A first subject", "A first message text", Ct);
-        var thread = Sent<PostThreadMessageComposer>(MEMBER).Single().Thread;
+        var thread = _fakes.SentToPlayer<PostThreadMessageComposer>(MEMBER).Single().Thread;
         await (await ForumAsync()).PostAsync(
             ADMIN,
             thread.ThreadId,
@@ -212,7 +215,7 @@ public sealed class GuildForumTests : IDisposable
         (thread.Subject, thread.AuthorName, thread.TotalMessages, thread.LastMessageId)
             .Should()
             .Be(("A first subject", "player3", 1, 1));
-        var reply = Sent<PostMessageMessageComposer>(ADMIN).Single().Message;
+        var reply = _fakes.SentToPlayer<PostMessageMessageComposer>(ADMIN).Single().Message;
         (reply.MessageId, reply.MessageIndex, reply.AuthorName, reply.AuthorPostCount)
             .Should()
             .Be((2, 1, "player2", 1));
@@ -223,7 +226,7 @@ public sealed class GuildForumTests : IDisposable
     {
         await (await ForumAsync()).PostAsync(STRANGER, 0, "A first subject", "Some text here", Ct);
 
-        Sent<PostThreadMessageComposer>(STRANGER).Should().BeEmpty();
+        _fakes.SentToPlayer<PostThreadMessageComposer>(STRANGER).Should().BeEmpty();
         Notices(STRANGER).Should().Equal(GuildForumNotificationTypes.ACCESS_DENIED);
         await using var db = await _db.CreateDbContextAsync(Ct);
         db.GuildForumThreads.Should().BeEmpty();
@@ -238,7 +241,7 @@ public sealed class GuildForumTests : IDisposable
         await forum.PostAsync(MEMBER, 0, "A first subject", "A first message text", Ct);
         await forum.PostAsync(MEMBER, 0, "A second subject", "A second message text", Ct);
 
-        Sent<PostThreadMessageComposer>(MEMBER).Should().ContainSingle();
+        _fakes.SentToPlayer<PostThreadMessageComposer>(MEMBER).Should().ContainSingle();
     }
 
     [Fact]
@@ -262,7 +265,8 @@ public sealed class GuildForumTests : IDisposable
 
         await (await ForumAsync()).SendThreadsAsync(STRANGER, 0, 20, Ct);
 
-        Sent<ForumThreadsMessageComposer>(STRANGER)
+        _fakes
+            .SentToPlayer<ForumThreadsMessageComposer>(STRANGER)
             .Single()
             .Threads.Select(x => (x.ThreadId, x.IsSticky, x.UnreadMessages))
             .Should()
@@ -279,15 +283,22 @@ public sealed class GuildForumTests : IDisposable
         await (await ForumAsync()).SendThreadsAsync(STRANGER, 0, 20, Ct);
         await (await ForumAsync()).SendThreadsAsync(OWNER, 0, 20, Ct);
 
-        Sent<UpdateThreadMessageComposer>(ADMIN)
+        _fakes
+            .SentToPlayer<UpdateThreadMessageComposer>(ADMIN)
             .Single()
             .Thread.Should()
             .Match<GuildForumThreadSnapshot>(x =>
                 x.State == GuildForumState.HiddenByAdmin && x.ModeratorName == "player2"
             );
         Notices(ADMIN).Should().Equal(GuildForumNotificationTypes.THREAD_HIDDEN);
-        Sent<ForumThreadsMessageComposer>(STRANGER).Single().Threads[0].Subject.Should().BeEmpty();
-        Sent<ForumThreadsMessageComposer>(OWNER)
+        _fakes
+            .SentToPlayer<ForumThreadsMessageComposer>(STRANGER)
+            .Single()
+            .Threads[0]
+            .Subject.Should()
+            .BeEmpty();
+        _fakes
+            .SentToPlayer<ForumThreadsMessageComposer>(OWNER)
             .Single()
             .Threads[0]
             .Subject.Should()
@@ -311,7 +322,8 @@ public sealed class GuildForumTests : IDisposable
                 GuildForumNotificationTypes.ACCESS_DENIED
             );
         Notices(MEMBER).Should().Equal(GuildForumNotificationTypes.ACCESS_DENIED);
-        Sent<UpdateThreadMessageComposer>(STAFF)
+        _fakes
+            .SentToPlayer<UpdateThreadMessageComposer>(STAFF)
             .Single()
             .Thread.State.Should()
             .Be(GuildForumState.HiddenByStaff);
@@ -334,12 +346,14 @@ public sealed class GuildForumTests : IDisposable
         Notices(ADMIN)
             .Should()
             .Equal(Enumerable.Repeat(GuildForumNotificationTypes.ACCESS_DENIED, 4));
-        Sent<ForumThreadsMessageComposer>(STAFF)
+        _fakes
+            .SentToPlayer<ForumThreadsMessageComposer>(STAFF)
             .Single()
             .Threads[0]
             .State.Should()
             .Be(GuildForumState.HiddenByStaff);
-        Sent<ThreadMessagesMessageComposer>(STAFF)
+        _fakes
+            .SentToPlayer<ThreadMessagesMessageComposer>(STAFF)
             .Single()
             .Messages[0]
             .State.Should()
@@ -355,8 +369,9 @@ public sealed class GuildForumTests : IDisposable
         await (await ForumAsync()).SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
         await (await ForumAsync()).SendMessagesAsync(ADMIN, thread, 0, 20, Ct);
 
-        Sent<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
-        Sent<ThreadMessagesMessageComposer>(ADMIN)
+        _fakes.SentToPlayer<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
+        _fakes
+            .SentToPlayer<ThreadMessagesMessageComposer>(ADMIN)
             .Single()
             .Messages[0]
             .Text.Should()
@@ -374,9 +389,9 @@ public sealed class GuildForumTests : IDisposable
         await forum.SendThreadsAsync(MEMBER, 0, 20, Ct);
         await forum.SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
 
-        Sent<ForumDataMessageComposer>(MEMBER).Should().BeEmpty();
-        Sent<ForumThreadsMessageComposer>(MEMBER).Should().BeEmpty();
-        Sent<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
+        _fakes.SentToPlayer<ForumDataMessageComposer>(MEMBER).Should().BeEmpty();
+        _fakes.SentToPlayer<ForumThreadsMessageComposer>(MEMBER).Should().BeEmpty();
+        _fakes.SentToPlayer<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
     }
 
     [Fact]
@@ -389,14 +404,16 @@ public sealed class GuildForumTests : IDisposable
         await (await ForumAsync()).SendMessagesAsync(ADMIN, thread, 0, 20, Ct);
 
         Notices(ADMIN).Should().Equal(GuildForumNotificationTypes.MESSAGE_HIDDEN);
-        Sent<ThreadMessagesMessageComposer>(MEMBER)
+        _fakes
+            .SentToPlayer<ThreadMessagesMessageComposer>(MEMBER)
             .Single()
             .Messages[0]
             .Should()
             .Match<GuildForumMessageSnapshot>(x =>
                 x.Text == "" && x.State == GuildForumState.HiddenByAdmin
             );
-        Sent<ThreadMessagesMessageComposer>(ADMIN)
+        _fakes
+            .SentToPlayer<ThreadMessagesMessageComposer>(ADMIN)
             .Single()
             .Messages[0]
             .Text.Should()
@@ -412,8 +429,8 @@ public sealed class GuildForumTests : IDisposable
         await (await ForumAsync()).PostAsync(MEMBER, thread, "", "A reply in a lock", Ct);
         await (await ForumAsync()).PostAsync(OWNER, thread, "", "A reply in a lock", Ct);
 
-        Sent<PostMessageMessageComposer>(MEMBER).Should().BeEmpty();
-        Sent<PostMessageMessageComposer>(OWNER).Should().ContainSingle();
+        _fakes.SentToPlayer<PostMessageMessageComposer>(MEMBER).Should().BeEmpty();
+        _fakes.SentToPlayer<PostMessageMessageComposer>(OWNER).Should().ContainSingle();
         Notices(ADMIN).Should().Equal(GuildForumNotificationTypes.THREAD_LOCKED);
     }
 
@@ -431,7 +448,7 @@ public sealed class GuildForumTests : IDisposable
                 GuildForumNotificationTypes.ACCESS_DENIED,
                 GuildForumNotificationTypes.SETTINGS_UPDATED
             );
-        var forum = Sent<ForumDataMessageComposer>(OWNER).Single().Forum;
+        var forum = _fakes.SentToPlayer<ForumDataMessageComposer>(OWNER).Single().Forum;
         (
             forum.ReadPermission,
             forum.PostMessagePermission,
@@ -454,7 +471,7 @@ public sealed class GuildForumTests : IDisposable
     {
         await (await ForumAsync(PRIVATE_GROUP)).SendThreadsAsync(STRANGER, 0, 20, Ct);
 
-        Sent<ForumThreadsMessageComposer>(STRANGER).Should().BeEmpty();
+        _fakes.SentToPlayer<ForumThreadsMessageComposer>(STRANGER).Should().BeEmpty();
         Notices(STRANGER).Should().Equal(GuildForumNotificationTypes.ACCESS_DENIED);
     }
 
@@ -502,7 +519,7 @@ public sealed class GuildForumTests : IDisposable
             db.GuildForums.Select(x => x.GuildEntityId).Should().Equal(GROUP);
         }
         _fakes.Log.Of("OnForumOpenedAsync").Should().ContainSingle();
-        var notice = Sent<NotificationDialogMessageComposer>(OWNER).Single();
+        var notice = _fakes.SentToPlayer<NotificationDialogMessageComposer>(OWNER).Single();
         notice.NotificationType.Should().Be(GuildForumNotificationTypes.DELIVERED);
         notice.Parameters["GROUPNAME"].Should().Be("Group 10");
     }
@@ -528,11 +545,16 @@ public sealed class GuildForumTests : IDisposable
         await PlayerForums(ADMIN).SendUnreadForumsCountAsync(Ct);
         await PlayerForums(STRANGER).SendUnreadForumsCountAsync(Ct);
 
-        Sent<UnreadForumsCountMessageComposer>(ADMIN)
+        _fakes
+            .SentToPlayer<UnreadForumsCountMessageComposer>(ADMIN)
             .Select(x => x.UnreadForumsCount)
             .Should()
             .Equal(1, 0);
-        Sent<UnreadForumsCountMessageComposer>(STRANGER).Single().UnreadForumsCount.Should().Be(0);
+        _fakes
+            .SentToPlayer<UnreadForumsCountMessageComposer>(STRANGER)
+            .Single()
+            .UnreadForumsCount.Should()
+            .Be(0);
     }
 
     [Fact]
@@ -598,11 +620,19 @@ public sealed class GuildForumTests : IDisposable
         var text = $"First line{LINE_BREAK}second line";
         var forum = await ForumAsync();
         await forum.PostAsync(MEMBER, 0, "A first subject", text, Ct);
-        var thread = Sent<PostThreadMessageComposer>(MEMBER).Single().Thread.ThreadId;
+        var thread = _fakes
+            .SentToPlayer<PostThreadMessageComposer>(MEMBER)
+            .Single()
+            .Thread.ThreadId;
 
         await (await ForumAsync()).SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
 
-        Sent<ThreadMessagesMessageComposer>(MEMBER).Single().Messages[0].Text.Should().Be(text);
+        _fakes
+            .SentToPlayer<ThreadMessagesMessageComposer>(MEMBER)
+            .Single()
+            .Messages[0]
+            .Text.Should()
+            .Be(text);
     }
 
     [Fact]
@@ -613,7 +643,7 @@ public sealed class GuildForumTests : IDisposable
         await PlayerForums(MEMBER).SendForumsListAsync(2, 0, 20, Ct);
         await PlayerForums(MEMBER).SendForumsListAsync(0, 0, 20, Ct);
 
-        var lists = Sent<ForumsListMessageComposer>(MEMBER).ToList();
+        var lists = _fakes.SentToPlayer<ForumsListMessageComposer>(MEMBER).ToList();
         lists[0].Forums.Select(x => x.GroupId).Should().Equal(GROUP, PRIVATE_GROUP);
         lists[0].TotalAmount.Should().Be(2);
         lists[0]
@@ -632,7 +662,7 @@ public sealed class GuildForumTests : IDisposable
     {
         await (await ForumAsync()).PostAsync(author, 0, subject, "A message long enough", Ct);
 
-        return Sent<PostThreadMessageComposer>(author).Last().Thread.ThreadId;
+        return _fakes.SentToPlayer<PostThreadMessageComposer>(author).Last().Thread.ThreadId;
     }
 
     private async Task<IGuildForumGrain> ForumAsync(int group = GROUP)
@@ -668,14 +698,8 @@ public sealed class GuildForumTests : IDisposable
         return (IPlayerGuildForumGrain)grain;
     }
 
-    private IEnumerable<T> Sent<T>(int player)
-        where T : IComposer =>
-        _fakes
-            .Log.Of("SendComposerAsync")
-            .Where(x => Convert.ToInt64(x.Key) == player)
-            .Select(x => x.Args[0])
-            .OfType<T>();
-
     private IEnumerable<string> Notices(int player) =>
-        Sent<NotificationDialogMessageComposer>(player).Select(x => x.NotificationType);
+        _fakes
+            .SentToPlayer<NotificationDialogMessageComposer>(player)
+            .Select(x => x.NotificationType);
 }
