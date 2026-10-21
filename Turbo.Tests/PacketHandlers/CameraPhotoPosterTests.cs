@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Messages.Registry;
@@ -50,6 +51,11 @@ public sealed class CameraPhotoPosterTests
         var handler = new RenderRoomMessageHandler(
             new CameraPhotoStore(config),
             new CameraRenderer(config, NullLogger<CameraRenderer>.Instance),
+            new CameraCaptureJobs(
+                _fakes.Create<Orleans.IGrainFactory>(),
+                _fakes.Create<IHostApplicationLifetime>(),
+                NullLogger<CameraCaptureJobs>.Instance
+            ),
             config
         );
         var session = _fakes.Create<ISessionContext>("session");
@@ -65,12 +71,19 @@ public sealed class CameraPhotoPosterTests
             CancellationToken.None
         );
 
-        var url = _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<CameraStorageUrlMessageComposer>()
-            .Single()
-            .Url;
+        var answers = () =>
+            _fakes
+                .Log.Of("SendComposerAsync")
+                .Select(x => x.Args[0])
+                .OfType<CameraStorageUrlMessageComposer>();
+
+        // Drawn and answered off the packet (CameraCaptureJobs), within the renderer's timeout.
+        var waited = Stopwatch.StartNew();
+
+        while (!answers().Any() && waited.Elapsed < TimeSpan.FromMinutes(2))
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        var url = answers().Single().Url;
         var id = Path.GetFileNameWithoutExtension(url);
         var photos = Path.Combine(_storage, "photos");
 

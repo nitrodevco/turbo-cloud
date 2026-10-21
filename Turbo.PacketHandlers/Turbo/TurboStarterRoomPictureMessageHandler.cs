@@ -7,7 +7,10 @@ using Turbo.PacketHandlers.Camera;
 using Turbo.Primitives.Messages.Incoming.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Turbo;
 
@@ -18,12 +21,15 @@ namespace Turbo.PacketHandlers.Turbo;
 /// textured as the player saw them; the render data gives the furni that break out of the frame,
 /// and the whole room when no view came. Only from inside the room, only for one of the hotel's
 /// starter rooms, and only for whoever may run <c>:starterroom</c> - staff, whose view is trusted.
+/// The capture runs off the packet (<see cref="CameraCaptureJobs"/>), so the render does not hold
+/// up the player's session; one sent while their last capture is still being drawn is not ok.
 /// </summary>
 [RequiresPermission(PermissionNodes.Command.STARTERROOM)]
 public class TurboStarterRoomPictureMessageHandler(
     IStarterRoomDirectory directory,
     CameraPhotoStore store,
-    CameraRenderer renderer
+    ICameraRenderer renderer,
+    CameraCaptureJobs jobs
 ) : IMessageHandler<TurboStarterRoomPictureMessage>
 {
     public const string FRAME = "starter-room";
@@ -42,22 +48,39 @@ public class TurboStarterRoomPictureMessageHandler(
         if (ctx.RoomId.Value <= 0 || ctx.RoomId.Value != message.RoomId)
             return;
 
-        var ok = await TakeAsync(message, ctx, ct).ConfigureAwait(false);
+        var playerId = ctx.PlayerId;
+        var roomId = ctx.RoomId;
+
+        if (jobs.TryStart(playerId, token => CaptureAsync(message, playerId, roomId, token)))
+            return;
 
         await ctx.SendComposerAsync(
-                new TurboStarterRoomPictureResultMessage { RoomId = message.RoomId, Ok = ok },
+                new TurboStarterRoomPictureResultMessage { RoomId = message.RoomId, Ok = false },
                 ct
             )
             .ConfigureAwait(false);
     }
 
+    private async Task<IComposer> CaptureAsync(
+        TurboStarterRoomPictureMessage message,
+        PlayerId playerId,
+        RoomId roomId,
+        CancellationToken ct
+    ) =>
+        new TurboStarterRoomPictureResultMessage
+        {
+            RoomId = message.RoomId,
+            Ok = await TakeAsync(message, playerId, roomId, ct).ConfigureAwait(false),
+        };
+
     private async Task<bool> TakeAsync(
         TurboStarterRoomPictureMessage message,
-        MessageContext ctx,
+        PlayerId playerId,
+        RoomId roomId,
         CancellationToken ct
     )
     {
-        if (await directory.GetAsync(ctx.RoomId, ct).ConfigureAwait(false) is null)
+        if (await directory.GetAsync(roomId, ct).ConfigureAwait(false) is null)
             return false;
 
         var json = store.Inflate(message.Data);
@@ -65,7 +88,7 @@ public class TurboStarterRoomPictureMessageHandler(
         if (json is null)
             return false;
 
-        var paths = directory.GetPicturePaths(ctx.RoomId);
+        var paths = directory.GetPicturePaths(roomId);
 
         await File.WriteAllTextAsync(paths.RenderDataPath, json, ct).ConfigureAwait(false);
 
@@ -89,8 +112,6 @@ public class TurboStarterRoomPictureMessageHandler(
         )
             return false;
 
-        return await directory
-            .PictureTakenAsync(ctx.RoomId, ctx.PlayerId, ct)
-            .ConfigureAwait(false);
+        return await directory.PictureTakenAsync(roomId, playerId, ct).ConfigureAwait(false);
     }
 }

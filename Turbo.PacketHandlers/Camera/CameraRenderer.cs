@@ -12,11 +12,12 @@ namespace Turbo.PacketHandlers.Camera;
 /// Draws a stored render (<c>photos/&lt;id&gt;.json</c>, <c>thumbnails/&lt;roomId&gt;.json</c>) into the
 /// PNG the client loads, by running the renderer command of <see cref="CameraConfig"/>
 /// (<c>tools/camera-renderer/render.mjs</c> by default) with the JSON and PNG paths. The client
-/// asks for the picture as soon as <c>CameraStorageUrlMessage</c> arrives, so a render is awaited,
-/// bounded by <see cref="CameraConfig.RendererTimeoutMilliseconds"/>, waiting included: at most
+/// asks for the picture as soon as <c>CameraStorageUrlMessage</c> arrives, so the answer waits for
+/// the render (off the packet, in <see cref="CameraCaptureJobs"/>), bounded by <see cref="CameraConfig.RendererTimeoutMilliseconds"/>, waiting included: at most
 /// <see cref="CameraConfig.MaxConcurrentRenders"/> run at once.
 /// </summary>
 public sealed class CameraRenderer(IOptions<CameraConfig> config, ILogger<CameraRenderer> logger)
+    : ICameraRenderer
 {
     private readonly CameraConfig _config = config.Value;
     private readonly SemaphoreSlim _slots = new(Math.Max(1, config.Value.MaxConcurrentRenders));

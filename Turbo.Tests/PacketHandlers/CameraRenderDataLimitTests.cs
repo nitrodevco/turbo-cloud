@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Messages.Registry;
@@ -47,6 +48,11 @@ public class CameraRenderDataLimitTests
         _handler = new RenderRoomMessageHandler(
             new CameraPhotoStore(config),
             new CameraRenderer(config, NullLogger<CameraRenderer>.Instance),
+            new CameraCaptureJobs(
+                _fakes.Create<Orleans.IGrainFactory>(),
+                _fakes.Create<IHostApplicationLifetime>(),
+                NullLogger<CameraCaptureJobs>.Instance
+            ),
             config
         );
     }
@@ -61,9 +67,16 @@ public class CameraRenderDataLimitTests
         return output.ToArray();
     }
 
+    private IEnumerable<CameraStorageUrlMessageComposer> Answers =>
+        _fakes
+            .Log.Of("SendComposerAsync")
+            .Select(x => x.Args[0])
+            .OfType<CameraStorageUrlMessageComposer>();
+
     private async Task<string> SendAsync(byte[] data)
     {
         var session = _fakes.Create<ISessionContext>("session");
+        var answered = Answers.Count();
 
         await _handler.HandleAsync(
             new RenderRoomMessage { Data = data },
@@ -71,12 +84,10 @@ public class CameraRenderDataLimitTests
             CancellationToken.None
         );
 
-        return _fakes
-            .Log.Of("SendComposerAsync")
-            .Select(x => x.Args[0])
-            .OfType<CameraStorageUrlMessageComposer>()
-            .Last()
-            .Url;
+        // The photo is stored, drawn and answered off the packet (CameraCaptureJobs).
+        await CountWait.ForAsync(() => Answers.Count(), answered + 1);
+
+        return Answers.Last().Url;
     }
 
     private string[] StoredPhotos =>
