@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Context;
+using Turbo.Database.Entities;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Assets;
@@ -38,7 +39,9 @@ namespace Turbo.Gamedata.Files;
 /// bundles (<see cref="ClientMaps"/>), built again whenever one of those is kept, changed or removed.
 /// Each file's current build is held in memory and built again when what it is made from
 /// changes - a catalog snapshot replaced (a catalog published), another file's hash (for the
-/// variables), or its rows said to have changed (<see cref="Invalidate"/>). Each build is kept in <c>gamedata_builds</c> by its hash, the
+/// variables), its rows said to have changed (<see cref="Invalidate"/>), or the database saying they
+/// changed (<see cref="RowsStamp"/>), asked at most every <see cref="GamedataConfig.FileCheckSeconds"/>
+/// so an edit made on another silo reaches this one's files too. Each build is kept in <c>gamedata_builds</c> by its hash, the
 /// newest <see cref="GamedataConfig.KeepBuilds"/> of a file besides the current one, so a client
 /// that loaded an address before a rebuild still finds it. The same content always hashes the
 /// same, so every silo names a build alike.
@@ -49,6 +52,7 @@ internal sealed class GamedataFileService(
     FurnitureOfferCatalog offers,
     IServerSettings settings,
     IAssetBundleStore store,
+    TimeProvider time,
     ILogger<GamedataFileService> logger
 ) : IGamedataFileService
 {
@@ -59,14 +63,19 @@ internal sealed class GamedataFileService(
     private readonly SemaphoreSlim _building = new(1, 1);
     private readonly ConcurrentDictionary<string, Build> _current = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, int> _versions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Stamped> _stamps = new(StringComparer.Ordinal);
 
     public async Task<GamedataFileContent> GetCurrentAsync(string file, CancellationToken ct)
     {
         RequireKnown(file);
 
         var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
+        var stamp = await StampAsync(file, ct).ConfigureAwait(false);
 
-        if (_current.TryGetValue(file, out var current) && current.IsFor(VersionOf(file), inputs))
+        if (
+            _current.TryGetValue(file, out var current)
+            && current.IsFor(VersionOf(file), inputs, stamp)
+        )
             return current.Content;
 
         return await BuildAsync(file, force: false, ct).ConfigureAwait(false);
@@ -100,8 +109,11 @@ internal sealed class GamedataFileService(
         return BuildAsync(file, force: true, ct);
     }
 
-    public void Invalidate(string file) =>
+    public void Invalidate(string file)
+    {
+        _stamps.TryRemove(file, out _);
         _versions.AddOrUpdate(file, 1, (_, version) => version + 1);
+    }
 
     private int VersionOf(string file) =>
         _versions.TryGetValue(file, out var version) ? version : 0;
@@ -149,6 +161,93 @@ internal sealed class GamedataFileService(
 
     private sealed record BundlesStamp(int Count, DateTime? Latest);
 
+    /// <summary>
+    /// What the file's rows are, as the database says it (<see cref="ReadStampAsync"/>), kept for
+    /// <see cref="GamedataConfig.FileCheckSeconds"/> so a request rarely asks. An edit on this silo
+    /// forgets it (<see cref="Invalidate"/>); one on another is seen once it is asked again.
+    /// </summary>
+    private async Task<object?> StampAsync(string file, CancellationToken ct)
+    {
+        var now = time.GetUtcNow();
+
+        if (
+            _stamps.TryGetValue(file, out var known)
+            && now - known.At < TimeSpan.FromSeconds(_config.FileCheckSeconds)
+        )
+            return known.Stamp;
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var stamp = await ReadStampAsync(dbCtx, file, ct).ConfigureAwait(false);
+
+        _stamps[file] = new Stamped(stamp, now);
+
+        return stamp;
+    }
+
+    /// <summary>
+    /// What a file's rows are, as cheaply as the database can say it (<see cref="RowsStamp"/>).
+    /// The badge parts are edited without a change set, and are few enough to read whole. The
+    /// maps' bundles are read for every request already (<see cref="InputsAsync"/>).
+    /// </summary>
+    private static async Task<object?> ReadStampAsync(
+        TurboDbContext dbCtx,
+        string file,
+        CancellationToken ct
+    ) =>
+        file switch
+        {
+            GamedataFiles.FURNITURE_DATA => await RowsStamp
+                .ReadAsync(dbCtx, dbCtx.FurnitureDefinitions, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.PRODUCT_DATA => await RowsStamp
+                .ReadAsync(dbCtx, dbCtx.GamedataProducts, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.FIGURE_DATA => await RowsStamp
+                .ReadAsync(dbCtx, dbCtx.GamedataFigures, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.EXTERNAL_TEXTS => await RowsStamp
+                .ReadAsync(dbCtx, dbCtx.GamedataTexts, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.EXTERNAL_VARIABLES => await RowsStamp
+                .ReadAsync(dbCtx, dbCtx.GamedataVariables, ct)
+                .ConfigureAwait(false),
+            GamedataFiles.BADGE_PARTS => GamedataBytes.Hash(
+                (await BadgePartsAsync(dbCtx, ct).ConfigureAwait(false)).Content
+            ),
+            _ => null,
+        };
+
+    /// <summary>
+    /// A file's rows as the database says it: the newest change set (every import, edit and
+    /// rollback the gamedata makes is one), and how many rows there are and the newest, for rows
+    /// added or removed without one.
+    /// </summary>
+    private sealed record RowsStamp(int? ChangeSet, int Rows, int? MaxId)
+    {
+        public static async Task<RowsStamp> ReadAsync<T>(
+            TurboDbContext dbCtx,
+            IQueryable<T> rows,
+            CancellationToken ct
+        )
+            where T : TurboEntity
+        {
+            var ids = rows.AsNoTracking().Select(x => x.Id);
+
+            return new RowsStamp(
+                await dbCtx
+                    .GamedataChangeSets.AsNoTracking()
+                    .MaxAsync(x => (int?)x.Id, ct)
+                    .ConfigureAwait(false),
+                await ids.CountAsync(ct).ConfigureAwait(false),
+                await ids.MaxAsync(x => (int?)x, ct).ConfigureAwait(false)
+            );
+        }
+    }
+
+    private sealed record Stamped(object? Stamp, DateTimeOffset At);
+
     private async Task<GamedataFileContent> BuildAsync(
         string file,
         bool force,
@@ -156,6 +255,7 @@ internal sealed class GamedataFileService(
     )
     {
         var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
+        var stamp = await StampAsync(file, ct).ConfigureAwait(false);
 
         await _building.WaitAsync(ct).ConfigureAwait(false);
 
@@ -164,7 +264,11 @@ internal sealed class GamedataFileService(
             // Whoever waited behind a build that has just finished takes that build.
             var version = VersionOf(file);
 
-            if (!force && _current.TryGetValue(file, out var built) && built.IsFor(version, inputs))
+            if (
+                !force
+                && _current.TryGetValue(file, out var built)
+                && built.IsFor(version, inputs, stamp)
+            )
                 return built.Content;
 
             var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -239,7 +343,7 @@ internal sealed class GamedataFileService(
 
             var result = new GamedataFileContent(row.ToSnapshot(), row.Content);
 
-            _current[file] = new Build(version, inputs, result);
+            _current[file] = new Build(version, inputs, stamp, result);
 
             return result;
         }
@@ -531,9 +635,14 @@ internal sealed class GamedataFileService(
             );
     }
 
-    private sealed record Build(int Version, object? Inputs, GamedataFileContent Content)
+    private sealed record Build(
+        int Version,
+        object? Inputs,
+        object? Stamp,
+        GamedataFileContent Content
+    )
     {
-        public bool IsFor(int version, object? inputs) =>
-            Version == version && Equals(Inputs, inputs);
+        public bool IsFor(int version, object? inputs, object? stamp) =>
+            Version == version && Equals(Inputs, inputs) && Equals(Stamp, stamp);
     }
 }

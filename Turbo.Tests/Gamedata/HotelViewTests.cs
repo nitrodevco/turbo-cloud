@@ -416,6 +416,7 @@ public sealed class HotelViewTests : IDisposable
             new FurnitureOfferCatalog(_catalog.NormalProvider(), _catalog.BuildersClubProvider()),
             _settings.Settings,
             new Fakes().Create<IAssetBundleStore>(),
+            TimeProvider.System,
             NullLogger<GamedataFileService>.Instance
         );
         var hotelTexts = new HotelTextProvider(_catalog.Db, config, TimeProvider.System);

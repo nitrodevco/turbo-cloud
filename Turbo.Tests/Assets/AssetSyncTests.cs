@@ -1147,6 +1147,7 @@ public sealed class AssetSyncTests : IDisposable
             ),
             _fakes.Create<IServerSettings>(),
             _folder.Store,
+            TimeProvider.System,
             NullLogger<GamedataFileService>.Instance
         );
 

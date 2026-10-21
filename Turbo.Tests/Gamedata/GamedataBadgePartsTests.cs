@@ -41,6 +41,7 @@ public sealed class GamedataBadgePartsTests : IDisposable
             ),
             _fakes.Create<IServerSettings>(),
             new Fakes().Create<IAssetBundleStore>(),
+            TimeProvider.System,
             NullLogger<GamedataFileService>.Instance
         );
 

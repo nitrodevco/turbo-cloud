@@ -82,6 +82,12 @@ public sealed class GamedataConfig
     /// <summary>Builds of each file kept besides the current one, for clients still holding their address.</summary>
     public int KeepBuilds { get; init; } = 10;
 
+    /// <summary>
+    /// How often a file's rows are checked in the database, in seconds: how soon an edit made on
+    /// another silo reaches this one's files. An edit made on this silo reaches them at once.
+    /// </summary>
+    public int FileCheckSeconds { get; init; } = 5;
+
     /// <summary>Items an import preview lists; the counts cover every item.</summary>
     public int PreviewItemLimit { get; init; } = 500;
 

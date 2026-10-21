@@ -265,6 +265,11 @@ Builds are kept in `gamedata_builds`: the current one and the `KeepBuilds` befor
 that loaded an address before a rebuild still finds it. The same content hashes the same on every
 silo.
 
+An edit builds the file again at once on the silo it was made on. Every silo also asks the database
+whether a file's rows changed, at most every `FileCheckSeconds`: the newest change set (every
+import, edit and rollback is one) and how many rows there are, or for the badge parts the rows
+themselves. So another silo serves the edit within `FileCheckSeconds`, without a restart.
+
 Point the client at the redirect, through a reverse proxy in front of the host:
 
 ```json
@@ -435,6 +440,7 @@ loading the old build after a change.
 | `FurnitureFileUrl` | `https://images.habbo.{domain}/dcr/hof_furni/{revision}/{name}.swf` | Where a furniture's asset file is, read when an update is taken in. |
 | `FurnitureFileConcurrency` | `8` | Furniture files downloaded at once. |
 | `KeepBuilds` | `10` | Builds of each file kept besides the current one. |
+| `FileCheckSeconds` | `5` | How often a silo asks the database whether a file's rows changed: how soon an edit made on another silo reaches its files. |
 | `PreviewItemLimit` | `500` | Items an import review lists. Its counts cover every item. |
 | `TextPageSize` | `50` | Texts per page of a search. |
 | `FurniturePageSize` | `60` | Furniture definitions per page of the panel's list. |
@@ -462,4 +468,5 @@ loading the old build after a change.
 - A player's club running out takes their club clothing off at their next login or look change, not
   the moment it runs out.
 - Each silo checks Habbo and builds the file on its own. Definitions changed on one silo reach
-  another's file on its next build; **Rebuild** in the panel forces one.
+  another's file within `FileCheckSeconds`; **Rebuild** in the panel forces one on the silo it
+  reaches.
