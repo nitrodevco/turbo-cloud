@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Immutable;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +13,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Commands;
@@ -39,14 +36,11 @@ public class FurniCommandsTests
     private const int BUILDER = 2;
     private const int VISITOR = 3;
 
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
     private readonly CommandRoomFixture _room = new();
 
     public FurniCommandsTests()
     {
-        RoomHarness.SetMember(_room.Harness.State, "IsRightsLoaded", true);
+        _room.Harness.State.IsRightsLoaded = true;
         _room.Commands.Register([
             new PickAllCommand(),
             new PickAllBuildersClubCommand(),
@@ -210,9 +204,11 @@ public class FurniCommandsTests
     private void MakeGroupRoom()
     {
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = (GuildId)9,
+        };
 
-        RoomHarness.SetMember(guild, "GuildId", (GuildId)9);
         _room.Harness.Fakes.Handlers["GetGuildOfRoomAsync"] = _ =>
             Task.FromResult<GuildSummarySnapshot?>(guild);
     }
@@ -261,13 +257,8 @@ public class FurniCommandsTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod("AddItem", All, [typeof(IRoomItem)])!
-            .Invoke(_room.Harness.Module<RoomMapModule>(), [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)id, item);
+        _room.Harness.Module<RoomMapModule>().AddItem(item);
     }
 
     private void AddWallItem(int id, int ownerId)
@@ -311,13 +302,8 @@ public class FurniCommandsTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod("AddItem", All, [typeof(IRoomItem)])!
-            .Invoke(_room.Harness.Module<RoomMapModule>(), [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)id, item);
+        _room.Harness.Module<RoomMapModule>().AddItem(item);
     }
 
     /// <summary>Every composer the room was told, in order.</summary>
@@ -330,9 +316,7 @@ public class FurniCommandsTests
         ];
 
     private IEnumerable<int> ItemIds() =>
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!)
-            .Keys.Cast<RoomObjectId>()
-            .Select(x => x.Value);
+        _room.Harness.State.ItemsById.Keys.Cast<RoomObjectId>().Select(x => x.Value);
 
     /// <summary>The furni each inventory took back, by object id.</summary>
     private IEnumerable<int> ReturnedTo(int playerId) =>

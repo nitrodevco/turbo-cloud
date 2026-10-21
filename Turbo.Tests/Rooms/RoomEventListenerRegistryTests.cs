@@ -25,13 +25,7 @@ public sealed class RoomEventListenerRegistryTests
             .BuildServiceProvider();
 
     private IAssemblyFeatureProcessor Processor() =>
-        (IAssemblyFeatureProcessor)
-            Activator.CreateInstance(
-                typeof(RoomEventListenerRegistry).Assembly.GetType(
-                    "Turbo.Rooms.RoomEventListenerFeatureProcessor"
-                )!,
-                _registry
-            )!;
+        (IAssemblyFeatureProcessor)new RoomEventListenerFeatureProcessor(_registry);
 
     [Fact]
     public async Task TheScanRegistersAPublicListenerAndUnloadingRemovesIt()

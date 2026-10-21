@@ -3,8 +3,8 @@ using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory;
 using Turbo.Inventory.Configuration;
+using Turbo.Inventory.Grains.Effects;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
@@ -62,18 +62,11 @@ public sealed class PlayerEffectGrainTests : IDisposable
         EffectConfig? config = null
     )
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.Effects.PlayerEffectGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
+        var grain = GrainHarness.Create<PlayerEffectGrain>(_fakes, _db, PLAYER_ID);
 
-        RoomHarness.SetField(grain, "_time", _clock);
-        RoomHarness.SetField(
+        GrainHarness.Replace<TimeProvider>(grain, _clock);
+        GrainHarness.Replace<EffectConfig>(
             grain,
-            "_config",
             config ?? new EffectConfig { DefaultDurationSeconds = DURATION }
         );
 

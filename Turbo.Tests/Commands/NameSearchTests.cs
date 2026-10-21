@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Players;
 using Turbo.Furniture;
 using Turbo.Furniture.Configuration;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
@@ -38,13 +38,7 @@ public class NameSearchTests : IDisposable
         );
 
     private IPlayerDirectoryGrain Directory() =>
-        (IPlayerDirectoryGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.PlayerDirectoryGrain",
-                new Fakes(),
-                _db
-            );
+        (IPlayerDirectoryGrain)GrainHarness.Create<PlayerDirectoryGrain>(new Fakes(), _db);
 
     [Fact]
     public async Task Players_AreFoundByTheStartOfTheirName_IgnoringCase_SortedAndLimited()
@@ -72,9 +66,10 @@ public class NameSearchTests : IDisposable
     {
         Player(1, "Alice");
         var directory = Directory();
-        var state = RoomHarness.GetField(directory, "_state")!;
-        var names = state.GetType().GetProperty("Names")!;
-        RoomHarness.SetMember(state, "Names", Activator.CreateInstance(names.PropertyType, 100));
+        GrainHarness.Replace(
+            directory,
+            new PlayerDirectoryLiveState { Names = new PlayerNameCache(100) }
+        );
 
         (await directory.GetPlayerIdAsync("aLICE", CancellationToken.None))
             .Should()

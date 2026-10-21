@@ -53,9 +53,7 @@ public sealed class WiredMonitorErrorListTests
     public async Task A_cancelled_execution_counts_in_its_row_until_the_list_is_cleared()
     {
         // Any stack run takes this room past its usage cap, so each call is cancelled.
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
+        _room.Harness.Room.UseWiredConfig(
             new WiredConfig
             {
                 ExecutionCostCap = 0.5,

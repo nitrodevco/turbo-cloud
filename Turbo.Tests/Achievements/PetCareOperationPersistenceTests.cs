@@ -12,7 +12,9 @@ using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
-using Turbo.Inventory;
+using Turbo.Inventory.Factories;
+using Turbo.Inventory.Grains;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
@@ -541,48 +543,32 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
     private IInventoryGrain CreateInventory()
     {
         var fakes = new Fakes();
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            fakes,
-            _db,
-            OWNER_ID
-        );
-        var state = RoomHarness.GetMember(grain, "_state")!;
-        RoomHarness.SetMember(RoomHarness.GetMember(state, "Pets")!, "IsReady", true);
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<InventoryGrain>(fakes, _db, OWNER_ID);
+        var state = GrainHarness.Get<InventoryLiveState>(grain);
+        state.Pets.IsReady = true;
+        GrainHarness.Replace<IAchievementFactRecorder>(
             grain,
-            "_achievementFacts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
-        var module = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryPetModule"
-            )!,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            null,
-            [grain, state, _db, fakes.Create<IPetBreedProvider>(), NullLogger.Instance],
-            null
-        )!;
-        RoomHarness.SetField(grain, "PetModule", module);
+        var module = new InventoryPetModule(
+            grain,
+            state,
+            _db,
+            fakes.Create<IPetBreedProvider>(),
+            NullLogger.Instance
+        );
+        GrainHarness.Replace<InventoryPetModule>(grain, module);
         return (IInventoryGrain)grain;
     }
 
     private IRoomPersistenceGrain CreatePersistenceGrain(Fakes fakes)
     {
-        var grain = GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Grains.RoomPersistenceGrain",
-            fakes,
-            _db,
-            ROOM_ID
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<RoomPersistenceGrain>(fakes, _db, ROOM_ID);
+        GrainHarness.Replace<IAchievementFactRecorder>(
             grain,
-            "_achievementFacts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
-        RoomHarness.SetMember(RoomHarness.GetMember(grain, "_state")!, "RoomId", (RoomId)ROOM_ID);
+        GrainHarness.Replace(grain, new RoomPersistenceLiveState { RoomId = ROOM_ID });
         return (IRoomPersistenceGrain)grain;
     }
 

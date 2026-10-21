@@ -31,10 +31,12 @@ public sealed class WiredGroupAdminVariableTests
         var admin = _room.Enter(ADMIN, 1, 1);
         var member = _room.Enter(MEMBER, 2, 2);
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = (GuildId)9,
+            RightsLevel = GuildRightsLevel.Members,
+        };
 
-        RoomHarness.SetMember(guild, "GuildId", (GuildId)9);
-        RoomHarness.SetMember(guild, "RightsLevel", GuildRightsLevel.Members);
         _room.Harness.Fakes.Handlers["GetGuildOfRoomAsync"] = _ =>
             Task.FromResult<GuildSummarySnapshot?>(guild);
         _room.Harness.Fakes.Handlers["GetMemberRankAsync"] = call =>

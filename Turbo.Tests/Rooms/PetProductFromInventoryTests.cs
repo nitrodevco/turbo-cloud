@@ -63,16 +63,15 @@ public sealed class PetProductFromInventoryTests
 
         _owner.SetPosition(3, 4);
         _owner.SetLogic(harness.Fakes.Create<IRoomPlayerLogic>(5));
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _room.Harness.State.AvatarsByObjectId[5] = _owner;
+        _room.Harness.State.AvatarsByPlayerId[OWNER] = 5;
         _room.Map.AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            AllowPets = true,
+        };
+        harness.Room.UseEventSystem(new TestEventBus().System);
+        harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(Horse());
@@ -111,8 +110,6 @@ public sealed class PetProductFromInventoryTests
                 }
             );
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_room.Harness.State, name)!;
 
     private RoomPetModule Pets => _room.Harness.Module<RoomPetModule>();
 

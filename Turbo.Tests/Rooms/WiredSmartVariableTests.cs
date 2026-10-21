@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.StuffData;
@@ -40,8 +39,7 @@ public sealed class WiredSmartVariableTests
         // in a room with no linker; ~clock.* visible beside a clock).
         var variable = new FurnitureTeleportTargetVariable(_room.Harness.Room);
         var id = variable.GetVarSnapshot().VariableId;
-        var byId = (IDictionary)
-            RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!;
+        var byId = _room.Harness.Room.WiredSystem.VariablesById();
 
         byId[id] = variable;
 

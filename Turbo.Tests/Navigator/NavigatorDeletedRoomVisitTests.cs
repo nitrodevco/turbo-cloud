@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Players;
+using Turbo.Players.Grains.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Navigator;
@@ -91,13 +91,7 @@ public sealed class NavigatorDeletedRoomVisitTests : IDisposable
     [Fact]
     public async Task a_visit_to_a_deleted_room_is_dropped_and_the_other_visits_are_written()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Navigator.PlayerNavigatorGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerNavigatorGrain>(_fakes, _db, PLAYER);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         var navigator = (IPlayerNavigatorGrain)grain;
@@ -111,11 +105,6 @@ public sealed class NavigatorDeletedRoomVisitTests : IDisposable
         (await db.RoomEntryLogs.Select(x => x.RoomEntityId).ToListAsync(Ct))
             .Should()
             .Equal(KEPT_ROOM, KEPT_ROOM);
-        RoomHarness
-            .GetMember(RoomHarness.GetMember(grain, "_state")!, "PendingVisits")
-            .Should()
-            .BeAssignableTo<System.Collections.ICollection>()
-            .Which.Count.Should()
-            .Be(0);
+        GrainHarness.Get<PlayerNavigatorLiveState>(grain).PendingVisits.Count.Should().Be(0);
     }
 }

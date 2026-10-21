@@ -2,8 +2,8 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
 using Turbo.Guilds.Configuration;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Navigator.Enums;
@@ -64,13 +64,7 @@ public sealed class GroupCreateClubRequiredTests
             await dbCtx.SaveChangesAsync(Ct);
         }
 
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.PlayerGuildGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerGuildGrain>(_fakes, _db, PLAYER);
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerGuildGrain)grain;

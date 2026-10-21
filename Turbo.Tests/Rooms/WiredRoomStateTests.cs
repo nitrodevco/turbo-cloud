@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,6 +11,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Commands;
@@ -47,11 +46,10 @@ public sealed class WiredRoomStateTests
         _room.AddPlayer(VISITOR);
         _room.GiveRights(RIGHTS);
 
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!,
-            "WiredModifyPermissionMask",
-            WiredPermissionFlags.Rights
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            WiredModifyPermissionMask = WiredPermissionFlags.Rights,
+        };
     }
 
     private Task<ImmutableArray<PlayerId>> UpdateAsync(int playerId, bool rollback) =>
@@ -100,12 +98,9 @@ public sealed class WiredRoomStateTests
         var builder = new RoomHarness();
         var item = builder.CreateFloorItem(50, 1, 1, 0);
         item.SetExtraData("""{"state":"0"}""");
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!)[item.ObjectId] =
-            item;
+        _room.Harness.State.ItemsById[item.ObjectId] = item;
         // What the furni load does once the room has read its furni.
-        typeof(RoomFurniModule)
-            .GetMethod("CaptureLoadedItems", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(_room.Harness.Module<RoomFurniModule>(), []);
+        _room.Harness.Module<RoomFurniModule>().CaptureLoadedItems();
 
         var loadedData = item.GetSnapshot().ExtraData;
 
@@ -182,13 +177,12 @@ public sealed class WiredRoomStateTests
             return Task.CompletedTask;
         };
         var service = (IRoomService)
-            Activator.CreateInstance(
-                typeof(RoomConfig).Assembly.GetType("Turbo.Rooms.RoomService")!,
+            new RoomService(
                 NullLogger<IRoomService>.Instance,
                 Options.Create(new RoomConfig()),
                 fakes.Create<Orleans.IGrainFactory>(),
                 TimeProvider.System
-            )!;
+            );
 
         await service.ReloadWiredRoomAsync(
             ActionContext.CreateForPlayer(OWNER, 7),

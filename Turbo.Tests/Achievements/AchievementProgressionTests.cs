@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
+using Turbo.Achievements.Grains;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Vault;
 using Turbo.Database.Achievements;
@@ -29,6 +30,7 @@ using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Vault;
 using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -67,20 +69,14 @@ public sealed class AchievementProgressionTests : IDisposable
 
     private IPlayerAchievementGrain NewGrain()
     {
-        var grain = GrainHarness.Create(
-            typeof(AchievementModule).Assembly,
-            "Turbo.Achievements.Grains.PlayerAchievementGrain",
-            _fakes,
-            _database
-        );
+        var grain = GrainHarness.Create<PlayerAchievementGrain>(_fakes, _database);
         var recorder = new AchievementFactRecorder(_catalog);
-        RoomHarness.SetField(grain, "_catalog", _catalog);
-        RoomHarness.SetField(grain, "_recorder", recorder);
-        RoomHarness.SetField(grain, "_rewards", new AchievementRewardRegistry());
-        RoomHarness.SetField(grain, "_observers", _observers);
-        RoomHarness.SetField(
+        GrainHarness.Replace<IAchievementCatalog>(grain, _catalog);
+        GrainHarness.Replace<IAchievementFactRecorder>(grain, recorder);
+        GrainHarness.Replace<IAchievementRewardRegistry>(grain, new AchievementRewardRegistry());
+        GrainHarness.Replace<IAchievementObserverRegistry>(grain, _observers);
+        GrainHarness.Replace<IIncomeRewardService>(
             grain,
-            "_incomeRewards",
             new IncomeRewardService(
                 [],
                 _database,
@@ -90,10 +86,9 @@ public sealed class AchievementProgressionTests : IDisposable
                 NullLogger<IncomeRewardService>.Instance
             )
         );
-        RoomHarness.SetField(grain, "_time", _clock);
-        RoomHarness.SetField(
+        GrainHarness.Replace<TimeProvider>(grain, _clock);
+        GrainHarness.Replace<AchievementStateEvaluator>(
             grain,
-            "_evaluator",
             new AchievementStateEvaluator(_database, recorder)
         );
         return (IPlayerAchievementGrain)grain;
@@ -238,9 +233,8 @@ public sealed class AchievementProgressionTests : IDisposable
         _fakes.Handlers[nameof(IPlayerWalletGrain.CreditAchievementAsync)] = _ =>
             Task.FromResult(true);
         var grain = NewGrain();
-        RoomHarness.SetField(
+        GrainHarness.Replace<AchievementConfig>(
             grain,
-            "_config",
             new AchievementConfig { DucketRewardsToVault = false }
         );
         await grain.ProcessAsync(Ct);
@@ -678,7 +672,10 @@ public sealed class AchievementProgressionTests : IDisposable
     {
         _catalog.Current = [Definition(100003) with { State = AchievementState.Archived }];
         var grain = NewGrain();
-        RoomHarness.SetField(grain, "_config", new AchievementConfig { ArchiveShowsAll = true });
+        GrainHarness.Replace<AchievementConfig>(
+            grain,
+            new AchievementConfig { ArchiveShowsAll = true }
+        );
 
         var listed = await grain.GetAchievementsAsync(Ct);
 

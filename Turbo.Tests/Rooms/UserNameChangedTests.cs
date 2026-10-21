@@ -29,7 +29,7 @@ public sealed class UserNameChangedTests
     {
         var avatar = _room.Enter(PLAYER, 1, 1);
 
-        RoomHarness.SetMember(avatar, "Name", "oldname");
+        avatar.UseName("oldname");
 
         (
             await _room

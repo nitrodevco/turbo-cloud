@@ -71,7 +71,7 @@ public sealed class RollerAreaHideTests
             Ct
         );
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
-        RoomHarness.SetMember(_room.Harness.State, "IsFurniLoaded", true);
+        _room.Harness.State.IsFurniLoaded = true;
         await Rollers.OnRoomEventAsync(
             new RoomRollerChangedEvent
             {

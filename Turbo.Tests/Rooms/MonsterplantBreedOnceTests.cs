@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
@@ -12,9 +13,8 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
@@ -110,7 +110,7 @@ public sealed class MonsterplantBreedOnceTests
             )
             .Should()
             .BeTrue("the plant is written with the potion it used up");
-        _room.ItemsById.Contains((RoomObjectId)POTION).Should().BeFalse();
+        _room.ItemsById.ContainsKey((RoomObjectId)POTION).Should().BeFalse();
     }
 
     [Theory]
@@ -127,7 +127,7 @@ public sealed class MonsterplantBreedOnceTests
 
         (await UsePotionAsync(band, PLANT)).Should().BeFalse();
 
-        _room.ItemsById.Contains((RoomObjectId)POTION).Should().BeTrue();
+        _room.ItemsById.ContainsKey((RoomObjectId)POTION).Should().BeTrue();
         plant.HasBred.Should().Be(bred);
     }
 
@@ -167,11 +167,9 @@ public sealed class MonsterplantBreedOnceTests
         var room = new RoomHarness();
 
         // The room tells everyone in it that the furni is gone and the plants changed.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         room.Fakes.Handlers["TryGetDefinitionByName"] = call =>
             call.Args[0] is "mnstr_seed" ? Seed() : null;
@@ -223,14 +221,9 @@ public sealed class MonsterplantBreedOnceTests
             }
         );
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.State, "AvatarsByObjectId")!
-        )[objectId] = plant;
-        ((IDictionary<int, RoomObjectId>)RoomHarness.GetMember(_room.State, "AvatarsByPetId")!)[
-            petId
-        ] = objectId;
-        ((IList<IRoomPet>)RoomHarness.GetMember(_room.State, "Pets")!).Add(plant);
+        _room.State.AvatarsByObjectId[objectId] = plant;
+        _room.State.AvatarsByPetId[petId] = objectId;
+        _room.State.Pets.Add(plant);
 
         return plant;
     }

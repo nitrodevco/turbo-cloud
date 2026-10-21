@@ -2,7 +2,7 @@ using FluentAssertions;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Inventory.Purse;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Messages.Incoming.Inventory;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
 using Turbo.Primitives.Networking;
@@ -40,18 +40,9 @@ public sealed class WalletActivityPointsTests
             };
             return true;
         };
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            new InMemoryDb()
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _fakes.Create<IPlayerNoticeService>());
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, new InMemoryDb());
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _fakes.Create<IPlayerNoticeService>());
         await ((Grain)grain).OnActivateAsync(Ct);
 
         var points = await ((IPlayerWalletGrain)grain).GetActivityPointsAsync(Ct);

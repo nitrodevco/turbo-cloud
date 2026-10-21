@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Primitives.Action;
@@ -7,13 +5,11 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
@@ -33,13 +29,10 @@ namespace Turbo.Tests.Support;
 /// </summary>
 public sealed class WiredRoom
 {
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
     public WiredRoom(int width = 8, int height = 8, RoomConfig? roomConfig = null)
     {
         Harness = new LiveRoomHarness(width, height, roomConfig);
-        RoomHarness.SetMember(Harness.State, "IsRightsLoaded", true);
+        Harness.State.IsRightsLoaded = true;
 
         // A furni told that an avatar walked on it asks the avatar's logic for its context.
         Harness.Fakes.Handlers["get_Context"] = call =>
@@ -66,11 +59,9 @@ public sealed class WiredRoom
 
     /// <summary>A floor furni already in the room, by object id.</summary>
     public IRoomFloorItem FloorItem(int id) =>
-        (IRoomFloorItem)
-            ((IDictionary)RoomHarness.GetMember(Harness.State, "ItemsById")!)[(RoomObjectId)id]!;
+        (IRoomFloorItem)Harness.State.ItemsById.GetValueOrDefault((RoomObjectId)id)!;
 
-    public RoomTileFlags[] TileFlags() =>
-        (RoomTileFlags[])RoomHarness.GetMember(Harness.State, "TileFlags")!;
+    public RoomTileFlags[] TileFlags() => Harness.State.TileFlags;
 
     /// <summary>Where each user stands, as <c>id@x,y</c>, in id order.</summary>
     public string[] Positions() =>
@@ -83,14 +74,8 @@ public sealed class WiredRoom
         avatar.SetPosition(x, y);
         avatar.SetLogic(Harness.Fakes.Create<IRoomPlayerLogic>(objectId));
         Avatars[objectId] = avatar;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(Harness.State, "AvatarsByObjectId")!
-        )[objectId] = avatar;
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(Harness.State, "AvatarsByPlayerId")!
-        )[100 + objectId] = objectId;
+        Harness.State.AvatarsByObjectId[objectId] = avatar;
+        Harness.State.AvatarsByPlayerId[100 + objectId] = objectId;
         Map.AddAvatar(avatar, false);
 
         return avatar;
@@ -161,11 +146,8 @@ public sealed class WiredRoom
                 )
         );
 
-        ((IDictionary)RoomHarness.GetMember(Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
-        typeof(RoomMapModule).GetMethod("AddItem", All, [typeof(IRoomItem)])!.Invoke(Map, [item]);
+        Harness.State.ItemsById.Add(id, item);
+        Map.AddItem(item);
 
         return item;
     }
@@ -210,10 +192,7 @@ public sealed class WiredRoom
                 new Turbo.Rooms.Object.Furniture.Wall.RoomWallItemContext(Harness.Room, item)
             )
         );
-        ((IDictionary)RoomHarness.GetMember(Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
+        Harness.State.ItemsById.Add(id, item);
 
         return item;
     }

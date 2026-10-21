@@ -8,8 +8,6 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -97,14 +95,8 @@ public sealed class RoomControllerLevelTests
         avatar.SetPosition(1, 1);
         avatar.SetLogic(_room.Harness.Fakes.Create<IRoomPlayerLogic>(OWNER_OBJECT));
         avatar.SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
-        (
-            (System.Collections.Generic.IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        )[OWNER_OBJECT] = avatar;
-        (
-            (System.Collections.Generic.IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByPlayerId")!
-        )[(PlayerId)1] = OWNER_OBJECT;
+        _room.Harness.State.AvatarsByObjectId[OWNER_OBJECT] = avatar;
+        _room.Harness.State.AvatarsByPlayerId[(PlayerId)1] = OWNER_OBJECT;
         _room.Map.AddAvatar(avatar, false);
     }
 }

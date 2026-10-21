@@ -4,10 +4,7 @@ using Turbo.Events;
 using Turbo.Events.Registry;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
@@ -28,34 +25,26 @@ public sealed class IdleWakeTests
 
     public IdleWakeTests()
     {
-        RoomHarness.SetField(
-            _harness.Room,
-            "_eventSystem",
+        _harness.Room.UseEventSystem(
             new EventSystem(
                 new EventRegistry(_harness.Services, NullLogger<EventRegistry>.Instance)
             )
         );
-        RoomHarness.SetField(
-            _harness.Room,
-            "_roomConfig",
+        _harness.Room.UseRoomConfig(
             new RoomConfig { ChatFloodWindowMs = 0, ChatlogEnabled = false }
         );
 
-        var snapshot = RoomHarness.GetMember(_harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "ChatProtection", ChatFloodSensitivityType.Normal);
-        RoomHarness.SetMember(snapshot, "IdleSleepEnabled", true);
-        RoomHarness.SetMember(snapshot, "IdleSleepTimeoutSeconds", 60);
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with
+        {
+            ChatProtection = ChatFloodSensitivityType.Normal,
+            IdleSleepEnabled = true,
+            IdleSleepTimeoutSeconds = 60,
+        };
 
-        RoomHarness.SetMember(_avatar, "Name", "sleeper");
+        _avatar.UseName("sleeper");
         _avatar.SetPosition(2, 2);
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_harness.State, "AvatarsByObjectId")!
-        )[5] = _avatar;
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_harness.State, "AvatarsByPlayerId")!
-        )[9] = 5;
+        _harness.State.AvatarsByObjectId[5] = _avatar;
+        _harness.State.AvatarsByPlayerId[9] = 5;
         _harness.Module<Turbo.Rooms.Grains.Modules.RoomMapModule>().AddAvatar(_avatar, false);
     }
 

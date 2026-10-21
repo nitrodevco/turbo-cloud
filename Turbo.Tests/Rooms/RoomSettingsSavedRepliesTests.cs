@@ -106,23 +106,21 @@ public class RoomSettingsSavedRepliesTests
     private static async Task<LiveRoomHarness> OwnedRoomAsync()
     {
         var harness = new LiveRoomHarness();
-        var loaded = RoomHarness.GetMember(harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(loaded, "OwnerId", (PlayerId)OWNER);
-        RoomHarness.SetMember(loaded, "Name", "Party");
-        RoomHarness.SetMember(loaded, "Description", string.Empty);
-        RoomHarness.SetMember(loaded, "Password", string.Empty);
-        RoomHarness.SetMember(loaded, "Tags", ImmutableArray<string>.Empty);
-        RoomHarness.SetMember(loaded, "ChatProtection", ChatFloodSensitivityType.Minimal);
-        RoomHarness.SetMember(loaded, "AllowPets", true);
-        RoomHarness.SetMember(loaded, "AllowPetsEat", true);
-        RoomHarness.SetMember(loaded, "PlayersMax", 25);
-        RoomHarness.SetMember(
-            loaded,
-            "ModSettings",
-            Turbo.Primitives.Rooms.Snapshots.Settings.ModSettingsSnapshot.OwnerOnly
-        );
+        harness.State.RoomSnapshot = harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OWNER,
+            Name = "Party",
+            Description = string.Empty,
+            Password = string.Empty,
+            Tags = ImmutableArray<string>.Empty,
+            ChatProtection = ChatFloodSensitivityType.Minimal,
+            AllowPets = true,
+            AllowPetsEat = true,
+            PlayersMax = 25,
+            ModSettings = Turbo.Primitives.Rooms.Snapshots.Settings.ModSettingsSnapshot.OwnerOnly,
+        };
 
-        var db = (InMemoryDb)RoomHarness.GetField(harness.Room, "_dbCtxFactory")!;
+        var db = harness.Room._dbCtxFactory;
         await using (var ctx = await db.CreateDbContextAsync(Ct))
         {
             ctx.Rooms.Add(

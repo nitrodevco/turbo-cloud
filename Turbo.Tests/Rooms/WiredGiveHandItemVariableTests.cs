@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -29,9 +28,8 @@ public sealed class WiredGiveHandItemVariableTests
     {
         var handItem = new UserHandItemVariable(_room.Harness.Room);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[
-            handItem.GetVarSnapshot().VariableId
-        ] = handItem;
+        _room.Harness.Room.WiredSystem.VariablesById()[handItem.GetVarSnapshot().VariableId] =
+            handItem;
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

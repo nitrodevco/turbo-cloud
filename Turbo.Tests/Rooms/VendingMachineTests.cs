@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
@@ -9,10 +7,8 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -46,13 +42,11 @@ public sealed class VendingMachineTests
     public VendingMachineTests()
     {
         // The dispensing state is shown for no time at all here, so one timer run ends it.
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_roomConfig",
-            new RoomConfig { VendingDispenseMs = 0 }
-        );
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)PLAYER);
+        _room.Harness.Room.UseRoomConfig(new RoomConfig { VendingDispenseMs = 0 });
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)PLAYER,
+        };
     }
 
     [Fact]
@@ -226,17 +220,8 @@ public sealed class VendingMachineTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)FRIDGE,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)FRIDGE, item);
+        _room.Map.AddItem(item);
 
         return item;
     }

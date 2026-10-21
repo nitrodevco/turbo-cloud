@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -81,9 +80,8 @@ public sealed class WiredPackedPositionVariableTests
 
     private WiredInternalVariable Register(WiredInternalVariable variable)
     {
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[
-            variable.GetVarSnapshot().VariableId
-        ] = variable;
+        _room.Harness.Room.WiredSystem.VariablesById()[variable.GetVarSnapshot().VariableId] =
+            variable;
 
         return variable;
     }

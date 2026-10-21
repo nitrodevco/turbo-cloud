@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
@@ -82,9 +81,7 @@ public sealed class WiredDisableTests
         await ClickAsync();
         pad.Logic.GetState().Should().Be(0);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Remove(
-            (RoomObjectId)DISABLER
-        );
+        _room.Harness.State.ItemsById.Remove((RoomObjectId)DISABLER);
         await disabler.Logic.OnDetachAsync(Ct);
 
         await ClickAsync();
@@ -155,9 +152,7 @@ public sealed class WiredDisableTests
         await disabler.Logic.OnUseAsync(Owner, 0, Ct);
         await RunUntilAsync(16_900, pad, fired);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Remove(
-            (RoomObjectId)DISABLER
-        );
+        _room.Harness.State.ItemsById.Remove((RoomObjectId)DISABLER);
         await disabler.Logic.OnDetachAsync(Ct);
         await RunUntilAsync(19_000, pad, fired);
 

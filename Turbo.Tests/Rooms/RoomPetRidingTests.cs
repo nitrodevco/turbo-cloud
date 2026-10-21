@@ -3,10 +3,8 @@ using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
@@ -42,22 +40,16 @@ public sealed class RoomPetRidingTests
         _harness = _room.Harness;
         _owner.SetPosition(3, 4);
         _owner.SetLogic(_harness.Fakes.Create<IRoomPlayerLogic>(5));
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _harness.State.AvatarsByObjectId[5] = _owner;
+        _harness.State.AvatarsByPlayerId[OWNER] = 5;
         _harness.Module<RoomMapModule>().AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(_harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            _harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with { AllowPets = true };
+        _harness.Room.UseEventSystem(new TestEventBus().System);
+        _harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(Horse());
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_harness.State, name)!;
 
     private RoomPetModule Pets => _harness.Module<RoomPetModule>();
 

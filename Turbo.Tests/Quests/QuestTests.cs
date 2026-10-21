@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Achievements;
+using Turbo.Achievements.Grains;
 using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Quest;
@@ -133,7 +134,7 @@ public sealed class QuestTests : IDisposable
         }
 
         var other = Grain();
-        RoomHarness.SetField(other, "_playerId", (PlayerId)(PLAYER + 1));
+        GrainHarness.Replace<PlayerId>(other, (PlayerId)(PLAYER + 1));
         await other.SendDailyQuestAsync(true, 0, Ct);
 
         Sent<QuestDailyMessageComposer>().Last().Quest.Should().BeNull();
@@ -469,14 +470,9 @@ public sealed class QuestTests : IDisposable
 
     private IPlayerQuestGrain Grain()
     {
-        var grain = GrainHarness.Create(
-            typeof(AchievementModule).Assembly,
-            "Turbo.Achievements.Grains.PlayerQuestGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetField(grain, "_time", new ManualTimeProvider(new DateTimeOffset(NOW)));
-        RoomHarness.SetField(grain, "_playerId", (PlayerId)PLAYER);
+        var grain = GrainHarness.Create<PlayerQuestGrain>(_fakes, _db);
+        GrainHarness.Replace<TimeProvider>(grain, new ManualTimeProvider(new DateTimeOffset(NOW)));
+        GrainHarness.Replace<PlayerId>(grain, (PlayerId)PLAYER);
 
         return (IPlayerQuestGrain)grain;
     }

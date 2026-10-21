@@ -15,6 +15,8 @@ using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Object.Logic;
+using Turbo.Rooms.Providers;
 
 namespace Turbo.Tests.Support;
 
@@ -33,7 +35,7 @@ public sealed class LiveRoomHarness
 
     public Fakes Fakes { get; } = new();
     public RoomGrain Room { get; }
-    public object State { get; }
+    internal RoomLiveState State { get; }
     public IServiceProvider Services { get; }
     public IRoomObjectLogicProvider LogicProvider { get; }
 
@@ -66,11 +68,7 @@ public sealed class LiveRoomHarness
                 : Fakes.NotHandled;
 
         Services = BuildServices();
-        LogicProvider = (IRoomObjectLogicProvider)
-            ActivatorUtilities.CreateInstance(
-                Services,
-                typeof(RoomGrain).Assembly.GetType("Turbo.Rooms.Providers.RoomObjectLogicProvider")!
-            );
+        LogicProvider = ActivatorUtilities.CreateInstance<RoomObjectLogicProvider>(Services);
         RegisterLogics();
 
         Room = (RoomGrain)RuntimeHelpers.GetUninitializedObject(typeof(RoomGrain));
@@ -102,40 +100,35 @@ public sealed class LiveRoomHarness
         typeof(Grain)
             .GetField("<Runtime>k__BackingField", All)
             ?.SetValue(Room, Fakes.Create<IGrainRuntime>("room-runtime"));
-        State = RoomHarness.GetField(Room, "_state")!;
+        State = Room._state;
 
         // The room stream everyone in the room listens to.
-        var streamField = typeof(RoomGrain).GetField("_roomOutbound", All);
-        streamField?.SetValue(Room, Fakes.Create(streamField.FieldType, "room-stream"));
+        Room._roomOutbound = Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>("room-stream");
 
         var size = width * height;
-        RoomHarness.SetMember(
-            State,
-            "Model",
-            new RoomModelSnapshot
-            {
-                Id = 1,
-                Name = "test",
-                Model = "",
-                DoorX = 0,
-                DoorY = 0,
-                DoorRotation = Rotation.North,
-                Width = width,
-                Height = height,
-                Size = size,
-                BaseHeights = heights ?? new Altitude[size],
-                BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
-            }
-        );
-        var snap = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(snap, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(snap, "OwnerId", (Turbo.Primitives.Players.PlayerId)1);
-        RoomHarness.SetMember(snap, "Name", "test");
-        RoomHarness.SetMember(State, "RoomSnapshot", snap);
-        var map = RoomHarness.GetField(Room, "MapModule")!;
-        var ensure = map.GetType().GetMethod("EnsureMapBuiltAsync", All);
-        if (ensure?.Invoke(map, [default(CancellationToken)]) is Task t)
-            t.GetAwaiter().GetResult();
+        State.Model = new RoomModelSnapshot
+        {
+            Id = 1,
+            Name = "test",
+            Model = "",
+            DoorX = 0,
+            DoorY = 0,
+            DoorRotation = Rotation.North,
+            Width = width,
+            Height = height,
+            Size = size,
+            BaseHeights = heights ?? new Altitude[size],
+            BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
+        };
+        // Only what these tests read is set; the snapshot's other members keep their defaults.
+        State.RoomSnapshot = (RoomSnapshot)
+            RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = 1,
+            OwnerId = 1,
+            Name = "test",
+        };
+        Room.MapModule.EnsureMapBuiltAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     /// <summary>Every logic key the startup scan registered in this workspace.</summary>
@@ -169,15 +162,10 @@ public sealed class LiveRoomHarness
 
     private void RegisterLogics()
     {
-        var processorType = typeof(RoomGrain).Assembly.GetType(
-            "Turbo.Rooms.Object.Logic.RoomObjectLogicFeatureProcessor"
-        )!;
-        var processor = Activator.CreateInstance(processorType, All, null, [LogicProvider], null)!;
-        var process = processorType.GetMethod("ProcessAsync")!;
-        foreach (var asm in new[] { typeof(RoomGrain).Assembly })
-            ((Task)process.Invoke(processor, [asm, Services, CancellationToken.None])!)
-                .GetAwaiter()
-                .GetResult();
+        new RoomObjectLogicFeatureProcessor(LogicProvider)
+            .ProcessAsync(typeof(RoomGrain).Assembly, Services, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
     }
 
     private object? ResolveCtorArg(Type t)

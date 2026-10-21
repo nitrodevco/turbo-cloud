@@ -43,7 +43,7 @@ public sealed class WiredSharedVariableTests
 
     public WiredSharedVariableTests()
     {
-        RoomHarness.SetMember(_other.Harness.State, "RoomId", (RoomId)2);
+        _other.Harness.State.UseRoomId(2);
 
         foreach (var room in new[] { _shop, _other })
         {
@@ -54,10 +54,7 @@ public sealed class WiredSharedVariableTests
             room.Enter(PLAYER_INDEX, 1, 1);
         }
 
-        using var db = (
-            (Microsoft.EntityFrameworkCore.IDbContextFactory<Turbo.Database.Context.TurboDbContext>)
-                RoomHarness.GetField(_other.Harness.Room, "_dbCtxFactory")!
-        ).CreateDbContext();
+        using var db = _other.Harness.Room._dbCtxFactory.CreateDbContext();
 
         db.Rooms.Add(
             new RoomEntity
@@ -243,15 +240,11 @@ public sealed class WiredSharedVariableTests
         await BuildShopAsync();
         _other.AddBox<WiredVariableReference>(REFERENCE, 3, 3, "wf_var_reference");
         // Rights in the room let a player save its other boxes, not this one.
-        (
-            (ISet<Turbo.Primitives.Players.PlayerId>)
-                RoomHarness.GetMember(_other.Harness.State, "PlayerIdsWithRights")!
-        ).Add((Turbo.Primitives.Players.PlayerId)105);
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(_other.Harness.State, "RoomSnapshot")!,
-            "WiredModifyPermissionMask",
-            WiredPermissionFlags.Rights
-        );
+        _other.Harness.State.PlayerIdsWithRights.Add((Turbo.Primitives.Players.PlayerId)105);
+        _other.Harness.State.RoomSnapshot = _other.Harness.State.RoomSnapshot with
+        {
+            WiredModifyPermissionMask = WiredPermissionFlags.Rights,
+        };
 
         (
             await _other.Harness.Room.ApplyWiredUpdateAsync(

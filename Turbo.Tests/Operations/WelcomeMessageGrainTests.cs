@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Orleans;
-using Turbo.Operations;
+using Turbo.Operations.Grains;
 using Turbo.Primitives.Hotel.Grains;
 using Turbo.Tests.Support;
 using Xunit;
@@ -25,12 +25,7 @@ public sealed class WelcomeMessageGrainTests : IDisposable
 
     private async Task<IWelcomeMessageGrain> ActivateAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(OperationsModule).Assembly,
-            "Turbo.Operations.Grains.WelcomeMessageGrain",
-            new Fakes(),
-            _db
-        );
+        var grain = GrainHarness.Create<WelcomeMessageGrain>(new Fakes(), _db);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IWelcomeMessageGrain)grain;

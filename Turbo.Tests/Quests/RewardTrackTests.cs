@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
+using Turbo.Achievements.Grains;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Bots.Snapshots;
@@ -369,7 +370,7 @@ public sealed class RewardTrackTests : IDisposable
             );
 
         var grain = await GrainAsync();
-        RoomHarness.SetField(grain, "_definitions", definitions);
+        GrainHarness.Replace<IFurnitureDefinitionProvider>(grain, definitions);
         await grain.RecordActionAsync(RewardTrackActionTypes.ENTER_OTHER_USERS_ROOM, "7", Ct);
         await grain.ClaimPrizeAsync(TRACK, "free_010", Ct);
 
@@ -383,8 +384,10 @@ public sealed class RewardTrackTests : IDisposable
     private static FurnitureDefinitionSnapshot Definition(int id)
     {
         var definition = (FurnitureDefinitionSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(FurnitureDefinitionSnapshot));
-        RoomHarness.SetMember(definition, "Id", id);
+            RuntimeHelpers.GetUninitializedObject(typeof(FurnitureDefinitionSnapshot)) with
+        {
+            Id = id,
+        };
 
         return definition;
     }
@@ -782,15 +785,10 @@ public sealed class RewardTrackTests : IDisposable
 
     private async Task<IPlayerRewardTrackGrain> GrainAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(AchievementModule).Assembly,
-            "Turbo.Achievements.Grains.PlayerRewardTrackGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetField(grain, "_config", _config);
-        RoomHarness.SetField(grain, "_tracks", Store());
-        RoomHarness.SetField(grain, "_petBreeds", _fakes.Create<IPetBreedProvider>());
+        var grain = GrainHarness.Create<PlayerRewardTrackGrain>(_fakes, _db);
+        GrainHarness.Replace<RewardTrackConfig>(grain, _config);
+        GrainHarness.Replace<IRewardTrackStore>(grain, Store());
+        GrainHarness.Replace<IPetBreedProvider>(grain, _fakes.Create<IPetBreedProvider>());
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerRewardTrackGrain)grain;

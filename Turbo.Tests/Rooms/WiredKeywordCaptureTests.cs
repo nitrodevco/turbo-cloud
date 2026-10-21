@@ -41,11 +41,7 @@ public sealed class WiredKeywordCaptureTests
     // The match is time boxed by wall clock (50 ms by default): on a loaded machine a 200 character
     // pattern overran it and did not fire. These tests are about what fires, not the time box.
     public WiredKeywordCaptureTests() =>
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
-            new WiredConfig { RegexMatchTimeoutMs = 10_000 }
-        );
+        _room.Harness.Room.UseWiredConfig(new WiredConfig { RegexMatchTimeoutMs = 10_000 });
 
     [Theory]
     [InlineData("price 250", 0, 250)]

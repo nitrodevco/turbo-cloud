@@ -1,4 +1,3 @@
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -91,19 +90,14 @@ public class AvatarPositionQueryTests
         Assert.Equal(1234, player.LastActiveAtMs);
     }
 
-    private IDictionary<RoomObjectId, IRoomAvatar> Avatars() =>
-        (IDictionary<RoomObjectId, IRoomAvatar>)
-            RoomHarness.GetMember(_harness.State, "AvatarsByObjectId")!;
+    private IDictionary<RoomObjectId, IRoomAvatar> Avatars() => _harness.State.AvatarsByObjectId;
 
     private RoomPlayerAvatar AddPlayer(int id, int x, int y)
     {
         var player = new RoomPlayerAvatar { ObjectId = id, PlayerId = id };
         player.SetPosition(x, y);
         Avatars()[player.ObjectId] = player;
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_harness.State, "AvatarsByPlayerId")!
-        )[id] = id;
+        _harness.State.AvatarsByPlayerId[id] = id;
         return player;
     }
 }

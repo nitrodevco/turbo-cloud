@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
@@ -72,14 +72,7 @@ public sealed class RespectParticipantRecoveryTests : IDisposable
     }
 
     private IPlayerGrain NewGrain() =>
-        (IPlayerGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.PlayerGrain",
-                new Fakes(),
-                _db,
-                1
-            );
+        (IPlayerGrain)GrainHarness.Create<PlayerGrain>(new Fakes(), _db, 1);
 
     public void Dispose()
     {

@@ -101,7 +101,7 @@ public class WiredBoxEditorTests
     {
         var room = CreateRoomWithBox();
         var logger = new CapturingLogger<IRoomGrain>();
-        RoomHarness.SetField(room.Room, "_logger", logger);
+        room.Room.UseLogger(logger);
 
         // A box that was never saved has no params yet; it takes its defaults quietly.
         Assert.Equal([1], (await OpenAsync(room)).IntParams);
@@ -150,13 +150,15 @@ public class WiredBoxEditorTests
     private static RoomHarness CreateRoomWithBox()
     {
         var room = new RoomHarness();
-        RoomHarness.SetMember(room.State, "IsRightsLoaded", true);
+        room.State.IsRightsLoaded = true;
 
         // The wired permission check reads the room's masks; the owner passes whatever they are.
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", (PlayerId)1);
-        RoomHarness.SetMember(room.State, "RoomSnapshot", info);
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)1,
+        };
+        room.State.RoomSnapshot = info;
 
         room.AddToRoom(
             room.CreateFloorItem(

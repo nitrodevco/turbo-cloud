@@ -25,8 +25,10 @@ public sealed class LeaveOnDoorTileTests
     public async Task Walking_onto_the_door_leaves_the_room_only_when_the_room_says_so(bool leave)
     {
         var room = new WiredRoom(6, 6);
-        var snapshot = RoomHarness.GetMember(room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "LeaveOnDoorTile", leave);
+        room.Harness.State.RoomSnapshot = room.Harness.State.RoomSnapshot with
+        {
+            LeaveOnDoorTile = leave,
+        };
         var avatar = room.Enter(AVATAR, 2, 0);
 
         (

@@ -3,7 +3,7 @@ using FluentAssertions;
 using Orleans;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory;
+using Turbo.Inventory.Grains.Badges;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
@@ -89,13 +89,7 @@ public sealed class BadgeWornFactTests : IDisposable
 
     private async Task<IPlayerBadgeGrain> BadgesAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.Badges.PlayerBadgeGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerBadgeGrain>(_fakes, _db, PLAYER);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerBadgeGrain)grain;

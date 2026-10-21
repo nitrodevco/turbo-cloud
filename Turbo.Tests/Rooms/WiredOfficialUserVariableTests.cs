@@ -35,11 +35,13 @@ public sealed class WiredOfficialUserVariableTests
     public void The_room_owner_has_rights()
     {
         var player = _room.Enter(INDEX, 1, 1);
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = player.PlayerId,
+        };
 
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", player.PlayerId);
-        RoomHarness.SetMember(_room.Harness.State, "RoomSnapshot", info);
+        _room.Harness.State.RoomSnapshot = info;
 
         Holds(new UserHasRightsVariable(_room.Harness.Room)).Should().BeTrue();
         Holds(new UserIsOwnerVariable(_room.Harness.Room)).Should().BeTrue();

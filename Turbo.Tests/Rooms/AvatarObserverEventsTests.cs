@@ -1,12 +1,9 @@
 using System.Collections.Generic;
 using FluentAssertions;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Avatar;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -29,12 +26,10 @@ public sealed class AvatarObserverEventsTests
     {
         _harness.EventListeners.Register([_heard]);
         _avatar.SetPosition(2, 2);
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _avatar;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[9] = 5;
+        _harness.State.AvatarsByObjectId[5] = _avatar;
+        _harness.State.AvatarsByPlayerId[9] = 5;
         _harness.Module<RoomMapModule>().AddAvatar(_avatar, false);
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_harness.State, name)!;
 
     private RoomAvatarModule Avatars => _harness.Module<RoomAvatarModule>();
 
@@ -168,9 +163,11 @@ public sealed class AvatarObserverEventsTests
 
     private void SleepAfterOneSecond()
     {
-        var snapshot = RoomHarness.GetMember(_harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "IdleSleepEnabled", true);
-        RoomHarness.SetMember(snapshot, "IdleSleepTimeoutSeconds", 1);
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with
+        {
+            IdleSleepEnabled = true,
+            IdleSleepTimeoutSeconds = 1,
+        };
     }
 
     private sealed class Recorder : IRoomEventListener

@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Logging;
 using Turbo.Primitives;
@@ -49,7 +48,7 @@ public sealed class RollerSpeedControlTests
         AddRoller(ROLLER + 2, 2, 2, Rotation.West);
         AddRoller(ROLLER + 3, 1, 2, Rotation.North);
         _room.AddFloorItem(CRATE, 1, 1).SetPositionZ(Altitude.FromInt(100));
-        RoomHarness.SetMember(_room.Harness.State, "IsFurniLoaded", true);
+        _room.Harness.State.IsFurniLoaded = true;
     }
 
     [Fact]
@@ -102,9 +101,7 @@ public sealed class RollerSpeedControlTests
         await controller.Logic.OnUseAsync(Owner, 0, Ct);
         (await MovesOverAsync(1_000)).Should().Equal(10_000, 11_000);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Remove(
-            (RoomObjectId)CONTROLLER
-        );
+        _room.Harness.State.ItemsById.Remove((RoomObjectId)CONTROLLER);
         await controller.Logic.OnDetachAsync(Ct);
         await RescanAsync();
 

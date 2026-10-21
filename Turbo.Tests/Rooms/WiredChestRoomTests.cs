@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
@@ -16,11 +17,12 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Grains;
+using Turbo.Rooms.Grains.WiredTrading;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Tests.Support;
@@ -109,7 +111,7 @@ public class WiredChestRoomTests
         var (room, _) = CreateRoomWithChest();
         AddPlayer(room, OWNER);
         StubSummary(room);
-        RoomHarness.SetField(room.Room, "_wordFilter", new BadIsUncleanFilter());
+        room.Room.UseWordFilter(new BadIsUncleanFilter());
 
         var done = await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),
@@ -306,13 +308,7 @@ public class WiredChestRoomTests
     }
 
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>
-        (IWiredTradeGrain)
-            GrainHarness.Create(
-                typeof(RoomGrain).Assembly,
-                "Turbo.Rooms.Grains.WiredTrading.WiredTradeGrain",
-                fakes,
-                playerId: GUEST
-            );
+        (IWiredTradeGrain)GrainHarness.Create<WiredTradeGrain>(fakes, playerId: GUEST);
 
     /// <summary>Every composer sent to a player, single or batched.</summary>
     private static IEnumerable<IComposer> Sent(Fakes fakes) =>
@@ -376,14 +372,8 @@ public class WiredChestRoomTests
                 ? $"player{id}"
                 : Fakes.NotHandled;
 
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(room.State, "AvatarsByPlayerId")!
-        )[playerId] = playerId;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[playerId] = player;
+        room.State.AvatarsByPlayerId[playerId] = playerId;
+        room.State.AvatarsByObjectId[playerId] = player;
     }
 
     private static void StubSummary(RoomHarness room) =>
@@ -414,11 +404,9 @@ public class WiredChestRoomTests
         var room = new RoomHarness();
 
         // The chest tells the room when its stuff data changes.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         var item = coins ? CreateCoinChest(room, CHEST, 2) : CreateChest(room, CHEST, 2);
 

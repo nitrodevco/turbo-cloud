@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +10,6 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -57,23 +55,20 @@ public sealed class PetBreedingNestTests
 
         _owner.SetPosition(3, 4);
         _owner.SetLogic(harness.Fakes.Create<IRoomPlayerLogic>(5));
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _room.Harness.State.AvatarsByObjectId[5] = _owner;
+        _room.Harness.State.AvatarsByPlayerId[OWNER] = 5;
         _room.Map.AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(
-            harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            AllowPets = true,
+        };
+        harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = call =>
             Task.FromResult<PetSnapshot?>(Dog((int)call.Args[0]!));
         harness.Fakes.Handlers[nameof(IInventoryGrain.CreatePetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(Dog(OFFSPRING));
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_room.Harness.State, name)!;
 
     private RoomPetModule Pets => _room.Harness.Module<RoomPetModule>();
 
@@ -86,8 +81,8 @@ public sealed class PetBreedingNestTests
             .Should()
             .BeTrue();
 
-        ((System.Collections.IDictionary)Member("ItemsById"))
-            .Contains((RoomObjectId)NEST)
+        _room
+            .Harness.State.ItemsById.ContainsKey((RoomObjectId)NEST)
             .Should()
             .BeFalse("the nest disappears in breeding");
 
@@ -106,7 +101,7 @@ public sealed class PetBreedingNestTests
     public async Task A_nest_picked_up_before_the_last_confirm_breeds_nothing()
     {
         await SitBothInNestAsync();
-        ((System.Collections.IDictionary)Member("ItemsById")).Remove((RoomObjectId)NEST);
+        _room.Harness.State.ItemsById.Remove((RoomObjectId)NEST);
 
         (await Pets.ConfirmNestBreedingAsync(Owner, NEST, "Puppy", PET1, PET2, Ct))
             .Should()
@@ -146,8 +141,8 @@ public sealed class PetBreedingNestTests
             .BeTrue("the first parent stays lying when the second steps in");
         second.HasStatus(AvatarStatusType.Lay).Should().BeTrue();
         nest.OccupantPetIds.Should().Equal(PET1, PET2);
-        ((System.Collections.IDictionary)Member("PendingNestBreedings"))
-            .Contains((RoomObjectId)NEST)
+        _room
+            .Harness.State.PendingNestBreedings.ContainsKey((RoomObjectId)NEST)
             .Should()
             .BeTrue("both parents are in the nest, so their owners are asked to confirm");
     }
@@ -216,11 +211,7 @@ public sealed class PetBreedingNestTests
     [Fact]
     public async Task The_confirm_window_gets_every_rarity_row_rarest_first()
     {
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_petBreedProvider",
-            _room.Harness.Fakes.Create<IPetBreedProvider>()
-        );
+        _room.Harness.Room.UsePetBreeds(_room.Harness.Fakes.Create<IPetBreedProvider>());
         _room.Harness.Fakes.Handlers[nameof(IPetBreedProvider.GetPalettes)] = _ =>
             ImmutableArray.Create(Palette(0, 0), Palette(1, 0), Palette(7, 2));
         AddNest();
@@ -264,11 +255,7 @@ public sealed class PetBreedingNestTests
             .Configure<PetConfig>(configuration.GetSection(PetConfig.SECTION_NAME))
             .BuildServiceProvider();
 
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_petConfig",
-            services.GetRequiredService<IOptions<PetConfig>>().Value
-        );
+        _room.Harness.Room.UsePetConfig(services.GetRequiredService<IOptions<PetConfig>>().Value);
         AddNest();
         var first = await PlaceAsync(PET1, 6, 3);
         var second = await PlaceAsync(PET2, 3, 6);
@@ -323,10 +310,7 @@ public sealed class PetBreedingNestTests
 
     /// <summary>The "breed" pet command, as the owner's chat gives it.</summary>
     private Task<bool> BreedAsync(IRoomPet pet) =>
-        (Task<bool>)
-            typeof(RoomPetModule)
-                .GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(Pets, [Owner, pet, PetCommandType.Breed, Ct])!;
+        Pets.ExecuteCommandAsync(Owner, pet, PetCommandType.Breed, Ct);
 
     private async Task TickAsync(IRoomPet pet)
     {
@@ -353,14 +337,13 @@ public sealed class PetBreedingNestTests
             nest.AddOccupant(pet!).Should().BeTrue();
         }
 
-        ((System.Collections.IDictionary)Member("PendingNestBreedings"))[(RoomObjectId)NEST] =
-            new NestBreedingSession
-            {
-                NestId = NEST,
-                Pet1Id = PET1,
-                Pet2Id = PET2,
-                OwnerIds = [OWNER],
-            };
+        _room.Harness.State.PendingNestBreedings[(RoomObjectId)NEST] = new NestBreedingSession
+        {
+            NestId = NEST,
+            Pet1Id = PET1,
+            Pet2Id = PET2,
+            OwnerIds = [OWNER],
+        };
     }
 
     private static PetSnapshot Dog(int id) =>

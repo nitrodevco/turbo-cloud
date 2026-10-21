@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Tests.Support;
 using Xunit;
@@ -39,13 +38,5 @@ public sealed class RoomTimerSystemTests
         runs.Should().Be(2);
     }
 
-    private static long NowMs(RoomHarness room) =>
-        (long)
-            typeof(RoomGrain)
-                .GetMethod(
-                    "NowMs",
-                    System.Reflection.BindingFlags.Instance
-                        | System.Reflection.BindingFlags.NonPublic
-                )!
-                .Invoke(room.Room, null)!;
+    private static long NowMs(RoomHarness room) => room.Room.NowMs();
 }

@@ -8,7 +8,6 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
@@ -61,16 +60,15 @@ public sealed class PetSaddleTests
 
         _owner.SetPosition(3, 4);
         _owner.SetLogic(harness.Fakes.Create<IRoomPlayerLogic>(5));
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _room.Harness.State.AvatarsByObjectId[5] = _owner;
+        _room.Harness.State.AvatarsByPlayerId[OWNER] = 5;
         _room.Map.AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            AllowPets = true,
+        };
+        harness.Room.UseEventSystem(new TestEventBus().System);
+        harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(_horse);
@@ -87,8 +85,6 @@ public sealed class PetSaddleTests
                 ? Definition(SADDLE1_DEFINITION, "horse_saddle1", SADDLE1)
                 : null;
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_room.Harness.State, name)!;
 
     private RoomPetModule Pets => _room.Harness.Module<RoomPetModule>();
 
@@ -210,7 +206,7 @@ public sealed class PetSaddleTests
             createLogic: (factory, ctx) => new FurnitureRollerLogic(factory, ctx)
         );
         roller.SetRotation(Rotation.East);
-        RoomHarness.SetMember(_room.Harness.State, "IsFurniLoaded", true);
+        _room.Harness.State.IsFurniLoaded = true;
         await _room
             .Harness.Module<RoomRollerSystem>()
             .OnRoomEventAsync(
@@ -288,7 +284,7 @@ public sealed class PetSaddleTests
         // the whole weight range reaches each.
         for (var pick = 0; pick < 235; pick += 5)
         {
-            RoomHarness.SetField(Pets, "_random", new FixedRandom(pick));
+            Pets.UseRandom(new FixedRandom(pick));
             await _room.Harness.Room.PetTickSystem.ProcessPetsAsync((pick + 1) * 1_000_000L, Ct);
             seen.Add(Status());
         }

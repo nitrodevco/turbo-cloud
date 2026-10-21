@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
@@ -15,7 +13,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -57,8 +54,10 @@ public sealed class CrackableFurniTests
     public CrackableFurniTests()
     {
         // The owner of the furni owns the room, so holds its rights.
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)OWNER);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OWNER,
+        };
         // A walk-on hands the furni the walking avatar's context.
         _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
             call.Interface == typeof(IRoomPlayerContext)
@@ -565,10 +564,7 @@ public sealed class CrackableFurniTests
     private Task RunTimersAsync() =>
         _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(long.MaxValue / 2, Ct);
 
-    private bool ItemExists() =>
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Contains(
-            (RoomObjectId)BOX
-        );
+    private bool ItemExists() => _room.Harness.State.ItemsById.ContainsKey((RoomObjectId)BOX);
 
     private static (int Hits, int Target, string State) Progress(IRoomFloorItem item)
     {
@@ -675,17 +671,8 @@ public sealed class CrackableFurniTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)id, item);
+        _room.Map.AddItem(item);
 
         return item;
     }

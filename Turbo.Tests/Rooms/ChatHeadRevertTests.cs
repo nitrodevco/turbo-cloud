@@ -37,10 +37,8 @@ public sealed class ChatHeadRevertTests
 
     public ChatHeadRevertTests()
     {
-        RoomHarness.SetField(_room.Harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_commandRegistryProvider",
+        _room.Harness.Room.UseEventSystem(new TestEventBus().System);
+        _room.Harness.Room.UseCommands(
             new Turbo.Commands.CommandRegistryProvider(
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )
@@ -399,15 +397,13 @@ public sealed class ChatHeadRevertTests
                 ChatLookAtRange = 6,
             }
         );
-        RoomHarness.SetField(room.Harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            room.Harness.Room,
-            "_commandRegistryProvider",
+        room.Harness.Room.UseEventSystem(new TestEventBus().System);
+        room.Harness.Room.UseCommands(
             new Turbo.Commands.CommandRegistryProvider(
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )
         );
-        RoomHarness.SetMember(room.Enter(SPEAKER, 13, 7), "Name", "speaker");
+        room.Enter(SPEAKER, 13, 7).UseName("speaker");
         var listener = room.Enter(LISTENER, 6, 6);
         listener.SetRotation(Rotation.East);
 
@@ -427,7 +423,7 @@ public sealed class ChatHeadRevertTests
     private RoomPlayerAvatar Enter(int id, string name, int x, int y, Rotation body)
     {
         var avatar = _room.Enter(id, x, y);
-        RoomHarness.SetMember(avatar, "Name", name);
+        avatar.UseName(name);
         avatar.SetRotation(body);
         return avatar;
     }

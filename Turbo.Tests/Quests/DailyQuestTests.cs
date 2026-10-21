@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Turbo.Achievements;
+using Turbo.Achievements.Grains;
 using Turbo.Database.Entities.Quests;
 using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Networking;
@@ -189,14 +189,9 @@ public sealed class DailyQuestTests : IDisposable
 
     private IPlayerQuestGrain Grain()
     {
-        var grain = GrainHarness.Create(
-            typeof(AchievementModule).Assembly,
-            "Turbo.Achievements.Grains.PlayerQuestGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetField(grain, "_time", new ManualTimeProvider(new DateTimeOffset(NOW)));
-        RoomHarness.SetField(grain, "_playerId", (PlayerId)PLAYER);
+        var grain = GrainHarness.Create<PlayerQuestGrain>(_fakes, _db);
+        GrainHarness.Replace<TimeProvider>(grain, new ManualTimeProvider(new DateTimeOffset(NOW)));
+        GrainHarness.Replace<PlayerId>(grain, (PlayerId)PLAYER);
 
         return (IPlayerQuestGrain)grain;
     }

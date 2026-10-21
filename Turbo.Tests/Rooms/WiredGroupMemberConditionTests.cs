@@ -70,14 +70,18 @@ public sealed class WiredGroupMemberConditionTests
     private async Task BuildAsync(int roomGroup)
     {
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
-        RoomHarness.SetMember(guild, nameof(GuildSummarySnapshot.GuildId), new GuildId(roomGroup));
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = new GuildId(roomGroup),
+        };
 
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", (PlayerId)1);
-        RoomHarness.SetMember(info, "Guild", guild);
-        RoomHarness.SetMember(_room.Harness.State, "RoomSnapshot", info);
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)1,
+            Guild = guild,
+        };
+        _room.Harness.State.RoomSnapshot = info;
 
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
         _room.AddBox<WiredConditionGroupMember>(2, 0, 0, "wf_cnd_actor_in_group");

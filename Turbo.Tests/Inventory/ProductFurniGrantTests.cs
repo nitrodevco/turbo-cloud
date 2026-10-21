@@ -1,4 +1,3 @@
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,7 +5,9 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
 using Turbo.Furniture.Providers;
-using Turbo.Inventory;
+using Turbo.Inventory.Factories;
+using Turbo.Inventory.Grains;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -35,9 +36,6 @@ public sealed class ProductFurniGrantTests : IDisposable
     private const int BUYER = 7;
     private const int OFFER_ID = 900;
     private const int POST_IT = 9;
-
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -327,47 +325,25 @@ public sealed class ProductFurniGrantTests : IDisposable
     /// </summary>
     private IInventoryGrain NewInventory()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            _fakes,
-            _db,
-            BUYER
-        );
+        var grain = GrainHarness.Create<InventoryGrain>(_fakes, _db, BUYER);
         var definitions = _fakes.Create<IFurnitureDefinitionProvider>();
-        var loader = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Factories.InventoryFurnitureLoader"
-            )!,
-            All,
-            null,
-            [
-                _db,
-                definitions,
-                new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
-                NullLogger<IInventoryFurnitureLoader>.Instance,
-            ],
-            null
-        )!;
-        var module = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryFurniModule"
-            )!,
-            All,
-            null,
-            [
-                grain,
-                RoomHarness.GetMember(grain, "_state")!,
-                TestCustody.Over(_db),
-                loader,
-                definitions,
-                _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),
-                NullLogger.Instance,
-            ],
-            null
-        )!;
+        var loader = new InventoryFurnitureLoader(
+            _db,
+            definitions,
+            new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
+            NullLogger<IInventoryFurnitureLoader>.Instance
+        );
+        var module = new InventoryFurniModule(
+            grain,
+            GrainHarness.Get<InventoryLiveState>(grain),
+            TestCustody.Over(_db),
+            loader,
+            definitions,
+            _fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),
+            NullLogger.Instance
+        );
 
-        RoomHarness.SetField(grain, "FurniModule", module);
+        GrainHarness.Replace<InventoryFurniModule>(grain, module);
 
         return (IInventoryGrain)grain;
     }

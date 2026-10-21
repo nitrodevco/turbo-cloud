@@ -185,9 +185,8 @@ public sealed class SongDirectoryGrainTests : IDisposable
             _db
         );
 
-        RoomHarness.SetField(
+        GrainHarness.Replace<IStuffDataFactory>(
             grain,
-            "_stuffDataFactory",
             new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance)
         );
 

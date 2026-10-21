@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Pets;
@@ -7,7 +8,7 @@ using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
@@ -44,7 +45,7 @@ public class PetDyeTests
         (await UseAsync(room, "horse_dye_08", "pet_dye", "15 Gold", Dye)).Should().BeTrue();
 
         pet.PetFigure.PaletteId.Should().Be(GOLD_PALETTE);
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeFalse();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeFalse();
     }
 
     [Fact]
@@ -81,7 +82,7 @@ public class PetDyeTests
             .BeFalse();
 
         pet.PetFigure.CustomParts.Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeTrue();
     }
 
     private static FurniturePetProductLogic Dye(
@@ -135,17 +136,11 @@ public class PetDyeTests
         var room = new RoomHarness();
 
         // The room tells everyone in it that the furni is gone and the pet changed.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
-
-        RoomHarness.SetField(
-            room.Room,
-            "_petBreedProvider",
-            room.Fakes.Create<IPetBreedProvider>()
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
         );
+
+        room.Room.UsePetBreeds(room.Fakes.Create<IPetBreedProvider>());
         room.Fakes.Handlers[nameof(IPetBreedProvider.GetPalettes)] = _ =>
             ImmutableArray.Create(Palette(BEIGE_PALETTE, 15), Palette(GOLD_PALETTE, 18));
 
@@ -185,14 +180,9 @@ public class PetDyeTests
             }
         );
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[PET_OBJECT] = pet;
-        ((IDictionary<int, RoomObjectId>)RoomHarness.GetMember(room.State, "AvatarsByPetId")!)[
-            PET_ID
-        ] = PET_OBJECT;
-        ((IList<IRoomPet>)RoomHarness.GetMember(room.State, "Pets")!).Add(pet);
+        room.State.AvatarsByObjectId[PET_OBJECT] = pet;
+        room.State.AvatarsByPetId[PET_ID] = PET_OBJECT;
+        room.State.Pets.Add(pet);
 
         return (room, pet);
     }

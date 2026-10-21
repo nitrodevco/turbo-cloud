@@ -140,16 +140,9 @@ public sealed class WiredClockStateTests
     private async Task TickAsync(int ticks, int intervalMs = 1_000)
     {
         var timers = _room.Harness.Module<RoomTimerSystem>();
-        var nowMs = typeof(Turbo.Rooms.Grains.RoomGrain).GetMethod(
-            "NowMs",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
 
         for (var i = 0; i < ticks; i++)
-            await timers.ProcessTimersAsync(
-                (long)nowMs.Invoke(_room.Harness.Room, null)! + intervalMs,
-                Ct
-            );
+            await timers.ProcessTimersAsync(_room.Harness.Room.NowMs() + intervalMs, Ct);
     }
 
     private static long Read(WiredInternalVariable variable, int id)

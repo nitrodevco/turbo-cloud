@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
@@ -251,9 +250,7 @@ public sealed class RoomConfigurationFurniTests
         var variable = new FurniturePositionXVariable(_room.Harness.Room);
         var varId = variable.GetVarSnapshot().VariableId;
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[
-            varId
-        ] = variable;
+        _room.Harness.Room.WiredSystem.VariablesById()[varId] = variable;
 
         (
             await _room.Harness.Room.WiredSystem.ApplyVariableMenuOperationAsync(

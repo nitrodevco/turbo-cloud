@@ -41,8 +41,7 @@ public class CommandLogPersistenceTests
                 .Invoke(grain, [CancellationToken.None])!;
 
     private static Queue<CommandLogSnapshot> Queue(object grain) =>
-        (Queue<CommandLogSnapshot>)
-            RoomHarness.GetMember(RoomHarness.GetField(grain, "_state")!, "PendingCommandLogs")!;
+        GrainHarness.Get<RoomPersistenceLiveState>(grain).PendingCommandLogs;
 
     [Fact]
     public async Task AFlush_WritesTheQueuedUses_WithWhenTheyRan()

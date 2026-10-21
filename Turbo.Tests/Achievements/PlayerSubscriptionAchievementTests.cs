@@ -2,8 +2,9 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
+using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains.Subscriptions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Subscriptions;
@@ -59,15 +60,9 @@ public sealed class PlayerSubscriptionAchievementTests : IDisposable
 
     private IPlayerSubscriptionGrain NewGrain()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain",
-            new Fakes(),
-            _db
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<PlayerSubscriptionGrain>(new Fakes(), _db);
+        GrainHarness.Replace<IAchievementFactRecorder>(
             grain,
-            "_achievementFacts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
         return (IPlayerSubscriptionGrain)grain;

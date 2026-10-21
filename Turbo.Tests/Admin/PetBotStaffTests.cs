@@ -43,11 +43,7 @@ public sealed class PetBotStaffTests : IDisposable
 
     public PetBotStaffTests()
     {
-        RoomHarness.SetField(
-            _harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
         _harness.Fakes.Handlers["LoadBotsByRoomIdAsync"] = _ =>
             Task.FromResult<IReadOnlyList<BotSnapshot>>([Bot()]);
         _harness.Fakes.Handlers["LoadPetsByRoomIdAsync"] = _ =>

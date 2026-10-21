@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
@@ -270,8 +269,7 @@ public sealed class WiredVariableChangedTriggerTests
         var id = variable.GetVarSnapshot().VariableId;
 
         variable.GetVarSnapshot().VariableName.Should().Be("@event.variable_update." + field);
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[id] =
-            variable;
+        _room.Harness.Room.WiredSystem.VariablesById()[id] = variable;
         await BuildAsync(WiredVariableOperationType.Add, 5, [1, 1, 0, 0, ALL_ORIGINS]);
         (
             await _room.SaveAsync<UpdateActionMessage>(

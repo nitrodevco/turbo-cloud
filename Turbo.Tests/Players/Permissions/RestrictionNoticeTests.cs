@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Database.Entities.Permissions;
-using Turbo.Players;
+using Turbo.Players.Grains.Permissions;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
@@ -71,7 +71,7 @@ public class RestrictionNoticeTests
         private const BindingFlags ALL =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private readonly object _grain;
-        private readonly object _state;
+        private readonly PlayerPermissionLiveState _state;
         public Clock Clock { get; } = new();
         public Notices Notices { get; } = new();
         public InMemoryDb Db { get; } = new();
@@ -86,38 +86,22 @@ public class RestrictionNoticeTests
             var fakes = new Fakes();
             var registry = new PermissionRegistry([new CorePermissionNodeSource()]);
             fakes.Handlers["get_Current"] = _ => registry;
-            _grain = GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.Permissions.PlayerPermissionGrain",
-                fakes,
-                Db
-            );
-            SetField("_permissionRegistryProvider", fakes.Create<IPermissionRegistryProvider>());
-            SetField("_timeProvider", Clock);
-            SetField("_noticeService", Notices);
-            _state = _grain.GetType().GetField("_state", ALL)!.GetValue(_grain)!;
-            Nodes =
-                (Dictionary<(string, bool), PermissionNodeAssignmentSnapshot>)
-                    _state.GetType().GetProperty("NodesByNode", ALL)!.GetValue(_state)!;
+            _grain = GrainHarness.Create<PlayerPermissionGrain>(fakes, Db);
+            GrainHarness.Replace(_grain, fakes.Create<IPermissionRegistryProvider>());
+            GrainHarness.Replace<TimeProvider>(_grain, Clock);
+            GrainHarness.Replace<IPlayerNoticeService>(_grain, Notices);
+            _state = GrainHarness.Get<PlayerPermissionLiveState>(_grain);
+            Nodes = _state.NodesByNode;
             Nodes[(PermissionNodes.Chat.SPEAK, false)] = Node(PermissionNodes.Chat.SPEAK, true);
             Nodes[(PermissionNodes.TRADE, false)] = Node(PermissionNodes.TRADE, true);
         }
 
-        private void SetField(string name, object value) =>
-            _grain.GetType().GetField(name, ALL)!.SetValue(_grain, value);
-
         public void Groups(params PermissionGroupSnapshot[] groups) =>
-            _state
-                .GetType()
-                .GetProperty("Groups", ALL)!
-                .SetValue(
-                    _state,
-                    new PermissionGroupDirectorySnapshot
-                    {
-                        Version = 1,
-                        Groups = groups.ToImmutableDictionary(x => x.Id),
-                    }
-                );
+            _state.Groups = new PermissionGroupDirectorySnapshot
+            {
+                Version = 1,
+                Groups = groups.ToImmutableDictionary(x => x.Id),
+            };
 
         public void Resolve() =>
             _grain.GetType().GetMethod("Resolve", ALL)!.Invoke(_grain, [true, null]);

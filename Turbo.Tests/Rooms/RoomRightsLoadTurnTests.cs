@@ -43,7 +43,7 @@ public sealed class RoomRightsLoadTurnTests
 
         var database = new AnsweredLaterDb(store);
         var room = new LiveRoomHarness();
-        RoomHarness.SetField(room.Module<RoomSecurityModule>(), "_dbCtxFactory", database);
+        room.Module<RoomSecurityModule>().UseDatabase(database);
         room.Fakes.Handlers["GetPlayerNamesAsync"] = call =>
             Task.FromResult(
                 ((List<PlayerId>)call.Args[0]!).ToImmutableDictionary(x => x, _ => "holder")
@@ -80,10 +80,8 @@ public sealed class RoomRightsLoadTurnTests
 
         // The database answers on a thread of its own while the tick holds the room.
         await Task.Run(database.Answer, Ct);
-        var loadedDuringTick = (bool)RoomHarness.GetMember(room.State, "IsRightsLoaded")!;
-        var rightsDuringTick = (
-            (ISet<PlayerId>)RoomHarness.GetMember(room.State, "PlayerIdsWithRights")!
-        ).Count;
+        var loadedDuringTick = room.State.IsRightsLoaded;
+        var rightsDuringTick = room.State.PlayerIdsWithRights.Count;
 
         tickMayEnd.Set();
         await tick;

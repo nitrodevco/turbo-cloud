@@ -3,9 +3,7 @@ using Turbo.Events;
 using Turbo.Events.Registry;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Avatars.Bot;
@@ -120,44 +118,33 @@ public class ChatHeadDirectionTests
 
         public Fixture()
         {
-            RoomHarness.SetField(
-                _harness.Room,
-                "_eventSystem",
+            _harness.Room.UseEventSystem(
                 new EventSystem(
                     new EventRegistry(_harness.Services, NullLogger<EventRegistry>.Instance)
                 )
             );
-            RoomHarness.SetField(
-                _harness.Room,
-                "_roomConfig",
+            _harness.Room.UseRoomConfig(
                 new RoomConfig { ChatFloodWindowMs = 0, ChatlogEnabled = false }
             );
-            RoomHarness.SetMember(
-                RoomHarness.GetMember(_harness.State, "RoomSnapshot")!,
-                "ChatProtection",
-                ChatFloodSensitivityType.Normal
-            );
+            _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with
+            {
+                ChatProtection = ChatFloodSensitivityType.Normal,
+            };
         }
 
         public RoomPlayerAvatar AddPlayer(int id, int x, int y, Rotation body)
         {
             var player = new RoomPlayerAvatar { ObjectId = id, PlayerId = id };
-            RoomHarness.SetMember(player, "Name", id == 2 ? "listener" : "speaker");
+            player.UseName(id == 2 ? "listener" : "speaker");
             player.SetPosition(x, y);
             player.SetRotation(body);
             AddAvatar(player);
-            (
-                (IDictionary<PlayerId, RoomObjectId>)
-                    RoomHarness.GetMember(_harness.State, "AvatarsByPlayerId")!
-            )[id] = id;
+            _harness.State.AvatarsByPlayerId[id] = id;
             return player;
         }
 
         public void AddAvatar(IRoomAvatar avatar) =>
-            (
-                (IDictionary<RoomObjectId, IRoomAvatar>)
-                    RoomHarness.GetMember(_harness.State, "AvatarsByObjectId")!
-            )[avatar.ObjectId] = avatar;
+            (_harness.State.AvatarsByObjectId)[avatar.ObjectId] = avatar;
 
         public Task<bool> ChatAsync(RoomChatType type = RoomChatType.Chat) =>
             _harness.Room.SendChatFromPlayerAsync(

@@ -6,7 +6,7 @@ using Turbo.Admin.Content;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Users;
 using Turbo.Primitives.Gamedata;
@@ -357,13 +357,7 @@ public sealed class GroupJoinRepliesTests : IDisposable
                 new RoomPointerSnapshot { RoomId = 9, ActiveSinceUtc = DateTime.UtcNow }
             );
 
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.PlayerGuildGrain",
-            _fakes,
-            _db,
-            CAROL
-        );
+        var grain = GrainHarness.Create<PlayerGuildGrain>(_fakes, _db, CAROL);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         _fakes.Instances[(typeof(IPlayerGuildGrain), (long)CAROL)] = grain;
@@ -390,21 +384,8 @@ public sealed class GroupJoinRepliesTests : IDisposable
         _fakes.Handlers["GetMembershipsAsync"] = _ =>
             Task.FromResult(ImmutableArray<GuildInfoSnapshot>.Empty);
 
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildGrain",
-            _fakes,
-            _db
-        );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-
-        RoomHarness.SetMember(state, "GuildId", new GuildId(GROUP));
+        var grain = GrainHarness.Create<GuildGrain>(_fakes, _db);
+        GrainHarness.Replace(grain, new GuildLiveState { GuildId = new GuildId(GROUP) });
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

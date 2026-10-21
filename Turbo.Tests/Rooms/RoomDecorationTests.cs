@@ -86,7 +86,7 @@ public sealed class RoomDecorationTests : IDisposable
                 RoomModelEntity = null!,
             }
         );
-        RoomHarness.SetField(_room.Room, "_dbCtxFactory", _db);
+        _room.Room.UseDatabase(_db);
     }
 
     public void Dispose() => _db.Dispose();

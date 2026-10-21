@@ -3,8 +3,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory;
-using Turbo.Players;
+using Turbo.Inventory.Grains.Badges;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
@@ -214,19 +214,9 @@ public sealed class AchievementPersistenceTests : IDisposable
 
     private async Task<(IPlayerWalletGrain Wallet, object Grain)> NewWalletAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _fakes.Create<IPlayerNoticeService>());
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, _db, PLAYER_ID);
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _fakes.Create<IPlayerNoticeService>());
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
         return ((IPlayerWalletGrain)grain, grain);
     }
@@ -237,13 +227,7 @@ public sealed class AchievementPersistenceTests : IDisposable
 
     private async Task<(object Grain, IPlayerBadgeGrain Badges)> NewBadgeGrainAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.Badges.PlayerBadgeGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
+        var grain = GrainHarness.Create<PlayerBadgeGrain>(_fakes, _db, PLAYER_ID);
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
         return (grain, (IPlayerBadgeGrain)grain);
     }

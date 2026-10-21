@@ -43,19 +43,17 @@ public sealed class CommandRoomFixture
         Harness = new LiveRoomHarness(roomConfig: Config);
         var room = Harness.Room;
 
-        RoomHarness.SetField(room, "_eventSystem", Events.System);
-        RoomHarness.SetField(room, "_commandRegistryProvider", Commands);
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(Harness.State, "RoomSnapshot")!,
-            "ChatProtection",
-            ChatFloodSensitivityType.Normal
-        );
+        room.UseEventSystem(Events.System);
+        room.UseCommands(Commands);
+        Harness.State.RoomSnapshot = Harness.State.RoomSnapshot with
+        {
+            ChatProtection = ChatFloodSensitivityType.Normal,
+        };
 
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(Harness.State, "RoomSnapshot")!,
-            "ModSettings",
-            ModSettingsSnapshot.OwnerOnly
-        );
+        Harness.State.RoomSnapshot = Harness.State.RoomSnapshot with
+        {
+            ModSettings = ModSettingsSnapshot.OwnerOnly,
+        };
 
         var permissions = new PermissionRegistry([new CorePermissionNodeSource()]);
 
@@ -93,48 +91,26 @@ public sealed class CommandRoomFixture
 
         var state = Harness.State;
 
-        ((IDictionary<PlayerId, RoomObjectId>)RoomHarness.GetMember(state, "AvatarsByPlayerId")!)[
-            id
-        ] = id;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(state, "AvatarsByObjectId")!
-        )[id] = player;
+        state.AvatarsByPlayerId[id] = id;
+        state.AvatarsByObjectId[id] = player;
 
         return player;
     }
 
     /// <summary>How many lines a player may send in one flood window.</summary>
-    public int FloodLimit =>
-        (
-            (Turbo.Rooms.Configuration.RoomConfig)RoomHarness.GetField(Harness.Room, "_roomConfig")!
-        ).ChatFloodMaxMessagesNormalSensitivity;
+    public int FloodLimit => (Harness.Room._roomConfig).ChatFloodMaxMessagesNormalSensitivity;
 
-    public bool IsInRoom(int id) =>
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(Harness.State, "AvatarsByPlayerId")!
-        ).ContainsKey(id);
+    public bool IsInRoom(int id) => (Harness.State.AvatarsByPlayerId).ContainsKey(id);
 
     public DateTime? MutedUntil(int id) =>
-        (
-            (IDictionary<PlayerId, DateTime>)
-                RoomHarness.GetMember(Harness.State, "MutedUntilByPlayerId")!
-        ).TryGetValue(id, out var until)
-            ? until
-            : null;
+        (Harness.State.MutedUntilByPlayerId).TryGetValue(id, out var until) ? until : null;
 
     public void MuteForAWhile(int id) =>
-        (
-            (IDictionary<PlayerId, DateTime>)
-                RoomHarness.GetMember(Harness.State, "MutedUntilByPlayerId")!
-        )[id] = DateTime.UtcNow.AddMinutes(10);
+        (Harness.State.MutedUntilByPlayerId)[id] = DateTime.UtcNow.AddMinutes(10);
 
-    public void GiveRights(int id) =>
-        ((ISet<PlayerId>)RoomHarness.GetMember(Harness.State, "PlayerIdsWithRights")!).Add(id);
+    public void GiveRights(int id) => Harness.State.PlayerIdsWithRights.Add(id);
 
-    public void FilterWord(string word) =>
-        ((ISet<string>)RoomHarness.GetMember(Harness.State, "FilterWords")!).Add(word);
+    public void FilterWord(string word) => Harness.State.FilterWords.Add(word);
 
     public Task<bool> SayAsync(
         int id,

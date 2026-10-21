@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
@@ -13,7 +14,6 @@ using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Sound.Enums;
 using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.Sound.Snapshots;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -49,17 +49,18 @@ public sealed class JukeboxRoomTests
 
     public JukeboxRoomTests()
     {
-        var snapshot = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(snapshot, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)ROOM_OWNER);
-        RoomHarness.SetMember(_room.State, "RoomSnapshot", snapshot);
-        RoomHarness.SetField(_room.Room, "_dbCtxFactory", new InMemoryDb());
+        var snapshot = (RoomSnapshot)
+            RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)ROOM_OWNER,
+        };
+        _room.State.RoomSnapshot = snapshot;
+        _room.Room.UseDatabase(new InMemoryDb());
 
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(_room.Room, _room.Fakes.Create(stream.FieldType, "room-stream"));
+        _room.Room._roomOutbound = _room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         _room.Fakes.Handlers[nameof(IJukeboxGrain.GetDisksAsync)] = _ => Task.FromResult(_disks);
         _room.Fakes.Handlers[nameof(ISongDirectoryGrain.GetSongsAsync)] = call =>
@@ -239,8 +240,7 @@ public sealed class JukeboxRoomTests
             | System.Reflection.BindingFlags.Public
             | System.Reflection.BindingFlags.NonPublic;
 
-        var timers = (System.Collections.IDictionary)
-            RoomHarness.GetField(_room.Module<RoomTimerSystem>(), "_timersByObjectId")!;
+        var timers = _room.Module<RoomTimerSystem>().TimersByObjectId();
         var timer = timers[(RoomObjectId)JUKEBOX]!;
 
         return (long)timer.GetType().GetProperty("DueAtMs", ALL)!.GetValue(timer)!;

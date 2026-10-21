@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Players;
@@ -7,10 +8,10 @@ using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Tests.Support;
@@ -211,11 +212,9 @@ public class WiredChestNotificationTests
     )
     {
         var room = new RoomHarness();
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         var item = room.CreateFloorItem(
             CHEST,
@@ -291,25 +290,13 @@ public class WiredChestNotificationTests
     {
         var player = room.Fakes.Create<IRoomPlayer>(playerId);
 
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(room.State, "AvatarsByPlayerId")!
-        )[playerId] = playerId;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[playerId] = player;
+        room.State.AvatarsByPlayerId[playerId] = playerId;
+        room.State.AvatarsByObjectId[playerId] = player;
     }
 
     private static void RemovePlayer(RoomHarness room, int playerId)
     {
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(room.State, "AvatarsByPlayerId")!
-        ).Remove(playerId);
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        ).Remove(playerId);
+        room.State.AvatarsByPlayerId.Remove(playerId);
+        room.State.AvatarsByObjectId.Remove(playerId);
     }
 }

@@ -5,7 +5,7 @@ using Orleans.Runtime;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains.Respect;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Respect;
@@ -134,18 +134,12 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
         fakes.Handlers[nameof(IPlayerGrain.ReceiveRespectOperationAsync)] = _ =>
             Task.FromResult(targetTotal);
 
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Respect.HumanRespectOperationGrain",
-            fakes,
-            _db
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<HumanRespectOperationGrain>(fakes, _db);
+        GrainHarness.Replace<IAchievementFactRecorder>(
             grain,
-            "_facts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
-        RoomHarness.SetField(grain, "_operationId", operationId);
+        GrainHarness.Replace<string>(grain, operationId);
         return ((IHumanRespectOperationGrain)grain, fakes);
     }
 }

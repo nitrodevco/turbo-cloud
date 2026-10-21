@@ -112,13 +112,13 @@ public sealed class WiredSameTickTests
         _room.Enter(AVATAR, 5, 9);
         AddSwitch(6, 9);
         var lamp = await BuildFurniIsUsedStackAsync();
-        RoomHarness.SetField(_room.Harness.Room, "_tickRunning", true);
+        _room.Harness.Room.SetTickRunning(true);
 
         await CallAsync(UseAsync);
 
         lamp.Logic.GetState().Should().Be(0, "an interleaving call does not run wired mid-tick");
 
-        RoomHarness.SetField(_room.Harness.Room, "_tickRunning", false);
+        _room.Harness.Room.SetTickRunning(false);
         await RunWiredAsync();
 
         lamp.Logic.GetState().Should().Be(1);
@@ -188,11 +188,7 @@ public sealed class WiredSameTickTests
     [Fact]
     public async Task Events_past_the_ticks_budget_wait_for_the_next_wired_tick()
     {
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
-            new WiredConfig { MaxEventsPerTick = 1 }
-        );
+        _room.Harness.Room.UseWiredConfig(new WiredConfig { MaxEventsPerTick = 1 });
         _room.Enter(AVATAR, 5, 9);
         AddSwitch(6, 9);
         var lamp = await BuildFurniIsUsedStackAsync();

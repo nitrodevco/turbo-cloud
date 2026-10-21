@@ -57,11 +57,10 @@ public sealed class IdleAutokickTests
     public async Task The_room_owner_is_not_sent_out()
     {
         SetAutokick(true);
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!,
-            "OwnerId",
-            (PlayerId)PLAYER
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)PLAYER,
+        };
         _room.Enter(AVATAR, 2, 2);
 
         await TickAsync(1_000);
@@ -72,9 +71,11 @@ public sealed class IdleAutokickTests
 
     private void SetAutokick(bool enabled)
     {
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "IdleAutokickEnabled", enabled);
-        RoomHarness.SetMember(snapshot, "IdleAutokickTimeoutSeconds", TIMEOUT_SECONDS);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            IdleAutokickEnabled = enabled,
+            IdleAutokickTimeoutSeconds = TIMEOUT_SECONDS,
+        };
     }
 
     private Task TickAsync(long now) =>

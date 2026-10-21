@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
@@ -17,10 +16,8 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -49,8 +46,10 @@ public sealed class OneWayDoorTests
 
     public OneWayDoorTests()
     {
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)OWNER);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OWNER,
+        };
         _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
             call.Interface == typeof(IRoomPlayerContext)
             && call.Key is int id
@@ -281,17 +280,8 @@ public sealed class OneWayDoorTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)GATE,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)GATE, item);
+        _room.Map.AddItem(item);
 
         return item;
     }

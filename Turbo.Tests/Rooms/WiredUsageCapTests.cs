@@ -35,9 +35,7 @@ public sealed class WiredUsageCapTests
         int global
     )
     {
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
+        _room.Harness.Room.UseWiredConfig(
             new WiredConfig { ExecutionCostCap = 2500, ExecutionCostCapPerOwnerLevel = 312.5 }
         );
         await LoadOwnerLevelAsync(level);
@@ -94,6 +92,6 @@ public sealed class WiredUsageCapTests
                     )!
                     .Invoke(_room.Harness.Room, [Ct])!;
 
-        RoomHarness.SetMember(_room.Harness.State, "OwnerAccountLevel", await read);
+        _room.Harness.State.OwnerAccountLevel = await read;
     }
 }

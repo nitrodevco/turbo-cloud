@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
@@ -95,8 +94,8 @@ public sealed class PickupFurniOrderTests
         _room.AddFloorItem(CHAIR, 3, 3);
 
         // The tick has already sent the heights the furni made when it was placed.
-        ((HashSet<int>)RoomHarness.GetMember(_room.Harness.State, "DirtyHeightTileIds")!).Clear();
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "DirtyHeightSentValues")!).Clear();
+        _room.Harness.State.DirtyHeightTileIds.Clear();
+        _room.Harness.State.DirtyHeightSentValues.Clear();
         _room.Harness.Fakes.Log.Calls.Clear();
 
         (await _room.Harness.Room.RemoveItemByIdAsync(picker, CHAIR, true, Ct)).Should().BeTrue();

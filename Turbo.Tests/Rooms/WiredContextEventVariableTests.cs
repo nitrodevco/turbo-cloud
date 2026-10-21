@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
@@ -335,8 +334,7 @@ public sealed class WiredContextEventVariableTests
     {
         var id = variable.GetVarSnapshot().VariableId;
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[id] =
-            variable;
+        _room.Harness.Room.WiredSystem.VariablesById()[id] = variable;
 
         var seen = _room.AddBox<WiredVariableRoom>(10, 5, 5, "wf_var_room");
 

@@ -10,8 +10,6 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
@@ -444,19 +442,12 @@ public sealed class WiredVariableManagementTests
             ),
         ];
 
-    private void Enter(int roomIndex, string name) =>
-        RoomHarness.SetMember(_room.Enter(roomIndex, 1, 1), "Name", name);
+    private void Enter(int roomIndex, string name) => _room.Enter(roomIndex, 1, 1).UseName(name);
 
     private void Leave(int roomIndex)
     {
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        ).Remove(roomIndex);
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByPlayerId")!
-        ).Remove(100 + roomIndex);
+        _room.Harness.State.AvatarsByObjectId.Remove(roomIndex);
+        _room.Harness.State.AvatarsByPlayerId.Remove(100 + roomIndex);
     }
 
     private async Task<WiredVariableId> AddUserVariableAsync(

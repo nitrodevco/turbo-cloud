@@ -9,7 +9,7 @@ using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Movements;
 using Turbo.Database.Extensions;
-using Turbo.Operations;
+using Turbo.Operations.Grains;
 using Turbo.Operations.Movements;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
@@ -453,13 +453,8 @@ public sealed class AssetMovementDispatcherTests : IDisposable
 
     private IAssetMovementDispatcherGrain Grain(AssetMovementDispatcher dispatcher)
     {
-        var grain = GrainHarness.Create(
-            typeof(OperationsModule).Assembly,
-            "Turbo.Operations.Grains.AssetMovementDispatcherGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetMember(grain, "_dispatcher", dispatcher);
+        var grain = GrainHarness.Create<AssetMovementDispatcherGrain>(_fakes, _db);
+        GrainHarness.Replace<AssetMovementDispatcher>(grain, dispatcher);
 
         return (IAssetMovementDispatcherGrain)grain;
     }

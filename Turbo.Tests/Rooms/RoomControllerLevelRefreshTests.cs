@@ -67,9 +67,7 @@ public sealed class RoomControllerLevelRefreshTests
     public async Task Rights_given_tell_the_level_and_that_raid_protection_may_be_managed()
     {
         await Security.TakeEntryControllerLevelAsync(Player);
-        ((ISet<PlayerId>)RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!).Add(
-            Player
-        );
+        _room.Harness.State.PlayerIdsWithRights.Add(Player);
 
         await Security.RefreshControllerLevelForPlayerAsync(Player, Ct);
 

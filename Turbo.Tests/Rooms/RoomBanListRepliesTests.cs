@@ -22,11 +22,10 @@ public sealed class RoomBanListRepliesTests
     public async Task an_empty_ban_list_is_answered_once_and_its_quick_repeats_are_let_go()
     {
         var room = new WiredRoom(4, 4).Harness;
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(room.State, "RoomSnapshot")!,
-            "ModSettings",
-            ModSettingsSnapshot.OwnerOnly
-        );
+        room.State.RoomSnapshot = room.State.RoomSnapshot with
+        {
+            ModSettings = ModSettingsSnapshot.OwnerOnly,
+        };
         var bans = room.Module<RoomModerationModule>();
         var owner = ActionContext.CreateForPlayer((PlayerId)1, (RoomId)1);
 

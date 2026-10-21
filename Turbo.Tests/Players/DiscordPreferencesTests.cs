@@ -3,7 +3,7 @@ using Orleans;
 using Turbo.Database.Entities.Players;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Preferences;
-using Turbo.Players;
+using Turbo.Players.Grains.Settings;
 using Turbo.Primitives.Messages.Incoming.Preferences;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
 using Turbo.Primitives.Networking;
@@ -141,13 +141,7 @@ public sealed class DiscordPreferencesTests : IDisposable
 
     private async Task<IPlayerSettingsGrain> SettingsAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Settings.PlayerSettingsGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerSettingsGrain>(_fakes, _db, PLAYER);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerSettingsGrain)grain;

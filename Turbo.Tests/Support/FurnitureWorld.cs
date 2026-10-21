@@ -1,4 +1,3 @@
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Configuration;
@@ -9,7 +8,9 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Database.Movements;
 using Turbo.Furniture.Providers;
-using Turbo.Inventory;
+using Turbo.Inventory.Factories;
+using Turbo.Inventory.Grains;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
@@ -27,9 +28,6 @@ namespace Turbo.Tests.Support;
 /// </summary>
 public sealed class FurnitureWorld : IDisposable
 {
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
     private readonly List<FurnitureDefinitionEntity> _definitions = [];
 
     public FurnitureWorld()
@@ -68,49 +66,27 @@ public sealed class FurnitureWorld : IDisposable
     {
         var recorder = await NewRecorderAsync(ct);
 
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            Fakes,
-            Db,
-            playerId
-        );
+        var grain = GrainHarness.Create<InventoryGrain>(Fakes, Db, playerId);
         var definitions = Fakes.Create<IFurnitureDefinitionProvider>();
-        var loader = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Factories.InventoryFurnitureLoader"
-            )!,
-            All,
-            null,
-            [
-                Db,
-                definitions,
-                new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
-                NullLogger<IInventoryFurnitureLoader>.Instance,
-            ],
-            null
-        )!;
-        var module = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryFurniModule"
-            )!,
-            All,
-            null,
-            [
-                grain,
-                RoomHarness.GetMember(grain, "_state")!,
-                TestCustody.Over(Db, recorder),
-                loader,
-                definitions,
-                Fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),
-                NullLogger.Instance,
-            ],
-            null
-        )!;
+        var loader = new InventoryFurnitureLoader(
+            Db,
+            definitions,
+            new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
+            NullLogger<IInventoryFurnitureLoader>.Instance
+        );
+        var module = new InventoryFurniModule(
+            grain,
+            GrainHarness.Get<InventoryLiveState>(grain),
+            TestCustody.Over(Db, recorder),
+            loader,
+            definitions,
+            Fakes.Create<Turbo.Primitives.Catalog.ICatalogService>(),
+            NullLogger.Instance
+        );
 
-        RoomHarness.SetField(grain, "FurniModule", module);
+        GrainHarness.Replace(grain, module);
 
-        return (IInventoryGrain)grain;
+        return grain;
     }
 
     public void AddPlayer(int id, string name) =>

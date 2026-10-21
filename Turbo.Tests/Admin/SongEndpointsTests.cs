@@ -55,9 +55,8 @@ public sealed class SongEndpointsTests : IAsyncDisposable
             new Fakes(),
             _db
         );
-        RoomHarness.SetField(
+        GrainHarness.Replace<IStuffDataFactory>(
             directory,
-            "_stuffDataFactory",
             new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance)
         );
         ((Grain)directory).OnActivateAsync(CancellationToken.None).GetAwaiter().GetResult();

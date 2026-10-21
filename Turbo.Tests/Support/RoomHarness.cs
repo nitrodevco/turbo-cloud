@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
@@ -7,9 +6,9 @@ using Turbo.Furniture.Providers;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
@@ -28,7 +27,7 @@ namespace Turbo.Tests.Support;
 public sealed class RoomHarness
 {
     public RoomGrain Room { get; }
-    public object State { get; }
+    internal RoomLiveState State { get; }
     public Fakes Fakes { get; } = new();
     public int Width { get; }
     public int Height { get; }
@@ -42,15 +41,13 @@ public sealed class RoomHarness
         Height = height;
         Room = (RoomGrain)RuntimeHelpers.GetUninitializedObject(typeof(RoomGrain));
 
-        var stateType = typeof(RoomGrain).Assembly.GetType("Turbo.Rooms.Grains.RoomLiveState")!;
-        State = Activator.CreateInstance(stateType, nonPublic: true)!;
-        SetMember(State, "RoomId", (Turbo.Primitives.Rooms.RoomId)1);
-        SetField(Room, "_state", State);
+        State = new RoomLiveState { RoomId = 1 };
+        Room.UseState(State);
 
         FillServices();
 
         var size = width * height;
-        var model = new RoomModelSnapshot
+        State.Model = new RoomModelSnapshot
         {
             Id = 1,
             Name = "test",
@@ -64,29 +61,20 @@ public sealed class RoomHarness
             BaseHeights = heights ?? new Altitude[size],
             BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
         };
-        SetMember(State, "Model", model);
 
         BuildComponents();
 
-        var map = GetField(Room, "MapModule")!;
-        var ensure = map.GetType().GetMethod("EnsureMapBuiltAsync", All);
-        if (ensure is not null)
-        {
-            var result = ensure.Invoke(map, [default(CancellationToken)]);
-            if (result is Task t)
-                t.GetAwaiter().GetResult();
-        }
+        Room.MapModule.EnsureMapBuiltAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public T Module<T>()
         where T : class =>
         (T)typeof(RoomGrain).GetFields(All).First(f => f.FieldType == typeof(T)).GetValue(Room)!;
 
-    public IDictionary ItemsById => (IDictionary)GetMember(State, "ItemsById")!;
+    public Dictionary<RoomObjectId, IRoomItem> ItemsById => State.ItemsById;
 
     /// <summary>The computed height of a tile: the model's floor, or the top of what stands there.</summary>
-    public Altitude TileHeight(int x, int y) =>
-        ((Altitude[])GetMember(State, "TileHeights")!)[(y * Width) + x];
+    public Altitude TileHeight(int x, int y) => State.TileHeights[(y * Width) + x];
 
     /// <summary>
     /// Creates a floor item with the default floor logic, or the one <paramref name="createLogic"/>
@@ -181,10 +169,7 @@ public sealed class RoomHarness
     public void AddToRoom(IRoomFloorItem item)
     {
         ItemsById.Add(item.ObjectId, item);
-        var map = GetField(Room, "MapModule")!;
-        map.GetType()
-            .GetMethod("AddItem", All, [typeof(Turbo.Primitives.Rooms.Object.Furniture.IRoomItem)])!
-            .Invoke(map, [item]);
+        Room.MapModule.AddItem(item);
     }
 
     private void FillServices()

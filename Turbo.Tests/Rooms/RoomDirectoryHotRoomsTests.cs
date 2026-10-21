@@ -27,13 +27,8 @@ public sealed class RoomDirectoryHotRoomsTests
 
     public RoomDirectoryHotRoomsTests()
     {
-        _directory = (IRoomDirectoryGrain)
-            GrainHarness.Create(
-                typeof(RoomGrain).Assembly,
-                "Turbo.Rooms.Grains.RoomDirectoryGrain",
-                new Fakes()
-            );
-        RoomHarness.SetMember(_directory, "_time", (TimeProvider)_time);
+        _directory = (IRoomDirectoryGrain)GrainHarness.Create<RoomDirectoryGrain>(new Fakes());
+        GrainHarness.Replace<TimeProvider>(_directory, _time);
     }
 
     [Fact]
@@ -87,9 +82,11 @@ public sealed class RoomDirectoryHotRoomsTests
     private async Task RoomAsync(int roomId)
     {
         var room = (RoomInfoSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(RoomInfoSnapshot));
-        RoomHarness.SetMember(room, "RoomId", (RoomId)roomId);
-        RoomHarness.SetMember(room, "OwnerId", (PlayerId)1);
+            RuntimeHelpers.GetUninitializedObject(typeof(RoomInfoSnapshot)) with
+        {
+            RoomId = (RoomId)roomId,
+            OwnerId = (PlayerId)1,
+        };
 
         await _directory.UpsertActiveRoomAsync(room, Ct);
     }

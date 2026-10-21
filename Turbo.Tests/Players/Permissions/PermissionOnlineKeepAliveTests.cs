@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Orleans.Runtime;
-using Turbo.Players;
+using Turbo.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
@@ -94,19 +94,8 @@ public sealed class PermissionOnlineKeepAliveTests
 
     private async Task<IPlayerPermissionGrain> ActivateAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Permissions.PlayerPermissionGrain",
-            _fakes,
-            new InMemoryDb()
-        );
-        grain
-            .GetType()
-            .GetField(
-                "_permissionRegistryProvider",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .SetValue(grain, _fakes.Create<IPermissionRegistryProvider>());
+        var grain = GrainHarness.Create<PlayerPermissionGrain>(_fakes, new InMemoryDb());
+        GrainHarness.Replace(grain, _fakes.Create<IPermissionRegistryProvider>());
 
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 

@@ -26,10 +26,8 @@ public sealed class WiredSaysKeywordHideTests
     public WiredSaysKeywordHideTests()
     {
         // The chat path publishes every line and matches commands first, as CommandRoomFixture sets up.
-        RoomHarness.SetField(_room.Harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_commandRegistryProvider",
+        _room.Harness.Room.UseEventSystem(new TestEventBus().System);
+        _room.Harness.Room.UseCommands(
             new Turbo.Commands.CommandRegistryProvider(
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )

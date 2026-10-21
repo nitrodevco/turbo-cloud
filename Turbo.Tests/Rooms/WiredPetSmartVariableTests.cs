@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Immutable;
 using FluentAssertions;
 using Turbo.Primitives.Action;
@@ -7,8 +6,6 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Pet;
@@ -314,11 +311,8 @@ public sealed class WiredPetSmartVariableTests
             }
         );
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        )[objectId] = pet;
-        ((IList<IRoomPet>)RoomHarness.GetMember(_room.Harness.State, "Pets")!).Add(pet);
+        _room.Harness.State.AvatarsByObjectId[objectId] = pet;
+        _room.Harness.State.Pets.Add(pet);
 
         return pet;
     }
@@ -326,8 +320,7 @@ public sealed class WiredPetSmartVariableTests
     private WiredVariableId Register(WiredInternalVariable variable, bool smart = true)
     {
         var id = variable.GetVarSnapshot().VariableId;
-        var byId = (IDictionary)
-            RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!;
+        var byId = _room.Harness.Room.WiredSystem.VariablesById();
 
         byId[id] = variable;
         variable

@@ -82,10 +82,7 @@ public sealed class WiredVariableNameRulesTests
     [Fact]
     public async Task A_permanent_variable_over_the_rooms_cap_is_refused_with_permanent_limit()
     {
-        RoomHarness.SetMember(
-            _room.Harness.Room,
-            "_wiredConfig",
-            // One furni variable at the default level's cap of 2500.
+        _room.Harness.Room.UseWiredConfig( // One furni variable at the default level's cap of 2500.
             new WiredConfig { PermanentFurniVariablesPer10000Cap = 4 }
         );
         var first = _room.AddBox<WiredVariableFurni>(FURNI_VAR, 0, 0, "wf_var_furni");

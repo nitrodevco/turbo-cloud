@@ -27,29 +27,25 @@ public sealed class RoomEventEditFilterTests : IDisposable
 
     public RoomEventEditFilterTests()
     {
-        RoomHarness.SetField(_room.Room, "_wordFilter", new BadIsUncleanFilter());
-        RoomHarness.SetField(_room.Room, "_dbCtxFactory", _db);
+        _room.Room.UseWordFilter(new BadIsUncleanFilter());
+        _room.Room.UseDatabase(_db);
 
-        var snapshot = (RoomSnapshot)RoomHarness.GetMember(_room.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(
-            _room.State,
-            "RoomSnapshot",
-            snapshot with
+        var snapshot = _room.State.RoomSnapshot;
+        _room.State.RoomSnapshot = snapshot with
+        {
+            ActiveEvent = new RoomEventSnapshot
             {
-                ActiveEvent = new RoomEventSnapshot
-                {
-                    EventId = EVENT,
-                    RoomId = snapshot.RoomId,
-                    OwnerId = OWNER,
-                    OwnerName = "test",
-                    CategoryId = 2,
-                    Name = "party",
-                    Description = "come along",
-                    CreatedAtUtc = DateTime.UtcNow,
-                    ExpiresAtUtc = DateTime.UtcNow.AddHours(1),
-                },
-            }
-        );
+                EventId = EVENT,
+                RoomId = snapshot.RoomId,
+                OwnerId = OWNER,
+                OwnerName = "test",
+                CategoryId = 2,
+                Name = "party",
+                Description = "come along",
+                CreatedAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddHours(1),
+            },
+        };
     }
 
     public void Dispose() => _db.Dispose();

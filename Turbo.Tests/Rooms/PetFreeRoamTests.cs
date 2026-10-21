@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -6,7 +5,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -51,16 +49,15 @@ public sealed class PetFreeRoamTests
 
         _owner.SetPosition(1, 1);
         _owner.SetLogic(harness.Fakes.Create<IRoomPlayerLogic>(5));
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _room.Harness.State.AvatarsByObjectId[5] = _owner;
+        _room.Harness.State.AvatarsByPlayerId[OWNER] = 5;
         _room.Map.AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            AllowPets = true,
+        };
+        harness.Room.UseEventSystem(new TestEventBus().System);
+        harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(_pet);
@@ -270,8 +267,8 @@ public sealed class PetFreeRoamTests
         shown
             .Should()
             .Equal([4, 3, 2, 1, 0], "full (5) less one at the first drink, then one less each");
-        ((IDictionary)Member("ItemsById"))
-            .Contains((RoomObjectId)DRINK)
+        _room
+            .Harness.State.ItemsById.ContainsKey((RoomObjectId)DRINK)
             .Should()
             .BeTrue("an empty drink stays where it is");
         _room.Harness.Fakes.Log.Of("EnqueueDeletedItemAsync").Should().BeEmpty();
@@ -330,7 +327,7 @@ public sealed class PetFreeRoamTests
         // On the room's own clock, which the drink is timed on.
         _now = RoomClockMs();
         var decidedAt = _now;
-        RoomHarness.SetField(Pets, "_random", new ScriptedRandom(step: 1));
+        Pets.UseRandom(new ScriptedRandom(step: 1));
         await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(_now, Ct);
         await SetOffAsync();
         await WalkAsync();
@@ -383,9 +380,7 @@ public sealed class PetFreeRoamTests
     /// The pet never goes for a drink (nor a toy), so never asks for one in a room without.
     /// </summary>
     private void NoDrinkWanted(bool toyEither = false) =>
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_petConfig",
+        _room.Harness.Room.UsePetConfig(
             new PetConfig { DrinkChancePercent = 0, ToyPlayChancePercent = toyEither ? 0 : 5 }
         );
 
@@ -399,8 +394,6 @@ public sealed class PetFreeRoamTests
             createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx),
             totalStates: totalStates
         );
-
-    private object Member(string name) => RoomHarness.GetMember(_room.Harness.State, name)!;
 
     private RoomPetModule Pets => _room.Harness.Module<RoomPetModule>();
 
@@ -432,7 +425,7 @@ public sealed class PetFreeRoamTests
     /// <summary>One decision of the pet's, with the given dice, well after its last.</summary>
     private Task DecideAsync(Random random)
     {
-        RoomHarness.SetField(Pets, "_random", random);
+        Pets.UseRandom(random);
         // Well past anything the room timed on its own clock too (a drink holds the pet till done).
         _now = Math.Max(_now, RoomClockMs()) + 1_000_000L;
 

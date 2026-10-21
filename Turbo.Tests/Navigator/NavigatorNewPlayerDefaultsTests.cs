@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains.Navigator;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Navigator;
 using Turbo.Primitives.Rooms.Enums;
@@ -152,16 +152,10 @@ public sealed class NavigatorNewPlayerDefaultsTests : IDisposable
 
     private async Task<IPlayerNavigatorGrain> ActivateAsync(PlayerNavigatorConfig? config = null)
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Navigator.PlayerNavigatorGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerNavigatorGrain>(_fakes, _db, PLAYER);
 
         if (config is not null)
-            RoomHarness.SetMember(grain, "_navigatorConfig", config);
+            GrainHarness.Replace<PlayerNavigatorConfig>(grain, config);
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

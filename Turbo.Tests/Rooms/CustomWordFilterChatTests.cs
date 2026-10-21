@@ -32,18 +32,16 @@ public sealed class CustomWordFilterChatTests
     public CustomWordFilterChatTests()
     {
         // The chat path publishes every line and matches commands first, as CommandRoomFixture sets up.
-        RoomHarness.SetField(_room.Harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_commandRegistryProvider",
+        _room.Harness.Room.UseEventSystem(new TestEventBus().System);
+        _room.Harness.Room.UseCommands(
             new Turbo.Commands.CommandRegistryProvider(
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )
         );
 
-        RoomHarness.SetMember(_room.Enter(SPEAKER, 1, 1), "Name", "speaker");
-        RoomHarness.SetMember(_room.Enter(FILTERING, 2, 2), "Name", "filtering");
-        RoomHarness.SetMember(_room.Enter(BYSTANDER, 3, 3), "Name", "bystander");
+        _room.Enter(SPEAKER, 1, 1).UseName("speaker");
+        _room.Enter(FILTERING, 2, 2).UseName("filtering");
+        _room.Enter(BYSTANDER, 3, 3).UseName("bystander");
     }
 
     [Theory]

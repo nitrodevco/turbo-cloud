@@ -6,7 +6,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Respect;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
@@ -33,16 +32,10 @@ public sealed class RespectGestureTests
 
     private void AddPlayer(RoomPlayerAvatar avatar, int x, int y)
     {
-        RoomHarness.SetMember(avatar, "Name", $"player{avatar.PlayerId}");
+        avatar.UseName($"player{avatar.PlayerId}");
         avatar.SetPosition(x, y);
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_harness.State, "AvatarsByObjectId")!
-        )[avatar.ObjectId] = avatar;
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_harness.State, "AvatarsByPlayerId")!
-        )[avatar.PlayerId] = avatar.ObjectId;
+        _harness.State.AvatarsByObjectId[avatar.ObjectId] = avatar;
+        _harness.State.AvatarsByPlayerId[avatar.PlayerId] = avatar.ObjectId;
         _harness.Module<Turbo.Rooms.Grains.Modules.RoomMapModule>().AddAvatar(avatar, false);
     }
 

@@ -80,9 +80,7 @@ public sealed class PostItPadTests : IDisposable
         _world.AddRoom(ROOM, OWNER);
 
         _room.Enter(2, 1, 1);
-        ((ISet<PlayerId>)RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!).Add(
-            BUILDER
-        );
+        _room.Harness.State.PlayerIdsWithRights.Add(BUILDER);
 
         // What the room's item provider makes of a snapshot: the item, its logic given on attach.
         _room.Harness.Fakes.Handlers["CreateFromFurnitureItemSnapshot"] = call =>
@@ -398,9 +396,7 @@ public sealed class PostItPadTests : IDisposable
 
     /// <summary>The room makes its notes through the custody over the test database, recording.</summary>
     private async Task UseTheDatabaseAsync() =>
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_custody",
+        _room.Harness.Room.UseCustody(
             TestCustody.Over(_world.Db, await _world.NewRecorderAsync(Ct))
         );
 
@@ -428,8 +424,8 @@ public sealed class PostItPadTests : IDisposable
     /// <summary>Every wall item in the room but the post-it wall.</summary>
     private List<IRoomItem> Notes() =>
         [
-            .. ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!)
-                .Values.Cast<IRoomItem>()
+            .. _room
+                .Harness.State.ItemsById.Values.Cast<IRoomItem>()
                 .Where(x =>
                     x.ObjectId != POST_IT_WALL && x.Definition.ProductType == ProductType.Wall
                 ),

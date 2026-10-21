@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
@@ -34,14 +34,11 @@ public sealed class WiredVariablePermissionTests
 
     public WiredVariablePermissionTests()
     {
-        ((ISet<PlayerId>)RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!).Add(
-            GUEST
-        );
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!,
-            "WiredModifyPermissionMask",
-            WiredPermissionFlags.Rights
-        );
+        _room.Harness.State.PlayerIdsWithRights.Add(GUEST);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            WiredModifyPermissionMask = WiredPermissionFlags.Rights,
+        };
     }
 
     [Fact]
@@ -50,8 +47,8 @@ public sealed class WiredVariablePermissionTests
         // Boxes the guest placed: theirs to change, but not to share in someone else's room.
         _room.AddBox<WiredVariableRoom>(ROOM_VAR, 0, 0, "wf_var_room");
         _room.AddBox<WiredVariableUser>(USER_VAR, 1, 0, "wf_var_user");
-        RoomHarness.SetMember(_room.FloorItem(ROOM_VAR), "OwnerId", (PlayerId)GUEST);
-        RoomHarness.SetMember(_room.FloorItem(USER_VAR), "OwnerId", (PlayerId)GUEST);
+        ((RoomFloorItem)_room.FloorItem(ROOM_VAR)).OwnerId = GUEST;
+        ((RoomFloorItem)_room.FloorItem(USER_VAR)).OwnerId = GUEST;
 
         (await SaveAsync(ROOM_VAR, GUEST, "points", [(int)WiredAvailabilityType.Shared]))
             .ErrorKey.Should()
@@ -81,7 +78,7 @@ public sealed class WiredVariablePermissionTests
             .BeTrue();
 
         // A box the guest placed in the owner's room: theirs and the owner's to change.
-        RoomHarness.SetMember(_room.FloorItem(ROOM_VAR), "OwnerId", (PlayerId)GUEST);
+        ((RoomFloorItem)_room.FloorItem(ROOM_VAR)).OwnerId = GUEST;
         (await SaveAsync(ROOM_VAR, GUEST, "points", [(int)WiredAvailabilityType.Persistent]))
             .IsSaved.Should()
             .BeTrue();

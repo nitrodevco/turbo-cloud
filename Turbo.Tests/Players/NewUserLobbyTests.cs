@@ -80,8 +80,10 @@ public sealed class NewUserLobbyTests : IDisposable
     public async Task A_new_user_lobby_lets_in_only_new_users()
     {
         var harness = new LiveRoomHarness();
-        var snapshot = RoomHarness.GetMember(harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "DoorMode", RoomDoorModeType.NoobLobby);
+        harness.State.RoomSnapshot = harness.State.RoomSnapshot with
+        {
+            DoorMode = RoomDoorModeType.NoobLobby,
+        };
         harness.Fakes.Handlers["GetNoobnessLevelAsync"] = call =>
             Task.FromResult(
                 (PlayerId)call.Args[0]! == NEW_PLAYER
@@ -104,12 +106,11 @@ public sealed class NewUserLobbyTests : IDisposable
     {
         var harness = new LiveRoomHarness();
         var logger = new CapturingLogger<Turbo.Primitives.Rooms.Grains.IRoomGrain>();
-        RoomHarness.SetField(harness.Room, "_logger", logger);
-        RoomHarness.SetMember(
-            RoomHarness.GetMember(harness.State, "RoomSnapshot")!,
-            "OwnerId",
-            (PlayerId)OLD_PLAYER
-        );
+        harness.Room.UseLogger(logger);
+        harness.State.RoomSnapshot = harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OLD_PLAYER,
+        };
 
         var result = await harness.Room.SaveRoomSettingsAsync(
             Turbo.Primitives.Action.ActionContext.CreateForPlayer(OLD_PLAYER, new RoomId(1)),

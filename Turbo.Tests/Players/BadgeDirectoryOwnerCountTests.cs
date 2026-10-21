@@ -2,7 +2,7 @@ using FluentAssertions;
 using Orleans;
 using Turbo.Admin.Content;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains.Badges;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Orleans;
@@ -103,12 +103,7 @@ public sealed class BadgeDirectoryOwnerCountTests : IDisposable
 
     private async Task<IBadgeDirectoryGrain> DirectoryAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Badges.BadgeDirectoryGrain",
-            _fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<BadgeDirectoryGrain>(_fakes, _db);
         await ((Grain)grain).OnActivateAsync(Ct);
         return (IBadgeDirectoryGrain)grain;
     }

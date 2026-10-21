@@ -91,10 +91,7 @@ public sealed class WiredWallItemIdTests
 
         var id = marked.GetVarSnapshot().VariableId;
 
-        (
-            (System.Collections.IDictionary)
-                RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!
-        )[id] = marked;
+        _room.Harness.Room.WiredSystem.VariablesById()[id] = marked;
         (
             await marked.GiveValueAsync(
                 new WiredVariableKey(id, WiredVariableTargetType.Furni, LAMP),

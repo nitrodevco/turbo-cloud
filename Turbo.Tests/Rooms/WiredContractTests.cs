@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
@@ -20,8 +21,8 @@ using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Grains.WiredTrading;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -461,13 +462,7 @@ public class WiredContractTests
     }
 
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>
-        (IWiredTradeGrain)
-            GrainHarness.Create(
-                typeof(RoomGrain).Assembly,
-                "Turbo.Rooms.Grains.WiredTrading.WiredTradeGrain",
-                fakes,
-                playerId: PLAYER
-            );
+        (IWiredTradeGrain)GrainHarness.Create<WiredTradeGrain>(fakes, playerId: PLAYER);
 
     private static IEnumerable<IComposer> Sent(Fakes fakes) =>
         fakes.Log.Calls.SelectMany(call =>
@@ -483,20 +478,20 @@ public class WiredContractTests
     )
     {
         var room = new RoomHarness();
-        RoomHarness.SetMember(room.State, "IsRightsLoaded", true);
+        room.State.IsRightsLoaded = true;
 
         // Furni tell the room when their stuff data changes.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         // The room's owner may modify its wired whatever the masks say.
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", (PlayerId)1);
-        RoomHarness.SetMember(room.State, "RoomSnapshot", info);
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)1,
+        };
+        room.State.RoomSnapshot = info;
 
         var item = room.CreateFloorItem(
             CONTRACT,

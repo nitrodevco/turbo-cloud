@@ -64,18 +64,22 @@ public sealed class WiredOfficialGlobalVariableTests
     {
         var roomId = new RoomIdVariable(_room.Harness.Room);
         var groupId = new RoomGroupIdVariable(_room.Harness.Room);
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)77,
+        };
 
-        RoomHarness.SetMember(info, "RoomId", (RoomId)77);
-        RoomHarness.SetMember(_room.Harness.State, "RoomSnapshot", info);
+        _room.Harness.State.RoomSnapshot = info;
 
         Read(roomId).Should().Be(77);
         groupId.TryGetValue(Key(groupId), out _).Should().BeFalse();
 
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
-        RoomHarness.SetMember(guild, "GuildId", (Turbo.Primitives.Guilds.GuildId)303029);
-        RoomHarness.SetMember(info, "Guild", guild);
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = (Turbo.Primitives.Guilds.GuildId)303029,
+        };
+        _room.Harness.State.RoomSnapshot = info with { Guild = guild };
 
         Read(groupId).Should().Be(303029);
     }

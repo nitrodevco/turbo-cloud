@@ -8,7 +8,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Movements;
 using Turbo.Operations.Configuration;
 using Turbo.Operations.OnlineRewards;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
@@ -417,20 +417,10 @@ public sealed class OnlineRewardServiceTests : IDisposable
         );
         await recorder.StartAsync(Ct);
 
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            _db,
-            playerId
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _fakes.Create<IPlayerNoticeService>());
-        RoomHarness.SetField(grain, "_movements", recorder);
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, _db, playerId);
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _fakes.Create<IPlayerNoticeService>());
+        GrainHarness.Replace<IAssetMovementRecorder>(grain, recorder);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerWalletGrain)grain;

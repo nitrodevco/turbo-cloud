@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -10,13 +9,13 @@ using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -97,10 +96,12 @@ public sealed class RightsHolderBuildingTests
     {
         var room = CreateRoom(new RoomConfig());
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = (GuildId)9,
+            RightsLevel = rightsLevel,
+        };
 
-        RoomHarness.SetMember(guild, "GuildId", (GuildId)9);
-        RoomHarness.SetMember(guild, "RightsLevel", rightsLevel);
         room.Harness.Fakes.Handlers["GetGuildOfRoomAsync"] = _ =>
             Task.FromResult<GuildSummarySnapshot?>(guild);
         room.Harness.Fakes.Handlers["GetMemberRankAsync"] = _ =>
@@ -127,9 +128,7 @@ public sealed class RightsHolderBuildingTests
 
         room.AddFloorItem(CRATE, 6, 6);
         room.Enter(HOLDER_AVATAR, 1, 1);
-        ((ISet<PlayerId>)RoomHarness.GetMember(room.Harness.State, "PlayerIdsWithRights")!).Add(
-            HOLDER
-        );
+        room.Harness.State.PlayerIdsWithRights.Add(HOLDER);
 
         return room;
     }
@@ -192,18 +191,15 @@ public sealed class RightsHolderBuildingTests
 
     private static IRoomService Service(WiredRoom room) =>
         (IRoomService)
-            Activator.CreateInstance(
-                typeof(RoomConfig).Assembly.GetType("Turbo.Rooms.RoomService")!,
+            new RoomService(
                 NullLogger<IRoomService>.Instance,
                 Options.Create(new RoomConfig()),
                 room.Grains,
                 TimeProvider.System
-            )!;
+            );
 
     private static bool HasItem(WiredRoom room, int id) =>
-        ((IDictionary)RoomHarness.GetMember(room.Harness.State, "ItemsById")!).Contains(
-            (RoomObjectId)id
-        );
+        room.Harness.State.ItemsById.ContainsKey((RoomObjectId)id);
 
     /// <summary>The <c>message</c> of every placement dialog the room service sent.</summary>
     private static IEnumerable<string> DialogMessages(WiredRoom room) =>

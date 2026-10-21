@@ -32,7 +32,7 @@ public class RoomOperatorCommandsTests
             new RoomEffectCommand(),
         ]);
 
-    private bool IsMuted => (bool)RoomHarness.GetMember(_room.Harness.State, "IsRoomMuted")!;
+    private bool IsMuted => _room.Harness.State.IsRoomMuted;
 
     private int SessionsClosed => _room.Harness.Fakes.Log.Of("OnRemovedFromRoomAsync").Count();
 
@@ -90,7 +90,7 @@ public class RoomOperatorCommandsTests
         _room.AddPlayer(OWNER);
         _room.AddPlayer(2);
         _room.AddPlayer(3);
-        var db = (InMemoryDb)RoomHarness.GetField(_room.Harness.Room, "_dbCtxFactory")!;
+        var db = _room.Harness.Room._dbCtxFactory;
         await using (var ctx = await db.CreateDbContextAsync(Ct))
         {
             ctx.Rooms.Add(
@@ -124,15 +124,13 @@ public class RoomOperatorCommandsTests
 
         // The harness builds its snapshot without a row behind it; a loaded room has a password
         // and tags, even empty ones.
-        var loaded = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(loaded, "Password", string.Empty);
-        RoomHarness.SetMember(
-            loaded,
-            "Tags",
-            System.Collections.Immutable.ImmutableArray<string>.Empty
-        );
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            Password = string.Empty,
+            Tags = System.Collections.Immutable.ImmutableArray<string>.Empty,
+        };
         var logger = new CapturingLogger<Turbo.Primitives.Rooms.Grains.IRoomGrain>();
-        RoomHarness.SetField(_room.Harness.Room, "_logger", logger);
+        _room.Harness.Room.UseLogger(logger);
         var changed = await _room.Harness.Room.ModerateRoomBySystemAsync(
             2,
             true,
@@ -143,9 +141,9 @@ public class RoomOperatorCommandsTests
 
         logger.AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning).Should().BeEmpty();
         changed.Should().BeTrue();
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.GetMember(snapshot, "DoorMode").Should().Be(RoomDoorModeType.Locked);
-        RoomHarness.GetMember(snapshot, "Name").Should().Be("Inappropriate to hotel management");
+        var snapshot = _room.Harness.State.RoomSnapshot;
+        snapshot.DoorMode.Should().Be(RoomDoorModeType.Locked);
+        snapshot.Name.Should().Be("Inappropriate to hotel management");
         await using (var ctx = await db.CreateDbContextAsync(Ct))
             ctx.Rooms.Single().DoorMode.Should().Be(RoomDoorModeType.Locked);
         new[] { OWNER, 2, 3 }.Select(_room.IsInRoom).Should().Equal(true, true, false);

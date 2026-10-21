@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,6 +6,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.WiredTrading;
 using Turbo.Furniture.Providers;
+using Turbo.Inventory.Factories;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -24,7 +24,7 @@ using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains;
+using Turbo.Rooms.Grains.WiredTrading;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -46,9 +46,6 @@ public sealed class WiredChestTests : IDisposable
     private const int CHAIR_DEFINITION = 1;
     private const int GOLD_DEFINITION = 2;
     private const int CHEST_DEFINITION = 3;
-
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -78,20 +75,12 @@ public sealed class WiredChestTests : IDisposable
             Task.FromResult(InventorySnapshots((ImmutableArray<RoomObjectId>)call.Args[0]!));
 
         _loader = (IInventoryFurnitureLoader)
-            Activator.CreateInstance(
-                typeof(Turbo.Inventory.InventoryModule).Assembly.GetType(
-                    "Turbo.Inventory.Factories.InventoryFurnitureLoader"
-                )!,
-                All,
-                null,
-                [
-                    _db,
-                    _fakes.Create<IFurnitureDefinitionProvider>(),
-                    new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
-                    NullLogger<IInventoryFurnitureLoader>.Instance,
-                ],
-                null
-            )!;
+            new InventoryFurnitureLoader(
+                _db,
+                _fakes.Create<IFurnitureDefinitionProvider>(),
+                new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
+                NullLogger<IInventoryFurnitureLoader>.Instance
+            );
     }
 
     public void Dispose() => _db.Dispose();
@@ -274,23 +263,14 @@ public sealed class WiredChestTests : IDisposable
 
     private async Task<IWiredChestGrain> ChestAsync(WiredChestConfig? config = null)
     {
-        var grain = GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Grains.WiredTrading.WiredChestGrain",
-            _fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<WiredChestGrain>(_fakes, _db);
 
         if (config is not null)
-            RoomHarness.SetField(grain, "_config", config);
+            GrainHarness.Replace(grain, config);
 
-        RoomHarness.SetMember(
-            RoomHarness.GetField(grain, "_state")!,
-            "ChestId",
-            (RoomObjectId)CHEST
-        );
-        RoomHarness.SetField(grain, "_defsProvider", _fakes.Create<IFurnitureDefinitionProvider>());
-        RoomHarness.SetField(grain, "_furnitureLoader", _loader);
+        GrainHarness.Replace(grain, new WiredChestLiveState { ChestId = CHEST });
+        GrainHarness.Replace(grain, _fakes.Create<IFurnitureDefinitionProvider>());
+        GrainHarness.Replace(grain, _loader);
 
         await ((Orleans.Grain)grain).OnActivateAsync(default);
 

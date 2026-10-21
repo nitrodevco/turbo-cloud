@@ -20,7 +20,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
-using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -180,17 +179,8 @@ public sealed class RoomEntryTailTests
         // Bill, 2026-10-17: the avatar stood in the door facing the wall. Habbo sends the door's
         // direction in Users and again in the UserUpdate after the raid protection (53 of 54
         // official entries); the client takes the Users one as an angle, so only the update turns it.
-        var model = (RoomModelSnapshot)RoomHarness.GetMember(_room.Harness.State, "Model")!;
-        RoomHarness.SetMember(
-            _room.Harness.State,
-            "Model",
-            model with
-            {
-                DoorX = 0,
-                DoorY = 3,
-                DoorRotation = door,
-            }
-        );
+        var model = _room.Harness.State.Model!;
+        _room.Harness.State.Model = model with { DoorX = 0, DoorY = 3, DoorRotation = door };
         _room.Enter(5, 3, 3);
 
         var tail = await EnterAsync(VISITOR);

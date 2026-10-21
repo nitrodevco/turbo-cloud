@@ -1,4 +1,3 @@
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -73,11 +72,7 @@ public sealed class ProductFurniInRoomTests
     }
 
     private void EnsureLogic(object item) =>
-        typeof(RoomObjectModule)
-            .GetMethod("EnsureLogic", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(_room.Module<RoomObjectModule>(), [item])
-            .Should()
-            .Be(true);
+        _room.Module<RoomObjectModule>().EnsureLogic((IRoomObject)item).Should().Be(true);
 
     private static FurnitureDefinitionSnapshot Definition(
         ProductType type,

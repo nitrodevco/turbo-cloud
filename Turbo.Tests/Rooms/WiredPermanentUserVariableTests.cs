@@ -98,22 +98,22 @@ public class WiredPermanentUserVariableTests
     }
 
     private IDictionary<PlayerId, RoomObjectId> AvatarsByPlayerId() =>
-        (IDictionary<PlayerId, RoomObjectId>)
-            RoomHarness.GetMember(_room.State, "AvatarsByPlayerId")!;
+        _room.State.AvatarsByPlayerId;
 
     private IDictionary<RoomObjectId, IRoomAvatar> AvatarsByObjectId() =>
-        (IDictionary<RoomObjectId, IRoomAvatar>)
-            RoomHarness.GetMember(_room.State, "AvatarsByObjectId")!;
+        _room.State.AvatarsByObjectId;
 
     private async Task PlacePermanentBoxAsync(WiredAvailabilityType availability)
     {
-        RoomHarness.SetMember(_room.State, "IsRightsLoaded", true);
+        _room.State.IsRightsLoaded = true;
 
         // The wired permission check reads the room's masks; the owner passes whatever they are.
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", (PlayerId)1);
-        RoomHarness.SetMember(_room.State, "RoomSnapshot", info);
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)1,
+        };
+        _room.State.RoomSnapshot = info;
 
         var item = _room.CreateFloorItem(
             BoxId,

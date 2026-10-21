@@ -4,7 +4,7 @@ using Orleans.Runtime;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
@@ -232,21 +232,8 @@ public sealed class GroupChatKeepAliveTests : IDisposable
 
     private async Task<IGuildGrain> GroupAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildGrain",
-            _fakes,
-            _db
-        );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-
-        RoomHarness.SetMember(state, "GuildId", new GuildId(GROUP));
+        var grain = GrainHarness.Create<GuildGrain>(_fakes, _db);
+        GrainHarness.Replace(grain, new GuildLiveState { GuildId = new GuildId(GROUP) });
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

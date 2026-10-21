@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,6 +7,7 @@ using Orleans;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Furniture.Providers;
+using Turbo.Inventory.Factories;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -23,7 +23,7 @@ using Turbo.Primitives.Sound.Enums;
 using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.Sound.Snapshots;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains;
+using Turbo.Rooms.Grains.Jukebox;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -46,9 +46,6 @@ public sealed class JukeboxGrainTests : IDisposable
     private const int SONG = 5;
     private const int OTHER_SONG = 6;
     private const int MISSING_SONG = 7;
-
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -87,20 +84,12 @@ public sealed class JukeboxGrainTests : IDisposable
             ]);
 
         _loader = (IInventoryFurnitureLoader)
-            Activator.CreateInstance(
-                typeof(Turbo.Inventory.InventoryModule).Assembly.GetType(
-                    "Turbo.Inventory.Factories.InventoryFurnitureLoader"
-                )!,
-                All,
-                null,
-                [
-                    _db,
-                    _fakes.Create<IFurnitureDefinitionProvider>(),
-                    new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
-                    NullLogger<IInventoryFurnitureLoader>.Instance,
-                ],
-                null
-            )!;
+            new InventoryFurnitureLoader(
+                _db,
+                _fakes.Create<IFurnitureDefinitionProvider>(),
+                new StuffDataFactory(NullLogger<IStuffDataFactory>.Instance),
+                NullLogger<IInventoryFurnitureLoader>.Instance
+            );
     }
 
     public void Dispose() => _db.Dispose();
@@ -211,21 +200,12 @@ public sealed class JukeboxGrainTests : IDisposable
 
     private async Task<IJukeboxGrain> JukeboxAsync(int maxDisks = 10)
     {
-        var grain = GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Grains.Jukebox.JukeboxGrain",
-            _fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<JukeboxGrain>(_fakes, _db);
 
-        RoomHarness.SetMember(
-            RoomHarness.GetField(grain, "_state")!,
-            "JukeboxId",
-            (RoomObjectId)JUKEBOX
-        );
-        RoomHarness.SetField(grain, "_roomConfig", new RoomConfig { JukeboxMaxDisks = maxDisks });
-        RoomHarness.SetField(grain, "_defsProvider", _fakes.Create<IFurnitureDefinitionProvider>());
-        RoomHarness.SetField(grain, "_furnitureLoader", _loader);
+        GrainHarness.Replace(grain, new JukeboxLiveState { JukeboxId = JUKEBOX });
+        GrainHarness.Replace(grain, new RoomConfig { JukeboxMaxDisks = maxDisks });
+        GrainHarness.Replace(grain, _fakes.Create<IFurnitureDefinitionProvider>());
+        GrainHarness.Replace(grain, _loader);
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

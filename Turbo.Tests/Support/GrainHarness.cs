@@ -21,6 +21,38 @@ public static class GrainHarness
     private static readonly BindingFlags All =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    /// <summary><see cref="Create(Assembly, string, Fakes, IDbContextFactory{TurboDbContext}?, int)"/> for a grain type the test can name.</summary>
+    public static TGrain Create<TGrain>(
+        Fakes fakes,
+        IDbContextFactory<TurboDbContext>? db = null,
+        int playerId = 1
+    )
+        where TGrain : Grain =>
+        (TGrain)Create(typeof(TGrain).Assembly, typeof(TGrain).FullName!, fakes, db, playerId);
+
+    /// <summary>
+    /// Puts <paramref name="value"/> in the one field of <paramref name="grain"/> declared as
+    /// <typeparamref name="T"/>: a dependency (a clock, a config, a module) or the grain's live
+    /// state. Grains keep these in private readonly fields, so the field is found by its type, not
+    /// its name.
+    /// </summary>
+    public static void Replace<T>(object grain, T value) =>
+        FieldOf<T>(grain).SetValue(grain, value);
+
+    /// <summary>The value of the one field of <paramref name="grain"/> declared as <typeparamref name="T"/>, such as its live state.</summary>
+    public static T Get<T>(object grain) => (T)FieldOf<T>(grain).GetValue(grain)!;
+
+    private static FieldInfo FieldOf<T>(object grain)
+    {
+        var fields = grain.GetType().GetFields(All).Where(f => f.FieldType == typeof(T)).ToList();
+
+        return fields.Count == 1
+            ? fields[0]
+            : throw new InvalidOperationException(
+                $"{grain.GetType().Name} has {fields.Count} fields of type {typeof(T).Name}."
+            );
+    }
+
     public static object Create(
         Assembly assembly,
         string typeName,

@@ -7,8 +7,6 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -61,15 +59,12 @@ public sealed class WiredWebApiKeyAccessTests
         const int WITH_RIGHTS = 3;
         await SetUpAsync();
         Enter(WITH_RIGHTS, []);
-        ((ISet<PlayerId>)RoomHarness.GetMember(_room.Harness.State, "PlayerIdsWithRights")!).Add(
-            (PlayerId)WITH_RIGHTS
-        );
-        foreach (var mask in new[] { "WiredModifyPermissionMask", "WiredReadPermissionMask" })
-            RoomHarness.SetMember(
-                RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!,
-                mask,
-                WiredPermissionFlags.Rights
-            );
+        _room.Harness.State.PlayerIdsWithRights.Add((PlayerId)WITH_RIGHTS);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            WiredModifyPermissionMask = WiredPermissionFlags.Rights,
+            WiredReadPermissionMask = WiredPermissionFlags.Rights,
+        };
 
         (await GenerateAsync(WITH_RIGHTS)).Should().BeNull();
         (await SnapshotAsync(WITH_RIGHTS)).Should().BeEmpty();
@@ -138,14 +133,8 @@ public sealed class WiredWebApiKeyAccessTests
         avatar.SetPosition(playerId, 1);
         avatar.SetLogic(_room.Harness.Fakes.Create<IRoomPlayerLogic>(playerId));
         avatar.SetPermissions(ResolvedPermissionsSnapshot.EMPTY with { Granted = [.. nodes] });
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        )[playerId] = avatar;
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByPlayerId")!
-        )[(PlayerId)playerId] = playerId;
+        _room.Harness.State.AvatarsByObjectId[playerId] = avatar;
+        _room.Harness.State.AvatarsByPlayerId[(PlayerId)playerId] = playerId;
         _room.Map.AddAvatar(avatar, false);
     }
 }

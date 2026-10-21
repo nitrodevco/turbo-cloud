@@ -350,9 +350,7 @@ public sealed class RecolorableFurniTests
     public async Task An_imported_block_on_the_default_logic_is_recolorable_and_steps_down_by_state()
     {
         var item = _room.AddFloorItem(20, 2, 2, BLOCK, BLOCK_DEFINITION);
-        RoomHarness.SetMember(
-            item,
-            "Definition",
+        item.UseDefinition(
             item.Definition with
             {
                 LogicName = "default_floor",
@@ -451,7 +449,7 @@ public sealed class RecolorableFurniTests
             definitionId,
             createLogic: (factory, ctx) => new FurnitureRecolorableLogic(factory, ctx)
         );
-        RoomHarness.SetMember(item, "Definition", item.Definition with { Name = name });
+        item.UseDefinition(item.Definition with { Name = name });
 
         return item;
     }
@@ -470,24 +468,28 @@ public sealed class RecolorableFurniTests
     {
         var fakes = _room.Harness.Fakes;
         var product = (CatalogProductSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(CatalogProductSnapshot));
-        RoomHarness.SetMember(product, "ProductType", ProductType.Floor);
-        RoomHarness.SetMember(product, "FurniDefinitionId", definition.Id);
+            RuntimeHelpers.GetUninitializedObject(typeof(CatalogProductSnapshot)) with
+        {
+            ProductType = ProductType.Floor,
+            FurniDefinitionId = definition.Id,
+        };
         var offer = (CatalogOfferSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(CatalogOfferSnapshot));
-        RoomHarness.SetMember(offer, "Visible", true);
-        RoomHarness.SetMember(offer, "Products", ImmutableArray.Create(product));
+            RuntimeHelpers.GetUninitializedObject(typeof(CatalogOfferSnapshot)) with
+        {
+            Visible = true,
+            Products = ImmutableArray.Create(product),
+        };
         var catalog = (CatalogSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(CatalogSnapshot));
-        RoomHarness.SetMember(
-            catalog,
-            "OffersById",
-            ImmutableDictionary<int, CatalogOfferSnapshot>.Empty.Add(OFFER, offer)
-        );
+            RuntimeHelpers.GetUninitializedObject(typeof(CatalogSnapshot)) with
+        {
+            OffersById = ImmutableDictionary<int, CatalogOfferSnapshot>.Empty.Add(OFFER, offer),
+        };
         var subscription = (PlayerSubscriptionSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(PlayerSubscriptionSnapshot));
-        RoomHarness.SetMember(subscription, "SecondsLeft", 3600);
-        RoomHarness.SetMember(subscription, "FurniLimit", 100);
+            RuntimeHelpers.GetUninitializedObject(typeof(PlayerSubscriptionSnapshot)) with
+        {
+            SecondsLeft = 3600,
+            FurniLimit = 100,
+        };
 
         fakes.Handlers["GetCatalogSnapshot"] = _ => catalog;
         fakes.Handlers["TryGetDefinition"] = _ => definition;

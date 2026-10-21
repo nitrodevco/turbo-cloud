@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using FluentAssertions;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Tests.Support;
@@ -19,24 +19,10 @@ public sealed class GuildBaseSearchTests
     [Fact]
     public async Task the_groups_search_returns_habbos_60_biggest_groups()
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildDirectoryGrain",
-            new Fakes()
-        );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-        var summaries =
-            (Dictionary<int, GuildSummarySnapshot>)
-                state.GetType().GetProperty("SummaryByGuildId")!.GetValue(state)!;
-        var members =
-            (Dictionary<int, int>)
-                state.GetType().GetProperty("MemberCountByGuildId")!.GetValue(state)!;
+        var grain = GrainHarness.Create<GuildDirectoryGrain>(new Fakes());
+        var state = GrainHarness.Get<GuildDirectoryLiveState>(grain);
+        var summaries = state.SummaryByGuildId;
+        var members = state.MemberCountByGuildId;
 
         for (var id = 1; id <= 70; id++)
         {

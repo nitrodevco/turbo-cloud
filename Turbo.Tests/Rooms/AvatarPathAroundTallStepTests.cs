@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using FluentAssertions;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Tests.Support;
@@ -27,10 +26,7 @@ public sealed class AvatarPathAroundTallStepTests
         var harness = new LiveRoomHarness(SIZE, SIZE, heights: heights);
         var avatar = new RoomPlayerAvatar { ObjectId = 5, PlayerId = 9 };
         avatar.SetPosition(1, 2);
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(harness.State, "AvatarsByObjectId")!
-        )[5] = avatar;
+        harness.State.AvatarsByObjectId[5] = avatar;
         harness.Module<RoomMapModule>().AddAvatar(avatar, false);
 
         var started = await harness

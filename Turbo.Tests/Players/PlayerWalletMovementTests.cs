@@ -8,7 +8,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Movements;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
@@ -168,7 +168,7 @@ public sealed class PlayerWalletMovementTests : IDisposable
     {
         Seed(credits: 100);
         var wallet = await NewWalletAsync();
-        RoomHarness.SetField(wallet, "_dbCtxFactory", new BrokenDb());
+        GrainHarness.Replace<IDbContextFactory<TurboDbContext>>(wallet, new BrokenDb());
 
         var result = await wallet.TryDebitAsync([Debit(CurrencyKind.Credits, 10)], Cause(), Ct);
 
@@ -728,20 +728,10 @@ public sealed class PlayerWalletMovementTests : IDisposable
         );
         await recorder.StartAsync(Ct);
 
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _fakes.Create<IPlayerNoticeService>());
-        RoomHarness.SetField(grain, "_movements", recorder);
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, _db, PLAYER_ID);
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _fakes.Create<IPlayerNoticeService>());
+        GrainHarness.Replace<IAssetMovementRecorder>(grain, recorder);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerWalletGrain)grain;

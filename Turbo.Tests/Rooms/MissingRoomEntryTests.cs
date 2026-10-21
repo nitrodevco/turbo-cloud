@@ -19,6 +19,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
@@ -124,13 +125,12 @@ public sealed class MissingRoomEntryTests
     public async Task A_missing_room_is_opened_then_named_missing_and_closed_as_on_Habbo()
     {
         var service = (IRoomService)
-            Activator.CreateInstance(
-                typeof(RoomConfig).Assembly.GetType("Turbo.Rooms.RoomService")!,
+            new RoomService(
                 NullLogger<IRoomService>.Instance,
                 Options.Create(new RoomConfig()),
                 _fakes.Create<Orleans.IGrainFactory>(),
                 TimeProvider.System
-            )!;
+            );
 
         await service.OpenRoomForPlayerIdAsync(
             ActionContext.CreateForPlayer(PLAYER, -1),

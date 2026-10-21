@@ -34,18 +34,16 @@ public sealed class WiredWhisperReadTests
 
     public WiredWhisperReadTests()
     {
-        RoomHarness.SetField(_room.Harness.Room, "_eventSystem", _bus.System);
+        _room.Harness.Room.UseEventSystem(_bus.System);
         _bus.On<PlayerChatEvent>(_said.Add);
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_commandRegistryProvider",
+        _room.Harness.Room.UseCommands(
             new Turbo.Commands.CommandRegistryProvider(
                 new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
             )
         );
 
-        RoomHarness.SetMember(_room.Enter(SPEAKER, 1, 1), "Name", "speaker");
-        RoomHarness.SetMember(_room.Enter(LISTENER, 2, 2), "Name", "listener");
+        _room.Enter(SPEAKER, 1, 1).UseName("speaker");
+        _room.Enter(LISTENER, 2, 2).UseName("listener");
     }
 
     [Fact]
@@ -89,11 +87,7 @@ public sealed class WiredWhisperReadTests
         await SayAsync("lab63kw", RoomChatType.Whisper, "listener");
         SentTo(SPEAKER).OfType<NotificationDialogMessageComposer>().Should().BeEmpty();
 
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
-            new WiredConfig { NotifyWhisperRead = true }
-        );
+        _room.Harness.Room.UseWiredConfig(new WiredConfig { NotifyWhisperRead = true });
         await SayAsync("lab63kw", RoomChatType.Whisper, "listener");
 
         SentTo(SPEAKER)

@@ -21,7 +21,7 @@ public sealed class RoomEventModuleTests
     private readonly LiveRoomHarness _harness = new();
     private readonly CapturingLogger<IRoomGrain> _log = new();
 
-    public RoomEventModuleTests() => RoomHarness.SetField(_harness.Room, "_logger", _log);
+    public RoomEventModuleTests() => _harness.Room.UseLogger(_log);
 
     private RoomEventModule Events => _harness.Module<RoomEventModule>();
 

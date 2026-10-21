@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Immutable;
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Crafting;
@@ -15,8 +13,6 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -438,16 +434,7 @@ public sealed class CraftingTableTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)TABLE,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)TABLE, item);
+        _room.Map.AddItem(item);
     }
 }

@@ -171,9 +171,7 @@ public sealed class WiredPlaceFurniTests
         Dialogs().Should().Equal([105], "the same user is not told again within 5 s");
 
         // The room's clock is the real one: the dialog is made to have been 6 s ago.
-        var notified =
-            (Dictionary<PlayerId, long>)
-                RoomHarness.GetMember(_room.Harness.State, "WiredPlacementFailureNotifiedMs")!;
+        var notified = _room.Harness.State.WiredPlacementFailureNotifiedMs;
         notified[(PlayerId)105] -= 6_000;
 
         await ClickAsync(105);
@@ -317,9 +315,7 @@ public sealed class WiredPlaceFurniTests
         bool buildersClubOnly
     )
     {
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
+        _room.Harness.Room.UseWiredConfig(
             new WiredConfig { PlaceFurniBuildersClubOnly = buildersClubOnly }
         );
         _room.AddFloorItem(LAMP, 3, 3);

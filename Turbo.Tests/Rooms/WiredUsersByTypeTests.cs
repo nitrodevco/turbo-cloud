@@ -1,9 +1,6 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Avatars.Bot;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
@@ -39,10 +36,7 @@ public sealed class WiredUsersByTypeTests
             Skills = [],
         };
         bot.SetPosition(2, 2);
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        )[BOT] = bot;
+        _room.Harness.State.AvatarsByObjectId[BOT] = bot;
     }
 
     [Theory]

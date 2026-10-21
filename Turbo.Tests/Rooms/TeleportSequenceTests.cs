@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
@@ -11,10 +9,8 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -43,11 +39,7 @@ public sealed class TeleportSequenceTests
 
     public TeleportSequenceTests()
     {
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_roomConfig",
-            new RoomConfig { TeleportStepMs = 1, AvatarTickMs = 1 }
-        );
+        _room.Harness.Room.UseRoomConfig(new RoomConfig { TeleportStepMs = 1, AvatarTickMs = 1 });
         _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
             call.Interface == typeof(IRoomPlayerContext)
             && call.Key is int id
@@ -103,7 +95,7 @@ public sealed class TeleportSequenceTests
             await ctx.SaveChangesAsync(Ct);
         }
 
-        RoomHarness.SetField(_room.Harness.Room, "_dbCtxFactory", db);
+        _room.Harness.Room.UseDatabase(db);
 
         var avatar = _room.Enter(OWNER_AVATAR, 2, 4);
         var a = AddTele(TELE_A, 2, 3, partner: FAR_HALF);
@@ -214,17 +206,8 @@ public sealed class TeleportSequenceTests
         item.SetLogic(logic);
         logic.LinkTo(partner);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)objectId,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)objectId, item);
+        _room.Map.AddItem(item);
 
         return item;
     }

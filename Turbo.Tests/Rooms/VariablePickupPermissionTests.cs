@@ -40,9 +40,11 @@ public sealed class VariablePickupPermissionTests
     public VariablePickupPermissionTests()
     {
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = (GuildId)9,
+        };
 
-        RoomHarness.SetMember(guild, "GuildId", (GuildId)9);
         _room.Harness.Fakes.Handlers["GetGuildOfRoomAsync"] = _ =>
             Task.FromResult<GuildSummarySnapshot?>(guild);
         _room.Harness.Fakes.Handlers["GetMemberRankAsync"] = call =>
@@ -134,8 +136,7 @@ public sealed class VariablePickupPermissionTests
 
     private static ActionContext As(int playerId) => ActionContext.CreateForPlayer(playerId, 1);
 
-    private IDictionary ItemsById =>
-        (IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!;
+    private IDictionary ItemsById => _room.Harness.State.ItemsById;
 
     private IEnumerable<T> SentTo<T>(int playerId) =>
         _room

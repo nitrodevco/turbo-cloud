@@ -29,11 +29,7 @@ public sealed class WiredVariablesPerHolderTests
     private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
 
     public WiredVariablesPerHolderTests() =>
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
-            new WiredConfig { MaxVariablesPerHolder = 2 }
-        );
+        _room.Harness.Room.UseWiredConfig(new WiredConfig { MaxVariablesPerHolder = 2 });
 
     [Fact]
     public async Task A_give_past_the_limit_is_refused_and_logged()

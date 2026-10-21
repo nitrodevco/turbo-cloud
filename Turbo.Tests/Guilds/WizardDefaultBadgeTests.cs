@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -39,31 +39,15 @@ public sealed class WizardDefaultBadgeTests
 
     private IGuildDirectoryGrain Directory(int[] bases, int[] symbols)
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildDirectoryGrain",
-            _fakes
-        );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-
-        RoomHarness.SetMember(
-            state,
-            "EditorData",
-            new GuildEditorDataSnapshot
-            {
-                BaseParts = [.. bases.Select(id => Part(GuildBadgePartType.Base, id))],
-                SymbolParts = [.. symbols.Select(id => Part(GuildBadgePartType.Symbol, id))],
-                BadgeColors = [.. new[] { 1, 3, 11, 17 }.Select(Colour)],
-                PrimaryColors = [],
-                SecondaryColors = [],
-            }
-        );
+        var grain = GrainHarness.Create<GuildDirectoryGrain>(_fakes);
+        GrainHarness.Get<GuildDirectoryLiveState>(grain).EditorData = new GuildEditorDataSnapshot
+        {
+            BaseParts = [.. bases.Select(id => Part(GuildBadgePartType.Base, id))],
+            SymbolParts = [.. symbols.Select(id => Part(GuildBadgePartType.Symbol, id))],
+            BadgeColors = [.. new[] { 1, 3, 11, 17 }.Select(Colour)],
+            PrimaryColors = [],
+            SecondaryColors = [],
+        };
 
         return (IGuildDirectoryGrain)grain;
     }

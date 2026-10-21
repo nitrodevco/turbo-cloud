@@ -109,10 +109,12 @@ public sealed class WiredCurrentTimeFieldTests
 
     private void SetTimeZone(string id)
     {
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            WiredTimezone = id,
+        };
 
-        RoomHarness.SetMember(info, "WiredTimezone", id);
-        RoomHarness.SetMember(_room.Harness.State, "RoomSnapshot", info);
+        _room.Harness.State.RoomSnapshot = info;
     }
 
     private static long Read(WiredInternalVariable variable)

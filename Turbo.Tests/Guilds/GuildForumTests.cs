@@ -7,7 +7,7 @@ using Orleans.Runtime;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Forums;
@@ -637,20 +637,8 @@ public sealed class GuildForumTests : IDisposable
 
     private async Task<IGuildForumGrain> ForumAsync(int group = GROUP)
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildForumGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetMember(
-            grain
-                .GetType()
-                .GetField("_state", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .GetValue(grain)!,
-            "GuildId",
-            GuildId.Parse(group)
-        );
+        var grain = GrainHarness.Create<GuildForumGrain>(_fakes, _db);
+        GrainHarness.Replace(grain, new GuildForumLiveState { GuildId = GuildId.Parse(group) });
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IGuildForumGrain)grain;
@@ -658,12 +646,7 @@ public sealed class GuildForumTests : IDisposable
 
     private IPlayerGuildForumGrain PlayerForums(int player)
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.PlayerGuildForumGrain",
-            _fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<PlayerGuildForumGrain>(_fakes, _db);
         typeof(Grain)
             .GetProperty(
                 "GrainContext",

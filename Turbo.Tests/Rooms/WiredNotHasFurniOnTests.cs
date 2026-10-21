@@ -30,7 +30,7 @@ public sealed class WiredNotHasFurniOnTests
         _room.AddFloorItem(30, 2, 5);
         _room.AddFloorItem(31, 4, 5);
         var onTop = _room.AddFloorItem(32, 2, 5);
-        RoomHarness.SetMember(onTop, "Z", Altitude.FromInt(100));
+        onTop.UseZ(Altitude.FromInt(100));
 
         var condition = _room.AddBox<WiredNegativeConditionItemHasItems>(
             2,

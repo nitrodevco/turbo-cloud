@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
@@ -42,9 +41,7 @@ public sealed class WiredEchoTextConnectorTests
         var direction = new UserDirectionVariable(_room.Harness.Room);
         var directionId = direction.GetVarSnapshot().VariableId;
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[
-            directionId
-        ] = direction;
+        _room.Harness.Room.WiredSystem.VariablesById()[directionId] = direction;
 
         var echo = _room.AddBox<WiredVariableEcho>(10, 6, 6, "wf_var_echo");
         _room.AddBox<WiredAddonVariableTextConnector>(11, 6, 6, "wf_xtra_var_text_connector");

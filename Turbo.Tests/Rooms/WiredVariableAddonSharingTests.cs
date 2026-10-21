@@ -50,7 +50,7 @@ public sealed class WiredVariableAddonSharingTests
 
     public WiredVariableAddonSharingTests()
     {
-        RoomHarness.SetMember(_other.Harness.State, "RoomId", (RoomId)2);
+        _other.Harness.State.UseRoomId(2);
 
         foreach (var room in new[] { _shop, _other })
         {
@@ -60,10 +60,7 @@ public sealed class WiredVariableAddonSharingTests
                 Task.FromResult(ImmutableArray.Create((RoomId)1, (RoomId)2));
         }
 
-        using var db = (
-            (Microsoft.EntityFrameworkCore.IDbContextFactory<Turbo.Database.Context.TurboDbContext>)
-                RoomHarness.GetField(_other.Harness.Room, "_dbCtxFactory")!
-        ).CreateDbContext();
+        using var db = _other.Harness.Room._dbCtxFactory.CreateDbContext();
 
         db.Rooms.Add(
             new RoomEntity

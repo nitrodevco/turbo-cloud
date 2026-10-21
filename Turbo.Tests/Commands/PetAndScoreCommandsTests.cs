@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +14,6 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Commands;
@@ -53,7 +51,7 @@ public class PetAndScoreCommandsTests
 
     public PetAndScoreCommandsTests()
     {
-        RoomHarness.SetMember(_room.Harness.State, "IsRightsLoaded", true);
+        _room.Harness.State.IsRightsLoaded = true;
         _room.Commands.Register([
             new EjectPetsCommand(),
             new ResetScoresCommand(),
@@ -196,11 +194,8 @@ public class PetAndScoreCommandsTests
         bot.SetPosition(2, 2);
         var state = _room.Harness.State;
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(state, "AvatarsByObjectId")!
-        )[objectId] = bot;
-        ((IList<IRoomBot>)RoomHarness.GetMember(state, "Bots")!).Add(bot);
+        state.AvatarsByObjectId[objectId] = bot;
+        state.Bots.Add(bot);
         _room.Harness.Module<RoomMapModule>().AddAvatar(bot, false);
 
         return bot;
@@ -257,13 +252,9 @@ public class PetAndScoreCommandsTests
         pet.SetLogic(_room.Harness.Fakes.Create<IRoomPetLogic>(objectId));
         var state = _room.Harness.State;
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(state, "AvatarsByObjectId")!
-        )[objectId] = pet;
-        ((IDictionary<int, RoomObjectId>)RoomHarness.GetMember(state, "AvatarsByPetId")!)[petId] =
-            objectId;
-        ((IList<IRoomPet>)RoomHarness.GetMember(state, "Pets")!).Add(pet);
+        state.AvatarsByObjectId[objectId] = pet;
+        state.AvatarsByPetId[petId] = objectId;
+        state.Pets.Add(pet);
         _room.Harness.Module<RoomMapModule>().AddAvatar(pet, false);
 
         return pet;
@@ -312,19 +303,13 @@ public class PetAndScoreCommandsTests
         );
         item.SetLogic(logic);
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)id,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod("AddItem", All, [typeof(IRoomItem)])!
-            .Invoke(_room.Harness.Module<RoomMapModule>(), [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)id, item);
+        _room.Harness.Module<RoomMapModule>().AddItem(item);
 
         return logic;
     }
 
-    private IEnumerable<int> PetIds() =>
-        ((IList<IRoomPet>)RoomHarness.GetMember(_room.Harness.State, "Pets")!).Select(x => x.PetId);
+    private IEnumerable<int> PetIds() => _room.Harness.State.Pets.Select(x => x.PetId);
 
     private IEnumerable<int> PetsReturnedTo(int playerId) =>
         _room

@@ -44,9 +44,7 @@ public sealed class StackHelperTests
         );
 
         // Habbo's helpers have no height of their own and nothing may stack on them by data.
-        RoomHarness.SetMember(
-            helper,
-            "Definition",
+        helper.UseDefinition(
             helper.Definition with
             {
                 StackHeight = Altitude.Zero,
@@ -123,14 +121,7 @@ public sealed class StackHelperTests
             .HaveCount(4, "each click is answered with the helper's ObjectUpdate");
 
         var rug = _room.AddFloorItem(LOW, 2, 2, canWalk: true);
-        RoomHarness.SetMember(
-            rug,
-            "Definition",
-            rug.Definition with
-            {
-                StackHeight = Altitude.Zero,
-            }
-        );
+        rug.UseDefinition(rug.Definition with { StackHeight = Altitude.Zero });
 
         (await ClicksAsync(helper, false)).Should().Equal(0);
     }

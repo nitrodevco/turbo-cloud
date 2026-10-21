@@ -3,7 +3,7 @@ using Orleans;
 using Turbo.Database.Entities.Players;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Users;
-using Turbo.Players;
+using Turbo.Players.Grains.Subscriptions;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -54,12 +54,7 @@ public sealed class HabboClubStartNoticeTests : IDisposable
     public async Task A_club_that_starts_sends_the_club_level_the_club_info_and_the_gift_notice_in_that_order()
     {
         var grain = (IPlayerSubscriptionGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain",
-                _fakes,
-                _db
-            );
+            GrainHarness.Create<PlayerSubscriptionGrain>(_fakes, _db);
 
         await grain.ExtendAsync(SubscriptionType.HabboClub, 31, Ct);
 
@@ -199,13 +194,7 @@ public sealed class HabboClubStartNoticeTests : IDisposable
     }
 
     private IPlayerSubscriptionGrain Grain() =>
-        (IPlayerSubscriptionGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain",
-                _fakes,
-                _db
-            );
+        (IPlayerSubscriptionGrain)GrainHarness.Create<PlayerSubscriptionGrain>(_fakes, _db);
 
     private ScrSendUserInfoMessageComposer SentClubInfo() =>
         _fakes

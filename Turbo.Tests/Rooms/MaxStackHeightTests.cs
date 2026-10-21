@@ -37,14 +37,7 @@ public sealed class MaxStackHeightTests
     {
         var item = _room.AddFloorItem(_nextItem++, 5, 5, canWalk: false);
 
-        RoomHarness.SetMember(
-            item,
-            "Definition",
-            item.Definition with
-            {
-                StackHeight = Altitude.FromValue(stackHeight),
-            }
-        );
+        item.UseDefinition(item.Definition with { StackHeight = Altitude.FromValue(stackHeight) });
 
         return _room
             .Harness.Module<RoomFurniModule>()

@@ -1,9 +1,10 @@
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory;
+using Turbo.Inventory.Factories;
+using Turbo.Inventory.Grains;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
@@ -34,9 +35,6 @@ public sealed class PetPurchaseNamingTests : IDisposable
     private const int OFFER_ID = 900;
     private const int PET_TYPE = 0;
     private const int PALETTE = 3;
-
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -99,7 +97,7 @@ public sealed class PetPurchaseNamingTests : IDisposable
     {
         var inventory = NewInventory();
 
-        RoomHarness.SetField(inventory, "_wordFilter", new NothingIsCleanFilter());
+        GrainHarness.Replace<IWordFilter>(inventory, new NothingIsCleanFilter());
 
         await inventory.SendPetNameApprovalAsync("Rex", Ct);
 
@@ -209,54 +207,35 @@ public sealed class PetPurchaseNamingTests : IDisposable
     /// <summary>The buyer's inventory grain with its real pet section over this database.</summary>
     private IInventoryGrain NewInventory()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            _fakes,
-            _db,
-            BUYER
+        var grain = GrainHarness.Create<InventoryGrain>(_fakes, _db, BUYER);
+
+        GrainHarness.Replace<IAchievementFactRecorder>(
+            grain,
+            _fakes.Create<IAchievementFactRecorder>()
         );
 
-        RoomHarness.SetField(grain, "_achievementFacts", _fakes.Create<IAchievementFactRecorder>());
+        var module = new InventoryPetModule(
+            grain,
+            GrainHarness.Get<InventoryLiveState>(grain),
+            _db,
+            _fakes.Create<IPetBreedProvider>(),
+            NullLogger.Instance
+        );
 
-        var module = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryPetModule"
-            )!,
-            All,
-            null,
-            [
-                grain,
-                RoomHarness.GetMember(grain, "_state")!,
-                _db,
-                _fakes.Create<IPetBreedProvider>(),
-                NullLogger.Instance,
-            ],
-            null
-        )!;
-
-        RoomHarness.SetField(grain, "PetModule", module);
+        GrainHarness.Replace<InventoryPetModule>(grain, module);
 
         // The purchase hands an empty furniture list to the furni section after the pets.
-        var furniModule = Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType(
-                "Turbo.Inventory.Grains.Modules.InventoryFurniModule"
-            )!,
-            All,
-            null,
-            [
-                grain,
-                RoomHarness.GetMember(grain, "_state")!,
-                TestCustody.Over(_db),
-                _fakes.Create<IInventoryFurnitureLoader>(),
-                _fakes.Create<IFurnitureDefinitionProvider>(),
-                _fakes.Create<ICatalogService>(),
-                NullLogger.Instance,
-            ],
-            null
-        )!;
+        var furniModule = new InventoryFurniModule(
+            grain,
+            GrainHarness.Get<InventoryLiveState>(grain),
+            TestCustody.Over(_db),
+            _fakes.Create<IInventoryFurnitureLoader>(),
+            _fakes.Create<IFurnitureDefinitionProvider>(),
+            _fakes.Create<ICatalogService>(),
+            NullLogger.Instance
+        );
 
-        RoomHarness.SetField(grain, "FurniModule", furniModule);
+        GrainHarness.Replace<InventoryFurniModule>(grain, furniModule);
 
         return (IInventoryGrain)grain;
     }

@@ -31,13 +31,17 @@ public sealed class WiredUsersInGroupTests
         _room.Enter(6, 2, 2).SetFavouriteGuild(88, WornGuildStatus.Member, "Theirs");
 
         var guild = (GuildSummarySnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot));
-        RoomHarness.SetMember(guild, nameof(GuildSummarySnapshot.GuildId), new GuildId(77));
-        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));
-        RoomHarness.SetMember(info, "RoomId", (RoomId)1);
-        RoomHarness.SetMember(info, "OwnerId", (PlayerId)1);
-        RoomHarness.SetMember(info, "Guild", guild);
-        RoomHarness.SetMember(_room.Harness.State, "RoomSnapshot", info);
+            RuntimeHelpers.GetUninitializedObject(typeof(GuildSummarySnapshot)) with
+        {
+            GuildId = new GuildId(77),
+        };
+        var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
+        {
+            RoomId = (RoomId)1,
+            OwnerId = (PlayerId)1,
+            Guild = guild,
+        };
+        _room.Harness.State.RoomSnapshot = info;
 
         var selector = _room.AddBox<WiredSelectorEntitiesInGroup>(2, 0, 0, "wf_slc_users_group");
         (await _room.SaveAsync<UpdateSelectorMessage>(2, definitionSpecifics: [false, false]))

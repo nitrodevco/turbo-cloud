@@ -70,7 +70,7 @@ public sealed class FloorPlanSaveTests : IDisposable
                 RoomModelEntity = null!,
             }
         );
-        RoomHarness.SetField(_room.Room, "_dbCtxFactory", _db);
+        _room.Room.UseDatabase(_db);
     }
 
     public void Dispose() => _db.Dispose();
@@ -100,10 +100,8 @@ public sealed class FloorPlanSaveTests : IDisposable
     public async Task Wall_items_stay_on_walls_the_new_plan_keeps_and_go_home_from_walls_it_drops()
     {
         var wired = new WiredRoom(6, 6);
-        RoomHarness.SetField(wired.Harness.Room, "_dbCtxFactory", _db);
-        RoomHarness.SetField(
-            wired.Harness.Room,
-            "_roomModelProvider",
+        wired.Harness.Room.UseDatabase(_db);
+        wired.Harness.Room.UseRoomModels(
             new Turbo.Rooms.Providers.RoomModelProvider(
                 _db,
                 Microsoft
@@ -140,11 +138,16 @@ public sealed class FloorPlanSaveTests : IDisposable
             );
 
         error.Should().BeNull();
-        var items = (System.Collections.IDictionary)
-            RoomHarness.GetMember(wired.Harness.State, "ItemsById")!;
-        items.Contains(left.ObjectId).Should().BeTrue("its wall and the floor it faces are kept");
-        items.Contains(right.ObjectId).Should().BeTrue("its wall and the floor it faces are kept");
-        items.Contains(dropped.ObjectId).Should().BeFalse("the floor it faced is gone");
+        var items = wired.Harness.State.ItemsById;
+        items
+            .ContainsKey(left.ObjectId)
+            .Should()
+            .BeTrue("its wall and the floor it faces are kept");
+        items
+            .ContainsKey(right.ObjectId)
+            .Should()
+            .BeTrue("its wall and the floor it faces are kept");
+        items.ContainsKey(dropped.ObjectId).Should().BeFalse("the floor it faced is gone");
     }
 
     private static Turbo.Rooms.Object.Furniture.Wall.RoomWallItem Hang(

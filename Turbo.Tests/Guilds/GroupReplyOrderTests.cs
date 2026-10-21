@@ -4,7 +4,7 @@ using Orleans.Streams;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Users;
 using Turbo.Players.Configuration;
@@ -22,10 +22,8 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Guilds;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -359,11 +357,9 @@ public sealed class GroupReplyOrderTests : IDisposable
     public async Task The_room_ends_the_hold_with_its_badge_publish_or_at_once_for_a_player_not_there()
     {
         var room = new WiredRoom();
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Harness.Room, room.Harness.Fakes.Create(stream.FieldType, "stream"));
+        room.Harness.Room._roomOutbound = room.Harness.Fakes.Create<
+            IAsyncStream<RoomOutboundSnapshot>
+        >("stream");
         var here = room.Enter(2, 1, 1).PlayerId;
         var hold = new OutboundHold(here, 7);
         var away = new OutboundHold(PlayerId.Parse(55), 8);
@@ -471,9 +467,8 @@ public sealed class GroupReplyOrderTests : IDisposable
                 }
             );
 
-        RoomHarness.SetField(
+        GrainHarness.Replace<PlayerConfig>(
             _hotel.Presence,
-            "_playerConfig",
             new PlayerConfig { OutboundHoldMs = holdMs }
         );
 
@@ -481,22 +476,12 @@ public sealed class GroupReplyOrderTests : IDisposable
         _key = _session.SessionKey;
         await _hotel.Gateway.AddSessionAsync(_key, _session);
         await _hotel.Gateway.AddSessionToPlayerAsync(_key, PLAYER);
-        RoomHarness.SetMember(
-            RoomHarness.GetField(_hotel.Presence, "_state")!,
-            "ActiveRoomId",
-            (RoomId)ROOM
-        );
+        _hotel.Presence._state.ActiveRoomId = ROOM;
         // The login flush finishes before the test starts.
         await SentAsync(0);
         _hotel.Fakes.Log.Calls.Clear();
 
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.PlayerGuildGrain",
-            _hotel.Fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerGuildGrain>(_hotel.Fakes, _db, PLAYER);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         _hotel.Fakes.Instances[(typeof(IPlayerGuildGrain), (object)(long)PLAYER)] = grain;
@@ -507,18 +492,9 @@ public sealed class GroupReplyOrderTests : IDisposable
 
     private async Task<IGuildGrain> GroupAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildGrain",
-            _hotel.Fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<GuildGrain>(_hotel.Fakes, _db);
 
-        RoomHarness.SetMember(
-            RoomHarness.GetField(grain, "_state")!,
-            "GuildId",
-            new GuildId(GROUP)
-        );
+        GrainHarness.Replace(grain, new GuildLiveState { GuildId = new GuildId(GROUP) });
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IGuildGrain)grain;

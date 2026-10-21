@@ -5,8 +5,8 @@ using Orleans;
 using Turbo.Database.Entities.Players;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Camera;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Messages.Incoming.Camera;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
@@ -58,16 +58,9 @@ public sealed class RewardTrackTaskHooksTests : IDisposable
                 PlayerStatus = PlayerStatusType.Offline,
             }
         );
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<PlayerGrain>(_fakes, _db, PLAYER);
+        GrainHarness.Replace<PlayerConfig>(
             grain,
-            "_playerConfig",
             new PlayerConfig { RespectReplenishesPerDay = 1 }
         );
 

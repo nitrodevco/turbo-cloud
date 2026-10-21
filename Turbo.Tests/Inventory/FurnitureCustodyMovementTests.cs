@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,7 +24,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Rooms;
+using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -374,16 +373,8 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
             );
         _world.Fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
 
-        var grain = GrainHarness.Create(
-            typeof(RoomModule).Assembly,
-            "Turbo.Rooms.Grains.RoomTradeGrain",
-            _world.Fakes
-        );
-        RoomHarness.SetMember(
-            RoomHarness.GetField(grain, "_state")!,
-            "RoomId",
-            (Turbo.Primitives.Rooms.RoomId)ROOM
-        );
+        var grain = GrainHarness.Create<RoomTradeGrain>(_world.Fakes);
+        GrainHarness.Replace(grain, new RoomTradeLiveState { RoomId = ROOM });
 
         return (IRoomTradeGrain)grain;
     }

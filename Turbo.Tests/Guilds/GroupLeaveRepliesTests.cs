@@ -6,8 +6,8 @@ using Turbo.Admin.Content;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
-using Turbo.Guilds;
 using Turbo.Guilds.Configuration;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
@@ -282,24 +282,11 @@ public sealed class GroupLeaveRepliesTests : IDisposable
 
     private async Task<IGuildGrain> GroupAsync(GuildConfig? config = null)
     {
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.GuildGrain",
-            _fakes,
-            _db
-        );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-
-        RoomHarness.SetMember(state, "GuildId", new GuildId(GROUP));
+        var grain = GrainHarness.Create<GuildGrain>(_fakes, _db);
+        GrainHarness.Replace(grain, new GuildLiveState { GuildId = new GuildId(GROUP) });
 
         if (config is not null)
-            RoomHarness.SetField(grain, "_guildConfig", config);
+            GrainHarness.Replace<GuildConfig>(grain, config);
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

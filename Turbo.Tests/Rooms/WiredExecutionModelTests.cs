@@ -626,13 +626,10 @@ public sealed class WiredExecutionModelTests
             }
         );
 
-    private void Configure(WiredConfig config) =>
-        RoomHarness.SetField(_room.Harness.Room, "_wiredConfig", config);
+    private void Configure(WiredConfig config) => _room.Harness.Room.UseWiredConfig(config);
 
     private void UseWallClockAdvancing(long stepMs) =>
-        RoomHarness.SetField(
-            Wired,
-            "_wallClockMs",
+        Wired.UseWallClock(
             (Func<long>)(
                 () =>
                 {

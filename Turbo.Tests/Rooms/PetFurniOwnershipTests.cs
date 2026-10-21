@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
@@ -13,9 +14,9 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Tests.Support;
@@ -48,13 +49,9 @@ public class PetFurniOwnershipTests
     )
     {
         var room = CreateRoom();
-        RoomHarness.SetField(room.Room, "_petConfig", new PetConfig());
-        RoomHarness.SetField(room.Room, "_wordFilter", room.Fakes.Create<IWordFilter>());
-        RoomHarness.SetField(
-            room.Room,
-            "_petBreedProvider",
-            room.Fakes.Create<IPetBreedProvider>()
-        );
+        room.Room.UsePetConfig(new PetConfig());
+        room.Room.UseWordFilter(room.Fakes.Create<IWordFilter>());
+        room.Room.UsePetBreeds(room.Fakes.Create<IPetBreedProvider>());
         room.Fakes.Handlers[nameof(IWordFilter.IsClean)] = _ => true;
 
         var package = room.CreateFloorItem(
@@ -92,7 +89,7 @@ public class PetFurniOwnershipTests
         room.Fakes.Log.Of("CreatePetAsync").Should().HaveCount(opens ? 1 : 0);
         // The package goes before the pet is created; the inventory refused the pet here (the
         // fake creates none), so the package was given back to its owner's inventory.
-        room.ItemsById.Contains((RoomObjectId)id).Should().Be(!opens);
+        room.ItemsById.ContainsKey((RoomObjectId)id).Should().Be(!opens);
         room.Fakes.Log.Of("GrantFurnitureAsync").Should().HaveCount(opens ? 1 : 0);
     }
 
@@ -100,13 +97,9 @@ public class PetFurniOwnershipTests
     public async Task A_pet_package_is_used_up_before_its_pet_is_created()
     {
         var room = CreateRoom();
-        RoomHarness.SetField(room.Room, "_petConfig", new PetConfig());
-        RoomHarness.SetField(room.Room, "_wordFilter", room.Fakes.Create<IWordFilter>());
-        RoomHarness.SetField(
-            room.Room,
-            "_petBreedProvider",
-            room.Fakes.Create<IPetBreedProvider>()
-        );
+        room.Room.UsePetConfig(new PetConfig());
+        room.Room.UseWordFilter(room.Fakes.Create<IWordFilter>());
+        room.Room.UsePetBreeds(room.Fakes.Create<IPetBreedProvider>());
         room.Fakes.Handlers[nameof(IWordFilter.IsClean)] = _ => true;
 
         var package = room.CreateFloorItem(
@@ -186,7 +179,7 @@ public class PetFurniOwnershipTests
 
         done.Should().Be(used);
         product.Applied.Should().Be(used ? 1 : 0);
-        room.ItemsById.Contains((RoomObjectId)id).Should().Be(!used);
+        room.ItemsById.ContainsKey((RoomObjectId)id).Should().Be(!used);
     }
 
     private static RoomHarness CreateRoom()
@@ -194,11 +187,9 @@ public class PetFurniOwnershipTests
         var room = new RoomHarness();
 
         // The room tells everyone in it that the furni is gone.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         return room;
     }
@@ -241,14 +232,9 @@ public class PetFurniOwnershipTests
             }
         );
 
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[PET_OBJECT] = pet;
-        ((IDictionary<int, RoomObjectId>)RoomHarness.GetMember(room.State, "AvatarsByPetId")!)[
-            PET_ID
-        ] = PET_OBJECT;
-        ((IList<IRoomPet>)RoomHarness.GetMember(room.State, "Pets")!).Add(pet);
+        room.State.AvatarsByObjectId[PET_OBJECT] = pet;
+        room.State.AvatarsByPetId[PET_ID] = PET_OBJECT;
+        room.State.Pets.Add(pet);
     }
 
     /// <summary>A product any pet takes, counting how often it was applied.</summary>

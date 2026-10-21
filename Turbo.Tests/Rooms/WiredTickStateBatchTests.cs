@@ -103,9 +103,7 @@ public sealed class WiredTickStateBatchTests
     public async Task A_state_a_player_sets_before_the_update_goes_out_is_the_one_sent()
     {
         // A room that sends its states every 500 ms (configurable) sends each as it is then.
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
+        _room.Harness.Room.UseWiredConfig(
             new Turbo.Rooms.Configuration.WiredConfig { StateUpdateMs = 500 }
         );
         await BuildAsync();

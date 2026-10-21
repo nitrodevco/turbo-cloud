@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Orleans;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains.Settings;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Rooms.Enums;
@@ -55,13 +55,7 @@ public sealed class PlayerSettingsPersistenceTests : IDisposable
 
     private async Task<IPlayerSettingsGrain> SettingsAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Settings.PlayerSettingsGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerSettingsGrain>(_fakes, _db, PLAYER);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerSettingsGrain)grain;

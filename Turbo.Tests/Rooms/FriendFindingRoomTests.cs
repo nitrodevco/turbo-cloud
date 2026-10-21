@@ -21,11 +21,7 @@ public sealed class FriendFindingRoomTests
     private const int OTHER = 8;
 
     private readonly IRoomDirectoryGrain _directory = (IRoomDirectoryGrain)
-        GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Grains.RoomDirectoryGrain",
-            new Fakes()
-        );
+        GrainHarness.Create<RoomDirectoryGrain>(new Fakes());
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -56,9 +52,11 @@ public sealed class FriendFindingRoomTests
     private async Task RoomAsync(int roomId, int owner, int[] players)
     {
         var room = (RoomInfoSnapshot)
-            RuntimeHelpers.GetUninitializedObject(typeof(RoomInfoSnapshot));
-        RoomHarness.SetMember(room, "RoomId", (RoomId)roomId);
-        RoomHarness.SetMember(room, "OwnerId", (PlayerId)owner);
+            RuntimeHelpers.GetUninitializedObject(typeof(RoomInfoSnapshot)) with
+        {
+            RoomId = (RoomId)roomId,
+            OwnerId = (PlayerId)owner,
+        };
 
         await _directory.UpsertActiveRoomAsync(room, Ct);
 

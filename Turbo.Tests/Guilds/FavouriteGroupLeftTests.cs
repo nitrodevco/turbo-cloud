@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Turbo.Database.Entities.Guilds;
-using Turbo.Guilds;
+using Turbo.Guilds.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -51,13 +51,7 @@ public sealed class FavouriteGroupLeftTests
                 new RoomPointerSnapshot { RoomId = ROOM, ActiveSinceUtc = DateTime.UtcNow }
             );
 
-        var grain = GrainHarness.Create(
-            typeof(GuildModule).Assembly,
-            "Turbo.Guilds.Grains.PlayerGuildGrain",
-            _fakes,
-            _db,
-            PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerGuildGrain>(_fakes, _db, PLAYER);
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
 
         return (IPlayerGuildGrain)grain;

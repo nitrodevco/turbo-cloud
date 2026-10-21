@@ -262,9 +262,7 @@ public sealed class WiredPickRefusalTests
 
     // As the server's settings bind it.
     private void Configure(params (string Key, string Value)[] settings) =>
-        RoomHarness.SetField(
-            _room.Harness.Room,
-            "_wiredConfig",
+        _room.Harness.Room.UseWiredConfig(
             new ConfigurationBuilder()
                 .AddInMemoryCollection(settings.ToDictionary(x => x.Key, x => (string?)x.Value))
                 .Build()

@@ -16,7 +16,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
@@ -50,22 +49,16 @@ public sealed class RoomPetTests
     public RoomPetTests()
     {
         _owner.SetPosition(2, 2);
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _harness.State.AvatarsByObjectId[5] = _owner;
+        _harness.State.AvatarsByPlayerId[OWNER] = 5;
         _harness.Module<RoomMapModule>().AddAvatar(_owner, false);
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
-        RoomHarness.SetField(_harness.Room, "_eventSystem", new TestEventBus().System);
-        RoomHarness.SetField(
-            _harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with { AllowPets = true };
+        _harness.Room.UseEventSystem(new TestEventBus().System);
+        _harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
 
         _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = _ =>
             Task.FromResult<PetSnapshot?>(Pet());
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_harness.State, name)!;
 
     private RoomPetModule Pets => _harness.Module<RoomPetModule>();
 
@@ -130,7 +123,7 @@ public sealed class RoomPetTests
         await PlaceAsync();
         MoveOwnerTo(6, 4); // east: nowhere near the direction the pet will look round to
         await SayAsync("Rex free");
-        RoomHarness.SetField(Pets, "_random", new HighestRandom());
+        Pets.UseRandom(new HighestRandom());
 
         await _harness.Room.PetTickSystem.ProcessPetsAsync(long.MaxValue / 2, Ct);
 
@@ -181,7 +174,10 @@ public sealed class RoomPetTests
     )
     {
         // Habboween 2026 "Take your pet to visit a friend" (pet_visit, PET_OTHER_USERS_ROOM).
-        RoomHarness.SetMember(Member("RoomSnapshot"), "OwnerId", (PlayerId)roomOwnerId);
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)roomOwnerId,
+        };
 
         await PlaceAsync();
 
@@ -241,7 +237,10 @@ public sealed class RoomPetTests
     [Fact]
     public async Task A_second_bot_put_on_the_same_tile_meanwhile_is_refused_and_given_back()
     {
-        RoomHarness.SetMember(Member("RoomSnapshot"), "OwnerId", (PlayerId)OWNER);
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OWNER,
+        };
         var checkOuts = new Dictionary<int, TaskCompletionSource<BotSnapshot?>>
         {
             [BOT] = new(),

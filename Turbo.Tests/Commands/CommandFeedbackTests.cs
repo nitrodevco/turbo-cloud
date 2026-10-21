@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Commands;
 using Turbo.Operations.Commands;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains;
 using Turbo.Players.Notifications;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
@@ -185,12 +185,7 @@ public class CommandFeedbackTests
     public async Task PresenceNeverQueuesNoticeForOfflineOrCanceledRequest()
     {
         var fakes = new Fakes();
-        var presence = (IPlayerPresenceGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.PlayerPresenceGrain",
-                fakes
-            );
+        var presence = (IPlayerPresenceGrain)GrainHarness.Create<PlayerPresenceGrain>(fakes);
         var message = new ModeratorMessageComposer { Message = "Notice", Url = string.Empty };
         (await presence.TrySendComposerAsync(message, TestContext.Current.CancellationToken))
             .Should()

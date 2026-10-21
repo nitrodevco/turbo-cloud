@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -285,19 +285,9 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
 
     private async Task<IPlayerWalletGrain> NewWalletAsync(int playerId)
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            _db,
-            playerId
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _fakes.Create<IPlayerNoticeService>());
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, _db, playerId);
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _fakes.Create<IPlayerNoticeService>());
         await ((Orleans.Grain)grain).OnActivateAsync(Ct);
         return (IPlayerWalletGrain)grain;
     }

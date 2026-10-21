@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
@@ -9,8 +10,8 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
-using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
 using Xunit;
@@ -53,7 +54,7 @@ public class CreditFurniRedeemTests
         room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync))
             .Should()
             .ContainSingle(x => x.Args.Contains(credits));
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeFalse();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeFalse();
     }
 
     // The wallet writes the credits at once; the furni's row was only queued for the next flush.
@@ -163,7 +164,7 @@ public class CreditFurniRedeemTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeTrue();
     }
 
     [Fact]
@@ -181,7 +182,7 @@ public class CreditFurniRedeemTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeTrue();
     }
 
     // Hotel report 2026-10-14: a stack of money bags copied by Place Temporary Furni, which
@@ -206,7 +207,7 @@ public class CreditFurniRedeemTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerWalletGrain.CreditAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)id).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)id).Should().BeTrue();
     }
 
     private static RoomHarness CreateRoomWith(string name, int id = ITEM)
@@ -214,11 +215,9 @@ public class CreditFurniRedeemTests
         var room = new RoomHarness();
 
         // The room tells everyone in it that the furni is gone.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         room.AddToRoom(
             room.CreateFloorItem(
@@ -245,13 +244,7 @@ public class CreditFurniRedeemTests
                 ? (PlayerId)id
                 : Fakes.NotHandled;
 
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(room.State, "AvatarsByPlayerId")!
-        )[playerId] = playerId;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[playerId] = player;
+        room.State.AvatarsByPlayerId[playerId] = playerId;
+        room.State.AvatarsByObjectId[playerId] = player;
     }
 }

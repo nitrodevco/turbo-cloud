@@ -1,4 +1,3 @@
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
@@ -20,16 +19,9 @@ public class RoomDirectoryActivityEventsTests
 
     public RoomDirectoryActivityEventsTests()
     {
-        var grain = GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Grains.RoomDirectoryGrain",
-            new Fakes()
-        );
+        var grain = GrainHarness.Create<RoomDirectoryGrain>(new Fakes());
 
-        grain
-            .GetType()
-            .GetField("_eventSystem", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(grain, _events.System);
+        GrainHarness.Replace(grain, _events.System);
         _events.Record<RoomActivityChangedEvent>();
         _directory = (IRoomDirectoryGrain)grain;
     }

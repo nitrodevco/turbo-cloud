@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -59,10 +58,7 @@ public sealed class DimmerOnWallTests
     {
         var dimmer = Dimmer();
         EnsureLogic(dimmer);
-        ((IDictionary)RoomHarness.GetMember(_room.State, "ItemsById")!).Add(
-            (RoomObjectId)DIMMER,
-            dimmer
-        );
+        _room.State.ItemsById.Add((RoomObjectId)DIMMER, dimmer);
 
         (
             await _room.Room.InteractWithItemAsync(
@@ -102,10 +98,7 @@ public sealed class DimmerOnWallTests
     {
         var dimmer = Dimmer();
         EnsureLogic(dimmer);
-        ((IDictionary)RoomHarness.GetMember(_room.State, "ItemsById")!).Add(
-            (RoomObjectId)DIMMER,
-            dimmer
-        );
+        _room.State.ItemsById.Add((RoomObjectId)DIMMER, dimmer);
         var ctx = ActionContext.CreateForPlayer(OWNER, 1);
 
         (
@@ -137,10 +130,7 @@ public sealed class DimmerOnWallTests
     }
 
     private bool EnsureLogic(RoomWallItem dimmer) =>
-        (bool)
-            typeof(RoomObjectModule)
-                .GetMethod("EnsureLogic", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(_room.Module<RoomObjectModule>(), [dimmer])!;
+        _room.Module<RoomObjectModule>().EnsureLogic(dimmer);
 
     private static RoomWallItem Dimmer()
     {

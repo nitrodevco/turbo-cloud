@@ -16,7 +16,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Polls;
-using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Grains.Polls;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -326,13 +326,7 @@ public sealed class RoomPollTests : IDisposable
         };
 
     private IPlayerRoomPollGrain Grain() =>
-        (IPlayerRoomPollGrain)
-            GrainHarness.Create(
-                typeof(RoomConfig).Assembly,
-                "Turbo.Rooms.Grains.Polls.PlayerRoomPollGrain",
-                _fakes,
-                _db
-            );
+        (IPlayerRoomPollGrain)GrainHarness.Create<PlayerRoomPollGrain>(_fakes, _db);
 
     private IEnumerable<T> Sent<T>() =>
         _fakes.Log.Of("SendComposerAsync").Select(x => x.Args[0]).OfType<T>();

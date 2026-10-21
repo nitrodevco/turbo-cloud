@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains.Badges;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
@@ -129,15 +129,9 @@ public sealed class BadgeLeaderboardRankTests : IDisposable
 
     private IBadgeLeaderboardGrain Board(int heldEntries = 500)
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Badges.BadgeLeaderboardGrain",
-            _fakes,
-            _db
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<BadgeLeaderboardGrain>(_fakes, _db);
+        GrainHarness.Replace<BadgeConfig>(
             grain,
-            "_badgeConfig",
             new BadgeConfig { LeaderboardHeldEntries = heldEntries }
         );
         return (IBadgeLeaderboardGrain)grain;

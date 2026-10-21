@@ -4,8 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Figures;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
@@ -70,36 +71,27 @@ public sealed class PlayerAchievementActionTests : IDisposable
             grain.SetMottoAsync("failed-write", Ct)
         );
 
-        var state = RoomHarness.GetMember(grain, "_state")!;
-        Assert.Equal("before-write", state.GetType().GetProperty("Motto")!.GetValue(state));
+        Assert.Equal("before-write", GrainHarness.Get<PlayerLiveState>(grain).Motto);
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.AchievementFacts.CountAsync(Ct)).Should().Be(0);
     }
 
     private IPlayerGrain NewGrain(string currentFigure = "hd-180-1", string currentMotto = "")
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
-        var state = RoomHarness.GetMember(grain, "_state")!;
-        RoomHarness.SetMember(state, "Name", "player-action-test");
-        RoomHarness.SetMember(state, "Figure", currentFigure);
-        RoomHarness.SetMember(state, "Gender", AvatarGenderType.Male);
-        RoomHarness.SetMember(state, "Motto", currentMotto);
+        var grain = GrainHarness.Create<PlayerGrain>(_fakes, _db, PLAYER_ID);
+        var state = GrainHarness.Get<PlayerLiveState>(grain);
+        state.Name = "player-action-test";
+        state.Figure = currentFigure;
+        state.Gender = AvatarGenderType.Male;
+        state.Motto = currentMotto;
         // With no figure data taken in, a player wears what they ask for.
         _fakes.Handlers["FitAsync"] = call => Task.FromResult((string)call.Args[1]!);
-        RoomHarness.SetField(
+        GrainHarness.Replace<IPlayerFigurePolicy>(
             grain,
-            "_figurePolicy",
             _fakes.Create<Turbo.Primitives.Figures.IPlayerFigurePolicy>()
         );
-        RoomHarness.SetField(
+        GrainHarness.Replace<IAchievementFactRecorder>(
             grain,
-            "_achievementFacts",
             new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
         return (IPlayerGrain)grain;

@@ -85,9 +85,7 @@ public sealed class PlaceFurniOrderTests
     public async Task A_wall_item_leaves_the_inventory_before_the_room_is_shown_it()
     {
         var item = _room.AddWallItem(40);
-        (
-            (System.Collections.IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!
-        ).Remove((RoomObjectId)40);
+        _room.Harness.State.ItemsById.Remove((RoomObjectId)40);
         _room.Harness.Fakes.Handlers["CreateFromFurnitureItemSnapshot"] = _ => item;
         _room.Harness.Fakes.Log.Calls.Clear();
 

@@ -1,8 +1,10 @@
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Turbo.Inventory;
+using Turbo.Database.Movements;
+using Turbo.Inventory.Factories;
+using Turbo.Inventory.Grains;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
@@ -25,9 +27,6 @@ public sealed class PetBotMovementTests : IDisposable
     private const int OWNER = 8;
     private const int ROOM = 5;
     private const int DOG = 0;
-
-    private static readonly BindingFlags All =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     private readonly FurnitureWorld _world = new();
 
@@ -180,32 +179,25 @@ public sealed class PetBotMovementTests : IDisposable
     /// <summary>An inventory grain with its real pet and bot modules, recording through the real recorder.</summary>
     private async Task<IInventoryGrain> InventoryAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.InventoryGrain",
-            _world.Fakes,
-            _world.Db,
-            OWNER
-        );
-        var state = RoomHarness.GetMember(grain, "_state")!;
+        var grain = GrainHarness.Create<InventoryGrain>(_world.Fakes, _world.Db, OWNER);
+        var state = GrainHarness.Get<InventoryLiveState>(grain);
 
-        RoomHarness.SetField(grain, "_movements", await _world.NewRecorderAsync(Ct));
-        RoomHarness.SetField(
+        GrainHarness.Replace<IAssetMovementRecorder>(grain, await _world.NewRecorderAsync(Ct));
+        GrainHarness.Replace(
             grain,
-            "PetModule",
-            Module("InventoryPetModule", grain, state, _world.Fakes.Create<IPetBreedProvider>())
+            new InventoryPetModule(
+                grain,
+                state,
+                _world.Db,
+                _world.Fakes.Create<IPetBreedProvider>(),
+                NullLogger.Instance
+            )
         );
-        RoomHarness.SetField(grain, "BotModule", Module("InventoryBotModule", grain, state));
+        GrainHarness.Replace(
+            grain,
+            new InventoryBotModule(grain, state, _world.Db, NullLogger.Instance)
+        );
 
         return (IInventoryGrain)grain;
     }
-
-    private object Module(string name, object grain, object state, params object[] extra) =>
-        Activator.CreateInstance(
-            typeof(InventoryModule).Assembly.GetType($"Turbo.Inventory.Grains.Modules.{name}")!,
-            All,
-            null,
-            [grain, state, _world.Db, .. extra, NullLogger.Instance],
-            null
-        )!;
 }

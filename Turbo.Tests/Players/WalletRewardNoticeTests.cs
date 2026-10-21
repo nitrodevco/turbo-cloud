@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -163,19 +163,9 @@ public class WalletRewardNoticeTests : IDisposable
 
     private async Task<IPlayerWalletGrain> NewWalletAsync(CancellationToken ct)
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerWalletGrain",
-            _fakes,
-            _db,
-            PLAYER_ID
-        );
-        RoomHarness.SetField(
-            grain,
-            "_currencyTypeProvider",
-            _fakes.Create<ICurrencyTypeProvider>()
-        );
-        RoomHarness.SetField(grain, "_noticeService", _notices);
+        var grain = GrainHarness.Create<PlayerWalletGrain>(_fakes, _db, PLAYER_ID);
+        GrainHarness.Replace<ICurrencyTypeProvider>(grain, _fakes.Create<ICurrencyTypeProvider>());
+        GrainHarness.Replace<IPlayerNoticeService>(grain, _notices);
 
         await ((Orleans.Grain)grain).OnActivateAsync(ct);
 

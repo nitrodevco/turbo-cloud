@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Orleans;
+using Orleans.Streams;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
+using Turbo.Players.Figures;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Furniture;
@@ -13,7 +15,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
@@ -57,7 +59,7 @@ public class PurchasableClothingTests
         bind.Args[0].Should().Be((PlayerId)OWNER);
         bind.Args[1].Should().Be(1000 + ITEM, "the furni's definition is what is bound");
         ((IEnumerable<int>)bind.Args[2]!).Should().Equal(6621, 6622);
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeFalse();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeFalse();
     }
 
     [Fact]
@@ -96,7 +98,7 @@ public class PurchasableClothingTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerClothingService.BindFurnitureAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeTrue();
     }
 
     // A copy placed by Place Temporary Furni carries the wired box owner's id, a borrowed one
@@ -118,7 +120,7 @@ public class PurchasableClothingTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerClothingService.BindFurnitureAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)id).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)id).Should().BeTrue();
     }
 
     [Fact]
@@ -136,7 +138,7 @@ public class PurchasableClothingTests
 
         done.Should().BeFalse();
         room.Fakes.Log.Of(nameof(IPlayerClothingService.BindFurnitureAsync)).Should().BeEmpty();
-        room.ItemsById.Contains((RoomObjectId)ITEM).Should().BeTrue();
+        room.ItemsById.ContainsKey((RoomObjectId)ITEM).Should().BeTrue();
     }
 
     [Fact]
@@ -226,12 +228,7 @@ public class PurchasableClothingTests
 
     private static IPlayerClothingService CreateClothingService(SqliteDb db, Fakes fakes)
     {
-        var type = typeof(Turbo.Players.PlayerModule).Assembly.GetType(
-            "Turbo.Players.Figures.PlayerClothingService"
-        )!;
-
-        return (IPlayerClothingService)
-            Activator.CreateInstance(type, db, fakes.Create<IGrainFactory>())!;
+        return new PlayerClothingService(db, fakes.Create<IGrainFactory>());
     }
 
     private static RoomHarness CreateRoomWith(string? customParams, int id = ITEM)
@@ -239,11 +236,9 @@ public class PurchasableClothingTests
         var room = new RoomHarness();
 
         // The room tells everyone in it that the furni is gone.
-        var stream = typeof(RoomGrain).GetField(
-            "_roomOutbound",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-        )!;
-        stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
+        room.Room._roomOutbound = room.Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>(
+            "room-stream"
+        );
 
         var clothing = room.Fakes.Create<IPlayerClothingService>();
 
@@ -274,13 +269,7 @@ public class PurchasableClothingTests
                 ? (PlayerId)id
                 : Fakes.NotHandled;
 
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(room.State, "AvatarsByPlayerId")!
-        )[playerId] = playerId;
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(room.State, "AvatarsByObjectId")!
-        )[playerId] = player;
+        room.State.AvatarsByPlayerId[playerId] = playerId;
+        room.State.AvatarsByObjectId[playerId] = player;
     }
 }

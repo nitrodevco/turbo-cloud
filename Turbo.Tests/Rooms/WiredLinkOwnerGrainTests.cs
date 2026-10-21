@@ -11,7 +11,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Wired.Link;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains;
+using Turbo.Rooms.Wired.Link;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -394,16 +394,10 @@ public sealed class WiredLinkOwnerGrainTests : IDisposable
 
     private async Task<IWiredLinkOwnerGrain> NewGrainAsync(WiredConfig? config = null)
     {
-        var grain = GrainHarness.Create(
-            typeof(RoomGrain).Assembly,
-            "Turbo.Rooms.Wired.Link.WiredLinkOwnerGrain",
-            _fakes,
-            _db,
-            playerId: OWNER
-        );
+        var grain = GrainHarness.Create<WiredLinkOwnerGrain>(_fakes, _db, playerId: OWNER);
 
         if (config is not null)
-            RoomHarness.SetMember(grain, "_config", config);
+            GrainHarness.Replace(grain, config);
 
         await ((Grain)grain).OnActivateAsync(Ct);
 

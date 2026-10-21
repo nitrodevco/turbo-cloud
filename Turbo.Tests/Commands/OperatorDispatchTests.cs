@@ -19,7 +19,7 @@ public class OperatorDispatchTests
     public OperatorDispatchTests()
     {
         _runner = _room.Harness.Fakes.Create<IOperatorCommandRunner>();
-        RoomHarness.SetField(_room.Harness.Room, "_operatorCommandRunner", _runner);
+        _room.Harness.Room.UseOperatorCommands(_runner);
         _room.Commands.Register([new OperatorProbeCommand()]);
     }
 
@@ -79,11 +79,6 @@ public class OperatorDispatchTests
 
         await _room.SayAsync(2, ":opprobe alice");
 
-        (
-            (System.Collections.ICollection)
-                RoomHarness.GetMember(_room.Harness.State, "PendingCommandLogs")!
-        )
-            .Count.Should()
-            .Be(0);
+        _room.Harness.State.PendingCommandLogs.Count.Should().Be(0);
     }
 }

@@ -18,5 +18,6 @@
     <ProjectReference Include="..\Turbo.Furniture\Turbo.Furniture.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
+    <InternalsVisibleTo Include="Turbo.Tests" />
   </ItemGroup>
 </Project>

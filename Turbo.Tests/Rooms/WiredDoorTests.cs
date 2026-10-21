@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
@@ -12,7 +10,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
@@ -46,8 +43,10 @@ public sealed class WiredDoorTests
 
     public WiredDoorTests()
     {
-        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
-        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)OWNER);
+        _room.Harness.State.RoomSnapshot = _room.Harness.State.RoomSnapshot with
+        {
+            OwnerId = (PlayerId)OWNER,
+        };
         _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
             call.Interface == typeof(IRoomPlayerContext)
             && call.Key is int id
@@ -227,17 +226,8 @@ public sealed class WiredDoorTests
                 : new FurnitureWiredDoorLogic(_room.StuffData, context)
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)objectId,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod(
-                "AddItem",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                [typeof(IRoomItem)]
-            )!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)objectId, item);
+        _room.Map.AddItem(item);
 
         return item;
     }

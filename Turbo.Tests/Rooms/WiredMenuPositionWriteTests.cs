@@ -1,4 +1,3 @@
-using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -30,8 +29,7 @@ public sealed class WiredMenuPositionWriteTests
         var variable = new FurniturePositionXVariable(_room.Harness.Room);
         var id = variable.GetVarSnapshot().VariableId;
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[id] =
-            variable;
+        _room.Harness.Room.WiredSystem.VariablesById()[id] = variable;
 
         (
             await _room.Harness.Room.WiredSystem.ApplyVariableMenuOperationAsync(

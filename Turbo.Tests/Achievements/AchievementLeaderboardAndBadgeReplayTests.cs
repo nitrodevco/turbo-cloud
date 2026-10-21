@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory;
-using Turbo.Players;
+using Turbo.Inventory.Grains.Badges;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains.Badges;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
@@ -245,24 +245,13 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
 
     private IBadgeLeaderboardGrain NewLeaderboardGrain()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Badges.BadgeLeaderboardGrain",
-            _fakes,
-            _db
-        );
+        var grain = GrainHarness.Create<BadgeLeaderboardGrain>(_fakes, _db);
         return (IBadgeLeaderboardGrain)grain;
     }
 
     private async Task<IPlayerBadgeGrain> NewBadgeGrainAsync()
     {
-        var grain = GrainHarness.Create(
-            typeof(InventoryModule).Assembly,
-            "Turbo.Inventory.Grains.Badges.PlayerBadgeGrain",
-            _fakes,
-            _db,
-            playerId: 1
-        );
+        var grain = GrainHarness.Create<PlayerBadgeGrain>(_fakes, _db, playerId: 1);
         await ((Grain)grain).OnActivateAsync(Ct);
         return (IPlayerBadgeGrain)grain;
     }

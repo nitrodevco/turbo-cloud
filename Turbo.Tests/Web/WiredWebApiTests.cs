@@ -31,8 +31,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Grains;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Grains.Systems;
@@ -1074,14 +1072,8 @@ public sealed class WiredWebApiTests : IAsyncDisposable
 
     private void Leave(int roomIndex)
     {
-        (
-            (IDictionary<RoomObjectId, IRoomAvatar>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByObjectId")!
-        ).Remove(roomIndex);
-        (
-            (IDictionary<PlayerId, RoomObjectId>)
-                RoomHarness.GetMember(_room.Harness.State, "AvatarsByPlayerId")!
-        ).Remove(100 + roomIndex);
+        _room.Harness.State.AvatarsByObjectId.Remove(roomIndex);
+        _room.Harness.State.AvatarsByPlayerId.Remove(100 + roomIndex);
     }
 
     private async Task<(string read, string write)> SetUpAsync(bool allowBulkDelete = true)

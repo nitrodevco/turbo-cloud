@@ -9,12 +9,10 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -99,18 +97,14 @@ public sealed class RoomDeletionPetReturnTests : IDisposable
         _db.Insert(PetRow(REFUSED));
         _db.Insert(PetRow(RETURNED));
 
-        RoomHarness.SetField(_harness.Room, "_dbCtxFactory", _db);
-        RoomHarness.SetField(_harness.Room, "_logger", _log);
-        RoomHarness.SetField(
-            _harness.Room,
-            "_avatarProvider",
-            new RoomAvatarProvider(Options.Create(new BotConfig()))
-        );
-        RoomHarness.SetMember(Member("RoomSnapshot"), "AllowPets", true);
+        _harness.Room.UseDatabase(_db);
+        _harness.Room.UseLogger(_log);
+        _harness.Room.UseAvatarProvider(new RoomAvatarProvider(Options.Create(new BotConfig())));
+        _harness.State.RoomSnapshot = _harness.State.RoomSnapshot with { AllowPets = true };
 
         _owner.SetPosition(2, 2);
-        ((IDictionary<RoomObjectId, IRoomAvatar>)Member("AvatarsByObjectId"))[5] = _owner;
-        ((IDictionary<PlayerId, RoomObjectId>)Member("AvatarsByPlayerId"))[OWNER] = 5;
+        _harness.State.AvatarsByObjectId[5] = _owner;
+        _harness.State.AvatarsByPlayerId[OWNER] = 5;
         _harness.Module<RoomMapModule>().AddAvatar(_owner, false);
 
         _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = call =>
@@ -159,8 +153,6 @@ public sealed class RoomDeletionPetReturnTests : IDisposable
             .Which.Message.Should()
             .Contain($"Pet {REFUSED}");
     }
-
-    private object Member(string name) => RoomHarness.GetMember(_harness.State, name)!;
 
     private static PetEntity PetRow(int id) =>
         new()

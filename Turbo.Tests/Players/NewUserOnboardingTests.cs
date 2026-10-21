@@ -11,8 +11,8 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Navigator.Configuration;
 using Turbo.Navigator.Onboarding;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains;
 using Turbo.Players.Onboarding;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -189,14 +189,7 @@ public sealed class NewUserOnboardingTests : IDisposable
     [Fact]
     public async Task ChoosingAName_RenamesThePlayerOnce()
     {
-        var grain = (IPlayerGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.PlayerGrain",
-                _fakes,
-                _db,
-                NEW_PLAYER
-            );
+        var grain = (IPlayerGrain)GrainHarness.Create<PlayerGrain>(_fakes, _db, NEW_PLAYER);
 
         (await grain.ChooseNameAsync("Hutch.", Ct)).Should().Be(NameCheckResult.Available);
         (await grain.ChooseNameAsync("Other", Ct)).Should().Be(NameCheckResult.ChangeNotAllowed);
@@ -214,14 +207,7 @@ public sealed class NewUserOnboardingTests : IDisposable
     [Fact]
     public async Task ChoosingATakenName_KeepsTheStepOpen()
     {
-        var grain = (IPlayerGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.PlayerGrain",
-                _fakes,
-                _db,
-                NEW_PLAYER
-            );
+        var grain = (IPlayerGrain)GrainHarness.Create<PlayerGrain>(_fakes, _db, NEW_PLAYER);
 
         (await grain.ChooseNameAsync("Hutch", Ct)).Should().Be(NameCheckResult.Taken);
 

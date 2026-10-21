@@ -3,13 +3,13 @@ using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
+using Turbo.Furniture.Custody;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -294,14 +294,9 @@ public sealed class RoomFurnitureCustodyTests : IDisposable
     {
         db ??= _world.Db;
         var grain = GrainHarness.Create(typeof(RoomGrain).Assembly, GRAIN, _world.Fakes, db);
-        RoomHarness.SetMember(
-            RoomHarness.GetField(grain, "_state")!,
-            "RoomId",
-            RoomId.Parse(roomId)
-        );
-        RoomHarness.SetField(
+        GrainHarness.Replace(grain, new RoomPersistenceLiveState { RoomId = roomId });
+        GrainHarness.Replace<IFurnitureCustody>(
             grain,
-            "_custody",
             TestCustody.Over(db, _world.NewRecorderAsync(Ct).GetAwaiter().GetResult())
         );
 

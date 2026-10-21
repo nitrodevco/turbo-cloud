@@ -1,11 +1,9 @@
-using System.Collections;
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -64,8 +62,8 @@ public sealed class StackHeightEncodingTests
     {
         Encoded(1, 1).Should().Be((short)0);
 
-        var model = RoomHarness.GetMember(_room.Harness.State, "Model")!;
-        var flags = (RoomTileFlags[])RoomHarness.GetMember(model, "BaseFlags")!;
+        var model = _room.Harness.State.Model;
+        var flags = model!.BaseFlags;
 
         flags[(5 * 8) + 5] = RoomTileFlags.Disabled | RoomTileFlags.StackBlocked;
         _room.Map.ComputeTile(5, 5);
@@ -73,8 +71,7 @@ public sealed class StackHeightEncodingTests
         Encoded(5, 5).Should().Be((short)-1);
     }
 
-    private short Encoded(int x, int y) =>
-        ((short[])RoomHarness.GetMember(_room.Harness.State, "TileEncodedHeights")!)[(y * 8) + x];
+    private short Encoded(int x, int y) => _room.Harness.State.TileEncodedHeights[(y * 8) + x];
 
     /// <summary>A plain 1x1 floor furni, 1 high, standing at <paramref name="z"/> (the floor by default).</summary>
     private RoomFloorItem AddFurni(
@@ -127,13 +124,8 @@ public sealed class StackHeightEncodingTests
             )
         );
 
-        ((IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!).Add(
-            (RoomObjectId)objectId,
-            item
-        );
-        typeof(RoomMapModule)
-            .GetMethod("AddItem", All, [typeof(IRoomItem)])!
-            .Invoke(_room.Map, [item]);
+        _room.Harness.State.ItemsById.Add((RoomObjectId)objectId, item);
+        _room.Map.AddItem(item);
 
         return item;
     }
@@ -153,11 +145,8 @@ public sealed class StackHeightEncodingTests
         // Habbo resends only the tiles a rotation changed; a furni lifted and put down again
         // (as a rotation does to the tile it keeps) left its tile resent by Turbo.
         var item = AddFurni(1, 3, 3, canStack: true);
-        ((HashSet<int>)RoomHarness.GetMember(_room.Harness.State, "DirtyHeightTileIds")!).Clear();
-        (
-            (Dictionary<int, short>)
-                RoomHarness.GetMember(_room.Harness.State, "DirtyHeightSentValues")!
-        ).Clear();
+        _room.Harness.State.DirtyHeightTileIds.Clear();
+        _room.Harness.State.DirtyHeightSentValues.Clear();
 
         _room.Map.RemoveFloorItem(item);
         typeof(RoomMapModule).GetMethod("AddFloorItem", All)!.Invoke(_room.Map, [item]);

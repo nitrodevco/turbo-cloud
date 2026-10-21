@@ -16,8 +16,7 @@ public class CommandLogTests
     public CommandLogTests() => _room.Commands.Register([_probe]);
 
     private IReadOnlyCollection<CommandLogSnapshot> Pending =>
-        (Queue<CommandLogSnapshot>)
-            RoomHarness.GetMember(_room.Harness.State, "PendingCommandLogs")!;
+        _room.Harness.State.PendingCommandLogs;
 
     [Fact]
     public async Task AUseByAnExecutorHoldingCommandLog_IsQueuedWithWhatTheyTyped()

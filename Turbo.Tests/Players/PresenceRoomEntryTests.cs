@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Streams;
-using Turbo.Players;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -90,16 +90,11 @@ public sealed class PresenceRoomEntryTests
         fakes.Handlers["SubscribeAsync"] = _ =>
             Task.FromResult<StreamSubscriptionHandle<RoomOutboundSnapshot>>(null!);
 
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.PlayerPresenceGrain",
-            fakes,
-            playerId: PLAYER
-        );
+        var grain = GrainHarness.Create<PlayerPresenceGrain>(fakes, playerId: PLAYER);
 
         // The harness never ran the field initializers: give the grain's own collections (the
         // outbound holds) and its state's a value, as SessionHarness does for the state.
-        var state = grain.GetType().GetField("_state", ALL)!.GetValue(grain)!;
+        var state = grain._state;
         foreach (var (owner, field) in Collections(grain).Concat(Collections(state)))
             field.SetValue(owner, Activator.CreateInstance(field.FieldType));
 

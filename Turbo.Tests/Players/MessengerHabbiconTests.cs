@@ -2,8 +2,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
 using Turbo.Players.Configuration;
+using Turbo.Players.Grains.Messenger;
 using Turbo.Players.Messenger;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Networking;
@@ -161,28 +161,12 @@ public sealed class MessengerHabbiconTests : IDisposable
 
     private IPlayerMessengerGrain Messenger()
     {
-        var grain = GrainHarness.Create(
-            typeof(PlayerModule).Assembly,
-            "Turbo.Players.Grains.Messenger.PlayerMessengerGrain",
-            _fakes,
-            _db,
-            playerId: 1
-        );
-        RoomHarness.SetField(
+        var grain = GrainHarness.Create<PlayerMessengerGrain>(_fakes, _db, playerId: 1);
+        GrainHarness.Replace<PlayerConfig>(
             grain,
-            "_playerConfig",
             new PlayerConfig { MessengerHistoryPageSize = 10 }
         );
-        var state = grain
-            .GetType()
-            .GetField(
-                "_state",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
-            )!
-            .GetValue(grain)!;
-        var friends =
-            (Dictionary<PlayerId, MessengerFriendDto>)
-                state.GetType().GetProperty("Friends")!.GetValue(state)!;
+        var friends = GrainHarness.Get<PlayerMessengerLiveState>(grain).Friends;
         friends[2] = new MessengerFriendDto { PlayerId = 2, Name = "friend2" };
 
         return (IPlayerMessengerGrain)grain;

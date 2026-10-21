@@ -88,8 +88,7 @@ public sealed class FurniturePickupConfirmTests
         packet.Remaining.Should().Be(0);
     }
 
-    private IDictionary ItemsById =>
-        (IDictionary)RoomHarness.GetMember(_room.Harness.State, "ItemsById")!;
+    private IDictionary ItemsById => _room.Harness.State.ItemsById;
 
     private IEnumerable<ObjectRemoveConfirmMessageComposer> ConfirmsSentToOwner() =>
         _room

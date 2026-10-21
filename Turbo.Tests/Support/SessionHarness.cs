@@ -6,6 +6,7 @@ using Orleans;
 using Orleans.Runtime;
 using Turbo.Events;
 using Turbo.Networking.Session;
+using Turbo.Players.Grains;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players.Grains;
@@ -27,7 +28,7 @@ public sealed class SessionHarness
     /// <summary>The events the gateway raises, which a test can <c>Record</c>.</summary>
     public TestEventBus Events { get; } = new();
 
-    public object Presence { get; }
+    internal PlayerPresenceGrain Presence { get; }
     public const int PlayerId = 1;
 
     private static readonly BindingFlags All =
@@ -76,19 +77,15 @@ public sealed class SessionHarness
             );
     }
 
-    public IPlayerPresenceGrain PresenceGrain => (IPlayerPresenceGrain)Presence;
+    public IPlayerPresenceGrain PresenceGrain => Presence;
 
-    private object CreatePresence()
+    private PlayerPresenceGrain CreatePresence()
     {
-        var type = typeof(Turbo.Players.PlayerModule).Assembly.GetType(
-            "Turbo.Players.Grains.PlayerPresenceGrain"
-        )!;
-        var grain = RuntimeHelpers.GetUninitializedObject(type);
+        var type = typeof(PlayerPresenceGrain);
+        var grain = (PlayerPresenceGrain)RuntimeHelpers.GetUninitializedObject(type);
 
-        var stateType = type.Assembly.GetType("Turbo.Players.Grains.PlayerPresenceLiveState")!;
-        var state = Activator.CreateInstance(stateType, nonPublic: true)!;
-        RoomHarness.SetMember(state, "PlayerId", (Turbo.Primitives.Players.PlayerId)PlayerId);
-        foreach (var p in stateType.GetProperties(All))
+        var state = new PlayerPresenceLiveState { PlayerId = PlayerId };
+        foreach (var p in typeof(PlayerPresenceLiveState).GetProperties(All))
         {
             // Session-routing ids default to "none"; anything else keeps its initializer (which
             // an uninitialized object never ran, so give reference-typed collections a value).
@@ -98,7 +95,7 @@ public sealed class SessionHarness
             )
                 RoomHarness.SetMember(state, p.Name, c.Invoke(null));
         }
-        RoomHarness.SetField(grain, "_state", state);
+        GrainHarness.Replace(grain, state);
 
         foreach (var f in type.GetFields(All))
         {
@@ -228,12 +225,9 @@ public sealed class SessionHarness
     /// <summary>The presence has nothing queued and no flush in flight.</summary>
     public bool PresenceIdle()
     {
-        var state = RoomHarness.GetField(Presence, "_state")!;
+        var state = Presence._state;
 
-        return !(bool)RoomHarness.GetMember(state, "IsProcessingQueue")!
-            && (
-                (System.Collections.ICollection)RoomHarness.GetMember(state, "OutgoingQueue")!
-            ).Count == 0;
+        return !state.IsProcessingQueue && state.OutgoingQueue.Count == 0;
     }
 
     /// <summary>Waits (5 s at most) for <see cref="PresenceIdle"/>, letting queued turns run first.</summary>

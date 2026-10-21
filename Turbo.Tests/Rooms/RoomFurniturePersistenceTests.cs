@@ -6,7 +6,6 @@ using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -101,7 +100,7 @@ public sealed class RoomFurniturePersistenceTests
     private static object NewGrain(IDbContextFactory<TurboDbContext> db)
     {
         var grain = GrainHarness.Create(typeof(RoomGrain).Assembly, GRAIN, new Fakes(), db);
-        RoomHarness.SetMember(RoomHarness.GetField(grain, "_state")!, "RoomId", RoomId.Parse(ROOM));
+        GrainHarness.Replace(grain, new RoomPersistenceLiveState { RoomId = ROOM });
 
         return grain;
     }

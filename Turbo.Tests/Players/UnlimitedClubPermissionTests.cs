@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
-using Turbo.Players;
 using Turbo.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Events;
@@ -76,13 +75,7 @@ public sealed class UnlimitedClubPermissionTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     private IPlayerSubscriptionGrain Grain() =>
-        (IPlayerSubscriptionGrain)
-            GrainHarness.Create(
-                typeof(PlayerModule).Assembly,
-                "Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain",
-                _fakes,
-                _db
-            );
+        (IPlayerSubscriptionGrain)GrainHarness.Create<PlayerSubscriptionGrain>(_fakes, _db);
 
     [Fact]
     public async Task WithoutTheNode_APlayerWhoNeverBoughtIsNoMember()
