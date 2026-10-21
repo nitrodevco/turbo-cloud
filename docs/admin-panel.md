@@ -1414,6 +1414,8 @@ them.
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
 | `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
 | `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
+| `JobWaitSeconds` | `3` | | How long a request for long work (a catalog reset, rollback, import, generate or publish) waits before it answers `202` and the panel asks after it at `GET /api/jobs/{id}`. Keep it well under the proxy's timeout. |
+| `JobKeepMinutes` | `30` | | How long a finished job's answer is kept for whoever started it. |
 | `MessagesPageSize` | `100` | | Messages per page on the Messages page. |
 | `CurrencyLogPageSize` | `100` | | Changes per page on the Currency log. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |

@@ -38,6 +38,7 @@ internal sealed class CatalogEndpoints(
     AdminCatalogBuilder builder,
     AdminCatalogAudit audit,
     AdminCatalogImport importer,
+    AdminJobs jobs,
     IFurnitureDefinitionProvider definitions,
     IRecolorablePalettes palettes,
     ILogger<CatalogEndpoints> logger
@@ -308,14 +309,22 @@ internal sealed class CatalogEndpoints(
     /// <summary>A time from the panel as UTC: it sends ISO times with their offset.</summary>
     private static DateTime? Utc(DateTime? at) => at?.ToUniversalTime();
 
-    private async Task<IResult> PublishAsync(HttpContext http, CancellationToken ct)
+    private Task<IResult> PublishAsync(HttpContext http, CancellationToken ct)
     {
-        var result = await editor
-            .PublishAsync(AdminIdentity.Of(http).PlayerId, ct)
-            .ConfigureAwait(false);
+        var who = AdminIdentity.Of(http).PlayerId;
 
-        return Results.Ok(
-            new CatalogPublishResponse(result.Pages, result.Offers, result.PlayersTold)
+        return jobs.RunAsync(
+            who,
+            "Publishing the catalog",
+            async jobCt =>
+            {
+                var result = await editor.PublishAsync(who, jobCt).ConfigureAwait(false);
+
+                return Results.Ok(
+                    new CatalogPublishResponse(result.Pages, result.Offers, result.PlayersTold)
+                );
+            },
+            ct
         );
     }
 
@@ -328,17 +337,21 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     ) => Built(await builder.PreviewAsync(id, request, ct).ConfigureAwait(false));
 
-    private async Task<IResult> BuildAsync(
+    private Task<IResult> BuildAsync(
         int id,
         CatalogBuildRequest request,
         HttpContext http,
         CancellationToken ct
     )
     {
-        return Built(
-            await builder
-                .ApplyAsync(AdminIdentity.Of(http).PlayerId, id, request, ct)
-                .ConfigureAwait(false)
+        var who = AdminIdentity.Of(http).PlayerId;
+
+        return jobs.RunAsync(
+            who,
+            "Building the page",
+            async jobCt =>
+                Built(await builder.ApplyAsync(who, id, request, jobCt).ConfigureAwait(false)),
+            ct
         );
     }
 
@@ -359,18 +372,28 @@ internal sealed class CatalogEndpoints(
     }
 
     /// <summary>An undo, a redo or throwing the unpublished changes away; the history as it is after.</summary>
-    private async Task<IResult> HistoryStepAsync(
+    private Task<IResult> HistoryStepAsync(
         HttpContext http,
         CancellationToken ct,
         Func<PlayerId, CancellationToken, Task<CatalogEditResult>> step
     )
     {
-        var result = await step(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
+        var who = AdminIdentity.Of(http).PlayerId;
 
-        return result.Saved
+        // An undo can be a whole catalog's rows: undoing a reset or a rollback.
+        return jobs.RunAsync(
+            who,
+            "Changing the catalog's history",
+            async jobCt => HistoryAnswer(await step(who, jobCt).ConfigureAwait(false)),
+            ct
+        );
+    }
+
+    /// <summary>The history after a step through it, or why it could not be taken (409, the catalog having moved on).</summary>
+    private IResult HistoryAnswer(CatalogEditResult result) =>
+        result.Saved
             ? Results.Ok(HistoryResponse())
             : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
-    }
 
     private async Task<IResult> BackupsAsync(CancellationToken ct)
     {
@@ -409,31 +432,38 @@ internal sealed class CatalogEndpoints(
     ) => ChangeAsync(http, who => editor.BackupAsync(who, request.Name, ct));
 
     /// <summary>A rollback; refused with 409, as an undo is, when the catalog has moved on from under it.</summary>
-    private async Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct)
+    private Task<IResult> RollbackAsync(int id, HttpContext http, CancellationToken ct)
     {
-        var result = await editor
-            .RollbackAsync(AdminIdentity.Of(http).PlayerId, id, ct)
-            .ConfigureAwait(false);
+        var who = AdminIdentity.Of(http).PlayerId;
 
-        return result.Saved
-            ? Results.Ok(HistoryResponse())
-            : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
+        return jobs.RunAsync(
+            who,
+            "Rolling the catalog back",
+            async jobCt =>
+                HistoryAnswer(await editor.RollbackAsync(who, id, jobCt).ConfigureAwait(false)),
+            ct
+        );
     }
 
     /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
-    private async Task<IResult> ResetAsync(
+    private Task<IResult> ResetAsync(
         CatalogResetRequest? request,
         HttpContext http,
         CancellationToken ct
     )
     {
-        var result = await editor
-            .ResetAsync(AdminIdentity.Of(http).PlayerId, request?.RemoveLimited == true, ct)
-            .ConfigureAwait(false);
+        var who = AdminIdentity.Of(http).PlayerId;
+        var removeLimited = request?.RemoveLimited == true;
 
-        return result.Saved
-            ? Results.Ok(HistoryResponse())
-            : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
+        return jobs.RunAsync(
+            who,
+            "Resetting the catalog",
+            async jobCt =>
+                HistoryAnswer(
+                    await editor.ResetAsync(who, removeLimited, jobCt).ConfigureAwait(false)
+                ),
+            ct
+        );
     }
 
     private Task<IResult> DeleteBackupAsync(int id, HttpContext http, CancellationToken ct) =>
@@ -615,16 +645,22 @@ internal sealed class CatalogEndpoints(
         CancellationToken ct
     ) => Built(await builder.PlanCatalogAsync(request, ct).ConfigureAwait(false));
 
-    private async Task<IResult> GenerateAsync(
+    private Task<IResult> GenerateAsync(
         CatalogGenerateRequest request,
         HttpContext http,
         CancellationToken ct
     )
     {
-        return Built(
-            await builder
-                .GenerateCatalogAsync(AdminIdentity.Of(http).PlayerId, request, ct)
-                .ConfigureAwait(false)
+        var who = AdminIdentity.Of(http).PlayerId;
+
+        return jobs.RunAsync(
+            who,
+            "Generating the catalog",
+            async jobCt =>
+                Built(
+                    await builder.GenerateCatalogAsync(who, request, jobCt).ConfigureAwait(false)
+                ),
+            ct
         );
     }
 
@@ -638,16 +674,20 @@ internal sealed class CatalogEndpoints(
         return Built(await importer.PlanAsync(request, ct).ConfigureAwait(false));
     }
 
-    private async Task<IResult> ImportAsync(
+    private Task<IResult> ImportAsync(
         CatalogImportRequest request,
         HttpContext http,
         CancellationToken ct
     )
     {
-        return Built(
-            await importer
-                .ApplyAsync(AdminIdentity.Of(http).PlayerId, request, ct)
-                .ConfigureAwait(false)
+        var who = AdminIdentity.Of(http).PlayerId;
+
+        return jobs.RunAsync(
+            who,
+            "Importing the capture",
+            async jobCt =>
+                Built(await importer.ApplyAsync(who, request, jobCt).ConfigureAwait(false)),
+            ct
         );
     }
 
@@ -663,15 +703,22 @@ internal sealed class CatalogEndpoints(
 
     private async Task<IResult> LogImportAsync(HttpContext http, CancellationToken ct)
     {
+        // The form is read whole first: the job can't read the request once it has answered.
         var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
 
-        return request is null
-            ? AdminResults.Error(StatusCodes.Status400BadRequest, error!)
-            : Built(
-                await importer
-                    .ApplyLogsAsync(AdminIdentity.Of(http).PlayerId, request, ct)
-                    .ConfigureAwait(false)
-            );
+        if (request is null)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, error!);
+
+        var who = AdminIdentity.Of(http).PlayerId;
+
+        return await jobs.RunAsync(
+                who,
+                "Importing the packet logs",
+                async jobCt =>
+                    Built(await importer.ApplyLogsAsync(who, request, jobCt).ConfigureAwait(false)),
+                ct
+            )
+            .ConfigureAwait(false);
     }
 
     /// <summary>

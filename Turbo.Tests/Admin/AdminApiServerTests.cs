@@ -259,6 +259,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Moderation.IWordFilter),
                 typeof(IOptionsMonitor<Turbo.Database.Configuration.MovementsConfig>),
                 typeof(IOptionsMonitor<Turbo.Database.Configuration.ClientTelemetryConfig>),
+                typeof(Microsoft.Extensions.Hosting.IHostApplicationLifetime),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -288,6 +289,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminCatalogImport>();
+        services.AddSingleton<Turbo.Admin.Api.AdminJobs>();
         services.AddSingleton<AdminCatalogImages>();
         services.AddSingleton<Turbo.Admin.Content.AdminRewardTracks>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();

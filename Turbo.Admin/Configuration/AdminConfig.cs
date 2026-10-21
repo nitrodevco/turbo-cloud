@@ -88,6 +88,16 @@ public sealed class AdminConfig
     public int ReportsPageSize { get; init; } = 50;
 
     /// <summary>
+    /// How long a request for long work (a catalog reset, an import) waits for it before it
+    /// answers that the work goes on and the panel asks after it; kept well under the panel's
+    /// proxy's timeout.
+    /// </summary>
+    public int JobWaitSeconds { get; init; } = 3;
+
+    /// <summary>How long a finished job's answer is kept for the one who started it to collect.</summary>
+    public int JobKeepMinutes { get; init; } = 30;
+
+    /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the
     /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as
     /// <c>default_3x3</c>). A code the client has no window for leaves the page empty.
