@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
@@ -395,6 +397,92 @@ public sealed class CatalogBackupTests : IDisposable
         again.Saved.Should().BeFalse();
         again.Error.Should().Contain("already empty");
         (await _service.GetBackupsAsync(Ct)).Should().HaveCount(1);
+    }
+
+    /// <summary>A countdown the reception shows to a page.</summary>
+    private void Countdown(int pageId, string image) =>
+        _catalog.Db.Insert(
+            new CatalogPageExpiryEntity
+            {
+                Id = pageId,
+                CatalogPageEntityId = pageId,
+                ExpiresAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                Image = image,
+            }
+        );
+
+    private async Task<List<string>> CountdownsAsync()
+    {
+        await using var db = await _catalog.Db.CreateDbContextAsync(Ct);
+
+        return await db
+            .CatalogPageExpiries.OrderBy(x => x.Id)
+            .Select(x => $"{x.CatalogPageEntityId} {x.ExpiresAt:yyyy-MM-dd} {x.Image}")
+            .ToListAsync(Ct);
+    }
+
+    [Fact]
+    public async Task APageCountedDownTo_ComesBackWithItsCountdown_OnAnUndo_AResetsUndo_AndARollback()
+    {
+        _catalog.Db.Insert(Page(60, FURNITURE, "Sale", sort: 9));
+        Countdown(60, "sale_teaser");
+        Countdown(CHILD, "chairs_teaser");
+        var countdowns = await CountdownsAsync();
+
+        (await _service.DeletePageAsync(Editor, 60, Ct)).Saved.Should().BeTrue();
+        (await CountdownsAsync()).Should().HaveCount(1, "the countdown goes with its page");
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
+        (await CountdownsAsync()).Should().Equal(countdowns);
+
+        var reset = await _service.ResetAsync(Editor, false, Ct);
+
+        (await CountdownsAsync()).Should().BeEmpty();
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
+        (await CountdownsAsync()).Should().Equal(countdowns);
+
+        (await _service.RedoAsync(Editor, Ct)).Error.Should().BeNull();
+        (await _service.RollbackAsync(Editor, reset.Id, Ct)).Error.Should().BeNull();
+        (await CountdownsAsync()).Should().Equal(countdowns);
+    }
+
+    [Fact]
+    public async Task ABackupTakenBeforeCountdownsWereKept_LeavesTheCountdownsAsTheyAre()
+    {
+        var backup = await _service.BackupAsync(Editor, "Old", Ct);
+
+        // As backups were before countdowns were kept: no table of them at all.
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            var row = await db.CatalogBackups.SingleAsync(x => x.Id == backup.Id, Ct);
+            JsonNode document;
+
+            using (
+                var unzip = new GZipStream(new MemoryStream(row.Data), CompressionMode.Decompress)
+            )
+                document = (await JsonNode.ParseAsync(unzip, cancellationToken: Ct))!;
+
+            document["tables"]!.AsObject().Remove("catalog_page_expiries").Should().BeTrue();
+
+            using var zipped = new MemoryStream();
+
+            await using (
+                var zip = new GZipStream(zipped, CompressionLevel.Optimal, leaveOpen: true)
+            )
+                await zip.WriteAsync(
+                    System.Text.Encoding.UTF8.GetBytes(document.ToJsonString()),
+                    Ct
+                );
+
+            row.Data = zipped.ToArray();
+            await db.SaveChangesAsync(Ct);
+        }
+
+        (await _service.DeleteOfferAsync(Editor, SOLD, Ct)).Saved.Should().BeTrue();
+        Countdown(CHILD, "chairs_teaser");
+
+        (await _service.RollbackAsync(Editor, backup.Id, Ct)).Error.Should().BeNull();
+
+        (await CountdownsAsync()).Should().Equal($"{CHILD} 2030-01-01 chairs_teaser");
     }
 
     [Fact]

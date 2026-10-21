@@ -96,6 +96,9 @@ internal static class CatalogEditJournal
         typeof(CatalogOfferEntity),
         typeof(CatalogProductEntity),
         typeof(CatalogFeaturedItemEntity),
+        // The reception's countdown to a page: not the editor's to change, but it goes when its
+        // page does, and comes back with it.
+        typeof(CatalogPageExpiryEntity),
     ];
 
     private static readonly HashSet<Type> Journaled = [.. Tables];
@@ -148,9 +151,23 @@ internal static class CatalogEditJournal
                     .ToListAsync(ct)
                     .ConfigureAwait(false);
 
+        // A page's countdown goes with it in the database too.
+        var deletedPages = entries
+            .Where(x => x.State == EntityState.Deleted && x.Entry.Entity is CatalogPageEntity)
+            .Select(x => x.Before!.Id)
+            .ToList();
+        var countdowns =
+            deletedPages.Count == 0
+                ? []
+                : await db
+                    .CatalogPageExpiries.AsNoTracking()
+                    .Where(x => deletedPages.Contains(x.CatalogPageEntityId))
+                    .ToListAsync(ct)
+                    .ConfigureAwait(false);
+
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var changes = new List<CatalogRowChange>(entries.Count + cascaded.Count);
+        var changes = new List<CatalogRowChange>(entries.Count + cascaded.Count + countdowns.Count);
 
         foreach (var (entry, state, before) in entries)
         {
@@ -173,6 +190,19 @@ internal static class CatalogEditJournal
             );
         }
 
+        var expiryType = db.Model.FindEntityType(typeof(CatalogPageExpiryEntity))!;
+
+        foreach (var countdown in countdowns)
+        {
+            changes.Add(
+                new(
+                    new CatalogRow(typeof(CatalogPageExpiryEntity), countdown.Id),
+                    Image(expiryType, countdown),
+                    null
+                )
+            );
+        }
+
         return changes;
     }
 
@@ -188,6 +218,7 @@ internal static class CatalogEditJournal
         Add(await db.CatalogOffers.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
         Add(await db.CatalogProducts.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
         Add(await db.CatalogFeaturedItems.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
+        Add(await db.CatalogPageExpiries.AsNoTracking().ToListAsync(ct).ConfigureAwait(false));
 
         return rows;
 
@@ -525,9 +556,14 @@ internal static class CatalogEditJournal
                     .CatalogProducts.Where(x => part.Contains(x.Id))
                     .ExecuteDeleteAsync(ct)
                     .ConfigureAwait(false);
-            else
+            else if (type == typeof(CatalogFeaturedItemEntity))
                 await db
                     .CatalogFeaturedItems.Where(x => part.Contains(x.Id))
+                    .ExecuteDeleteAsync(ct)
+                    .ConfigureAwait(false);
+            else
+                await db
+                    .CatalogPageExpiries.Where(x => part.Contains(x.Id))
                     .ExecuteDeleteAsync(ct)
                     .ConfigureAwait(false);
         }
@@ -645,9 +681,16 @@ internal static class CatalogEditJournal
                         .ToListAsync(ct)
                         .ConfigureAwait(false)
                 );
-            else
+            else if (type == typeof(CatalogFeaturedItemEntity))
                 rows.AddRange(
                     await Tracked(db.CatalogFeaturedItems)
+                        .Where(x => part.Contains(x.Id))
+                        .ToListAsync(ct)
+                        .ConfigureAwait(false)
+                );
+            else
+                rows.AddRange(
+                    await Tracked(db.CatalogPageExpiries)
                         .Where(x => part.Contains(x.Id))
                         .ToListAsync(ct)
                         .ConfigureAwait(false)
@@ -673,6 +716,9 @@ internal static class CatalogEditJournal
 
         if (row.Type == typeof(CatalogProductEntity))
             return $"What offer {values?.GetValueOrDefault(nameof(CatalogProductEntity.CatalogOfferEntityId)) ?? "?"} gives";
+
+        if (row.Type == typeof(CatalogPageExpiryEntity))
+            return $"The countdown to page {values?.GetValueOrDefault(nameof(CatalogPageExpiryEntity.CatalogPageEntityId)) ?? "?"}";
 
         return "A featured item";
     }

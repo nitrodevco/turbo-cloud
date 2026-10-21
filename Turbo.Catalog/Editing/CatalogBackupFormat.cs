@@ -49,7 +49,7 @@ internal static class CatalogBackupFormat
     /// not known here. Throws <see cref="InvalidDataException"/> or <see cref="JsonException"/>
     /// when it is not a backup at all.
     /// </summary>
-    public static Dictionary<CatalogRow, CatalogRowImage>? Read(IModel model, byte[] data)
+    public static CatalogBackupContent? Read(IModel model, byte[] data)
     {
         using var zip = new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
         using var document = JsonDocument.Parse(zip);
@@ -63,6 +63,7 @@ internal static class CatalogBackupFormat
             return null;
 
         var rows = new Dictionary<CatalogRow, CatalogRowImage>();
+        var held = new HashSet<Type>();
 
         foreach (var type in CatalogEditJournal.Tables)
         {
@@ -70,6 +71,8 @@ internal static class CatalogBackupFormat
 
             if (!tables.TryGetProperty(entityType.GetTableName()!, out var table))
                 continue;
+
+            held.Add(type);
 
             var fresh = Activator.CreateInstance(type)!;
 
@@ -90,6 +93,15 @@ internal static class CatalogBackupFormat
             }
         }
 
-        return rows;
+        return new CatalogBackupContent(rows, held);
     }
 }
+
+/// <summary>
+/// A backup's rows, and the tables it holds: one taken before a table was journaled has none of
+/// it, which says nothing of what that table held then.
+/// </summary>
+internal sealed record CatalogBackupContent(
+    Dictionary<CatalogRow, CatalogRowImage> Rows,
+    IReadOnlySet<Type> Tables
+);

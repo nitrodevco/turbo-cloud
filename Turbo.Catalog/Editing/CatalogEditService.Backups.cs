@@ -103,27 +103,31 @@ public sealed partial class CatalogEditService
             if (backup is null)
                 return CatalogEditResult.Refused("That backup is gone.");
 
-            Dictionary<CatalogRow, CatalogRowImage>? target;
+            CatalogBackupContent? content;
 
             try
             {
-                target = CatalogBackupFormat.Read(db.Model, backup.Data);
+                content = CatalogBackupFormat.Read(db.Model, backup.Data);
             }
             catch (Exception ex) when (ex is InvalidDataException or JsonException)
             {
                 logger.LogError(ex, "The catalog backup {BackupId} can't be read", backupId);
-                target = null;
+                content = null;
             }
 
-            if (target is null)
+            if (content is null)
                 return CatalogEditResult.Refused("That backup can't be read.");
+
+            var target = content.Rows;
 
             var current = await CatalogEditJournal.ReadAllAsync(db, ct).ConfigureAwait(false);
             var step = new CatalogEditStep($"rolled back to the backup {backup.Name}", editor, Now);
 
+            // A table the backup predates is left as it is, not emptied.
             step.Add([
                 .. current
                     .Keys.Union(target.Keys)
+                    .Where(row => content.Tables.Contains(row.Type))
                     .Select(row => new CatalogRowChange(
                         row,
                         current.GetValueOrDefault(row),
@@ -208,13 +212,30 @@ public sealed partial class CatalogEditService
                         var step = new CatalogEditStep("reset the catalog", editor, Now);
 
                         // The root stays: every page is made under one, and the editor never
-                        // takes it away.
+                        // takes it away; so does a countdown to it.
+                        var roots = current
+                            .Where(x =>
+                                x.Key.Type == typeof(CatalogPageEntity)
+                                && x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)] is null
+                            )
+                            .Select(x => x.Key.Id)
+                            .ToHashSet();
+
                         step.Add([
                             .. current
                                 .Where(x =>
-                                    x.Key.Type != typeof(CatalogPageEntity)
-                                    || x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)]
-                                        is not null
+                                    x.Key.Type == typeof(CatalogPageEntity)
+                                        ? !roots.Contains(x.Key.Id)
+                                    : x.Key.Type == typeof(CatalogPageExpiryEntity)
+                                        ? !roots.Contains(
+                                            (int)
+                                                x.Value.Values[
+                                                    nameof(
+                                                        CatalogPageExpiryEntity.CatalogPageEntityId
+                                                    )
+                                                ]!
+                                        )
+                                    : true
                                 )
                                 .Select(x => new CatalogRowChange(x.Key, x.Value, null)),
                         ]);
@@ -305,6 +326,12 @@ public sealed partial class CatalogEditService
 
         List<int> Ids<T>() =>
             [.. step.Rows.Where(x => x.Key.Type == typeof(T)).Select(x => x.Key.Id)];
+
+        foreach (var chunk in Ids<CatalogPageExpiryEntity>().Chunk(1000))
+            await db
+                .CatalogPageExpiries.Where(x => chunk.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
 
         foreach (var chunk in Ids<CatalogFeaturedItemEntity>().Chunk(1000))
             await db

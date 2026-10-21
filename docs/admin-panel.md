@@ -634,7 +634,10 @@ you publish. Before it changes anything, the catalog it replaces is backed up as
 back to …*, so you can still go back after a publish or a restart. A rollback is refused, with
 why, when the catalog is already as the backup has it, when it would take away an offer that sells
 a limited series, or when the backup sells furniture or
-uses a currency the hotel no longer has. Limited series themselves are not in a backup. Backups are
+uses a currency the hotel no longer has. Limited series themselves are not in a backup. The
+reception's countdowns to pages (`catalog_page_expiries`) are kept with the pages: deleting a page
+takes its countdown, and undoing that, a reset or a rollback brings it back (a backup taken before
+they were kept leaves today's as they are). Backups are
 kept in the database (`catalog_backups`) until deleted.
 
 **Reset the catalog**, at the foot of the view, empties it to start again or to import a catalog
