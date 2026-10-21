@@ -16,25 +16,61 @@ namespace Turbo.Admin.Catalog;
 
 /// <summary>
 /// Floor and wall items put on a page, an offer each at one price, as one step to undo; or sorted
-/// onto a page under it for each kind of furni. A furni's kind is the first word of its class
-/// name, the colour after <c>*</c> left off, and a first word that is its furni line's own name
-/// passed over (<c>rare_fan*3</c> is a fan, in the rare line); kinds of fewer than
-/// <see cref="KIND_MIN"/> furni share a page. When they come to one page, they go on the page
-/// itself: a Christmas line's furni, all named <c>xmas14_</c>, stay together. A page of a kind's
-/// title under it already takes that kind's furni.
+/// onto pages under it, by kind, by colour, or by kind and then each kind by colour.
+/// <para>
+/// A furni's kind is the first word of its class name, the colour after <c>*</c> left off, and a
+/// first word that is its furni line's own name passed over (<c>rare_fan*3</c> is a fan, in the
+/// rare line). Its colour is <see cref="FurniColours"/>'. A kind or colour of
+/// <see cref="GROUP_MIN"/> furni or more has a page of its own; the others share one, Other or
+/// Other colours. A sort that gives fewer than two pages of their own is passed over, so the furni
+/// stay on the page above: a Christmas line's furni, all named <c>xmas14_</c>, stay together, and a
+/// kind with only one colour three of it share is one page. A page of a title under its page
+/// already takes those furni.
+/// </para>
 /// </summary>
 public sealed class AdminCatalogAddFurni(
     IDbContextFactory<TurboDbContext> database,
     ICatalogEditService editor
 )
 {
-    /// <summary>The fewest furni a kind has its own page for.</summary>
-    public const int KIND_MIN = 3;
+    /// <summary>The fewest furni a kind or a colour has its own page for.</summary>
+    public const int GROUP_MIN = 3;
 
     /// <summary>The title of the page the kinds too small for one of their own share.</summary>
     public const string OTHER_TITLE = "Other";
 
+    /// <summary>The title of the page the colours too small for one of their own share.</summary>
+    public const string OTHER_COLOURS_TITLE = "Other colours";
+
+    /// <summary>Sorted onto a page for each kind.</summary>
+    public const string SORT_KIND = "kind";
+
+    /// <summary>Sorted onto a page for each colour.</summary>
+    public const string SORT_COLOUR = "colour";
+
+    /// <summary>Sorted onto a page for each kind, and each kind onto a page for each colour.</summary>
+    public const string SORT_KIND_COLOUR = "kindColour";
+
     private const string LAYOUT = "default_3x3";
+
+    /// <summary>One way of sorting: what a furni is told apart by, a group's title, and the leftovers' title.</summary>
+    private sealed record Level(
+        Func<Definition, string?> Key,
+        Func<string, IReadOnlyList<Definition>, string> Title,
+        string RestTitle
+    );
+
+    private static readonly Level ByKind = new(
+        x => KindOf(x.Name, x.Line),
+        (_, furni) => TitleOf(furni),
+        OTHER_TITLE
+    );
+
+    private static readonly Level ByColour = new(
+        x => FurniColours.Of(x.PublicName, x.PartColors),
+        (colour, _) => FurniColours.Title(colour),
+        OTHER_COLOURS_TITLE
+    );
 
     /// <summary>The pages the furni would go on and how many each; nothing is changed.</summary>
     public async Task<CatalogBuildOutcome<CatalogAddFurniPlan>> PlanAsync(
@@ -48,14 +84,11 @@ public sealed class AdminCatalogAddFurni(
         return plan.Error is { } error
             ? CatalogBuildOutcome<CatalogAddFurniPlan>.Refused(error)
             : CatalogBuildOutcome<CatalogAddFurniPlan>.Done(
-                new CatalogAddFurniPlan([
-                    .. plan.Pages.Select(x => new CatalogAddFurniPage(
-                        x.Title,
-                        x.PageId,
-                        x.DefinitionIds.Count
-                    )),
-                ])
+                new CatalogAddFurniPlan([.. plan.Pages.Select(View)])
             );
+
+        static CatalogAddFurniPage View(PlannedPage page) =>
+            new(page.Title, page.PageId, page.Count, [.. page.Pages.Select(View)]);
     }
 
     /// <summary>The furni added, the pages they need made with them: one step to undo.</summary>
@@ -74,7 +107,8 @@ public sealed class AdminCatalogAddFurni(
         var newPages = new List<CatalogNewPage>();
         var offers = new List<CatalogNewOffer>();
 
-        foreach (var page in plan.Pages)
+        // A page is made before the pages under it, which refer to it.
+        void Place(PlannedPage page, CatalogPageRef parent)
         {
             CatalogPageRef target;
 
@@ -85,7 +119,7 @@ public sealed class AdminCatalogAddFurni(
                 target = CatalogPageRef.Made(newPages.Count);
                 newPages.Add(
                     new CatalogNewPage(
-                        CatalogPageRef.Saved(pageId),
+                        parent,
                         new CatalogPageDraft(
                             page.Title,
                             null,
@@ -126,7 +160,13 @@ public sealed class AdminCatalogAddFurni(
                         )
                     )
                 );
+
+            foreach (var child in page.Pages)
+                Place(child, target);
         }
+
+        foreach (var page in plan.Pages)
+            Place(page, CatalogPageRef.Saved(pageId));
 
         var label =
             newPages.Count == 0
@@ -186,9 +226,75 @@ public sealed class AdminCatalogAddFurni(
             : char.ToUpper(title[0], CultureInfo.InvariantCulture) + title[1..];
     }
 
-    private sealed record Definition(int Id, string Name, string? Line, ProductType Type);
+    /// <summary>
+    /// The groups the furni sort into at the first level that parts them, each sorted by the
+    /// levels after; none when no level does, the furni staying on the page above.
+    /// </summary>
+    private static List<Group> Sort(IReadOnlyList<Definition> furni, IReadOnlyList<Level> levels)
+    {
+        for (var at = 0; at < levels.Count; at++)
+        {
+            var level = levels[at];
+            var groups = furni.GroupBy(level.Key).ToList();
+            var own = groups
+                .Where(g => g.Key is not null && g.Count() >= GROUP_MIN)
+                .Select(g => (Key: g.Key!, Furni: g.ToList()))
+                .ToList();
+            var ownKeys = own.Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
+            var rest = furni
+                .Where(x => level.Key(x) is not { } key || !ownKeys.Contains(key))
+                .ToList();
 
-    private sealed record PlannedPage(string Title, int? PageId, IReadOnlyList<int> DefinitionIds);
+            // One group of its own beside the rest sorts nothing worth a page each.
+            if (own.Count < 2)
+                continue;
+
+            var after = levels.Skip(at + 1).ToList();
+            var sorted = own.Select(g => new Group(
+                    level.Title(g.Key, g.Furni),
+                    g.Furni,
+                    Sort(g.Furni, after)
+                ))
+                .OrderBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (rest.Count > 0)
+                sorted.Add(new Group(level.RestTitle, rest, Sort(rest, after)));
+
+            return sorted;
+        }
+
+        return [];
+    }
+
+    private static IReadOnlyList<Level>? LevelsOf(string? sortBy) =>
+        sortBy switch
+        {
+            null or "" => [],
+            SORT_KIND => [ByKind],
+            SORT_COLOUR => [ByColour],
+            SORT_KIND_COLOUR => [ByKind, ByColour],
+            _ => null,
+        };
+
+    private sealed record Definition(
+        int Id,
+        string Name,
+        string? Line,
+        string? PublicName,
+        List<string>? PartColors,
+        ProductType Type
+    );
+
+    private sealed record Group(string Title, List<Definition> Furni, List<Group> Groups);
+
+    private sealed record PlannedPage(
+        string Title,
+        int? PageId,
+        int Count,
+        IReadOnlyList<int> DefinitionIds,
+        IReadOnlyList<PlannedPage> Pages
+    );
 
     private sealed record Plan(
         string? Error,
@@ -212,6 +318,9 @@ public sealed class AdminCatalogAddFurni(
 
         if (ids.Count == 0)
             return Plan.Refused("Pick the furni to add.");
+
+        if (LevelsOf(request.SortBy) is not { } levels)
+            return Plan.Refused("Furni are sorted by kind, by colour, or by kind and then colour.");
 
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
@@ -237,7 +346,14 @@ public sealed class AdminCatalogAddFurni(
                 ids.Contains(x.Id)
                 && (x.ProductType == ProductType.Floor || x.ProductType == ProductType.Wall)
             )
-            .Select(x => new Definition(x.Id, x.Name, x.FurniLine, x.ProductType))
+            .Select(x => new Definition(
+                x.Id,
+                x.Name,
+                x.FurniLine,
+                x.PublicName,
+                x.PartColors,
+                x.ProductType
+            ))
             .ToDictionaryAsync(x => x.Id, ct)
             .ConfigureAwait(false);
 
@@ -248,53 +364,59 @@ public sealed class AdminCatalogAddFurni(
         }
 
         var types = found.ToDictionary(x => x.Key, x => x.Value.Type);
-        var furni = ids.Select(x => found[x]).ToList();
-        var kinds = request.SubPages
-            ? furni.GroupBy(x => KindOf(x.Name, x.Line), StringComparer.Ordinal).ToList()
-            : [];
-        var own = kinds.Where(g => g.Count() >= KIND_MIN).ToList();
-        var others = kinds.Where(g => g.Count() < KIND_MIN).SelectMany(g => g).ToList();
+        var groups = Sort([.. ids.Select(x => found[x])], levels);
 
-        if (own.Count + (others.Count > 0 ? 1 : 0) <= 1)
+        if (groups.Count == 0)
             return new Plan(
                 null,
-                [new PlannedPage(page.Localization, pageId, ids)],
+                [new PlannedPage(page.Localization, pageId, ids.Count, ids, [])],
                 types,
                 page.Icon,
                 page.Display
             );
 
-        var children = await db
-            .CatalogPages.AsNoTracking()
-            .Where(x => x.ParentEntityId == pageId)
-            .OrderBy(x => x.Id)
-            .Select(x => new { x.Id, x.Localization })
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-        int? Existing(string title) =>
-            children
-                .FirstOrDefault(x =>
-                    string.Equals(x.Localization.Trim(), title, StringComparison.OrdinalIgnoreCase)
-                )
-                ?.Id;
+        var children = (
+            await db
+                .CatalogPages.AsNoTracking()
+                .Where(x => x.ParentEntityId != null)
+                .OrderBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.Id,
+                    ParentId = x.ParentEntityId!.Value,
+                    x.Localization,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).ToLookup(x => x.ParentId);
 
-        var pages = own.Select(g => g.ToList())
-            .Select(g => (Title: TitleOf(g), Furni: g))
-            .OrderBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        // A group goes on the page of its title under its page when there is one.
+        PlannedPage Planned(Group group, int? parentId)
+        {
+            var id = parentId is { } parent
+                ? children[parent]
+                    .FirstOrDefault(x =>
+                        string.Equals(
+                            x.Localization.Trim(),
+                            group.Title,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    ?.Id
+                : null;
 
-        if (others.Count > 0)
-            pages.Add((OTHER_TITLE, others));
+            return new PlannedPage(
+                group.Title,
+                id,
+                group.Furni.Count,
+                group.Groups.Count == 0 ? [.. group.Furni.Select(x => x.Id)] : [],
+                [.. group.Groups.Select(x => Planned(x, id))]
+            );
+        }
 
         return new Plan(
             null,
-            [
-                .. pages.Select(x => new PlannedPage(
-                    x.Title,
-                    Existing(x.Title),
-                    [.. x.Furni.Select(f => f.Id)]
-                )),
-            ],
+            [.. groups.Select(x => Planned(x, pageId))],
             types,
             page.Icon,
             page.Display

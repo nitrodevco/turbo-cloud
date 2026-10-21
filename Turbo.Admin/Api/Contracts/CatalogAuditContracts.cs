@@ -116,7 +116,8 @@ public sealed record CatalogUnofferedIdsResponse(int[] Ids);
 
 /// <summary>
 /// Floor and wall items to sell on a page, one offer each, at one price; with
-/// <see cref="SubPages"/>, sorted onto a page under it for each kind of furni.
+/// <see cref="SortBy"/>, sorted onto pages under it: <c>kind</c>, <c>colour</c>, or
+/// <c>kindColour</c> (by kind, then each kind by colour). None or empty puts them all on the page.
 /// </summary>
 public sealed record CatalogAddFurniRequest(
     int[]? DefinitionIds,
@@ -126,11 +127,19 @@ public sealed record CatalogAddFurniRequest(
     int ClubLevel,
     bool CanGift,
     bool Visible,
-    bool SubPages = false
+    string? SortBy = null
 );
 
-/// <summary>A page the furni would go on: one there already (<see cref="PageId"/>), or one to make.</summary>
-public sealed record CatalogAddFurniPage(string Title, int? PageId, int Count);
+/// <summary>
+/// A page the furni would go on: one there already (<see cref="PageId"/>), or one to make; with
+/// how many go on it or the pages under it, and those pages.
+/// </summary>
+public sealed record CatalogAddFurniPage(
+    string Title,
+    int? PageId,
+    int Count,
+    CatalogAddFurniPage[] Pages
+);
 
 /// <summary>The pages adding the furni would put them on, in the order they would be in.</summary>
 public sealed record CatalogAddFurniPlan(CatalogAddFurniPage[] Pages);
