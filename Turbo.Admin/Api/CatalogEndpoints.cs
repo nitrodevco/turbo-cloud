@@ -137,6 +137,17 @@ internal sealed class CatalogEndpoints(
             async (CancellationToken ct) =>
                 Results.Ok(await audit.GetDuplicatePagesAsync(ct).ConfigureAwait(false))
         );
+        group
+            .MapPost(
+                "/pages/{id:int}/merge/preview",
+                async (int id, CatalogPageMergeRequest request, CancellationToken ct) =>
+                    Built(
+                        await merger
+                            .PreviewAsync(id, request.PageIds ?? [], request.PriorityPageId, ct)
+                            .ConfigureAwait(false)
+                    )
+            )
+            .ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/merge", MergeAsync);
         group.MapGet(
             "/audit/duplicates",
@@ -475,8 +486,7 @@ internal sealed class CatalogEndpoints(
         );
     }
 
-    /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
-    /// <summary>Pages of the page's name made one with it, as one step; a page with many offers takes a while.</summary>
+    /// <summary>Pages made one with the page, as one step; a page with many offers takes a while.</summary>
     private Task<IResult> MergeAsync(
         int id,
         CatalogPageMergeRequest request,
@@ -491,11 +501,16 @@ internal sealed class CatalogEndpoints(
             who,
             "Merging the pages",
             async jobCt =>
-                Built(await merger.MergeAsync(who, id, pageIds, jobCt).ConfigureAwait(false)),
+                Built(
+                    await merger
+                        .MergeAsync(who, id, pageIds, request.PriorityPageId, jobCt)
+                        .ConfigureAwait(false)
+                ),
             ct
         );
     }
 
+    /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
     private Task<IResult> ResetAsync(
         CatalogResetRequest? request,
         HttpContext http,

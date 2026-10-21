@@ -667,12 +667,19 @@ editor, delete it, **keep only this** one, or **keep one of each**: the first pl
 
 **Pages by the same name**, below, are the names more than one page has (two imports made apart
 leave a page of Habbo's twice, one for each catalogue), each page with where it is, which
-catalogue shows it and what it holds. **Merge into this** makes them one, as one step to undo:
-the others' offers go to the end of that page (one giving only what it gives already is deleted
-instead, unless a club gift or a limited series keeps it), the pages under them go under it, and
-they are deleted. The page kept is shown in each catalogue one of them was, but a tab, which the
-Builders Club never shows. A page can't be merged into one under it.
-`GET /api/catalog/audit/duplicate-pages` and `POST /api/catalog/pages/{id}/merge` (`{ pageIds }`).
+catalogue shows it and what it holds. **Merge into this** opens the merge on them.
+
+**Merging pages.** **Merge with another page**, under **More** on an open page, makes any two pages
+one, as one step to undo. Pick the other page, **Keep the page** (its place, title and layout stay)
+and, **where two sell the same** thing (the same products), whose offer stays. The others' copies
+are deleted, unless a club gift or a limited series keeps one, and an offer that stays from the
+other page takes the deleted one's place. Their other offers go to the end of the page kept, the
+pages under them go under it, and they are deleted. The page kept is shown in each catalogue one
+of them was, but a tab, which the Builders Club never shows. A page can't be merged into one under
+it. Before merging, the dialog lists what moves and each thing sold twice, with the price that
+stays and those that go. `GET /api/catalog/audit/duplicate-pages`,
+`POST /api/catalog/pages/{id}/merge/preview` (changes nothing) and
+`POST /api/catalog/pages/{id}/merge` (`{ pageIds, priorityPageId }`; the page kept when null).
 
 **Front page.** **Make a front page** adds a `frontpage4` tab, first among the tabs, with the
 voucher box's line, and opens its featured items. **Feature** on an offer puts it among the

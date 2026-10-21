@@ -16,10 +16,10 @@ using static Turbo.Tests.Catalog.CatalogFixture;
 namespace Turbo.Tests.Catalog;
 
 /// <summary>
-/// Pages of one name, as two imports made apart leave them: listed by the duplicates audit, and
-/// merged into one as one step to undo - the others' offers moved to it, those it gives already
-/// deleted, the pages under them moved under it, and the page kept shown in each catalogue one of
-/// them was.
+/// Pages of one name, as two imports made apart leave them, or any pages an editor picks: listed by
+/// the duplicates audit, and merged into one as one step to undo - the others' offers moved to it,
+/// what two of them sell kept only from the page given priority, the pages under them moved under
+/// it, and the page kept shown in each catalogue one of them was.
 /// </summary>
 public sealed class AdminCatalogPageMergeTests : IDisposable
 {
@@ -122,7 +122,7 @@ public sealed class AdminCatalogPageMergeTests : IDisposable
     {
         var before = _catalog.Rows();
 
-        var merged = await Merger.MergeAsync(Editor, NORMAL_LODGE, [BUILDERS_LODGE], Ct);
+        var merged = await Merger.MergeAsync(Editor, NORMAL_LODGE, [BUILDERS_LODGE], null, Ct);
 
         merged.Error.Should().BeNull();
         merged
@@ -164,18 +164,90 @@ public sealed class AdminCatalogPageMergeTests : IDisposable
     }
 
     [Fact]
-    public async Task APage_IsNotMergedIntoOneUnderIt_NorPagesOfAnotherName()
+    public async Task GivingTheOtherPagePriority_KeepsItsOfferInThePlaceOfTheOneDeleted()
+    {
+        var merged = await Merger.MergeAsync(
+            Editor,
+            NORMAL_LODGE,
+            [BUILDERS_LODGE],
+            BUILDERS_LODGE,
+            Ct
+        );
+
+        merged.Error.Should().BeNull();
+        merged.Value!.OffersMoved.Should().Be(2);
+        merged.Value.OffersDropped.Should().Be(1);
+        OffersOn(NORMAL_LODGE)
+            .Should()
+            .Equal(
+                [COPY_CHAIR, LODGE_POSTER, COPY_PET],
+                "the copy's chair took the lodge chair's place"
+            );
+    }
+
+    [Fact]
+    public async Task ThePreview_ListsWhatTwoPagesSell_WithTheOfferThatStays_AndChangesNothing()
     {
         var before = _catalog.Rows();
 
+        var plan = await Merger.PreviewAsync(NORMAL_LODGE, [BUILDERS_LODGE], BUILDERS_LODGE, Ct);
+
+        plan.Value.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    OffersMoved = 2,
+                    OffersDropped = 1,
+                    PagesMoved = 1,
+                    PagesDeleted = 1,
+                    Display = "both",
+                }
+            );
+        var chair = plan.Value!.Duplicates.Should().ContainSingle().Which;
+
+        chair.Name.Should().Be("chair");
+        chair.Kept.OfferId.Should().Be(COPY_CHAIR);
+        chair.Dropped.Select(x => x.OfferId).Should().Equal(LODGE_CHAIR);
+        _catalog.Rows().Should().Be(before);
+    }
+
+    [Fact]
+    public async Task PagesOfAnotherName_AreMergedToo()
+    {
+        var merged = await Merger.MergeAsync(Editor, NORMAL_LODGE, [EXTRAS], null, Ct);
+
+        merged.Error.Should().BeNull();
+        merged.Value!.PagesDeleted.Should().Be(1);
+        _service
+            .History.Undo.Select(x => x.Label)
+            .Should()
+            .Equal("merged the page Extras into Lodge");
+    }
+
+    [Fact]
+    public async Task APage_IsNotMergedIntoOneUnderIt_NorGivenPriorityWhenNotMerged()
+    {
         _catalog.Db.Insert(Page(63, EXTRAS, "Lodge", CatalogPageDisplay.BuildersClubOnly));
 
-        (await Merger.MergeAsync(Editor, 63, [BUILDERS_LODGE], Ct))
+        (await Merger.MergeAsync(Editor, 63, [BUILDERS_LODGE], null, Ct))
             .Error.Should()
             .Contain("under it");
-        (await Merger.MergeAsync(Editor, NORMAL_LODGE, [EXTRAS], Ct))
+        (await Merger.MergeAsync(Editor, NORMAL_LODGE, [BUILDERS_LODGE], EXTRAS, Ct))
             .Error.Should()
-            .Contain("one name");
+            .Contain("one of those merged");
         _service.History.Undo.Should().BeEmpty();
+    }
+
+    private List<int> OffersOn(int pageId)
+    {
+        using var db = _catalog.Db.CreateDbContext();
+
+        return
+        [
+            .. db
+                .CatalogOffers.Where(x => x.CatalogPageEntityId == pageId)
+                .OrderBy(x => x.SortOrder)
+                .Select(x => x.Id),
+        ];
     }
 }

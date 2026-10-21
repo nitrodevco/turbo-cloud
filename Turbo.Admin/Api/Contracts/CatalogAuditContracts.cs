@@ -66,8 +66,37 @@ public sealed record CatalogDuplicatePage(string Name, CatalogDuplicatePageItem[
 
 public sealed record CatalogDuplicatePagesResponse(int Total, CatalogDuplicatePage[] Items);
 
-/// <summary>The pages to merge into the one named by the route.</summary>
-public sealed record CatalogPageMergeRequest(int[]? PageIds);
+/// <summary>
+/// The pages to merge into the one named by the route, and the one of them whose offer stays
+/// where two sell the same thing: the page kept when it is null.
+/// </summary>
+public sealed record CatalogPageMergeRequest(int[]? PageIds, int? PriorityPageId = null);
+
+/// <summary>An offer of a merge's pages, where it is and what it costs.</summary>
+public sealed record CatalogPageMergeOffer(
+    int OfferId,
+    int PageId,
+    int CostCredits,
+    int CostCurrency,
+    int? CurrencyTypeId
+);
+
+/// <summary>A thing more than one of the pages sells: the offer that stays, and those deleted.</summary>
+public sealed record CatalogPageMergeDuplicate(
+    string Name,
+    CatalogPageMergeOffer Kept,
+    CatalogPageMergeOffer[] Dropped
+);
+
+/// <summary>What a merge would do: offers moved and deleted, pages moved and deleted, and how the page kept would be shown.</summary>
+public sealed record CatalogPageMergePlan(
+    int OffersMoved,
+    int OffersDropped,
+    int PagesMoved,
+    int PagesDeleted,
+    string Display,
+    CatalogPageMergeDuplicate[] Duplicates
+);
 
 /// <summary>
 /// A merge done: offers moved to the page kept, those it gave already deleted, pages moved under
