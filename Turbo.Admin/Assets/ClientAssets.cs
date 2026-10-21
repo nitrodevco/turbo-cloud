@@ -20,6 +20,9 @@ namespace Turbo.Admin.Assets;
 /// an address that names no host is under the client's page (<see cref="AdminConfig.ClientLoginUrl"/>);
 /// without one, such an address is left out. One starting <c>//</c> names its host, so it is kept. Read again whenever the variables are built anew.
 /// The client's pages are read as each request uses them, so a panel change to them applies at once.
+/// When the furniture icons name a <c>%revision%</c> (Habbo's own furni host files them under it),
+/// each furniture's revision is read from the furnidata the hotel serves, again whenever it is
+/// built anew.
 /// </summary>
 public sealed class ClientAssets(
     IGamedataFileService files,
@@ -34,6 +37,9 @@ public sealed class ClientAssets(
     public const string IMAGE_LIBRARY = "image.library.url";
     public const string TEMPLATES = "asset.bundles.templates";
 
+    /// <summary>The placeholder of a furniture's furnidata revision in <see cref="FURNI_ICON"/>.</summary>
+    public const string REVISION = "%revision%";
+
     private const string KEY_OPEN = "${";
     private const char KEY_CLOSE = '}';
 
@@ -46,7 +52,24 @@ public sealed class ClientAssets(
         ClientAssetsResponse.NONE
     );
 
+    private (string Hash, IReadOnlyDictionary<string, int> Revisions) _revisions = (
+        "",
+        new Dictionary<string, int>()
+    );
+
     public async Task<ClientAssetsResponse> GetAsync(CancellationToken ct)
+    {
+        var assets = await AddressesAsync(ct).ConfigureAwait(false);
+
+        return assets.FurniIcon.Contains(REVISION, StringComparison.OrdinalIgnoreCase)
+            ? assets with
+            {
+                FurniRevisions = await RevisionsAsync(ct).ConfigureAwait(false),
+            }
+            : assets;
+    }
+
+    private async Task<ClientAssetsResponse> AddressesAsync(CancellationToken ct)
     {
         var options = config.CurrentValue;
 
@@ -80,6 +103,68 @@ public sealed class ClientAssets(
                 Preview = PreviewUrl(options),
             };
         }
+    }
+
+    /// <summary>Each furniture's revision by class name, from the furnidata the hotel serves; the last read when it can't be.</summary>
+    private async Task<IReadOnlyDictionary<string, int>> RevisionsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var current = await files
+                .GetCurrentAsync(GamedataFiles.FURNITURE_DATA, ct)
+                .ConfigureAwait(false);
+            var read = _revisions;
+
+            if (current.File.Hash == read.Hash)
+                return read.Revisions;
+
+            using var content = new GZipStream(
+                new MemoryStream(current.Gzipped),
+                CompressionMode.Decompress
+            );
+            var revisions = ReadRevisions(content);
+
+            _revisions = (current.File.Hash, revisions);
+
+            return revisions;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Could not read the furniture's revisions from the furnidata");
+
+            return _revisions.Revisions;
+        }
+    }
+
+    /// <summary>The <c>revision</c> of each <c>roomitemtypes</c> and <c>wallitemtypes</c> furnitype, by its <c>classname</c>.</summary>
+    private static Dictionary<string, int> ReadRevisions(Stream content)
+    {
+        using var document = JsonDocument.Parse(content);
+        var revisions = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var kind in (string[])["roomitemtypes", "wallitemtypes"])
+        {
+            if (
+                !document.RootElement.TryGetProperty(kind, out var types)
+                || !types.TryGetProperty("furnitype", out var list)
+                || list.ValueKind != JsonValueKind.Array
+            )
+                continue;
+
+            foreach (var item in list.EnumerateArray())
+            {
+                if (
+                    item.TryGetProperty("classname", out var name)
+                    && name.ValueKind == JsonValueKind.String
+                    && item.TryGetProperty("revision", out var revision)
+                    && revision.ValueKind == JsonValueKind.Number
+                    && revision.TryGetInt32(out var value)
+                )
+                    revisions.TryAdd(name.GetString() ?? "", value);
+            }
+        }
+
+        return revisions;
     }
 
     private static ClientAssetsResponse Read(Stream content, AdminConfig options)

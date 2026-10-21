@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
@@ -8,8 +10,9 @@ namespace Turbo.Admin.Api.Contracts;
 /// <param name="CatalogIcon"><c>catalog.icons.url</c>: a page icon, <c>%name%</c> its number.</param>
 /// <param name="CatalogImage"><c>asset.urls.catalog</c>: a page image, <c>%name%</c> its name.</param>
 /// <param name="FurniIcon">
-/// <c>asset.urls.icons.furni</c>: a furniture icon, <c>%libname%</c> its class name and
-/// <c>%param%</c> <c>_</c> and its colour, or nothing.
+/// <c>asset.urls.icons.furni</c>: a furniture icon, <c>%libname%</c> its class name,
+/// <c>%param%</c> <c>_</c> and its colour, or nothing, and <c>%revision%</c> its furnidata
+/// revision (<see cref="FurniRevisions"/>).
 /// </param>
 /// <param name="Badge"><c>badge.asset.url</c>: a badge, <c>%badgename%</c> its code.</param>
 /// <param name="ImageLibrary">
@@ -28,6 +31,10 @@ namespace Turbo.Admin.Api.Contracts;
 /// The client's preview host (<c>Turbo:Admin:ClientPreviewUrl</c>, else the page of
 /// <c>ClientLoginUrl</c>, with <c>?preview</c>); empty without either.
 /// </param>
+/// <param name="FurniRevisions">
+/// Each furniture's revision in the furnidata the hotel serves, by class name (<c>throne*4</c>),
+/// for <c>%revision%</c> in <see cref="FurniIcon"/>; null when the icons don't name one.
+/// </param>
 public sealed record ClientAssetsResponse(
     string CatalogIcon,
     string CatalogImage,
@@ -36,7 +43,8 @@ public sealed record ClientAssetsResponse(
     string ImageLibrary,
     string Templates,
     string Imager,
-    string Preview
+    string Preview,
+    IReadOnlyDictionary<string, int>? FurniRevisions = null
 )
 {
     public static readonly ClientAssetsResponse NONE = new("", "", "", "", "", "", "", "");

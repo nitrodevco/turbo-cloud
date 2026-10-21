@@ -59,6 +59,56 @@ public sealed class ClientAssetsTests
     }
 
     [Fact]
+    public async Task AFurniIconNamingARevision_ComesWithEachFurnisRevision_ReadAgainWhenTheFurnidataIs()
+    {
+        _variables.Json = """
+            { "asset.urls.icons.furni": "https://images.example/hof_furni/%revision%/%libname%%param%_icon.png" }
+            """;
+        _variables.Furnidata = """
+            {
+                "roomitemtypes": { "furnitype": [
+                    { "id": 1, "classname": "throne", "revision": 61001 },
+                    { "id": 2, "classname": "chair_plasto*4", "revision": 45508 }
+                ] },
+                "wallitemtypes": { "furnitype": [ { "id": 3, "classname": "poster", "revision": 0 } ] }
+            }
+            """;
+        var assets = Assets();
+
+        (await assets.GetAsync(Ct))
+            .FurniRevisions.Should()
+            .BeEquivalentTo(
+                new Dictionary<string, int>
+                {
+                    ["throne"] = 61001,
+                    ["chair_plasto*4"] = 45508,
+                    ["poster"] = 0,
+                }
+            );
+
+        _variables.Furnidata = """
+            { "roomitemtypes": { "furnitype": [ { "id": 1, "classname": "throne", "revision": 62000 } ] } }
+            """;
+
+        (await assets.GetAsync(Ct))
+            .FurniRevisions.Should()
+            .Equal(new Dictionary<string, int> { ["throne"] = 62000 });
+    }
+
+    [Fact]
+    public async Task AFurniIconNamingNoRevision_ComesWithNone()
+    {
+        _variables.Json = """
+            { "asset.urls.icons.furni": "https://images.example/icons/%libname%%param%_icon.png" }
+            """;
+        _variables.Furnidata = """
+            { "roomitemtypes": { "furnitype": [ { "id": 1, "classname": "throne", "revision": 61001 } ] } }
+            """;
+
+        (await Assets().GetAsync(Ct)).FurniRevisions.Should().BeNull();
+    }
+
+    [Fact]
     public async Task WithoutTheClientsPage_OnlyAddressesWithTheirOwnHostAreKept()
     {
         _variables.Json = """
@@ -191,10 +241,12 @@ public sealed class ClientAssetsTests
             log ?? new CapturingLogger<ClientAssets>()
         );
 
-    /// <summary>Builds <see cref="Json"/> as the external variables, its hash its content's.</summary>
+    /// <summary>Builds <see cref="Json"/> as the external variables and <see cref="Furnidata"/> as the furnidata, each hash its content's.</summary>
     private sealed class Variables : IGamedataFileService
     {
         public string Json { get; set; } = "{}";
+
+        public string Furnidata { get; set; } = "{}";
 
         public bool Unreadable { get; set; }
 
@@ -203,9 +255,14 @@ public sealed class ClientAssetsTests
             if (Unreadable)
                 throw new InvalidOperationException("The database is unreachable.");
 
-            file.Should().Be(GamedataFiles.EXTERNAL_VARIABLES);
-
-            var content = Encoding.UTF8.GetBytes(Json);
+            var content = Encoding.UTF8.GetBytes(
+                file switch
+                {
+                    GamedataFiles.EXTERNAL_VARIABLES => Json,
+                    GamedataFiles.FURNITURE_DATA => Furnidata,
+                    _ => throw new InvalidOperationException($"No {file} here."),
+                }
+            );
 
             return Task.FromResult(
                 new GamedataFileContent(

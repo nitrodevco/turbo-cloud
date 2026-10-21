@@ -804,7 +804,10 @@ Page icons and images, furniture icons, badges and promo images load from the ad
 client's external variables (**Gamedata > Variables**, see `docs/gamedata.md`): `catalog.icons.url`,
 `asset.urls.catalog`, `asset.urls.icons.furni`, `badge.asset.url` and `image.library.url`,
 resolved as the client resolves them. An address that names no host is under the client's page,
-`ClientLoginUrl`; without that set, such an address shows no picture. A change to the variables
+`ClientLoginUrl`; without that set, such an address shows no picture. A furniture icon address may
+name `%revision%` (Habbo's own furni host files icons under it, `hof_furni/%revision%/...`): it is
+each furniture's revision in the furnidata the hotel serves, its base class's for a colour the
+furnidata doesn't list, and no picture for a furni it doesn't know. A change to the variables
 reaches the editor at once. The layout picker describes every layout the Flash client has
 a template for (as nitro-next mirrors them); codes in `CatalogLayouts`, or used by a page, that it
 doesn't describe are listed under "Other", and any code can be typed.
