@@ -35,4 +35,11 @@ public interface IRewardTrackStore
 
     /// <summary>Removes a track. Players' progress on it stays, for a track of the same id.</summary>
     Task<bool> DeleteAsync(string trackId, CancellationToken ct);
+
+    /// <summary>
+    /// Puts the tracks in the order players are sent them (the Progression menu's order of its
+    /// track items): the ones named, in that order, then any other in the order it had. Throws
+    /// <see cref="ArgumentException"/> for an id named twice or no track has, and changes nothing.
+    /// </summary>
+    Task ReorderAsync(IReadOnlyList<string> trackIds, CancellationToken ct);
 }

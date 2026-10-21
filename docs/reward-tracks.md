@@ -28,10 +28,23 @@ A change made in the panel is sent to everyone online at once with `reload` set 
 `RewardTrackController.onRewardTracks`: the window is rebuilt and, when open, says "Reward Track
 updated"); a start or end date passing is seen at the next login.
 
+## The Progression menu
+
+The menu's Introduction item is the layout's own and opens the `introduction` track. Every other
+track the player is sent gets an item after it, in the order the tracks are sent (AS3
+`ProgMenuController.onRewardTracks`): the Introduction item's gift icon, the text
+`widget.progmenu.rewardtrack.<id>` (Habbo's `habboween2026` is "Habboween"), opening
+`reward_track/open/<id>`. A client that is online keeps its items where they are when the tracks
+are sent again: a new track's item goes last, a removed track's goes; a new order is seen at the
+next login. Each item's red count is the prizes of its track that can be claimed now, and the
+toolbar icon's count is those of every track plus the daily tasks done and not claimed
+(`HabboToolbar.onUnseenRewardTrackRewardsCountUpdate`, `BottomBarLeft.unseenProgMenuCount`).
+The order is `sort_order`, set with `POST /api/reward-tracks/order` (the panel's arrows).
+
 ## Panel API
 
 Every route needs `admin.rewardtracks.manage` (`/api/me` says whether the player holds it, as `canManageRewardTracks`). Every change is written to the command log as
-`rewardtracks <save|delete|import|reload> <track ids>` from `panel`, and sends the tracks again
+`rewardtracks <save|delete|import|order|reload> <track ids>` from `panel`, and sends the tracks again
 to the players online.
 
 | Route | Does |
@@ -42,6 +55,7 @@ to the players online.
 | `DELETE /api/reward-tracks/{id}` | removes it (204, or 404) |
 | `POST /api/reward-tracks/import/preview` | the plan of an import, nothing changed |
 | `POST /api/reward-tracks/import` | makes it: every added or changed track saved in one transaction |
+| `POST /api/reward-tracks/order` | `{ trackIds }`: the tracks in this order, any not named after them in the order they had; answers `{ tracks }` as the list; 400 for an id no track has or named twice |
 | `POST /api/reward-tracks/reload` | reads the tables again (after an edit by hand) |
 
 A track, as `GET` returns it and `PUT` takes it (`productType` is the client's product item type:

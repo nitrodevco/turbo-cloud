@@ -101,6 +101,41 @@ public sealed class RewardTrackStore(
         }
     }
 
+    public async Task ReorderAsync(IReadOnlyList<string> trackIds, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
+            var rows = await db
+                .RewardTracks.OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            var byId = rows.ToDictionary(x => x.TrackId);
+
+            if (trackIds.FirstOrDefault(x => !byId.ContainsKey(x)) is { } unknown)
+                throw new ArgumentException($"There is no reward track {unknown}.");
+
+            if (trackIds.GroupBy(x => x).FirstOrDefault(x => x.Count() > 1) is { } twice)
+                throw new ArgumentException($"Reward track {twice.Key} is named twice.");
+
+            var named = trackIds.Select(x => byId[x]).ToList();
+            var order = 0;
+
+            foreach (var row in named.Concat(rows.Except(named)))
+                row.SortOrder = order++;
+
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await LoadAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     private async Task MoveConfiguredTracksAsync(CancellationToken ct)
     {
         var configured = config.Value.Tracks;

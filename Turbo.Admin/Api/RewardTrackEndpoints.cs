@@ -14,7 +14,7 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// The reward tracks of the Progression menu, for staff with <c>admin.rewardtracks.manage</c>:
-/// list, read, save and remove them, take Habbo's in from a capture (a plan first, then the
+/// list, read, save, remove and order them, take Habbo's in from a capture (a plan first, then the
 /// import), and read them again from the database. See <c>docs/reward-tracks.md</c>.
 /// </summary>
 internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
@@ -71,6 +71,24 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
                         await tracks
                             .ImportAsync(AdminIdentity.Of(http).PlayerId, request, ct)
                             .ConfigureAwait(false)
+                    )
+                )
+        );
+        group.MapPost(
+            "/order",
+            (RewardTrackOrderRequest request, HttpContext http, CancellationToken ct) =>
+                RefusingAsync(async () =>
+                    Results.Ok(
+                        new
+                        {
+                            tracks = await tracks
+                                .ReorderAsync(
+                                    AdminIdentity.Of(http).PlayerId,
+                                    request.TrackIds ?? [],
+                                    ct
+                                )
+                                .ConfigureAwait(false),
+                        }
                     )
                 )
         );
