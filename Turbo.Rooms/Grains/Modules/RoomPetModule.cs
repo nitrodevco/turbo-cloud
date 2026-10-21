@@ -281,7 +281,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
                 )
         )
         {
-            _roomGrain._logger.LogError(
+            Logger.LogError(
                 "Pet {PetId} taken out of room {RoomId} by staff could not be returned to player {OwnerId}",
                 petId,
                 _roomGrain.RoomId,
