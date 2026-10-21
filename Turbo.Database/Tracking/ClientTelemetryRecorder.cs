@@ -85,7 +85,8 @@ public sealed class ClientTelemetryRecorder(
                 OsFamily = device.Os,
                 DeviceType = device.Device,
                 IsDebugger = report.IsDebugger,
-                MemoryKb = Math.Max(0, report.MemoryUsage),
+                // A browser that does not say what it holds sends -1; kept as unknown, not as none.
+                MemoryKb = report.MemoryUsage < 0 ? -1 : report.MemoryUsage,
                 GarbageCollections = Math.Max(0, report.GarbageCollections),
                 AverageUpdateIntervalMs = Math.Max(0, report.AverageUpdateInterval),
                 SlowUpdates = Math.Max(0, report.SlowUpdates),

@@ -118,8 +118,8 @@ public sealed class AdminClientTelemetry(
                     g.Key.Key1,
                     g.Key.Key2,
                     g.Key.Key3,
-                    memory.Samples,
-                    memory.Players,
+                    slow.Samples,
+                    slow.Players,
                     fps.P50,
                     fps.P95,
                     memory.P50,
@@ -606,7 +606,7 @@ public sealed class AdminClientTelemetry(
             x.DeviceType,
             x.UserAgent,
             ClientTelemetryRollups.Fps(x.AverageUpdateIntervalMs),
-            x.MemoryKb / 1024,
+            x.MemoryKb < 0 ? -1 : x.MemoryKb / 1024,
             x.SlowUpdates,
             x.GarbageCollections
         );

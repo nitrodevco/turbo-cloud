@@ -65,6 +65,7 @@ public class ClientPerformanceLogEntity
     [Column("is_debugger")]
     public required bool IsDebugger { get; set; }
 
+    /// <summary>The memory the client holds, in KB; -1 when its browser does not say.</summary>
     [Column("memory_kb")]
     public required int MemoryKb { get; set; }
 

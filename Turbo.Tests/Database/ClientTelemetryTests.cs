@@ -316,6 +316,7 @@ public sealed class ClientTelemetryTests : IDisposable
             Perf(yesterday, OTHER, null, SAFARI_IPHONE, 33, 200_000),
             Perf(longAgo, PLAYER, null, CHROME_WINDOWS, 16, 100_000),
             Perf(At(today), PLAYER, null, CHROME_WINDOWS, 16, 100_000),
+            Perf(yesterday, OTHER, null, CHROME_WINDOWS, 50, -1),
             new ClientLagWarningEntity
             {
                 CreatedAt = yesterday,
@@ -365,7 +366,16 @@ public sealed class ClientTelemetryTests : IDisposable
         var fps = figures.Single(x =>
             x.Day == today.AddDays(-1) && x.Kind == ClientTelemetryKinds.FPS && x.Key1 == "Chrome"
         );
-        (fps.Samples, fps.Players, fps.P50, fps.P95).Should().Be((2, 2, 20, 50));
+        (fps.Samples, fps.Players, fps.P50, fps.P95).Should().Be((3, 2, 50, 50));
+        // A browser that does not say its memory (-1) is left out of the memory figures, not counted as 0 MB.
+        figures
+            .Single(x =>
+                x.Day == today.AddDays(-1)
+                && x.Kind == ClientTelemetryKinds.MEMORY
+                && x.Key1 == "Chrome"
+            )
+            .Should()
+            .Match<ClientTelemetryDailyEntity>(x => x.Samples == 2 && x.P50 == 97);
         figures
             .Single(x => x.Day == today.AddDays(-1) && x.Kind == ClientTelemetryKinds.ROOM_FPS)
             .Should()
@@ -387,7 +397,7 @@ public sealed class ClientTelemetryTests : IDisposable
             .ContainSingle(x => x.Day == today.AddDays(-40) && x.Kind == ClientTelemetryKinds.FPS);
 
         var raw = await Rows<ClientPerformanceLogEntity>();
-        raw.Should().HaveCount(4, "the row older than 30 days expired once counted");
+        raw.Should().HaveCount(5, "the row older than 30 days expired once counted");
         raw.Should().NotContain(x => x.CreatedAt == longAgo);
     }
 

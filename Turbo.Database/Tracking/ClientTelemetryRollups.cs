@@ -63,17 +63,21 @@ public static class ClientTelemetryRollups
                     )
                 );
 
-            rows.Add(
-                Figure(
-                    day,
-                    ClientTelemetryKinds.MEMORY,
-                    browser,
-                    os,
-                    device,
-                    g.Select(x => x.MemoryKb / 1024),
-                    g.Select(x => x.PlayerId)
-                )
-            );
+            var withMemory = g.Where(x => x.MemoryKb >= 0).ToList();
+
+            if (withMemory.Count > 0)
+                rows.Add(
+                    Figure(
+                        day,
+                        ClientTelemetryKinds.MEMORY,
+                        browser,
+                        os,
+                        device,
+                        withMemory.Select(x => x.MemoryKb / 1024),
+                        withMemory.Select(x => x.PlayerId)
+                    )
+                );
+
             rows.Add(
                 Figure(
                     day,
