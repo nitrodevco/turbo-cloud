@@ -261,6 +261,25 @@ public sealed class CatalogBackupTests : IDisposable
     }
 
     [Fact]
+    public async Task UndoingAReset_PutsBackEveryColumn_ListsAndDisplaysToo()
+    {
+        var page = Page(60, CHILD, "Spooky", CatalogPageDisplay.BuildersClubOnly, sort: 3);
+
+        page.ImageData = ["", "spromo_spooky"];
+        page.TextData = ["Dark magic", "", "<b>more</b>"];
+        _catalog.Db.Insert(page);
+
+        var before = _catalog.Rows();
+
+        (await _service.ResetAsync(Editor, false, Ct)).Saved.Should().BeTrue();
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
+
+        _catalog.Rows().Should().Be(before);
+        (await _service.RedoAsync(Editor, Ct)).Error.Should().BeNull();
+        _catalog.Rows().Should().Be(RootRow(before));
+    }
+
+    [Fact]
     public async Task AReset_CanBeUndone()
     {
         var before = _catalog.Rows();
