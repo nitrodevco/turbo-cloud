@@ -5,6 +5,7 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
 using Turbo.Tests.Support;
@@ -76,6 +77,63 @@ public sealed class HabboGamedataHashesTests : IDisposable
 
         third.Texts!.HabboHash.Should().Be("texts-2");
         third.Figures!.HabboHash.Should().Be("figures-1");
+    }
+
+    [Fact]
+    public async Task A_check_that_finds_the_same_files_keeps_one_version_of_each_and_the_newest_is_the_hotels_domains()
+    {
+        var first = await Releases().CheckAsync(Ct);
+
+        // Habbo names a new revision for the same furniture data.
+        _habbo.Serve(
+            "external_variables/0",
+            "flash.client.url=//images.habbo.com/gordon/flash-assets-PRODUCTION-2/\n"
+        );
+
+        var second = await Releases().CheckAsync(Ct);
+
+        second.IsNew.Should().BeFalse();
+        second.Release.Id.Should().Be(first.Release.Id);
+        second.Release.Revision.Should().Be("PRODUCTION-2");
+        second.TextsAreNew.Should().BeFalse();
+        second.Texts!.Id.Should().Be(first.Texts!.Id);
+        second.ProductsAreNew.Should().BeFalse();
+        second.Products!.Id.Should().Be(first.Products!.Id);
+        second.FiguresAreNew.Should().BeFalse();
+        second.Figures!.Id.Should().Be(first.Figures!.Id);
+        second.Figures.ColorCount.Should().Be(1);
+        second.VariablesAreNew.Should().BeTrue("the variables name another revision");
+
+        // Another hotel's versions, kept since, are not this hotel's newest.
+        _db.Insert(
+            new HabboTextVersionEntity
+            {
+                Id = 50,
+                Domain = "es",
+                Hash = "es-texts",
+                Content = [],
+                CheckedAt = DateTime.UtcNow,
+            }
+        );
+        _db.Insert(
+            new HabboReleaseEntity
+            {
+                Id = 50,
+                Domain = "es",
+                Revision = "ES-1",
+                FurnitureDataHash = "es-furni",
+                FurnitureData = [],
+                CheckedAt = DateTime.UtcNow,
+            }
+        );
+
+        var releases = Releases();
+
+        (await releases.GetLatestAsync(Ct))!.Id.Should().Be(first.Release.Id);
+        (await releases.GetLatestTextsAsync(Ct))!.Id.Should().Be(first.Texts.Id);
+        (await releases.GetLatestProductsAsync(Ct))!.Id.Should().Be(first.Products.Id);
+        (await releases.GetLatestFiguresAsync(Ct))!.Id.Should().Be(first.Figures.Id);
+        (await releases.GetLatestVariablesAsync(Ct))!.Id.Should().Be(second.Variables!.Id);
     }
 
     private void Hashes(string texts) =>

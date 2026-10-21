@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
+using static Turbo.Assets.XmlAttributes;
 
 namespace Turbo.Assets.Conversion;
 

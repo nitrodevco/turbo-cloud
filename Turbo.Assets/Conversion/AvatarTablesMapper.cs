@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
+using static Turbo.Assets.XmlAttributes;
 
 namespace Turbo.Assets.Conversion;
 
@@ -388,8 +389,6 @@ public static class AvatarTablesMapper
 
     private static JsonArray Array(IEnumerable<XElement> elements, Func<XElement, JsonNode> map) =>
         [.. elements.Select(map)];
-
-    private static string? Attr(XElement element, string name) => element.Attribute(name)?.Value;
 
     private static string Str(XElement element, string name) => Attr(element, name) ?? string.Empty;
 

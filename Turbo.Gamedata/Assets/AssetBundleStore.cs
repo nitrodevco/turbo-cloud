@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -89,7 +88,7 @@ internal sealed partial class AssetBundleStore(
                 File.Delete(temp);
         }
 
-        return HashOf(bundle);
+        return GamedataBytes.Hash(bundle);
     }
 
     public void Delete(AssetBundleKind kind, string name)
@@ -157,9 +156,6 @@ internal sealed partial class AssetBundleStore(
                 .OrderBy(x => x.Path, StringComparer.Ordinal),
         ];
     }
-
-    /// <summary>A bundle's SHA-1, in lowercase hex.</summary>
-    public static string HashOf(byte[] bundle) => Convert.ToHexStringLower(SHA1.HashData(bundle));
 
     [GeneratedRegex("^[A-Za-z0-9_.-]+$")]
     private static partial Regex NamePattern();

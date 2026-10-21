@@ -144,16 +144,12 @@ internal sealed class GamedataVariableService(
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
         dbCtx.GamedataChangeSets.Add(
-            new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Edit,
-                Summary = Truncate(
-                    before is null ? $"Added the variable {key}" : $"Edited the variable {key}",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player.Value,
-                Changes = [Change(key, before, State(row), row.Id)],
-            }
+            GamedataChangeSets.Create(
+                GamedataChangeKind.Edit,
+                before is null ? $"Added the variable {key}" : $"Edited the variable {key}",
+                player,
+                [Change(key, before, State(row), row.Id)]
+            )
         );
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -226,19 +222,15 @@ internal sealed class GamedataVariableService(
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
             dbCtx.GamedataChangeSets.Add(
-                new GamedataChangeSetEntity
-                {
-                    Kind = GamedataChangeKind.Edit,
-                    Summary = Truncate(
-                        path is not null ? $"Linked the variable {key} to the setting {path}"
-                            : linked is not null
-                                ? $"Linked the variable {key} to the address of {linked}"
-                            : $"Unlinked the variable {key}",
-                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                    ),
-                    PlayerEntityId = player.Value,
-                    Changes = [Change(key, before, after, row.Id)],
-                }
+                GamedataChangeSets.Create(
+                    GamedataChangeKind.Edit,
+                    path is not null ? $"Linked the variable {key} to the setting {path}"
+                        : linked is not null
+                            ? $"Linked the variable {key} to the address of {linked}"
+                        : $"Unlinked the variable {key}",
+                    player,
+                    [Change(key, before, after, row.Id)]
+                )
             );
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -336,19 +328,12 @@ internal sealed class GamedataVariableService(
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
             dbCtx.GamedataChangeSets.Add(
-                new GamedataChangeSetEntity
-                {
-                    Kind = GamedataChangeKind.Edit,
-                    Summary = Truncate(
-                        $"Set the variable {key} to carry the address of {file}",
-                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                    ),
-                    PlayerEntityId = player.Value,
-                    Changes =
-                    [
-                        .. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id)),
-                    ],
-                }
+                GamedataChangeSets.Create(
+                    GamedataChangeKind.Edit,
+                    $"Set the variable {key} to carry the address of {file}",
+                    player,
+                    [.. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id))]
+                )
             );
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -458,16 +443,12 @@ internal sealed class GamedataVariableService(
 
         dbCtx.GamedataVariables.Remove(row);
         dbCtx.GamedataChangeSets.Add(
-            new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Edit,
-                Summary = Truncate(
-                    $"Removed the variable {key}",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player.Value,
-                Changes = [Change(key, State(row), null, row.Id)],
-            }
+            GamedataChangeSets.Create(
+                GamedataChangeKind.Edit,
+                $"Removed the variable {key}",
+                player,
+                [Change(key, State(row), null, row.Id)]
+            )
         );
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -567,22 +548,17 @@ internal sealed class GamedataVariableService(
         // The rows first, so the changes can name the ids of the ones just added.
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var changeSet = new GamedataChangeSetEntity
-        {
-            Kind = GamedataChangeKind.Edit,
-            Summary = Truncate(
-                plan.Removed.Count == 0
-                    ? $"Imported {plan.Items.Count} variables from a client config"
-                    : $"Imported {plan.Items.Count} variables from a client config and removed {plan.Removed.Count} it lacks",
-                GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-            ),
-            PlayerEntityId = player.Value,
-            Changes =
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            plan.Removed.Count == 0
+                ? $"Imported {plan.Items.Count} variables from a client config"
+                : $"Imported {plan.Items.Count} variables from a client config and removed {plan.Removed.Count} it lacks",
+            player,
             [
                 .. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id)),
                 .. plan.Removed.Select(x => Change(x.Key, State(x), null, x.Id)),
-            ],
-        };
+            ]
+        );
 
         dbCtx.GamedataChangeSets.Add(changeSet);
 
@@ -765,14 +741,13 @@ internal sealed class GamedataVariableService(
         VariableState? after,
         int id
     ) =>
-        new()
-        {
-            RecordType = GamedataRecordType.Variable,
-            RecordId = id,
-            Label = Truncate(key, GamedataChangeEntity.LABEL_MAX_LENGTH),
-            Before = before is null ? null : Record(key, before),
-            After = after is null ? null : Record(key, after),
-        };
+        GamedataChangeSets.Change(
+            GamedataRecordType.Variable,
+            key,
+            before is null ? null : Record(key, before),
+            after is null ? null : Record(key, after),
+            id
+        );
 
     private static string Record(string key, VariableState state)
     {
@@ -789,8 +764,6 @@ internal sealed class GamedataVariableService(
 
     /// <summary>What a variable holds: its value, and the setting or file it follows, if any.</summary>
     internal sealed record VariableState(string Value, string? Setting, string? File);
-
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 
     private sealed record VariablePlanItem(
         string Key,

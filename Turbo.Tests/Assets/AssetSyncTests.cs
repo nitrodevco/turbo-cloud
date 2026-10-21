@@ -173,7 +173,7 @@ public sealed class AssetSyncTests : IDisposable
             Ct
         );
         NitroBundle.Read(chairFile).Files.Keys.Should().Contain("test_box.json");
-        chair.Hash.Should().Be(AssetBundleStore.HashOf(chairFile));
+        chair.Hash.Should().Be(GamedataBytes.Hash(chairFile));
         chair.Size.Should().Be(chairFile.Length);
 
         // A 404 won't pass until the revision changes; a page from the filter may.

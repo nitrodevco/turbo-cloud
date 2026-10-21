@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Pets;
+using Turbo.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Furniture.Enums;
@@ -276,7 +277,7 @@ public sealed class AssetBundleServiceTests : IDisposable
 
         var path = await _service.GetFilePathAsync(AssetBundleKind.Furniture, "lamp", Ct);
 
-        AssetBundleStore.HashOf(await File.ReadAllBytesAsync(path!, Ct)).Should().Be(uploaded.Hash);
+        GamedataBytes.Hash(await File.ReadAllBytesAsync(path!, Ct)).Should().Be(uploaded.Hash);
         (await _service.GetChecksAsync(Ct))
             .Single(x => x.Id == "furniture-missing")
             .Samples.Should()
@@ -310,7 +311,7 @@ public sealed class AssetBundleServiceTests : IDisposable
 
         uploaded.Ids.Should().Equal(1, 5);
         uploaded.Source.Should().Be(AssetBundleSource.Upload);
-        uploaded.Hash.Should().Be(AssetBundleStore.HashOf(nitro));
+        uploaded.Hash.Should().Be(GamedataBytes.Hash(nitro));
     }
 
     [Theory]

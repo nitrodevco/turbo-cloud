@@ -276,7 +276,7 @@ internal sealed class GamedataHistoryService(
         var rollback = new GamedataChangeSetEntity
         {
             Kind = GamedataChangeKind.Rollback,
-            Summary = Truncate(
+            Summary = GamedataStrings.Truncate(
                 $"Rolled back #{set.Id}: {set.Summary}",
                 GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
             ),
@@ -955,6 +955,4 @@ internal sealed class GamedataHistoryService(
 
         return used;
     }
-
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 }

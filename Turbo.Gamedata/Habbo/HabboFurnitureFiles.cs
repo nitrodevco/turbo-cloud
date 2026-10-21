@@ -221,13 +221,16 @@ internal sealed class HabboFurnitureFiles(
             var info = FurnitureAssetReader.Read(data, asset);
 
             row.States = info.States;
-            row.LogicType = Truncate(info.Logic, 64);
-            row.VisualizationType = Truncate(info.Visualization, 64);
+            row.LogicType = GamedataStrings.Truncate(info.Logic, 64);
+            row.VisualizationType = GamedataStrings.Truncate(info.Visualization, 64);
             row.Info = JsonSerializer.Serialize(info, JSON);
         }
         catch (AssetFormatException ex)
         {
-            row.Error = Truncate(ex.Message, HabboFurnitureAssetEntity.ERROR_MAX_LENGTH);
+            row.Error = GamedataStrings.Truncate(
+                ex.Message,
+                HabboFurnitureAssetEntity.ERROR_MAX_LENGTH
+            );
         }
         catch (System.Net.Http.HttpRequestException ex)
         {
@@ -237,7 +240,10 @@ internal sealed class HabboFurnitureFiles(
                 asset,
                 revision
             );
-            row.Error = Truncate(ex.Message, HabboFurnitureAssetEntity.ERROR_MAX_LENGTH);
+            row.Error = GamedataStrings.Truncate(
+                ex.Message,
+                HabboFurnitureAssetEntity.ERROR_MAX_LENGTH
+            );
             row.Retry = true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -250,7 +256,7 @@ internal sealed class HabboFurnitureFiles(
                 asset,
                 revision
             );
-            row.Error = Truncate(
+            row.Error = GamedataStrings.Truncate(
                 $"Could not be read: {ex.Message}",
                 HabboFurnitureAssetEntity.ERROR_MAX_LENGTH
             );
@@ -295,7 +301,4 @@ internal sealed class HabboFurnitureFiles(
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
     }
-
-    private static string? Truncate(string? text, int max) =>
-        text is null || text.Length <= max ? text : text[..max];
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
+using static Turbo.Assets.XmlAttributes;
 
 namespace Turbo.Assets.Conversion;
 
@@ -938,8 +939,6 @@ public static partial class AssetDataMapper
             throw new AssetFormatException("A library document is not readable XML.", ex);
         }
     }
-
-    private static string? Attr(XElement element, string name) => element.Attribute(name)?.Value;
 
     private static void SetText(JsonObject output, string key, XElement element, string attribute)
     {

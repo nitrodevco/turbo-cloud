@@ -16,9 +16,6 @@ namespace Turbo.Primitives.Gamedata;
 /// </summary>
 public interface IGamedataProductService
 {
-    /// <summary>The newest version of Habbo's product data found; null before the first check.</summary>
-    public Task<HabboProductVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct);
-
     /// <summary>What taking in the version would do; the newest when none is named. Null when there is no such version.</summary>
     public Task<ProductImportPreview?> PreviewImportAsync(int? versionId, CancellationToken ct);
 

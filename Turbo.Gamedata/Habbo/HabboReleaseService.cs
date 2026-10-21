@@ -1,20 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
+using Turbo.Database.Entities;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
 using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Figures;
+using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 
 namespace Turbo.Gamedata.Habbo;
@@ -148,19 +154,34 @@ internal sealed class HabboReleaseService(
         }
     }
 
-    public async Task<HabboVariableVersionSnapshot?> GetLatestVariablesAsync(CancellationToken ct)
+    public async Task<HabboReleaseSnapshot?> GetLatestAsync(CancellationToken ct) =>
+        (await LatestAsync<HabboReleaseEntity>(ct).ConfigureAwait(false))?.ToSnapshot();
+
+    public async Task<HabboTextVersionSnapshot?> GetLatestTextsAsync(CancellationToken ct) =>
+        (await LatestAsync<HabboTextVersionEntity>(ct).ConfigureAwait(false))?.ToSnapshot();
+
+    public async Task<HabboProductVersionSnapshot?> GetLatestProductsAsync(CancellationToken ct) =>
+        (await LatestAsync<HabboProductVersionEntity>(ct).ConfigureAwait(false))?.ToSnapshot();
+
+    public async Task<HabboFigureVersionSnapshot?> GetLatestFiguresAsync(CancellationToken ct) =>
+        (await LatestAsync<HabboFigureVersionEntity>(ct).ConfigureAwait(false))?.ToSnapshot();
+
+    public async Task<HabboVariableVersionSnapshot?> GetLatestVariablesAsync(
+        CancellationToken ct
+    ) => (await LatestAsync<HabboVariableVersionEntity>(ct).ConfigureAwait(false))?.ToSnapshot();
+
+    private async Task<T?> LatestAsync<T>(CancellationToken ct)
+        where T : TurboEntity, IHabboVersionEntity
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var latest = await dbCtx
-            .HabboVariableVersions.AsNoTracking()
-            .Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id)
+        return await dbCtx
+            .Set<T>()
+            .AsNoTracking()
+            .Latest(_config.HabboDomain)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
     }
 
     /// <summary>The version of these external variables: the one kept before, or a new one.</summary>
@@ -174,119 +195,36 @@ internal sealed class HabboReleaseService(
     )
     {
         var hash = GamedataBytes.Hash(variables);
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var known = await dbCtx
-            .HabboVariableVersions.FirstOrDefaultAsync(
+        var (version, isNew) = await KeepAsync<HabboVariableVersionEntity>(
+                "external variables",
+                domain,
+                hash,
                 x => x.Domain == domain && x.Hash == hash,
+                () =>
+                    new HabboVariableVersionEntity
+                    {
+                        Domain = domain,
+                        Hash = hash,
+                        Content = GamedataBytes.Compress(variables),
+                        VariableCount = count,
+                        CheckedAt = now,
+                        HabboHash = habboHash,
+                    },
+                habboHash,
+                now,
                 ct
             )
             .ConfigureAwait(false);
 
-        if (known is not null)
-        {
-            known.CheckedAt = now;
-            known.HabboHash = habboHash ?? known.HabboHash;
-
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-            return (known.ToSnapshot(), false);
-        }
-
-        var version = new HabboVariableVersionEntity
-        {
-            Domain = domain,
-            Hash = hash,
-            Content = GamedataBytes.Compress(variables),
-            VariableCount = count,
-            CheckedAt = now,
-            HabboHash = habboHash,
-        };
-
-        dbCtx.HabboVariableVersions.Add(version);
-
-        try
-        {
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Another silo's check kept the same variables a moment before this one.
-            var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var retryCtxScope = retryCtx.ConfigureAwait(false);
-
-            var kept = await retryCtx
-                .HabboVariableVersions.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
-                .ConfigureAwait(false);
-
-            if (kept is not null)
-                return (kept.ToSnapshot(), false);
-
-            logger.LogError(
-                ex,
-                "Failed to keep habbo.{Domain}'s external variables {Hash}",
+        if (isNew)
+            logger.LogInformation(
+                "habbo.{Domain} serves new external variables {Hash}: {Count} variables",
                 domain,
-                hash
+                hash,
+                count
             );
 
-            throw;
-        }
-
-        logger.LogInformation(
-            "habbo.{Domain} serves new external variables {Hash}: {Count} variables",
-            domain,
-            hash,
-            count
-        );
-
-        return (version.ToSnapshot(), true);
-    }
-
-    public async Task<HabboTextVersionSnapshot?> GetLatestTextsAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await dbCtx
-            .HabboTextVersions.AsNoTracking()
-            .Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
-    }
-
-    public async Task<HabboProductVersionSnapshot?> GetLatestProductsAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await dbCtx
-            .HabboProductVersions.AsNoTracking()
-            .Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
-    }
-
-    public async Task<HabboFigureVersionSnapshot?> GetLatestFiguresAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await dbCtx
-            .HabboFigureVersions.AsNoTracking()
-            .Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
+        return (version.ToSnapshot(), isNew);
     }
 
     /// <summary>The version of this figure data: the one kept before, or a new one.</summary>
@@ -299,84 +237,54 @@ internal sealed class HabboReleaseService(
     )
     {
         var hash = GamedataBytes.Hash(figures);
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+        var (version, isNew) = await KeepAsync<HabboFigureVersionEntity>(
+                "figure data",
+                domain,
+                hash,
+                x => x.Domain == domain && x.Hash == hash,
+                () =>
+                {
+                    List<(FigureRecordKind Kind, JsonObject Record)> records;
 
-        var known = await dbCtx
-            .HabboFigureVersions.FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
+                    try
+                    {
+                        records = FigureDataFile.Parse(figures);
+                    }
+                    catch (FormatException ex)
+                    {
+                        throw new HttpRequestException(
+                            $"habbo.{domain}'s figure data doesn't read.",
+                            ex
+                        );
+                    }
+
+                    return new HabboFigureVersionEntity
+                    {
+                        Domain = domain,
+                        Hash = hash,
+                        Content = GamedataBytes.Compress(figures),
+                        SetCount = records.Count(x => x.Kind == FigureRecordKind.Set),
+                        ColorCount = records.Count(x => x.Kind == FigureRecordKind.Color),
+                        CheckedAt = now,
+                        HabboHash = habboHash,
+                    };
+                },
+                habboHash,
+                now,
+                ct
+            )
             .ConfigureAwait(false);
 
-        if (known is not null)
-        {
-            known.CheckedAt = now;
-            known.HabboHash = habboHash ?? known.HabboHash;
+        if (isNew)
+            logger.LogInformation(
+                "habbo.{Domain} serves new figure data {Hash}: {Sets} pieces, {Colors} colours",
+                domain,
+                hash,
+                version.SetCount,
+                version.ColorCount
+            );
 
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-            return (known.ToSnapshot(), false);
-        }
-
-        List<(
-            Primitives.Gamedata.Enums.FigureRecordKind Kind,
-            System.Text.Json.Nodes.JsonObject Record
-        )> records;
-
-        try
-        {
-            records = Figures.FigureDataFile.Parse(figures);
-        }
-        catch (FormatException ex)
-        {
-            throw new HttpRequestException($"habbo.{domain}'s figure data doesn't read.", ex);
-        }
-
-        var version = new HabboFigureVersionEntity
-        {
-            Domain = domain,
-            Hash = hash,
-            Content = GamedataBytes.Compress(figures),
-            SetCount = records.Count(x => x.Kind == Primitives.Gamedata.Enums.FigureRecordKind.Set),
-            ColorCount = records.Count(x =>
-                x.Kind == Primitives.Gamedata.Enums.FigureRecordKind.Color
-            ),
-            CheckedAt = now,
-            HabboHash = habboHash,
-        };
-
-        dbCtx.HabboFigureVersions.Add(version);
-
-        try
-        {
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Another silo's check kept the same figure data a moment before this one.
-            var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var retryCtxScope = retryCtx.ConfigureAwait(false);
-
-            var kept = await retryCtx
-                .HabboFigureVersions.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
-                .ConfigureAwait(false);
-
-            if (kept is not null)
-                return (kept.ToSnapshot(), false);
-
-            logger.LogError(ex, "Failed to keep habbo.{Domain}'s figure data {Hash}", domain, hash);
-
-            throw;
-        }
-
-        logger.LogInformation(
-            "habbo.{Domain} serves new figure data {Hash}: {Sets} pieces, {Colors} colours",
-            domain,
-            hash,
-            version.SetCount,
-            version.ColorCount
-        );
-
-        return (version.ToSnapshot(), true);
+        return (version.ToSnapshot(), isNew);
     }
 
     /// <summary>The version of this product data: the one kept before, or a new one.</summary>
@@ -389,71 +297,36 @@ internal sealed class HabboReleaseService(
     )
     {
         var hash = GamedataBytes.Hash(products);
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var known = await dbCtx
-            .HabboProductVersions.FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
+        var (version, isNew) = await KeepAsync<HabboProductVersionEntity>(
+                "product data",
+                domain,
+                hash,
+                x => x.Domain == domain && x.Hash == hash,
+                () =>
+                    new HabboProductVersionEntity
+                    {
+                        Domain = domain,
+                        Hash = hash,
+                        Content = GamedataBytes.Compress(products),
+                        ProductCount = ProductDataFile.Parse(products).Count,
+                        CheckedAt = now,
+                        HabboHash = habboHash,
+                    },
+                habboHash,
+                now,
+                ct
+            )
             .ConfigureAwait(false);
 
-        if (known is not null)
-        {
-            known.CheckedAt = now;
-            known.HabboHash = habboHash ?? known.HabboHash;
-
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-            return (known.ToSnapshot(), false);
-        }
-
-        var version = new HabboProductVersionEntity
-        {
-            Domain = domain,
-            Hash = hash,
-            Content = GamedataBytes.Compress(products),
-            ProductCount = Products.ProductDataFile.Parse(products).Count,
-            CheckedAt = now,
-            HabboHash = habboHash,
-        };
-
-        dbCtx.HabboProductVersions.Add(version);
-
-        try
-        {
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Another silo's check kept the same product data a moment before this one.
-            var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var retryCtxScope = retryCtx.ConfigureAwait(false);
-
-            var kept = await retryCtx
-                .HabboProductVersions.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
-                .ConfigureAwait(false);
-
-            if (kept is not null)
-                return (kept.ToSnapshot(), false);
-
-            logger.LogError(
-                ex,
-                "Failed to keep habbo.{Domain}'s product data {Hash}",
+        if (isNew)
+            logger.LogInformation(
+                "habbo.{Domain} serves new product data {Hash}: {Count} products",
                 domain,
-                hash
+                hash,
+                version.ProductCount
             );
 
-            throw;
-        }
-
-        logger.LogInformation(
-            "habbo.{Domain} serves new product data {Hash}: {Count} products",
-            domain,
-            hash,
-            version.ProductCount
-        );
-
-        return (version.ToSnapshot(), true);
+        return (version.ToSnapshot(), isNew);
     }
 
     /// <summary>The release of this furniture data: the one kept before, or a new one.</summary>
@@ -467,65 +340,40 @@ internal sealed class HabboReleaseService(
     )
     {
         var hash = GamedataBytes.Hash(data);
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        if (await FindAsync(dbCtx, domain, hash, ct).ConfigureAwait(false) is { } known)
-        {
-            known.CheckedAt = now;
-            known.Revision = revision;
-            known.HabboHash = habboHash ?? known.HabboHash;
-
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-            return (known.ToSnapshot(), false);
-        }
-
-        var release = new HabboReleaseEntity
-        {
-            Domain = domain,
-            Revision = revision,
-            FurnitureDataHash = hash,
-            FurnitureData = GamedataBytes.Compress(data),
-            FurnitureCount = CountItems(data),
-            CheckedAt = now,
-            HabboHash = habboHash,
-        };
-
-        dbCtx.HabboReleases.Add(release);
-
-        try
-        {
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-        catch (DbUpdateException ex)
-        {
-            // Another silo's check kept the same data a moment before this one.
-            var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var retryCtxScope = retryCtx.ConfigureAwait(false);
-
-            if (await FindAsync(retryCtx, domain, hash, ct).ConfigureAwait(false) is { } kept)
-                return (kept.ToSnapshot(), false);
-
-            logger.LogError(
-                ex,
-                "Failed to keep habbo.{Domain}'s furniture data {Hash}",
+        var (release, isNew) = await KeepAsync<HabboReleaseEntity>(
+                "furniture data",
                 domain,
-                hash
+                hash,
+                x => x.Domain == domain && x.FurnitureDataHash == hash,
+                () =>
+                    new HabboReleaseEntity
+                    {
+                        Domain = domain,
+                        Revision = revision,
+                        FurnitureDataHash = hash,
+                        FurnitureData = GamedataBytes.Compress(data),
+                        FurnitureCount = CountItems(data),
+                        CheckedAt = now,
+                        HabboHash = habboHash,
+                    },
+                habboHash,
+                now,
+                ct,
+                // A release found again names the revision Habbo serves it under now.
+                known => known.Revision = revision
+            )
+            .ConfigureAwait(false);
+
+        if (isNew)
+            logger.LogInformation(
+                "habbo.{Domain} serves new furniture data {Hash}: revision {Revision}, {Count} items",
+                domain,
+                hash,
+                revision,
+                release.FurnitureCount
             );
 
-            throw;
-        }
-
-        logger.LogInformation(
-            "habbo.{Domain} serves new furniture data {Hash}: revision {Revision}, {Count} items",
-            domain,
-            hash,
-            revision,
-            release.FurnitureCount
-        );
-
-        return (release.ToSnapshot(), true);
+        return (release.ToSnapshot(), isNew);
     }
 
     /// <summary>The version of these texts: the one kept before, or a new one.</summary>
@@ -538,34 +386,77 @@ internal sealed class HabboReleaseService(
     )
     {
         var hash = GamedataBytes.Hash(texts);
+        var (version, isNew) = await KeepAsync<HabboTextVersionEntity>(
+                "texts",
+                domain,
+                hash,
+                x => x.Domain == domain && x.Hash == hash,
+                () =>
+                    new HabboTextVersionEntity
+                    {
+                        Domain = domain,
+                        Hash = hash,
+                        Content = GamedataBytes.Compress(texts),
+                        TextCount = ExternalTextsFile.Parse(Encoding.UTF8.GetString(texts)).Count,
+                        CheckedAt = now,
+                        HabboHash = habboHash,
+                    },
+                habboHash,
+                now,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (isNew)
+            logger.LogInformation(
+                "habbo.{Domain} serves new external texts {Hash}: {Count} texts",
+                domain,
+                hash,
+                version.TextCount
+            );
+
+        return (version.ToSnapshot(), isNew);
+    }
+
+    /// <summary>
+    /// The version of a file of Habbo's that <paramref name="same"/> finds, seen again
+    /// <paramref name="now"/>; when there is none, the one <paramref name="create"/> makes, kept.
+    /// When another silo's check kept the same file a moment before this one, that one.
+    /// </summary>
+    /// <param name="what">What the file is called in the log.</param>
+    /// <param name="seen">What else a version found again takes from this check.</param>
+    private async Task<(T Version, bool IsNew)> KeepAsync<T>(
+        string what,
+        string domain,
+        string hash,
+        Expression<Func<T, bool>> same,
+        Func<T> create,
+        string? habboHash,
+        DateTime now,
+        CancellationToken ct,
+        Action<T>? seen = null
+    )
+        where T : TurboEntity, IHabboVersionEntity
+    {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var known = await dbCtx
-            .HabboTextVersions.FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
-            .ConfigureAwait(false);
+        var known = await dbCtx.Set<T>().FirstOrDefaultAsync(same, ct).ConfigureAwait(false);
 
         if (known is not null)
         {
             known.CheckedAt = now;
             known.HabboHash = habboHash ?? known.HabboHash;
+            seen?.Invoke(known);
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-            return (known.ToSnapshot(), false);
+            return (known, false);
         }
 
-        var version = new HabboTextVersionEntity
-        {
-            Domain = domain,
-            Hash = hash,
-            Content = GamedataBytes.Compress(texts),
-            TextCount = ExternalTextsFile.Parse(Encoding.UTF8.GetString(texts)).Count,
-            CheckedAt = now,
-            HabboHash = habboHash,
-        };
+        var version = create();
 
-        dbCtx.HabboTextVersions.Add(version);
+        dbCtx.Set<T>().Add(version);
 
         try
         {
@@ -573,46 +464,31 @@ internal sealed class HabboReleaseService(
         }
         catch (DbUpdateException ex)
         {
-            // Another silo's check kept the same texts a moment before this one.
+            // Another silo's check kept the same file a moment before this one.
             var retryCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
             await using var retryCtxScope = retryCtx.ConfigureAwait(false);
 
             var kept = await retryCtx
-                .HabboTextVersions.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Domain == domain && x.Hash == hash, ct)
+                .Set<T>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(same, ct)
                 .ConfigureAwait(false);
 
             if (kept is not null)
-                return (kept.ToSnapshot(), false);
+                return (kept, false);
 
-            logger.LogError(ex, "Failed to keep habbo.{Domain}'s texts {Hash}", domain, hash);
+            logger.LogError(
+                ex,
+                "Failed to keep habbo.{Domain}'s {What} {Hash}",
+                domain,
+                what,
+                hash
+            );
 
             throw;
         }
 
-        logger.LogInformation(
-            "habbo.{Domain} serves new external texts {Hash}: {Count} texts",
-            domain,
-            hash,
-            version.TextCount
-        );
-
-        return (version.ToSnapshot(), true);
-    }
-
-    public async Task<HabboReleaseSnapshot?> GetLatestAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await dbCtx
-            .HabboReleases.AsNoTracking()
-            .Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
+        return (version, true);
     }
 
     public async Task<HabboReleaseSnapshot?> GetAsync(int id, CancellationToken ct)
@@ -646,17 +522,6 @@ internal sealed class HabboReleaseService(
 
         return revision.Length > 0 ? revision : null;
     }
-
-    private static Task<HabboReleaseEntity?> FindAsync(
-        TurboDbContext dbCtx,
-        string domain,
-        string hash,
-        CancellationToken ct
-    ) =>
-        dbCtx.HabboReleases.FirstOrDefaultAsync(
-            x => x.Domain == domain && x.FurnitureDataHash == hash,
-            ct
-        );
 
     private static int CountItems(byte[] data)
     {

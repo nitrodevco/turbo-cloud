@@ -77,7 +77,9 @@ internal sealed class GamedataFurnitureService(
         CancellationToken ct
     )
     {
-        var release = await FindReleaseAsync(dbCtx, releaseId, ct).ConfigureAwait(false);
+        var release = await dbCtx
+            .HabboReleases.FindOrLatestAsync(releaseId, _config.HabboDomain, ct)
+            .ConfigureAwait(false);
 
         if (release is null)
             return null;
@@ -119,7 +121,9 @@ internal sealed class GamedataFurnitureService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var release = await FindReleaseAsync(dbCtx, releaseId, ct).ConfigureAwait(false);
+        var release = await dbCtx
+            .HabboReleases.FindOrLatestAsync(releaseId, _config.HabboDomain, ct)
+            .ConfigureAwait(false);
 
         if (release is null)
             return null;
@@ -216,16 +220,13 @@ internal sealed class GamedataFurnitureService(
 
         if (changes.Count > 0)
         {
-            changeSet = new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Import,
-                Summary = Summary(
-                    $"Habbo {release.Revision}: {added} added, {updated} updated, {plan.Count(FurnitureImportAction.Keep)} kept as the hotel has them"
-                ),
-                PlayerEntityId = player?.Value,
-                HabboReleaseEntityId = release.Id,
-                Changes = [],
-            };
+            changeSet = GamedataChangeSets.Create(
+                GamedataChangeKind.Import,
+                $"Habbo {release.Revision}: {added} added, {updated} updated, {plan.Count(FurnitureImportAction.Keep)} kept as the hotel has them",
+                player,
+                []
+            );
+            changeSet.HabboReleaseEntityId = release.Id;
 
             foreach (var (change, row) in changes)
             {
@@ -240,7 +241,7 @@ internal sealed class GamedataFurnitureService(
                 if (change.Before is null && row is FurnitureDefinitionEntity made)
                     change.After = FurnitureRecords.Created(made).ToJsonString();
 
-                changeSet.Changes.Add(change);
+                changeSet.Changes!.Add(change);
             }
 
             dbCtx.GamedataChangeSets.Add(changeSet);
@@ -388,27 +389,20 @@ internal sealed class GamedataFurnitureService(
                 FurnitureFields.ByKey[key].Write(definition, value);
 
             dbCtx.GamedataChangeSets.Add(
-                new GamedataChangeSetEntity
-                {
-                    Kind = GamedataChangeKind.Edit,
-                    Summary = Summary(
-                        $"Edited {definition.Name}: {string.Join(", ", incoming.Keys)}"
-                    ),
-                    PlayerEntityId = player.Value,
-                    Changes =
+                GamedataChangeSets.Create(
+                    GamedataChangeKind.Edit,
+                    $"Edited {definition.Name}: {string.Join(", ", incoming.Keys)}",
+                    player,
                     [
-                        new GamedataChangeEntity
-                        {
-                            RecordType = GamedataRecordType.FurnitureDefinition,
-                            RecordId = definition.Id,
-                            Label = Label(definition.Name),
-                            Before = before.ToJsonString(),
-                            After = FurnitureRecords
-                                .Fields(definition, incoming.Keys)
-                                .ToJsonString(),
-                        },
-                    ],
-                }
+                        GamedataChangeSets.Change(
+                            GamedataRecordType.FurnitureDefinition,
+                            definition.Name,
+                            before.ToJsonString(),
+                            FurnitureRecords.Fields(definition, incoming.Keys).ToJsonString(),
+                            definition.Id
+                        ),
+                    ]
+                )
             );
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -545,15 +539,13 @@ internal sealed class GamedataFurnitureService(
         if (differences.Count == 0)
             return null;
 
-        var changeSet = new GamedataChangeSetEntity
-        {
-            Kind = GamedataChangeKind.HabboValues,
-            Summary = Summary(
-                $"Habbo's {string.Join(", ", chosen.Select(x => x.Key))} ({habbo!.Release.Revision}) for {differences.Count} furniture"
-            ),
-            PlayerEntityId = player.Value,
-            Changes = [],
-        };
+        List<GamedataChangeEntity> changes = [];
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.HabboValues,
+            $"Habbo's {string.Join(", ", chosen.Select(x => x.Key))} ({habbo!.Release.Revision}) for {differences.Count} furniture",
+            player,
+            changes
+        );
 
         foreach (var (definition, keys, item) in differences)
         {
@@ -562,15 +554,14 @@ internal sealed class GamedataFurnitureService(
             foreach (var key in keys)
                 FurnitureFields.ByKey[key].Write(definition, item[key]);
 
-            changeSet.Changes.Add(
-                new GamedataChangeEntity
-                {
-                    RecordType = GamedataRecordType.FurnitureDefinition,
-                    RecordId = definition.Id,
-                    Label = Label(definition.Name),
-                    Before = before.ToJsonString(),
-                    After = FurnitureRecords.Fields(definition, keys).ToJsonString(),
-                }
+            changes.Add(
+                GamedataChangeSets.Change(
+                    GamedataRecordType.FurnitureDefinition,
+                    definition.Name,
+                    before.ToJsonString(),
+                    FurnitureRecords.Fields(definition, keys).ToJsonString(),
+                    definition.Id
+                )
             );
         }
 
@@ -587,7 +578,7 @@ internal sealed class GamedataFurnitureService(
 
         await AfterWriteAsync(ct).ConfigureAwait(false);
 
-        return changeSet.ToSnapshot(changeSet.Changes.Count);
+        return changeSet.ToSnapshot(changes.Count);
     }
 
     /// <summary>The fields by their furnidata keys, each once; a key no definition holds is refused.</summary>
@@ -741,18 +732,6 @@ internal sealed class GamedataFurnitureService(
         }
     }
 
-    private Task<HabboReleaseEntity?> FindReleaseAsync(
-        TurboDbContext dbCtx,
-        int? releaseId,
-        CancellationToken ct
-    ) =>
-        releaseId is { } id
-            ? dbCtx.HabboReleases.FirstOrDefaultAsync(x => x.Id == id, ct)
-            : dbCtx
-                .HabboReleases.Where(x => x.Domain == _config.HabboDomain)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(ct);
-
     /// <summary>Every item of the release, matched to the hotel's definition of it and to Habbo's last version of it.</summary>
     private async Task<ImportPlan> PlanAsync(
         TurboDbContext dbCtx,
@@ -850,22 +829,7 @@ internal sealed class GamedataFurnitureService(
     }
 
     private static GamedataChangeEntity Change(string className, GamedataRecordType type) =>
-        new()
-        {
-            RecordType = type,
-            RecordId = 0,
-            Label = Label(className),
-        };
-
-    private static string Label(string className) =>
-        className.Length <= GamedataChangeEntity.LABEL_MAX_LENGTH
-            ? className
-            : className[..GamedataChangeEntity.LABEL_MAX_LENGTH];
-
-    private static string Summary(string summary) =>
-        summary.Length <= GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-            ? summary
-            : summary[..GamedataChangeSetEntity.SUMMARY_MAX_LENGTH];
+        GamedataChangeSets.Change(type, className, null, null);
 
     private sealed record PlannedItem(
         ProductType ProductType,

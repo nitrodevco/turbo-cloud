@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
+using Turbo.Gamedata.Habbo;
 
 namespace Turbo.Gamedata.Furniture;
 
@@ -31,8 +32,7 @@ internal sealed record FurnitureDataVersion(
         var definitions = dbCtx.FurnitureDefinitions.AsNoTracking();
         var release = await dbCtx
             .HabboReleases.AsNoTracking()
-            .Where(x => x.Domain == domain)
-            .OrderByDescending(x => x.Id)
+            .Latest(domain)
             .Select(x => new { x.Id, x.ImportedAt })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);

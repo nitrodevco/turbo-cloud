@@ -171,8 +171,7 @@ internal sealed class HotelViewService(
 
         var version = await dbCtx
             .HabboTextVersions.AsNoTracking()
-            .Where(x => x.Domain == config.Value.HabboDomain)
-            .OrderByDescending(x => x.Id)
+            .Latest(config.Value.HabboDomain)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
@@ -376,32 +375,25 @@ internal sealed class HotelViewService(
         // The rows first, so the changes can name the ids of the ones just added.
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var changeSet = new GamedataChangeSetEntity
-        {
-            Kind = GamedataChangeKind.Edit,
-            Summary = Truncate(
-                Summary(variableChanges.Count, textChanges.Count),
-                GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-            ),
-            PlayerEntityId = player.Value,
-            Changes =
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            Summary(variableChanges.Count, textChanges.Count),
+            player,
             [
                 .. variableChanges.Select(x =>
                     GamedataVariableService.Change(x.Key, x.Before, x.After, x.Row.Id)
                 ),
                 .. textChanges.Select(x =>
-                    GamedataTextService.WithId(
-                        GamedataTextService.Change(
-                            GamedataRecordType.Text,
-                            x.Key,
-                            x.Before,
-                            x.After
-                        ),
+                    GamedataTextService.Change(
+                        GamedataRecordType.Text,
+                        x.Key,
+                        x.Before,
+                        x.After,
                         x.Row.Id
                     )
                 ),
-            ],
-        };
+            ]
+        );
 
         dbCtx.GamedataChangeSets.Add(changeSet);
 
@@ -455,6 +447,4 @@ internal sealed class HotelViewService(
 
     private static string Count(int count, string what) =>
         count == 1 ? $"1 {what}" : $"{count} {what}s";
-
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 }

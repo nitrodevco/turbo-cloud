@@ -13,9 +13,6 @@ namespace Turbo.Primitives.Gamedata;
 /// </summary>
 public interface IGamedataTextService
 {
-    /// <summary>The newest version of Habbo's texts found; null before the first check.</summary>
-    public Task<HabboTextVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct);
-
     /// <summary>What taking in the version would do; the newest when none is named. Null when there is no such version.</summary>
     public Task<TextImportPreview?> PreviewImportAsync(int? versionId, CancellationToken ct);
 

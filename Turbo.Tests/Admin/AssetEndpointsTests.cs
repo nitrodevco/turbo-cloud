@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Assets;
+using Turbo.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Gamedata;
@@ -153,7 +154,7 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
 
         var file = await SendAsync(HttpMethod.Get, "/api/assets/bundles/furniture/lamp/file");
         file.StatusCode.Should().Be(HttpStatusCode.OK);
-        AssetBundleStore.HashOf(await file.Content.ReadAsByteArrayAsync(Ct)).Should().Be(hash);
+        GamedataBytes.Hash(await file.Content.ReadAsByteArrayAsync(Ct)).Should().Be(hash);
 
         var checks = (await JsonAsync(await SendAsync(HttpMethod.Get, "/api/assets/checks")))
             .GetProperty("items")
@@ -233,7 +234,7 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
                 Kind = AssetBundleKind.Template,
                 Name = "habbo-inventory-com",
                 Source = AssetBundleSource.Built,
-                Hash = AssetBundleStore.HashOf(bundle),
+                Hash = GamedataBytes.Hash(bundle),
                 UpdatedAt = DateTime.UtcNow,
             }
         );

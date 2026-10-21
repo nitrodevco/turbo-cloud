@@ -33,7 +33,7 @@ namespace Turbo.Gamedata.Variables;
 /// <item>otherwise it waits, added or updated.</item>
 /// </list>
 /// A key Habbo had when last taken in and has dropped waits to be removed, while the hotel has it.
-/// Keys the hotel owns are never offered (<see cref="IsOwned"/>). Habbo's file writes values as
+/// Keys the hotel owns are never offered (<see cref="Ownership.IsOwned"/>). Habbo's file writes values as
 /// bare text; the hotel keeps JSON, so a flag or a number stays one where the hotel's is
 /// (<see cref="HotelViewService.JsonOf"/>).
 /// </summary>
@@ -57,7 +57,9 @@ internal sealed class HabboVariableService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
+        var version = await dbCtx
+            .HabboVariableVersions.FindOrLatestAsync(versionId, config.CurrentValue.HabboDomain, ct)
+            .ConfigureAwait(false);
 
         if (version is null)
             return null;
@@ -105,7 +107,13 @@ internal sealed class HabboVariableService(
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var version =
-            await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false)
+            await dbCtx
+                .HabboVariableVersions.FindOrLatestAsync(
+                    versionId,
+                    config.CurrentValue.HabboDomain,
+                    ct
+                )
+                .ConfigureAwait(false)
             ?? throw new ArgumentException(NO_VERSION, nameof(versionId));
         var plan = await PlanAsync(dbCtx, version, tracked: true, ct).ConfigureAwait(false);
         var picked = keys?.ToHashSet(StringComparer.Ordinal);
@@ -176,15 +184,10 @@ internal sealed class HabboVariableService(
         var addedCount = taken.Count(x => x.Action == HabboVariableUpdateAction.Add);
         var updatedCount = taken.Count(x => x.Action == HabboVariableUpdateAction.Update);
         var removedCount = taken.Count(x => x.Action == HabboVariableUpdateAction.Remove);
-        var changeSet = new GamedataChangeSetEntity
-        {
-            Kind = GamedataChangeKind.Import,
-            Summary = Truncate(
-                $"Habbo's variables ({version.VariableCount}): {addedCount} added, {updatedCount} updated, {removedCount} removed",
-                GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-            ),
-            PlayerEntityId = player.Value,
-            Changes =
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Import,
+            $"Habbo's variables ({version.VariableCount}): {addedCount} added, {updatedCount} updated, {removedCount} removed",
+            player,
             [
                 .. variables.Select(x =>
                     Change(x.Row.Key, x.Before, x.Gone ? null : State(x.Row), x.Row.Id)
@@ -192,8 +195,8 @@ internal sealed class HabboVariableService(
                 .. bases.Select(x =>
                     HabboChange(x.Row.Key, x.Before, x.Gone ? null : BaseState.Of(x.Row), x.Row.Id)
                 ),
-            ],
-        };
+            ]
+        );
 
         dbCtx.GamedataChangeSets.Add(changeSet);
 
@@ -213,20 +216,6 @@ internal sealed class HabboVariableService(
 
         return changeSet.ToSnapshot(changeSet.Changes!.Count);
     }
-
-    private IQueryable<HabboVariableVersionEntity> LatestQuery(TurboDbContext dbCtx) =>
-        dbCtx
-            .HabboVariableVersions.Where(x => x.Domain == config.CurrentValue.HabboDomain)
-            .OrderByDescending(x => x.Id);
-
-    private Task<HabboVariableVersionEntity?> FindVersionAsync(
-        TurboDbContext dbCtx,
-        int? versionId,
-        CancellationToken ct
-    ) =>
-        versionId is { } id
-            ? dbCtx.HabboVariableVersions.FirstOrDefaultAsync(x => x.Id == id, ct)
-            : LatestQuery(dbCtx).FirstOrDefaultAsync(ct);
 
     private async Task<Plan> PlanAsync(
         TurboDbContext dbCtx,
@@ -338,16 +327,13 @@ internal sealed class HabboVariableService(
         BaseState? after,
         int id
     ) =>
-        new()
-        {
-            RecordType = GamedataRecordType.HabboVariable,
-            RecordId = id,
-            Label = Truncate(key, GamedataChangeEntity.LABEL_MAX_LENGTH),
-            Before = before is null ? null : before.Record(key),
-            After = after is null ? null : after.Record(key),
-        };
-
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
+        GamedataChangeSets.Change(
+            GamedataRecordType.HabboVariable,
+            key,
+            before?.Record(key),
+            after?.Record(key),
+            id
+        );
 
     /// <summary>
     /// The keys the hotel owns and never takes from Habbo: one that follows a setting or a file,

@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Gamedata;
 /// </summary>
 [Table("habbo_figure_versions")]
 [Index(nameof(Domain), nameof(Hash), IsUnique = true)]
-public class HabboFigureVersionEntity : TurboEntity
+public class HabboFigureVersionEntity : TurboEntity, IHabboVersionEntity
 {
     [Column("domain")]
     [MaxLength(16)]

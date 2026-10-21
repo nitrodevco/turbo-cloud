@@ -40,8 +40,7 @@ internal sealed class HabboReleaseItems(
 
         var domain = config.Value.HabboDomain;
         var latestId = await dbCtx
-            .HabboReleases.Where(x => x.Domain == domain)
-            .OrderByDescending(x => x.Id)
+            .HabboReleases.Latest(domain)
             .Select(x => (int?)x.Id)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);

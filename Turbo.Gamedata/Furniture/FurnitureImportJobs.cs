@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Entities;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
@@ -109,85 +111,78 @@ internal sealed class FurnitureImportJobs(
         return job;
     }
 
-    public async Task<GamedataImportJobSnapshot?> StartTextsAsync(
+    public Task<GamedataImportJobSnapshot?> StartTextsAsync(
         int versionId,
         PlayerId player,
         CancellationToken ct
+    ) =>
+        StartOneAsync<HabboTextVersionEntity>(
+            versionId,
+            version => $"texts {version.Hash[..10]}",
+            GamedataFiles.EXTERNAL_TEXTS,
+            (id, token) => texts.ImportAsync(id, player, token),
+            ct
+        );
+
+    public Task<GamedataImportJobSnapshot?> StartProductsAsync(
+        int versionId,
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        StartOneAsync<HabboProductVersionEntity>(
+            versionId,
+            version => $"product data {version.Hash[..10]}",
+            GamedataFiles.PRODUCT_DATA,
+            (id, token) => products.ImportAsync(id, player, token),
+            ct
+        );
+
+    public Task<GamedataImportJobSnapshot?> StartFiguresAsync(
+        int versionId,
+        PlayerId player,
+        CancellationToken ct
+    ) =>
+        StartOneAsync<HabboFigureVersionEntity>(
+            versionId,
+            version => $"figure data {version.Hash[..10]}",
+            GamedataFiles.FIGURE_DATA,
+            (id, token) => figures.ImportAsync(id, player, token),
+            ct
+        );
+
+    /// <summary>
+    /// A job of one step (texts, product data, figure data) that takes in the version
+    /// <paramref name="versionId"/>; null when there is no such version.
+    /// </summary>
+    private async Task<GamedataImportJobSnapshot?> StartOneAsync<TVersion>(
+        int versionId,
+        Func<TVersion, string> revision,
+        string file,
+        Func<int, CancellationToken, Task<GamedataChangeSetSnapshot?>> import,
+        CancellationToken ct
     )
+        where TVersion : TurboEntity
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var version = await dbCtx
-            .HabboTextVersions.AsNoTracking()
+            .Set<TVersion>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == versionId, ct)
             .ConfigureAwait(false);
 
         if (version is null)
             return null;
 
-        GamedataImportJobSnapshot job;
-
-        lock (_lock)
-        {
-            if (_current is { Phase: GamedataImportPhase.Files or GamedataImportPhase.Import })
-                throw new InvalidOperationException(
-                    "Something of Habbo's is being taken in; wait for it to finish."
-                );
-
-            _filesDone = 0;
-            _filesFailed = 0;
-            _current = job = new GamedataImportJobSnapshot
-            {
-                ReleaseId = version.Id,
-                Revision = $"texts {version.Hash[..10]}",
-                File = GamedataFiles.EXTERNAL_TEXTS,
-                Phase = GamedataImportPhase.Import,
-                FilesTotal = 0,
-                FilesDone = 0,
-                FilesFailed = 0,
-                StartedAt = time.GetUtcNow().UtcDateTime,
-            };
-        }
-
-        // Not the request's token: the import outlives the request that started it.
-        _ = Task.Run(
-            () => RunTextsAsync(job, player, lifetime.ApplicationStopping),
-            CancellationToken.None
-        );
-
-        return job;
-    }
-
-    public async Task<GamedataImportJobSnapshot?> StartProductsAsync(
-        int versionId,
-        PlayerId player,
-        CancellationToken ct
-    )
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var version = await dbCtx
-            .HabboProductVersions.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == versionId, ct)
-            .ConfigureAwait(false);
-
-        if (version is null)
-            return null;
-
-        var job = Begin(
-            version.Id,
-            $"product data {version.Hash[..10]}",
-            GamedataFiles.PRODUCT_DATA
-        );
+        var job = Begin(version.Id, revision(version), file);
 
         // Not the request's token: the import outlives the request that started it.
         _ = Task.Run(
             () =>
                 RunSimpleAsync(
                     job,
-                    token => products.ImportAsync(job.ReleaseId, player, token),
+                    token => import(job.ReleaseId, token),
                     lifetime.ApplicationStopping
                 ),
             CancellationToken.None
@@ -196,40 +191,7 @@ internal sealed class FurnitureImportJobs(
         return job;
     }
 
-    public async Task<GamedataImportJobSnapshot?> StartFiguresAsync(
-        int versionId,
-        PlayerId player,
-        CancellationToken ct
-    )
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var version = await dbCtx
-            .HabboFigureVersions.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == versionId, ct)
-            .ConfigureAwait(false);
-
-        if (version is null)
-            return null;
-
-        var job = Begin(version.Id, $"figure data {version.Hash[..10]}", GamedataFiles.FIGURE_DATA);
-
-        // Not the request's token: the import outlives the request that started it.
-        _ = Task.Run(
-            () =>
-                RunSimpleAsync(
-                    job,
-                    token => figures.ImportAsync(job.ReleaseId, player, token),
-                    lifetime.ApplicationStopping
-                ),
-            CancellationToken.None
-        );
-
-        return job;
-    }
-
-    /// <summary>A job of one step (texts, product data, figure data), begun when no other import runs.</summary>
+    /// <summary>A job of one step, begun when no other import runs.</summary>
     private GamedataImportJobSnapshot Begin(int id, string revision, string file)
     {
         lock (_lock)
@@ -281,48 +243,6 @@ internal sealed class FurnitureImportJobs(
         catch (Exception ex)
         {
             logger.LogError(ex, "Taking in Habbo's {File} {Id} failed", job.File, job.ReleaseId);
-
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Failed,
-                        Error = ct.IsCancellationRequested
-                            ? "The server stopped before it finished."
-                            : ex.Message,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
-            );
-        }
-    }
-
-    private async Task RunTextsAsync(
-        GamedataImportJobSnapshot job,
-        PlayerId player,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            var changeSet = await texts
-                .ImportAsync(job.ReleaseId, player, ct)
-                .ConfigureAwait(false);
-
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Done,
-                        ChangeSet = changeSet,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Taking in Habbo's texts {VersionId} failed", job.ReleaseId);
 
             Update(
                 job,

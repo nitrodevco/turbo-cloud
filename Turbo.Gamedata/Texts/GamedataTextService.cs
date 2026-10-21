@@ -40,228 +40,114 @@ internal sealed class GamedataTextService(
     TimeProvider time,
     IHotelTextProvider hotelTexts,
     ILogger<GamedataTextService> logger
-) : IGamedataTextService
+)
+    : HabboMirroredService<
+        HabboTextVersionEntity,
+        GamedataTextEntity,
+        HabboTextEntity,
+        GamedataTextService.TextPlanItem,
+        TextImportPreview
+    >(dbCtxFactory, config, writes, time, logger),
+        IGamedataTextService
 {
     private const string KEY = "key";
     private const string VALUE = "value";
 
-    private readonly GamedataConfig _config = config.Value;
-    private readonly GamedataPreviewCache<GamedataDataVersion, TextImportPreview> _previews = new();
+    protected override string What => "texts";
 
-    public async Task<HabboTextVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await LatestQuery(dbCtx)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
-    }
-
-    public async Task<TextImportPreview?> PreviewImportAsync(int? versionId, CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await LatestQuery(dbCtx)
-            .AsNoTracking()
-            .Select(x => new { x.Id, x.ImportedAt })
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-        var data = await GamedataDataVersion
-            .ReadAsync(
-                dbCtx,
-                latest?.Id,
-                latest?.ImportedAt,
-                dbCtx.GamedataTexts.Select(x => x.Id),
-                dbCtx.HabboTexts.Select(x => x.Id),
-                ct
-            )
-            .ConfigureAwait(false);
-
-        return await _previews
-            .GetAsync(data, versionId, () => WorkOutPreviewAsync(dbCtx, versionId, ct), ct)
-            .ConfigureAwait(false);
-    }
-
-    private async Task<TextImportPreview?> WorkOutPreviewAsync(
-        TurboDbContext dbCtx,
-        int? versionId,
-        CancellationToken ct
-    )
-    {
-        var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
-
-        if (version is null)
-            return null;
-
-        var plan = await PlanAsync(dbCtx, version, tracked: false, ct).ConfigureAwait(false);
-        var touched = plan.Items.Where(x => x.Action is not null).ToList();
-
-        return new TextImportPreview
+    protected override TextImportPreview Preview(
+        HabboTextVersionEntity version,
+        List<TextPlanItem> plan,
+        IEnumerable<TextPlanItem> shown,
+        bool truncated
+    ) =>
+        new()
         {
             Version = version.ToSnapshot(),
-            Added = plan.Count(FurnitureImportAction.Add),
-            Updated = plan.Count(FurnitureImportAction.Update),
-            Kept = plan.Count(FurnitureImportAction.Keep),
-            Unchanged = plan.Items.Count(x => x.Action is null),
+            Added = Count(plan, FurnitureImportAction.Add),
+            Updated = Count(plan, FurnitureImportAction.Update),
+            Kept = Count(plan, FurnitureImportAction.Keep),
+            Unchanged = Count(plan, null),
             Items =
             [
-                .. touched
-                    .Take(_config.PreviewItemLimit)
-                    .Select(x => new TextImportItem
-                    {
-                        Key = x.Key,
-                        Action = x.Action!.Value,
-                        Current = x.Current?.Value,
-                        Incoming = x.Habbo,
-                    }),
+                .. shown.Select(x => new TextImportItem
+                {
+                    Key = x.Key,
+                    Action = x.Action!.Value,
+                    Current = x.Current?.Value,
+                    Incoming = x.Habbo,
+                }),
             ],
-            Truncated = touched.Count > _config.PreviewItemLimit,
+            Truncated = truncated,
         };
-    }
 
-    public Task<GamedataChangeSetSnapshot?> ImportAsync(
-        int versionId,
-        PlayerId? player,
-        CancellationToken ct
-    ) => writes.RunAsync(() => ImportLockedAsync(versionId, player, ct), ct);
-
-    private async Task<GamedataChangeSetSnapshot?> ImportLockedAsync(
-        int versionId,
-        PlayerId? player,
-        CancellationToken ct
-    )
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
-
-        if (version is null)
-            return null;
-
-        var plan = await PlanAsync(dbCtx, version, tracked: true, ct).ConfigureAwait(false);
-        var changes = new List<(GamedataChangeEntity Change, object Row)>();
-        var added = 0;
-        var updated = 0;
-
-        // Big imports (a first one is every text Habbo has) are written without EF looking for
-        // changes on each of tens of thousands of rows at every step.
-        dbCtx.ChangeTracker.AutoDetectChangesEnabled = false;
-
-        var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-        await using var txScope = tx.ConfigureAwait(false);
-
-        foreach (var item in plan.Items)
-        {
-            if (item.Action == FurnitureImportAction.Add)
-            {
-                var row = new GamedataTextEntity { Key = item.Key, Value = item.Habbo };
-
-                dbCtx.GamedataTexts.Add(row);
-                changes.Add((Change(GamedataRecordType.Text, item.Key, null, item.Habbo), row));
-                added++;
-            }
-            else if (item.Action == FurnitureImportAction.Update)
-            {
-                var row = item.Current!;
-                var before = row.Value;
-
-                row.Value = item.Habbo;
-                dbCtx.Entry(row).State = EntityState.Modified;
-                changes.Add((Change(GamedataRecordType.Text, item.Key, before, item.Habbo), row));
-                updated++;
-            }
-
-            if (item.Base is { } known)
-            {
-                if (known.Value == item.Habbo)
-                    continue;
-
-                changes.Add(
-                    (Change(GamedataRecordType.HabboText, item.Key, known.Value, item.Habbo), known)
-                );
-                known.Value = item.Habbo;
-                known.HabboTextVersionEntityId = version.Id;
-                dbCtx.Entry(known).State = EntityState.Modified;
-            }
-            else
-            {
-                var row = new HabboTextEntity
-                {
-                    Key = item.Key,
-                    Value = item.Habbo,
-                    HabboTextVersionEntityId = version.Id,
-                };
-
-                dbCtx.HabboTexts.Add(row);
-                changes.Add(
-                    (Change(GamedataRecordType.HabboText, item.Key, null, item.Habbo), row)
-                );
-            }
-        }
-
-        version.ImportedAt = time.GetUtcNow().UtcDateTime;
-        dbCtx.Entry(version).State = EntityState.Modified;
-
-        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        GamedataChangeSetEntity? changeSet = null;
-
-        if (changes.Count > 0)
-        {
-            changeSet = new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Import,
-                Summary = Truncate(
-                    $"Habbo's texts ({version.TextCount}): {added} added, {updated} updated, {plan.Count(FurnitureImportAction.Keep)} kept as the hotel has them",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player?.Value,
-                Changes = [],
-            };
-
-            foreach (var (change, row) in changes)
-            {
-                change.RecordId = row switch
-                {
-                    GamedataTextEntity text => text.Id,
-                    HabboTextEntity habbo => habbo.Id,
-                    _ => 0,
-                };
-                changeSet.Changes.Add(change);
-            }
-
-            dbCtx.GamedataChangeSets.Add(changeSet);
-
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-
-        await tx.CommitAsync(ct).ConfigureAwait(false);
-
-        logger.LogInformation(
-            "Imported Habbo's texts {VersionId}: {Added} added, {Updated} updated, {Kept} kept as the hotel has them",
-            version.Id,
-            added,
-            updated,
-            plan.Count(FurnitureImportAction.Keep)
+    protected override (GamedataTextEntity Row, GamedataChangeEntity Change) AddOurs(
+        TextPlanItem item
+    ) =>
+        (
+            new GamedataTextEntity { Key = item.Key, Value = item.Habbo },
+            Change(GamedataRecordType.Text, item.Key, null, item.Habbo)
         );
 
+    protected override GamedataChangeEntity UpdateOurs(TextPlanItem item, GamedataTextEntity row)
+    {
+        var before = row.Value;
+
+        row.Value = item.Habbo;
+
+        return Change(GamedataRecordType.Text, item.Key, before, item.Habbo);
+    }
+
+    protected override GamedataChangeEntity? TakeHabbo(
+        TextPlanItem item,
+        HabboTextEntity known,
+        int versionId
+    )
+    {
+        if (known.Value == item.Habbo)
+            return null;
+
+        var change = Change(GamedataRecordType.HabboText, item.Key, known.Value, item.Habbo);
+
+        known.Value = item.Habbo;
+        known.HabboTextVersionEntityId = versionId;
+
+        return change;
+    }
+
+    protected override (HabboTextEntity Row, GamedataChangeEntity Change) AddHabbo(
+        TextPlanItem item,
+        int versionId
+    ) =>
+        (
+            new HabboTextEntity
+            {
+                Key = item.Key,
+                Value = item.Habbo,
+                HabboTextVersionEntityId = versionId,
+            },
+            Change(GamedataRecordType.HabboText, item.Key, null, item.Habbo)
+        );
+
+    protected override string ImportSummary(
+        HabboTextVersionEntity version,
+        int added,
+        int updated,
+        int kept
+    ) =>
+        $"Habbo's texts ({version.TextCount}): {added} added, {updated} updated, {kept} kept as the hotel has them";
+
+    protected override void Changed()
+    {
         files.Invalidate(GamedataFiles.EXTERNAL_TEXTS);
         hotelTexts.Invalidate();
-
-        return changeSet?.ToSnapshot(changeSet.Changes!.Count);
     }
 
     public async Task<TextSearchResult> SearchAsync(string? query, int page, CancellationToken ct)
     {
-        var size = Math.Max(1, _config.TextPageSize);
+        var size = Math.Max(1, Config.TextPageSize);
         var words = (query ?? string.Empty).Trim();
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var texts = dbCtx.GamedataTexts.AsNoTracking();
@@ -305,7 +191,7 @@ internal sealed class GamedataTextService(
         string value,
         PlayerId player,
         CancellationToken ct
-    ) => writes.RunAsync(() => SaveLockedAsync(key, value, player, ct), ct);
+    ) => Writes.RunAsync(() => SaveLockedAsync(key, value, player, ct), ct);
 
     private async Task<TextEntrySnapshot> SaveLockedAsync(
         string key,
@@ -317,7 +203,7 @@ internal sealed class GamedataTextService(
         key = CheckKey(key);
         value = CheckValue(value);
 
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var row = await dbCtx
@@ -340,22 +226,17 @@ internal sealed class GamedataTextService(
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
             dbCtx.GamedataChangeSets.Add(
-                new GamedataChangeSetEntity
-                {
-                    Kind = GamedataChangeKind.Edit,
-                    Summary = Truncate(
-                        before is null ? $"Added the text {key}" : $"Edited the text {key}",
-                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                    ),
-                    PlayerEntityId = player.Value,
-                    Changes = [WithId(Change(GamedataRecordType.Text, key, before, value), row.Id)],
-                }
+                GamedataChangeSets.Create(
+                    GamedataChangeKind.Edit,
+                    before is null ? $"Added the text {key}" : $"Edited the text {key}",
+                    player,
+                    [Change(GamedataRecordType.Text, key, before, value, row.Id)]
+                )
             );
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-            files.Invalidate(GamedataFiles.EXTERNAL_TEXTS);
-            hotelTexts.Invalidate();
+            Changed();
         }
 
         var habbo = await dbCtx
@@ -374,41 +255,13 @@ internal sealed class GamedataTextService(
     }
 
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct) =>
-        writes.RunAsync(() => DeleteLockedAsync(key, player, ct), ct);
-
-    private async Task<bool> DeleteLockedAsync(string key, PlayerId player, CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var row = await dbCtx
-            .GamedataTexts.FirstOrDefaultAsync(x => x.Key == key, ct)
-            .ConfigureAwait(false);
-
-        if (row is null)
-            return false;
-
-        dbCtx.GamedataTexts.Remove(row);
-        dbCtx.GamedataChangeSets.Add(
-            new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Edit,
-                Summary = Truncate(
-                    $"Removed the text {key}",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player.Value,
-                Changes = [WithId(Change(GamedataRecordType.Text, key, row.Value, null), row.Id)],
-            }
+        RemoveAsync(
+            x => x.Key == key,
+            row => Change(GamedataRecordType.Text, key, row.Value, null),
+            $"Removed the text {key}",
+            player,
+            ct
         );
-
-        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        files.Invalidate(GamedataFiles.EXTERNAL_TEXTS);
-        hotelTexts.Invalidate();
-
-        return true;
-    }
 
     /// <summary>A key the file can hold: one line, before the first <c>=</c>, not a comment.</summary>
     internal static string CheckKey(string key)
@@ -448,21 +301,7 @@ internal sealed class GamedataTextService(
         return value.Trim();
     }
 
-    private IQueryable<HabboTextVersionEntity> LatestQuery(TurboDbContext dbCtx) =>
-        dbCtx
-            .HabboTextVersions.Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id);
-
-    private Task<HabboTextVersionEntity?> FindVersionAsync(
-        TurboDbContext dbCtx,
-        int? versionId,
-        CancellationToken ct
-    ) =>
-        versionId is { } id
-            ? dbCtx.HabboTextVersions.FirstOrDefaultAsync(x => x.Id == id, ct)
-            : LatestQuery(dbCtx).FirstOrDefaultAsync(ct);
-
-    private static async Task<TextPlan> PlanAsync(
+    protected override async Task<List<TextPlanItem>> PlanAsync(
         TurboDbContext dbCtx,
         HabboTextVersionEntity version,
         bool tracked,
@@ -487,7 +326,7 @@ internal sealed class GamedataTextService(
         var habbo = ExternalTextsFile.Parse(
             Encoding.UTF8.GetString(GamedataBytes.Decompress(version.Content))
         );
-        var plan = new TextPlan();
+        var plan = new List<TextPlanItem>();
 
         foreach (var (key, value) in habbo)
         {
@@ -497,7 +336,7 @@ internal sealed class GamedataTextService(
 
             ours.TryGetValue(key, out var current);
             bases.TryGetValue(key, out var known);
-            plan.Items.Add(
+            plan.Add(
                 new TextPlanItem(
                     key,
                     value,
@@ -527,45 +366,30 @@ internal sealed class GamedataTextService(
         return habbo == previous ? null : FurnitureImportAction.Keep;
     }
 
+    /// <param name="recordId">The text's row; 0 for one not saved yet.</param>
     internal static GamedataChangeEntity Change(
         GamedataRecordType type,
         string key,
         string? before,
-        string? after
+        string? after,
+        int recordId = 0
     ) =>
-        new()
-        {
-            RecordType = type,
-            RecordId = 0,
-            Label = Truncate(key, GamedataChangeEntity.LABEL_MAX_LENGTH),
-            Before = before is null ? null : Record(key, before),
-            After = after is null ? null : Record(key, after),
-        };
-
-    internal static GamedataChangeEntity WithId(GamedataChangeEntity change, int id)
-    {
-        change.RecordId = id;
-
-        return change;
-    }
+        GamedataChangeSets.Change(
+            type,
+            key,
+            before is null ? null : Record(key, before),
+            after is null ? null : Record(key, after),
+            recordId
+        );
 
     private static string Record(string key, string value) =>
         new JsonObject { [KEY] = key, [VALUE] = value }.ToJsonString();
 
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
-
-    private sealed record TextPlanItem(
+    internal sealed record TextPlanItem(
         string Key,
         string Habbo,
         GamedataTextEntity? Current,
         HabboTextEntity? Base,
         FurnitureImportAction? Action
-    );
-
-    private sealed class TextPlan
-    {
-        public List<TextPlanItem> Items { get; } = [];
-
-        public int Count(FurnitureImportAction action) => Items.Count(x => x.Action == action);
-    }
+    ) : IHabboImportItem<GamedataTextEntity, HabboTextEntity>;
 }

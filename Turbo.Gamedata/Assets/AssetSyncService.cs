@@ -1124,7 +1124,7 @@ internal sealed class AssetSyncService(
 
             row.Revision = library.Revision;
             row.Ids = library.Ids;
-            row.Error = Truncate(outcome.Error, AssetBundleEntity.ERROR_MAX_LENGTH);
+            row.Error = GamedataStrings.Truncate(outcome.Error, AssetBundleEntity.ERROR_MAX_LENGTH);
             row.Retry = outcome.Retry;
             row.UpdatedAt = now;
 
@@ -1285,9 +1285,6 @@ internal sealed class AssetSyncService(
 
         return false;
     }
-
-    private static string? Truncate(string? text, int max) =>
-        text is null || text.Length <= max ? text : text[..max];
 
     /// <summary>Habbo's libraries by kind, as read at <see cref="ListedAt"/>; null where a map could not be read.</summary>
     private sealed record HabboLists(

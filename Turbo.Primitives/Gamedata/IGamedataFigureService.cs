@@ -17,9 +17,6 @@ namespace Turbo.Primitives.Gamedata;
 /// </summary>
 public interface IGamedataFigureService
 {
-    /// <summary>The newest version of Habbo's figure data found; null before the first check.</summary>
-    public Task<HabboFigureVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct);
-
     /// <summary>What taking in the version would do; the newest when none is named. Null when there is no such version.</summary>
     public Task<FigureImportPreview?> PreviewImportAsync(int? versionId, CancellationToken ct);
 

@@ -10,6 +10,7 @@ using System.Xml.Linq;
 using Turbo.Assets.Hab;
 using Turbo.Assets.Nitro;
 using Turbo.Assets.Swf;
+using static Turbo.Assets.XmlAttributes;
 
 namespace Turbo.Assets.Furniture;
 
@@ -55,7 +56,7 @@ public static class FurnitureAssetReader
     public static FurnitureAssetInfo FromLibrary(IAssetLibrary library)
     {
         var index = Parse(library.GetXml("index"), "index");
-        var type = Attribute(index, "type") ?? library.DocumentClass;
+        var type = Attr(index, "type") ?? library.DocumentClass;
         var logic = Parse(library.GetXml($"{type}_logic"), "logic");
         var visualization = Parse(library.GetXml($"{type}_visualization"), "visualization");
         var model = logic?.Element("model");
@@ -66,28 +67,28 @@ public static class FurnitureAssetReader
             .SelectMany(x => x.Element("animations")?.Elements("animation") ?? [])
             .Select(x =>
                 (
-                    Id: Int(Attribute(x, "id")),
-                    Transition: !string.IsNullOrEmpty(Attribute(x, "transitionTo"))
-                        || !string.IsNullOrEmpty(Attribute(x, "transitionFrom"))
+                    Id: Int(Attr(x, "id")),
+                    Transition: !string.IsNullOrEmpty(Attr(x, "transitionTo"))
+                        || !string.IsNullOrEmpty(Attr(x, "transitionFrom"))
                 )
             );
-        var largest = visualizations.MaxBy(x => Int(Attribute(x, "size")) ?? 0);
+        var largest = visualizations.MaxBy(x => Int(Attr(x, "size")) ?? 0);
 
         return Build(
             type,
-            Attribute(index, "logic"),
-            Attribute(index, "visualization"),
+            Attr(index, "logic"),
+            Attr(index, "visualization"),
             animations,
-            Number(Attribute(dimensions, "x")),
-            Number(Attribute(dimensions, "y")),
-            Number(Attribute(dimensions, "z")),
-            model?.Element("directions")?.Elements("direction").Select(x => Int(Attribute(x, "id")))
+            Number(Attr(dimensions, "x")),
+            Number(Attr(dimensions, "y")),
+            Number(Attr(dimensions, "z")),
+            model?.Element("directions")?.Elements("direction").Select(x => Int(Attr(x, "id")))
                 ?? [],
             visualizations.SelectMany(x =>
-                x.Element("colors")?.Elements("color").Select(c => Int(Attribute(c, "id"))) ?? []
+                x.Element("colors")?.Elements("color").Select(c => Int(Attr(c, "id"))) ?? []
             ),
-            Int(Attribute(largest, "layerCount")),
-            visualizations.Select(x => Int(Attribute(x, "size")))
+            Int(Attr(largest, "layerCount")),
+            visualizations.Select(x => Int(Attr(x, "size")))
         );
     }
 
@@ -211,9 +212,6 @@ public static class FurnitureAssetReader
             );
         }
     }
-
-    private static string? Attribute(XElement? element, string name) =>
-        element?.Attribute(name)?.Value;
 
     private static string? Text(JsonNode? node) =>
         node switch

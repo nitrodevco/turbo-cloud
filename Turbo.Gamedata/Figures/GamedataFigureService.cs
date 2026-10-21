@@ -38,230 +38,128 @@ internal sealed class GamedataFigureService(
     GamedataWriteLock writes,
     TimeProvider time,
     ILogger<GamedataFigureService> logger
-) : IGamedataFigureService
+)
+    : HabboMirroredService<
+        HabboFigureVersionEntity,
+        GamedataFigureEntity,
+        HabboFigureEntity,
+        GamedataFigureService.PlanItem,
+        FigureImportPreview
+    >(dbCtxFactory, config, writes, time, logger),
+        IGamedataFigureService
 {
-    private readonly GamedataConfig _config = config.Value;
-    private readonly GamedataPreviewCache<GamedataDataVersion, FigureImportPreview> _previews =
-        new();
+    protected override string What => "figure data";
 
-    public async Task<HabboFigureVersionSnapshot?> GetLatestVersionAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await LatestQuery(dbCtx)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return latest?.ToSnapshot();
-    }
-
-    public async Task<FigureImportPreview?> PreviewImportAsync(int? versionId, CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var latest = await LatestQuery(dbCtx)
-            .AsNoTracking()
-            .Select(x => new { x.Id, x.ImportedAt })
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-        var data = await GamedataDataVersion
-            .ReadAsync(
-                dbCtx,
-                latest?.Id,
-                latest?.ImportedAt,
-                dbCtx.GamedataFigures.Select(x => x.Id),
-                dbCtx.HabboFigures.Select(x => x.Id),
-                ct
-            )
-            .ConfigureAwait(false);
-
-        return await _previews
-            .GetAsync(data, versionId, () => WorkOutPreviewAsync(dbCtx, versionId, ct), ct)
-            .ConfigureAwait(false);
-    }
-
-    private async Task<FigureImportPreview?> WorkOutPreviewAsync(
-        TurboDbContext dbCtx,
-        int? versionId,
-        CancellationToken ct
-    )
-    {
-        var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
-
-        if (version is null)
-            return null;
-
-        var plan = await PlanAsync(dbCtx, version, tracked: false, ct).ConfigureAwait(false);
-        var touched = plan.Where(x => x.Action is not null).ToList();
-
-        return new FigureImportPreview
+    protected override FigureImportPreview Preview(
+        HabboFigureVersionEntity version,
+        List<PlanItem> plan,
+        IEnumerable<PlanItem> shown,
+        bool truncated
+    ) =>
+        new()
         {
             Version = version.ToSnapshot(),
-            Added = plan.Count(x => x.Action == FurnitureImportAction.Add),
-            Updated = plan.Count(x => x.Action == FurnitureImportAction.Update),
-            Kept = plan.Count(x => x.Action == FurnitureImportAction.Keep),
-            Unchanged = plan.Count(x => x.Action is null),
+            Added = Count(plan, FurnitureImportAction.Add),
+            Updated = Count(plan, FurnitureImportAction.Update),
+            Kept = Count(plan, FurnitureImportAction.Keep),
+            Unchanged = Count(plan, null),
             Items =
             [
-                .. touched
-                    .Take(_config.PreviewItemLimit)
-                    .Select(x => new FigureImportItem
-                    {
-                        Kind = x.Kind,
-                        Key = x.Key,
-                        Action = x.Action!.Value,
-                        Fields = x.Fields,
-                    }),
+                .. shown.Select(x => new FigureImportItem
+                {
+                    Kind = x.Kind,
+                    Key = x.Key,
+                    Action = x.Action!.Value,
+                    Fields = x.Fields,
+                }),
             ],
-            Truncated = touched.Count > _config.PreviewItemLimit,
+            Truncated = truncated,
         };
-    }
 
-    public Task<GamedataChangeSetSnapshot?> ImportAsync(
-        int versionId,
-        PlayerId? player,
-        CancellationToken ct
-    ) => writes.RunAsync(() => ImportLockedAsync(versionId, player, ct), ct);
-
-    private async Task<GamedataChangeSetSnapshot?> ImportLockedAsync(
-        int versionId,
-        PlayerId? player,
-        CancellationToken ct
+    protected override (GamedataFigureEntity Row, GamedataChangeEntity Change) AddOurs(
+        PlanItem item
     )
     {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+        var habbo = FigureRecords.Json(item.Habbo);
 
-        var version = await FindVersionAsync(dbCtx, versionId, ct).ConfigureAwait(false);
+        return (
+            new GamedataFigureEntity
+            {
+                Kind = item.Kind,
+                Key = item.Key,
+                Group = FigureRecords.GroupOf(item.Kind, item.Habbo),
+                Data = habbo,
+            },
+            Change(GamedataRecordType.Figure, item.Kind, item.Key, null, habbo)
+        );
+    }
 
-        if (version is null)
+    protected override GamedataChangeEntity UpdateOurs(PlanItem item, GamedataFigureEntity row)
+    {
+        var before = row.Data;
+        var record = FigureRecords.Parse(row.Data);
+
+        foreach (var field in item.Fields.Where(x => !x.Kept))
+            record[field.Field] = item.Habbo[field.Field]?.DeepClone();
+
+        record = FigureRecords.Normalize(item.Kind, record);
+        row.Data = FigureRecords.Json(record);
+        row.Group = FigureRecords.GroupOf(item.Kind, record);
+
+        return Change(GamedataRecordType.Figure, item.Kind, item.Key, before, row.Data);
+    }
+
+    protected override GamedataChangeEntity? TakeHabbo(
+        PlanItem item,
+        HabboFigureEntity known,
+        int versionId
+    )
+    {
+        var habbo = FigureRecords.Json(item.Habbo);
+
+        if (known.Data == habbo)
             return null;
 
-        var plan = await PlanAsync(dbCtx, version, tracked: true, ct).ConfigureAwait(false);
-        var changes = new List<(GamedataChangeEntity Change, object Row)>();
-        var added = 0;
-        var updated = 0;
+        var change = Change(GamedataRecordType.HabboFigure, item.Kind, item.Key, known.Data, habbo);
 
-        dbCtx.ChangeTracker.AutoDetectChangesEnabled = false;
+        known.Data = habbo;
+        known.HabboFigureVersionEntityId = versionId;
 
-        var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-        await using var txScope = tx.ConfigureAwait(false);
+        return change;
+    }
 
-        foreach (var item in plan)
-        {
-            var habbo = FigureRecords.Json(item.Habbo);
+    protected override (HabboFigureEntity Row, GamedataChangeEntity Change) AddHabbo(
+        PlanItem item,
+        int versionId
+    )
+    {
+        var habbo = FigureRecords.Json(item.Habbo);
 
-            if (item.Action == FurnitureImportAction.Add)
+        return (
+            new HabboFigureEntity
             {
-                var row = new GamedataFigureEntity
-                {
-                    Kind = item.Kind,
-                    Key = item.Key,
-                    Group = FigureRecords.GroupOf(item.Kind, item.Habbo),
-                    Data = habbo,
-                };
-
-                dbCtx.GamedataFigures.Add(row);
-                changes.Add((Change(GamedataRecordType.Figure, item, null, habbo), row));
-                added++;
-            }
-            else if (item.Action == FurnitureImportAction.Update)
-            {
-                var row = item.Current!;
-                var before = row.Data;
-                var record = FigureRecords.Parse(row.Data);
-
-                foreach (var field in item.Fields.Where(x => !x.Kept))
-                    record[field.Field] = item.Habbo[field.Field]?.DeepClone();
-
-                record = FigureRecords.Normalize(item.Kind, record);
-                row.Data = FigureRecords.Json(record);
-                row.Group = FigureRecords.GroupOf(item.Kind, record);
-                dbCtx.Entry(row).State = EntityState.Modified;
-                changes.Add((Change(GamedataRecordType.Figure, item, before, row.Data), row));
-                updated++;
-            }
-
-            if (item.Base is { } known)
-            {
-                if (known.Data == habbo)
-                    continue;
-
-                changes.Add(
-                    (Change(GamedataRecordType.HabboFigure, item, known.Data, habbo), known)
-                );
-                known.Data = habbo;
-                known.HabboFigureVersionEntityId = version.Id;
-                dbCtx.Entry(known).State = EntityState.Modified;
-            }
-            else
-            {
-                var row = new HabboFigureEntity
-                {
-                    Kind = item.Kind,
-                    Key = item.Key,
-                    Data = habbo,
-                    HabboFigureVersionEntityId = version.Id,
-                };
-
-                dbCtx.HabboFigures.Add(row);
-                changes.Add((Change(GamedataRecordType.HabboFigure, item, null, habbo), row));
-            }
-        }
-
-        version.ImportedAt = time.GetUtcNow().UtcDateTime;
-        dbCtx.Entry(version).State = EntityState.Modified;
-
-        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        GamedataChangeSetEntity? changeSet = null;
-
-        if (changes.Count > 0)
-        {
-            var kept = plan.Count(x => x.Action == FurnitureImportAction.Keep);
-
-            changeSet = new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Import,
-                Summary = Truncate(
-                    $"Habbo's figure data ({version.SetCount} pieces, {version.ColorCount} colours): {added} added, {updated} updated, {kept} kept as the hotel has them",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player?.Value,
-                Changes = [],
-            };
-
-            foreach (var (change, row) in changes)
-            {
-                change.RecordId = row switch
-                {
-                    GamedataFigureEntity figure => figure.Id,
-                    HabboFigureEntity habbo => habbo.Id,
-                    _ => 0,
-                };
-                changeSet.Changes.Add(change);
-            }
-
-            dbCtx.GamedataChangeSets.Add(changeSet);
-
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-
-        await tx.CommitAsync(ct).ConfigureAwait(false);
-
-        logger.LogInformation(
-            "Imported Habbo's figure data {VersionId}: {Added} added, {Updated} updated",
-            version.Id,
-            added,
-            updated
+                Kind = item.Kind,
+                Key = item.Key,
+                Data = habbo,
+                HabboFigureVersionEntityId = versionId,
+            },
+            Change(GamedataRecordType.HabboFigure, item.Kind, item.Key, null, habbo)
         );
+    }
 
-        Changed();
+    protected override string ImportSummary(
+        HabboFigureVersionEntity version,
+        int added,
+        int updated,
+        int kept
+    ) =>
+        $"Habbo's figure data ({version.SetCount} pieces, {version.ColorCount} colours): {added} added, {updated} updated, {kept} kept as the hotel has them";
 
-        return changeSet?.ToSnapshot(changeSet.Changes!.Count);
+    /// <summary>After any change: the file the client loads is built again, and figures are checked against the new data.</summary>
+    protected override void Changed()
+    {
+        files.Invalidate(GamedataFiles.FIGURE_DATA);
+        figureData.Invalidate();
     }
 
     public async Task<FigureSearchResult> SearchAsync(
@@ -273,9 +171,9 @@ internal sealed class GamedataFigureService(
         CancellationToken ct
     )
     {
-        var size = Math.Max(1, _config.TextPageSize);
+        var size = Math.Max(1, Config.TextPageSize);
         var words = (query ?? string.Empty).Trim();
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var records = dbCtx.GamedataFigures.AsNoTracking().Where(x => x.Kind == kind);
@@ -331,7 +229,7 @@ internal sealed class GamedataFigureService(
 
     public async Task<FigureKindsSnapshot> GetKindsAsync(CancellationToken ct)
     {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var kinds = await dbCtx
@@ -380,7 +278,7 @@ internal sealed class GamedataFigureService(
         string data,
         PlayerId player,
         CancellationToken ct
-    ) => writes.RunAsync(() => SaveLockedAsync(kind, data, player, ct), ct);
+    ) => Writes.RunAsync(() => SaveLockedAsync(kind, data, player, ct), ct);
 
     private async Task<FigureEntrySnapshot> SaveLockedAsync(
         FigureRecordKind kind,
@@ -406,7 +304,7 @@ internal sealed class GamedataFigureService(
             throw new ArgumentException("That record's key is too long.", nameof(data));
 
         var json = FigureRecords.Json(record);
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var row = await dbCtx
@@ -433,20 +331,13 @@ internal sealed class GamedataFigureService(
         {
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-            var change = Change(GamedataRecordType.Figure, kind, key, before, json);
-
-            change.RecordId = row.Id;
             dbCtx.GamedataChangeSets.Add(
-                new GamedataChangeSetEntity
-                {
-                    Kind = GamedataChangeKind.Edit,
-                    Summary = Truncate(
-                        $"{(before is null ? "Added" : "Edited")} {Describe(kind, key)}",
-                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                    ),
-                    PlayerEntityId = player.Value,
-                    Changes = [change],
-                }
+                GamedataChangeSets.Create(
+                    GamedataChangeKind.Edit,
+                    $"{(before is null ? "Added" : "Edited")} {Describe(kind, key)}",
+                    player,
+                    [Change(GamedataRecordType.Figure, kind, key, before, json, row.Id)]
+                )
             );
 
             await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -459,7 +350,7 @@ internal sealed class GamedataFigureService(
 
     public async Task<ImmutableArray<FigurePaletteSnapshot>> GetPalettesAsync(CancellationToken ct)
     {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var rows = await dbCtx
@@ -528,7 +419,7 @@ internal sealed class GamedataFigureService(
         string summary,
         PlayerId player,
         CancellationToken ct
-    ) => writes.RunAsync(() => SaveBatchLockedAsync(kind, save, delete, summary, player, ct), ct);
+    ) => Writes.RunAsync(() => SaveBatchLockedAsync(kind, save, delete, summary, player, ct), ct);
 
     private async Task<int> SaveBatchLockedAsync(
         FigureRecordKind kind,
@@ -569,7 +460,7 @@ internal sealed class GamedataFigureService(
             .Distinct(StringComparer.Ordinal)
             .ToList();
         var keys = records.Keys.Concat(removed).ToList();
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var rows = await dbCtx
@@ -627,18 +518,14 @@ internal sealed class GamedataFigureService(
             change.RecordId = row.Id;
 
         dbCtx.GamedataChangeSets.Add(
-            new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Edit,
-                Summary = Truncate(
-                    string.IsNullOrWhiteSpace(summary)
-                        ? $"Edited {changes.Count} figure records"
-                        : summary.Trim(),
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player.Value,
-                Changes = [.. changes.Select(x => x.Change)],
-            }
+            GamedataChangeSets.Create(
+                GamedataChangeKind.Edit,
+                string.IsNullOrWhiteSpace(summary)
+                    ? $"Edited {changes.Count} figure records"
+                    : summary.Trim(),
+                player,
+                [.. changes.Select(x => x.Change)]
+            )
         );
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -654,48 +541,14 @@ internal sealed class GamedataFigureService(
         string key,
         PlayerId player,
         CancellationToken ct
-    ) => writes.RunAsync(() => DeleteLockedAsync(kind, key, player, ct), ct);
-
-    private async Task<bool> DeleteLockedAsync(
-        FigureRecordKind kind,
-        string key,
-        PlayerId player,
-        CancellationToken ct
-    )
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var row = await dbCtx
-            .GamedataFigures.FirstOrDefaultAsync(x => x.Kind == kind && x.Key == key, ct)
-            .ConfigureAwait(false);
-
-        if (row is null)
-            return false;
-
-        var change = Change(GamedataRecordType.Figure, kind, key, row.Data, null);
-
-        change.RecordId = row.Id;
-        dbCtx.GamedataFigures.Remove(row);
-        dbCtx.GamedataChangeSets.Add(
-            new GamedataChangeSetEntity
-            {
-                Kind = GamedataChangeKind.Edit,
-                Summary = Truncate(
-                    $"Removed {Describe(kind, key)}",
-                    GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
-                ),
-                PlayerEntityId = player.Value,
-                Changes = [change],
-            }
+    ) =>
+        RemoveAsync(
+            x => x.Kind == kind && x.Key == key,
+            row => Change(GamedataRecordType.Figure, kind, key, row.Data, null),
+            $"Removed {Describe(kind, key)}",
+            player,
+            ct
         );
-
-        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        Changed();
-
-        return true;
-    }
 
     /// <summary>The kind a record is, by the fields only it has: what a change's record says of itself.</summary>
     internal static FigureRecordKind KindOf(JsonObject record) =>
@@ -769,13 +622,6 @@ internal sealed class GamedataFigureService(
             : (FurnitureImportAction.Keep, changes.ToImmutable());
     }
 
-    /// <summary>After any change: the file the client loads is built again, and figures are checked against the new data.</summary>
-    private void Changed()
-    {
-        files.Invalidate(GamedataFiles.FIGURE_DATA);
-        figureData.Invalidate();
-    }
-
     private static async Task<ImmutableArray<FigureEntrySnapshot>> EntriesAsync(
         TurboDbContext dbCtx,
         IReadOnlyCollection<GamedataFigureEntity> rows,
@@ -811,21 +657,7 @@ internal sealed class GamedataFigureService(
         ];
     }
 
-    private IQueryable<HabboFigureVersionEntity> LatestQuery(TurboDbContext dbCtx) =>
-        dbCtx
-            .HabboFigureVersions.Where(x => x.Domain == _config.HabboDomain)
-            .OrderByDescending(x => x.Id);
-
-    private Task<HabboFigureVersionEntity?> FindVersionAsync(
-        TurboDbContext dbCtx,
-        int? versionId,
-        CancellationToken ct
-    ) =>
-        versionId is { } id
-            ? dbCtx.HabboFigureVersions.FirstOrDefaultAsync(x => x.Id == id, ct)
-            : LatestQuery(dbCtx).FirstOrDefaultAsync(ct);
-
-    private static async Task<List<PlanItem>> PlanAsync(
+    protected override async Task<List<PlanItem>> PlanAsync(
         TurboDbContext dbCtx,
         HabboFigureVersionEntity version,
         bool tracked,
@@ -904,28 +736,15 @@ internal sealed class GamedataFigureService(
             Kept = kept,
         };
 
-    private static GamedataChangeEntity Change(
-        GamedataRecordType type,
-        PlanItem item,
-        string? before,
-        string? after
-    ) => Change(type, item.Kind, item.Key, before, after);
-
+    /// <param name="recordId">The record's row; 0 for one not saved yet.</param>
     private static GamedataChangeEntity Change(
         GamedataRecordType type,
         FigureRecordKind kind,
         string key,
         string? before,
-        string? after
-    ) =>
-        new()
-        {
-            RecordType = type,
-            RecordId = 0,
-            Label = Truncate(Describe(kind, key), GamedataChangeEntity.LABEL_MAX_LENGTH),
-            Before = before,
-            After = after,
-        };
+        string? after,
+        int recordId = 0
+    ) => GamedataChangeSets.Change(type, Describe(kind, key), before, after, recordId);
 
     internal static string Describe(FigureRecordKind kind, string key) =>
         kind switch
@@ -935,9 +754,7 @@ internal sealed class GamedataFigureService(
             _ => $"figure set {key}",
         };
 
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
-
-    private sealed record PlanItem(
+    internal sealed record PlanItem(
         FigureRecordKind Kind,
         string Key,
         JsonObject Habbo,
@@ -945,5 +762,5 @@ internal sealed class GamedataFigureService(
         HabboFigureEntity? Base,
         FurnitureImportAction? Action,
         ImmutableArray<FurnitureFieldChange> Fields
-    );
+    ) : IHabboImportItem<GamedataFigureEntity, HabboFigureEntity>;
 }
