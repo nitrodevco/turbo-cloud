@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,8 +36,6 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
     public DateTime LastActiveUtc => _state.LastActiveUtc;
 
     public void MarkActive() => _state.MarkActive();
-
-    public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 
     public string? ServerCloseReason => _state.CloseReason;
 

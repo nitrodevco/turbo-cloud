@@ -33,4 +33,15 @@ public class NetworkingConfig
     /// stayed connected through 107 minutes of nothing but those timers.
     /// </summary>
     public int IdleDisconnectMilliseconds { get; init; }
+
+    /// <summary>
+    /// The most bytes one incoming packet may declare: its 2-byte header and body, not counting
+    /// the 4-byte length in front. A connection that declares more, or less than a header, is
+    /// closed before anything is buffered for it, and a WebSocket connection is never let hold
+    /// more than one such packet unread, so a client, logged in or not, cannot make the server
+    /// keep memory for a packet it never finishes. The largest a client sends are a few hundred
+    /// KB: a photo's zlib render data (<c>RenderRoomMessage</c>), the starter room picture
+    /// (render data and a 296x284 PNG) and a bug report (JSON and a JPEG at most 1280 px wide).
+    /// </summary>
+    public int MaxIncomingPacketBytes { get; init; } = 2 * 1024 * 1024;
 }

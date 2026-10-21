@@ -17,10 +17,10 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
         ISessionContext,
         ISessionOutbound
 {
-    // A buffer that grew past this for one large packet is dropped afterwards rather than kept
-    // for the life of the connection.
-    private const int MAX_RETAINED_SEND_BUFFER_BYTES = 64 * 1024;
-    private const int INITIAL_SEND_BUFFER_BYTES = 4096;
+    // A buffer, sending or receiving, that grew past this for one large packet is dropped
+    // afterwards rather than kept for the life of the connection.
+    private const int MAX_RETAINED_BUFFER_BYTES = 64 * 1024;
+    private const int INITIAL_BUFFER_BYTES = 4096;
 
     private readonly PackageEncoder _packageEncoder = packageEncoder;
     private readonly SessionContextState _state = new(logger);
@@ -28,7 +28,7 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
     // Reused for every outgoing packet. Safe because sends on a session are serialised by
     // SessionContextState, and SuperSocket has copied the frame into the pipe by the time a send
     // completes.
-    private ArrayBufferWriter<byte> _sendBuffer = new(INITIAL_SEND_BUFFER_BYTES);
+    private ArrayBufferWriter<byte> _sendBuffer = new(INITIAL_BUFFER_BYTES);
 
     public SessionKey SessionKey => this.SessionID;
     public bool PolicyDone
@@ -48,7 +48,26 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
 
     public void MarkActive() => _state.MarkActive();
 
-    public ArrayBufferWriter<byte>? WsBuffer { get; } = new(4096);
+    /// <summary>
+    /// What has arrived of the packets not yet read (<see cref="WebSocketPacketReceiver"/>):
+    /// a packet split across messages waits here for the rest. Null once the connection's data
+    /// was refused, so nothing more is read from it.
+    /// </summary>
+    internal ArrayBufferWriter<byte>? ReceiveBuffer { get; private set; } =
+        new(INITIAL_BUFFER_BYTES);
+
+    /// <summary>
+    /// Drops a receive buffer that grew for a large packet once that packet has been read, as
+    /// the send buffer is dropped after a large send.
+    /// </summary>
+    internal void ShrinkReceiveBuffer()
+    {
+        if (ReceiveBuffer is { WrittenCount: 0, Capacity: > MAX_RETAINED_BUFFER_BYTES })
+            ReceiveBuffer = new(INITIAL_BUFFER_BYTES);
+    }
+
+    /// <summary>Lets go of the receive buffer for good: the connection's data was refused.</summary>
+    internal void StopReceiving() => ReceiveBuffer = null;
 
     public string? ServerCloseReason => _state.CloseReason;
 
@@ -103,7 +122,7 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
 
         await SendAsync(_sendBuffer.WrittenMemory, ct).ConfigureAwait(false);
 
-        if (_sendBuffer.Capacity > MAX_RETAINED_SEND_BUFFER_BYTES)
-            _sendBuffer = new(INITIAL_SEND_BUFFER_BYTES);
+        if (_sendBuffer.Capacity > MAX_RETAINED_BUFFER_BYTES)
+            _sendBuffer = new(INITIAL_BUFFER_BYTES);
     }
 }

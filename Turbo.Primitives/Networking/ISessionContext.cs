@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Server.Abstractions.Session;
@@ -15,7 +14,6 @@ public interface ISessionContext : IAppSession
     public string RevisionId { get; }
     public IRc4Engine? CryptoIn { get; }
     public IRc4Engine? CryptoOut { get; }
-    public ArrayBufferWriter<byte>? WsBuffer { get; }
 
     /// <summary>
     /// The room the player is in, as the presence grain last pushed it with its composers. It
