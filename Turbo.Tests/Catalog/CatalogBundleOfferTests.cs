@@ -207,8 +207,8 @@ public sealed class CatalogBundleOfferTests : IDisposable
                 ],
                 "on its own"
             },
-            { [], "1 to 20" },
-            { [.. Enumerable.Repeat(Floor(), 21)], "1 to 20" },
+            { [], "1 to 100" },
+            { [.. Enumerable.Repeat(Floor(), CatalogEditService.PRODUCTS_MAX + 1)], "1 to 100" },
             { [Badge() with { Quantity = 2 }], "one at a time" },
             { [Floor(), Badge(" ")], "badge code" },
             { [Floor(0)], "1 to 100" },

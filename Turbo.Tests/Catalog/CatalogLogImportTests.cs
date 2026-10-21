@@ -404,6 +404,71 @@ public sealed class CatalogLogImportTests : IDisposable
     }
 
     [Fact]
+    public async Task APage_ComesWithItsHeaderTeaserAndEveryText_EmptySlotsKeptInPlace()
+    {
+        var page = Page(60, FURNITURE, "Spooky", sort: 6);
+
+        // Habbo leaves a header out as an empty slot, so the teaser stays the second picture.
+        page.ImageData = ["", "spromo_spooky"];
+        page.TextData = ["Dark magic starts here.", "", "<b>Read me</b>"];
+        _habbo.Db.Insert(page);
+        HabboOffer(206, 60, "spooky_chair", (ProductType.Floor, CHAIR, null));
+
+        var request = new CatalogLogImportRequest(
+            await HabboLogAsync(CatalogType.Normal),
+            null,
+            false,
+            false
+        );
+
+        (await Importer.ApplyLogsAsync(Editor, request, Ct)).Error.Should().BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        var spooky = await db.CatalogPages.SingleAsync(x => x.Name == "spooky", Ct);
+
+        spooky.ImageData.Should().Equal("", "spromo_spooky");
+        spooky.TextData.Should().Equal("Dark magic starts here.", "", "<b>Read me</b>");
+    }
+
+    [Fact]
+    public async Task ARoomBundle_ComesWithEveryFurniAndItsBadge()
+    {
+        _habbo.Db.Insert(Page(60, FURNITURE, "Room_bundle", sort: 6));
+
+        // As Habbo's room deals are: a badge and more furni than a small offer has.
+        HabboOffer(
+            206,
+            60,
+            "roomdeal",
+            [
+                (ProductType.Badge, null, "DAD11"),
+                (ProductType.Floor, CHAIR, null),
+                .. Enumerable
+                    .Range(1, 30)
+                    .Select(n => (ProductType.Wall, (int?)POSTER, (string?)$"{n}")),
+            ]
+        );
+
+        var request = new CatalogLogImportRequest(
+            await HabboLogAsync(CatalogType.Normal),
+            null,
+            false,
+            false
+        );
+
+        (await Importer.ApplyLogsAsync(Editor, request, Ct)).Error.Should().BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        var bundle = await db
+            .CatalogOffers.Include(x => x.Products)
+            .SingleAsync(x => x.LocalizationId == "roomdeal", Ct);
+
+        bundle.Products.Should().HaveCount(32);
+        bundle.Products!.Should().Contain(x => x.ExtraParam == "DAD11");
+        bundle.CanBundle.Should().BeFalse("a badge is given once per purchase");
+    }
+
+    [Fact]
     public async Task BothLogs_AreTakenInAsOneStep()
     {
         var request = new CatalogLogImportRequest(

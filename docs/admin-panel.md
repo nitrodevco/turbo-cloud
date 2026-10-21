@@ -569,9 +569,10 @@ your own for links:
   - a membership, which is sold on its own (see below).
 
   An item must exist and be of its kind, or the save is refused; otherwise every purchase would
-  fail. An offer gives up to 20 things and one pet at most. A badge, a pet, a bot and a membership
-  are given once per purchase, so they come one at a time and such an offer can't be bought in
-  bulk; a badge the buyer already has isn't sold to them again.
+  fail. An offer gives up to 100 things (Habbo's room bundles give a badge and thirty-odd
+  furni) and one pet at most. A badge, a pet, a bot and a membership are given once per purchase,
+  so they come one at a time and such an offer can't be bought in bulk; a badge the buyer already
+  has isn't sold to them again.
 - **Name key:** the product data the client names it by. Leave it empty to use the first item's
   class name, as the hotel's own offers do; a pet with no item gets `a0 pet<type>`, a bot with no
   item `bot`.

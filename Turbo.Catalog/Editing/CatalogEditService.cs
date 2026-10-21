@@ -60,7 +60,8 @@ public sealed partial class CatalogEditService(
     public const int LIMITED_TOTAL_MAX = 1_000_000;
     public const int RAFFLE_WINDOW_MAX = 3600;
 
-    public const int PRODUCTS_MAX = 20;
+    /// <summary>What one offer gives at most: Habbo's room bundles give a badge and thirty-odd furni.</summary>
+    public const int PRODUCTS_MAX = 100;
 
     /// <summary>The front page draws four: the first large, the next three in a list.</summary>
     public const int FEATURED_ITEMS_MAX = 4;
