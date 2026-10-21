@@ -211,7 +211,7 @@ public sealed class PluginSettingsTests : IDisposable
 
         int saved;
 
-        using (var before = _db.CreateDbContext())
+        await using (var before = await _db.CreateDbContextAsync(Ct))
             saved = before.ServerSettingChanges.Count();
 
         (await plugins.UninstallAsync("sample", PluginUninstallMode.DeleteData, STAFF, Ct))!
@@ -221,7 +221,7 @@ public sealed class PluginSettingsTests : IDisposable
             .Ok.Should()
             .BeTrue();
 
-        using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         db.ServerSettings.Select(x => x.Path).Should().Equal("Kept:Plugin:Greeting");
 

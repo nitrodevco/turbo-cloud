@@ -49,6 +49,8 @@ public class OperatorExecutionLifecycleTests
         ) => throw new InvalidOperationException("Execution must not be reached");
     }
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private static TaskCompletionSource Signal() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -205,7 +207,7 @@ public class OperatorExecutionLifecycleTests
         (await hotel.RunAsync("constructorprobe", console, "boom"))
             .Should()
             .Be(CommandOutcome.Error);
-        await using var db = hotel.Db.CreateDbContext();
+        await using var db = await hotel.Db.CreateDbContextAsync(Ct);
         var audit = await db.CommandLogs.SingleAsync(TestContext.Current.CancellationToken);
         audit.Outcome.Should().Be("error");
         audit.ExecutionId.Should().NotBeNull();
@@ -283,7 +285,7 @@ public class OperatorExecutionLifecycleTests
         var console = new FakeExecutor(null, "console");
         await hotel.RunAsync("executionprobe", console, "");
         await hotel.RunAsync("confirm", console, "");
-        await using var db = hotel.Db.CreateDbContext();
+        await using var db = await hotel.Db.CreateDbContextAsync(Ct);
         var rows = await db.CommandLogs.ToListAsync(TestContext.Current.CancellationToken);
         var prompt = rows.Single(x => x.Outcome == "confirm");
         var execution = rows.Single(x => x.Command == "executionprobe" && x.Outcome == "partial");

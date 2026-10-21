@@ -114,7 +114,7 @@ public sealed class AchievementExampleTests : IDisposable
             "ACH_ChristmasRooms2",
         };
         foreach (var code in codes)
-            File.WriteAllBytes(Path.Combine(directory, code + ".png"), []);
+            await File.WriteAllBytesAsync(Path.Combine(directory, code + ".png"), [], Ct);
         var sync = NewSync(
             new AchievementConfig { BadgeAssetDirectory = directory },
             new Dictionary<string, string>

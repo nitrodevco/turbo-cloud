@@ -321,7 +321,7 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
         );
         await SendAsync(HttpMethod.Delete, "/api/content/badges/XMAS26/holders/2");
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.CommandLogs.OrderBy(x => x.Id)
             .Select(x => new
             {
@@ -404,7 +404,7 @@ public sealed class ContentEndpointsTests : IAsyncDisposable
             .Be(HttpStatusCode.NoContent);
         _fakes.Log.Of("StaffDeleteAsync").Should().ContainSingle();
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.CommandLogs.OrderBy(x => x.Id)
             .Select(x => new
             {

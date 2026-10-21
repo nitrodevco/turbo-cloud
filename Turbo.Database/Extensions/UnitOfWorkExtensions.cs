@@ -32,20 +32,24 @@ public static class UnitOfWorkExtensions
         CancellationToken ct
     )
     {
-        await using var db = await factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // The work is the caller's: a grain's must run on its activation, so no await here leaves
+        // the caller's context.
+        var db = await factory.CreateDbContextAsync(ct).ConfigureAwait(true);
+        await using var dbScope = db.ConfigureAwait(true);
+        var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(true);
+        await using var txScope = tx.ConfigureAwait(true);
 
-        var outcome = await work(db);
+        var outcome = await work(db).ConfigureAwait(true);
 
         if (!outcome.Keep)
         {
-            await tx.RollbackAsync(ct);
+            await tx.RollbackAsync(ct).ConfigureAwait(true);
 
             return outcome.Result;
         }
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        await db.SaveChangesAsync(ct).ConfigureAwait(true);
+        await tx.CommitAsync(ct).ConfigureAwait(true);
 
         return outcome.Result;
     }

@@ -38,6 +38,8 @@ public sealed class ModerationToolTests : IDisposable
 
     private static readonly DateTime NOW = new(2026, 10, 13, 12, 0, 0, DateTimeKind.Utc);
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
     private readonly HashSet<string> _held = [];
@@ -448,7 +450,7 @@ public sealed class ModerationToolTests : IDisposable
 
         refused.Should().BeFalse("staff who may ban are out of reach");
         banned.Should().BeTrue();
-        using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         var ban = db.PlayerSanctions.Single(x =>
             x.Kind == Primitives.Moderation.Enums.SanctionKind.Ban
         );

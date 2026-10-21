@@ -370,10 +370,10 @@ internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
             ct
         );
 
-        if (result != WalletCreditResult.Applied)
+        if (result != WalletCreditResult.Applied || entity is null)
             return (result, null);
 
-        _state.CurrenciesByKind[kind] = entity!.ToSnapshot(kind);
+        _state.CurrenciesByKind[kind] = entity.ToSnapshot(kind);
 
         return (
             result,

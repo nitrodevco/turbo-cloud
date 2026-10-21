@@ -218,7 +218,7 @@ internal sealed class PluginAdminEndpoints(
             if (buffer.Length + read > cap)
                 return (null, tooLarge);
 
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), ct).ConfigureAwait(false);
         }
 
         if (buffer.Length == 0)

@@ -182,7 +182,7 @@ public sealed class PollEndpointsTests : IAsyncDisposable
             .Equal("Do you like it?");
         detail.GetProperty("results")[0].GetProperty("answered").GetInt32().Should().Be(1);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.RoomPollAnswers.Select(x => x.QuestionId).Should().Equal(kept);
     }
 

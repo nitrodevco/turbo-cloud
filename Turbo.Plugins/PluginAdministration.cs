@@ -631,7 +631,7 @@ internal sealed partial class PluginAdministration(
 
         try
         {
-            ZipFile.ExtractToDirectory(kept.Path, staging);
+            await ZipFile.ExtractToDirectoryAsync(kept.Path, staging, ct).ConfigureAwait(false);
             Replace(staging, target);
         }
         finally
@@ -756,7 +756,7 @@ internal sealed partial class PluginAdministration(
             if (buffer.Length + read > limit)
                 return $"The package is larger than {limit / (1024 * 1024)} MB.";
 
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), ct).ConfigureAwait(false);
         }
 
         buffer.Position = 0;
@@ -798,8 +798,10 @@ internal sealed partial class PluginAdministration(
                     return $"The package has a file outside its folder: {entry.FullName}.";
 
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await using var source = await entry.OpenAsync(ct).ConfigureAwait(false);
-                await using var file = File.Create(path);
+                var source = await entry.OpenAsync(ct).ConfigureAwait(false);
+                await using var sourceScope = source.ConfigureAwait(false);
+                var file = File.Create(path);
+                await using var fileScope = file.ConfigureAwait(false);
                 await source.CopyToAsync(file, ct).ConfigureAwait(false);
             }
         }

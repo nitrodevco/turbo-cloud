@@ -215,7 +215,9 @@ public sealed class PluginSourcesTests : IDisposable
         _sources.Add(Input() with { Token = "ghp_secret" }, player: 1);
         await JobAsync();
 
-        File.ReadAllText(Path.Combine(_folder, "plugins.json")).Should().NotContain("ghp_secret");
+        (await File.ReadAllTextAsync(Path.Combine(_folder, "plugins.json"), Ct))
+            .Should()
+            .NotContain("ghp_secret");
         _github.Authorizations.Should().OnlyContain(x => x == "Bearer ghp_secret");
         _sources.List().Single().HasToken.Should().BeTrue();
 

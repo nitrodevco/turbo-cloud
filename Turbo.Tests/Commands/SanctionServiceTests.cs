@@ -128,7 +128,7 @@ public class SanctionServiceTests : IDisposable
         var ban = await _service.GetActiveBanAsync(5, CancellationToken.None);
 
         ban!.Reason.Should().Be("second");
-        await using var ctx = _db.CreateDbContext();
+        await using var ctx = await _db.CreateDbContextAsync(Ct);
         var rows = await ctx.PlayerSanctions.OrderBy(x => x.Id).ToListAsync(Ct);
         rows.Should().HaveCount(2);
         rows[0].RevokedAt.Should().Be(START);
@@ -144,7 +144,7 @@ public class SanctionServiceTests : IDisposable
         (await _service.UnbanAsync(5, 3, CancellationToken.None)).Should().BeTrue();
 
         (await _service.GetActiveBanAsync(5, CancellationToken.None)).Should().BeNull();
-        await using var ctx = _db.CreateDbContext();
+        await using var ctx = await _db.CreateDbContextAsync(Ct);
         var row = await ctx.PlayerSanctions.SingleAsync(Ct);
         row.RevokedAt.Should().Be(START);
         row.RevokedByEntityId.Should().Be(3);

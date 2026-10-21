@@ -354,7 +354,9 @@ internal sealed partial class HabboClientService(
 
             await DownloadToAsync(url, zipPath, null, null, ct).ConfigureAwait(false);
 
-            using (var zip = ZipFile.OpenRead(zipPath))
+            var zip = await ZipFile.OpenReadAsync(zipPath, ct).ConfigureAwait(false);
+
+            await using (zip.ConfigureAwait(false))
             {
                 var entry =
                     zip.Entries.FirstOrDefault(x => x.FullName.Replace('\\', '/') == AIR_SWF)
@@ -367,7 +369,9 @@ internal sealed partial class HabboClientService(
                         $"Habbo's AIR client {version} has a {AIR_SWF} larger than this server takes."
                     );
 
-                entry.ExtractToFile(Path.Combine(partial, AIR_SWF));
+                await entry
+                    .ExtractToFileAsync(Path.Combine(partial, AIR_SWF), ct)
+                    .ConfigureAwait(false);
             }
 
             File.Delete(zipPath);
@@ -491,13 +495,15 @@ internal sealed partial class HabboClientService(
 
                 await DownloadToAsync(url, zipPath, null, null, ct).ConfigureAwait(false);
 
-                using (var zip = ZipFile.OpenRead(zipPath))
+                var zip = await ZipFile.OpenReadAsync(zipPath, ct).ConfigureAwait(false);
+
+                await using (zip.ConfigureAwait(false))
                 {
                     var entry =
                         zip.Entries.FirstOrDefault(x => x.FullName.Replace('\\', '/') == ZIP_ASAR)
                         ?? throw new InvalidDataException($"The release's zip has no {ZIP_ASAR}.");
 
-                    entry.ExtractToFile(asarPath);
+                    await entry.ExtractToFileAsync(asarPath, ct).ConfigureAwait(false);
                 }
 
                 File.Delete(zipPath);

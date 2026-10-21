@@ -63,9 +63,12 @@ public sealed class AdminCatalogImagesTests : IDisposable
         item.File.Should().Be("catalog_header_furni.gif");
         item.Size.Should().Be(Gif.Length);
         item.Pages.Select(x => x.Title).Should().Equal("Furniture", "Rares");
-        File.ReadAllBytes(
-                Path.Combine(_folder.Store.Root, "images/catalog/catalog_header_furni.gif")
+        (
+            await File.ReadAllBytesAsync(
+                Path.Combine(_folder.Store.Root, "images/catalog/catalog_header_furni.gif"),
+                Ct
             )
+        )
             .Should()
             .Equal(Gif);
         Images.FilePathOf("catalog_header_furni").Should().NotBeNull();
@@ -85,7 +88,7 @@ public sealed class AdminCatalogImagesTests : IDisposable
         item.File.Should().Be("event_banner.gif");
         item.Pages.Should().BeEmpty();
         AdminCatalogImages
-            .ContentTypeOf(File.ReadAllBytes(Images.FilePathOf("event_banner")!))
+            .ContentTypeOf(await File.ReadAllBytesAsync(Images.FilePathOf("event_banner")!, Ct))
             .Should()
             .Be("image/png");
     }
@@ -113,9 +116,9 @@ public sealed class AdminCatalogImagesTests : IDisposable
     {
         await Images.UploadAsync("unused_one", "a.gif", Gif, PlayerId.Parse(1), Ct);
         var folder = Path.Combine(_folder.Store.Root, "images/catalog");
-        File.WriteAllBytes(Path.Combine(folder, "catalog_header_furni.gif"), Gif);
-        File.WriteAllBytes(Path.Combine(folder, "hand_placed.png"), Png);
-        File.WriteAllText(Path.Combine(folder, "notes.txt"), "not a picture");
+        await File.WriteAllBytesAsync(Path.Combine(folder, "catalog_header_furni.gif"), Gif, Ct);
+        await File.WriteAllBytesAsync(Path.Combine(folder, "hand_placed.png"), Png, Ct);
+        await File.WriteAllTextAsync(Path.Combine(folder, "notes.txt"), "not a picture", Ct);
         // Recorded with no file (Habbo had none): not a picture the folder holds.
         _db.Insert(
             new AssetBundleEntity

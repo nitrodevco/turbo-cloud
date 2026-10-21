@@ -123,7 +123,7 @@ public class RoomSettingsSavedRepliesTests
         );
 
         var db = (InMemoryDb)RoomHarness.GetField(harness.Room, "_dbCtxFactory")!;
-        await using (var ctx = db.CreateDbContext())
+        await using (var ctx = await db.CreateDbContextAsync(Ct))
         {
             ctx.Rooms.Add(
                 new RoomEntity

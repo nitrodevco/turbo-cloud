@@ -18,6 +18,8 @@ namespace Turbo.Tests.Players.Permissions;
 
 public class RestrictionNoticeTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private sealed class Clock : TimeProvider
     {
         public DateTime Now { get; set; } = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -232,7 +234,7 @@ public class RestrictionNoticeTests
         var hotel = new Hotel();
         hotel.Restrict(PermissionNodes.Chat.SPEAK);
         hotel.Restrict(PermissionNodes.TRADE);
-        await using (var db = hotel.Db.CreateDbContext())
+        await using (var db = await hotel.Db.CreateDbContextAsync(Ct))
         {
             db.PlayerPermissionNodes.Add(
                 new PlayerPermissionNodeEntity

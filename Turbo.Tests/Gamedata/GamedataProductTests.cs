@@ -208,7 +208,7 @@ public sealed class GamedataProductTests : IDisposable
 
     private async Task<Dictionary<string, (string?, string?)>> ProductsAsync()
     {
-        await using var dbCtx = _db.CreateDbContext();
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
 
         return await dbCtx
             .GamedataProducts.AsNoTracking()

@@ -135,7 +135,7 @@ public sealed class WordFilterEndpointsTests : IAsyncDisposable
         test.GetProperty("shown").GetString().Should().Be("oh bobba");
         test.GetProperty("filtered").GetBoolean().Should().BeTrue();
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.CommandLogs.Select(x => x.Command + " " + x.Arguments)
             .Should()
             .Equal("wordfilter add heck", "wordfilter remove darn");

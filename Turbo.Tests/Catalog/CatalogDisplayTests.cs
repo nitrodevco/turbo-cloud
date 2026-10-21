@@ -142,7 +142,7 @@ public sealed class CatalogDisplayTests : IDisposable
         var provider = catalog.BuildersClubProvider();
 
         // The fixture's only Builders Club page, made regular.
-        await using (var db = catalog.Db.CreateDbContext())
+        await using (var db = await catalog.Db.CreateDbContextAsync(Ct))
         {
             var page = await db.CatalogPages.FindAsync([BUILDERS_PAGE], Ct);
 

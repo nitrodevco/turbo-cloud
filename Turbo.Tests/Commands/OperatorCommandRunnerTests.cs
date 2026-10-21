@@ -138,7 +138,7 @@ public class OperatorCommandRunnerTests
             .Single()
             .Outcome.Should()
             .Be(CommandOutcome.Failed);
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
         ctx.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("failed");
     }
 
@@ -270,7 +270,7 @@ public class OperatorCommandRunnerTests
             "bob 2h"
         );
 
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
         var rows = await ctx.CommandLogs.ToListAsync(Ct);
 
         rows.Should()
@@ -298,7 +298,7 @@ public class OperatorCommandRunnerTests
         );
         await _hotel.RunAsync("opprobe", panel, "bob");
 
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
 
         (await ctx.CommandLogs.OrderBy(x => x.Id).Select(x => x.Source).ToListAsync(Ct))
             .Should()
@@ -312,7 +312,7 @@ public class OperatorCommandRunnerTests
 
         await _hotel.RunAsync("opmass", staff, "@online");
 
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
         (await ctx.CommandLogs.ToListAsync(Ct))
             .Should()
             .ContainSingle()
@@ -328,7 +328,7 @@ public class OperatorCommandRunnerTests
         await _hotel.RunAsync("opmass", staff, "@room");
 
         staff.Replies.Should().Equal("You can't use @room with that command.");
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
         (await ctx.CommandLogs.ToListAsync(Ct)).Should().BeEmpty();
     }
 

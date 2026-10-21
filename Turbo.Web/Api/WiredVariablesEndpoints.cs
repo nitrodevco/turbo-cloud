@@ -92,8 +92,8 @@ internal sealed class WiredVariablesEndpoints(
         rooms.MapPatch(FURNI_PROFILE, Handle(WiredWebApiOperation.PatchFurniProfile));
 
         // A browser asks before a call with key headers from another site (a CORS preflight).
-        rooms.MapMethods("/variables/{**path}", [HttpMethods.Options], Preflight);
-        rooms.MapMethods("/variables_profile/{**path}", [HttpMethods.Options], Preflight);
+        rooms.MapMethods("/variables/{**path}", [HttpMethods.Options], PreflightAsync);
+        rooms.MapMethods("/variables_profile/{**path}", [HttpMethods.Options], PreflightAsync);
     }
 
     private RequestDelegate Handle(WiredWebApiOperation operation) =>
@@ -109,7 +109,7 @@ internal sealed class WiredVariablesEndpoints(
     /// every method and key header of these endpoints; from any other, nothing, so the browser
     /// does not make the call.
     /// </summary>
-    private Task Preflight(HttpContext http)
+    private Task PreflightAsync(HttpContext http)
     {
         if (AllowOrigin(http))
         {

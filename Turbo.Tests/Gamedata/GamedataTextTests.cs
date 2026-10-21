@@ -299,7 +299,7 @@ public sealed class GamedataTextTests : IDisposable
 
     private async Task<Dictionary<string, string>> TextsAsync()
     {
-        await using var dbCtx = _db.CreateDbContext();
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
 
         return await dbCtx
             .GamedataTexts.AsNoTracking()

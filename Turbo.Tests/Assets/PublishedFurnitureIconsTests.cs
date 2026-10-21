@@ -53,9 +53,12 @@ public sealed class PublishedFurnitureIconsTests : IDisposable
         Pixel(plain, 3, 0).Should().Be(0u, "nothing is drawn there");
 
         // The lamp draws none: Habbo's, at its bundle's revision.
-        File.ReadAllBytes(
-                Path.Combine(_hotel.TargetFolder, "images", "furni-icons", "lamp_icon.png")
+        (
+            await File.ReadAllBytesAsync(
+                Path.Combine(_hotel.TargetFolder, "images", "furni-icons", "lamp_icon.png"),
+                Ct
             )
+        )
             .Should()
             .Equal(_hotel.Habbo["https://images.habbo.com/dcr/hof_furni/4/lamp_icon.png"]);
 

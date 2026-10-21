@@ -181,7 +181,7 @@ public sealed class WiredChestTests : IDisposable
                 (await chest.DepositAsync(Deposit(WiredChestKind.Furni, item), Ct)).TransactionId
             );
 
-        using var ctx = _db.CreateDbContext();
+        await using var ctx = await _db.CreateDbContextAsync(Ct);
         ctx.WiredChestTransactions.AsNoTracking()
             .Where(x => x.Entries.Any(entry => entry.ChestItemId == CHEST))
             .Select(x => x.Id)
@@ -192,7 +192,7 @@ public sealed class WiredChestTests : IDisposable
             .Select(x => x.ChestItemId)
             .Should()
             .Equal([OTHER_CHEST], "the other chest's log keeps its side");
-        ctx.WiredChestTransactions.Count(x => x.Id == kept[0]).Should().Be(0);
+        (await ctx.WiredChestTransactions.CountAsync(x => x.Id == kept[0], Ct)).Should().Be(0);
         Rows(10, 11, 12).Should().AllSatisfy(row => row.ChestItemEntityId.Should().Be(CHEST));
     }
 

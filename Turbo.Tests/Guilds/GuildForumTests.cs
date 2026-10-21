@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Database.Entities.Guilds;
@@ -224,7 +225,8 @@ public sealed class GuildForumTests : IDisposable
 
         Sent<PostThreadMessageComposer>(STRANGER).Should().BeEmpty();
         Notices(STRANGER).Should().Equal(GuildForumNotificationTypes.ACCESS_DENIED);
-        _db.CreateDbContext().GuildForumThreads.Should().BeEmpty();
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        db.GuildForumThreads.Should().BeEmpty();
     }
 
     [Fact]
@@ -459,10 +461,10 @@ public sealed class GuildForumTests : IDisposable
     [Fact]
     public async Task The_owner_buying_a_terminal_opens_the_forum_once_and_says_so()
     {
-        using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             db.GuildForums.RemoveRange(db.GuildForums);
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         _fakes.Handlers["GetSnapshotAsync"] = _ =>
@@ -495,7 +497,10 @@ public sealed class GuildForumTests : IDisposable
         (await forum.OpenAsync(OWNER, Ct)).Should().BeTrue();
         (await forum.OpenAsync(OWNER, Ct)).Should().BeFalse();
 
-        _db.CreateDbContext().GuildForums.Select(x => x.GuildEntityId).Should().Equal(GROUP);
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            db.GuildForums.Select(x => x.GuildEntityId).Should().Equal(GROUP);
+        }
         _fakes.Log.Of("OnForumOpenedAsync").Should().ContainSingle();
         var notice = Sent<NotificationDialogMessageComposer>(OWNER).Single();
         notice.NotificationType.Should().Be(GuildForumNotificationTypes.DELIVERED);
@@ -559,7 +564,8 @@ public sealed class GuildForumTests : IDisposable
             Ct
         );
 
-        _db.CreateDbContext().GuildForumReadMarkers.Single().LastReadMessageId.Should().Be(1);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.GuildForumReadMarkers.SingleAsync(Ct)).LastReadMessageId.Should().Be(1);
     }
 
     [Fact]
@@ -573,10 +579,12 @@ public sealed class GuildForumTests : IDisposable
 
         await (await ForumAsync()).SendMessagesAsync(OWNER, first, 0, 20, Ct);
 
-        _db.CreateDbContext()
-            .GuildForumReadMarkers.Single(x => x.PlayerEntityId == OWNER)
-            .LastReadMessageId.Should()
-            .Be(1);
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            (await db.GuildForumReadMarkers.SingleAsync(x => x.PlayerEntityId == OWNER, Ct))
+                .LastReadMessageId.Should()
+                .Be(1);
+        }
         _fakes
             .Log.Of("SendUnreadForumsCountAsync")
             .Select(x => Convert.ToInt64(x.Key))

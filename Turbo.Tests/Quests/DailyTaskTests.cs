@@ -227,7 +227,7 @@ public sealed class DailyTaskTests : IDisposable
 
         await grain.SendTasksAsync(Ct);
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             (await db.DailyTaskDefinitions.FindAsync([FIND_BBQ], Ct))!.Target = "rubber_duck";
             await db.SaveChangesAsync(Ct);

@@ -236,7 +236,7 @@ public sealed class AchievementSyncTests : IDisposable
     {
         var directory = Path.Combine(Path.GetTempPath(), $"achievement-sync-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
-        File.WriteAllBytes(Path.Combine(directory, "ACH_twelve_days1.png"), []);
+        await File.WriteAllBytesAsync(Path.Combine(directory, "ACH_twelve_days1.png"), [], Ct);
         var (_, sync) = New(
             new AchievementConfig { BadgeAssetDirectory = directory },
             new Dictionary<string, string>

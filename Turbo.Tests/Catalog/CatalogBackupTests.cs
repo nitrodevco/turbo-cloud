@@ -166,7 +166,7 @@ public sealed class CatalogBackupTests : IDisposable
         var backup = await _service.BackupAsync(Editor, "Before", Ct);
         var created = await _service.CreateOfferAsync(Editor, PosterOffer(CHILD), Ct);
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
             var product = db.CatalogProducts.Single(x => x.CatalogOfferEntityId == created.Id);
 
@@ -180,7 +180,7 @@ public sealed class CatalogBackupTests : IDisposable
                     IsActive = true,
                 }
             );
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         var after = _catalog.Rows();
@@ -211,10 +211,10 @@ public sealed class CatalogBackupTests : IDisposable
 
         (await _service.DeleteOfferAsync(Editor, created.Id, Ct)).Saved.Should().BeTrue();
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
             db.FurnitureDefinitions.Remove(db.FurnitureDefinitions.Single(x => x.Id == gone.Id));
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         var rolledBack = await _service.RollbackAsync(Editor, backup.Id, Ct);

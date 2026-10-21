@@ -69,7 +69,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
         );
         Directory.CreateDirectory(assetDirectory);
         const string badgeCode = "ACH_Ephemeral1";
-        File.WriteAllBytes(Path.Combine(assetDirectory, badgeCode + ".png"), []);
+        await File.WriteAllBytesAsync(Path.Combine(assetDirectory, badgeCode + ".png"), [], Ct);
         var catalog = NewCatalog(
             new AchievementConfig { BadgeAssetDirectory = assetDirectory },
             new Dictionary<string, string>
@@ -134,8 +134,16 @@ public sealed class AchievementCatalogContractTests : IDisposable
         Directory.CreateDirectory(assetDirectory);
         try
         {
-            File.WriteAllBytes(Path.Combine(assetDirectory, "ACH_RespectGiven1.png"), []);
-            File.WriteAllBytes(Path.Combine(assetDirectory, "ACH_RegistrationDuration1.png"), []);
+            await File.WriteAllBytesAsync(
+                Path.Combine(assetDirectory, "ACH_RespectGiven1.png"),
+                [],
+                Ct
+            );
+            await File.WriteAllBytesAsync(
+                Path.Combine(assetDirectory, "ACH_RegistrationDuration1.png"),
+                [],
+                Ct
+            );
             var texts = new Dictionary<string, string>
             {
                 ["badge_name_ACH_RespectGiven1"] = "Exact name",
@@ -609,7 +617,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
                 .Select(x => x.BadgeCode)
         )
         {
-            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            await File.WriteAllBytesAsync(Path.Combine(assetDirectory, code + ".png"), [], Ct);
             texts["badge_name_" + code] = code;
             texts["badge_desc_" + code] = code;
         }
@@ -644,7 +652,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
                 .Select(x => x.BadgeCode)
         )
         {
-            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            await File.WriteAllBytesAsync(Path.Combine(assetDirectory, code + ".png"), [], Ct);
             texts["badge_name_" + code] = code;
             texts["badge_desc_" + code] = code;
         }
@@ -718,7 +726,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
         var current = new HabboAchievementPack();
         foreach (var code in current.Definitions.SelectMany(x => x.Levels).Select(x => x.BadgeCode))
         {
-            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            await File.WriteAllBytesAsync(Path.Combine(assetDirectory, code + ".png"), [], Ct);
             texts["badge_name_" + code] = code;
             texts["badge_desc_" + code] = code;
         }
@@ -794,7 +802,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
         var pack = new HabboAchievementPack();
         foreach (var code in pack.Definitions.SelectMany(x => x.Levels).Select(x => x.BadgeCode))
         {
-            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            await File.WriteAllBytesAsync(Path.Combine(assetDirectory, code + ".png"), [], Ct);
             texts["badge_name_" + code] = code;
             texts["badge_desc_" + code] = code;
         }
@@ -1026,7 +1034,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
         await withoutAsset.Should().ThrowAsync<InvalidOperationException>();
         catalog.Current.Single().State.Should().Be(AchievementState.Disabled);
 
-        File.WriteAllBytes(Path.Combine(assetDirectory, badgeCode + ".png"), []);
+        await File.WriteAllBytesAsync(Path.Combine(assetDirectory, badgeCode + ".png"), [], Ct);
         await catalog.SetStateAsync(
             "enable-me",
             AchievementState.Enabled,

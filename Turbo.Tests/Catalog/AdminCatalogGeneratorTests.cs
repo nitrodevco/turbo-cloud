@@ -279,7 +279,7 @@ public sealed class AdminCatalogGeneratorTests : IDisposable
         outcome.Error.Should().BeNull();
         outcome.Value!.PagesMoved.Should().Be(2);
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
             var tabs = db
                 .CatalogPages.Where(x => x.ParentEntityId == ROOT)
@@ -305,9 +305,9 @@ public sealed class AdminCatalogGeneratorTests : IDisposable
                 .Select(x => x.Id)
                 .Should()
                 .BeEquivalentTo([FURNITURE, HIDDEN_PAGE]);
-            var pura = db.CatalogPages.Single(x => x.Localization == "Pura");
+            var pura = await db.CatalogPages.SingleAsync(x => x.Localization == "Pura", Ct);
 
-            db.CatalogPages.Single(x => x.Id == pura.ParentEntityId)
+            (await db.CatalogPages.SingleAsync(x => x.Id == pura.ParentEntityId, Ct))
                 .Localization.Should()
                 .Be("Classic lines");
 
@@ -315,7 +315,7 @@ public sealed class AdminCatalogGeneratorTests : IDisposable
                 .Select(x => x.LocalizationId)
                 .Should()
                 .Equal("pura_chair", "pura_table");
-            db.CatalogOffers.Single(x => x.Id == SOLD)
+            (await db.CatalogOffers.SingleAsync(x => x.Id == SOLD, Ct))
                 .CatalogPageEntityId.Should()
                 .NotBe(FURNITURE);
         }

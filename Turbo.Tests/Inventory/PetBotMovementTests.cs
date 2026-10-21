@@ -166,12 +166,12 @@ public sealed class PetBotMovementTests : IDisposable
         )!;
         await inventory.TryCheckOutPetAsync(pet.Id, (RoomId)ROOM, TestCustody.Cause(), Ct);
 
-        using (var db = _world.Db.CreateDbContext())
-            db.Pets.AsNoTracking().Single().RoomEntityId.Should().Be(ROOM);
+        await using (var db = await _world.Db.CreateDbContextAsync(Ct))
+            (await db.Pets.AsNoTracking().SingleAsync(Ct)).RoomEntityId.Should().Be(ROOM);
 
         (await inventory.DeletePetAsync(pet.Id, TestCustody.Cause(), Ct)).Should().BeTrue();
 
-        using (var db = _world.Db.CreateDbContext())
+        await using (var db = await _world.Db.CreateDbContextAsync(Ct))
             db.Pets.Should().BeEmpty();
 
         _world.Movements().Should().BeEmpty();

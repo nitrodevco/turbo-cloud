@@ -227,7 +227,7 @@ public sealed class FurnitureListTests : IDisposable
 
     private async Task<Dictionary<string, int>> IdsAsync()
     {
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         return await db.FurnitureDefinitions.ToDictionaryAsync(x => x.Name, x => x.Id, Ct);
     }

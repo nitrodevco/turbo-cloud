@@ -118,7 +118,7 @@ public sealed class QuestTests : IDisposable
                 x.Id == PET_FOOD && x.Accepted
             );
 
-        using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             foreach (var id in new[] { FIRST_BADGE, SECOND_BADGE, PET_FOOD })
                 db.PlayerQuests.Add(
@@ -129,7 +129,7 @@ public sealed class QuestTests : IDisposable
                         CompletedAt = NOW,
                     }
                 );
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         var other = Grain();
@@ -155,7 +155,7 @@ public sealed class QuestTests : IDisposable
     [Fact]
     public async Task Starting_a_campaign_already_done_does_nothing()
     {
-        using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             db.PlayerQuests.Add(
                 new PlayerQuestEntity
@@ -165,7 +165,7 @@ public sealed class QuestTests : IDisposable
                     CompletedAt = NOW,
                 }
             );
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         await Grain().StartCampaignAsync("connect_dots26", Ct);
@@ -183,7 +183,7 @@ public sealed class QuestTests : IDisposable
             .Select(x => (x.Quest.Id, x.Quest.Accepted))
             .Should()
             .Equal((FIRST_BADGE, true), (PET_FOOD, true));
-        _db.CreateDbContext()
+        (await _db.CreateDbContextAsync(Ct))
             .PlayerQuests.OrderBy(x => x.QuestEntityId)
             .Select(x => x.Accepted)
             .Should()
@@ -197,7 +197,7 @@ public sealed class QuestTests : IDisposable
         await Grain().AcceptAsync(999, Ct);
 
         Sent<QuestMessageComposer>().Should().BeEmpty();
-        _db.CreateDbContext().PlayerQuests.Should().BeEmpty();
+        (await _db.CreateDbContextAsync(Ct)).PlayerQuests.Should().BeEmpty();
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public sealed class QuestTests : IDisposable
         await Grain().RecordAsync(QuestTypes.PET_EAT, "", Ct);
 
         Sent<QuestCompletedMessageComposer>().Should().BeEmpty();
-        _db.CreateDbContext()
+        (await _db.CreateDbContextAsync(Ct))
             .PlayerQuests.Single()
             .Should()
             .Match<PlayerQuestEntity>(x => x.Accepted && x.CompletedAt == null);
@@ -351,7 +351,7 @@ public sealed class QuestTests : IDisposable
         await Grain().RecordAsync(QuestTypes.WEAR_BADGE, "W2601", Ct);
 
         Single<QuestCompletedMessageComposer>().Quest.Id.Should().Be(FIRST_BADGE);
-        _db.CreateDbContext()
+        (await _db.CreateDbContextAsync(Ct))
             .PlayerQuests.Single()
             .Should()
             .Match<PlayerQuestEntity>(x => !x.Accepted && x.CompletedAt != null);
@@ -372,7 +372,7 @@ public sealed class QuestTests : IDisposable
             .Select(x => (x.Quest.Id, x.Quest.Accepted))
             .Should()
             .Equal((SECOND_BADGE, true));
-        _db.CreateDbContext()
+        (await _db.CreateDbContextAsync(Ct))
             .PlayerQuests.Single(x => x.QuestEntityId == SECOND_BADGE)
             .Accepted.Should()
             .BeTrue();
@@ -389,7 +389,7 @@ public sealed class QuestTests : IDisposable
         await Grain().OpenTrackerAsync(Ct);
 
         Sent<QuestMessageComposer>().Skip(sentBefore).Should().BeEmpty();
-        _db.CreateDbContext().PlayerQuests.Should().NotContain(x => x.Accepted);
+        (await _db.CreateDbContextAsync(Ct)).PlayerQuests.Should().NotContain(x => x.Accepted);
     }
 
     [Fact]

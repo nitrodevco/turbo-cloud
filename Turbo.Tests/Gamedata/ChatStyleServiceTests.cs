@@ -533,7 +533,7 @@ public sealed class ChatStyleServiceTests : IDisposable
 
     private async Task<Turbo.Database.Entities.Assets.AssetBundleEntity> RowAsync()
     {
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         return await db.AssetBundles.SingleAsync(x => x.Kind == AssetBundleKind.Template, Ct);
     }

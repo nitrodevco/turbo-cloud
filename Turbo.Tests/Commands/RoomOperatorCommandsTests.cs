@@ -91,7 +91,7 @@ public class RoomOperatorCommandsTests
         _room.AddPlayer(2);
         _room.AddPlayer(3);
         var db = (InMemoryDb)RoomHarness.GetField(_room.Harness.Room, "_dbCtxFactory")!;
-        await using (var ctx = db.CreateDbContext())
+        await using (var ctx = await db.CreateDbContextAsync(Ct))
         {
             ctx.Rooms.Add(
                 new Turbo.Database.Entities.Room.RoomEntity
@@ -146,7 +146,7 @@ public class RoomOperatorCommandsTests
         var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
         RoomHarness.GetMember(snapshot, "DoorMode").Should().Be(RoomDoorModeType.Locked);
         RoomHarness.GetMember(snapshot, "Name").Should().Be("Inappropriate to hotel management");
-        await using (var ctx = db.CreateDbContext())
+        await using (var ctx = await db.CreateDbContextAsync(Ct))
             ctx.Rooms.Single().DoorMode.Should().Be(RoomDoorModeType.Locked);
         new[] { OWNER, 2, 3 }.Select(_room.IsInRoom).Should().Equal(true, true, false);
     }

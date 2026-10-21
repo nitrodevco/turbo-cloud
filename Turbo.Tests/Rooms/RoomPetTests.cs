@@ -206,8 +206,10 @@ public sealed class RoomPetTests
             [PET] = new(),
             [PET2] = new(),
         };
+#pragma warning disable VSTHRD003 // Each check-out is held open until the test completes it.
         _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutPetAsync)] = call =>
             checkOuts[(int)call.Args[0]!].Task;
+#pragma warning restore VSTHRD003
         _harness.Fakes.Handlers[nameof(IInventoryGrain.ReturnPetAsync)] = _ =>
             Task.FromResult(true);
 
@@ -245,8 +247,10 @@ public sealed class RoomPetTests
             [BOT] = new(),
             [BOT2] = new(),
         };
+#pragma warning disable VSTHRD003 // Each check-out is held open until the test completes it.
         _harness.Fakes.Handlers[nameof(IInventoryGrain.TryCheckOutBotAsync)] = call =>
             checkOuts[(int)call.Args[0]!].Task;
+#pragma warning restore VSTHRD003
         _harness.Fakes.Handlers[nameof(IInventoryGrain.ReturnBotAsync)] = _ =>
             Task.FromResult(true);
 

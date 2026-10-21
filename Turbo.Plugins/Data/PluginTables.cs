@@ -46,9 +46,11 @@ internal sealed class PluginTables(
                     PluginDataKind.Table,
                     table,
                     await db
+#pragma warning disable EF1002 // A table name cannot be a parameter; it is one the database listed, quoted.
                         .Database.SqlQueryRaw<long>(
                             $"SELECT COUNT(*) AS Value FROM {Quote(db, table)}"
                         )
+#pragma warning restore EF1002
                         .SingleAsync(ct)
                         .ConfigureAwait(false)
                 )
@@ -95,9 +97,11 @@ internal sealed class PluginTables(
                 .ConfigureAwait(false);
 
             foreach (var table in tables)
+#pragma warning disable EF1002 // A table name cannot be a parameter; it is one the database listed, quoted.
                 await db
                     .Database.ExecuteSqlRawAsync($"DROP TABLE IF EXISTS {Quote(db, table)}", ct)
                     .ConfigureAwait(false);
+#pragma warning restore EF1002
         }
         finally
         {
@@ -243,13 +247,15 @@ internal sealed class PluginTables(
         CancellationToken ct
     )
     {
-        await using var command = connection.CreateCommand();
+        var command = connection.CreateCommand();
+        await using var commandScope = command.ConfigureAwait(false);
 
         command.CommandText = sqlite
             ? $"SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '{table.Replace("'", "''")}'"
             : $"SHOW CREATE TABLE {quoted}";
 
-        await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        await using var readerScope = reader.ConfigureAwait(false);
 
         if (!await reader.ReadAsync(ct).ConfigureAwait(false))
             throw new InvalidOperationException($"The table {table} has no definition to export.");
@@ -265,11 +271,13 @@ internal sealed class PluginTables(
         CancellationToken ct
     )
     {
-        await using var command = connection.CreateCommand();
+        var command = connection.CreateCommand();
+        await using var commandScope = command.ConfigureAwait(false);
 
         command.CommandText = $"SELECT * FROM {quoted}";
 
-        await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        await using var readerScope = reader.ConfigureAwait(false);
 
         var columns = string.Join(
             ", ",

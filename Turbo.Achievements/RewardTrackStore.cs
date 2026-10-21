@@ -80,7 +80,8 @@ public sealed class RewardTrackStore(
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
             var row = await db
                 .RewardTracks.FirstOrDefaultAsync(x => x.TrackId == trackId, ct)
                 .ConfigureAwait(false);
@@ -107,7 +108,8 @@ public sealed class RewardTrackStore(
         if (configured.Count == 0)
             return;
 
-        await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
         var present = await db
             .RewardTracks.AsNoTracking()
             .Select(x => x.TrackId)
@@ -136,10 +138,10 @@ public sealed class RewardTrackStore(
 
     private async Task WriteAsync(IReadOnlyList<RewardTrackDefinition> tracks, CancellationToken ct)
     {
-        await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var transaction = await db
-            .Database.BeginTransactionAsync(ct)
-            .ConfigureAwait(false);
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+        var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var transactionScope = transaction.ConfigureAwait(false);
         var ids = tracks.Select(x => x.Id).ToList();
         var existing = await db
             .RewardTracks.Where(x => ids.Contains(x.TrackId))
@@ -167,7 +169,8 @@ public sealed class RewardTrackStore(
 
     private async Task LoadAsync(CancellationToken ct)
     {
-        await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
         var rows = await db
             .RewardTracks.AsNoTracking()
             .Include(x => x.Tasks)

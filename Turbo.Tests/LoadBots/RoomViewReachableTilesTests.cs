@@ -132,7 +132,7 @@ public sealed class RoomViewReachableTilesTests
     {
         var db = new InMemoryDb();
 
-        await using (var context = db.CreateDbContext())
+        await using (var context = await db.CreateDbContextAsync(Ct))
         {
             await context.FurnitureDefinitions.AddRangeAsync(
                 [

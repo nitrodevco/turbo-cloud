@@ -101,7 +101,7 @@ public sealed class CurrencyLedgerTests : IDisposable
         // Delivered again, as a dispatcher may: nothing is kept twice.
         await ledger.HandleAsync(batch, Ct);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.CurrencyLedger.OrderBy(x => x.OutboxId)
             .ThenBy(x => x.Amount)
             .Select(x => new
@@ -200,7 +200,7 @@ public sealed class CurrencyLedgerTests : IDisposable
         await ledger.HandleAsync(batch, Ct);
         await ledger.HandleAsync(batch, Ct);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.CurrencyLedger.Select(x => new
             {
                 x.Cause,

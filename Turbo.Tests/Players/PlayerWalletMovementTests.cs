@@ -651,8 +651,10 @@ public sealed class PlayerWalletMovementTests : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(method)),
         };
 
+#pragma warning disable VSTHRD003 // The credit was started by CreditAsync just above; this only reads its result.
     private static async Task<bool> Applied(Task<WalletCreditResult> credit) =>
         await credit is WalletCreditResult.Applied or WalletCreditResult.AlreadyApplied;
+#pragma warning restore VSTHRD003
 
     private static MovementCause Cause() => MovementCause.New("test", PLAYER_ID);
 

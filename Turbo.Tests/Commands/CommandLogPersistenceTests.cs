@@ -57,7 +57,7 @@ public class CommandLogPersistenceTests
 
         (await Flush(grain)).Should().BeTrue();
 
-        await using var ctx = db.CreateDbContext();
+        await using var ctx = await db.CreateDbContextAsync(Ct);
         var rows = await ctx.CommandLogs.OrderBy(x => x.Arguments).ToListAsync(Ct);
         rows.Select(x => (x.RoomEntityId, x.PlayerEntityId, x.Command, x.Arguments, x.Outcome))
             .Should()
@@ -79,7 +79,7 @@ public class CommandLogPersistenceTests
 
         (await Flush(grain)).Should().BeTrue();
 
-        await using var ctx = db.CreateDbContext();
+        await using var ctx = await db.CreateDbContextAsync(Ct);
         (await ctx.CommandLogs.SingleAsync(Ct))
             .Arguments.Should()
             .HaveLength(CommandLogEntity.ARGUMENTS_MAX_LENGTH);

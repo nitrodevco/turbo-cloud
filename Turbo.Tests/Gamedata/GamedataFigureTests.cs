@@ -434,14 +434,14 @@ public sealed class GamedataFigureTests : IDisposable
 
     private async Task<int> CountAsync(FigureRecordKind kind)
     {
-        await using var dbCtx = _db.CreateDbContext();
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
 
         return await dbCtx.GamedataFigures.CountAsync(x => x.Kind == kind, Ct);
     }
 
     private async Task<string?> DataAsync(FigureRecordKind kind, string key)
     {
-        await using var dbCtx = _db.CreateDbContext();
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
 
         return (
             await dbCtx

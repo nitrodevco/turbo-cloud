@@ -223,12 +223,12 @@ public sealed class AssetMovementDispatcherTests : IDisposable
         for (var id = 1; id <= 5; id++)
             Row(id, ago: TimeSpan.FromHours(80));
         Row(6, ago: TimeSpan.FromMinutes(1));
-        using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             db.MovementConsumerCursors.Add(
                 new MovementConsumerCursorEntity { Name = CurrencyLedger.NAME, Cursor = 2 }
             );
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
         var plugin = new LedgerConsumer("plugin-audit");
         using var r1 = _registry.Register(new CurrencyLedger(_db, _clock));

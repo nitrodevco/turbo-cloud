@@ -155,7 +155,9 @@ public sealed class WiredSameTickTests
         {
             calledBack++;
 
+#pragma warning disable VSTHRD003 // The grain's answer is held back until the test says its call returned.
             return AnswerOnceReturnedAsync(callerReturned.Task);
+#pragma warning restore VSTHRD003
         };
         _room.Enter(AVATAR, 5, 9);
         AddSwitch(6, 9);
@@ -318,7 +320,9 @@ public sealed class WiredSameTickTests
         Task callerReturned
     )
     {
+#pragma warning disable VSTHRD003 // The test completes this once the caller's call has returned.
         await callerReturned;
+#pragma warning restore VSTHRD003
 
         return [];
     }

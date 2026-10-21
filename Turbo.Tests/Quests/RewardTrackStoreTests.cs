@@ -144,7 +144,7 @@ public sealed class RewardTrackStoreTests : IDisposable
             .Should()
             .ThrowAsync<ArgumentException>();
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.RewardTracks.CountAsync(Ct)).Should().Be(0);
     }
 
@@ -236,7 +236,7 @@ public sealed class RewardTrackStoreTests : IDisposable
             )!
             .Invoke(new AddRewardTrackTables(), [builder]);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         foreach (var sql in builder.Operations.OfType<SqlOperation>())
             await db.Database.ExecuteSqlRawAsync(sql.Sql, Ct);

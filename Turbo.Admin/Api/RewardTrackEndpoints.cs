@@ -53,7 +53,9 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
         group.MapDelete(
             "/{id}",
             async (string id, HttpContext http, CancellationToken ct) =>
-                await tracks.DeleteAsync(AdminIdentity.Of(http).PlayerId, id, ct)
+                await tracks
+                    .DeleteAsync(AdminIdentity.Of(http).PlayerId, id, ct)
+                    .ConfigureAwait(false)
                     ? Results.NoContent()
                     : Results.NotFound()
         );
@@ -66,7 +68,9 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
             (RewardTrackImportRequest request, HttpContext http, CancellationToken ct) =>
                 RefusingAsync(async () =>
                     Results.Ok(
-                        await tracks.ImportAsync(AdminIdentity.Of(http).PlayerId, request, ct)
+                        await tracks
+                            .ImportAsync(AdminIdentity.Of(http).PlayerId, request, ct)
+                            .ConfigureAwait(false)
                     )
                 )
         );
@@ -74,7 +78,7 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
             "/reload",
             async (HttpContext http, CancellationToken ct) =>
             {
-                await tracks.ReloadAsync(AdminIdentity.Of(http).PlayerId, ct);
+                await tracks.ReloadAsync(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
 
                 return Results.Ok(new { tracks = tracks.List() });
             }
@@ -91,7 +95,9 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
         {
             track.Id = id;
 
-            var saved = await tracks.SaveAsync(AdminIdentity.Of(http).PlayerId, track, ct);
+            var saved = await tracks
+                .SaveAsync(AdminIdentity.Of(http).PlayerId, track, ct)
+                .ConfigureAwait(false);
 
             return Results.Ok(
                 new

@@ -63,9 +63,9 @@ internal sealed partial class PlayerWalletGrain
             },
             ct
         );
-        if (!credited)
+        if (!credited || balance is null)
             return false;
-        _state.CurrenciesByKind[kind] = balance!.ToSnapshot(kind);
+        _state.CurrenciesByKind[kind] = balance.ToSnapshot(kind);
         var composer = ToBalanceComposer(
             new WalletCurrencyUpdateSnapshot
             {

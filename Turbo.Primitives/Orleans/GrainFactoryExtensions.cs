@@ -179,7 +179,8 @@ public static class GrainFactoryExtensions
     )
     {
         var players = playerIds.ToList();
-        var held = await Task.WhenAll(players.Select(x => factory.HasPermissionAsync(x, node, ct)));
+        var held = await Task.WhenAll(players.Select(x => factory.HasPermissionAsync(x, node, ct)))
+            .ConfigureAwait(false);
 
         return [.. players.Where((_, i) => held[i])];
     }

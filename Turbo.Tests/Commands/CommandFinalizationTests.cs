@@ -14,6 +14,8 @@ namespace Turbo.Tests.Commands;
 
 public class CommandFinalizationTests
 {
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private static FakeExecutor Staff() =>
         new(2, "staff", 7, [2], "command.finalizationprobe", "command.log");
 
@@ -58,7 +60,7 @@ public class CommandFinalizationTests
         );
 
         outcome.Should().Be(CommandOutcome.Completed);
-        await using var db = hotel.Db.CreateDbContext();
+        await using var db = await hotel.Db.CreateDbContextAsync(Ct);
         db.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("completed");
         hotel
             .Events.Of<CommandExecutedEvent>()
@@ -94,7 +96,7 @@ public class CommandFinalizationTests
             );
         await run.Should().ThrowAsync<OperationCanceledException>();
 
-        await using var db = hotel.Db.CreateDbContext();
+        await using var db = await hotel.Db.CreateDbContextAsync(Ct);
         db.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("canceled");
         hotel
             .Events.Of<CommandExecutedEvent>()
@@ -110,7 +112,7 @@ public class CommandFinalizationTests
         var hotel = new OperatorFixture(new CommandConfig { FinalizationTimeoutSeconds = 1 });
         // This test bounds the completion hook, not EF's first model construction. The live
         // server builds its model at startup before commands are admitted.
-        await using (var warmup = hotel.Db.CreateDbContext())
+        await using (var warmup = await hotel.Db.CreateDbContextAsync(Ct))
             _ = warmup.Model;
         hotel.Commands.Register([new FinalizationProbeCommand()]);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -134,7 +136,7 @@ public class CommandFinalizationTests
                 TestContext.Current.CancellationToken
             );
             outcome.Should().Be(CommandOutcome.Completed);
-            await using var db = hotel.Db.CreateDbContext();
+            await using var db = await hotel.Db.CreateDbContextAsync(Ct);
             db.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("completed");
             hotel
                 .Log.AtLeast(LogLevel.Error)

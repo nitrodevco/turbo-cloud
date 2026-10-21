@@ -236,7 +236,8 @@ internal sealed class AssetBundleService(
 
         try
         {
-            using var zip = ZipFile.OpenRead(path);
+            var zip = await ZipFile.OpenReadAsync(path, ct).ConfigureAwait(false);
+            await using var zipScope = zip.ConfigureAwait(false);
 
             foreach (var entry in zip.Entries)
             {
@@ -256,7 +257,8 @@ internal sealed class AssetBundleService(
                 )
                     continue;
 
-                await using var stream = entry.Open();
+                var stream = await entry.OpenAsync(ct).ConfigureAwait(false);
+                await using var streamScope = stream.ConfigureAwait(false);
                 using var copy = new MemoryStream((int)entry.Length);
 
                 await stream.CopyToAsync(copy, ct).ConfigureAwait(false);

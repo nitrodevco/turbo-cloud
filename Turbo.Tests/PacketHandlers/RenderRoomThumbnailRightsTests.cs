@@ -33,6 +33,8 @@ public class RenderRoomThumbnailRightsTests
     );
     private RoomControllerType _level = RoomControllerType.None;
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private RenderRoomThumbnailMessageHandler Handler()
     {
         _fakes.Handlers["GetControllerLevelAsync"] = _ => Task.FromResult(_level);
@@ -106,6 +108,6 @@ public class RenderRoomThumbnailRightsTests
 
         status.IsOk.Should().BeTrue();
         status.IsRenderLimitHit.Should().BeFalse();
-        File.ReadAllText(ThumbnailJson).Should().Be("{\"planes\":[]}");
+        (await File.ReadAllTextAsync(ThumbnailJson, Ct)).Should().Be("{\"planes\":[]}");
     }
 }

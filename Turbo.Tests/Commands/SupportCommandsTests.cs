@@ -34,6 +34,8 @@ public class SupportCommandsTests : OperatorCommandsTestBase
     private readonly List<(int Player, StaffPresentGrantRequest Request)> _presents = [];
     private readonly Turbo.Primitives.Players.Providers.ICurrencyTypeProvider _currencies;
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     public SupportCommandsTests()
     {
         var sessions = Hotel.Fakes.Create<Turbo.Primitives.Networking.ISessionGateway>();
@@ -482,7 +484,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                 }
             );
         manager.Replies.Should().Equal("3 players got 5 credits.");
-        await using var ctx = Hotel.Db.CreateDbContext();
+        await using var ctx = await Hotel.Db.CreateDbContextAsync(Ct);
         ctx.CommandLogs.Select(x => x.Arguments).Should().Equal("@room credits 5");
     }
 
@@ -689,7 +691,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
             .ContainSingle()
             .Which.Should()
             .Contain("Operations: 1 succeeded, 0 refused, 1 indeterminate, 1 unattempted.");
-        await using var db = Hotel.Db.CreateDbContext();
+        await using var db = await Hotel.Db.CreateDbContextAsync(Ct);
         db.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("partial");
     }
 
@@ -708,7 +710,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
         var batch = Hotel.Events.Of<CommandExecutedEvent>().Single().Result.Batch!;
         batch.CompletedTargets.Should().Be(2);
         batch.FailedTargets.Should().Be(1);
-        await using var db = Hotel.Db.CreateDbContext();
+        await using var db = await Hotel.Db.CreateDbContextAsync(Ct);
         db.CommandLogs.Should().ContainSingle().Which.Outcome.Should().Be("partial");
     }
 

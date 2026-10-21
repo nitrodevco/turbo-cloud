@@ -20,6 +20,8 @@ public sealed class WordFilterTests
         "darn",
     };
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     [Theory]
     [InlineData("what the heck", "what the bobba")]
     [InlineData("HECK!", "bobba!")]
@@ -114,7 +116,7 @@ public sealed class WordFilterTests
 
     private static async Task AddWordsAsync(InMemoryDb db, params string[] words)
     {
-        await using var dbCtx = db.CreateDbContext();
+        await using var dbCtx = await db.CreateDbContextAsync(Ct);
 
         dbCtx.FilterWords.AddRange(words.Select(word => new FilterWordEntity { Word = word }));
 

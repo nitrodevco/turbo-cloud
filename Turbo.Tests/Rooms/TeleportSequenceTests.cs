@@ -89,7 +89,7 @@ public sealed class TeleportSequenceTests
         const int FAR_HALF = 999;
         var db = new InMemoryDb();
 
-        using (var ctx = db.CreateDbContext())
+        await using (var ctx = await db.CreateDbContextAsync(Ct))
         {
             ctx.Furnitures.Add(
                 new Turbo.Database.Entities.Furniture.FurnitureEntity
@@ -100,7 +100,7 @@ public sealed class TeleportSequenceTests
                     RoomEntityId = 2,
                 }
             );
-            ctx.SaveChanges();
+            await ctx.SaveChangesAsync(Ct);
         }
 
         RoomHarness.SetField(_room.Harness.Room, "_dbCtxFactory", db);

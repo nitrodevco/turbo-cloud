@@ -155,7 +155,7 @@ public sealed class QuestEndpointsTests : IAsyncDisposable
             .StatusCode.Should()
             .Be(HttpStatusCode.NoContent);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         db.PlayerDailyTasks.Should().BeEmpty();
         _fakes.Log.Of("ReloadAsync").Should().HaveCount(2);
     }

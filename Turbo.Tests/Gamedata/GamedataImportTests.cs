@@ -527,7 +527,7 @@ public sealed class GamedataImportTests : IDisposable
 
     private async Task<List<FurnitureDefinitionEntity>> DefinitionsAsync()
     {
-        await using var dbCtx = _db.CreateDbContext();
+        await using var dbCtx = await _db.CreateDbContextAsync(Ct);
 
         return await dbCtx.FurnitureDefinitions.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct);
     }

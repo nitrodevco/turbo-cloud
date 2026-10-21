@@ -35,7 +35,7 @@ public sealed class RoomFurniturePersistenceTests
     public async Task A_move_whose_first_write_fails_is_written_by_the_next_flush()
     {
         var db = new FailingOnceDb();
-        await using (var ctx = db.Inner.CreateDbContext())
+        await using (var ctx = await db.Inner.CreateDbContextAsync(Ct))
         {
             ctx.Furnitures.Add(
                 new FurnitureEntity
@@ -58,7 +58,7 @@ public sealed class RoomFurniturePersistenceTests
         await FlushItems(grain);
         await FlushItems(grain);
 
-        await using var read = db.Inner.CreateDbContext();
+        await using var read = await db.Inner.CreateDbContextAsync(Ct);
         var row = await read.Furnitures.SingleAsync(x => x.Id == ITEM, Ct);
         (row.RoomEntityId, row.X, row.Y).Should().Be((ROOM, 4, 5));
     }
@@ -77,7 +77,7 @@ public sealed class RoomFurniturePersistenceTests
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
         };
-        await using (var ctx = db.Inner.CreateDbContext())
+        await using (var ctx = await db.Inner.CreateDbContextAsync(Ct))
         {
             ctx.Bots.Add(bot);
             await ctx.SaveChangesAsync(Ct);
@@ -93,7 +93,7 @@ public sealed class RoomFurniturePersistenceTests
         await FlushItems(grain);
         await FlushItems(grain);
 
-        await using var read = db.Inner.CreateDbContext();
+        await using var read = await db.Inner.CreateDbContextAsync(Ct);
         var row = await read.Bots.SingleAsync(x => x.Id == 40, Ct);
         (row.X, row.Y).Should().Be((6, 3));
     }

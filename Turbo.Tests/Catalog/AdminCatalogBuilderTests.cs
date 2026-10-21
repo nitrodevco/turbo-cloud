@@ -255,9 +255,9 @@ public sealed class AdminCatalogBuilderTests : IDisposable
         outcome.Error.Should().BeNull();
         var pageId = outcome.Value!.PageId!.Value;
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var page = db.CatalogPages.AsNoTracking().Single(x => x.Id == pageId);
+            var page = await db.CatalogPages.AsNoTracking().SingleAsync(x => x.Id == pageId, Ct);
 
             page.ParentEntityId.Should().Be(FURNITURE);
             page.Localization.Should().Be("Trophy shop");
@@ -270,8 +270,8 @@ public sealed class AdminCatalogBuilderTests : IDisposable
 
         (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
 
-        using (var db = _catalog.Db.CreateDbContext())
-            db.CatalogPages.Any(x => x.Id == pageId).Should().BeFalse();
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+            (await db.CatalogPages.AnyAsync(x => x.Id == pageId, Ct)).Should().BeFalse();
     }
 
     [Fact]
@@ -305,8 +305,8 @@ public sealed class AdminCatalogBuilderTests : IDisposable
             );
         offers.Should().AllSatisfy(x => x.CostCredits.Should().Be(3));
         offers.Should().AllSatisfy(x => x.CanBundle.Should().BeTrue());
-        using var db = _catalog.Db.CreateDbContext();
-        db.CatalogPages.Single(x => x.Id == CHILD).Layout.Should().Be("trophies");
+        await using var db = await _catalog.Db.CreateDbContextAsync(Ct);
+        (await db.CatalogPages.SingleAsync(x => x.Id == CHILD, Ct)).Layout.Should().Be("trophies");
     }
 
     [Fact]
@@ -335,8 +335,8 @@ public sealed class AdminCatalogBuilderTests : IDisposable
         );
 
         result.Should().BeEquivalentTo(new CatalogBuildResponse(1, 1, 0, 2, [], CHILD));
-        using var db = _catalog.Db.CreateDbContext();
-        var page = db.CatalogPages.Single(x => x.ParentEntityId == CHILD);
+        await using var db = await _catalog.Db.CreateDbContextAsync(Ct);
+        var page = await db.CatalogPages.SingleAsync(x => x.ParentEntityId == CHILD, Ct);
         (page.Localization, page.Layout, page.Display)
             .Should()
             .Be(("Dragon", "pets", CatalogPageDisplay.Invisible));
@@ -355,7 +355,9 @@ public sealed class AdminCatalogBuilderTests : IDisposable
                 }
             );
         // The page the pets go under keeps its layout.
-        db.CatalogPages.Single(x => x.Id == CHILD).Layout.Should().Be("default_3x3");
+        (await db.CatalogPages.SingleAsync(x => x.Id == CHILD, Ct))
+            .Layout.Should()
+            .Be("default_3x3");
     }
 
     private static PetBreedEntity Breed(int id, int type, int palette, bool sellable) =>
@@ -718,9 +720,10 @@ public sealed class AdminCatalogBuilderTests : IDisposable
             .Should()
             .BeEquivalentTo(new { FurnitureDefinitionEntityId = POSTER, ExtraParam = "1000" });
 
-        using (var db = _catalog.Db.CreateDbContext())
-            db.FurnitureDefinitions.Where(x => x.Id == POSTER)
-                .ExecuteUpdate(x => x.SetProperty(d => d.Name, "poster_gone"));
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+            await db
+                .FurnitureDefinitions.Where(x => x.Id == POSTER)
+                .ExecuteUpdateAsync(x => x.SetProperty(d => d.Name, "poster_gone"), Ct);
 
         (await PreviewAsync(Request(CatalogPageBuilders.POSTERS)))
             .Warnings.Should()

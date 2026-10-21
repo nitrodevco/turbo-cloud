@@ -45,7 +45,8 @@ public sealed class AdminActionLog(
     {
         try
         {
-            await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
 
             db.CommandLogs.Add(
                 new CommandLogEntity

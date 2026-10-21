@@ -136,7 +136,8 @@ public sealed class AssetMovementRecorder(
     {
         try
         {
-            await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
 
             db.AssetMovementOutbox.Add(
                 MovementEntityExtensions.ToMarkerEntity(cause, causeRef, DateTime.UtcNow)
@@ -182,7 +183,7 @@ public sealed class AssetMovementRecorder(
                 return;
             }
 
-            db.AssetMovementOutbox.Add(movement!.ToOutboxEntity(nowUtc));
+            db!.AssetMovementOutbox.Add(movement!.ToOutboxEntity(nowUtc));
         }
         catch (Exception ex)
         {

@@ -42,6 +42,8 @@ public sealed class CameraRendererTests : IDisposable
     private readonly LocalHttpServer _server = new();
     private readonly CapturingLogger<CameraRenderer> _log = new();
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     public CameraRendererTests() => Directory.CreateDirectory(_folder);
 
     public void Dispose() => _server.Dispose();
@@ -76,7 +78,7 @@ public sealed class CameraRendererTests : IDisposable
         var jsonPath = Path.Combine(_folder, "render.json");
         var pngPath = Path.Combine(_folder, "render.png");
 
-        File.WriteAllText(jsonPath, json);
+        await File.WriteAllTextAsync(jsonPath, json, Ct);
 
         var renderer = new CameraRenderer(
             Options.Create(
@@ -718,7 +720,11 @@ public sealed class CameraRendererTests : IDisposable
 
         // What a render that was stopped while it downloaded used to leave in the cache.
         Directory.CreateDirectory(cache);
-        File.WriteAllBytes(Path.Combine(cache, "chair.nitro"), library[..(library.Length / 2)]);
+        await File.WriteAllBytesAsync(
+            Path.Combine(cache, "chair.nitro"),
+            library[..(library.Length / 2)],
+            Ct
+        );
         _server.Serve("/furni/chair.nitro", library);
 
         var (drawn, png) = await RenderAsync(
@@ -730,7 +736,9 @@ public sealed class CameraRendererTests : IDisposable
         PixelAt(png, 1, 1)
             .Should()
             .Be(0xFF0000FF, "the chair is drawn from the library downloaded again");
-        File.ReadAllBytes(Path.Combine(cache, "chair.nitro")).Should().Equal(library);
+        (await File.ReadAllBytesAsync(Path.Combine(cache, "chair.nitro"), Ct))
+            .Should()
+            .Equal(library);
     }
 
     [Fact]

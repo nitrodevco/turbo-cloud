@@ -350,7 +350,9 @@ internal sealed class AssetSyncService(
     /// Waits for a background read of Habbo's lists to end: what touches the database after a
     /// preview has answered, for whoever closes the database next.
     /// </summary>
+#pragma warning disable VSTHRD003 // The read is this service's own, started on the thread pool by RelistBehind.
     internal Task WhenRelistedAsync() => _relisting;
+#pragma warning restore VSTHRD003
 
     private bool IsStale(HabboLists lists) =>
         time.GetUtcNow().UtcDateTime - lists.ListedAt

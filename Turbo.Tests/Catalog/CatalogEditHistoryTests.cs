@@ -205,10 +205,10 @@ public sealed class CatalogEditHistoryTests : IDisposable
             Ct
         );
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            db.CatalogPages.Single(x => x.Id == CHILD).Icon = 99;
-            db.SaveChanges();
+            (await db.CatalogPages.SingleAsync(x => x.Id == CHILD, Ct)).Icon = 99;
+            await db.SaveChangesAsync(Ct);
         }
 
         var undone = await _service.UndoAsync(Editor, Ct);
@@ -224,9 +224,12 @@ public sealed class CatalogEditHistoryTests : IDisposable
     {
         var created = await _service.CreateOfferAsync(Editor, ChairOffer(CHILD), Ct);
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var product = db.CatalogProducts.Single(x => x.CatalogOfferEntityId == created.Id);
+            var product = await db.CatalogProducts.SingleAsync(
+                x => x.CatalogOfferEntityId == created.Id,
+                Ct
+            );
 
             db.LtdSeries.Add(
                 new LtdSeriesEntity
@@ -238,7 +241,7 @@ public sealed class CatalogEditHistoryTests : IDisposable
                     IsActive = true,
                 }
             );
-            db.SaveChanges();
+            await db.SaveChangesAsync(Ct);
         }
 
         var undone = await _service.UndoAsync(Editor, Ct);
@@ -322,15 +325,17 @@ public sealed class CatalogEditHistoryTests : IDisposable
         result.Error.Should().BeNull();
         result.PageIds.Should().HaveCount(2);
 
-        using (var db = _catalog.Db.CreateDbContext())
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var shop = db.CatalogPages.Single(x => x.Id == result.PageIds[0]);
-            var seats = db.CatalogPages.Single(x => x.Id == result.PageIds[1]);
+            var shop = await db.CatalogPages.SingleAsync(x => x.Id == result.PageIds[0], Ct);
+            var seats = await db.CatalogPages.SingleAsync(x => x.Id == result.PageIds[1], Ct);
 
             shop.ParentEntityId.Should().Be(ROOT);
             shop.SortOrder.Should().Be(2, "after the tabs there");
             seats.ParentEntityId.Should().Be(shop.Id);
-            db.CatalogPages.Single(x => x.Id == HIDDEN_PAGE).ParentEntityId.Should().Be(shop.Id);
+            (await db.CatalogPages.SingleAsync(x => x.Id == HIDDEN_PAGE, Ct))
+                .ParentEntityId.Should()
+                .Be(shop.Id);
             db.CatalogOffers.Where(x => x.CatalogPageEntityId == seats.Id)
                 .OrderBy(x => x.SortOrder)
                 .Select(x => x.CostCredits)
@@ -415,7 +420,7 @@ public sealed class CatalogEditHistoryTests : IDisposable
             Ct
         );
 
-        using var db = _catalog.Db.CreateDbContext();
+        await using var db = await _catalog.Db.CreateDbContextAsync(Ct);
 
         db.CatalogPages.Where(x => x.ParentEntityId == ROOT)
             .OrderBy(x => x.SortOrder)

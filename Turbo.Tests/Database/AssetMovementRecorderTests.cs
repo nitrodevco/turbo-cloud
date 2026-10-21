@@ -33,6 +33,8 @@ public sealed class AssetMovementRecorderTests : IDisposable
     private readonly CapturingLogger<AssetMovementRecorder> _logger = new();
     private readonly TestOptionsMonitor<MovementsConfig> _config = new(new() { Enabled = false });
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     public void Dispose() => _db.Dispose();
 
     [Fact]
@@ -40,11 +42,11 @@ public sealed class AssetMovementRecorderTests : IDisposable
     {
         var recorder = await StartedAsync(enabled: false);
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             recorder.Record(db, Pickup());
             recorder.Record(db, [Pickup(seq: 1)]);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(Ct);
         }
 
         recorder.IsRecording.Should().BeFalse();
@@ -56,17 +58,17 @@ public sealed class AssetMovementRecorderTests : IDisposable
     {
         var recorder = await StartedAsync(enabled: true);
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             recorder.Record(db, Pickup());
 
             // No I/O of its own: nothing is written until the caller saves.
             Movements().Should().BeEmpty();
 
-            await using var tx = await db.Database.BeginTransactionAsync();
+            await using var tx = await db.Database.BeginTransactionAsync(Ct);
             db.PermissionAudit.Add(Audit());
-            await db.SaveChangesAsync();
-            await tx.CommitAsync();
+            await db.SaveChangesAsync(Ct);
+            await tx.CommitAsync(Ct);
         }
 
         var rows = Outbox();
@@ -106,13 +108,13 @@ public sealed class AssetMovementRecorderTests : IDisposable
     {
         var recorder = await StartedAsync(enabled: true);
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
-            await using var tx = await db.Database.BeginTransactionAsync();
+            await using var tx = await db.Database.BeginTransactionAsync(Ct);
             recorder.Record(db, Pickup());
             db.PermissionAudit.Add(Audit());
-            await db.SaveChangesAsync();
-            await tx.RollbackAsync();
+            await db.SaveChangesAsync(Ct);
+            await tx.RollbackAsync(Ct);
         }
 
         Movements().Should().BeEmpty();
@@ -126,7 +128,7 @@ public sealed class AssetMovementRecorderTests : IDisposable
         var cause = new MovementCause("op-2", "catalog.purchase", "offer-9", 5);
         var now = DateTime.UtcNow;
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             recorder.Record(
                 db,
@@ -151,7 +153,7 @@ public sealed class AssetMovementRecorderTests : IDisposable
                     ),
                 ]
             );
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(Ct);
         }
 
         var rows = Movements();
@@ -193,13 +195,13 @@ public sealed class AssetMovementRecorderTests : IDisposable
     {
         var recorder = await StartedAsync(enabled: true);
 
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             var act = () => recorder.Record(db, [Invalid(name), Pickup(seq: 1)]);
 
             act.Should().NotThrow();
             db.PermissionAudit.Add(Audit());
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(Ct);
         }
 
         Audits().Should().Be(1);
@@ -233,10 +235,10 @@ public sealed class AssetMovementRecorderTests : IDisposable
         // Off stops at once, before the marker is written.
         _config.Set(new() { Enabled = false });
         recorder.IsRecording.Should().BeFalse();
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             recorder.Record(db, Pickup());
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(Ct);
         }
         await recorder.SyncAsync(MovementCauses.MARKER_REF_SETTING, CancellationToken.None);
 

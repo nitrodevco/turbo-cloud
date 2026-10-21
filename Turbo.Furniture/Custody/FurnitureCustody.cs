@@ -42,7 +42,7 @@ public sealed class FurnitureCustody(
     ) =>
         dbCtxFactory.InTransactionAsync(
             async dbCtx =>
-                await DestroyInInventoryAsync(dbCtx, owner, items, cause, ct)
+                await DestroyInInventoryAsync(dbCtx, owner, items, cause, ct).ConfigureAwait(false)
                     ? UnitOfWork.Commit(true)
                     : UnitOfWork.Rollback(false),
             ct
@@ -56,7 +56,9 @@ public sealed class FurnitureCustody(
         CancellationToken ct
     )
     {
-        var deleted = await InInventory(dbCtx, owner, IdsOf(items)).ExecuteDeleteAsync(ct);
+        var deleted = await InInventory(dbCtx, owner, IdsOf(items))
+            .ExecuteDeleteAsync(ct)
+            .ConfigureAwait(false);
 
         if (deleted != items.Count)
             return false;
@@ -117,7 +119,8 @@ public sealed class FurnitureCustody(
                         .SetProperty(x => x.PlayerEntityId, holder.HeldFor.Value)
                         .SetProperty(x => x.ChestTransactionId, holder.TransactionId),
                 ct
-            );
+            )
+            .ConfigureAwait(false);
 
         if (moved != items.Count)
             return false;
@@ -146,7 +149,8 @@ public sealed class FurnitureCustody(
                         .SetProperty(x => x.HeldPosition, (int?)null)
                         .SetProperty(x => x.PlayerEntityId, to.Value),
                 ct
-            );
+            )
+            .ConfigureAwait(false);
 
         if (moved != items.Count)
             return false;
@@ -165,7 +169,10 @@ public sealed class FurnitureCustody(
     ) =>
         dbCtxFactory.InTransactionAsync(
             async dbCtx =>
-                UnitOfWork.Commit(await CreateInRoomAsync(dbCtx, roomId, owner, furni, cause, ct)),
+                UnitOfWork.Commit(
+                    await CreateInRoomAsync(dbCtx, roomId, owner, furni, cause, ct)
+                        .ConfigureAwait(false)
+                ),
             ct
         );
 
@@ -200,7 +207,7 @@ public sealed class FurnitureCustody(
         dbCtx.AddRange(rows);
 
         // The ids the movements name exist once the rows are inserted.
-        await dbCtx.SaveChangesAsync(ct);
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
         var positions = rows.Select((row, i) => (row, furni[i].Position)).ToDictionary();
 
@@ -230,12 +237,12 @@ public sealed class FurnitureCustody(
                     Position = new RoomPosition(x.X, x.Y, x.Z, x.Rotation, x.WallOffset),
                 })
                 .ToListAsync(ct)
+                .ConfigureAwait(false)
             : [];
 
-        var sent = await inRoom.ExecuteUpdateAsync(
-            up => up.SetProperty(x => x.RoomEntityId, (int?)null),
-            ct
-        );
+        var sent = await inRoom
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct)
+            .ConfigureAwait(false);
 
         var at = DateTime.UtcNow;
 
@@ -320,10 +327,12 @@ public sealed class FurnitureCustody(
 
         // Read only while recording: otherwise this stays the one statement it always was.
         var present = movements.IsRecording
-            ? (await rows.Select(x => x.RoomObjectId).ToListAsync(ct)).ToHashSet()
+            ? (
+                await rows.Select(x => x.RoomObjectId).ToListAsync(ct).ConfigureAwait(false)
+            ).ToHashSet()
             : [];
 
-        var given = await rows.ExecuteDeleteAsync(ct);
+        var given = await rows.ExecuteDeleteAsync(ct).ConfigureAwait(false);
 
         var at = DateTime.UtcNow;
         var moved = new List<AssetMovement>(present.Count);
@@ -360,20 +369,22 @@ public sealed class FurnitureCustody(
 
         var rows = furni.Select(x => NewRow(owner, x)).ToList();
 
-        await dbCtxFactory.InTransactionAsync(
-            async dbCtx =>
-            {
-                dbCtx.AddRange(rows);
+        await dbCtxFactory
+            .InTransactionAsync(
+                async dbCtx =>
+                {
+                    dbCtx.AddRange(rows);
 
-                // The ids the movements name exist once the rows are inserted.
-                await dbCtx.SaveChangesAsync(ct);
+                    // The ids the movements name exist once the rows are inserted.
+                    await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-                movements.Record(dbCtx, Created(cause, rows, _ => Inventory(owner)));
+                    movements.Record(dbCtx, Created(cause, rows, _ => Inventory(owner)));
 
-                return UnitOfWork.Commit(true);
-            },
-            ct
-        );
+                    return UnitOfWork.Commit(true);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
 
         return [.. rows.Select(ToCustody)];
     }
@@ -393,26 +404,28 @@ public sealed class FurnitureCustody(
             .Select(id => NewRow(owner, new FurniToMake(id, null)))
             .ToList();
 
-        await dbCtxFactory.InTransactionAsync(
-            async dbCtx =>
-            {
-                dbCtx.AddRange(rows);
-
-                // The pair's ids exist only once the rows are inserted; the links are saved with the commit.
-                await dbCtx.SaveChangesAsync(ct);
-
-                for (var i = 0; i < rows.Count; i += 2)
+        await dbCtxFactory
+            .InTransactionAsync(
+                async dbCtx =>
                 {
-                    rows[i].ExtraData = TeleportFurniture.PairExtraData(rows[i + 1].Id);
-                    rows[i + 1].ExtraData = TeleportFurniture.PairExtraData(rows[i].Id);
-                }
+                    dbCtx.AddRange(rows);
 
-                movements.Record(dbCtx, Created(cause, rows, _ => Inventory(owner)));
+                    // The pair's ids exist only once the rows are inserted; the links are saved with the commit.
+                    await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-                return UnitOfWork.Commit(true);
-            },
-            ct
-        );
+                    for (var i = 0; i < rows.Count; i += 2)
+                    {
+                        rows[i].ExtraData = TeleportFurniture.PairExtraData(rows[i + 1].Id);
+                        rows[i + 1].ExtraData = TeleportFurniture.PairExtraData(rows[i].Id);
+                    }
+
+                    movements.Record(dbCtx, Created(cause, rows, _ => Inventory(owner)));
+
+                    return UnitOfWork.Commit(true);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
 
         return [.. rows.Select(ToCustody)];
     }
@@ -428,32 +441,35 @@ public sealed class FurnitureCustody(
         var presentRow = NewRow(owner, present);
         var contentRow = NewRow(owner, content);
 
-        await dbCtxFactory.InTransactionAsync(
-            async dbCtx =>
-            {
-                dbCtx.Add(presentRow);
+        await dbCtxFactory
+            .InTransactionAsync(
+                async dbCtx =>
+                {
+                    dbCtx.Add(presentRow);
 
-                // The present's id exists only once its row is inserted.
-                await dbCtx.SaveChangesAsync(ct);
+                    // The present's id exists only once its row is inserted.
+                    await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-                contentRow.ChestItemEntityId = presentRow.Id;
-                dbCtx.Add(contentRow);
+                    contentRow.ChestItemEntityId = presentRow.Id;
+                    dbCtx.Add(contentRow);
 
-                await dbCtx.SaveChangesAsync(ct);
+                    await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
 
-                movements.Record(
-                    dbCtx,
-                    Created(
-                        cause,
-                        [presentRow, contentRow],
-                        row => row == presentRow ? Inventory(owner) : Holder(owner, presentRow.Id)
-                    )
-                );
+                    movements.Record(
+                        dbCtx,
+                        Created(
+                            cause,
+                            [presentRow, contentRow],
+                            row =>
+                                row == presentRow ? Inventory(owner) : Holder(owner, presentRow.Id)
+                        )
+                    );
 
-                return UnitOfWork.Commit(true);
-            },
-            ct
-        );
+                    return UnitOfWork.Commit(true);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
 
         return ToCustody(presentRow);
     }
@@ -470,7 +486,8 @@ public sealed class FurnitureCustody(
                 var row = await dbCtx
                     .Furnitures.Where(x => x.ChestItemEntityId == presentId.Value)
                     .OrderBy(x => x.Id)
-                    .FirstOrDefaultAsync(ct);
+                    .FirstOrDefaultAsync(ct)
+                    .ConfigureAwait(false);
 
                 if (row is null)
                     return UnitOfWork.Rollback<CustodyFurni?>(null);
@@ -510,7 +527,8 @@ public sealed class FurnitureCustody(
             async dbCtx =>
             {
                 var updated = await InInventory(dbCtx, from, ids)
-                    .ExecuteUpdateAsync(up => up.SetProperty(x => x.PlayerEntityId, to.Value), ct);
+                    .ExecuteUpdateAsync(up => up.SetProperty(x => x.PlayerEntityId, to.Value), ct)
+                    .ConfigureAwait(false);
 
                 if (updated != ids.Count)
                 {
@@ -557,7 +575,8 @@ public sealed class FurnitureCustody(
                                 .SetProperty(x => x.Rotation, item.Rotation)
                                 .SetProperty(x => x.WallOffset, wallOffset),
                         ct
-                    );
+                    )
+                    .ConfigureAwait(false);
 
                 if (placed == 0)
                     return UnitOfWork.Rollback(false);
@@ -591,52 +610,55 @@ public sealed class FurnitureCustody(
 
         var ids = items.Select(x => x.ObjectId.Value).ToList();
 
-        var taken = await dbCtxFactory.InTransactionAsync(
-            async dbCtx =>
-            {
-                var rows = await dbCtx
-                    .Furnitures.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId.Value)
-                    .ToDictionaryAsync(x => x.Id, ct);
-
-                var at = DateTime.UtcNow;
-                var moved = new List<AssetMovement>(rows.Count);
-
-                foreach (var item in items)
+        var taken = await dbCtxFactory
+            .InTransactionAsync(
+                async dbCtx =>
                 {
-                    if (!rows.TryGetValue(item.ObjectId.Value, out var row))
-                        continue;
+                    var rows = await dbCtx
+                        .Furnitures.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId.Value)
+                        .ToDictionaryAsync(x => x.Id, ct)
+                        .ConfigureAwait(false);
 
-                    var leftBy = (PlayerId)row.PlayerEntityId;
+                    var at = DateTime.UtcNow;
+                    var moved = new List<AssetMovement>(rows.Count);
 
-                    // The spot and data it left with, so the inventory and a later restore see
-                    // what the room last showed.
-                    row.RoomEntityId = null;
-                    row.PlayerEntityId = item.OwnerId.Value;
-                    row.X = item.X;
-                    row.Y = item.Y;
-                    row.Z = item.Z;
-                    row.Rotation = item.Rotation;
-                    row.WallOffset = WallOffsetOf(item) ?? row.WallOffset;
-                    row.ExtraData = item.ExtraData;
+                    foreach (var item in items)
+                    {
+                        if (!rows.TryGetValue(item.ObjectId.Value, out var row))
+                            continue;
 
-                    moved.Add(
-                        Movement(
-                            cause,
-                            moved.Count,
-                            Furni(row.Id, row.FurnitureDefinitionEntityId),
-                            InRoom(leftBy, roomId, item),
-                            Inventory(item.OwnerId),
-                            at: at
-                        )
-                    );
-                }
+                        var leftBy = (PlayerId)row.PlayerEntityId;
 
-                movements.Record(dbCtx, moved);
+                        // The spot and data it left with, so the inventory and a later restore see
+                        // what the room last showed.
+                        row.RoomEntityId = null;
+                        row.PlayerEntityId = item.OwnerId.Value;
+                        row.X = item.X;
+                        row.Y = item.Y;
+                        row.Z = item.Z;
+                        row.Rotation = item.Rotation;
+                        row.WallOffset = WallOffsetOf(item) ?? row.WallOffset;
+                        row.ExtraData = item.ExtraData;
 
-                return UnitOfWork.Commit(moved.Count);
-            },
-            ct
-        );
+                        moved.Add(
+                            Movement(
+                                cause,
+                                moved.Count,
+                                Furni(row.Id, row.FurnitureDefinitionEntityId),
+                                InRoom(leftBy, roomId, item),
+                                Inventory(item.OwnerId),
+                                at: at
+                            )
+                        );
+                    }
+
+                    movements.Record(dbCtx, moved);
+
+                    return UnitOfWork.Commit(moved.Count);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
 
         if (taken != items.Count)
             logger.LogWarning(
@@ -660,12 +682,16 @@ public sealed class FurnitureCustody(
         var owner = await dbCtx
             .Furnitures.Where(x => x.Id == item.ObjectId.Value && x.RoomEntityId == roomId.Value)
             .Select(x => (int?)x.PlayerEntityId)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
 
         if (owner is null)
             return false;
 
-        await dbCtx.Furnitures.Where(x => x.Id == item.ObjectId.Value).ExecuteDeleteAsync(ct);
+        await dbCtx
+            .Furnitures.Where(x => x.Id == item.ObjectId.Value)
+            .ExecuteDeleteAsync(ct)
+            .ConfigureAwait(false);
 
         movements.Record(
             dbCtx,

@@ -27,6 +27,8 @@ public sealed class ChatHeadRevertTests
     private const int LISTENER = 2;
     private const int BYSTANDER = 3;
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private readonly WiredRoom _room = new(
         20,
         20,
@@ -372,7 +374,7 @@ public sealed class ChatHeadRevertTests
         var listener = Enter(LISTENER, "listener", 3, 5, Rotation.East);
 
         await SayAsync(RoomChatType.Chat);
-        await Task.Delay(1_500);
+        await Task.Delay(1_500, Ct);
         var second = Now();
         var said = await SayAsync(RoomChatType.Chat);
 

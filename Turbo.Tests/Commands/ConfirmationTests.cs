@@ -14,6 +14,8 @@ public class ConfirmationTests
 {
     private readonly OperatorFixture _hotel = new();
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     public ConfirmationTests()
     {
         // The fixture keeps the defaults: ten players or more waits, for 30 seconds.
@@ -269,7 +271,7 @@ public class ConfirmationTests
         await _hotel.RunAsync("opmass", staff, "@online");
         await _hotel.RunAsync("confirm", staff, "");
 
-        await using var ctx = _hotel.Db.CreateDbContext();
+        await using var ctx = await _hotel.Db.CreateDbContextAsync(Ct);
         ctx.CommandLogs.Where(x => x.Command == "opmass")
             .Select(x => x.Outcome)
             .Should()

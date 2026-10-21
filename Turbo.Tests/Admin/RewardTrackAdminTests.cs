@@ -128,7 +128,7 @@ public sealed class RewardTrackAdminTests : IDisposable
         (await _tracks.DeleteAsync(STAFF, "habboween2026", Ct)).Should().BeTrue();
         await _tracks.ReloadAsync(STAFF, Ct);
 
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.CommandLogs.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct))
             .Select(x => (x.Command, x.Arguments, x.Source, x.PlayerEntityId))
             .Should()

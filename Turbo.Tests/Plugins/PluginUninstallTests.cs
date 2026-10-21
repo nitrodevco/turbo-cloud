@@ -118,7 +118,7 @@ public sealed class PluginUninstallTests : IDisposable
         result.Ok.Should().BeTrue(result.Message);
         Directory.Exists(Path.Combine(_folder, "sample")).Should().BeFalse();
         Directory.Exists(Path.Combine(_folder, ".versions", "sample")).Should().BeFalse();
-        File.ReadAllText(Path.Combine(_folder, "plugins.json"))
+        (await File.ReadAllTextAsync(Path.Combine(_folder, "plugins.json"), Ct))
             .Should()
             .NotContain("sample-plugin");
         _plugins.List().Should().NotContain(x => x.Key == "sample");
@@ -243,10 +243,15 @@ public sealed class PluginUninstallTests : IDisposable
         WritePlugin("sample", "sample_");
         WritePlugin("extra", "sample_extra_");
         Directory.CreateDirectory(Path.Combine(_folder, ".versions", "sample"));
-        File.WriteAllBytes(Path.Combine(_folder, ".versions", "sample", "0.9.0.zip"), [1]);
-        File.WriteAllText(
+        await File.WriteAllBytesAsync(
+            Path.Combine(_folder, ".versions", "sample", "0.9.0.zip"),
+            [1],
+            Ct
+        );
+        await File.WriteAllTextAsync(
             Path.Combine(_folder, "plugins.json"),
-            """{ "Sources": [ { "Id": "s1", "Repository": "Staff/sample-plugin", "Key": "sample" } ] }"""
+            """{ "Sources": [ { "Id": "s1", "Repository": "Staff/sample-plugin", "Key": "sample" } ] }""",
+            Ct
         );
 
         await using (var db = await _db.CreateDbContextAsync(Ct))

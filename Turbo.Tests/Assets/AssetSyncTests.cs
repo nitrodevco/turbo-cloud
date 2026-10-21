@@ -390,7 +390,7 @@ public sealed class AssetSyncTests : IDisposable
         const string IMAGES = "https://images.habbo.com/c_images";
         var gif = "GIF89a"u8.ToArray();
 
-        await using (var dbCtx = _db.CreateDbContext())
+        await using (var dbCtx = await _db.CreateDbContextAsync(Ct))
         {
             dbCtx.CatalogPages.Add(
                 new Turbo.Database.Entities.Catalog.CatalogPageEntity
@@ -450,7 +450,12 @@ public sealed class AssetSyncTests : IDisposable
         foreach (var file in files)
             File.Exists(Path.Combine(_folder.Store.Root, file)).Should().BeTrue(file);
 
-        File.ReadAllBytes(Path.Combine(_folder.Store.Root, "images/badges/TEAM.gif"))
+        (
+            await File.ReadAllBytesAsync(
+                Path.Combine(_folder.Store.Root, "images/badges/TEAM.gif"),
+                Ct
+            )
+        )
             .Should()
             .Equal(gif);
 
@@ -525,7 +530,12 @@ public sealed class AssetSyncTests : IDisposable
 
         tile.Revision.Should().Be(Convert.ToHexStringLower(SHA256.HashData(hab)));
         NitroBundle
-            .Read(File.ReadAllBytes(_folder.Store.FullPathOf(AssetBundleKind.Room, "TileCursor")))
+            .Read(
+                await File.ReadAllBytesAsync(
+                    _folder.Store.FullPathOf(AssetBundleKind.Room, "TileCursor"),
+                    Ct
+                )
+            )
             .Files["TileCursor.png"]
             .Should()
             .Equal(1, 2, 3);
@@ -904,11 +914,12 @@ public sealed class AssetSyncTests : IDisposable
 
         var files = NitroBundle
             .Read(
-                File.ReadAllBytes(
+                await File.ReadAllBytesAsync(
                     _folder.Store.FullPathOf(
                         AssetBundleKind.Template,
                         ClientTemplates.WINDOW_MANAGER
-                    )
+                    ),
+                    Ct
                 )
             )
             .Files;
@@ -959,8 +970,9 @@ public sealed class AssetSyncTests : IDisposable
 
         var files = NitroBundle
             .Read(
-                File.ReadAllBytes(
-                    _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-window-manager-com")
+                await File.ReadAllBytesAsync(
+                    _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-window-manager-com"),
+                    Ct
                 )
             )
             .Files;
@@ -1013,11 +1025,12 @@ public sealed class AssetSyncTests : IDisposable
 
         var files = NitroBundle
             .Read(
-                File.ReadAllBytes(
+                await File.ReadAllBytesAsync(
                     _folder.Store.FullPathOf(
                         AssetBundleKind.Template,
                         ClientBundleBuilder.LOCALIZATION_LIBRARY
-                    )
+                    ),
+                    Ct
                 )
             )
             .Files;
@@ -1328,7 +1341,7 @@ public sealed class AssetSyncTests : IDisposable
 
     private async Task<Dictionary<(AssetBundleKind, string), AssetBundleEntity>> RowsAsync()
     {
-        await using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         var rows = await db
             .AssetBundles.AsNoTracking()

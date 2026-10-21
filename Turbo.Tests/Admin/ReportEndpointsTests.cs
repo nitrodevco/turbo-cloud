@@ -200,7 +200,7 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
         states.Should().Equal(("open", 0), ("open", 0), ("picked", OTHER_MODERATOR));
 
         // The other moderator lets theirs go: now the three close together.
-        await using (var db = _db.CreateDbContext())
+        await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             (await db.CfhReports.FindAsync([3], Ct))!.PickerEntityId = null;
             await db.SaveChangesAsync(Ct);
