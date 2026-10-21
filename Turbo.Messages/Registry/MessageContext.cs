@@ -17,6 +17,9 @@ public sealed class MessageContext(ISessionContext session, PlayerId playerId, R
     public RoomId RoomId => _roomId;
     public SessionKey SessionKey => _session.SessionKey;
 
+    /// <summary>Whether this session has completed its key exchange.</summary>
+    public bool IsEncrypted => _session.CryptoIn is not null;
+
     public ActionContext AsActionContext() =>
         new()
         {

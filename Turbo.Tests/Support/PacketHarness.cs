@@ -40,6 +40,9 @@ public sealed class PacketHarness
             }
             return Fakes.NotHandled;
         };
+        // A new connection has not exchanged keys, so it has no ciphers yet.
+        Fakes.Handlers["get_CryptoIn"] = _ => null;
+        Fakes.Handlers["get_CryptoOut"] = _ => null;
         // Every room entry asks which NFT chat styles the player owns: none, unless a test says so.
         Fakes.Handlers["GetOwnedNftChatStyleIdsAsync"] = _ => Task.FromResult(new List<int>());
     }

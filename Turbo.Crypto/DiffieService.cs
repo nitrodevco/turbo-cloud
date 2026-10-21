@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
@@ -14,6 +15,12 @@ public sealed class DiffieService : IDiffieService
     private readonly BigInteger _dhPrivate;
     private readonly BigInteger _dhPublic;
     private readonly IRsaService _rsaService;
+
+    // What the server signs for the client never changes while it runs, and PKCS#1 v1.5 signing
+    // is deterministic, so each is signed once, on first use, not by every handshake.
+    private readonly Lazy<string> _signedPrime;
+    private readonly Lazy<string> _signedGenerator;
+    private readonly Lazy<string> _signedPublicKey;
 
     public DiffieService(IRsaService rsaService)
     {
@@ -34,6 +41,10 @@ public sealed class DiffieService : IDiffieService
 
         _dhPrivate = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
         _dhPublic = _dhGenerator.ModPow(_dhPrivate, _dhPrime);
+
+        _signedPrime = new(() => EncryptBigInteger(_dhPrime));
+        _signedGenerator = new(() => EncryptBigInteger(_dhGenerator));
+        _signedPublicKey = new(() => EncryptBigInteger(_dhPublic));
     }
 
     public byte[] GenerateSharedKey(string publicKey)
@@ -53,15 +64,9 @@ public sealed class DiffieService : IDiffieService
         return new BigInteger(intStr);
     }
 
-    public string GetSignedPrime()
-    {
-        return EncryptBigInteger(_dhPrime);
-    }
+    public string GetSignedPrime() => _signedPrime.Value;
 
-    public string GetSignedGenerator()
-    {
-        return EncryptBigInteger(_dhGenerator);
-    }
+    public string GetSignedGenerator() => _signedGenerator.Value;
 
     public string EncryptBigInteger(BigInteger integer)
     {
@@ -82,8 +87,5 @@ public sealed class DiffieService : IDiffieService
         return sharedKey.ToByteArrayUnsigned();
     }
 
-    public string GetPublicKey()
-    {
-        return EncryptBigInteger(_dhPublic);
-    }
+    public string GetPublicKey() => _signedPublicKey.Value;
 }

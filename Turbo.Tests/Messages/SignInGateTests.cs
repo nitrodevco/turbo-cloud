@@ -49,6 +49,8 @@ public sealed class SignInGateTests : IAsyncLifetime
         _revisions.RegisterRevision(new Revision20260909());
         _fakes.Handlers["get_RevisionId"] = _ => _revisions.DefaultRevisionId;
         _fakes.Handlers["get_SessionKey"] = _ => (SessionKey)"session-1";
+        // A session that has not logged in has not exchanged keys either.
+        _fakes.Handlers["get_CryptoIn"] = _ => null;
         _fakes.Handlers["GetPlayerId"] = _ => _signedIn;
         _fakes.Handlers["SendComposerAsync"] = call =>
         {

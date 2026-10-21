@@ -28,6 +28,15 @@ public class CompleteDiffieHandshakeMessageHandler(
         CancellationToken ct
     )
     {
+        // A second exchange would replace the session's keys mid-stream; the client opens a new
+        // connection to start again.
+        if (ctx.IsEncrypted)
+        {
+            await ctx.CloseSessionAsync("Diffie handshake completed twice").ConfigureAwait(false);
+
+            return;
+        }
+
         var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
 
         await ctx.SendComposerAsync(

@@ -24,6 +24,15 @@ public class InitDiffieHandshakeMessageHandler(
         CancellationToken ct
     )
     {
+        // A connection exchanges keys once; the client opens a new one to start again.
+        if (ctx.IsEncrypted)
+        {
+            await ctx.CloseSessionAsync("Diffie handshake started on an encrypted session")
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         _telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.HANDSHAKE_START);
 
         var prime = _diffieService.GetSignedPrime();
