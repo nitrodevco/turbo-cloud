@@ -21,6 +21,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Tests.Catalog;
 using Turbo.Tests.Support;
 using Xunit;
@@ -75,6 +76,8 @@ public sealed class FurnitureListTests : IDisposable
             NullLogger<HabboFurnitureFiles>.Instance
         );
 
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)[];
         _furniture = new GamedataFurnitureService(
             _db,
             config,
@@ -85,6 +88,7 @@ public sealed class FurnitureListTests : IDisposable
             furnitureFiles,
             new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
             new GamedataWriteLock(),
+            _fakes.Create<IRoomObjectLogicProvider>(),
             TimeProvider.System,
             NullLogger<GamedataFurnitureService>.Instance
         );

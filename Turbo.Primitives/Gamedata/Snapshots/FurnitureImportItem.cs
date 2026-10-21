@@ -29,4 +29,11 @@ public sealed record FurnitureImportItem
     /// <summary>The fields that differ; empty for an item being added.</summary>
     [Id(5)]
     public required ImmutableArray<FurnitureFieldChange> Fields { get; init; }
+
+    /// <summary>
+    /// The logic an item being added gets: the one registered under its classname, otherwise the
+    /// default. Null for an item being updated, whose logic is the hotel's.
+    /// </summary>
+    [Id(6)]
+    public string? Logic { get; init; }
 }
