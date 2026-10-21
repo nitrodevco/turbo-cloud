@@ -1,6 +1,8 @@
 using FluentAssertions;
+using Turbo.Database.Entities.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;
 
@@ -115,6 +117,67 @@ public sealed class CatalogDisplayTests : IDisposable
         snapshot
             .OffersById.Keys.Should()
             .BeEquivalentTo([ON_ANNA, ON_BATHROOM], "Base and By Design are regular only");
+    }
+
+    /// <summary>An offer on a page, giving each of <paramref name="products"/>.</summary>
+    private void Offer(
+        int id,
+        int pageId,
+        params (ProductType Type, int? Definition, string? Extra)[] products
+    )
+    {
+        _catalog.Db.Insert(
+            new CatalogOfferEntity
+            {
+                Id = id,
+                CatalogPageEntityId = pageId,
+                LocalizationId = $"offer{id}",
+                CostCredits = 3,
+                CostCurrency = 0,
+                ClubLevel = 0,
+                CanGift = true,
+                CanBundle = true,
+                Visible = true,
+                SortOrder = id,
+                Page = null!,
+            }
+        );
+
+        for (var i = 0; i < products.Length; i++)
+            _catalog.Db.Insert(
+                new CatalogProductEntity
+                {
+                    Id = id * 10 + i,
+                    CatalogOfferEntityId = id,
+                    ProductType = products[i].Type,
+                    FurnitureDefinitionEntityId = products[i].Definition,
+                    ExtraParam = products[i].Extra,
+                    Quantity = 1,
+                    Offer = null!,
+                }
+            );
+    }
+
+    [Fact]
+    public async Task APageInBoth_LendsInTheBuildersClubOnlyWhatItCan_AndSellsAllOfItInTheNormal()
+    {
+        var goldbar = _catalog.AddDefinition(60, "CF_50_goldbar");
+
+        Offer(310, BATHROOM, (ProductType.Floor, CHAIR, null), (ProductType.Wall, POSTER, "7"));
+        Offer(311, BATHROOM, (ProductType.Badge, null, "ACH_Test1"));
+        Offer(312, BATHROOM, (ProductType.Floor, goldbar.Id, null));
+
+        var normal = await NormalAsync();
+        var builders = await BuildersClubAsync();
+
+        normal.PageOfferIds[BATHROOM].Should().BeEquivalentTo([ON_BATHROOM, 310, 311, 312]);
+        builders
+            .PageOfferIds[BATHROOM]
+            .Should()
+            .Equal([ON_BATHROOM], "a bundle, a badge and credit furni are not lent");
+
+        // What is not listed is not lent either: the placement path asks the snapshot.
+        builders.OffersById.Keys.Should().NotContain([310, 311, 312]);
     }
 
     [Fact]

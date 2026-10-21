@@ -225,6 +225,9 @@ hotel-wide grain in section 5.
   and only offers on pages the catalog shows are in its snapshot (placement asks it). Example:
   `By Design (regular) > Anna (bc_only), Base (regular), Bathroom (both)` is `By Design > Anna,
   Bathroom` in the Builders Club catalog and `By Design > Base, Bathroom` in the normal one.
+- The Builders Club catalog holds only the offers it can lend: one floor or wall item that is not
+  credit furni (`CreditFurniValue`). A page shown in both lists its bundles, badges, effects and
+  credit furni in the normal catalog alone, and what the Builders Club doesn't list it doesn't lend.
 - The Builders Club client draws no tabs: it opens the root's first child and lists that child's
   children. So the Builders Club cut drops the tabs (the root's children) and gathers the pages
   under every tab, in tab order, under one category with id `-2`, which no row holds. A tab

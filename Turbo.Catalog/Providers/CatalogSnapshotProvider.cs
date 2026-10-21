@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 
 namespace Turbo.Catalog.Providers;
@@ -29,6 +32,23 @@ public sealed class CatalogSnapshotProvider<TTag>(
     private CatalogSnapshot _current = CatalogSnapshot.Empty;
 
     public CatalogType CatalogType => catalogType;
+
+    /// <summary>
+    /// Whether the Builders Club can lend what a product gives: a floor or wall item that is not
+    /// credit furni. An item the hotel does not know is left to the placement, which refuses it.
+    /// </summary>
+    private bool IsLendable(CatalogProductEntity product)
+    {
+        if (
+            product.ProductType is not (ProductType.Floor or ProductType.Wall)
+            || product.FurnitureDefinitionEntityId is not { } definitionId
+        )
+            return false;
+
+        return _furnitureProvider.TryGetDefinition(definitionId) is not { } definition
+            || !CreditFurniValue.TryParse(definition.Name, out _);
+    }
+
     public CatalogSnapshot Current => _current;
 
     public async Task<CatalogSnapshot> GetSnapshotAsync(CancellationToken ct)
@@ -83,6 +103,22 @@ public sealed class CatalogSnapshotProvider<TTag>(
             )
                 .Where(x => offerIdSet.Contains(x.CatalogOfferEntityId))
                 .ToList();
+
+            // The Builders Club lends one floor or wall item at a time, and never credit furni,
+            // which are cashed in: a page in both catalogs lists the rest in the normal one only,
+            // and what is not listed here is not lent from here either.
+            if (catalogType == CatalogType.BuildersClub)
+            {
+                var lendable = products
+                    .GroupBy(x => x.CatalogOfferEntityId)
+                    .Where(x => x.Count() == 1 && IsLendable(x.Single()))
+                    .Select(x => x.Key)
+                    .ToHashSet();
+
+                offers = [.. offers.Where(x => lendable.Contains(x.Id))];
+                products = [.. products.Where(x => lendable.Contains(x.CatalogOfferEntityId))];
+            }
+
             var allSeries = await dbCtx
                 .LtdSeries.AsNoTracking()
                 .ToListAsync(ct)
