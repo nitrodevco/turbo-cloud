@@ -39,6 +39,7 @@ internal sealed class CatalogEndpoints(
     AdminCatalogAudit audit,
     AdminCatalogImport importer,
     AdminJobs jobs,
+    AdminCatalogPageMerge merger,
     IFurnitureDefinitionProvider definitions,
     IRecolorablePalettes palettes,
     ILogger<CatalogEndpoints> logger
@@ -108,6 +109,12 @@ internal sealed class CatalogEndpoints(
         group.MapDelete("/backups/{id:int}", DeleteBackupAsync);
         group.MapPost("/reset", ResetAsync);
         group.MapGet("/audit/unoffered", UnofferedAsync);
+        group.MapGet(
+            "/audit/duplicate-pages",
+            async (CancellationToken ct) =>
+                Results.Ok(await audit.GetDuplicatePagesAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost("/pages/{id:int}/merge", MergeAsync);
         group.MapGet(
             "/audit/duplicates",
             async (CancellationToken ct) =>
@@ -446,6 +453,26 @@ internal sealed class CatalogEndpoints(
     }
 
     /// <summary>A reset; refused with 409, as a rollback is, when it would take away what something leans on.</summary>
+    /// <summary>Pages of the page's name made one with it, as one step; a page with many offers takes a while.</summary>
+    private Task<IResult> MergeAsync(
+        int id,
+        CatalogPageMergeRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var who = AdminIdentity.Of(http).PlayerId;
+        var pageIds = request.PageIds ?? [];
+
+        return jobs.RunAsync(
+            who,
+            "Merging the pages",
+            async jobCt =>
+                Built(await merger.MergeAsync(who, id, pageIds, jobCt).ConfigureAwait(false)),
+            ct
+        );
+    }
+
     private Task<IResult> ResetAsync(
         CatalogResetRequest? request,
         HttpContext http,

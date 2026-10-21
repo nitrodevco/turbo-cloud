@@ -50,6 +50,38 @@ public sealed record CatalogDuplicate(
 
 public sealed record CatalogDuplicatesResponse(int Total, CatalogDuplicate[] Items);
 
+/// <summary>A page of a name another page has too: where it is, what shows it, and what it holds.</summary>
+public sealed record CatalogDuplicatePageItem(
+    int PageId,
+    string Title,
+    string Path,
+    string Display,
+    bool Shown,
+    int Offers,
+    int Pages
+);
+
+/// <summary>The pages of one name, the oldest first.</summary>
+public sealed record CatalogDuplicatePage(string Name, CatalogDuplicatePageItem[] Pages);
+
+public sealed record CatalogDuplicatePagesResponse(int Total, CatalogDuplicatePage[] Items);
+
+/// <summary>The pages to merge into the one named by the route.</summary>
+public sealed record CatalogPageMergeRequest(int[]? PageIds);
+
+/// <summary>
+/// A merge done: offers moved to the page kept, those it gave already deleted, pages moved under
+/// it, pages deleted, and how the page kept is shown now.
+/// </summary>
+public sealed record CatalogPageMergeResult(
+    int OffersMoved,
+    int OffersDropped,
+    int PagesMoved,
+    int PagesDeleted,
+    string Display,
+    int UnpublishedChanges
+);
+
 /// <summary>Floor and wall items to sell on a page, one offer each, at one price.</summary>
 public sealed record CatalogAddFurniRequest(
     int[]? DefinitionIds,

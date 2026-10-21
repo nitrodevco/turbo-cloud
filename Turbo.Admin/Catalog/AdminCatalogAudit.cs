@@ -154,6 +154,58 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
         return new CatalogDuplicatesResponse(duplicates.Length, duplicates);
     }
 
+    /// <summary>
+    /// The names more than one page has, each with its pages: where they are, which catalogue
+    /// shows them, and how many offers and pages each holds; the root is left out. Two imports
+    /// made apart leave a page of Habbo's twice, one for each catalogue.
+    /// </summary>
+    public async Task<CatalogDuplicatePagesResponse> GetDuplicatePagesAsync(CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var pages = await PagesAsync(db, ct).ConfigureAwait(false);
+        var named = await db
+            .CatalogPages.AsNoTracking()
+            .Where(x => x.ParentEntityId != null && x.Name != null && x.Name != "")
+            .Select(x => new { x.Id, x.Name })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var offers = await db
+            .CatalogOffers.AsNoTracking()
+            .GroupBy(x => x.CatalogPageEntityId)
+            .Select(g => new { PageId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PageId, x => x.Count, ct)
+            .ConfigureAwait(false);
+        var under = pages
+            .Values.Where(x => x.ParentId is not null)
+            .GroupBy(x => x.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var duplicates = named
+            .GroupBy(x => x.Name!.Trim(), StringComparer.Ordinal)
+            .Where(g => g.Key.Length > 0 && g.Count() > 1)
+            .Select(g => new CatalogDuplicatePage(
+                g.Key,
+                [
+                    .. g.OrderBy(x => x.Id)
+                        .Select(x => new CatalogDuplicatePageItem(
+                            x.Id,
+                            pages[x.Id].Title,
+                            PathOf(pages, x.Id),
+                            pages[x.Id].Display.ToName(),
+                            IsShown(pages, x.Id),
+                            offers.GetValueOrDefault(x.Id),
+                            under.GetValueOrDefault(x.Id)
+                        )),
+                ]
+            ))
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        return new CatalogDuplicatePagesResponse(duplicates.Length, duplicates);
+    }
+
     /// <summary>The floor and wall items a plain offer can sell: not the patterned ones, nor pets.</summary>
     internal static async Task<List<CatalogAuditFurni>> FurniAsync(
         TurboDbContext db,

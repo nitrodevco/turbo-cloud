@@ -657,6 +657,15 @@ undo. **Add furni** on an open page does the same for that page.
 each with where its offers are, what they cost, and whether players see them. Open an offer in the
 editor, delete it, **keep only this** one, or **keep one of each**: the first players see.
 
+**Pages by the same name**, below, are the names more than one page has (two imports made apart
+leave a page of Habbo's twice, one for each catalogue), each page with where it is, which
+catalogue shows it and what it holds. **Merge into this** makes them one, as one step to undo:
+the others' offers go to the end of that page (one giving only what it gives already is deleted
+instead, unless a club gift or a limited series keeps it), the pages under them go under it, and
+they are deleted. The page kept is shown in each catalogue one of them was, but a tab, which the
+Builders Club never shows. A page can't be merged into one under it.
+`GET /api/catalog/audit/duplicate-pages` and `POST /api/catalog/pages/{id}/merge` (`{ pageIds }`).
+
 **Front page.** **Make a front page** adds a `frontpage4` tab, first among the tabs, with the
 voucher box's line, and opens its featured items. **Feature** on an offer puts it among the
 featured items (four at most); give it a promo image there.
