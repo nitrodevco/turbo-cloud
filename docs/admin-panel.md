@@ -680,6 +680,13 @@ editor, delete it, **keep only this** one, or **keep one of each**: the first pl
 leave a page of Habbo's twice, one for each catalogue), each page with where it is, which
 catalogue shows it and what it holds. **Merge into this** opens the merge on them.
 
+**Sorting a page into sub pages.** **Sort into sub pages**, under **More** on an open page, moves
+its offers onto pages under it the way the audit's add sorts new furni: by kind, by colour, or kind
+then colour, with the same rules. An offer selling one floor or wall item is sorted by it; any
+other (a bundle, a pet, a badge, a membership) stays on the page. Offers move as they are, prices,
+limited series and all, onto pages made with them or the one of that title there already. The
+dialog lists the pages first; a sort that parts nothing is refused. One step to undo.
+
 **Merging pages.** **Merge with another page**, under **More** on an open page, makes any two pages
 one, as one step to undo. Pick the other page, **Keep the page** (its place, title and layout stay)
 and, **where two sell the same** thing (the same products), whose offer stays. The others' copies
@@ -728,7 +735,8 @@ Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and 
 `page`, `size`), `GET /api/catalog/audit/unoffered/ids` (the same less `page` and `size`: every
 id that matches) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
 (definition ids, one price and `sortBy`: `kind`, `colour` or `kindColour`), `POST /api/catalog/pages/{id}/furni/preview` (the pages
-they would go on; changes nothing) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
+they would go on; changes nothing), `POST /api/catalog/pages/{id}/resort` (`sortBy`) and its
+`/preview`, and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
 and `POST /api/catalog/generate/preview` (changes nothing) and `POST /api/catalog/generate`.
 Reading needs `admin.catalog.view`; changing needs `catalog.manage` as well.
 

@@ -95,6 +95,22 @@ internal sealed class CatalogEndpoints(
             )
             .ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/furni", AddFurniAsync);
+        group
+            .MapPost(
+                "/pages/{id:int}/resort/preview",
+                async (int id, CatalogResortRequest request, CancellationToken ct) =>
+                    Built(await furni.PlanResortAsync(id, request.SortBy, ct).ConfigureAwait(false))
+            )
+            .ViewIsEnough(PREVIEW);
+        group.MapPost(
+            "/pages/{id:int}/resort",
+            async (int id, CatalogResortRequest request, HttpContext http, CancellationToken ct) =>
+                Built(
+                    await furni
+                        .ResortAsync(AdminIdentity.Of(http).PlayerId, id, request.SortBy, ct)
+                        .ConfigureAwait(false)
+                )
+        );
         group.MapPost("/offers/delete", DeleteOffersAsync);
         group.MapPost("/frontpage", CreateFrontPageAsync);
         group.MapGet("/history", () => Results.Ok(HistoryResponse()));

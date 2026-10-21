@@ -4,7 +4,9 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
 using Turbo.Catalog.Editing;
+using Turbo.Database.Entities.Catalog;
 using Turbo.Primitives.Catalog.Editing;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Support;
@@ -318,6 +320,112 @@ public sealed class AdminCatalogAddFurniTests : IDisposable
         var ids = Furni("rare", "marquee*1");
 
         (await Adder.PlanAsync(CHILD, Request(ids, "size"), Ct)).Error.Should().Contain("kind");
+    }
+
+    /// <summary>An offer on a page, giving each of the definitions once, last on it.</summary>
+    private void OfferOn(int offerId, int pageId, params int[] definitionIds)
+    {
+        _catalog.Db.Insert(
+            new CatalogOfferEntity
+            {
+                Id = offerId,
+                CatalogPageEntityId = pageId,
+                LocalizationId = $"offer{offerId}",
+                CostCredits = 3,
+                CostCurrency = 0,
+                ClubLevel = 0,
+                CanGift = true,
+                CanBundle = true,
+                Visible = true,
+                SortOrder = offerId,
+                Page = null!,
+            }
+        );
+
+        for (var i = 0; i < definitionIds.Length; i++)
+            _catalog.Db.Insert(
+                new CatalogProductEntity
+                {
+                    Id = offerId * 10 + i,
+                    CatalogOfferEntityId = offerId,
+                    ProductType = ProductType.Floor,
+                    FurnitureDefinitionEntityId = definitionIds[i],
+                    Quantity = 1,
+                    Offer = null!,
+                }
+            );
+    }
+
+    private List<int> OfferIdsOn(int pageId)
+    {
+        using var db = _catalog.Db.CreateDbContext();
+
+        return
+        [
+            .. db
+                .CatalogOffers.Where(x => x.CatalogPageEntityId == pageId)
+                .OrderBy(x => x.SortOrder)
+                .Select(x => x.Id),
+        ];
+    }
+
+    [Fact]
+    public async Task Resorting_MovesAPagesOffersOntoAPageForEachKind_LeavingABundleOnIt()
+    {
+        const int RARES = 50;
+
+        _catalog.Db.Insert(Page(RARES, FURNITURE, "Rares"));
+        var ids = Furni(
+            "rare",
+            "marquee*1",
+            "pillow*1",
+            "marquee*2",
+            "pillow*2",
+            "marquee*3",
+            "pillow*3"
+        );
+
+        for (var i = 0; i < ids.Length; i++)
+            OfferOn(500 + i, RARES, ids[i]);
+
+        OfferOn(510, RARES, ids[0], ids[1]);
+
+        var plan = await Adder.PlanResortAsync(RARES, AdminCatalogAddFurni.SORT_KIND, Ct);
+
+        plan.Value!.Pages.Select(x => (x.Title, x.PageId, x.Count))
+            .Should()
+            .Equal(("Marquee", null, 3), ("Pillow", null, 3));
+        plan.Value.Staying.Should().Be(1, "the bundle sells two furni");
+
+        var sorted = await Adder.ResortAsync(Editor, RARES, AdminCatalogAddFurni.SORT_KIND, Ct);
+
+        sorted.Value!.Done.Should().Be(6);
+        OfferIdsOn(PageNamed(RARES, "Marquee")).Should().Equal(500, 502, 504);
+        OfferIdsOn(PageNamed(RARES, "Pillow")).Should().Equal(501, 503, 505);
+        OfferIdsOn(RARES).Should().Equal(510);
+        _service.History.Undo.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Resorting_APageItPartsNothingOf_IsRefused_AndChangesNothing()
+    {
+        const int XMAS = 51;
+
+        _catalog.Db.Insert(Page(XMAS, FURNITURE, "Xmas 2014"));
+        var ids = Furni("xmas2014", "xmas14_elf1", "xmas14_palm", "xmas14_tikibar");
+
+        for (var i = 0; i < ids.Length; i++)
+            OfferOn(520 + i, XMAS, ids[i]);
+
+        var before = _catalog.Rows();
+
+        var plan = await Adder.PlanResortAsync(XMAS, AdminCatalogAddFurni.SORT_KIND_COLOUR, Ct);
+
+        plan.Value!.Pages.Should().BeEmpty();
+        (await Adder.ResortAsync(Editor, XMAS, AdminCatalogAddFurni.SORT_KIND_COLOUR, Ct))
+            .Error.Should()
+            .Contain("Nothing to sort");
+        _catalog.Rows().Should().Be(before);
     }
 
     [Fact]

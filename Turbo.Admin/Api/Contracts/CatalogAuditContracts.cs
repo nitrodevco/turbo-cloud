@@ -144,6 +144,15 @@ public sealed record CatalogAddFurniPage(
 /// <summary>The pages adding the furni would put them on, in the order they would be in.</summary>
 public sealed record CatalogAddFurniPlan(CatalogAddFurniPage[] Pages);
 
+/// <summary>How to sort a page's offers onto pages under it: <c>kind</c>, <c>colour</c> or <c>kindColour</c>.</summary>
+public sealed record CatalogResortRequest(string? SortBy);
+
+/// <summary>
+/// The pages under a page its offers would move onto, none when the sort parts nothing; and how
+/// many stay on it, selling something other than one floor or wall item.
+/// </summary>
+public sealed record CatalogResortPlan(CatalogAddFurniPage[] Pages, int Staying);
+
 /// <summary>Offers to delete at once, as one step to undo.</summary>
 public sealed record CatalogOffersDeleteRequest(int[]? OfferIds);
 
