@@ -248,14 +248,7 @@ public sealed partial class CatalogEditService
                             .ConfigureAwait(false);
 
                         await RemoveSeriesAsync(db, series, ct).ConfigureAwait(false);
-
-                        if (
-                            await CatalogEditJournal
-                                .RestoreAsync(db, step, towardsBefore: false, ct)
-                                .ConfigureAwait(false) is
-                            { } error
-                        )
-                            return UnitOfWork.Rollback(CatalogEditResult.Refused(error));
+                        await EmptyAsync(db, current, step, ct).ConfigureAwait(false);
 
                         done = step;
 
@@ -287,6 +280,65 @@ public sealed partial class CatalogEditService
         {
             _historyGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Takes away the rows a reset's step names, a thousand at a time by id. Not through the
+    /// change tracker, as an undo puts rows back: a catalog of tens of thousands of offers would
+    /// be loaded and deleted a row at a time, minutes against a database across a network, all
+    /// while the panel waits. The step already holds each row as it was, for the undo, and the
+    /// series that leaned on its products are gone before this runs.
+    /// </summary>
+    private static async Task EmptyAsync(
+        TurboDbContext db,
+        Dictionary<CatalogRow, CatalogRowImage> current,
+        CatalogEditStep step,
+        CancellationToken ct
+    )
+    {
+        var rootId = current
+            .Where(x =>
+                x.Key.Type == typeof(CatalogPageEntity)
+                && x.Value.Values[nameof(CatalogPageEntity.ParentEntityId)] is null
+            )
+            .Min(x => x.Key.Id);
+
+        List<int> Ids<T>() =>
+            [.. step.Rows.Where(x => x.Key.Type == typeof(T)).Select(x => x.Key.Id)];
+
+        foreach (var chunk in Ids<CatalogFeaturedItemEntity>().Chunk(1000))
+            await db
+                .CatalogFeaturedItems.Where(x => chunk.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+
+        foreach (var chunk in Ids<CatalogProductEntity>().Chunk(1000))
+            await db
+                .CatalogProducts.Where(x => chunk.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+
+        foreach (var chunk in Ids<CatalogOfferEntity>().Chunk(1000))
+            await db
+                .CatalogOffers.Where(x => chunk.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+
+        // Pages hang off one another, so each is moved straight under the root first; then no
+        // page being taken away is under another, and they can go in any order.
+        var pages = Ids<CatalogPageEntity>();
+
+        foreach (var chunk in pages.Chunk(1000))
+            await db
+                .CatalogPages.Where(x => chunk.Contains(x.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.ParentEntityId, rootId), ct)
+                .ConfigureAwait(false);
+
+        foreach (var chunk in pages.Chunk(1000))
+            await db
+                .CatalogPages.Where(x => chunk.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
     }
 
     public async Task<CatalogEditResult> DeleteBackupAsync(
