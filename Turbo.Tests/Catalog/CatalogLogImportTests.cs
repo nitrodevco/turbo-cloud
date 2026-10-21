@@ -491,6 +491,33 @@ public sealed class CatalogLogImportTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePlanOfBothLogs_ListsAPageInBothOnce_AsApplyingThemMakesIt()
+    {
+        var request = await LodgeLogsAsync();
+
+        var plan = (await Importer.PlanLogsAsync(request, Ct)).Value!;
+
+        plan.Normal!.Pages.Single(x => x.Name == "lodge")
+            .Action.Should()
+            .Be(CatalogImportPageChange.ADD);
+        plan.BuildersClub!.Pages.Single(x => x.Name == "lodge")
+            .Action.Should()
+            .Be(CatalogImportPageChange.UNCHANGED, "the normal catalogue's import makes it");
+        plan.BuildersClub.Pages.Single(x => x.Name == "lodge_extras")
+            .Action.Should()
+            .Be(CatalogImportPageChange.ADD);
+        plan.BuildersClub.Warnings.Should().NotContain(x => x.Contains("lists them in each"));
+
+        // And applied, what was planned is what is made.
+        (await Importer.ApplyLogsAsync(Editor, request, Ct))
+            .Error.Should()
+            .BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        (await db.CatalogPages.CountAsync(x => x.Name == "lodge", Ct)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task ThePlan_NamesThePicturesThisHotelHasNoFileOf()
     {
         var page = Page(60, FURNITURE, "Spooky", sort: 6);

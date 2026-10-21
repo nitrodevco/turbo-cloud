@@ -137,14 +137,19 @@ public sealed class AdminCatalogImport(
             return CatalogBuildOutcome<CatalogLogImportPlan>.Refused(refused);
 
         var plans = new List<CatalogImportPlan>();
+        IReadOnlySet<string>? madeBoth = null;
 
         foreach (var source in sources)
         {
-            var work = await PlanWorkAsync(source, request.TakeOthersOut, ct).ConfigureAwait(false);
+            // Applied, the Builders Club's plan is worked out once the normal catalogue's is
+            // made; planned, it is told what the normal catalogue's makes shown in both.
+            var work = await PlanWorkAsync(source, request.TakeOthersOut, ct, madeBoth)
+                .ConfigureAwait(false);
 
             if (work.Error is { } error)
                 return CatalogBuildOutcome<CatalogLogImportPlan>.Refused(error);
 
+            madeBoth = work.BothNames;
             plans.Add(work.Describe(false, false, editor.UnpublishedChanges));
         }
 
@@ -385,7 +390,17 @@ public sealed class AdminCatalogImport(
         return (null, plans);
     }
 
-    private async Task<Work> PlanWorkAsync(Source source, bool takeOthersOut, CancellationToken ct)
+    /// <summary>
+    /// What a capture would do to the catalogue as it is. <paramref name="madeBoth"/> names the
+    /// pages an earlier plan of the same request makes shown in both, not made yet: the
+    /// Builders Club's plan takes each as the page it will be rather than making one.
+    /// </summary>
+    private async Task<Work> PlanWorkAsync(
+        Source source,
+        bool takeOthersOut,
+        CancellationToken ct,
+        IReadOnlySet<string>? madeBoth = null
+    )
     {
         var builders = source.Type == CatalogType.BuildersClub;
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -603,7 +618,7 @@ public sealed class AdminCatalogImport(
 
         if (madeShared.Count > 0)
             work.Warnings.Add(
-                $"{madeShared.Count} pages are in the normal catalogue's log too, and no page here is shown in both catalogues by their names yet: the normal catalogue's import makes them, once, before this one is made, so a plan of both logs lists them in each ({string.Join(", ", madeShared.Take(LISTED_MAX))}{(madeShared.Count > LISTED_MAX ? $" and {madeShared.Count - LISTED_MAX} more" : string.Empty)})."
+                $"{madeShared.Count} pages are in the normal catalogue's log too, but no page here or of its import is shown in both by their names: they are made here, shown in both ({string.Join(", ", madeShared.Take(LISTED_MAX))}{(madeShared.Count > LISTED_MAX ? $" and {madeShared.Count - LISTED_MAX} more" : string.Empty)})."
             );
 
         foreach (var (type, count) in unpriced)
@@ -705,6 +720,9 @@ public sealed class AdminCatalogImport(
                 return;
             }
 
+            if (!builders && draft.Display == CatalogPageDisplay.Both)
+                work.BothNames.Add(name);
+
             // What a page both show is and sells is the normal catalogue's to say, the Builders
             // Club having no prices; its import takes in only the pages under it that it alone has.
             var makeBoth = false;
@@ -736,6 +754,20 @@ public sealed class AdminCatalogImport(
             }
 
             work.Pictures.UnionWith(draft.ImageData.Select(x => x.Trim()).Where(x => x.Length > 0));
+
+            // Planned beside the normal catalogue's plan, which makes the page in both: the
+            // page it will be, with what only the Builders Club has under it.
+            if (builders && shared && madeBoth?.Contains(name) == true)
+            {
+                work.Names.Add(name);
+                sharedNames.Add(name);
+                work.ShareMade(name, draft.Localization, path);
+
+                foreach (var child in node.Children ?? [])
+                    Visit(child, CatalogPageRef.Saved(0), path, hidden);
+
+                return;
+            }
 
             if (builders && shared)
             {
@@ -1249,6 +1281,9 @@ public sealed class AdminCatalogImport(
 
         public List<string> MissingPictures { get; } = [];
 
+        /// <summary>The pages the plan makes, or leaves, shown in both catalogues, by name.</summary>
+        public HashSet<string> BothNames { get; } = new(StringComparer.Ordinal);
+
         public List<string> Warnings { get; } = [];
 
         public HashSet<string> Names { get; } = new(StringComparer.Ordinal);
@@ -1382,6 +1417,13 @@ public sealed class AdminCatalogImport(
 
             _pages.Add(page);
         }
+
+        /// <summary>
+        /// A page the normal catalogue's plan makes shown in both, as the Builders Club's plan
+        /// lists it: left as that one makes it.
+        /// </summary>
+        public void ShareMade(string name, string title, string path) =>
+            _pages.Add(new PlanPage(name, title, path, CatalogImportPageChange.UNCHANGED, null));
 
         public void AddOffer(PlanPage page, CatalogPageRef target, CatalogOfferDraft draft)
         {
