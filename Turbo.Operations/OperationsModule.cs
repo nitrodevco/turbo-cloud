@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Operations.Configuration;
 using Turbo.Operations.Movements;
+using Turbo.Operations.OnlineRewards;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Movements;
@@ -24,6 +25,9 @@ public sealed class OperationsModule : IHostPluginModule
     {
         services.Configure<OperationsConfig>(
             builder.Configuration.GetSection(OperationsConfig.SECTION_NAME)
+        );
+        services.Configure<OnlineRewardsConfig>(
+            builder.Configuration.GetSection(OnlineRewardsConfig.SECTION_NAME)
         );
 
         services.TryAddSingleton(TimeProvider.System);
@@ -53,6 +57,10 @@ public sealed class OperationsModule : IHostPluginModule
         services.AddSingleton<CurrencyLedger>();
         services.AddSingleton<CurrencyLedgerService>();
         services.AddHostedService(sp => sp.GetRequiredService<CurrencyLedgerService>());
+
+        // Currency for time online, off until a hotel gives it rules (Turbo:OnlineRewards).
+        services.AddSingleton<OnlineRewardService>();
+        services.AddHostedService(sp => sp.GetRequiredService<OnlineRewardService>());
 
         // A plugin that undoes movements moves assets back through this (docs/movements.md).
         services.AddSingleton<IAssetReversalService, AssetReversalService>();
