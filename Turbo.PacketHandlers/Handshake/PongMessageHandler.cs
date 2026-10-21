@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Handshake;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -10,6 +11,7 @@ namespace Turbo.PacketHandlers.Handshake;
 /// arrival is recorded before it is handled (<c>PackageHandler</c> marks the session), and that
 /// is what keeps the connection from being closed as silent.
 /// </summary>
+[AllowAnonymous]
 public class PongMessageHandler : IMessageHandler<PongMessage>
 {
     public async ValueTask HandleAsync(

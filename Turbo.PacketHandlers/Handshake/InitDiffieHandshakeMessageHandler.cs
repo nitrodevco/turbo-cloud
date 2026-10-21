@@ -4,10 +4,12 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Handshake;
 
+[AllowAnonymous]
 public class InitDiffieHandshakeMessageHandler(
     IDiffieService diffieService,
     IClientTelemetry telemetry

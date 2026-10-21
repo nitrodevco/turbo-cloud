@@ -60,18 +60,17 @@ internal sealed class HudStateSerializer() : AbstractSerializer<HudStateMessage>
 
 A composer that implements `ICapabilityComposer` goes only to sessions that accepted its
 capability. The parsed message is a normal `IMessageEvent`, handled by an `IMessageHandler<T>` in
-the plugin. A client may send an extension packet whether or not it accepted the capability, so a
-handler should check that first, for the session the packet came on:
+the plugin. Like a core handler, it is reached only from a session that has logged in (`SignInGate`,
+`docs/permissions.md` §11), unless it carries `[AllowAnonymous]`. A client may send an extension
+packet whether or not it accepted the capability, so a handler should check that first, for the
+session the packet came on:
 
 ```csharp
 public sealed class RequestHudHandler(IGrainFactory grainFactory) : IMessageHandler<RequestHudMessage>
 {
     public async ValueTask HandleAsync(RequestHudMessage message, MessageContext ctx, CancellationToken ct)
     {
-        if (
-            ctx.PlayerId <= 0
-            || !await grainFactory.SessionAcceptsCapabilityAsync(ctx.PlayerId, ctx.SessionKey, "myplugin.hud", ct)
-        )
+        if (!await grainFactory.SessionAcceptsCapabilityAsync(ctx.PlayerId, ctx.SessionKey, "myplugin.hud", ct))
             return;
 
         // ...

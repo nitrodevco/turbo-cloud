@@ -489,6 +489,20 @@ depths.
    "moderator-level controller" stand-in), and the user classification lists: `:uc hotel` on
    `room.moderate.any`, the room's list (`:uc`, `:anew`) on that or `role.ambassador` like the
    alert, where `UserClassificationService` gives an ambassador only the new users `:anew` asks for.
+
+   Beneath every node sits the plainer question, "has this session logged in at all", and that one
+   is asked of every handler, attribute or not. `SignInGate` (`Turbo.Messages/Registry/`), wrapped
+   around `PermissionGate` by the same `DecorateHandler`, drops a packet from a session the gateway
+   has no player for, logs it at Debug and sends nothing; the session stays open. A handler for
+   what the client sends before it logs in opts out with `[AllowAnonymous]`
+   (`Turbo.Primitives/Players/Permissions/`, beside `[RequiresPermission]`): the hello, both
+   halves of the key exchange, the version check, the unique id, the SSO ticket, the pong, the
+   disconnect and the latency ping. `AllowAnonymousHandlerTests` pins that list, and
+   `SignInGateTests` drives a marketplace packet and the handshake through `PackageHandler` with
+   and without a player. Before the gate, each handler was expected to open with
+   `if (ctx.PlayerId <= 0) return;`, and dozens of working ones did not (all twelve marketplace
+   handlers among them), so a connection that never sent a ticket reached them as player 0. Those guards are still
+   in place and redundant; a new handler leaves it out.
 2. **Inside a grain, asynchronously** — `RoomModerationModule.CanModerateAsync`, catalog
    purchases. One call to `IPlayerPermissionGrain.HasAsync`.
 

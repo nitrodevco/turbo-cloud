@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Pipeline;
@@ -11,7 +12,8 @@ namespace Turbo.Messages;
 
 internal sealed class MessageFeatureProcessor(
     MessageRegistry registry,
-    EnvelopeInvokerFactory<MessageContext> invokerFactory
+    EnvelopeInvokerFactory<MessageContext> invokerFactory,
+    ILoggerFactory loggerFactory
 )
     : EnvelopeFeatureProcessor<IMessageEvent, ISessionContext, MessageContext>(
         registry,
@@ -20,6 +22,8 @@ internal sealed class MessageFeatureProcessor(
         typeof(IMessageBehavior<>)
     )
 {
+    private readonly ILogger _signInLogger = loggerFactory.CreateLogger(typeof(SignInGate));
+
     protected override HandlerInvoker<MessageContext> DecorateHandler(
         Type handlerType,
         IServiceProvider sp,
@@ -29,15 +33,21 @@ internal sealed class MessageFeatureProcessor(
         // Resolved on the first gated packet, not here, which can run while the host is built.
         IGrainFactory? grainFactory = null;
 
-        return PermissionGate.Wrap(
+        // Signed in first: a session that has not logged in is dropped before a permission is
+        // asked about.
+        return SignInGate.Wrap(
             handlerType,
-            (playerId, node, ct) =>
-                (grainFactory ??= sp.GetRequiredService<IGrainFactory>()).HasPermissionAsync(
-                    playerId,
-                    node,
-                    ct
-                ),
-            invoker
+            _signInLogger,
+            PermissionGate.Wrap(
+                handlerType,
+                (playerId, node, ct) =>
+                    (grainFactory ??= sp.GetRequiredService<IGrainFactory>()).HasPermissionAsync(
+                        playerId,
+                        node,
+                        ct
+                    ),
+                invoker
+            )
         );
     }
 }

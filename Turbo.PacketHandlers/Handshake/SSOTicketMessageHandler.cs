@@ -30,6 +30,7 @@ using Turbo.Primitives.Tracking;
 
 namespace Turbo.PacketHandlers.Handshake;
 
+[AllowAnonymous]
 public class SSOTicketMessageHandler(
     IAuthenticationService authService,
     ISessionGateway sessionGateway,

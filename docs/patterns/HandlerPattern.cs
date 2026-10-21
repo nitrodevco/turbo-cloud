@@ -41,11 +41,15 @@ public class HandlerPattern(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        // Guard clauses first, brace-less, returning rather than throwing: an unauthenticated
-        // session, or an id the client sent that cannot name anything.
-        if (ctx.PlayerId <= 0)
-            return;
-
+        // No check for a signed-in player: the pipeline drops a packet from a session that has
+        // not logged in before any handler runs (SignInGate), so ctx.PlayerId is a player here.
+        // Only a handler for what the client sends before it logs in (the handshake, the SSO
+        // ticket, pings) carries [AllowAnonymous], and AllowAnonymousHandlerTests lists them.
+        // Older handlers, CanCreateRoomMessageHandler among them, still open with
+        // `if (ctx.PlayerId <= 0) return;`; it is redundant now, and a new handler leaves it out.
+        //
+        // Guard clauses first otherwise, brace-less, returning rather than throwing: an id the
+        // client sent that cannot name anything.
         var (canCreate, roomLimit) = await _navigatorService
             .CanCreateRoomAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);

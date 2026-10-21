@@ -3,9 +3,11 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Tracking;
 using Turbo.Primitives.Messages.Outgoing.Tracking;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Tracking;
 
+[AllowAnonymous]
 public class LatencyPingRequestMessageHandler : IMessageHandler<LatencyPingRequestMessage>
 {
     public async ValueTask HandleAsync(
