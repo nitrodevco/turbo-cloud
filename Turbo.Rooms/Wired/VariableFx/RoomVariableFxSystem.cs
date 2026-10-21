@@ -195,7 +195,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         foreach (var binding in found.Values.Where(x => x.OverLimit))
         {
             if (!_overLimitIds.Contains(binding.Box.ObjectId))
-                WiredSystem.RecordError(WiredErrorKind.VariableFxLimit, _roomGrain.NowMs());
+                WiredSystem.RecordError(WiredErrorKind.VariableFxLimit, NowMs());
         }
 
         _overLimitIds.Clear();
@@ -511,7 +511,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             );
     }
 
-    private long ReadyAt() => _roomGrain.NowMs() + WiredConfig.VariableFxEntryDelayMs;
+    private long ReadyAt() => NowMs() + WiredConfig.VariableFxEntryDelayMs;
 
     /// <summary>Takes out the entries whose delay is over; says whether any are still waiting.</summary>
     private static HashSet<TKey> TakeReady<TKey>(

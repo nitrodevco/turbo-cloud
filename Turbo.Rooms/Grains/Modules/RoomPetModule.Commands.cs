@@ -262,7 +262,7 @@ public sealed partial class RoomPetModule
         pet.Sit(false);
         pet.Lay(false);
         pet.AddStatus(status, string.Empty);
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + durationMs;
+        pet.ActionExpiresAtMs = NowMs() + durationMs;
     }
 
     internal async Task SpeakAsync(IRoomPet pet, CancellationToken ct)
@@ -276,7 +276,7 @@ public sealed partial class RoomPetModule
         var line = lines[NextRandom(0, lines.Length)];
 
         pet.AddStatus(AvatarStatusType.Gesture, AvatarStatusType.Speak.ToLegacyString());
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.SpeakDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + Config.SpeakDurationMs;
 
         await ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), ct);
     }

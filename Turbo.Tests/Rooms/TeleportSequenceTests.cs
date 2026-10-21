@@ -131,16 +131,7 @@ public sealed class TeleportSequenceTests
     }
 
     private Task RunTimersAsync() =>
-        _room
-            .Harness.Module<RoomTimerSystem>()
-            .ProcessTimersAsync(
-                (long)(
-                    System.Diagnostics.Stopwatch.GetTimestamp()
-                    * 1000.0
-                    / System.Diagnostics.Stopwatch.Frequency
-                ) + 500,
-                Ct
-            );
+        _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(_room.Harness.NowMs() + 500, Ct);
 
     /// <summary>A teleporter that writes down each state it is set to.</summary>
     private sealed class Recording(

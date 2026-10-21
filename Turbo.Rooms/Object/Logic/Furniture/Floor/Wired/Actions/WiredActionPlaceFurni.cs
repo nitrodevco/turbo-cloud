@@ -313,7 +313,7 @@ public class WiredActionPlaceFurni(
     /// </summary>
     private async Task NotifyPlacementFailureAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
         var cooldown = WiredConfig.PlacementFailureNotificationCooldownMs;
         var notified = State.WiredPlacementFailureNotifiedMs;
 

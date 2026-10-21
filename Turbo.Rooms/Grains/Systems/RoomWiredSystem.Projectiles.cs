@@ -52,7 +52,7 @@ public sealed partial class RoomWiredSystem
             TargetX = targetX,
             TargetY = targetY,
             TargetZ = targetZ,
-            StartedAtMs = _roomGrain.NowMs(),
+            StartedAtMs = NowMs(),
             DurationMs = durationMs,
         };
     }

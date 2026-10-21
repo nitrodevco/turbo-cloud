@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentAssertions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -107,16 +106,11 @@ public sealed class WiredControlClockTests
 
         await clock.ControlAsync(WiredClockControlType.Start, Ct);
 
-        var startReturnedAt = NowMs();
-
-        // Passes at the times a room tick 120 ms late would run them, not at the test host's
-        // own pace (a loaded host merged two half seconds into one pass, or started late).
-        for (var t = startReturnedAt + 120; t <= startReturnedAt + 3_050; t += 120)
+        // Passes at the times a room tick 120 ms late would run them, up to 3 s in.
+        for (var t = startedAt + 120; t <= startedAt + 3_050; t += 120)
             await timers.ProcessTimersAsync(t, Ct);
 
-        clock
-            .HalfSeconds.Should()
-            .BeInRange(6, 7 + (int)((startReturnedAt - startedAt) / 500), "one per 500 ms cycle");
+        clock.HalfSeconds.Should().Be(6, "one per 500 ms cycle");
     }
 
     /// <summary>
@@ -139,16 +133,17 @@ public sealed class WiredControlClockTests
                 )
                 .Logic;
         var timers = _room.Harness.Module<RoomTimerSystem>();
+
+        // Started 120 ms into a cycle, as the captured starts were.
+        _room.Clock.AdvanceMs(120);
         var startedAt = NowMs();
 
         await clock.ControlAsync(WiredClockControlType.Start, Ct);
 
-        var startReturnedAt = NowMs();
-
         var firstHalf = -1L;
         var firstSecond = -1L;
 
-        for (var t = startedAt; t <= startReturnedAt + 1_600 && firstSecond < 0; t++)
+        for (var t = startedAt; t <= startedAt + 1_600 && firstSecond < 0; t++)
         {
             await timers.ProcessTimersAsync(t, Ct);
 
@@ -160,9 +155,9 @@ public sealed class WiredControlClockTests
         }
 
         (firstHalf % 500).Should().Be(0, "the first half second is the room's next cycle");
+        firstHalf.Should().Be(startedAt + 380);
         firstSecond.Should().Be(firstHalf + 500);
-        (firstSecond - startedAt).Should().BeGreaterThan(500);
-        (firstSecond - startReturnedAt).Should().BeLessThanOrEqualTo(1_000);
+        (firstSecond - startedAt).Should().Be(880, "500..1000 ms after the start");
     }
 
     [Fact]
@@ -183,8 +178,8 @@ public sealed class WiredControlClockTests
 
         await clock.ControlAsync(WiredClockControlType.Start, Ct);
 
-        // A busy test host: the passes below replay times the real clock has already left behind.
-        await Task.Delay(1_100, Ct);
+        // A busy room: the passes below replay times its clock has already left behind.
+        _room.Clock.AdvanceMs(1_100);
 
         var firstHalf = -1L;
         var firstSecond = -1L;
@@ -206,7 +201,7 @@ public sealed class WiredControlClockTests
             .Be(firstHalf + 500, "each half second is due on its boundary, not when the pass ran");
     }
 
-    private static long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+    private long NowMs() => _room.Harness.NowMs();
 
     private sealed class Recorder(List<RoomEvent> heard) : IRoomEventListener
     {

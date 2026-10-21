@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -98,6 +97,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     internal readonly IFurnitureCustody _custody;
     internal readonly IAssetMovementRecorder _movements;
 
+    // The room's clock: NowMs (monotonic) and UtcNow both read it, so a test can move room time.
+    internal readonly TimeProvider _time;
+
     internal readonly RoomLiveState _state;
 
     public readonly RoomEventModule EventModule;
@@ -172,6 +174,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         IPlayerOnboardingService onboarding,
         IFurnitureCustody custody,
         IAssetMovementRecorder movements,
+        TimeProvider time,
         ILogger<IRoomGrain> logger
     )
     {
@@ -206,6 +209,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         _achievementFacts = achievementFacts;
         _custody = custody;
         _movements = movements;
+        _time = time;
 
         _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);
@@ -518,7 +522,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 OwnerId = _state.RoomSnapshot.OwnerId,
                 OwnerName = _state.RoomSnapshot.OwnerName,
                 Population = _state.AvatarsByPlayerId.Count,
-                LastUpdatedUtc = DateTime.UtcNow,
+                LastUpdatedUtc = UtcNow.UtcDateTime,
             }
         );
 
@@ -713,7 +717,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             _state.PlayerIdsWhoRated.Clear();
             _state.PlayerIdsWhoRated.UnionWith(raterIds.Select(PlayerId.Parse));
 
-            var now = DateTime.UtcNow;
+            var now = UtcNow.UtcDateTime;
             var eventEntity = await dbCtx
                 .RoomEvents.AsNoTracking()
                 .Where(x => x.RoomEntityId == entity.Id && x.ExpiresAt > now)
@@ -739,7 +743,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 ownerName,
                 _state.Model.Name,
                 eventEntity,
-                DateTime.UtcNow
+                UtcNow.UtcDateTime
             );
 
             // Before anything can ask for the snapshot: the group is not on the room row, and
@@ -758,7 +762,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         }
     }
 
-    internal long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+    /// <summary>
+    /// The room's monotonic clock in milliseconds: ticks, walks, timers and every "until" the
+    /// room keeps. It starts again with each activation (see <c>EpochMs</c>), so it never holds
+    /// time that must pass while the room is unloaded; that is kept in UTC (<see cref="UtcNow"/>).
+    /// </summary>
+    internal long NowMs() => (long)(_time.GetTimestamp() * 1000.0 / _time.TimestampFrequency);
+
+    /// <summary>The time of day by the room's clock, for what is stored or shown as a date.</summary>
+    internal DateTimeOffset UtcNow => _time.GetUtcNow();
 
     internal long AlignToNextBoundary(long now, int offset)
     {

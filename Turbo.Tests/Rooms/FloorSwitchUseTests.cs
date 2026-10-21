@@ -226,7 +226,12 @@ public sealed class FloorSwitchUseTests
 
         floorSwitch.Logic.GetState().Should().Be(0, "not in the tick of the last step itself");
 
-        await Task.Delay(350, Ct);
+        _room.Clock.AdvanceMs(299);
+        await RunFurniTimersAsync();
+
+        floorSwitch.Logic.GetState().Should().Be(0, "a millisecond short of 300 ms");
+
+        _room.Clock.AdvanceMs(1);
         await RunFurniTimersAsync();
 
         avatar.IsWalking.Should().BeTrue();
@@ -333,14 +338,5 @@ public sealed class FloorSwitchUseTests
 
     // One room tick ahead: far enough for the switch's own tick.
     private Task RunFurniTimersAsync() =>
-        _room
-            .Harness.Module<RoomTimerSystem>()
-            .ProcessTimersAsync(
-                (long)(
-                    System.Diagnostics.Stopwatch.GetTimestamp()
-                    * 1000.0
-                    / System.Diagnostics.Stopwatch.Frequency
-                ) + 500,
-                Ct
-            );
+        _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(_room.Harness.NowMs() + 500, Ct);
 }

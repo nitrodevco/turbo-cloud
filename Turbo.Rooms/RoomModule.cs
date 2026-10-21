@@ -29,7 +29,7 @@ public sealed class RoomModule : IHostPluginModule
         services.Configure<WiredChestConfig>(
             builder.Configuration.GetSection(WiredChestConfig.SECTION_NAME)
         );
-        // The room directory times its hot-room window by it.
+        // The room directory times its hot-room window by it, and each room grain runs on it.
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IRoomAvatarProvider, RoomAvatarProvider>();
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();

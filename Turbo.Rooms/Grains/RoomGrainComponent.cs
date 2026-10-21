@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Rooms.Grains;
@@ -14,9 +15,9 @@ namespace Turbo.Rooms.Grains;
 /// systems, and every object logic. It names the siblings the way the grain's own partials do,
 /// so a call reads <c>ObjectModule.RemoveObjectAsync(...)</c> rather than
 /// <c>_roomGrain.ObjectModule.RemoveObjectAsync(...)</c>. The grain's live state, logger, grain
-/// factory and room and wired configs are named the same way (<see cref="State"/>,
-/// <see cref="Logger"/>, ...); the grain itself stays reachable as <see cref="_roomGrain"/> for
-/// its other services.
+/// factory, room and wired configs and clock are named the same way (<see cref="State"/>,
+/// <see cref="Logger"/>, <see cref="NowMs"/>, ...); the grain itself stays reachable as
+/// <see cref="_roomGrain"/> for its other services.
 /// <para>
 /// A new module or system on <see cref="RoomGrain"/> gets its shorthand here as well; this is
 /// the one list, so nothing else keeps its own.
@@ -32,6 +33,12 @@ public abstract class RoomGrainComponent(RoomGrain roomGrain)
     private protected IGrainFactory GrainFactory => _roomGrain._grainFactory;
     private protected RoomConfig RoomConfig => _roomGrain._roomConfig;
     private protected WiredConfig WiredConfig => _roomGrain._wiredConfig;
+
+    /// <summary>The room's monotonic clock in milliseconds (<see cref="RoomGrain.NowMs"/>).</summary>
+    protected long NowMs() => _roomGrain.NowMs();
+
+    /// <summary>The time of day by the room's clock (<see cref="RoomGrain.UtcNow"/>).</summary>
+    protected DateTimeOffset UtcNow => _roomGrain.UtcNow;
 
     protected RoomEventModule EventModule => _roomGrain.EventModule;
     protected RoomSecurityModule SecurityModule => _roomGrain.SecurityModule;

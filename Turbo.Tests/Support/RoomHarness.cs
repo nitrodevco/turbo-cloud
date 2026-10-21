@@ -22,7 +22,8 @@ namespace Turbo.Tests.Support;
 /// own water harness (scripts/tests/water) builds one: an uninitialized grain, a real live state
 /// and real modules. Every module or system field whose constructor needs only the grain (and
 /// fakeable services) is created, so code under test can reach its siblings as it would live.
-/// Dependencies are recording fakes; configs are their shipped defaults.
+/// Dependencies are recording fakes; configs are their shipped defaults. The room runs on
+/// <see cref="Clock"/>, which stands still until the test advances it.
 /// </summary>
 public sealed class RoomHarness
 {
@@ -32,17 +33,30 @@ public sealed class RoomHarness
     public int Width { get; }
     public int Height { get; }
 
+    /// <summary>
+    /// The room's clock (<c>NowMs</c> and <c>UtcNow</c>), from <see cref="ManualTimeProvider.FixedStart"/>
+    /// unless the test gave one: room time moves only when the test advances it.
+    /// </summary>
+    public ManualTimeProvider Clock { get; }
+
     private static readonly BindingFlags All =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-    public RoomHarness(int width = 8, int height = 8, Altitude[]? heights = null)
+    public RoomHarness(
+        int width = 8,
+        int height = 8,
+        Altitude[]? heights = null,
+        ManualTimeProvider? clock = null
+    )
     {
         Width = width;
         Height = height;
+        Clock = clock ?? new ManualTimeProvider(ManualTimeProvider.FixedStart);
         Room = (RoomGrain)RuntimeHelpers.GetUninitializedObject(typeof(RoomGrain));
 
         State = new RoomLiveState { RoomId = 1 };
         Room.UseState(State);
+        Room.UseClock(Clock);
 
         FillServices();
 
@@ -72,6 +86,9 @@ public sealed class RoomHarness
         (T)typeof(RoomGrain).GetFields(All).First(f => f.FieldType == typeof(T)).GetValue(Room)!;
 
     public Dictionary<RoomObjectId, IRoomItem> ItemsById => State.ItemsById;
+
+    /// <summary>The room's <c>NowMs</c>: where its monotonic clock stands.</summary>
+    public long NowMs() => Room.NowMs();
 
     /// <summary>The computed height of a tile: the model's floor, or the top of what stands there.</summary>
     public Altitude TileHeight(int x, int y) => State.TileHeights[(y * Width) + x];

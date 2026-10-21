@@ -24,5 +24,5 @@ public class WiredConditionTimerMoreThan(
         [new WiredRangeParamRule(1, 1201, 20)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx) =>
-        WiredSystem.GetElapsedTimerPulses(_roomGrain.NowMs()) > GetIntParamOrDefault(0, 20);
+        WiredSystem.GetElapsedTimerPulses(NowMs()) > GetIntParamOrDefault(0, 20);
 }

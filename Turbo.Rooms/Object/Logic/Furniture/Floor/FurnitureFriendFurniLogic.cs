@@ -145,7 +145,7 @@ public class FurnitureFriendFurniLogic(
         var right = await _roomGrain
             ._grainFactory.GetPlayerGrain(request.PartnerId)
             .GetSummaryAsync(ct);
-        var date = DateTime.UtcNow.ToString(
+        var date = UtcNow.UtcDateTime.ToString(
             FriendFurniData.DATE_FORMAT,
             CultureInfo.InvariantCulture
         );

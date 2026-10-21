@@ -67,7 +67,7 @@ public class FurnitureRandomTeleportLogic(
     {
         await SendArrivingAsync(ct);
 
-        if (_flashUntilMs > 0 && _roomGrain.NowMs() >= _flashUntilMs)
+        if (_flashUntilMs > 0 && NowMs() >= _flashUntilMs)
         {
             _flashUntilMs = 0;
 
@@ -129,7 +129,7 @@ public class FurnitureRandomTeleportLogic(
         if (GetState() != FLASH_STATE)
             await SetStateAsync(FLASH_STATE);
 
-        _flashUntilMs = _roomGrain.NowMs() + RoomConfig.RandomTeleportFlashMs;
+        _flashUntilMs = NowMs() + RoomConfig.RandomTeleportFlashMs;
         TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.AvatarTickMs, TickAsync);
     }
 

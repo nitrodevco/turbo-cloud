@@ -229,7 +229,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         _scoreGrants.Clear();
 
         IsGameRunning = true;
-        _startedAt = DateTimeOffset.UtcNow;
+        _startedAt = UtcNow;
 
         await _roomGrain.PublishRoomEventAsync(
             new GameStartedEvent
@@ -291,7 +291,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             .ToList();
 
         foreach (var board in boards)
-            await board.ResetAsync(DateTimeOffset.UtcNow, ct);
+            await board.ResetAsync(UtcNow, ct);
 
         return boards.Count;
     }
@@ -321,7 +321,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
                 teams.Add((_teamScores[(int)team], users));
         }
 
-        var now = DateTimeOffset.UtcNow;
+        var now = UtcNow;
         var seconds = (int)Math.Max(0, (now - _startedAt).TotalSeconds);
 
         foreach (var board in boards)

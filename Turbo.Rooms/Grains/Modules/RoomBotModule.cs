@@ -269,7 +269,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         bot.SetName(name);
         bot.SetMotto(edit.Motto.Trim());
         bot.SetChatter(text, edit.AutoChat, delay, edit.MixSentences);
-        bot.NextChatAtMs = _roomGrain.NowMs() + delay * 1000L;
+        bot.NextChatAtMs = NowMs() + delay * 1000L;
         bot.SetFreeRoam(edit.FreeRoam);
 
         if (renamed)
@@ -469,7 +469,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         delay = Math.Clamp(delay, Config.ChatDelayMinSeconds, Config.ChatDelayMaxSeconds);
 
         bot.SetChatter(text, autoChat, delay, mix);
-        bot.NextChatAtMs = _roomGrain.NowMs() + delay * 1000L;
+        bot.NextChatAtMs = NowMs() + delay * 1000L;
 
         Persist(bot);
 

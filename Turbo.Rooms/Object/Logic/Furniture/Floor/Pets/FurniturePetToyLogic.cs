@@ -31,7 +31,7 @@ public class FurniturePetToyLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
 
         pet.AddStatus(PlayPosture(config, pet.TypeId), string.Empty);
         pet.AddStatus(AvatarStatusType.Gesture, "sml");
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ToyPlayDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + config.ToyPlayDurationMs;
 
         await SetLegacyDataAsync(PLAYED_WITH);
 

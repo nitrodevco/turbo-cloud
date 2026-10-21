@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -39,7 +38,10 @@ public sealed class LookToHeadRevertTests
         LastUpdate().Should().Be((Rotation.NorthEast, Rotation.East));
         var before = Updates().Count;
 
-        await TickAsync(looked + 5_600);
+        await TickAsync(looked + 4_999);
+        Updates().Should().HaveCount(before);
+
+        await TickAsync(looked + 5_000);
 
         LastUpdate().Should().Be((Rotation.East, Rotation.East));
         Updates().Should().HaveCount(before + 1);
@@ -55,13 +57,13 @@ public sealed class LookToHeadRevertTests
         LastUpdate().Should().Be((Rotation.West, Rotation.West));
         var before = Updates().Count;
 
-        await TickAsync(looked + 5_600);
+        await TickAsync(looked + 5_000);
 
         Updates().Should().HaveCount(before);
     }
 
-    /// <summary>The room's clock, as the room grain reads it.</summary>
-    private static long Now() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+    /// <summary>The room's clock, which moves only when <see cref="TickAsync"/> moves it.</summary>
+    private long Now() => _room.Harness.NowMs();
 
     private async Task<long> LookToAsync(int x, int y)
     {
@@ -75,8 +77,16 @@ public sealed class LookToHeadRevertTests
         return Now();
     }
 
-    private Task TickAsync(long now) =>
-        _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(now, CancellationToken.None);
+    /// <summary>Moves the room's clock on to <paramref name="at"/> and runs the avatar tick there.</summary>
+    private Task TickAsync(long at)
+    {
+        _room.Clock.AdvanceMs(at - Now());
+
+        return _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(
+            Now(),
+            CancellationToken.None
+        );
+    }
 
     private List<RoomAvatarSnapshot[]> Updates() =>
         [

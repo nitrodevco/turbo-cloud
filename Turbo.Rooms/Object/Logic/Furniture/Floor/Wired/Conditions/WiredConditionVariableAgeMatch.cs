@@ -100,7 +100,7 @@ public class WiredConditionVariableAgeMatch(
             duration,
             GetIntParamOrDefault(5, WiredTimeUnitType.Seconds)
         );
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var now = UtcNow.ToUnixTimeMilliseconds();
         var targets = GetTargetIds(targetType, GetMergedSelection(ctx, 0)).ToList();
 
         return Quantify(

@@ -232,7 +232,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         )
             return;
 
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
 
         if (IsKilled(now))
             return;
@@ -413,7 +413,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (_eventQueue.Count >= WiredConfig.MaxQueuedEvents)
         {
             _droppedEvents++;
-            RecordError(WiredErrorKind.ExecutorOverload, _roomGrain.NowMs());
+            RecordError(WiredErrorKind.ExecutorOverload, NowMs());
 
             return;
         }

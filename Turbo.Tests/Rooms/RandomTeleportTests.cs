@@ -129,16 +129,7 @@ public sealed class RandomTeleportTests
 
     // One room tick ahead: far enough for the furni's own timers, short of any expiry.
     private Task RunTimersAsync() =>
-        _room
-            .Harness.Module<RoomTimerSystem>()
-            .ProcessTimersAsync(
-                (long)(
-                    System.Diagnostics.Stopwatch.GetTimestamp()
-                    * 1000.0
-                    / System.Diagnostics.Stopwatch.Frequency
-                ) + 500,
-                Ct
-            );
+        _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(_room.Harness.NowMs() + 500, Ct);
 
     private IRoomFloorItem AddFurni(
         int objectId,

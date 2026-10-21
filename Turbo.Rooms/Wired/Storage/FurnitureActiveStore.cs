@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -5,7 +6,8 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Wired.Storage;
 
-public sealed class FurnitureActiveStore : ActiveStore
+/// <summary>What furni variables hold, one store per furni, each on the room's clock.</summary>
+public sealed class FurnitureActiveStore(TimeProvider clock) : ActiveStore
 {
     private readonly Dictionary<RoomObjectId, KeyValueStore> _byItemId = [];
 
@@ -22,7 +24,7 @@ public sealed class FurnitureActiveStore : ActiveStore
 
         if (!_byItemId.TryGetValue(targetId, out var found))
         {
-            found = new KeyValueStore();
+            found = new KeyValueStore { Clock = clock };
 
             _byItemId[targetId] = found;
         }

@@ -271,7 +271,7 @@ public sealed partial class RoomGrain
             ct
         );
 
-        var at = DateTime.UtcNow;
+        var at = UtcNow.UtcDateTime;
 
         _movements.Record(
             dbCtx,

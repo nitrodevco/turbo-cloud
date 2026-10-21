@@ -300,7 +300,7 @@ public sealed partial class RoomMapModule
                 {
                     OperationId = $"floor-plan:{Guid.NewGuid():N}",
                     Source = AchievementSources.FLOOR_HEIGHTS,
-                    OccurredAtUtc = DateTime.UtcNow,
+                    OccurredAtUtc = UtcNow.UtcDateTime,
                     Amount = AchievementRoomCriteria.CountFloorHeights(modelData),
                 }
             );

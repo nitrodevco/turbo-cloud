@@ -370,7 +370,7 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
                 Command = descriptor.Name,
                 Arguments = descriptor.Binder.AuditText(argumentText).Trim(),
                 Outcome = outcome,
-                LoggedAtUtc = DateTime.UtcNow,
+                LoggedAtUtc = UtcNow.UtcDateTime,
             }
         );
     }

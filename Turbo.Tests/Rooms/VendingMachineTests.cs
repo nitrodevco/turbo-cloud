@@ -163,16 +163,7 @@ public sealed class VendingMachineTests
 
     // One room tick ahead: far enough for the fridge's own tick, short of the hand item's expiry.
     private Task RunFurniTimersAsync() =>
-        _room
-            .Harness.Module<RoomTimerSystem>()
-            .ProcessTimersAsync(
-                (long)(
-                    System.Diagnostics.Stopwatch.GetTimestamp()
-                    * 1000.0
-                    / System.Diagnostics.Stopwatch.Frequency
-                ) + 500,
-                Ct
-            );
+        _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(_room.Harness.NowMs() + 500, Ct);
 
     private IRoomFloorItem AddFridge(
         string definitionExtraData,

@@ -28,7 +28,7 @@ public sealed class RoomTimerSystem(RoomGrain roomGrain) : RoomGrainComponent(ro
         RoomObjectId objectId,
         int delayMs,
         Func<CancellationToken, Task> callback
-    ) => ScheduleAt(objectId, _roomGrain.NowMs() + Math.Max(0, delayMs), callback);
+    ) => ScheduleAt(objectId, NowMs() + Math.Max(0, delayMs), callback);
 
     /// <summary>
     /// Runs <paramref name="callback"/> once on the first pass at or after <paramref name="dueAtMs"/>

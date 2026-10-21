@@ -29,9 +29,14 @@ namespace Turbo.Tests.Support;
 /// </summary>
 public sealed class WiredRoom
 {
-    public WiredRoom(int width = 8, int height = 8, RoomConfig? roomConfig = null)
+    public WiredRoom(
+        int width = 8,
+        int height = 8,
+        RoomConfig? roomConfig = null,
+        ManualTimeProvider? clock = null
+    )
     {
-        Harness = new LiveRoomHarness(width, height, roomConfig);
+        Harness = new LiveRoomHarness(width, height, roomConfig, clock: clock);
         Harness.State.IsRightsLoaded = true;
 
         // A furni told that an avatar walked on it asks the avatar's logic for its context.
@@ -48,6 +53,9 @@ public sealed class WiredRoom
     }
 
     public LiveRoomHarness Harness { get; }
+
+    /// <summary>The room's clock; room time moves only when the test advances it.</summary>
+    public ManualTimeProvider Clock => Harness.Clock;
 
     public Dictionary<int, RoomPlayerAvatar> Avatars { get; } = [];
 

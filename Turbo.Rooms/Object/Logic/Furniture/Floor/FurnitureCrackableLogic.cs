@@ -447,7 +447,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
             return;
 
         await using var db = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
 
         if (hit is not null)
             _roomGrain._achievementFacts.Record(

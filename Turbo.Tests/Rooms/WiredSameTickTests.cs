@@ -95,7 +95,7 @@ public sealed class WiredSameTickTests
 
         // The switch looks for the avatar on its furni timer, an avatar tick (500 ms) after the
         // use, and flips for one that has arrived.
-        await Task.Delay(600, Ct);
+        _room.Clock.AdvanceMs(500);
         var sent = await RoomTickAsync();
 
         floorSwitch.Logic.GetState().Should().Be(1);

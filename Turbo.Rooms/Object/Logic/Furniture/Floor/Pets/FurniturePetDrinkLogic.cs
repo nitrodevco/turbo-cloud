@@ -48,10 +48,7 @@ public class FurniturePetDrinkLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
         pet.ActionExpiresAtMs =
-            _roomGrain.NowMs()
-            + config.DrinkStartDelayMs
-            + config.DrinkDurationMs
-            + config.DrinkEndMs;
+            NowMs() + config.DrinkStartDelayMs + config.DrinkDurationMs + config.DrinkEndMs;
         // It stays at the drink until it is done: no wandering off mid-drink.
         pet.NextActionAtMs = Math.Max(pet.NextActionAtMs, pet.ActionExpiresAtMs);
         pet.MarkDirty();

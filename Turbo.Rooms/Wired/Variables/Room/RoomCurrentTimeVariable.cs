@@ -20,5 +20,5 @@ public sealed class RoomCurrentTimeVariable(RoomGrain roomGrain) : RoomVariable(
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
     protected override WiredVariableValue GetValueForRoom(RoomGrain roomGrain) =>
-        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        UtcNow.ToUnixTimeMilliseconds();
 }

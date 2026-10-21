@@ -30,7 +30,7 @@ public sealed partial class RoomPetModule
         if (Config.RespectMinAccountAgeDays > 0)
         {
             var summary = await playerGrain.GetSummaryAsync(ct);
-            var ageDays = (int)(DateTime.UtcNow - summary.CreatedAt).TotalDays;
+            var ageDays = (int)(UtcNow.UtcDateTime - summary.CreatedAt).TotalDays;
 
             if (ageDays < Config.RespectMinAccountAgeDays)
             {
@@ -79,7 +79,7 @@ public sealed partial class RoomPetModule
         else if (!pet.IsRiding)
         {
             pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
-            pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.ActionDurationMs;
+            pet.ActionExpiresAtMs = NowMs() + Config.ActionDurationMs;
         }
 
         await _roomGrain.SendComposerToRoomAsync(
@@ -141,7 +141,7 @@ public sealed partial class RoomPetModule
         switch (supplement)
         {
             case PetSupplementType.Water:
-                pet.SetWateredAt(DateTime.UtcNow);
+                pet.SetWateredAt(UtcNow.UtcDateTime);
                 break;
             case PetSupplementType.Light:
                 pet.SetEnergy(
@@ -197,7 +197,7 @@ public sealed partial class RoomPetModule
 
         var harvestedBefore = pet.HarvestedAtUtc;
 
-        pet.SetHarvestedAt(DateTime.UtcNow);
+        pet.SetHarvestedAt(UtcNow.UtcDateTime);
         Persist(pet);
         await PersistNowAsync(ct);
 
@@ -250,7 +250,7 @@ public sealed partial class RoomPetModule
 
     internal async Task ReviveAsync(IRoomPet pet, CancellationToken ct)
     {
-        pet.SetWateredAt(DateTime.UtcNow);
+        pet.SetWateredAt(UtcNow.UtcDateTime);
 
         RefreshFlags(pet);
 
@@ -285,7 +285,7 @@ public sealed partial class RoomPetModule
         ClearActionStatuses(pet);
 
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.HandItemEatDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + Config.HandItemEatDurationMs;
 
         await AvatarModule.SetHandItemAsync(player, 0, ct);
 

@@ -225,16 +225,7 @@ public sealed class OneWayDoorTests
 
     // One avatar tick ahead: far enough for the gate's own timer, short of its fallback.
     private Task RunTimersAsync() =>
-        _room
-            .Harness.Module<RoomTimerSystem>()
-            .ProcessTimersAsync(
-                (long)(
-                    System.Diagnostics.Stopwatch.GetTimestamp()
-                    * 1000.0
-                    / System.Diagnostics.Stopwatch.Frequency
-                ) + 600,
-                Ct
-            );
+        _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(_room.Harness.NowMs() + 600, Ct);
 
     private IRoomFloorItem AddGate(int x, int y, Rotation rotation)
     {

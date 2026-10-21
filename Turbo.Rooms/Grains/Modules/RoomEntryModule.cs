@@ -183,7 +183,7 @@ public sealed class RoomEntryModule(
         if (!State.BannedUntilByPlayerId.TryGetValue(playerId, out var bannedUntil))
             return false;
 
-        if (bannedUntil > DateTime.UtcNow)
+        if (bannedUntil > UtcNow.UtcDateTime)
             return true;
 
         State.BannedUntilByPlayerId.Remove(playerId);
@@ -196,7 +196,7 @@ public sealed class RoomEntryModule(
         if (State.IsBansLoaded)
             return;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 

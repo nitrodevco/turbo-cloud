@@ -27,8 +27,15 @@ public sealed class KeyValueStore : IWiredVariableStore
     [System.Text.Json.Serialization.JsonIgnore]
     public KeyValueStore? Parent { get; init; }
 
+    /// <summary>
+    /// The clock a value's creation and write times are read from: the room's, set by the room
+    /// when it creates or loads the store, and shared by every scope started from it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+
     /// <summary>A scope inside this one, for a stack this execution starts.</summary>
-    public KeyValueStore CreateChild() => new() { Parent = this };
+    public KeyValueStore CreateChild() => new() { Parent = this, Clock = Clock };
 
     /// <summary>The store in this scope chain that holds the variable, nearest first.</summary>
     private KeyValueStore? Owner(string storageKey)
@@ -125,7 +132,7 @@ public sealed class KeyValueStore : IWiredVariableStore
 
     private void Stamp(string storageKey, bool created)
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var now = Clock.GetUtcNow().ToUnixTimeMilliseconds();
 
         if (created || !Timestamps.TryGetValue(storageKey, out var stamps))
             Timestamps[storageKey] = new WiredVariableTimestamps(now, now);

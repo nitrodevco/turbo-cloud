@@ -45,7 +45,7 @@ public abstract class FurniturePetSupplyLogic(
 
             var refillMs = _roomGrain._petConfig.SupplyRefillMs;
 
-            return refillMs > 0 && _roomGrain.NowMs() - servedAt >= refillMs;
+            return refillMs > 0 && NowMs() - servedAt >= refillMs;
         }
     }
 
@@ -61,7 +61,7 @@ public abstract class FurniturePetSupplyLogic(
         if (IsConsumable)
         {
             left = (IsRefillDue ? FullState : GetState()) - 1;
-            _lastServedAtMs = _roomGrain.NowMs();
+            _lastServedAtMs = NowMs();
         }
 
         await ServeAsync(pet, left, ct);

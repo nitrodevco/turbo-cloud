@@ -44,7 +44,6 @@ public sealed class WiredVariable64BitTests
         var room = new WiredRoom();
         var variable = new RoomCurrentTimeVariable(room.Harness.Room);
         var snapshot = variable.GetVarSnapshot();
-        var before = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         variable
             .TryGetValue(
@@ -54,7 +53,7 @@ public sealed class WiredVariable64BitTests
             .Should()
             .BeTrue();
 
-        ((long)value).Should().BeInRange(before, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        ((long)value).Should().Be(room.Clock.GetUtcNow().ToUnixTimeMilliseconds());
         snapshot.VariableName.Should().Be("@current_time");
     }
 }

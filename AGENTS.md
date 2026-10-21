@@ -1951,6 +1951,12 @@ finishing a change, check it against this list; each line is a mistake that was 
   after the room loads or wakes takes every period that fell due meanwhile. Game time that
   should pass while a room is away is never kept on the room's own clock (`NowMs`), which
   starts again with each activation.
+- **Room code reads time from the room's clock, never the machine's.** `NowMs()` (monotonic)
+  and `UtcNow` on `RoomGrainComponent` both read the grain's injected `TimeProvider`; a
+  `Stopwatch` or `DateTime.UtcNow` read in grain-run code is a time a test cannot move. The
+  room harnesses run on a `ManualTimeProvider` (`.Clock`) that stands still until the test
+  advances it, so a room test steps time exactly instead of waiting for it. A wall-clock
+  measurement of work done (how long a command or a wired pass took) stays on `Stopwatch`.
 - **NPCs decide on the avatar tick, and a failed follow backs off.** A pet following an
   unreachable player ran up to eight full path searches, each ending in an exception, every
   50 ms. Pets and bots decide at the 500 ms boundary (walking only advances then);

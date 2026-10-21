@@ -122,8 +122,7 @@ public class FurnitureRentableSpaceLogic(
                 ._grainFactory.GetPlayerGrain(ctx.PlayerId)
                 .GetSummaryAsync(ct);
 
-            expiresAt =
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds() + RoomConfig.RentableSpaceDurationSeconds;
+            expiresAt = UtcNow.ToUnixTimeSeconds() + RoomConfig.RentableSpaceDurationSeconds;
 
             _ctx.RoomObject.ExtraData.UpdateSection(
                 RentableSpaceData.SECTION,
@@ -295,7 +294,7 @@ public class FurnitureRentableSpaceLogic(
         if (ReadRent() is not { RenterId: > 0 } rent)
             return;
 
-        var remaining = DateTimeOffset.FromUnixTimeSeconds(rent.ExpiresAt) - DateTimeOffset.UtcNow;
+        var remaining = DateTimeOffset.FromUnixTimeSeconds(rent.ExpiresAt) - UtcNow;
 
         TimerSystem.Schedule(
             _ctx.ObjectId,
@@ -318,7 +317,7 @@ public class FurnitureRentableSpaceLogic(
                 RenterName = rent?.RenterName ?? string.Empty,
                 TimeRemaining = rent is null
                     ? 0
-                    : (int)Math.Max(0, rent.ExpiresAt - DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+                    : (int)Math.Max(0, rent.ExpiresAt - UtcNow.ToUnixTimeSeconds()),
                 Price = RoomConfig.RentableSpacePriceCredits,
             },
             ct
@@ -330,8 +329,7 @@ public class FurnitureRentableSpaceLogic(
 
     /// <summary>The rent while it lasts; a rent whose time is up reads as none even before it is cleared.</summary>
     private RentableSpaceData? GetActiveRent() =>
-        ReadRent() is { RenterId: > 0 } rent
-        && rent.ExpiresAt > DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        ReadRent() is { RenterId: > 0 } rent && rent.ExpiresAt > UtcNow.ToUnixTimeSeconds()
             ? rent
             : null;
 

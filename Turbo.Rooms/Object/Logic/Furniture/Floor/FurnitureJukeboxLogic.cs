@@ -247,7 +247,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
                 continue;
 
             _position = position;
-            _startedAtMs = _roomGrain.NowMs();
+            _startedAtMs = NowMs();
 
             TimerSystem.Schedule(
                 _ctx.ObjectId,
@@ -307,7 +307,7 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             ? (int)TimeSpan.FromSeconds(song.LengthSeconds).TotalMilliseconds
             : 0;
 
-    private int ElapsedMs() => (int)Math.Max(0, _roomGrain.NowMs() - _startedAtMs);
+    private int ElapsedMs() => (int)Math.Max(0, NowMs() - _startedAtMs);
 
     private JukeboxSongDisksMessageComposer ComposePlaylist() =>
         new() { MaxLength = RoomConfig.JukeboxMaxDisks, Disks = _disks.IsDefault ? [] : _disks };

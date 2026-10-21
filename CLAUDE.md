@@ -28,10 +28,12 @@ This adapter points Claude to the canonical AI contract for this repository.
 
 ### Test helpers at a glance
 Read a `Turbo.Tests/Support` file only when you need a member not listed here.
-- `RoomHarness(width, height, heights?)`: a room grain with real modules and no silo; `.Room`,
-  `.Module<T>()`, `.CreateFloorItem(...)`, `.AddToRoom(item)`, `.TileHeight(x, y)`, `.ItemsById`,
-  `.Fakes`. `LiveRoomHarness`: the same built by the grain's real constructor (every system, event
-  listener and logic registered); use it when events or logic assignment matter.
+- `RoomHarness(width, height, heights?, clock?)`: a room grain with real modules and no silo;
+  `.Room`, `.Module<T>()`, `.CreateFloorItem(...)`, `.AddToRoom(item)`, `.TileHeight(x, y)`,
+  `.ItemsById`, `.Fakes`, `.Clock` (a `ManualTimeProvider` from a fixed start: room time moves
+  only on `.Clock.AdvanceMs(ms)`, never wait with `Task.Delay`) and `.NowMs()`. `LiveRoomHarness`:
+  the same built by the grain's real constructor (every system, event listener and logic
+  registered); use it when events or logic assignment matter.
 - `GrainHarness.Create(assembly, typeName, fakes, db?, playerId?)`: any other grain with its live
   state, the given database, default configs and a recording grain factory.
 - `SessionHarness`: the real session gateway with the real presence grain; `.NewSession(n)`,

@@ -50,7 +50,7 @@ public sealed partial class RoomWiredSystem
         while (_roomLogs.Count >= cap)
             _roomLogs.RemoveFirst();
 
-        var now = DateTimeOffset.UtcNow;
+        var now = UtcNow;
 
         _roomLogs.AddLast(
             new WiredRoomLogEntrySnapshot

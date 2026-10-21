@@ -195,7 +195,7 @@ public abstract class FurnitureWiredVariableLogic
 
         if (!store.ContainsKey(storedKey) && IsHolderFull(key))
         {
-            WiredSystem.RecordError(WiredErrorKind.TooManyVariables, _roomGrain.NowMs());
+            WiredSystem.RecordError(WiredErrorKind.TooManyVariables, NowMs());
 
             return Task.FromResult(false);
         }
@@ -872,6 +872,9 @@ public abstract class FurnitureWiredVariableLogic
                 {
                     _storage = new();
                 }
+
+                if (_storage is not null)
+                    _storage.Clock = _roomGrain._time;
 
                 _storage?.SetAction(() =>
                 {

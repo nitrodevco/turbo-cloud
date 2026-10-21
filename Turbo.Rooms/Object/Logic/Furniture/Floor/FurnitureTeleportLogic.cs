@@ -108,7 +108,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
 
         _approachingId = avatar.ObjectId;
-        _waitUntilMs = _roomGrain.NowMs() + RoomConfig.TeleportWalkTimeoutMs;
+        _waitUntilMs = NowMs() + RoomConfig.TeleportWalkTimeoutMs;
 
         Schedule(RoomConfig.AvatarTickMs, WaitForApproachAsync);
     }
@@ -162,7 +162,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         // Still on the way; anyone who stopped somewhere else, or took too long, changed
         // their mind.
-        if (avatar.IsWalking && _roomGrain.NowMs() < _waitUntilMs)
+        if (avatar.IsWalking && NowMs() < _waitUntilMs)
         {
             Schedule(RoomConfig.AvatarTickMs, WaitForApproachAsync);
 
@@ -187,7 +187,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
         }
 
-        _waitUntilMs = _roomGrain.NowMs() + RoomConfig.TeleportWalkTimeoutMs;
+        _waitUntilMs = NowMs() + RoomConfig.TeleportWalkTimeoutMs;
 
         Schedule(RoomConfig.AvatarTickMs, WaitForInsideAsync);
     }
@@ -210,7 +210,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
         }
 
-        if (avatar.IsWalking && _roomGrain.NowMs() < _waitUntilMs)
+        if (avatar.IsWalking && NowMs() < _waitUntilMs)
         {
             Schedule(RoomConfig.AvatarTickMs, WaitForInsideAsync);
 
@@ -318,7 +318,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
                 roomId
             );
 
-        _waitUntilMs = _roomGrain.NowMs() + RoomConfig.TeleportForwardTimeoutMs;
+        _waitUntilMs = NowMs() + RoomConfig.TeleportForwardTimeoutMs;
 
         Schedule(StepMs, WaitForDepartureAsync);
     }
@@ -333,7 +333,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
         }
 
-        if (_roomGrain.NowMs() < _waitUntilMs)
+        if (NowMs() < _waitUntilMs)
         {
             Schedule(StepMs, WaitForDepartureAsync);
 
@@ -382,14 +382,14 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
         }
 
-        _waitUntilMs = _roomGrain.NowMs() + RoomConfig.TeleportWalkTimeoutMs;
+        _waitUntilMs = NowMs() + RoomConfig.TeleportWalkTimeoutMs;
 
         Schedule(RoomConfig.AvatarTickMs, WaitForOutsideAsync);
     }
 
     private async Task WaitForOutsideAsync(CancellationToken ct)
     {
-        if (TryGetOccupant(out var avatar) && IsInside(avatar) && _roomGrain.NowMs() < _waitUntilMs)
+        if (TryGetOccupant(out var avatar) && IsInside(avatar) && NowMs() < _waitUntilMs)
         {
             Schedule(RoomConfig.AvatarTickMs, WaitForOutsideAsync);
 

@@ -119,8 +119,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             case YoutubePlaybackCommandType.Play when _isPaused:
                 _isPaused = false;
                 _startedAtMs =
-                    _roomGrain.NowMs()
-                    - (long)TimeSpan.FromSeconds(_pausedAtSeconds).TotalMilliseconds;
+                    NowMs() - (long)TimeSpan.FromSeconds(_pausedAtSeconds).TotalMilliseconds;
 
                 ScheduleNext(playlist.Videos[_videoIndex]);
                 break;
@@ -149,7 +148,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         _videoIndex = index % playlist.Videos.Count;
         _isPaused = false;
         _pausedAtSeconds = 0;
-        _startedAtMs = _roomGrain.NowMs();
+        _startedAtMs = NowMs();
 
         ScheduleNext(playlist.Videos[_videoIndex]);
 
@@ -215,11 +214,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     private int GetPositionSeconds() =>
         _isPaused
             ? _pausedAtSeconds
-            : (int)
-                Math.Max(
-                    0,
-                    TimeSpan.FromMilliseconds(_roomGrain.NowMs() - _startedAtMs).TotalSeconds
-                );
+            : (int)Math.Max(0, TimeSpan.FromMilliseconds(NowMs() - _startedAtMs).TotalSeconds);
 
     private YoutubePlaylistConfig? GetPlaylist()
     {

@@ -38,7 +38,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
     public async Task ProcessPetsAsync(long now, CancellationToken ct)
     {
-        _utcNow = DateTime.UtcNow;
+        _utcNow = UtcNow.UtcDateTime;
         _pets.Clear();
         _pets.AddRange(PetModule.Pets);
 
@@ -368,7 +368,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         PetModule.ClearActionStatuses(pet);
         PetModule.StandOrStaySeated(pet);
         pet.AddStatus(AvatarStatusType.Gesture, gesture);
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + Config.IdlePostureDurationMs;
 
         return true;
     }
@@ -448,7 +448,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             case 2:
                 module.StandOrStaySeated(pet);
                 pet.AddStatus(AvatarStatusType.WagTail, string.Empty);
-                pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.ActionDurationMs;
+                pet.ActionExpiresAtMs = NowMs() + Config.ActionDurationMs;
                 break;
             case 3:
                 await module.SpeakAsync(pet, ct);
@@ -547,7 +547,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             value = need;
 
         pet.AddStatus(status, value);
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.IdlePostureDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + Config.IdlePostureDurationMs;
     }
 
     /// <summary>

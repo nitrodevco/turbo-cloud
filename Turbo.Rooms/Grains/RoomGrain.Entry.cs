@@ -159,7 +159,11 @@ public sealed partial class RoomGrain
 
         // Sent with no event too, as Habbo does, so the last room's event card goes.
         tail.Add(
-            new RoomEventMessageComposer { Event = GetActiveEvent(), SentAtUtc = DateTime.UtcNow }
+            new RoomEventMessageComposer
+            {
+                Event = GetActiveEvent(),
+                SentAtUtc = UtcNow.UtcDateTime,
+            }
         );
 
         // A muted room sends no MuteAllInRoom on entry: the client learns it from the

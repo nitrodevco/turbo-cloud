@@ -126,10 +126,7 @@ public class FurnitureCounterClockLogic(
         // second, the second shows "1", 500..1000 ms after the start (official client capture
         // 2026-10-16, five Control Clock starts: 597, 600, 849, 864 and 876 ms, each on the cycle
         // the walking avatar's status updates kept).
-        _nextHalfSecondAtMs = _roomGrain.AlignToNextBoundary(
-            _roomGrain.NowMs() + 1,
-            RoomConfig.AvatarTickMs
-        );
+        _nextHalfSecondAtMs = _roomGrain.AlignToNextBoundary(NowMs() + 1, RoomConfig.AvatarTickMs);
 
         Schedule();
 

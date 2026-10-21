@@ -34,6 +34,9 @@ public sealed class WiredPetSmartVariableTests
 
     private readonly WiredRoom _room = new(8, 8);
 
+    /// <summary>The time of day by the room's clock, which plant growth and wellbeing count from.</summary>
+    private DateTime RoomNow => _room.Clock.GetUtcNow().UtcDateTime;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -130,7 +133,7 @@ public sealed class WiredPetSmartVariableTests
     [Fact]
     public void Plant_variables_count_down_its_wellbeing_and_growth()
     {
-        var plant = AddPet(PLANT, PetTypes.MONSTERPLANT, watered: DateTime.UtcNow.AddHours(-1));
+        var plant = AddPet(PLANT, PetTypes.MONSTERPLANT, watered: RoomNow.AddHours(-1));
 
         Read(new PlantRarityLevelVariable(_room.Harness.Room), PLANT).Should().Be(2);
         Read(new PlantMaxWellbeingSecondsVariable(_room.Harness.Room), PLANT).Should().Be(259200);
@@ -141,7 +144,7 @@ public sealed class WiredPetSmartVariableTests
         Held(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().BeFalse();
         Read(new PlantRemainingGrowthSecondsVariable(_room.Harness.Room), PLANT).Should().Be(0);
 
-        plant.SetWateredAt(DateTime.UtcNow.AddDays(-4));
+        plant.SetWateredAt(RoomNow.AddDays(-4));
         plant.SetFlags(canBreed: false, canHarvest: false, canRevive: true);
 
         Held(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().BeTrue();
@@ -154,7 +157,7 @@ public sealed class WiredPetSmartVariableTests
     [Fact]
     public void A_young_plant_is_growing_until_it_is_grown()
     {
-        AddPet(PLANT, PetTypes.MONSTERPLANT, level: 1, created: DateTime.UtcNow.AddMinutes(-10));
+        AddPet(PLANT, PetTypes.MONSTERPLANT, level: 1, created: RoomNow.AddMinutes(-10));
 
         Held(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().BeTrue();
         // A baby plant's wellbeing is 36 hours, a grown one's 72.
@@ -177,7 +180,7 @@ public sealed class WiredPetSmartVariableTests
             PLANT,
             PetTypes.MONSTERPLANT,
             level: 1,
-            created: DateTime.UtcNow.AddHours(-hoursOld)
+            created: RoomNow.AddHours(-hoursOld)
         );
         var tick = _room.Harness.Module<RoomPetTickSystem>();
 
@@ -306,7 +309,7 @@ public sealed class WiredPetSmartVariableTests
                 Z = 0,
                 Rotation = 0,
                 CreatedAtUtc = created ?? Created,
-                WateredAtUtc = watered ?? DateTime.UtcNow,
+                WateredAtUtc = watered ?? RoomNow,
                 HarvestedAtUtc = null,
             }
         );

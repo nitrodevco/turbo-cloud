@@ -202,7 +202,7 @@ public sealed partial class RoomGrain
 
         (name, description) = FilterEventText(name, description);
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
         var current = GetActiveEvent();
         RoomEventSnapshot next;
 
@@ -337,7 +337,7 @@ public sealed partial class RoomGrain
 
         await PublishToDirectoryAsync(ct);
         await SendComposerToRoomAsync(
-            new RoomEventMessageComposer { Event = next, SentAtUtc = DateTime.UtcNow },
+            new RoomEventMessageComposer { Event = next, SentAtUtc = UtcNow.UtcDateTime },
             ct
         );
 
@@ -368,7 +368,7 @@ public sealed partial class RoomGrain
     /// <summary>Ends the room's event, whoever asked; the callers check.</summary>
     private async Task<bool> EndEventAsync(int eventId, CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
 
         try
         {
@@ -445,7 +445,7 @@ public sealed partial class RoomGrain
         if (current is null)
             return null;
 
-        if (current.IsActiveAt(DateTime.UtcNow))
+        if (current.IsActiveAt(UtcNow.UtcDateTime))
             return current;
 
         _state.RoomSnapshot = _state.RoomSnapshot with { ActiveEvent = null };

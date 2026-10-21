@@ -19,7 +19,7 @@ public static class WiredTimeZones
         try
         {
             return TimeZoneInfo.ConvertTime(
-                DateTimeOffset.UtcNow,
+                roomGrain.UtcNow,
                 TimeZoneInfo.FindSystemTimeZoneById(timezoneId.Trim())
             );
         }

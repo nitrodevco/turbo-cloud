@@ -26,9 +26,9 @@ public sealed partial class RoomWiredSystem
     // with them.
     private readonly Dictionary<WiredVariableId, WiredVariableId> _legacyVariableIds = [];
     private readonly Dictionary<int, List<WiredVariableId>> _subVariableIdsByBoxId = [];
-    private readonly FurnitureActiveStore _furnitureActiveStore = new();
-    private readonly PlayerActiveStore _playerActiveStore = new();
-    private readonly RoomActiveStore _roomActiveStore = new();
+    private readonly FurnitureActiveStore _furnitureActiveStore = new(roomGrain._time);
+    private readonly PlayerActiveStore _playerActiveStore = new(roomGrain._time);
+    private readonly RoomActiveStore _roomActiveStore = new(roomGrain._time);
     private WiredVariablesSnapshot? _variablesSnapshot = null;
 
     /// <summary>The hash of every variable as last sent; a box editor echoes it to ask what changed.</summary>
@@ -98,7 +98,7 @@ public sealed partial class RoomWiredSystem
     private KeyValueStore ContextValuesFor(RoomEvent evt) =>
         _contextValuesByEvent.TryGetValue(evt, out var values)
             ? values.CreateChild()
-            : new KeyValueStore();
+            : new KeyValueStore { Clock = _roomGrain._time };
 
     public bool TryGetStoreForKey(WiredVariableKey key, out KeyValueStore? store)
     {

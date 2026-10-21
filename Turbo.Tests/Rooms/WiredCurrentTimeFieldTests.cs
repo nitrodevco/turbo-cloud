@@ -27,19 +27,13 @@ public sealed class WiredCurrentTimeFieldTests
     {
         SetTimeZone(TOKYO);
         var tokyo = TimeZoneInfo.ConvertTime(
-            DateTimeOffset.UtcNow,
+            _room.Clock.GetUtcNow(),
             TimeZoneInfo.FindSystemTimeZoneById(TOKYO)
         );
 
-        Read(new RoomCurrentTimeHourOfDayVariable(_room.Harness.Room))
-            .Should()
-            .BeOneOf(tokyo.Hour, tokyo.AddMinutes(1).Hour);
-        Read(new RoomCurrentTimeDayOfMonthVariable(_room.Harness.Room))
-            .Should()
-            .BeOneOf(tokyo.Day, tokyo.AddMinutes(1).Day);
-        Read(new RoomCurrentTimeYearVariable(_room.Harness.Room))
-            .Should()
-            .BeOneOf(tokyo.Year, tokyo.AddMinutes(1).Year);
+        Read(new RoomCurrentTimeHourOfDayVariable(_room.Harness.Room)).Should().Be(tokyo.Hour);
+        Read(new RoomCurrentTimeDayOfMonthVariable(_room.Harness.Room)).Should().Be(tokyo.Day);
+        Read(new RoomCurrentTimeYearVariable(_room.Harness.Room)).Should().Be(tokyo.Year);
         Read(new RoomCurrentTimeDayOfWeekVariable(_room.Harness.Room)).Should().BeInRange(1, 7);
     }
 

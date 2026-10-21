@@ -34,7 +34,7 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             ct
         );
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
-        pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
+        pet.ActionExpiresAtMs = NowMs() + config.ActionDurationMs;
 
         await ShowLeftAsync(left);
         await PetModule.SayVocalAsync(pet, "EATING", ct);

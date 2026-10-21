@@ -30,7 +30,7 @@ public class CommandLogTests
         logged.Arguments.Should().Be("a very rude word");
         logged.PlayerId.Value.Should().Be(2);
         logged.Outcome.Should().Be(CommandOutcome.Completed);
-        logged.LoggedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
+        logged.LoggedAtUtc.Should().Be(_room.UtcNow);
     }
 
     [Fact]

@@ -32,7 +32,7 @@ public class WiredConditionDateRangeActive(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = UtcNow.ToUnixTimeSeconds();
         var start = GetIntParamOrDefault(0, 0);
         var end = GetIntParamOrDefault(1, 0);
 

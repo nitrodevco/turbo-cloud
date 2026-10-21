@@ -86,7 +86,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
             {
                 Ctx = ctx,
                 TileIdx = tileIdx,
-                UntilMs = _roomGrain.NowMs() + WalkTimeoutMs,
+                UntilMs = NowMs() + WalkTimeoutMs,
             };
             ScheduleTick();
 
@@ -152,7 +152,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
             return;
         }
 
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
         var boundary = State.NextAvatarBoundaryMs;
         var dueAtMs = boundary > now ? boundary : now + tickMs;
 
@@ -171,7 +171,7 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     /// </summary>
     private async Task TickAsync(CancellationToken ct)
     {
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
 
         foreach (var (objectId, approach) in _approaching.ToArray())
         {

@@ -680,7 +680,7 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private int CountHolders(FurnitureWiredVariableLogic variable, string targetKind)
     {
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
         var cacheKey = (variable.GetVarSnapshot().VariableId, targetKind);
 
         if (_webApiCounts.TryGetValue(cacheKey, out var cached) && cached.ExpiresAtMs > now)
@@ -883,7 +883,7 @@ public sealed partial class RoomWiredSystem
         if (budget <= 0)
             return true;
 
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
 
         if (now - _webApiBudgetSinceMs >= 60_000)
         {

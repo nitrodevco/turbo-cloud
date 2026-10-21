@@ -731,7 +731,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             && !dead
             && (
                 pet.HarvestedAtUtc is null
-                || (DateTime.UtcNow - pet.HarvestedAtUtc.Value).TotalSeconds
+                || (UtcNow.UtcDateTime - pet.HarvestedAtUtc.Value).TotalSeconds
                     >= Config.MonsterplantHarvestIntervalSeconds
             );
 
@@ -819,7 +819,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         if (!TryGetPet(petId, out _))
             return Task.FromResult(false);
 
-        AvatarModule.TouchAvatar(ctx.PlayerId, _roomGrain.NowMs());
+        AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
 
         return Task.FromResult(true);
     }
@@ -876,7 +876,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             MaxNutrition = Config.MaxNutrition,
             Respect = pet.Respect,
             OwnerId = pet.OwnerId,
-            AgeDays = Math.Max(0, (int)(DateTime.UtcNow - pet.CreatedAtUtc).TotalDays),
+            AgeDays = Math.Max(0, (int)(UtcNow.UtcDateTime - pet.CreatedAtUtc).TotalDays),
             OwnerName = pet.OwnerName,
             BreedId = pet.PetFigure.BreedId,
             HasFreeSaddle = pet.HasSaddle,
@@ -917,7 +917,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     internal int RemainingWellBeingSeconds(IRoomPet pet)
     {
-        var elapsed = (DateTime.UtcNow - pet.WateredAtUtc).TotalSeconds;
+        var elapsed = (UtcNow.UtcDateTime - pet.WateredAtUtc).TotalSeconds;
 
         return (int)Math.Max(0, MaxWellBeingSeconds(pet) - elapsed);
     }
@@ -939,7 +939,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
     {
         var at = pet.CreatedAtUtc.AddSeconds((double)levelUps * Config.MonsterplantGrowthSeconds);
 
-        return (int)Math.Max(0, (at - DateTime.UtcNow).TotalSeconds);
+        return (int)Math.Max(0, (at - UtcNow.UtcDateTime).TotalSeconds);
     }
 
     internal int NextRandom(int minInclusive, int maxExclusive) =>

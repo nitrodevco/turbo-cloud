@@ -31,7 +31,7 @@ public sealed class WiredTailParamTests
         bool holds
     )
     {
-        var now = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = (int)_room.Clock.GetUtcNow().ToUnixTimeSeconds();
         var condition = _room.AddBox<WiredConditionDateRangeActive>(
             2,
             0,

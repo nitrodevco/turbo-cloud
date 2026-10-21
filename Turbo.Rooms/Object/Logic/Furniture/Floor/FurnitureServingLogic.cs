@@ -106,7 +106,7 @@ public abstract class FurnitureServingLogic : FurnitureWalkToUseLogic
             if (GetState() != DISPENSING_STATE)
                 await SetStateAsync(DISPENSING_STATE);
 
-            _dispensingUntilMs = _roomGrain.NowMs() + RoomConfig.VendingDispenseMs;
+            _dispensingUntilMs = NowMs() + RoomConfig.VendingDispenseMs;
             ScheduleTick();
         }
 

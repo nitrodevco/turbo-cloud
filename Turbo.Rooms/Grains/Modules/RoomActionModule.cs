@@ -438,7 +438,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                 {
                     Source = AchievementSources.FURNITURE,
                     OperationId = Guid.NewGuid().ToString("N"),
-                    OccurredAtUtc = DateTime.UtcNow,
+                    OccurredAtUtc = UtcNow.UtcDateTime,
                 }
             );
             await db.SaveChangesAsync(ct);

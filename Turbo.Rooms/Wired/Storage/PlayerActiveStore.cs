@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -8,9 +9,9 @@ namespace Turbo.Rooms.Wired.Storage;
 /// <summary>
 /// What user variables hold, one store per avatar. Keyed by the avatar's room index, as every
 /// user variable is, so that a pet and a bot can hold values too; a player's own id is a
-/// value a variable reports, never the key.
+/// value a variable reports, never the key. Each store is on the room's clock.
 /// </summary>
-public sealed class PlayerActiveStore : ActiveStore
+public sealed class PlayerActiveStore(TimeProvider clock) : ActiveStore
 {
     private readonly Dictionary<RoomObjectId, KeyValueStore> _byObjectId = [];
 
@@ -27,7 +28,7 @@ public sealed class PlayerActiveStore : ActiveStore
 
         if (!_byObjectId.TryGetValue(objectId, out var found))
         {
-            found = new KeyValueStore();
+            found = new KeyValueStore { Clock = clock };
 
             _byObjectId[objectId] = found;
         }

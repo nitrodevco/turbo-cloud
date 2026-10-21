@@ -77,6 +77,10 @@ internal static class RoomSetup
     public static void UseLogger(this RoomGrain room, ILogger<IRoomGrain> logger) =>
         Replace(room, nameof(RoomGrain._logger), logger);
 
+    /// <summary>The clock the room's <c>NowMs</c> and <c>UtcNow</c> read.</summary>
+    public static void UseClock(this RoomGrain room, TimeProvider time) =>
+        Replace(room, nameof(RoomGrain._time), time);
+
     /// <summary>Marks the room's tick as running (or not), as the tick timer does around a tick.</summary>
     public static void SetTickRunning(this RoomGrain room, bool running) =>
         Replace(room, "_tickRunning", running);

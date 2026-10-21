@@ -34,7 +34,7 @@ public class FurnitureHighscoreLogic : FurnitureFloorLogic
         if (StuffData is IHighscoreStuffData board)
         {
             board.SetTypes(_scoreType, _clearType);
-            ClearIfStale(board, DateTimeOffset.UtcNow);
+            ClearIfStale(board, UtcNow);
         }
     }
 

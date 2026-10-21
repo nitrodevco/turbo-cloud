@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Action;
@@ -461,8 +460,7 @@ public sealed class PetFreeRoamTests
         _room.Harness.Room.TimerSystem.ProcessTimersAsync(long.MaxValue, Ct);
 
     /// <summary>The room clock (RoomGrain.NowMs) that timed actions are set on.</summary>
-    private static long RoomClockMs() =>
-        (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+    private long RoomClockMs() => _room.Harness.NowMs();
 
     private async Task WalkAsync()
     {

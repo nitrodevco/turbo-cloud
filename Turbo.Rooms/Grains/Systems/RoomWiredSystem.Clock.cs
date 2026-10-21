@@ -13,8 +13,7 @@ public sealed partial class RoomWiredSystem
     /// evaluate against this rather than the server clock, so a room set to Helsinki triggers
     /// at Helsinki midnight regardless of where the silo runs.
     /// </summary>
-    public DateTimeOffset GetRoomLocalTime() =>
-        TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, GetRoomTimeZone());
+    public DateTimeOffset GetRoomLocalTime() => TimeZoneInfo.ConvertTime(UtcNow, GetRoomTimeZone());
 
     public TimeZoneInfo GetRoomTimeZone()
     {

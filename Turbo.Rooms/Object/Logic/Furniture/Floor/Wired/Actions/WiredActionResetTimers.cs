@@ -21,7 +21,7 @@ public class WiredActionResetTimers(
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        WiredSystem.ResetTimers(_roomGrain.NowMs());
+        WiredSystem.ResetTimers(NowMs());
 
         return Task.FromResult(true);
     }

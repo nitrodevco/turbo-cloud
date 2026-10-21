@@ -550,7 +550,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     )
     {
         var range = RoomConfig.ChatLookAtRange;
-        var revertAtMs = _roomGrain.NowMs() + RoomConfig.ChatLookAtRevertMs;
+        var revertAtMs = NowMs() + RoomConfig.ChatLookAtRevertMs;
 
         foreach (var avatar in AvatarModule.Avatars)
         {
@@ -682,12 +682,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             ._grainFactory.GetPlayerPermissionGrain(playerId)
             .ExplainAsync(PermissionNodes.Chat.SPEAK, ct);
 
-        if (check.Decision?.ExpiresAt is { } until && until > DateTime.UtcNow)
+        if (check.Decision?.ExpiresAt is { } until && until > UtcNow.UtcDateTime)
             await GrainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new RemainingMutePeriodMessageComposer
                 {
-                    SecondsRemaining = (int)Math.Ceiling((until - DateTime.UtcNow).TotalSeconds),
+                    SecondsRemaining = (int)Math.Ceiling((until - UtcNow.UtcDateTime).TotalSeconds),
                 },
                 ct
             );
@@ -720,7 +720,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     )
     {
         var config = RoomConfig;
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
 
         if (_floodMutedUntilByPlayerId.TryGetValue(playerId, out var mutedUntil))
         {
@@ -797,7 +797,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         var canSpeakWith = ChatStyles.CanSpeakWith(
             style,
-            hasClub: speaker.HabboClubExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow,
+            hasClub: speaker.HabboClubExpiresAt is { } expiresAt && expiresAt > UtcNow.UtcDateTime,
             isAmbassador: SecurityModule.HasPermission(speaker, PermissionNodes.Role.AMBASSADOR),
             isStaff: SecurityModule.HasPermission(speaker, PermissionNodes.Chat.STYLE_STAFF),
             ownsStyle

@@ -83,7 +83,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         // Stored as plain room info so private settings (password, moderation) never leave here.
         var room = RoomActiveSnapshot.From(snapshot, 0) with
         {
-            LastUpdatedUtc = DateTime.UtcNow,
+            LastUpdatedUtc = _time.GetUtcNow().UtcDateTime,
         };
 
         _state.ActiveRooms[snapshot.RoomId] = room;

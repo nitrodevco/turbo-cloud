@@ -50,7 +50,10 @@ public class FurnitureMysteryTrophyLogic(
         inscription = _roomGrain._wordFilter.FilterAndTruncate(inscription, maxLength);
 
         var owner = await GrainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
-        var date = DateTime.UtcNow.ToString(TrophyData.DATE_FORMAT, CultureInfo.InvariantCulture);
+        var date = UtcNow.UtcDateTime.ToString(
+            TrophyData.DATE_FORMAT,
+            CultureInfo.InvariantCulture
+        );
 
         await SetLegacyDataAsync(TrophyData.Compose(owner.Name, date, inscription));
 

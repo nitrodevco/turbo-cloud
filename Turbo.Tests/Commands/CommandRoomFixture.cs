@@ -102,11 +102,14 @@ public sealed class CommandRoomFixture
 
     public bool IsInRoom(int id) => (Harness.State.AvatarsByPlayerId).ContainsKey(id);
 
+    /// <summary>The time of day by the room's clock.</summary>
+    public DateTime UtcNow => Harness.Clock.GetUtcNow().UtcDateTime;
+
     public DateTime? MutedUntil(int id) =>
         (Harness.State.MutedUntilByPlayerId).TryGetValue(id, out var until) ? until : null;
 
     public void MuteForAWhile(int id) =>
-        (Harness.State.MutedUntilByPlayerId)[id] = DateTime.UtcNow.AddMinutes(10);
+        (Harness.State.MutedUntilByPlayerId)[id] = UtcNow.AddMinutes(10);
 
     public void GiveRights(int id) => Harness.State.PlayerIdsWithRights.Add(id);
 

@@ -26,7 +26,8 @@ namespace Turbo.Tests.Support;
 /// a fake Orleans execution context (grain id "room/1"); logic types are registered the way the
 /// host does at startup (the [RoomObjectLogic] assembly scan) into a real
 /// RoomObjectLogicProvider over a real service collection. Grain calls, the database and the
-/// room stream are fakes.
+/// room stream are fakes. The room runs on <see cref="Clock"/>, which stands still until the test
+/// advances it.
 /// </summary>
 public sealed class LiveRoomHarness
 {
@@ -39,6 +40,12 @@ public sealed class LiveRoomHarness
     public IServiceProvider Services { get; }
     public IRoomObjectLogicProvider LogicProvider { get; }
 
+    /// <summary>
+    /// The room's clock (<c>NowMs</c> and <c>UtcNow</c>), from <see cref="ManualTimeProvider.FixedStart"/>
+    /// unless the test gave one: room time moves only when the test advances it.
+    /// </summary>
+    public ManualTimeProvider Clock { get; }
+
     /// <summary>The registry a room publishes to besides its own systems, where a plugin's listeners go.</summary>
     public IRoomEventListenerRegistry EventListeners { get; } = new RoomEventListenerRegistry();
 
@@ -48,10 +55,12 @@ public sealed class LiveRoomHarness
         int width = 10,
         int height = 10,
         RoomConfig? roomConfig = null,
-        Altitude[]? heights = null
+        Altitude[]? heights = null,
+        ManualTimeProvider? clock = null
     )
     {
         _roomConfig = roomConfig ?? new RoomConfig();
+        Clock = clock ?? new ManualTimeProvider(ManualTimeProvider.FixedStart);
         Fakes.Handlers["GetService"] = call =>
             call.Args[0] is Type t && t.IsInterface && !t.IsGenericType ? Fakes.Create(t) : null;
         Fakes.Handlers["get_GrainId"] = _ =>
@@ -145,6 +154,9 @@ public sealed class LiveRoomHarness
         where T : class =>
         (T)typeof(RoomGrain).GetFields(All).First(f => f.FieldType == typeof(T)).GetValue(Room)!;
 
+    /// <summary>The room's <c>NowMs</c>: where its monotonic clock stands.</summary>
+    public long NowMs() => Room.NowMs();
+
     private IServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
@@ -191,6 +203,8 @@ public sealed class LiveRoomHarness
         }
         if (t == typeof(RoomConfig))
             return _roomConfig;
+        if (t == typeof(TimeProvider))
+            return Clock;
         if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(ILogger<>))
             return Activator.CreateInstance(
                 typeof(NullLogger<>).MakeGenericType(t.GetGenericArguments()[0])

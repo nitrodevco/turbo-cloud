@@ -34,7 +34,7 @@ public class WiredAddonExecutionLimit(
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        var now = _roomGrain.NowMs();
+        var now = NowMs();
         var windowMs = WiredPulses.ToMs(GetIntParamOrDefault(1, 1));
 
         if (now - _windowStartMs >= windowMs)

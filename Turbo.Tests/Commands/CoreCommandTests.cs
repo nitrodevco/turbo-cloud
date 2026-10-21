@@ -138,10 +138,7 @@ public class CoreCommandTests
 
         await _room.SayAsync(OWNER, ":mute player3 5");
 
-        _room
-            .MutedUntil(3)
-            .Should()
-            .BeCloseTo(DateTime.UtcNow.AddMinutes(5), TimeSpan.FromSeconds(10));
+        _room.MutedUntil(3).Should().Be(_room.UtcNow.AddMinutes(5));
         _room
             .WhispersTo(OWNER)
             .Should()
@@ -194,10 +191,7 @@ public class CoreCommandTests
 
         await _room.SayAsync(OWNER, ":mute player3 5");
 
-        _room
-            .MutedUntil(3)
-            .Should()
-            .BeCloseTo(DateTime.UtcNow.AddMinutes(5), TimeSpan.FromSeconds(10));
+        _room.MutedUntil(3).Should().Be(_room.UtcNow.AddMinutes(5));
         _room.WhispersTo(OWNER).Should().Equal("player3 is muted for 5 minutes.");
         _room
             .Harness.Fakes.Log.On<IPlayerNoticeService>()
@@ -220,9 +214,7 @@ public class CoreCommandTests
 
         await room.SayAsync(OWNER, ":mute player3 10");
 
-        room.MutedUntil(3)
-            .Should()
-            .BeCloseTo(DateTime.UtcNow.AddMinutes(3), TimeSpan.FromSeconds(10));
+        room.MutedUntil(3).Should().Be(room.UtcNow.AddMinutes(3));
         room.WhispersTo(OWNER).Should().Equal("player3 is muted for 3 minutes.");
         room.Harness.Fakes.Log.On<IPlayerNoticeService>()
             .Should()
@@ -257,10 +249,7 @@ public class CoreCommandTests
         _room
             .MutedUntil(3)
             .Should()
-            .BeCloseTo(
-                DateTime.UtcNow.AddMinutes(new RoomConfig().CommandDefaultMuteMinutes),
-                TimeSpan.FromSeconds(10)
-            );
+            .Be(_room.UtcNow.AddMinutes(new RoomConfig().CommandDefaultMuteMinutes));
     }
 
     [Theory]

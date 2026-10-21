@@ -42,7 +42,7 @@ public sealed class RoomModerationModule(
         if (!State.MutedUntilByPlayerId.TryGetValue(playerId, out var mutedUntil))
             return 0;
 
-        var remaining = mutedUntil - DateTime.UtcNow;
+        var remaining = mutedUntil - UtcNow.UtcDateTime;
 
         if (remaining <= TimeSpan.Zero)
         {
@@ -111,7 +111,7 @@ public sealed class RoomModerationModule(
     {
         durationMinutes = Math.Min(durationMinutes, RoomConfig.ChatMuteMaxDurationMinutes);
 
-        var expiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
+        var expiresAt = UtcNow.UtcDateTime.AddMinutes(durationMinutes);
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
@@ -185,7 +185,7 @@ public sealed class RoomModerationModule(
         if (State.IsMutesLoaded)
             return;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
@@ -360,9 +360,9 @@ public sealed class RoomModerationModule(
         var config = RoomConfig;
         var expiresAt = duration switch
         {
-            RoomBanDurationType.Hour => DateTime.UtcNow.AddMinutes(config.BanHourMinutes),
-            RoomBanDurationType.Day => DateTime.UtcNow.AddMinutes(config.BanDayMinutes),
-            RoomBanDurationType.Permanent => DateTime.UtcNow.AddDays(config.BanPermanentDays),
+            RoomBanDurationType.Hour => UtcNow.UtcDateTime.AddMinutes(config.BanHourMinutes),
+            RoomBanDurationType.Day => UtcNow.UtcDateTime.AddMinutes(config.BanDayMinutes),
+            RoomBanDurationType.Permanent => UtcNow.UtcDateTime.AddDays(config.BanPermanentDays),
             _ => throw new ArgumentOutOfRangeException(nameof(duration), duration, null),
         };
 
@@ -429,7 +429,7 @@ public sealed class RoomModerationModule(
         if (!await CanManageBansAsync(ctx))
             return null;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow.UtcDateTime;
 
         // Habbo answers the first request, empty or not, and lets the client's immediate repeats go
         // unanswered (recorded on hhus, 2026-10-12: asked, answered empty, asked twice more 0.1 s

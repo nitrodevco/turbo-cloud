@@ -102,7 +102,7 @@ public class WiredActionGiveReward(
         var unique = GetIntParamOrDefault(1, false);
         var prizeLimit = GetIntParamOrDefault(2, 0);
         var intervalCount = GetIntParamOrDefault(3, 1);
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = UtcNow.ToUnixTimeSeconds();
         var given = false;
 
         foreach (var player in players)

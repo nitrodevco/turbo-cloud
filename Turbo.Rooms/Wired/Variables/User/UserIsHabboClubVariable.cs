@@ -24,5 +24,5 @@ public sealed class UserIsHabboClubVariable(RoomGrain roomGrain)
     protected override ushort Order => 40;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        avatar.HabboClubExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow;
+        avatar.HabboClubExpiresAt is { } expiresAt && expiresAt > UtcNow.UtcDateTime;
 }
