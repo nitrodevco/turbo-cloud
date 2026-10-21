@@ -443,8 +443,9 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
     /// <summary>
     /// Returns every pet to its owner's inventory, as a room deletion requires. Same shape as
-    /// <see cref="RoomBotModule.ReturnAllToOwnersAsync"/>: a pet the inventory refuses is logged
-    /// and left to the deletion's backstop, so one bad pet cannot leave the room half deleted.
+    /// <see cref="RoomBotModule.ReturnAllToOwnersAsync"/>: a pet the inventory refuses, or whose
+    /// return throws, is logged and left to the deletion's backstop, so one bad pet cannot leave
+    /// the room half deleted.
     /// </summary>
     internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
     {
@@ -469,13 +470,28 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         {
             var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
 
-            if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), cause, ct))
-                Logger.LogError(
-                    "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
-                    pet.PetId,
-                    ownerId,
-                    _roomGrain.RoomId
-                );
+            // A return that throws (the inventory's write failed, the call timed out) is a
+            // refusal too: the backstop sends the row home. Only cancellation stops the deletion.
+            Exception? failure = null;
+
+            try
+            {
+                if (await inventory.ReturnPetAsync(pet.GetPetSnapshot(), cause, ct))
+                    continue;
+            }
+            catch (Exception ex)
+                when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                failure = ex;
+            }
+
+            Logger.LogError(
+                failure,
+                "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
+                pet.PetId,
+                ownerId,
+                _roomGrain.RoomId
+            );
         }
     }
 

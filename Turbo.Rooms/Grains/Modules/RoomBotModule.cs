@@ -609,13 +609,27 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         {
             var cause = MovementCause.New(MovementCauses.ROOM_DELETE, 0, _roomGrain.RoomId.Value);
 
-            if (!await inventory.ReturnBotAsync(bot.GetBotSnapshot(), cause, ct))
-                Logger.LogError(
-                    "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
-                    bot.BotId,
-                    ownerId,
-                    _roomGrain.RoomId
-                );
+            // As a pet's (RoomPetModule.ReturnToOwnerAsync): a throw is left to the backstop.
+            Exception? failure = null;
+
+            try
+            {
+                if (await inventory.ReturnBotAsync(bot.GetBotSnapshot(), cause, ct))
+                    continue;
+            }
+            catch (Exception ex)
+                when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                failure = ex;
+            }
+
+            Logger.LogError(
+                failure,
+                "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
+                bot.BotId,
+                ownerId,
+                _roomGrain.RoomId
+            );
         }
     }
 

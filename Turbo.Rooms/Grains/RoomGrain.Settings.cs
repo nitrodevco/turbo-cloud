@@ -307,12 +307,25 @@ public sealed partial class RoomGrain
         await BotModule.ReturnAllToOwnersAsync(ct);
 
         // Furniture goes home before the row goes: the same path a pickup takes, so inventories
-        // that are live see the items arrive.
-        await ActionModule.ReturnItemsToOwnersAsync(
-            [.. _state.ItemsById.Values],
-            MovementCause.New(MovementCauses.ROOM_DELETE, 0, roomId),
-            ct
-        );
+        // that are live see the items arrive. A hand-over that throws (a grain call timing out)
+        // is left to the backstop below, as a pet's or a bot's is; only cancellation stops here.
+        try
+        {
+            await ActionModule.ReturnItemsToOwnersAsync(
+                [.. _state.ItemsById.Values],
+                MovementCause.New(MovementCauses.ROOM_DELETE, 0, roomId),
+                ct
+            );
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "Furniture of room {RoomId} could not all be returned to its owners while the room is deleted",
+                _state.RoomId
+            );
+        }
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
