@@ -26,8 +26,9 @@ namespace Turbo.Admin.Catalog;
 /// second of a name the second here: in the Builders Club a page shown only there, in the normal
 /// catalogue one shown only in it or hidden. One with none is added, in the capture's order.
 /// Habbo's root is not a page to take in: the normal catalogue's tabs are its root's pages, and
-/// the Builders Club's pages, under Habbo's one category, go under the tab the Builders Club
-/// opens on now, as the catalogue cuts it.</item>
+/// the Builders Club's pages, under Habbo's one category, go under the tab of that category's
+/// name (its furni tab, which the Builders Club cuts down), else the tab the Builders Club opens
+/// on now, as the catalogue cuts it.</item>
 /// <item>An offer is the same one on its page when it gives the same items (a poster by its
 /// number); offers come from the pages, never from the furnidata, which names many offers no page
 /// sells. An item is the furniture here of its class name (a JSON capture's) or of its sprite (a
@@ -41,8 +42,9 @@ namespace Turbo.Admin.Catalog;
 /// catalogue's import makes it so (but for a tab, which the Builders Club never shows) and says
 /// what it is and sells, the Builders Club having no prices; the Builders Club's import leaves
 /// it as it is and puts the pages only it has under it. Given one log, a page shown in both
-/// stays so. Each import puts only its own catalogue's pages in order, so neither undoes the
-/// other's.</item>
+/// stays so, and a page by the name of one only the other catalogue shows (its import made
+/// alone, before) is that page, shown in both now rather than made again. Each import puts only
+/// its own catalogue's pages in order, so neither undoes the other's.</item>
 /// <item>No page the capture does not have is changed, unless <c>TakeOthersOut</c> takes the
 /// pages it lacks out of that catalogue (in the normal catalogue, hides them, but for those that
 /// lead to Builders Club pages).</item>
@@ -422,8 +424,10 @@ public sealed class AdminCatalogImport(
         bool LeadsToBuildersClub(SavedPage page) =>
             page.Display.IsInBuildersClub() || Children(page.Id).Any(LeadsToBuildersClub);
 
-        // The Builders Club opens on the first tab that leads to its pages, as the catalogue cuts
-        // it; with none yet, the first tab there is. The normal catalogue's tabs are its root's.
+        // Habbo's Builders Club is its normal catalogue's furni tab cut down, so its pages go
+        // under the tab named as its category is. With none, under the first tab that leads to
+        // its pages, as the catalogue cuts it, else the first tab there is. The normal
+        // catalogue's tabs are its root's.
         var under = ourRoot;
 
         if (builders)
@@ -431,9 +435,19 @@ public sealed class AdminCatalogImport(
             var tabs = Children(ourRoot.Id)
                 .Where(x => x.Display != CatalogPageDisplay.Invisible)
                 .ToList();
+            var categoryName = (source.Root.Children ?? [])
+                .FirstOrDefault(x => x.Visible)
+                ?.PageName?.Trim();
 
             if (
-                (tabs.FirstOrDefault(LeadsToBuildersClub) ?? tabs.FirstOrDefault())
+                (
+                    tabs.FirstOrDefault(x =>
+                        categoryName is { Length: > 0 }
+                        && string.Equals(x.Name?.Trim(), categoryName, StringComparison.Ordinal)
+                    )
+                    ?? tabs.FirstOrDefault(LeadsToBuildersClub)
+                    ?? tabs.FirstOrDefault()
+                )
                 is not { } category
             )
                 return Work.Refused(
@@ -455,6 +469,14 @@ public sealed class AdminCatalogImport(
         var sharedByName = builders
             ? ByName(x => x.Display == CatalogPageDisplay.Both)
             : new Dictionary<string, Queue<SavedPage>>(StringComparer.Ordinal);
+
+        // The pages only the other catalogue shows, but for tabs: one the other catalogue's
+        // import made alone, before this one, is the same page by its name, to be shown in both.
+        var otherByName = ByName(x =>
+            x.ParentId != ourRoot.Id
+            && x.Display
+                == (builders ? CatalogPageDisplay.Regular : CatalogPageDisplay.BuildersClubOnly)
+        );
 
         Dictionary<string, Queue<SavedPage>> ByName(Func<SavedPage, bool> include) =>
             pages
@@ -496,11 +518,10 @@ public sealed class AdminCatalogImport(
             .GroupBy(x => x.ActivityPointType!.Value)
             .ToDictionary(g => g.Key, g => g.Min(x => x.Id));
 
-        var ownPageIds = pages.Where(x => Takes(x.Display)).Select(x => x.Id).ToList();
+        // Every page's, as a page only the other catalogue shows may become this one's too.
         var offers = (
             await db
                 .CatalogOffers.AsNoTracking()
-                .Where(x => ownPageIds.Contains(x.CatalogPageEntityId))
                 .Select(x => new SavedOffer(
                     x.Id,
                     x.CatalogPageEntityId,
@@ -635,14 +656,20 @@ public sealed class AdminCatalogImport(
                 unopened.Add(path);
 
             // A page the other log shows too is one page here, shown in both catalogues; never a
-            // tab, which the Builders Club does not show. In the Builders Club, so is one by the
-            // name of a page here that both show already.
+            // tab, which the Builders Club does not show. So is one by the name of a page here
+            // that both show already (in the Builders Club), or that only the other catalogue
+            // shows - its import made alone, and given both logs, one the other log shows too.
+            var sharing = !tab && !hidden && name.Length > 0;
+            var other =
+                sharing
+                && (source.Shared?.Contains(name) ?? true)
+                && otherByName.TryGetValue(name, out var others)
+                && others.Count > 0;
             var shared =
-                !tab
-                && !hidden
-                && name.Length > 0
+                sharing
                 && (
                     source.Shared?.Contains(name) == true
+                    || other
                     || (sharedByName.TryGetValue(name, out var left) && left.Count > 0)
                 );
 
@@ -670,18 +697,25 @@ public sealed class AdminCatalogImport(
 
             // What a page both show is and sells is the normal catalogue's to say, the Builders
             // Club having no prices; its import takes in only the pages under it that it alone has.
+            var makeBoth = false;
+
             if (
                 builders
                 && shared
-                && sharedByName.TryGetValue(name, out var both)
-                && both.TryDequeue(out var sharedPage)
+                && (
+                    (
+                        sharedByName.TryGetValue(name, out var both)
+                        && both.TryDequeue(out var candidate)
+                    ) || (other && (makeBoth = otherByName[name].TryDequeue(out candidate)))
+                )
+                && candidate is { } sharedPage
             )
             {
                 work.Names.Add(name);
                 sharedNames.Add(name);
                 matched.Add(sharedPage.Id);
                 matchedNodes[node] = sharedPage.Id;
-                work.Share(sharedPage, path);
+                work.Share(sharedPage, path, makeBoth);
 
                 foreach (var child in node.Children ?? [])
                     Visit(child, CatalogPageRef.Saved(sharedPage.Id), path, hidden);
@@ -707,11 +741,16 @@ public sealed class AdminCatalogImport(
 
             work.Names.Add(name);
 
+            // In the normal catalogue, a page by the name that only the Builders Club shows is
+            // the one to show in both, when this catalogue has none of its own by it.
             if (
                 name.Length > 0
                 && !(builders && shared)
-                && ownByName.TryGetValue(name, out var same)
-                && same.TryDequeue(out var existing)
+                && (
+                    (ownByName.TryGetValue(name, out var same) && same.TryDequeue(out var found))
+                    || (!builders && other && otherByName[name].TryDequeue(out found))
+                )
+                && found is { } existing
             )
             {
                 // Without the Builders Club's log, what it shows is not this import's to change.
@@ -1292,17 +1331,40 @@ public sealed class AdminCatalogImport(
             return page;
         }
 
-        /// <summary>A page both catalogues show, which the Builders Club's import leaves as it is.</summary>
-        public void Share(SavedPage saved, string path) =>
-            _pages.Add(
-                new PlanPage(
-                    saved.Name ?? string.Empty,
-                    saved.Localization,
-                    path,
-                    CatalogImportPageChange.UNCHANGED,
-                    saved.Id
-                )
+        /// <summary>
+        /// A page both catalogues show, which the Builders Club's import leaves as it is; with
+        /// <paramref name="makeBoth"/>, one only the normal catalogue showed, shown in both now
+        /// and otherwise left as it is.
+        /// </summary>
+        public void Share(SavedPage saved, string path, bool makeBoth)
+        {
+            var page = new PlanPage(
+                saved.Name ?? string.Empty,
+                saved.Localization,
+                path,
+                CatalogImportPageChange.UNCHANGED,
+                saved.Id
             );
+
+            if (makeBoth)
+            {
+                var draft = new CatalogPageDraft(
+                    saved.Localization,
+                    saved.Name,
+                    saved.Icon,
+                    saved.Layout,
+                    [.. saved.ImageData ?? []],
+                    [.. saved.TextData ?? []],
+                    CatalogPageDisplay.Both
+                );
+                var id = saved.Id;
+
+                page.Fields.Add(CatalogPageDisplay.Both.ToName());
+                Edits.Add((who, ct) => editor!.UpdatePageAsync(who, id, draft, ct));
+            }
+
+            _pages.Add(page);
+        }
 
         public void AddOffer(PlanPage page, CatalogPageRef target, CatalogOfferDraft draft)
         {

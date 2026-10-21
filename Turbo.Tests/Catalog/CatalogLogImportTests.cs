@@ -378,8 +378,9 @@ public sealed class CatalogLogImportTests : IDisposable
     {
         var request = await LodgeLogsAsync();
 
-        // As an import made before the two were one left them: a copy shown only in the
-        // Builders Club, with its page under it.
+        // As imports made before the two were one left them: the normal catalogue's page, and
+        // a copy shown only in the Builders Club, with its page under it.
+        _hotel.Db.Insert(Page(63, FURNITURE, "Lodge", sort: 5));
         _hotel.Db.Insert(
             Page(LODGE, FURNITURE, "Lodge", CatalogPageDisplay.BuildersClubOnly, sort: 6)
         );
@@ -393,6 +394,7 @@ public sealed class CatalogLogImportTests : IDisposable
         var lodges = await db.CatalogPages.Where(x => x.Name == "lodge").ToListAsync(Ct);
         var shown = lodges.Single(x => x.Display != CatalogPageDisplay.Invisible);
 
+        shown.Id.Should().Be(63, "the normal catalogue's page is the one to show in both");
         shown.Display.Should().Be(CatalogPageDisplay.Both);
         lodges
             .Single(x => x.Id == LODGE)
@@ -401,6 +403,64 @@ public sealed class CatalogLogImportTests : IDisposable
         (await db.CatalogPages.SingleAsync(x => x.Id == LODGE_EXTRAS, Ct))
             .ParentEntityId.Should()
             .Be(shown.Id);
+    }
+
+    [Fact]
+    public async Task TheLogsTakenInOneAtATime_StillMakeAPageInBothOnce_UnderTheFurnitureTab()
+    {
+        // Habbo's front page is its first tab, ahead of the one its Builders Club cuts down.
+        _habbo.Db.Insert(Page(62, ROOT, "Front", sort: -1));
+        var both = await LodgeLogsAsync();
+
+        // A catalog emptied, so nothing in it leads to the Builders Club yet.
+        (await _service.ResetAsync(Editor, false, Ct))
+            .Error.Should()
+            .BeNull();
+
+        (await Importer.ApplyLogsAsync(Editor, both with { BuildersClubLog = null }, Ct))
+            .Error.Should()
+            .BeNull();
+        (await Importer.ApplyLogsAsync(Editor, both with { NormalLog = null }, Ct))
+            .Error.Should()
+            .BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        var furniture = await db.CatalogPages.SingleAsync(x => x.Name == "furniture", Ct);
+        var lodge = await db.CatalogPages.SingleAsync(x => x.Name == "lodge", Ct);
+        var builders = await db.CatalogPages.SingleAsync(x => x.Name == "builders", Ct);
+
+        lodge.Display.Should().Be(CatalogPageDisplay.Both);
+        lodge.ParentEntityId.Should().Be(furniture.Id);
+        builders.ParentEntityId.Should().Be(furniture.Id, "not the front page, the first tab");
+        (await db.CatalogPages.SingleAsync(x => x.Name == "lodge_extras", Ct))
+            .ParentEntityId.Should()
+            .Be(lodge.Id);
+        (await db.CatalogPages.CountAsync(x => x.Name == "front", Ct)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task TheBuildersClubLogFirst_ThenTheNormal_MakeTheSharedPageOnce()
+    {
+        var both = await LodgeLogsAsync();
+
+        (await Importer.ApplyLogsAsync(Editor, both with { NormalLog = null }, Ct))
+            .Error.Should()
+            .BeNull();
+        (await Importer.ApplyLogsAsync(Editor, both with { BuildersClubLog = null }, Ct))
+            .Error.Should()
+            .BeNull();
+
+        await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
+        var lodge = await db.CatalogPages.SingleAsync(x => x.Name == "lodge", Ct);
+
+        lodge.Display.Should().Be(CatalogPageDisplay.Both);
+        lodge.ParentEntityId.Should().Be(FURNITURE);
+        (await db.CatalogPages.SingleAsync(x => x.Name == "lodge_extras", Ct))
+            .ParentEntityId.Should()
+            .Be(lodge.Id);
+        (await db.CatalogOffers.CountAsync(x => x.CatalogPageEntityId == lodge.Id, Ct))
+            .Should()
+            .Be(1, "the Builders Club's chair offer is the normal catalogue's one");
     }
 
     [Fact]
