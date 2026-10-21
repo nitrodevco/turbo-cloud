@@ -76,6 +76,31 @@ public sealed class WiredLinkBoxesTests
         saved.IsSaved.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(WiredActionSendMessage.SOURCE_TRIGGER, "", true)]
+    [InlineData(WiredActionSendMessage.SOURCE_CUSTOM, "relay: $(trigger_text)", true)]
+    [InlineData(WiredActionSendMessage.SOURCE_CUSTOM, "plain", false)]
+    public async Task Sending_the_triggers_text_gets_the_room_its_entry_notice(
+        int source,
+        string text,
+        bool notice
+    )
+    {
+        _room.AddBox<WiredActionSendMessage>(1, 0, 0, "wf_act_send_message");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                1,
+                intParams: [source],
+                stringParam: text,
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        (await Wired.GetTriggerTextNoticeAsync(Ct) is not null).Should().Be(notice);
+    }
+
     [Fact]
     public async Task A_message_source_other_than_trigger_or_custom_is_refused_as_an_invalid_dataframe()
     {

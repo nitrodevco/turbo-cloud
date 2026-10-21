@@ -90,6 +90,12 @@ public class WiredActionSendMessage(
         return base.ApplyWiredUpdateAsync(ctx, update, ct);
     }
 
+    // Sending "From WIRED trigger" passes the trigger's whole text on, so the room tells whoever
+    // enters as it does for $(trigger_text) (official client capture 2026-10-21: either one gets
+    // the entry notice, a plain custom message does not).
+    public override bool UsesTriggerText() =>
+        GetIntParamOrDefault(0, SOURCE_TRIGGER) == SOURCE_TRIGGER || base.UsesTriggerText();
+
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var links = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
