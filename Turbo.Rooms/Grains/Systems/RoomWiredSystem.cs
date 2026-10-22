@@ -621,25 +621,24 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return;
         }
 
-        // "Can Perform Movements" asks about moves that have not been made: it draws its own pick
-        // of the effects, in a random order whether or not "Execute In Order" is on, and works
-        // their moves out on a ghost of the room. The effects that then run are picked and put in
-        // order again, so a pass does not promise those moves (official client capture,
-        // WIN63-202610201032, two move and two rotate effects on one sofa: the condition passed
-        // 24 of 44 firings and 13 of those 24 ran an order that blocked; with Execute In Order
-        // the effects ran in stack order 15 of 15 while the condition still failed 25 of 40).
+        // "Can Perform Movements" asks about moves that have not been made: it takes every effect
+        // of the stack, whatever the random add-on would pick, in a random order whether or not
+        // "Execute In Order" is on, and works their moves out on a ghost of the room. The effects
+        // that then run are picked and put in order again, so a pass does not promise those moves
+        // (official client capture, WIN63-202610201032, two move and two rotate effects on one
+        // sofa: the condition passed 24 of 44 firings and 13 of those 24 ran an order that
+        // blocked; with Execute In Order the effects ran in stack order 15 of 15 while the
+        // condition still failed 25 of 40. 2026-10-22T22-04-45, the random add-on picking 2 of
+        // them, every pick of 2 able to move: passed 7 of 20; 22-06-39, a blocker that let half the
+        // picks move but no order of all 4: passed 0 of 20).
         if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
         {
-            var checkedPick = PickActions(
-                ActionsOfSide(ctx.Stack, negative: false),
-                ctx.Policy,
-                ctx.Stack.StackId
-            );
+            var checkedActions = ActionsOfSide(ctx.Stack, negative: false);
 
-            if (checkedPick.Actions.Count > 1)
-                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedPick.Actions));
+            if (checkedActions.Count > 1)
+                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedActions));
 
-            ctx.MovePlans = PlanMoves(ctx, checkedPick.Actions);
+            ctx.MovePlans = PlanMoves(ctx, checkedActions);
         }
 
         // A stack call, positive or negative, runs the called stack "regardless of existing
