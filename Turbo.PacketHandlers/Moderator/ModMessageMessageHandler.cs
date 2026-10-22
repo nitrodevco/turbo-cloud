@@ -22,7 +22,14 @@ public class ModMessageMessageHandler(IModerationToolService moderation)
     )
     {
         var sent = await _moderation
-            .SendMessageAsync(ctx.PlayerId, message.UserId, message.Message, caution: false, ct)
+            .SendMessageAsync(
+                ctx.PlayerId,
+                message.UserId,
+                message.Message,
+                caution: false,
+                message.IssueId,
+                ct
+            )
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(

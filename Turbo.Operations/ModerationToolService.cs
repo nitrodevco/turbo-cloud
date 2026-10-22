@@ -13,6 +13,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Help;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
@@ -378,11 +379,30 @@ public sealed class ModerationToolService(
         PlayerId target,
         string message,
         bool caution,
+        int issueId,
         CancellationToken ct
     )
     {
         if (string.IsNullOrWhiteSpace(message) || message.Length > config.Value.MaxAlertLength)
             return false;
+
+        // A message about a call for help to the player who made it answers their call.
+        if (!caution && issueId > 0)
+        {
+            await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+
+            if (
+                await dbCtx.CfhReports.AnyAsync(
+                    x => x.Id == issueId && x.ReporterEntityId == target.Value,
+                    ct
+                )
+            )
+                return await grainFactory.TrySendComposerToPlayerAsync(
+                    target,
+                    new CallForHelpReplyMessageComposer { Message = message },
+                    ct
+                );
+        }
 
         if (
             caution
@@ -531,7 +551,7 @@ public sealed class ModerationToolService(
             message = config.Value.ModerationDefaultSanctionMessage;
 
         if (sanction.Type == ModSanctionType.Caution)
-            return await SendMessageAsync(moderator, target, message, caution: true, ct);
+            return await SendMessageAsync(moderator, target, message, caution: true, -1, ct);
 
         var node = sanction.Type switch
         {
