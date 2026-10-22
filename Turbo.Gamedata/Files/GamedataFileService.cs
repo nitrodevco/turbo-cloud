@@ -20,6 +20,7 @@ using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Guilds;
+using Turbo.Gamedata.Plugins;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
@@ -53,6 +54,7 @@ internal sealed class GamedataFileService(
     IServerSettings settings,
     IAssetBundleStore store,
     TimeProvider time,
+    LoadedPluginGamedata plugins,
     ILogger<GamedataFileService> logger
 ) : IGamedataFileService
 {
@@ -540,23 +542,61 @@ internal sealed class GamedataFileService(
         return parts;
     }
 
-    private static async Task<(byte[] Content, int Count)> ExternalTextsAsync(
+    /// <summary>The hotel's texts, but a plugin's own while it isn't loaded (<see cref="WithheldAsync"/>).</summary>
+    private async Task<(byte[] Content, int Count)> ExternalTextsAsync(
         TurboDbContext dbCtx,
         CancellationToken ct
     )
     {
-        var texts = await dbCtx
-            .GamedataTexts.AsNoTracking()
-            .Select(x => new { x.Key, x.Value })
-            .ToListAsync(ct)
+        var withheld = await WithheldAsync(dbCtx, GamedataRecordType.Text, ct)
             .ConfigureAwait(false);
+        var texts = (
+            await dbCtx
+                .GamedataTexts.AsNoTracking()
+                .Select(x => new { x.Key, x.Value })
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
+            .Where(x => !(withheld.TryGetValue(x.Key, out var value) && value == x.Value))
+            .ToList();
 
         return (ExternalTextsFile.Write(texts.Select(x => (x.Key, x.Value))), texts.Count);
     }
 
     /// <summary>
+    /// The values the plugins that aren't loaded here gave, by key: a row still holding one is the
+    /// plugin's own (<see cref="GamedataPluginValueEntity"/>), and is left out of the client's file
+    /// until the plugin loads again, so a theme turned off or uninstalled with its data kept never
+    /// points clients at files that are no longer served. A row the hotel changed is its own and
+    /// stays.
+    /// </summary>
+    private async Task<Dictionary<string, string>> WithheldAsync(
+        TurboDbContext dbCtx,
+        GamedataRecordType type,
+        CancellationToken ct
+    )
+    {
+        var owned = await dbCtx
+            .GamedataPluginValues.AsNoTracking()
+            .Where(x => x.RecordType == type)
+            .Select(x => new
+            {
+                x.PluginKey,
+                x.Key,
+                x.Value,
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return owned
+            .Where(x => !plugins.IsLoaded(x.PluginKey))
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// The hotel's variables, each that follows a setting or a file written with what it follows
-    /// (<see cref="ExternalVariablesFile.Resolve"/>).
+    /// (<see cref="ExternalVariablesFile.Resolve"/>), but a plugin's own while it isn't loaded
+    /// (<see cref="WithheldAsync"/>).
     /// </summary>
     private async Task<(byte[] Content, int Count)> ExternalVariablesAsync(
         TurboDbContext dbCtx,
@@ -564,17 +604,21 @@ internal sealed class GamedataFileService(
         CancellationToken ct
     )
     {
-        var rows = await dbCtx
-            .GamedataVariables.AsNoTracking()
-            .Select(x => new
-            {
-                x.Key,
-                x.Value,
-                x.SettingPath,
-                x.LinkedFile,
-            })
-            .ToListAsync(ct)
+        var withheld = await WithheldAsync(dbCtx, GamedataRecordType.Variable, ct)
             .ConfigureAwait(false);
+        var rows = (
+            await dbCtx
+                .GamedataVariables.AsNoTracking()
+                .Select(x => new
+                {
+                    x.Key,
+                    x.Value,
+                    x.SettingPath,
+                    x.LinkedFile,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).Where(x => !(x.SettingPath is null && x.LinkedFile is null && withheld.TryGetValue(x.Key, out var value) && value == x.Value)).ToList();
 
         return (
             ExternalVariablesFile.Write(

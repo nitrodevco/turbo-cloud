@@ -77,8 +77,11 @@ public sealed class PluginGamedataSeedTests : IDisposable
         );
 
         var seeds = new PluginGamedataSeeds(
+            _db,
             _variables,
             _texts,
+            files,
+            new LoadedPluginGamedata(),
             NullLogger<PluginGamedataSeeds>.Instance
         );
 

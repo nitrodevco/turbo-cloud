@@ -2249,6 +2249,55 @@ namespace Turbo.Database.Migrations
                     b.ToTable("gamedata_figure_records");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataPluginValueEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("record_key")
+                        .UseCollation("utf8mb4_bin");
+
+                    b.Property<string>("PluginKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<int>("RecordType")
+                        .HasColumnType("int")
+                        .HasColumnName("record_type");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PluginKey");
+
+                    b.HasIndex("RecordType", "Key")
+                        .IsUnique();
+
+                    b.ToTable("gamedata_plugin_values");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataProductEntity", b =>
                 {
                     b.Property<int>("Id")

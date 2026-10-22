@@ -19,6 +19,7 @@ using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Habbo.Client;
+using Turbo.Gamedata.Plugins;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Gamedata;
@@ -1282,6 +1283,7 @@ public sealed class AssetSyncTests : IDisposable
             _fakes.Create<IServerSettings>(),
             _folder.Store,
             TimeProvider.System,
+            new LoadedPluginGamedata(),
             NullLogger<GamedataFileService>.Instance
         );
 

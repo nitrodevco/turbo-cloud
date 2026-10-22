@@ -20,7 +20,9 @@ namespace Turbo.Gamedata.ClientModules;
 /// (<c>?v=</c>), so a browser keeps a version for good and loads the next one when it changes. The
 /// address starts with <see cref="GamedataConfig.PublicUrl"/> when the hotel set one, and is
 /// site-relative otherwise. A registry reached outside a plugin has no folder to serve from and
-/// refuses <see cref="Register"/>: plugins are given one bound to their own folder.
+/// refuses <see cref="Register"/>: plugins are given one bound to their own folder. A loaded
+/// plugin's <c>wwwroot/</c> is served under its key even when it registers no module
+/// (<see cref="AddFiles"/>), for a theme or data-only plugin whose variables name its files.
 /// </summary>
 internal sealed class ClientModuleRegistry(
     IOptionsMonitor<GamedataConfig> config,
@@ -39,6 +41,11 @@ internal sealed class ClientModuleRegistry(
         ImmutableSortedDictionary.Create<string, ClientModuleSource>(
             StringComparer.OrdinalIgnoreCase
         );
+
+    /// <summary>The folders served for plugins that register no module, by key.</summary>
+    private ImmutableDictionary<string, string> _files = ImmutableDictionary.Create<string, string>(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public event Action? Changed;
 
@@ -97,8 +104,43 @@ internal sealed class ClientModuleRegistry(
         return new Registration(this, source);
     }
 
-    public string? FindFile(string key, string path) =>
-        _modules.TryGetValue(key, out var source) ? Resolve(source.Root, path) : null;
+    public IDisposable AddFiles(string key, string root)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Served files need their plugin's key.", nameof(key));
+
+        var folder = Path.GetFullPath(root);
+
+        lock (_lock)
+            _files = _files.SetItem(key, folder);
+
+        logger.LogInformation("Plugin {Key} serves its files from {Root}", key, folder);
+
+        return new Handle(() => RemoveFiles(key, folder));
+    }
+
+    private void RemoveFiles(string key, string folder)
+    {
+        lock (_lock)
+        {
+            // Only this folder: a newer one under the same key is left alone.
+            if (!_files.TryGetValue(key, out var current) || current != folder)
+                return;
+
+            _files = _files.Remove(key);
+        }
+
+        foreach (var path in _hashes.Keys.Where(x => IsUnder(folder, x)))
+            _hashes.TryRemove(path, out _);
+    }
+
+    public string? FindFile(string key, string path)
+    {
+        if (_modules.TryGetValue(key, out var source))
+            return Resolve(source.Root, path);
+
+        return _files.TryGetValue(key, out var root) ? Resolve(root, path) : null;
+    }
 
     public string HashOf(string fullPath)
     {
@@ -196,6 +238,17 @@ internal sealed class ClientModuleRegistry(
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
                 owner.Remove(source);
+        }
+    }
+
+    private sealed class Handle(Action release) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+                release();
         }
     }
 }

@@ -88,12 +88,14 @@ never asks is never sent one, the later changes included.
 
 ## 3. How the files are served
 
-The gamedata host (`Turbo:Gamedata`, `docs/gamedata.md`) serves every live module's `wwwroot/`
-under `/gamedata/plugins/<key>/`. Under `/gamedata/`, so the reverse proxy that already passes the
-gamedata on passes the modules too.
+The gamedata host (`Turbo:Gamedata`, `docs/gamedata.md`) serves every loaded plugin's `wwwroot/`
+under `/gamedata/plugins/<key>/`, whether or not it registers a module: a theme or data-only plugin
+whose variables name its files (`asset.bundles.templates.overrides` pointing at its template
+libraries) needs no module, and clients are sent none for it. Under `/gamedata/`, so the reverse
+proxy that already passes the gamedata on passes the modules too.
 
 - GET only. A path outside `wwwroot/`, a hidden file or folder, an unknown key or a missing file is
-  a 404. A module taken away is not served any more.
+  a 404. A plugin that unloads (turned off, uninstalled, reloading) is not served any more.
 - `Access-Control-Allow-Origin: *`, as for every gamedata file: they are what every player's client
   downloads, never anything private. Do not put secrets in `wwwroot/`.
 - Asked for with `?v=` matching the start of the file's own hash (the address the list gives), it is
@@ -140,10 +142,27 @@ staff edit them in the panel like any other. A plugin brings its own in its fold
 
 As the plugin loads, before it starts, each key the hotel has none of is added: one change set for
 its variables and one for its texts, by nobody, summarised "The plugin hello added its texts", in
-the gamedata history like every other change. A key the hotel has, its own or one staff changed, is
-never touched, so a reload, a restart or an update adds only what is new. A text the file cannot
-hold (a key with `=`, a line break) and a variable the hotel keeps itself are left out; a variables
-file that is not JSON is logged and adds nothing. The plugin loads either way.
+the gamedata history like every other change. A key the hotel has of its own is never touched, so
+a reload, a restart or an update adds only what is new. A text the file cannot hold (a key with
+`=`, a line break) and a variable the hotel keeps itself are left out; a variables file that is not
+JSON is logged and adds nothing. The plugin loads either way.
+
+The hotel keeps what each plugin gave (`gamedata_plugin_values`): a key still holding the value the
+plugin gave is **the plugin's own**; one staff changed (or linked to a setting or file) is the
+hotel's from then on.
+
+- **Sent only while the plugin is loaded.** The client's variables and texts files leave a plugin's
+  own out while it is not loaded here: turned off, uninstalled with **Keep its data**, failed to
+  start, or its folder gone. A theme's `asset.bundles.templates.overrides` therefore never points
+  clients at libraries that are no longer served; the client loads the hotel's own instead. The
+  rows stay in the hotel (the panel lists them) and are sent again as soon as the plugin loads. A
+  key the hotel changed is always sent.
+- **They follow the plugin.** When a new version brings another value for a key of its own, the
+  load gives the hotel the new one (one change set by nobody, "The plugin hello updated its
+  variables"); a key it brings no more is taken away. A key staff changed is never moved again.
+- A key the hotel already holds at exactly the plugin's value when the plugin brings it (a hotel
+  that ran the plugin before this was kept) becomes the plugin's. A key another plugin owns is left
+  to that one.
 
 A key staff remove while the plugin is installed comes back at its next load, as the plugin needs
 it: change its value instead.
@@ -151,21 +170,27 @@ it: change its value instead.
 Uninstalling the plugin from the panel with **Delete its data** lists, in the dry run, the variables
 and texts still as the plugin gave them, and takes those away (one change set each, by the staff
 member who uninstalled it). One staff changed since is the hotel's now and stays, as does any key
-the hotel had before the plugin. **Keep its data** leaves them all.
+the hotel had before the plugin. **Keep its data** leaves them all in the hotel, but its own are
+not sent to clients until it is installed again (the panel's result says so, as it does when the
+plugin is turned off).
 
 ## 6. What it changed in the server
 
 - `Turbo.Primitives`: `IClientModuleRegistry` (a plugin's), `IClientModuleDirectory` (the host's:
   the list, the files, `Changed`), `ClientModuleSnapshot`, `ClientModuleSource`,
   `TurboClientModulesMessage`, `ClientCapabilities.CLIENT_MODULES`; `IPluginGamedataSeeds`;
-  `PluginDataKind.Variable` and `Text`, and `PluginDataScope.Folder`; `GetValuesAsync`, `SeedAsync`
-  and `RemoveUnchangedAsync` on the variable and text services.
+  `PluginDataKind.Variable` and `Text`, and `PluginDataScope.Folder`; `GetValuesAsync`, `SeedAsync`,
+  `RemoveUnchangedAsync` and `ReplaceUnchangedAsync` on the variable and text services;
+  `IClientModuleDirectory.AddFiles` (a plugin's `wwwroot/` without a module).
+- `Turbo.Database`: `gamedata_plugin_values` (`GamedataPluginValueEntity`), what each plugin gave.
 - `Turbo.Gamedata`: `ClientModuleRegistry` (paths, hashes, addresses), `ClientModuleBroadcast`
   (sends the list to everyone online on a change), the `/gamedata/plugins/` route in
-  `GamedataServer`, and `PluginGamedataSeeds` (the seeding, and an `IPluginDataOwner` for the
-  uninstall).
+  `GamedataServer`, `PluginGamedataSeeds` (the seeding and following, and an `IPluginDataOwner` for
+  the uninstall), `LoadedPluginGamedata` (the plugins loaded here), and `GamedataFileService`
+  leaving out the own values of a plugin that is not loaded.
 - `Turbo.Plugins`: `PluginClientModules`, the registry bound to one plugin's folder, key and version,
-  given through its `IHostServices` and disposed when it unloads; the seeding before a plugin starts.
+  given through its `IHostServices` and disposed when it unloads, which serves its `wwwroot/` from the
+  load; the seeding before a plugin starts, and the handle that sends its own while it is loaded.
 - `Turbo.Revisions`: header 30009 in `Revision20260909`.
 
 ## 7. Tests
@@ -174,9 +199,14 @@ the hotel had before the plugin. **Keep its data** leaves them all.
   online, and taken away when the plugin unloads without disposing it; the public address; paths
   outside `wwwroot/`, hidden files, another plugin's key, a second module and core's registry are
   refused; the gamedata host serves the files to any site, immutable by hash, revalidated otherwise,
-  404 for anything else, GET only; a client that does not ask is sent nothing; the wire layout.
+  404 for anything else, GET only; a client that does not ask is sent nothing; the wire layout; a
+  plugin without a module has its `wwwroot/` served while it is loaded, and no module listed.
 - `PluginGamedataSeedTests`: loading adds what the hotel lacks once and keeps the hotel's own; the
   uninstall dry run lists, and deleting the data removes, only what is still as the plugin gave it.
+- `PluginOwnedGamedataTests`: the client's files carry a plugin's own variables and texts only while
+  it is loaded (turned off, on again, uninstalled keeping its data, installed again, failing to
+  start) and the hotel's changes always; its own follow a new version's values and staff's stay; a
+  key already at the plugin's value becomes its own.
 - `HelloExamplePluginTests`: the example in `docs/examples/client-modules/hello` builds, loads, lists
   its module and its icon, and gives the hotel its texts and variables.
 

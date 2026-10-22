@@ -7,6 +7,7 @@ using Turbo.Gamedata;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
+using Turbo.Gamedata.Plugins;
 using Turbo.Gamedata.Products;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
@@ -129,6 +130,7 @@ public sealed class GamedataFilesAcrossSilosTests : IDisposable
             ),
             _fakes.Create<IServerSettings>(),
             _fakes.Create<IAssetBundleStore>(),
+            new LoadedPluginGamedata(),
             NullLogger<GamedataFileService>.Instance
         );
 }

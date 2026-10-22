@@ -9,7 +9,9 @@ namespace Turbo.Plugins;
 /// <summary>
 /// The client module registry as one plugin reaches it (<see cref="IClientModuleRegistry"/>): its
 /// module is served from its own folder's <c>wwwroot/</c>, at its manifest's version. What it
-/// registered and did not take away itself is taken away when it unloads.
+/// registered and did not take away itself is taken away when it unloads. Its <c>wwwroot/</c> is
+/// served from the load (<see cref="ServeFiles"/>), module or not, for the files its own variables
+/// name (a theme's template libraries), until it unloads.
 /// </summary>
 internal sealed class PluginClientModules(
     IClientModuleDirectory directory,
@@ -21,6 +23,20 @@ internal sealed class PluginClientModules(
     public const string WWWROOT = "wwwroot";
 
     private readonly List<IDisposable> _registrations = [];
+
+    /// <summary>Serves its <c>wwwroot/</c>, when it has one, until it unloads.</summary>
+    public void ServeFiles()
+    {
+        var root = Path.Combine(folder, WWWROOT);
+
+        if (!Directory.Exists(root))
+            return;
+
+        var registration = directory.AddFiles(manifest.Key, root);
+
+        lock (_registrations)
+            _registrations.Add(registration);
+    }
 
     public IDisposable Register(string key, string relativePath)
     {

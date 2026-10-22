@@ -15,6 +15,7 @@ using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
+using Turbo.Gamedata.Plugins;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Figures;
@@ -709,6 +710,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             _settings.Settings,
             new Fakes().Create<IAssetBundleStore>(),
             TimeProvider.System,
+            new LoadedPluginGamedata(),
             NullLogger<GamedataFileService>.Instance
         );
         var hotelTexts = new HotelTextProvider(_catalog.Db, config, TimeProvider.System);

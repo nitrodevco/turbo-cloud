@@ -528,7 +528,12 @@ public sealed class PluginManager(
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
-            await SeedGamedataAsync(m, folder, ct).ConfigureAwait(false);
+            // Its files are served, and its own variables and texts sent, while it is loaded.
+            clientModules?.ServeFiles();
+
+            if (await SeedGamedataAsync(m, folder, ct).ConfigureAwait(false) is { } loaded)
+                disposables.Add(loaded);
+
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
             await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
 
@@ -914,12 +919,18 @@ public sealed class PluginManager(
 
     /// <summary>
     /// Gives the hotel the external variables and texts the plugin brings that it has none of,
-    /// before the plugin starts and reads them. A failure is logged; the plugin loads either way.
+    /// before the plugin starts and reads them, and follows the ones it owns to its new values. A
+    /// failure is logged; the plugin loads either way. Disposing what it answers stops sending the
+    /// plugin's own to clients, as it unloads.
     /// </summary>
-    private async Task SeedGamedataAsync(PluginManifest m, string folder, CancellationToken ct)
+    private async Task<IDisposable?> SeedGamedataAsync(
+        PluginManifest m,
+        string folder,
+        CancellationToken ct
+    )
     {
         if (host.GetService<IPluginGamedataSeeds>() is not { } seeds)
-            return;
+            return null;
 
         try
         {
@@ -929,6 +940,8 @@ public sealed class PluginManager(
         {
             _logger.LogError(ex, "Adding the gamedata the plugin {Key} brings failed", m.Key);
         }
+
+        return seeds.Loaded(m.Key);
     }
 
     private async Task StartPluginAsync(

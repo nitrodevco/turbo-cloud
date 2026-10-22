@@ -296,6 +296,10 @@ whether a file's rows changed, at most every `FileCheckSeconds`: the newest chan
 import, edit and rollback is one) and how many rows there are, or for the badge parts the rows
 themselves. So another silo serves the edit within `FileCheckSeconds`, without a restart.
 
+The external variables and texts a plugin brought and that still hold its value are written into
+the files only while that plugin is loaded on the silo (`docs/client-modules.md` §5), so a theme
+turned off or uninstalled with its data kept never points clients at files no longer served.
+
 Point the client at the redirect, through a reverse proxy in front of the host:
 
 ```json
