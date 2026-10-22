@@ -129,6 +129,8 @@ internal sealed class GamedataEndpoints(
                 FurnitureListAsync(q, type, tag, page, ct)
         );
         group.MapGet("/furniture/logics", () => Results.Ok(logics.LogicTypes));
+        group.MapGet("/furniture/draft/{bundle}", DraftAsync);
+        group.MapPost("/furniture", CreateDefinitionsAsync);
         group.MapGet("/furniture/{id:int}", DefinitionAsync);
         group.MapPut("/furniture/{id:int}", UpdateDefinitionAsync);
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
@@ -363,6 +365,62 @@ internal sealed class GamedataEndpoints(
                 await furniture.ListAsync(q, kind, only, page ?? 0, ct).ConfigureAwait(false)
             )
         );
+    }
+
+    private async Task<IResult> DraftAsync(string bundle, CancellationToken ct)
+    {
+        try
+        {
+            return
+                await furniture.DraftFromBundleAsync(bundle, ct).ConfigureAwait(false) is { } draft
+                ? Results.Ok(FurnitureDraftResponse.From(draft))
+                : AdminResults.Error(
+                    StatusCodes.Status404NotFound,
+                    $"There is no furniture bundle {bundle} on this server."
+                );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status422UnprocessableEntity, ex.Message);
+        }
+    }
+
+    private async Task<IResult> CreateDefinitionsAsync(
+        FurnitureDefinitionCreateRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!FurnitureTagNames.TryParseType(request.Type ?? string.Empty, out var type))
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "The type is floor or wall."
+            );
+
+        try
+        {
+            var ids = await furniture
+                .CreateDefinitionsAsync(
+                    type,
+                    request.Fields ?? [],
+                    request.Colors ?? [],
+                    AdminIdentity.Of(http).PlayerId,
+                    ct
+                )
+                .ConfigureAwait(false);
+            var definition = await furniture.GetDefinitionAsync(ids[0], ct).ConfigureAwait(false);
+
+            return Results.Ok(
+                new FurnitureDefinitionCreateResponse(
+                    [.. ids],
+                    FurnitureDefinitionResponse.From(definition!)
+                )
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
     }
 
     private async Task<IResult> DefinitionAsync(int id, CancellationToken ct) =>

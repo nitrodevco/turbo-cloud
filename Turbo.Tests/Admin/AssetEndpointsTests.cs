@@ -360,6 +360,58 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
         };
 
     [Fact]
+    public async Task A_nitro_of_the_old_layout_is_kept_repacked_as_the_current_one()
+    {
+        await _server.StartAsync(Ct);
+
+        var upload = await SendAsync(
+            HttpMethod.Post,
+            "/api/assets/upload",
+            Any("old_chest.nitro", LegacyNitroBundleTests.Legacy("old_chest"))
+        );
+
+        upload
+            .StatusCode.Should()
+            .Be(HttpStatusCode.OK, await upload.Content.ReadAsStringAsync(Ct));
+
+        var uploaded = (await JsonAsync(upload)).GetProperty("bundle");
+
+        uploaded.GetProperty("kind").GetString().Should().Be("furniture");
+        uploaded.GetProperty("name").GetString().Should().Be("old_chest");
+
+        // The file kept is the zip the client reads, its spritesheet beside its asset data.
+        var file = await SendAsync(HttpMethod.Get, "/api/assets/bundles/furniture/old_chest/file");
+        var bundle = NitroBundle.Read(await file.Content.ReadAsByteArrayAsync(Ct));
+
+        bundle
+            .Files.Keys.Should()
+            .BeEquivalentTo("old_chest.json", "old_chest.png", "old_chest_spritesheet.json");
+        bundle.AssetData("old_chest")!.ContainsKey("spritesheet").Should().BeFalse();
+
+        // Kept with a kind given, too.
+        var withKind = new MultipartFormDataContent
+        {
+            {
+                new ByteArrayContent(LegacyNitroBundleTests.Legacy("old_box")),
+                "file",
+                "old_box.nitro"
+            },
+            { new StringContent("furniture"), "kind" },
+        };
+        var kept = await SendAsync(HttpMethod.Post, "/api/assets/bundles", withKind);
+
+        kept.StatusCode.Should().Be(HttpStatusCode.OK, await kept.Content.ReadAsStringAsync(Ct));
+        NitroBundle
+            .IsNitro(
+                await (
+                    await SendAsync(HttpMethod.Get, "/api/assets/bundles/furniture/old_box/file")
+                ).Content.ReadAsByteArrayAsync(Ct)
+            )
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
     public async Task A_file_uploaded_without_a_kind_is_taken_as_what_its_content_says()
     {
         await _server.StartAsync(Ct);

@@ -2,13 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Assets;
+using Turbo.Assets.Furniture;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
@@ -43,12 +47,18 @@ internal sealed class GamedataFurnitureService(
     FurnitureStatusIndex statuses,
     GamedataWriteLock writes,
     IRoomObjectLogicProvider logics,
+    IAssetBundleStore bundles,
     TimeProvider time,
     ILogger<GamedataFurnitureService> logger
 ) : IGamedataFurnitureService
 {
     // specialtype, which with the sprite id tells the client's furniture apart.
     private const string SPECIAL_TYPE_KEY = "specialtype";
+
+    // Colour variants are named name*N (chair*2).
+    private const string COLOUR_VARIANT_MARK = "*";
+
+    private static readonly JsonSerializerOptions DRAFT_JSON = new(JsonSerializerDefaults.Web);
 
     private readonly GamedataConfig _config = config.Value;
     private readonly GamedataPreviewCache<FurnitureDataVersion, FurnitureImportPreview> _previews =
@@ -351,33 +361,12 @@ internal sealed class GamedataFurnitureService(
         if (definition is null)
             return null;
 
-        var isWall = definition.ProductType == ProductType.Wall;
         var incoming = new Dictionary<string, JsonNode?>();
 
         // Every value is checked before any is written, so a bad one changes nothing.
-        foreach (var (key, value) in fields)
-        {
-            if (!FurnitureFields.ByKey.TryGetValue(key, out var field) || !field.AppliesTo(isWall))
-                throw new ArgumentException(
-                    $"{key} is not a field a {(isWall ? "wall" : "floor")} item's definition holds.",
-                    key
-                );
-
-            var normalized = field.Normalize(value);
-
-            if (
-                field.MaxLength is { } max
-                && normalized?.GetValue<string>() is { Length: var length }
-                && length > max
-            )
-                throw new ArgumentException($"{key} can be at most {max} characters.", key);
-
-            if (field.Check(normalized) is { } problem)
-                throw new ArgumentException(problem, key);
-
-            if (!FurnitureField.Same(normalized, field.Read(definition)))
+        foreach (var (key, normalized) in Checked(fields, definition.ProductType))
+            if (!FurnitureField.Same(normalized, FurnitureFields.ByKey[key].Read(definition)))
                 incoming[key] = normalized;
-        }
 
         await CheckIdentityAsync(dbCtx, definition, incoming, ct).ConfigureAwait(false);
 
@@ -419,6 +408,230 @@ internal sealed class GamedataFurnitureService(
         }
 
         return await DetailAsync(dbCtx, definition, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The fields' values as a definition of the kind holds them. Throws
+    /// <see cref="ArgumentException"/> for a key it can't hold or a value of the wrong kind.
+    /// </summary>
+    private static Dictionary<string, JsonNode?> Checked(JsonObject fields, ProductType type)
+    {
+        var isWall = type == ProductType.Wall;
+        var values = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
+
+        foreach (var (key, value) in fields)
+        {
+            if (!FurnitureFields.ByKey.TryGetValue(key, out var field) || !field.AppliesTo(isWall))
+                throw new ArgumentException(
+                    $"{key} is not a field a {(isWall ? "wall" : "floor")} item's definition holds.",
+                    key
+                );
+
+            var normalized = field.Normalize(value);
+
+            if (
+                field.MaxLength is { } max
+                && normalized?.GetValue<string>() is { Length: var length }
+                && length > max
+            )
+                throw new ArgumentException($"{key} can be at most {max} characters.", key);
+
+            if (field.Check(normalized) is { } problem)
+                throw new ArgumentException(problem, key);
+
+            values[key] = normalized;
+        }
+
+        return values;
+    }
+
+    public async Task<FurnitureDraft?> DraftFromBundleAsync(string bundle, CancellationToken ct)
+    {
+        if (!bundles.IsValidName(bundle))
+            return null;
+
+        var path = bundles.FullPathOf(AssetBundleKind.Furniture, bundle);
+
+        if (!File.Exists(path))
+            return null;
+
+        FurnitureAssetInfo info;
+
+        try
+        {
+            info = FurnitureAssetReader.Read(
+                await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false),
+                bundle
+            );
+        }
+        catch (AssetFormatException ex)
+        {
+            throw new ArgumentException($"The bundle {bundle} can't be read: {ex.Message}", ex);
+        }
+
+        var type = FurnitureDrafts.TypeOf(info);
+        var logic = FurnitureDrafts.LogicOf(
+            type,
+            bundle,
+            info,
+            logics.LogicTypes.ToHashSet(StringComparer.Ordinal)
+        );
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var variants = bundle + COLOUR_VARIANT_MARK;
+        var existing = await dbCtx
+            .FurnitureDefinitions.AsNoTracking()
+            .Where(x => x.Name == bundle || x.Name.StartsWith(variants))
+            .OrderBy(x => x.Id)
+            .Select(x => new FurnitureDraftDefinition
+            {
+                Id = x.Id,
+                ProductType = x.ProductType,
+                ClassName = x.Name,
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return new FurnitureDraft
+        {
+            Bundle = bundle,
+            ProductType = type,
+            Fields = FurnitureDrafts.Fields(bundle, type, logic, info).ToJsonString(),
+            File = JsonSerializer.Serialize(info, DRAFT_JSON),
+            Colors = FurnitureDrafts.Colors(info),
+            Existing = [.. existing],
+        };
+    }
+
+    public Task<ImmutableArray<int>> CreateDefinitionsAsync(
+        ProductType type,
+        JsonObject fields,
+        IReadOnlyCollection<int> colors,
+        PlayerId player,
+        CancellationToken ct
+    ) => writes.RunAsync(() => CreateDefinitionsLockedAsync(type, fields, colors, player, ct), ct);
+
+    private async Task<ImmutableArray<int>> CreateDefinitionsLockedAsync(
+        ProductType type,
+        JsonObject fields,
+        IReadOnlyCollection<int> colors,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        if (type is not (ProductType.Floor or ProductType.Wall))
+            throw new ArgumentException("A definition is of a floor or a wall item.", nameof(type));
+
+        var values = Checked(fields, type);
+
+        if (
+            !values.Remove(FurnitureRecords.CLASS_NAME_KEY, out var name)
+            || name?.GetValue<string>() is not { Length: > 0 } className
+        )
+            throw new ArgumentException(
+                "A definition needs a classname.",
+                FurnitureRecords.CLASS_NAME_KEY
+            );
+
+        if (className.Contains(COLOUR_VARIANT_MARK, StringComparison.Ordinal))
+            throw new ArgumentException(
+                $"The classname is the plain item's: its colours are made as {className}{COLOUR_VARIANT_MARK}N.",
+                FurnitureRecords.CLASS_NAME_KEY
+            );
+
+        if (colors.Any(x => x <= 0))
+            throw new ArgumentException("A colour is a number above 0.", nameof(colors));
+
+        values.Remove(FurnitureRecords.SPRITE_ID_KEY, out var givenId);
+        values.Remove(FurnitureRecords.LOGIC_KEY, out var givenLogic);
+
+        var registered = logics.LogicTypes.ToHashSet(StringComparer.Ordinal);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        // Above every sprite id the hotel's definitions and Habbo's items of the kind use, so a
+        // later Habbo item finds its own free.
+        var highest = Math.Max(
+            await dbCtx
+                .FurnitureDefinitions.Where(x => x.ProductType == type)
+                .MaxAsync(x => (int?)x.SpriteId, ct)
+                .ConfigureAwait(false)
+                ?? 0,
+            await dbCtx
+                .HabboFurniture.Where(x => x.ProductType == type)
+                .MaxAsync(x => (int?)x.SpriteId, ct)
+                .ConfigureAwait(false)
+                ?? 0
+        );
+        var made = new List<FurnitureDefinitionEntity>();
+
+        foreach (var color in colors.Distinct().Order().Prepend(0))
+        {
+            var variant = color == 0 ? className : $"{className}{COLOUR_VARIANT_MARK}{color}";
+            var spriteId = color == 0 && givenId is not null ? givenId.GetValue<int>() : ++highest;
+            var definition = FurnitureRecords.Blank(
+                type,
+                spriteId,
+                variant,
+                givenLogic?.GetValue<string>()
+                    ?? FurnitureRecords.LogicFor(type, variant, registered)
+            );
+
+            foreach (var (key, value) in values)
+                FurnitureFields.ByKey[key].Write(definition, value);
+
+            await CheckIdentityAsync(
+                    dbCtx,
+                    definition,
+                    new Dictionary<string, JsonNode?>
+                    {
+                        [FurnitureRecords.CLASS_NAME_KEY] = variant,
+                        [FurnitureRecords.SPRITE_ID_KEY] = spriteId,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            highest = Math.Max(highest, spriteId);
+            made.Add(definition);
+        }
+
+        dbCtx.FurnitureDefinitions.AddRange(made);
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        dbCtx.GamedataChangeSets.Add(
+            GamedataChangeSets.Create(
+                GamedataChangeKind.Edit,
+                made.Count == 1
+                    ? $"Made {className}"
+                    : $"Made {className} and {made.Count - 1} colours of it",
+                player,
+                [
+                    .. made.Select(x =>
+                        GamedataChangeSets.Change(
+                            GamedataRecordType.FurnitureDefinition,
+                            x.Name,
+                            null,
+                            FurnitureRecords.Created(x).ToJsonString(),
+                            x.Id
+                        )
+                    ),
+                ]
+            )
+        );
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation(
+            "Player {PlayerId} made furniture definitions {ClassNames}",
+            player.Value,
+            string.Join(", ", made.Select(x => $"{x.Name} ({x.Id})"))
+        );
+
+        await AfterWriteAsync(ct).ConfigureAwait(false);
+
+        return [.. made.Select(x => x.Id)];
     }
 
     /// <summary>

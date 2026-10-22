@@ -83,8 +83,16 @@ internal static class LegacyAssetData
         );
     }
 
-    /// <summary>The frames named by asset, as the packer names them: the client's carry the document class.</summary>
-    public static JsonObject Spritesheet(JsonObject spritesheet, string documentClass, string image)
+    /// <summary>
+    /// The frames named by asset, as the packer names them: the client's carry the document class.
+    /// A frame already named as one of <paramref name="assets"/>, when given, keeps its name.
+    /// </summary>
+    public static JsonObject Spritesheet(
+        JsonObject spritesheet,
+        string documentClass,
+        string image,
+        IReadOnlySet<string>? assets = null
+    )
     {
         var prefix = $"{documentClass}_";
         var frames = new JsonObject();
@@ -92,7 +100,10 @@ internal static class LegacyAssetData
         if (spritesheet["frames"] is JsonObject source)
             foreach (var (key, frame) in Ordered(source))
                 frames[
-                    key.StartsWith(prefix, StringComparison.Ordinal) ? key[prefix.Length..] : key
+                    key.StartsWith(prefix, StringComparison.Ordinal)
+                    && assets?.Contains(key) != true
+                        ? key[prefix.Length..]
+                        : key
                 ] = Copy(frame);
 
         var output = new JsonObject();

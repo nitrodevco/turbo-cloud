@@ -53,7 +53,23 @@ internal static class FurnitureRecords
         JsonObject habbo
     )
     {
-        var definition = new FurnitureDefinitionEntity
+        var definition = Blank(type, spriteId, className, logic);
+
+        foreach (var field in FurnitureFields.All)
+            if (field.AppliesTo(type == ProductType.Wall) && field.IsIn(habbo))
+                field.Write(definition, habbo[field.Key]);
+
+        return definition;
+    }
+
+    /// <summary>A definition of plain furniture, before any field is given.</summary>
+    public static FurnitureDefinitionEntity Blank(
+        ProductType type,
+        int spriteId,
+        string className,
+        string logic
+    ) =>
+        new()
         {
             SpriteId = spriteId,
             Name = className,
@@ -73,13 +89,6 @@ internal static class FurnitureRecords
             CanSell = true,
             UsagePolicy = FurnitureUsageType.Controller,
         };
-
-        foreach (var field in FurnitureFields.All)
-            if (field.AppliesTo(type == ProductType.Wall) && field.IsIn(habbo))
-                field.Write(definition, habbo[field.Key]);
-
-        return definition;
-    }
 
     /// <summary>The definition's values of these fields.</summary>
     public static JsonObject Fields(FurnitureDefinitionEntity definition, IEnumerable<string> keys)
