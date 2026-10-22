@@ -182,6 +182,78 @@ public sealed class AdminBrokenAssets(
         return true;
     }
 
+    /// <summary>
+    /// Keeps an uploaded GIF or PNG as the picture of the badge <paramref name="code"/>
+    /// (<c>images/badges/&lt;code&gt;.gif</c>, the file the client asks for), recorded so a publish
+    /// sends it: the one picture the panel had no upload for. Throws <see cref="ArgumentException"/>,
+    /// with why, for a code or file it can't take.
+    /// </summary>
+    public async Task UploadBadgeAsync(
+        string code,
+        string fileName,
+        byte[] data,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        const AssetBundleKind kind = AssetBundleKind.Badge;
+        var name = $"{code.Trim()}.gif";
+
+        if (data.Length is 0 or > AdminCatalogImages.UPLOAD_MAX_BYTES)
+            throw new ArgumentException(
+                $"A picture is at most {AdminCatalogImages.UPLOAD_MAX_BYTES / (1024 * 1024)} MB, and not empty."
+            );
+
+        if (!IsPicture(data))
+            throw new ArgumentException($"{fileName} is not a GIF or a PNG.");
+
+        if (!store.IsValidName(name))
+            throw new ArgumentException($"\"{code}\" can't be a badge's code.");
+
+        var hash = await store.WriteAsync(kind, name, data, ct).ConfigureAwait(false);
+
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        // What a publish sends: the files recorded with their hash.
+        var row = await db
+            .AssetBundles.FirstOrDefaultAsync(x => x.Kind == kind && x.Name == name, ct)
+            .ConfigureAwait(false);
+
+        if (row is null)
+        {
+            row = new AssetBundleEntity
+            {
+                Kind = kind,
+                Name = name,
+                Source = AssetBundleSource.Upload,
+            };
+            db.AssetBundles.Add(row);
+        }
+
+        row.Source = AssetBundleSource.Upload;
+        row.Revision = null;
+        row.Hash = hash;
+        row.Size = data.LongLength;
+        row.Error = null;
+        row.Retry = false;
+        row.UpdatedAt = time.GetUtcNow().UtcDateTime;
+
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation(
+            "Player {PlayerId} uploaded the picture of the badge {Code} ({Hash})",
+            player,
+            code,
+            hash
+        );
+    }
+
+    private static bool IsPicture(ReadOnlySpan<byte> data) =>
+        data.StartsWith("GIF87a"u8)
+        || data.StartsWith("GIF89a"u8)
+        || data.StartsWith((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
     /// <summary>Brings an ignored broken asset back into the list; false when it was not ignored.</summary>
     public async Task<bool> UnignoreAsync(
         string source,

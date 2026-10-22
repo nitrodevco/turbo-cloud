@@ -369,6 +369,7 @@ runs at a time; starting another while one runs is 409.
 | `GET /assets/broken` | `{ sources: [ { id, title, read, note, count } ], items: [ { source, key, title, kind, name, detail, count, actions: ("habbo"\|"upload"\|"publish")[], link, ignored: { note, playerId, playerName, ignoredAt } \| null } ] }`. A source's `count` leaves out the ignored. |
 | `POST /assets/broken/ignore` | Body `{ source, key, note }`; 204. |
 | `POST /assets/broken/unignore` | Body `{ source, key }`; 204, 404 when it was not ignored. |
+| `POST /assets/broken/badge-picture` | Multipart `code` and `file` (a GIF or a PNG): kept as `images/badges/<code>.gif`, recorded so a publish sends it; 204, 400 with why. |
 
 `AssetBundle`: `{ kind, name, revision, source: "habbo"|"upload", hash, size, ids: number[], error,
 updatedAt, used }`. `used` is whether the hotel names it: a furniture definition for furniture, a

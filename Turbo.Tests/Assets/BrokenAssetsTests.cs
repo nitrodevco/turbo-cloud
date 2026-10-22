@@ -205,6 +205,31 @@ public sealed class BrokenAssetsTests : IDisposable
     }
 
     [Fact]
+    public async Task A_badge_picture_uploaded_leaves_the_list_and_is_published()
+    {
+        Badge(1, 1, "ACH_Lost1");
+        var staff = new PlayerId(7);
+        var notPicture = () =>
+            _broken.UploadBadgeAsync("ACH_Lost1", "a.txt", "hello"u8.ToArray(), staff, Ct);
+
+        await notPicture.Should().ThrowAsync<ArgumentException>();
+        (await ListAsync()).Items.Should().Contain(x => x.Source == AdminBrokenAssets.BADGE);
+
+        await _broken.UploadBadgeAsync(
+            "ACH_Lost1",
+            "lost.gif",
+            "GIF89a...."u8.ToArray(),
+            staff,
+            Ct
+        );
+
+        (await ListAsync()).Items.Should().NotContain(x => x.Source == AdminBrokenAssets.BADGE);
+        (await _hotel.Store.ListFilesAsync(Ct))
+            .Should()
+            .Contain(x => x.Path == "images/badges/ACH_Lost1.gif");
+    }
+
+    [Fact]
     public async Task An_ignored_asset_is_marked_with_its_note_until_it_is_brought_back()
     {
         await _hotel.Store.WriteAsync(AssetBundleKind.Badge, "placeholder.gif", [1], Ct);
