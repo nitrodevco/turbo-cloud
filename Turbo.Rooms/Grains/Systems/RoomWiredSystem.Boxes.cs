@@ -52,11 +52,15 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
             return null;
 
         await wiredLogic.EnsureWiredLoadedAsync(ct);
+        await wiredLogic.RefreshEditorContextAsync(ct);
 
-        if (await wiredLogic.RefreshEditorContextAsync(ct))
-            wiredLogic.InvalidateSnapshot();
-
-        return wiredLogic.GetSnapshot();
+        // The cached snapshot keeps what the box saved; what the editor lists from the room (the
+        // variables' hash, holders and values) is read as it is now, or a variable made since the
+        // box was last saved never reaches its picker.
+        return wiredLogic.GetSnapshot() with
+        {
+            ContextSnapshots = wiredLogic.GetWiredContextSnapshots(),
+        };
     }
 
     /// <summary>
