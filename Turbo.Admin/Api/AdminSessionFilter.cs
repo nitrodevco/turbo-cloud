@@ -12,7 +12,8 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// Lets a request through only with a live session whose player still holds
 /// <c>admin.panel</c>. The node is asked on every request, not remembered with the session, so
-/// taking it away locks the panel at once.
+/// taking it away locks the panel at once, and the session is ended (see
+/// <see cref="PanelAccessLostHandler"/>).
 /// </summary>
 internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpointFilter
 {
@@ -58,7 +59,12 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
                 .HoldsAsync(grainFactory, PermissionNodes.Admin.PANEL, ct)
                 .ConfigureAwait(false)
         )
+        {
+            // Ended, not just refused: the panel being given back later opens no old session.
+            await grainFactory.GetAdminAuthGrain().EndSessionAsync(token, ct).ConfigureAwait(false);
+
             return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
 
         var name = await grainFactory
             .GetPlayerDirectoryGrain()
