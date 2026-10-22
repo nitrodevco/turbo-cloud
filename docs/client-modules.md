@@ -99,6 +99,9 @@ gamedata on passes the modules too.
   imports therefore always load the files beside it, and a new version's entry has a new address.
 - The content type follows the extension (`.js`/`.mjs` as `text/javascript`, `.json`, `.css`,
   images, fonts).
+- A file changed in `wwwroot/` is served as it is now at once, but clients are sent the entry's new
+  hash and address at the plugin's next load: reload it from the panel, or in development touch its
+  `manifest.json` or assembly so hot reload does.
 
 A hotel with the gamedata host off (`Turbo:Gamedata:Enabled` false) and no `PublicUrl` gets a
 warning in the log as a module registers: its clients could not load it.
