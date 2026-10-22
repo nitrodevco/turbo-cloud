@@ -214,6 +214,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<CommunityGoalContributionEntity> CommunityGoalContributions { get; init; }
     public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
+    public DbSet<AdminSessionEntity> AdminSessions { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }
 

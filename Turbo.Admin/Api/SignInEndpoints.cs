@@ -182,6 +182,9 @@ internal sealed class SignInEndpoints(
             .ReplacePasskeysAsync(passkey, request.PasskeyName ?? string.Empty, ct)
             .ConfigureAwait(false);
 
+        // The lost device's session goes with its passkey: sessions outlive a restart now.
+        await auth.EndPlayerSessionsAsync(playerId, null, ct).ConfigureAwait(false);
+
         logger.LogInformation("Player {PlayerId} set up an admin panel passkey", playerId);
 
         return await OpenSessionAsync(playerId, ct).ConfigureAwait(false);

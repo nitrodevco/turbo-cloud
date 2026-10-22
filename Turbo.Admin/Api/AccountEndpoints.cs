@@ -16,8 +16,9 @@ using Turbo.Primitives.Orleans;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The signed-in player's passkeys. Adding one takes a fresh answer from a passkey they already
-/// have, so a session left open on a shared computer cannot be turned into a way back in.
+/// The signed-in player's passkeys and sessions. Adding a passkey takes a fresh answer from a
+/// passkey they already have, so a session left open on a shared computer cannot be turned into a
+/// way back in; that session can be signed out from here.
 /// </summary>
 internal sealed class AccountEndpoints(
     IGrainFactory grainFactory,
@@ -39,24 +40,40 @@ internal sealed class AccountEndpoints(
         account.MapPost("/passkeys/options", PasskeyOptionsAsync);
         account.MapPost("/passkeys", AddPasskeyAsync);
         account.MapDelete("/passkeys/{id:int}", RemovePasskeyAsync);
+        account.MapDelete("/sessions/{id:int}", EndSessionAsync);
     }
 
     private async Task<IResult> GetAsync(HttpContext http, CancellationToken ct)
     {
+        var identity = AdminIdentity.Of(http);
         var account = await grainFactory
-            .GetAdminAccountGrain(AdminIdentity.Of(http).PlayerId)
+            .GetAdminAccountGrain(identity.PlayerId)
             .GetAccountAsync(ct)
+            .ConfigureAwait(false);
+        var auth = grainFactory.GetAdminAuthGrain();
+        var current = await auth.GetSessionAsync(identity.SessionToken, ct).ConfigureAwait(false);
+        var sessions = await auth.GetPlayerSessionsAsync(identity.PlayerId, ct)
             .ConfigureAwait(false);
 
         return Results.Ok(
-            new AccountResponse([
-                .. account.Passkeys.Select(x => new AccountPasskey(
-                    x.Id,
-                    x.Name,
-                    x.CreatedAtUtc,
-                    x.LastUsedAtUtc
-                )),
-            ])
+            new AccountResponse(
+                [
+                    .. account.Passkeys.Select(x => new AccountPasskey(
+                        x.Id,
+                        x.Name,
+                        x.CreatedAtUtc,
+                        x.LastUsedAtUtc
+                    )),
+                ],
+                [
+                    .. sessions.Select(x => new AccountSession(
+                        x.Id,
+                        x.CreatedAtUtc,
+                        x.ExpiresAtUtc,
+                        x.Id == current?.Id
+                    )),
+                ]
+            )
         );
     }
 
@@ -195,4 +212,13 @@ internal sealed class AccountEndpoints(
             .ConfigureAwait(false)
             ? Results.NoContent()
             : AdminResults.Error(StatusCodes.Status409Conflict, LAST_PASSKEY);
+
+    /// <summary>Signs one of the caller's own sessions out; another player's id ends nothing.</summary>
+    private async Task<IResult> EndSessionAsync(HttpContext http, int id, CancellationToken ct) =>
+        await grainFactory
+            .GetAdminAuthGrain()
+            .EndPlayerSessionsAsync(AdminIdentity.Of(http).PlayerId, id, ct)
+            .ConfigureAwait(false) > 0
+            ? Results.NoContent()
+            : Results.NotFound();
 }

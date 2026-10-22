@@ -30,7 +30,9 @@ interface [GrainInterfaceType("Turbo.Primitives.Admin.Grains.IAdminAccountGrain"
 interface [GrainInterfaceType("Turbo.Primitives.Admin.Grains.IAdminAuthGrain")] Turbo.Primitives.Admin.Grains.IAdminAuthGrain [Version(0)]
   4A632B2C: BeginCeremonyAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Admin.Enums.AdminCeremonyKind, string, System.Threading.CancellationToken) -> Task<string>
   82A7D9EA: CreateSetupTokenAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSetupLinkSnapshot>
+  7EC3C636: EndPlayerSessionsAsync(Turbo.Primitives.Players.PlayerId, int?, System.Threading.CancellationToken) -> Task<int>
   38E8327D: EndSessionAsync(string, System.Threading.CancellationToken) -> Task
+  A9EFC7C4: GetPlayerSessionsAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Admin.Snapshots.AdminSessionSnapshot>>
   7CB7D786: GetSessionAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSessionSnapshot?>
   708DD61D: GetSetupPlayerAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
   1B1A3DF3: OpenSessionAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSessionGrant>
