@@ -313,6 +313,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             var now = NowMs();
             var dormant = IsDormant();
 
+            // A plugin reloaded since: its furni get the new load's logic, not the disposed one.
+            await ObjectModule.RebindStaleLogicsAsync(ct);
+
             if (!dormant)
             {
                 // Pets and bots decide on the avatar boundary only, just before avatars step, so

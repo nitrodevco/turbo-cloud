@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
@@ -13,6 +16,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Object.Avatars.Bot;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -184,6 +188,51 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
         }
 
         return true;
+    }
+
+    // The logic provider's version the furni's logic was last checked against.
+    private int _logicVersion = -1;
+
+    /// <summary>
+    /// After a logic type was registered or taken away (a plugin loading, reloading or
+    /// unloading), gives each furni whose logic is no longer what its type makes
+    /// (<see cref="IRoomObjectLogicProvider.IsCurrent"/>) a new one: the old one is detached (a
+    /// failure, as from a reloaded plugin's disposed services, is logged), and the new one made
+    /// and attached as the room's load does. A no-op until the provider's version moves.
+    /// </summary>
+    internal async Task RebindStaleLogicsAsync(CancellationToken ct)
+    {
+        var provider = _roomGrain._logicProvider;
+        var version = provider.Version;
+
+        if (version == _logicVersion)
+            return;
+
+        _logicVersion = version;
+
+        foreach (var item in State.ItemsById.Values.ToList())
+        {
+            if (item.Logic is null || provider.IsCurrent(item.Logic))
+                continue;
+
+            try
+            {
+                await item.Logic.OnDetachAsync(ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Logger.LogWarning(
+                    ex,
+                    "The old logic of item {ItemId} in room {RoomId} failed to detach",
+                    item.ObjectId,
+                    State.RoomId
+                );
+            }
+
+            item.SetLogic(null!);
+
+            await AttatchLogicAsync(item, ct);
+        }
     }
 
     private async Task<bool> AttatchLogicAsync(IRoomObject roomObject, CancellationToken ct)
