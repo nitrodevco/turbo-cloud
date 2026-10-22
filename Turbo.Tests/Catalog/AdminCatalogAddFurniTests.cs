@@ -356,6 +356,27 @@ public sealed class AdminCatalogAddFurniTests : IDisposable
             );
     }
 
+    private CatalogPageEntity PageAt(int id)
+    {
+        using var db = _catalog.Db.CreateDbContext();
+
+        return db.CatalogPages.AsNoTracking().Single(x => x.Id == id);
+    }
+
+    /// <summary>A page under the furniture tab with a header, a teaser and texts, as a shop page has.</summary>
+    private CatalogPageEntity DressedPage(int id, string title, string layout)
+    {
+        var page = Page(id, FURNITURE, title);
+
+        page.Layout = layout;
+        page.Icon = 7;
+        page.ImageData = [$"{title}_header", $"{title}_teaser"];
+        page.TextData = [$"{title}!", $"All about {title}."];
+        _catalog.Db.Insert(page);
+
+        return page;
+    }
+
     private List<int> OfferIdsOn(int pageId)
     {
         using var db = _catalog.Db.CreateDbContext();
@@ -374,7 +395,7 @@ public sealed class AdminCatalogAddFurniTests : IDisposable
     {
         const int RARES = 50;
 
-        _catalog.Db.Insert(Page(RARES, FURNITURE, "Rares"));
+        DressedPage(RARES, "Rares", "default_3x3_color_grouping");
         var ids = Furni(
             "rare",
             "marquee*1",
@@ -403,7 +424,57 @@ public sealed class AdminCatalogAddFurniTests : IDisposable
         OfferIdsOn(PageNamed(RARES, "Marquee")).Should().Equal(500, 502, 504);
         OfferIdsOn(PageNamed(RARES, "Pillow")).Should().Equal(501, 503, 505);
         OfferIdsOn(RARES).Should().Equal(510);
+        PageAt(PageNamed(RARES, "Marquee"))
+            .Should()
+            .BeEquivalentTo(
+                new
+                {
+                    Layout = "default_3x3_color_grouping",
+                    Icon = 7,
+                    ImageData = new[] { "Rares_header", "Rares_teaser" },
+                    TextData = new[] { "Rares!", "All about Rares." },
+                },
+                "a page sorted out of it takes its header, teaser and texts"
+            );
         _service.History.Undo.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task PagesMadeAddingFurni_TakeAShopGridsHeaderTeaserAndTexts_NotAFrontPages()
+    {
+        DressedPage(52, "Rares", "default_3x3");
+        DressedPage(53, "Welcome", "frontpage4");
+        var rares = Furni(
+            "rare",
+            "marquee*1",
+            "marquee*2",
+            "marquee*3",
+            "pillow*1",
+            "pillow*2",
+            "pillow*3"
+        );
+        var welcome = Furni("rare", "pillar*1", "pillar*2", "pillar*3", "fan*1", "fan*2", "fan*3");
+
+        await Adder.AddAsync(Editor, 52, Request(rares, AdminCatalogAddFurni.SORT_KIND), Ct);
+        await Adder.AddAsync(Editor, 53, Request(welcome, AdminCatalogAddFurni.SORT_KIND), Ct);
+
+        var pillow = PageAt(PageNamed(52, "Pillow"));
+        var fan = PageAt(PageNamed(53, "Fan"));
+
+        (pillow.Layout, pillow.ImageData, pillow.TextData)
+            .Should()
+            .BeEquivalentTo(
+                (
+                    "default_3x3",
+                    new[] { "Rares_header", "Rares_teaser" },
+                    new[] { "Rares!", "All about Rares." }
+                )
+            );
+        (fan.Layout, fan.Icon).Should().Be(("default_3x3", 7));
+        (fan.ImageData ?? [])
+            .Should()
+            .BeEmpty("a front page's pictures mean something else on a shop grid");
+        (fan.TextData ?? []).Should().BeEmpty();
     }
 
     [Fact]

@@ -669,8 +669,12 @@ puts them on pages under it instead, each made with them or the one of that titl
   kind of one of each colour, like the marquees, stays one page.
 
 A sort that gives fewer than two pages of their own is passed over, so furni all of one kind, like
-a Christmas line's `xmas14_` ones, stay on the page itself. The bar lists the pages first. **Add
-furni** on an open page does the same for that page.
+a Christmas line's `xmas14_` ones, stay on the page itself. A page made is shown and iconed as the
+chosen page and, when that is a shop grid (`default_3x3`, `default_3x3_color_grouping`,
+`default_3x3_extrainfo`), takes its layout, header, teaser and texts; under a tab, a front page or
+an info page, whose pictures and texts mean something else, it is a plain `default_3x3`. A page of
+that title there already is left as it is. The bar lists the pages first. **Add furni** on an open
+page does the same for that page.
 
 **Duplicates.** Furni sold alone by more than one offer (club gifts and bundles aren't counted),
 each with where its offers are, what they cost, and whether players see them. Open an offer in the
@@ -684,7 +688,8 @@ catalogue shows it and what it holds. **Merge into this** opens the merge on the
 its offers onto pages under it the way the audit's add sorts new furni: by kind, by colour, or kind
 then colour, with the same rules. An offer selling one floor or wall item is sorted by it; any
 other (a bundle, a pet, a badge, a membership) stays on the page. Offers move as they are, prices,
-limited series and all, onto pages made with them or the one of that title there already. The
+limited series and all, onto pages made with them or the one of that title there already. A page
+made takes the page's layout, header, teaser and texts, as it shows those offers already. The
 dialog lists the pages first; a sort that parts nothing is refused. One step to undo.
 
 **Merging pages.** **Merge with another page**, under **More** on an open page, makes any two pages

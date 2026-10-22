@@ -29,6 +29,12 @@ namespace Turbo.Admin.Catalog;
 /// kind with only one colour three of it share is one page. A page of a title under its page
 /// already takes those furni.
 /// </para>
+/// <para>
+/// A page made is shown and iconed as the page sorted into, and takes its layout, header, teaser
+/// and texts: a resorted page's always, it showing those offers already; a page furni are added to,
+/// when it is a shop grid (<see cref="ShopGrids"/>). Another (a tab, a front or info page) gives a
+/// plain <c>default_3x3</c>, its pictures and texts meaning something else.
+/// </para>
 /// </summary>
 public sealed class AdminCatalogAddFurni(
     IDbContextFactory<TurboDbContext> database,
@@ -54,6 +60,14 @@ public sealed class AdminCatalogAddFurni(
     public const string SORT_KIND_COLOUR = "kindColour";
 
     private const string LAYOUT = "default_3x3";
+
+    /// <summary>The shop grids, whose header and teaser pictures and texts a page made under one takes.</summary>
+    private static readonly HashSet<string> ShopGrids = new(StringComparer.Ordinal)
+    {
+        LAYOUT,
+        "default_3x3_color_grouping",
+        "default_3x3_extrainfo",
+    };
 
     private const string UNKNOWN_SORT =
         "Furni are sorted by kind, by colour, or by kind and then colour.";
@@ -110,8 +124,7 @@ public sealed class AdminCatalogAddFurni(
         var newPages = PagesOf(
             plan.Pages,
             pageId,
-            plan.Icon,
-            plan.Display,
+            plan.Template,
             (target, definitionId) =>
                 offers.Add(
                     new CatalogNewOffer(
@@ -197,8 +210,7 @@ public sealed class AdminCatalogAddFurni(
         var newPages = PagesOf(
             plan.Pages,
             pageId,
-            plan.Icon,
-            plan.Display,
+            plan.Template,
             (target, offerId) => moves.Add(new CatalogOfferPlacement(offerId, target))
         );
         var label =
@@ -228,14 +240,14 @@ public sealed class AdminCatalogAddFurni(
         new(page.Title, page.PageId, page.Count, [.. page.Pages.Select(View)]);
 
     /// <summary>
-    /// The pages of a plan to make under the page, each made before the pages under it, which
-    /// refer to it; <paramref name="place"/> is told where each thing planned goes.
+    /// The pages of a plan to make under the page, each <paramref name="template"/> by its own
+    /// title, and made before the pages under it, which refer to it; <paramref name="place"/> is
+    /// told where each thing planned goes.
     /// </summary>
     private static List<CatalogNewPage> PagesOf(
         IReadOnlyList<PlannedPage> pages,
         int pageId,
-        int icon,
-        CatalogPageDisplay display,
+        CatalogPageDraft template,
         Action<CatalogPageRef, int> place
     )
     {
@@ -250,12 +262,7 @@ public sealed class AdminCatalogAddFurni(
             else
             {
                 target = CatalogPageRef.Made(made.Count);
-                made.Add(
-                    new CatalogNewPage(
-                        parent,
-                        new CatalogPageDraft(page.Title, null, icon, LAYOUT, [], [], display)
-                    )
-                );
+                made.Add(new CatalogNewPage(parent, template with { Localization = page.Title }));
             }
 
             foreach (var id in page.Ids)
@@ -380,16 +387,16 @@ public sealed class AdminCatalogAddFurni(
         IReadOnlyList<PlannedPage> Pages
     );
 
+    /// <summary>What a page made starts as; see the class.</summary>
     private sealed record Plan(
         string? Error,
         IReadOnlyList<PlannedPage> Pages,
         IReadOnlyDictionary<int, ProductType> Types,
-        int Icon,
-        CatalogPageDisplay Display
+        CatalogPageDraft Template
     )
     {
         public static Plan Refused(string error) =>
-            new(error, [], new Dictionary<int, ProductType>(), 0, default);
+            new(error, [], new Dictionary<int, ProductType>(), Blank);
     }
 
     private sealed record ResortPlan(
@@ -397,13 +404,38 @@ public sealed class AdminCatalogAddFurni(
         string Title,
         IReadOnlyList<PlannedPage> Pages,
         int Staying,
-        int Icon,
-        CatalogPageDisplay Display
+        CatalogPageDraft Template
     )
     {
-        public static ResortPlan Refused(string error) =>
-            new(error, string.Empty, [], 0, 0, default);
+        public static ResortPlan Refused(string error) => new(error, string.Empty, [], 0, Blank);
     }
+
+    private static readonly CatalogPageDraft Blank = new(
+        string.Empty,
+        null,
+        0,
+        LAYOUT,
+        [],
+        [],
+        CatalogPageDisplay.Invisible
+    );
+
+    /// <summary>A page made under a page, shown and iconed as it, and with its layout, pictures and texts when <paramref name="copy"/>.</summary>
+    private static CatalogPageDraft TemplateOf(
+        int icon,
+        CatalogPageDisplay display,
+        string layout,
+        List<string>? images,
+        List<string>? texts,
+        bool copy
+    ) =>
+        copy
+            ? new(string.Empty, null, icon, layout, [.. images ?? []], [.. texts ?? []], display)
+            : Blank with
+            {
+                Icon = icon,
+                Display = display,
+            };
 
     private async Task<Plan> PlanPagesAsync(
         int pageId,
@@ -430,12 +462,24 @@ public sealed class AdminCatalogAddFurni(
                 x.Localization,
                 x.Icon,
                 x.Display,
+                x.Layout,
+                x.ImageData,
+                x.TextData,
             })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
         if (page is null)
             return Plan.Refused("That page is gone.");
+
+        var template = TemplateOf(
+            page.Icon,
+            page.Display,
+            page.Layout,
+            page.ImageData,
+            page.TextData,
+            ShopGrids.Contains(page.Layout)
+        );
 
         var found = await db
             .FurnitureDefinitions.AsNoTracking()
@@ -465,16 +509,14 @@ public sealed class AdminCatalogAddFurni(
                 null,
                 [new PlannedPage(page.Localization, pageId, ids.Count, ids, [])],
                 types,
-                page.Icon,
-                page.Display
+                template
             );
 
         return new Plan(
             null,
             await PlannedAsync(db, pageId, groups, ct).ConfigureAwait(false),
             types,
-            page.Icon,
-            page.Display
+            template
         );
     }
 
@@ -499,6 +541,9 @@ public sealed class AdminCatalogAddFurni(
                 x.Localization,
                 x.Icon,
                 x.Display,
+                x.Layout,
+                x.ImageData,
+                x.TextData,
             })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
@@ -508,6 +553,15 @@ public sealed class AdminCatalogAddFurni(
 
         if (page.ParentEntityId is null)
             return ResortPlan.Refused("The catalog's root has no offers to sort.");
+
+        var template = TemplateOf(
+            page.Icon,
+            page.Display,
+            page.Layout,
+            page.ImageData,
+            page.TextData,
+            copy: true
+        );
 
         var offers = await db
             .CatalogOffers.AsNoTracking()
@@ -551,22 +605,14 @@ public sealed class AdminCatalogAddFurni(
         var groups = Sort(furni, levels);
 
         if (groups.Count == 0)
-            return new ResortPlan(
-                null,
-                page.Localization,
-                [],
-                offers.Count,
-                page.Icon,
-                page.Display
-            );
+            return new ResortPlan(null, page.Localization, [], offers.Count, template);
 
         return new ResortPlan(
             null,
             page.Localization,
             await PlannedAsync(db, pageId, groups, ct).ConfigureAwait(false),
             offers.Count - furni.Count,
-            page.Icon,
-            page.Display
+            template
         );
     }
 
