@@ -1469,6 +1469,7 @@ public sealed partial class CatalogEditService(
         page.ImageData = [.. draft.ImageData];
         page.TextData = [.. draft.TextData];
         page.Display = draft.Display;
+        page.FolderOnly = draft.FolderOnly ?? page.FolderOnly;
     }
 
     /// <param name="existing">The offer as saved, when it is one; null for a new offer.</param>

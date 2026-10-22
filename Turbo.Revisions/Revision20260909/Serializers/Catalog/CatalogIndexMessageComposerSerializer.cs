@@ -44,7 +44,12 @@ internal class CatalogIndexMessageComposerSerializer(int header)
         CatalogPageSnapshot page
     )
     {
-        CatalogPageSnapshotSerializer.Serialize(packet, page);
+        // A heading with no page of its own is page -1, as Habbo sends "Hot now": the client
+        // opens and closes the pages under it and loads no page for it (CatalogNavigator.as:348).
+        CatalogPageSnapshotSerializer.Serialize(
+            packet,
+            page.FolderOnly ? page with { Id = -1 } : page
+        );
 
         packet.WriteInteger(page.OfferIds.Length);
 

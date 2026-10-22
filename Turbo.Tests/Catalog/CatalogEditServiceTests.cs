@@ -301,6 +301,52 @@ public sealed class CatalogEditServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AFolderOnlyPage_StaysOne_WhenASaveDoesNotSay()
+    {
+        (
+            await _service.UpdatePageAsync(
+                Editor,
+                CHILD,
+                Page("Chairs") with
+                {
+                    FolderOnly = true,
+                },
+                Ct
+            )
+        )
+            .Saved.Should()
+            .BeTrue();
+        (
+            await _service.UpdatePageAsync(
+                Editor,
+                CHILD,
+                Page("Chairs", display: CatalogPageDisplay.Both),
+                Ct
+            )
+        )
+            .Saved.Should()
+            .BeTrue();
+
+        (await ReadAsync(db => db.CatalogPages.SingleAsync(x => x.Id == CHILD, Ct)))
+            .FolderOnly.Should()
+            .BeTrue("an import or a move that redrafts the page leaves it a folder");
+
+        await _service.UpdatePageAsync(
+            Editor,
+            CHILD,
+            Page("Chairs") with
+            {
+                FolderOnly = false,
+            },
+            Ct
+        );
+
+        (await ReadAsync(db => db.CatalogPages.SingleAsync(x => x.Id == CHILD, Ct)))
+            .FolderOnly.Should()
+            .BeFalse();
+    }
+
+    [Fact]
     public async Task APageSellingAMembership_StaysInTheNormalCatalog()
     {
         (await _service.CreateOfferAsync(Editor, Offer(pageId: CHILD, product: Membership(31)), Ct))

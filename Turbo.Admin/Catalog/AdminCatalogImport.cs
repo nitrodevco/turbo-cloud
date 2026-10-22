@@ -418,7 +418,8 @@ public sealed class AdminCatalogImport(
                 x.ImageData,
                 x.TextData,
                 x.Display,
-                x.SortOrder
+                x.SortOrder,
+                x.FolderOnly
             ))
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -708,7 +709,9 @@ public sealed class AdminCatalogImport(
                 shared ? CatalogPageDisplay.Both
                     : builders ? CatalogPageDisplay.BuildersClubOnly
                     : hidden ? CatalogPageDisplay.Invisible
-                    : CatalogPageDisplay.Regular
+                    : CatalogPageDisplay.Regular,
+                // Habbo sends a heading with no page of its own, as "Hot now", as page -1.
+                node.PageId < 0
             );
 
             if (editor.CheckNewPage(draft) is { } refusedPage)
@@ -1196,7 +1199,8 @@ public sealed class AdminCatalogImport(
         List<string>? ImageData,
         List<string>? TextData,
         CatalogPageDisplay Display,
-        int SortOrder
+        int SortOrder,
+        bool FolderOnly
     );
 
     private sealed record SavedOffer(
@@ -1352,6 +1356,9 @@ public sealed class AdminCatalogImport(
 
             if (saved.Display != draft.Display)
                 page.Fields.Add(draft.Display.ToName());
+
+            if (draft.FolderOnly is { } folderOnly && saved.FolderOnly != folderOnly)
+                page.Fields.Add(folderOnly ? "folder only" : "page");
 
             if (page.Fields.Count > 0)
             {

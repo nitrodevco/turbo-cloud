@@ -11,5 +11,6 @@ public sealed record CatalogPageDetail(
     string[] ImageData,
     string[] TextData,
     string Display,
-    CatalogOfferItem[] Offers
+    CatalogOfferItem[] Offers,
+    bool FolderOnly
 );

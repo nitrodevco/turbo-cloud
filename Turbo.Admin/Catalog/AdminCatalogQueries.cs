@@ -74,6 +74,7 @@ public sealed class AdminCatalogQueries(
                 x.Display,
                 x.SortOrder,
                 Offers = x.Offers!.Count,
+                x.FolderOnly,
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -108,7 +109,8 @@ public sealed class AdminCatalogQueries(
                     x.Layout,
                     x.Display.ToName(),
                     x.SortOrder,
-                    x.Offers
+                    x.Offers,
+                    x.FolderOnly
                 )),
             ],
             canManage,
@@ -269,7 +271,8 @@ public sealed class AdminCatalogQueries(
                             }),
                     ]
                 )),
-            ]
+            ],
+            page.FolderOnly
         );
     }
 

@@ -39,4 +39,8 @@ public sealed record CatalogPageSnapshot
 
     [Id(10)]
     public required ImmutableArray<int> ChildIds { get; init; }
+
+    /// <summary>A heading with no page of its own; the index sends it as page -1.</summary>
+    [Id(11)]
+    public bool FolderOnly { get; init; }
 }

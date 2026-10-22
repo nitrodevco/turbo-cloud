@@ -8,6 +8,10 @@ namespace Turbo.Primitives.Catalog.Editing;
 /// layout and the layout's images and texts in order, and which catalogs show it. Where it sits in
 /// the tree is set apart, by moving it.
 /// </summary>
+/// <param name="FolderOnly">
+/// Whether the page is a heading with no page of its own; null leaves a saved page as it is and
+/// makes a new one a page.
+/// </param>
 public sealed record CatalogPageDraft(
     string Localization,
     string? Name,
@@ -15,5 +19,6 @@ public sealed record CatalogPageDraft(
     string Layout,
     IReadOnlyList<string> ImageData,
     IReadOnlyList<string> TextData,
-    CatalogPageDisplay Display
+    CatalogPageDisplay Display,
+    bool? FolderOnly = null
 );

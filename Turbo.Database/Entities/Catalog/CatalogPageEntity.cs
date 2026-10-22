@@ -48,6 +48,14 @@ public class CatalogPageEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required CatalogPageDisplay Display { get; set; }
 
+    /// <summary>
+    /// A heading with no page of its own, as Habbo's "Hot now": choosing it opens and closes the
+    /// pages under it and leaves the page that was open on show.
+    /// </summary>
+    [Column("folder_only")]
+    [DefaultValue(false)]
+    public bool FolderOnly { get; set; }
+
     [ForeignKey(nameof(ParentEntityId))]
     public CatalogPageEntity? ParentEntity { get; set; }
 

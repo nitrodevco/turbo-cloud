@@ -35,6 +35,7 @@ public static class CatalogEntityExtensions
             Visible = entity.Display != CatalogPageDisplay.Invisible,
             OfferIds = offerIds,
             ChildIds = childIds,
+            FolderOnly = entity.FolderOnly,
         };
 
     /// <param name="activityPointType">

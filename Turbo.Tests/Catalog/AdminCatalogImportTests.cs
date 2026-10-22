@@ -210,6 +210,8 @@ public sealed class AdminCatalogImportTests : IDisposable
         blocks.Localization.Should().Be("Building Blocks");
         blocks.ImageData.Should().Equal("header");
         heading.ParentEntityId.Should().Be(FURNITURE);
+        heading.FolderOnly.Should().BeTrue("Habbo sends it as page -1: a heading with no page");
+        blocks.FolderOnly.Should().BeFalse();
         fire.ParentEntityId.Should().Be(heading.Id);
         (await db.CatalogPages.AnyAsync(x => x.Name == "bc_secret", Ct)).Should().BeFalse();
 
