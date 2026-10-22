@@ -294,3 +294,16 @@ down by the server's clock. A client that accepts the extension while a notice i
 after the capability answer. Clients that don't (the Flash client) see only Habbo's own closing
 alerts.
 
+## `client.modules` (version 1)
+
+The client modules the hotel's plugins bring: JavaScript ES modules the client loads and runs beside
+its own code, served from each plugin's `wwwroot/` by the gamedata host. The whole of it, the
+plugin side, the serving and the client side, is in `docs/client-modules.md`.
+
+| Direction | Header | Packet | Body |
+| --- | --- | --- | --- |
+| server → client | 30009 | `TurboClientModulesMessage` | `int count`, then per module `string key`, `string url`, `string version`, `string sha256` |
+
+Sent straight after the capability answer, and again to everyone who accepted it whenever a plugin
+with a module loads, unloads or reloads: always the whole set, so a module no longer listed is taken
+away.

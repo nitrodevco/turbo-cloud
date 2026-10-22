@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The example client module's plugin, built against this checkout:
+      dotnet build docs/examples/client-modules/hello/Hello.csproj
+    then copy bin/Debug/net10.0/ (Hello.dll, manifest.json, wwwroot/, gamedata/) into the server's
+    plugins folder as plugins/hello/, or name that folder in Turbo:Plugin:DevPluginPaths.
+    It is not part of Turbo.Cloud.sln; Turbo.Tests compiles and loads its source
+    (HelloExamplePluginTests), so it keeps working as the server changes.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Hello</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <SelfContained>false</SelfContained>
+    <!-- The plugin folder holds the plugin alone: a host assembly beside it would be a second copy. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="gamedata\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The host's own assemblies: referenced, never copied beside the plugin. -->
+    <ProjectReference Include="..\..\..\..\Turbo.Contracts\Turbo.Contracts.csproj" Private="false" />
+    <ProjectReference Include="..\..\..\..\Turbo.Primitives\Turbo.Primitives.csproj" Private="false" />
+  </ItemGroup>
+</Project>
