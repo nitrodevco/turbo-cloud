@@ -83,10 +83,10 @@ public sealed class RollerAreaHideTests
 
         // Switching the hider on took the two rollers inside the area away, as it should.
         _room
-            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
-            .Select(x => x.ObjectId)
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
+            .SelectMany(x => x.ObjectIdsToRemove)
             .Should()
-            .Equal((RoomObjectId)ROLLER_INSIDE, (RoomObjectId)ROLLER_OUT);
+            .BeEquivalentTo(new long[] { ROLLER_INSIDE, ROLLER_OUT });
         var removedBefore = _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().Count();
 
         await TickAsync();

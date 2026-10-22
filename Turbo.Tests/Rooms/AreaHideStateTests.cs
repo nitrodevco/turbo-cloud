@@ -4,7 +4,6 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -76,11 +75,11 @@ public sealed class AreaHideStateTests
             .Which.AreaHideData.On.Should()
             .BeTrue();
         _room
-            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
             .Skip(sentBefore.Removes)
-            .Select(x => x.ObjectId)
+            .SelectMany(x => x.ObjectIdsToRemove)
             .Should()
-            .Equal((RoomObjectId)CRATE);
+            .Equal(CRATE);
     }
 
     [Fact]
@@ -109,16 +108,16 @@ public sealed class AreaHideStateTests
             .Which.AreaHideData.On.Should()
             .BeTrue();
         _room
-            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
             .Skip(sentBefore.Removes)
-            .Select(x => x.ObjectId)
+            .SelectMany(x => x.ObjectIdsToRemove)
             .Should()
-            .Equal((RoomObjectId)CRATE);
+            .Equal(CRATE);
     }
 
     private (int Areas, int Removes) SentCount() =>
         (
             _room.Harness.Fakes.SentToRoom<AreaHideMessageComposer>().Count(),
-            _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().Count()
+            _room.Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>().Count()
         );
 }

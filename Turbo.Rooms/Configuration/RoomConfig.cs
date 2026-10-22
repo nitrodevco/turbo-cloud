@@ -326,6 +326,13 @@ public class RoomConfig
     /// <summary>Largest side, in tiles, an area hider may cover.</summary>
     public int AreaHideMaxSize { get; init; } = 20;
 
+    /// <summary>
+    /// The furni (definition names) an Invisible Furni Controller takes out of the room while it
+    /// is on, besides area hiders set to "Make this furniture invisible". Habbo's
+    /// <c>room_invisible_block</c> is (official client capture, 2026-10-22).
+    /// </summary>
+    public string[] InvisibleFurniNames { get; init; } = ["room_invisible_block"];
+
     /// <summary>How long both sides of a love lock have to confirm before it is cancelled.</summary>
     public int FriendFurniLockTimeoutMs { get; init; } = 60000;
 

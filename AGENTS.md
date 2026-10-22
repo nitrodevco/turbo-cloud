@@ -454,9 +454,13 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   reference to it). The room then answers an unconfirmed pickup with `ObjectRemoveConfirm` and
   picks the item up only when the client sends the pickup again with its confirm flag set.
 - A Room Area Hider hides furni by not sending them (`RoomFurniModule.AreaHide`): the client
-  only takes the floor out of the area. Anything that sends a floor or wall item to the room
-  asks `IsHiddenByArea` first, as placing and moving do, and a change to a hider is announced
-  through `AnnounceHiddenItemsChangedAsync`.
+  only takes the floor out of the area, and the area's tiles go -1 in the height map
+  (`IsTileHiddenByArea`, refreshed by `RefreshAreaHiddenTiles`). Anything that sends a floor or
+  wall item to the room asks `IsHidden` first, as placing and moving do, and a change to a hider
+  or the Invisible Furni Controller is announced through `AnnounceHiddenItemsChangedAsync` (one
+  ObjectRemoveMultiple / one Objects, as Habbo sends). The controller hides the invisible furni:
+  hiders with "Make this furniture invisible" and the `RoomConfig.InvisibleFurniNames` kinds (the
+  module keeps that flag as the clients were last told it, `RefreshInvisibleFurniAsync`).
 
 ### Teleporters
 - A teleporter (`FurnitureTeleportLogic`, logic `teleport`) is half of a pair. The pair is made
