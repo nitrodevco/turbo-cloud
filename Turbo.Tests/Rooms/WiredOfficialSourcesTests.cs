@@ -295,6 +295,32 @@ public sealed class WiredOfficialSourcesTests
                 [],
                 []
             },
+            // Official client capture 2026-10-22T22-55-58-Open / 22-51-19-click / 22-52-53-Open.
+            { typeof(WiredAddonConditionsEval), "wf_xtra_or_eval", [Furni], [100], [], [] },
+            {
+                typeof(WiredSelectorItemsInNeighborhood),
+                "wf_slc_furni_neighborhood",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [
+                    [0, 201],
+                ],
+                [0]
+            },
+            {
+                typeof(WiredSelectorEntitiesInNeighborhood),
+                "wf_slc_users_neighborhood",
+                [
+                    [0, 100, 201],
+                ],
+                [100],
+                [
+                    [0, 201],
+                ],
+                [0]
+            },
         };
 
     [Theory]
