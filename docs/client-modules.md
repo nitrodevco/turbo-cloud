@@ -57,7 +57,7 @@ public Task StopAsync(CancellationToken ct)
 
 `docs/examples/client-modules/hello` is a complete plugin: `HelloPlugin.cs`, its `manifest.json`,
 `wwwroot/hello.js` (a toolbar icon, a me menu entry and the `hello/open` link opening a window, and
-a small bar over the player's own avatar), its icon `wwwroot/hello.png`, and the texts it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
+a small bar over the player's own avatar), its icon `wwwroot/hello.png`, and the texts and variables (the bar's colour and width) it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
 as a hotel would, so it keeps working as the server changes. Build it with
 `dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net10.0/` to
 `plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`.
@@ -178,7 +178,7 @@ the hotel had before the plugin. **Keep its data** leaves them all.
 - `PluginGamedataSeedTests`: loading adds what the hotel lacks once and keeps the hotel's own; the
   uninstall dry run lists, and deleting the data removes, only what is still as the plugin gave it.
 - `HelloExamplePluginTests`: the example in `docs/examples/client-modules/hello` builds, loads, lists
-  its module and its icon, and gives the hotel its texts.
+  its module and its icon, and gives the hotel its texts and variables.
 
 ## 8. Open
 

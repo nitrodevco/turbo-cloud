@@ -10,8 +10,8 @@ namespace Hello;
 
 /// <summary>
 /// The smallest plugin with a client module: it declares <c>wwwroot/hello.js</c>, which a client
-/// that speaks <c>client.modules</c> loads and runs, and its icon <c>wwwroot/hello.png</c>. Its texts come with it
-/// in <c>gamedata/</c>, given to the hotel as it loads. See <c>docs/client-modules.md</c>.
+/// that speaks <c>client.modules</c> loads and runs, and its icon <c>wwwroot/hello.png</c>. Its texts and its bar's
+/// colour and width come with it in <c>gamedata/</c>, given to the hotel as it loads. See <c>docs/client-modules.md</c>.
 /// </summary>
 public sealed class HelloPlugin : ITurboPlugin
 {

@@ -197,8 +197,10 @@ public sealed record PluginUninstallPlanView(
 
 /// <summary>
 /// One thing of a plugin's data: <see cref="Kind"/> <c>table</c> (<see cref="Count"/> its rows),
-/// <c>setting</c> (<see cref="Detail"/> its value, null for a secret) or <c>grant</c>
-/// (<see cref="Count"/> its assignments, <see cref="Detail"/> who holds them).
+/// <c>setting</c> (<see cref="Detail"/> its value, null for a secret), <c>grant</c>
+/// (<see cref="Count"/> its assignments, <see cref="Detail"/> who holds them), or <c>variable</c> or
+/// <c>text</c> (an external variable or text it brought, still as it gave it; <see cref="Detail"/> its
+/// value). A kind added later is named in lowercase, never taken for another.
 /// </summary>
 public sealed record PluginDataItemView(string Kind, string Name, long Count, string? Detail)
 {
@@ -208,7 +210,10 @@ public sealed record PluginDataItemView(string Kind, string Name, long Count, st
             {
                 PluginDataKind.Table => "table",
                 PluginDataKind.Setting => "setting",
-                _ => "grant",
+                PluginDataKind.Grant => "grant",
+                PluginDataKind.Variable => "variable",
+                PluginDataKind.Text => "text",
+                _ => item.Kind.ToString().ToLowerInvariant(),
             },
             item.Name,
             item.Count,

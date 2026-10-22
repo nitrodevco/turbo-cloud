@@ -27,8 +27,8 @@ namespace Turbo.Tests.Plugins;
 
 /// <summary>
 /// The example in <c>docs/examples/client-modules/hello</c> is the documentation's proof, so it is
-/// built and loaded here as a hotel would: its module is listed for clients, and its texts are
-/// given to the hotel.
+/// built and loaded here as a hotel would: its module is listed for clients, and its texts and
+/// variables are given to the hotel.
 /// </summary>
 public sealed class HelloExamplePluginTests : IDisposable
 {
@@ -50,7 +50,7 @@ public sealed class HelloExamplePluginTests : IDisposable
     }
 
     [Fact]
-    public async Task The_example_plugin_loads_lists_its_module_and_gives_the_hotel_its_texts()
+    public async Task The_example_plugin_loads_lists_its_module_and_gives_the_hotel_its_texts_and_variables()
     {
         var example = Path.Combine(RepositoryRoot(), "docs", "examples", "client-modules", "hello");
         var key = JsonDocument
@@ -129,13 +129,22 @@ public sealed class HelloExamplePluginTests : IDisposable
             .FindFile("hello", "hello.png")
             .Should()
             .NotBeNull("the module loads its icon beside it");
-        (await texts.GetValuesAsync(["hello.module.title", "hello.module.clicks"], Ct))
+        (await texts.GetValuesAsync(["hello.window.title", "hello.window.clicks"], Ct))
             .Should()
             .BeEquivalentTo(
                 new Dictionary<string, string>
                 {
-                    ["hello.module.title"] = "Hello",
-                    ["hello.module.clicks"] = "Clicks: %count%",
+                    ["hello.window.title"] = "Hello",
+                    ["hello.window.clicks"] = "Clicks: %count%",
+                }
+            );
+        (await variables.GetValuesAsync(["hello.bar.color", "hello.bar.width"], Ct))
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["hello.bar.color"] = "\"#33cc99\"",
+                    ["hello.bar.width"] = "40",
                 }
             );
 

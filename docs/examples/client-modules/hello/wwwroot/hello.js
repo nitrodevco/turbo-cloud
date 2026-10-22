@@ -8,7 +8,9 @@
  * - a me menu entry and the `hello/open` link, which open the same window;
  * - a small bar over the user's own avatar in a room.
  *
- * Texts come from the hotel's texts with English fallbacks (`hello.module.*`).
+ * Its words and the bar come from the hotel's texts and variables, which the example plugin seeds
+ * (`hello.window.title`, `hello.window.body`, `hello.toolbar.tooltip`, `hello.bar.color`,
+ * `hello.bar.width`); each has a fallback, so the module also runs on a hotel without them.
  */
 let api;
 
@@ -20,27 +22,31 @@ const HelloWindow = ({ close }) => {
     return h(Frame, {
         id: `${api.key}-hello`,
         variant: '3',
-        caption: api.texts.get('hello.module.title', 'Hello'),
+        caption: api.texts.get('hello.window.title', 'Hello'),
         centered: true,
         resizeDirection: 'none',
         onClose: close,
         layout: { width: 260, height: 150 },
     }, h(Box, { layout: { flexDirection: 'column', gap: 8, padding: 10, width: 258 } },
-        h(ThemeText, { text: api.texts.get('hello.module.text', 'This window comes from a client module.'), textStyle: 'u_regular' }),
-        h(ThemeText, { text: api.texts.get('hello.module.clicks', 'Clicks: %count%', { count: String(clicks) }), textStyle: 'u_regular' }),
-        h(Button, { variant: '101', onPointerTap: () => setClicks(clicks + 1), layout: { width: 100, height: 22 } }, api.texts.get('hello.module.button', 'Click me')),
+        h(ThemeText, { text: api.texts.get('hello.window.body', 'This window comes from a client module.'), textStyle: 'u_regular' }),
+        h(ThemeText, { text: api.texts.get('hello.window.clicks', 'Clicks: %count%', { count: String(clicks) }), textStyle: 'u_regular' }),
+        h(Button, { variant: '101', onPointerTap: () => setClicks(clicks + 1), layout: { width: 100, height: 22 } }, api.texts.get('hello.window.button', 'Click me')),
     ));
 };
 
-/** A 40 x 6 bar: dark track, green fill. */
-const drawBar = (graphics) => {
-    graphics.clear();
-    graphics.rect(0, 0, 40, 6).fill(0x000000);
-    graphics.rect(1, 1, 26, 4).fill(0x3ec43e);
-};
+/** `hello.bar.width` x 6: a dark track, two thirds filled in `hello.bar.color`. */
+const OwnAvatarBar = () => {
+    const width = Number(api.config.get('hello.bar.width') ?? 40) || 40;
+    const color = String(api.config.get('hello.bar.color') ?? '#33cc99');
+    const draw = (graphics) => {
+        graphics.clear();
+        graphics.rect(0, 0, width, 6).fill(0x000000);
+        graphics.rect(1, 1, Math.round((width - 2) * 2 / 3), 4).fill(color);
+    };
 
-const OwnAvatarBar = () => api.libs.react.createElement(api.libs.theme.Box, { layout: { width: 40, height: 6 } },
-    api.libs.react.createElement('pixiGraphics', { draw: drawBar, layout: false }));
+    return api.libs.react.createElement(api.libs.theme.Box, { layout: { width, height: 6 } },
+        api.libs.react.createElement('pixiGraphics', { draw, layout: false }));
+};
 
 export default {
     activate(moduleApi) {
@@ -50,10 +56,10 @@ export default {
         api.toolbar.add({
             id: 'hello',
             icon: new URL('hello.png', api.baseUrl).href,
-            tooltip: api.texts.get('hello.module.title', 'Hello'),
+            tooltip: api.texts.get('hello.toolbar.tooltip', 'Hello'),
             onClick: () => api.windows.toggle('hello'),
         });
-        api.meMenu.add({ id: 'hello', caption: api.texts.get('hello.module.title', 'Hello'), onClick: () => api.windows.open('hello') });
+        api.meMenu.add({ id: 'hello', caption: api.texts.get('hello.window.title', 'Hello'), onClick: () => api.windows.open('hello') });
         api.links.handle('hello', (link) => {
             if (link === 'hello/open') api.windows.open('hello');
         });
