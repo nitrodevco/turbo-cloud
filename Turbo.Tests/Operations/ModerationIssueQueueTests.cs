@@ -535,7 +535,8 @@ public sealed class ModerationIssueQueueTests : IDisposable
             Options.Create(new OperationsConfig()),
             _fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
-            Service()
+            Service(),
+            _fakes.Create<Orleans.IGrainFactory>()
         );
 
     private async Task SubmitAsync()

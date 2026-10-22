@@ -13,6 +13,12 @@ public interface ICallForHelpService
     Task<ImmutableArray<CfhCategorySnapshot>> GetTopicsAsync(CancellationToken ct);
 
     /// <summary>
+    /// Null when the player may call for help; else the info link of the client's refusal, for a
+    /// muted player (they do not hold <c>chat.speak</c>) when the hotel refuses them.
+    /// </summary>
+    Task<string?> GetRefusedInfoUrlAsync(PlayerId reporter, CancellationToken ct);
+
+    /// <summary>
     /// Stores a call for help, or refuses it: a topic the hotel does not have, or a reporter
     /// with as many reports waiting as they may have.
     /// </summary>

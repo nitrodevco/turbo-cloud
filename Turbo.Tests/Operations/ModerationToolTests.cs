@@ -2,10 +2,12 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Operations;
 using Turbo.Operations.Configuration;
+using Turbo.Primitives.Messages.Outgoing.Help;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator.Enums;
@@ -277,6 +279,38 @@ public sealed class ModerationToolTests : IDisposable
             .Be("Stop that.");
         reply.PopInt().Should().Be(PLAYER);
         reply.PopBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_message_from_a_call_for_help_to_its_caller_is_the_calls_reply()
+    {
+        _db.Insert(Report(5, reporter: PLAYER));
+
+        var reply = await ModMessageAsync("We banned them, thanks.", issueId: 5);
+
+        _delivered.Should().ContainSingle();
+        _delivered[0].Player.Should().Be((PlayerId)PLAYER);
+        _delivered[0]
+            .Composer.Should()
+            .BeOfType<CallForHelpReplyMessageComposer>()
+            .Which.Message.Should()
+            .Be("We banned them, thanks.");
+        var packet = PacketHarness.Encode(_delivered[0].Composer);
+        packet.PopString().Should().Be("We banned them, thanks.");
+        packet.End.Should().BeTrue();
+        reply.PopInt().Should().Be(PLAYER);
+        reply.PopBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_message_from_a_call_for_help_to_someone_else_is_a_moderator_message()
+    {
+        _db.Insert(Report(5, reporter: MODERATOR));
+
+        await ModMessageAsync("Stop that.", issueId: 5);
+
+        _delivered.Should().ContainSingle();
+        _delivered[0].Composer.Should().BeOfType<ModeratorMessageComposer>();
     }
 
     [Fact]
@@ -574,16 +608,20 @@ public sealed class ModerationToolTests : IDisposable
         return reply.PopBoolean();
     }
 
-    private async Task<ClientPacket> ModMessageAsync(string text)
+    private async Task<ClientPacket> ModMessageAsync(string text, int issueId = -1)
     {
         var reply = Assert.Single(
             await Harness()
                 .SendAsync(
                     PacketHarness.Incoming("ModMessageMessageEvent"),
-                    // SendMsgsCtrl: user, message, "", "", topic -999, no issue.
+                    // SendMsgsCtrl: user, message, "", "", topic -999, the issue only when there is one.
                     PacketHarness.Payload(w =>
-                        w.Int(PLAYER).String(text).String("").String("").Int(-999)
-                    ),
+                    {
+                        w.Int(PLAYER).String(text).String("").String("").Int(-999);
+
+                        if (issueId != -1)
+                            w.Int(issueId);
+                    }),
                     playerId: MODERATOR
                 )
         );
@@ -663,6 +701,15 @@ public sealed class ModerationToolTests : IDisposable
             ),
             NullLogger<ModerationToolService>.Instance
         );
+
+    private static CfhReportEntity Report(int id, int reporter) =>
+        new()
+        {
+            Id = id,
+            ReporterEntityId = reporter,
+            TopicId = 12,
+            Message = "they keep insulting me",
+        };
 
     private static PlayerEntity Player(int id, string name, DateTime createdAt) =>
         new()

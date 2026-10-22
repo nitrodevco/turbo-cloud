@@ -11,6 +11,6 @@ internal class CallForHelpDisabledNotifyMessageComposerSerializer(int header)
         CallForHelpDisabledNotifyMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.InfoUrl);
     }
 }

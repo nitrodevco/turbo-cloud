@@ -41,13 +41,16 @@ public interface IModerationToolService
     /// <summary>
     /// Sends a moderator's message to a player - a caution when <paramref name="caution"/>, which
     /// takes <c>command.warn</c> - and answers whether it reached them: false when the message is
-    /// empty or too long, the moderator may not caution, or the player is offline.
+    /// empty or too long, the moderator may not caution, or the player is offline. A message sent
+    /// from a call for help (<paramref name="issueId"/>, -1 for none) to the player who made it is
+    /// that call's reply (<c>CallForHelpReply</c>) instead.
     /// </summary>
     Task<bool> SendMessageAsync(
         PlayerId moderator,
         PlayerId target,
         string message,
         bool caution,
+        int issueId,
         CancellationToken ct
     );
 

@@ -8,6 +8,6 @@ internal class CallForHelpReplyMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CallForHelpReplyMessageComposer message)
     {
-        //
+        packet.WriteString(message.Message);
     }
 }

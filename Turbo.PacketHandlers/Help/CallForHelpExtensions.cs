@@ -12,7 +12,7 @@ internal static class CallForHelpExtensions
 {
     /// <summary>
     /// Stores a call for help, from wherever the client sent it, and answers it with
-    /// <c>CallForHelpResult</c>.
+    /// <c>CallForHelpResult</c>; a player who may not call (muted) gets <c>CallForHelpDisabledNotify</c>.
     /// </summary>
     public static async Task SubmitCallForHelpAsync(
         this MessageContext ctx,
@@ -21,6 +21,20 @@ internal static class CallForHelpExtensions
         CancellationToken ct
     )
     {
+        if (
+            await callForHelp.GetRefusedInfoUrlAsync(ctx.PlayerId, ct).ConfigureAwait(false) is
+            { } infoUrl
+        )
+        {
+            await ctx.SendComposerAsync(
+                    new CallForHelpDisabledNotifyMessageComposer { InfoUrl = infoUrl },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         var result = await callForHelp
             .SubmitAsync(ctx.PlayerId, submission, ct)
             .ConfigureAwait(false);

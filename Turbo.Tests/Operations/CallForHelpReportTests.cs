@@ -10,6 +10,7 @@ using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
@@ -22,7 +23,8 @@ namespace Turbo.Tests.Operations;
 /// sends the message, topic, reported user, room, a count of chat lines (user id, text), then a
 /// name and an email. The reply is <c>CallForHelpResult</c> (a type the client ignores, then a
 /// text it shows, its own <c>help.cfh.sent.text</c> when empty). The reporter's report status
-/// lists the report, and a report closed without action can be appealed once.
+/// lists the report, and a report closed without action can be appealed once. A muted player
+/// (no <c>chat.speak</c>) gets <c>CallForHelpDisabledNotify</c> instead (its info link).
 /// </summary>
 public sealed class CallForHelpReportTests : IDisposable
 {
@@ -36,6 +38,9 @@ public sealed class CallForHelpReportTests : IDisposable
     private static readonly DateTime NOW = new(2026, 10, 9, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly SqliteDb _db = new();
+    private readonly Fakes _fakes = new();
+    private OperationsConfig _config = new() { CfhMutedInfoUrl = "https://hotel/safety" };
+    private bool _muted;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -55,6 +60,35 @@ public sealed class CallForHelpReportTests : IDisposable
     }
 
     public void Dispose() => _db.Dispose();
+
+    [Fact]
+    public async Task A_muted_player_is_told_they_cannot_call_for_help_and_nothing_is_stored()
+    {
+        _muted = true;
+
+        var reply = Assert.Single(await SendReportAsync(TOPIC));
+
+        Assert.Equal(
+            PacketHarness.Outgoing("CallForHelpDisabledNotifyMessageComposer"),
+            reply.Header
+        );
+        Assert.Equal("https://hotel/safety", reply.PopString());
+        Assert.True(reply.End);
+        (await Reports()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_hotel_that_lets_muted_players_call_stores_their_report()
+    {
+        _muted = true;
+        _config = new OperationsConfig { CfhRefuseMuted = false };
+
+        var reply = Assert.Single(await SendReportAsync(TOPIC));
+
+        Assert.Equal(PacketHarness.Outgoing("CallForHelpResultMessageComposer"), reply.Header);
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+        (await Reports()).Should().ContainSingle();
+    }
 
     [Fact]
     public async Task A_report_is_stored_with_its_chat_lines_and_answered_as_sent()
@@ -357,14 +391,20 @@ public sealed class CallForHelpReportTests : IDisposable
         return harness;
     }
 
-    private CallForHelpService Service() =>
-        new(
+    private CallForHelpService Service()
+    {
+        _fakes.Handlers["HasAsync"] = call =>
+            Task.FromResult(!_muted || (string)call.Args[0]! != PermissionNodes.Chat.SPEAK);
+
+        return new(
             _db,
-            Options.Create(new OperationsConfig()),
+            Options.Create(_config),
             new Fakes().Create<IHotelTextProvider>(),
             new ManualTimeProvider(new DateTimeOffset(NOW)),
-            new Fakes().Create<IModerationIssueService>()
+            new Fakes().Create<IModerationIssueService>(),
+            _fakes.Create<Orleans.IGrainFactory>()
         );
+    }
 
     private async Task<List<CfhReportEntity>> Reports()
     {
