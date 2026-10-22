@@ -5,6 +5,7 @@ using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
 using Turbo.PacketHandlers.Turbo;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Incoming.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
@@ -143,7 +144,8 @@ public class CommandTreeDeliveryTests
             _fakes.Create<Orleans.IGrainFactory>(),
             new ExtensionPacketRegistry(),
             tree,
-            _fakes.Create<IHotelCountdownNotice>()
+            _fakes.Create<IHotelCountdownNotice>(),
+            _fakes.Create<IClientModuleDirectory>()
         );
 
         await handler.HandleAsync(
@@ -178,7 +180,8 @@ public class CommandTreeDeliveryTests
             _fakes.Create<Orleans.IGrainFactory>(),
             new ExtensionPacketRegistry(),
             tree,
-            _fakes.Create<IHotelCountdownNotice>()
+            _fakes.Create<IHotelCountdownNotice>(),
+            _fakes.Create<IClientModuleDirectory>()
         );
 
         await handler.HandleAsync(

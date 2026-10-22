@@ -448,7 +448,8 @@ internal sealed partial class PluginAdministration(
                     .Select(m => m.TablePrefix)
                     .OfType<string>(),
             ],
-            roots
+            roots,
+            manager.FolderOf(key)
         );
     }
 
@@ -463,7 +464,7 @@ internal sealed partial class PluginAdministration(
             .ToFrozenSet(StringComparer.Ordinal);
     }
 
-    /// <summary>"2 tables (14 rows), 1 setting, 3 grants".</summary>
+    /// <summary>"2 tables (14 rows), 1 setting, 3 grants", and ", 2 variables, 5 texts" when it brought any.</summary>
     private static string Summary(ImmutableArray<PluginDataItem> data)
     {
         string Count(PluginDataKind kind, string one, string many)
@@ -475,7 +476,15 @@ internal sealed partial class PluginAdministration(
 
         var rows = data.Where(x => x.Kind == PluginDataKind.Table).Sum(x => x.Count);
 
-        return $"{Count(PluginDataKind.Table, "table", "tables")} ({rows} rows), {Count(PluginDataKind.Setting, "setting", "settings")}, {Count(PluginDataKind.Grant, "grant", "grants")}";
+        var summary =
+            $"{Count(PluginDataKind.Table, "table", "tables")} ({rows} rows), {Count(PluginDataKind.Setting, "setting", "settings")}, {Count(PluginDataKind.Grant, "grant", "grants")}";
+
+        // What it brought of the client's gamedata, only when it brought any.
+        if (data.Any(x => x.Kind is PluginDataKind.Variable or PluginDataKind.Text))
+            summary +=
+                $", {Count(PluginDataKind.Variable, "variable", "variables")}, {Count(PluginDataKind.Text, "text", "texts")}";
+
+        return summary;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -46,4 +47,32 @@ public interface IGamedataTextService
     /// Habbo changes it.
     /// </summary>
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct);
+
+    /// <summary>The hotel's values of the keys it has.</summary>
+    public Task<IReadOnlyDictionary<string, string>> GetValuesAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Adds the texts the hotel has none of, leaving every one it has as it is: a plugin's own, as
+    /// it loads. A text the file can't hold is left out. One change set by nobody, with
+    /// <paramref name="summary"/>; null when the hotel had them all.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> SeedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Removes the texts that still hold the value given, leaving any the hotel changed: a plugin's
+    /// own, as it is uninstalled. One change set; null when none was left as given.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> RemoveUnchangedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        PlayerId player,
+        CancellationToken ct
+    );
 }

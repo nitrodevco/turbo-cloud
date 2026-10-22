@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Camera;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Navigator;
@@ -57,6 +59,13 @@ namespace Turbo.Gamedata.Api;
 /// the gamedata on passes it too. Its owner can take it again at any time, so the browser asks
 /// again each time it shows it (<c>no-cache</c>, answered 304 while it is the same), the 404 of a
 /// room without one included.</item>
+/// <item><c>/gamedata/plugins/&lt;key&gt;/&lt;path&gt;</c> is a file of a plugin's client module
+/// (<see cref="IClientModuleDirectory"/>), from the plugin folder's <c>wwwroot/</c>: GET only, and
+/// never a hidden file or one outside the folder. Asked for with <c>?v=</c> its own hash's start, as
+/// the module's address is, it is cached for good; otherwise the browser asks again each time
+/// (<c>no-cache</c>, answered 304 while it is the same), so a module's own imports always load the
+/// files beside it. Under <c>/gamedata/</c>, so the reverse proxy that passes the gamedata on
+/// passes it too.</item>
 /// </list>
 /// Anyone may load them, from any site: they are what every player's client downloads. Its own
 /// small web host beside the silo, off unless <see cref="GamedataConfig.Enabled"/>.
@@ -95,6 +104,12 @@ internal sealed class GamedataServer(
     /// <summary>Where a room's thumbnail is served, before <c>&lt;room id&gt;.png</c>.</summary>
     public const string ROOM_THUMBNAIL_ROUTE = "/gamedata/navigator-thumbnail/";
 
+    /// <summary>Where a client module's files are served, before <c>&lt;plugin key&gt;/&lt;path&gt;</c>.</summary>
+    public const string PLUGIN_FILES_ROUTE = "/gamedata/plugins/";
+    private const string PLUGIN_FILE_CACHE = "public, no-cache";
+
+    private static readonly FileExtensionContentTypeProvider CONTENT_TYPES = new();
+
     private WebApplication? _app;
 
     public async Task StartAsync(CancellationToken ct)
@@ -124,6 +139,7 @@ internal sealed class GamedataServer(
         var photos = services.GetService<ICameraPhotoFiles>();
         var starterRooms = services.GetService<IStarterRoomDirectory>();
         var thumbnails = services.GetService<IRoomThumbnailFiles>();
+        var modules = services.GetService<IClientModuleDirectory>();
 
         // Behind the reverse proxy the request comes from loopback; its forwarded headers give
         // the scheme and host clients used, which the hashes list's addresses are built on.
@@ -172,6 +188,11 @@ internal sealed class GamedataServer(
             app.MapGet(
                 ROOM_THUMBNAIL_ROUTE + "{roomId:int}.png",
                 (HttpContext http, int roomId) => RoomThumbnail(http, thumbnails, roomId)
+            );
+        if (modules is not null)
+            app.MapGet(
+                PLUGIN_FILES_ROUTE + "{key}/{**path}",
+                (HttpContext http, string key, string path) => PluginFile(http, modules, key, path)
             );
         app.MapGet(
             "/gamedata/{file}/{version}",
@@ -316,6 +337,42 @@ internal sealed class GamedataServer(
             Path.GetFullPath(file),
             "image/png",
             lastModified: File.GetLastWriteTimeUtc(file)
+        );
+    }
+
+    /// <summary>
+    /// A file of a plugin's client module; 404 when there is none. Cached for good when asked for
+    /// by its own hash, as the module's address is; otherwise asked for again each time.
+    /// </summary>
+    internal static IResult PluginFile(
+        HttpContext http,
+        IClientModuleDirectory modules,
+        string key,
+        string path
+    )
+    {
+        var file = modules.FindFile(key, path);
+
+        if (file is null)
+            return Results.NotFound();
+
+        var hash = modules.HashOf(file);
+        var version = http.Request.Query["v"].ToString();
+        var headers = http.Response.Headers;
+        var tag = $"\"{hash}\"";
+
+        headers.CacheControl =
+            version.Length > 0 && hash.StartsWith(version, StringComparison.Ordinal)
+                ? IMMUTABLE
+                : PLUGIN_FILE_CACHE;
+        headers.ETag = tag;
+
+        if (http.Request.Headers.IfNoneMatch.Contains(tag))
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+
+        return Results.File(
+            file,
+            CONTENT_TYPES.TryGetContentType(file, out var type) ? type : "application/octet-stream"
         );
     }
 

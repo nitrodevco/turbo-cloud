@@ -5133,6 +5133,12 @@ public class Revision20260909 : IRevision
                 typeof(TurboNoticeMessage),
                 new TurboNoticeMessageSerializer(MessageComposer.TurboNoticeMessageComposer)
             },
+            {
+                typeof(TurboClientModulesMessage),
+                new TurboClientModulesMessageSerializer(
+                    MessageComposer.TurboClientModulesMessageComposer
+                )
+            },
             #endregion
 
             #region Userclassification

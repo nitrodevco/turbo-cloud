@@ -263,6 +263,138 @@ internal sealed class GamedataTextService(
             ct
         );
 
+    public async Task<IReadOnlyDictionary<string, string>> GetValuesAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var wanted = keys.ToList();
+
+        return await dbCtx
+            .GamedataTexts.AsNoTracking()
+            .Where(x => wanted.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+    }
+
+    public Task<GamedataChangeSetSnapshot?> SeedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        CancellationToken ct
+    ) => Writes.RunAsync(() => SeedLockedAsync(values, summary, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> SeedLockedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var wanted = values.Keys.ToList();
+        var known = (
+            await dbCtx
+                .GamedataTexts.AsNoTracking()
+                .Where(x => wanted.Contains(x.Key))
+                .Select(x => x.Key)
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rows = values
+            .Where(x => !known.Contains(x.Key) && Fits(x.Key, x.Value))
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(x => new GamedataTextEntity { Key = x.Key, Value = x.Value })
+            .ToList();
+
+        if (rows.Count == 0)
+            return null;
+
+        dbCtx.GamedataTexts.AddRange(rows);
+
+        // The rows first, so the changes can name their ids.
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            summary,
+            null,
+            [.. rows.Select(x => Change(GamedataRecordType.Text, x.Key, null, x.Value, x.Id))]
+        );
+
+        dbCtx.GamedataChangeSets.Add(changeSet);
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        Changed();
+
+        return changeSet.ToSnapshot(changeSet.Changes!.Count);
+    }
+
+    public Task<GamedataChangeSetSnapshot?> RemoveUnchangedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        PlayerId player,
+        CancellationToken ct
+    ) => Writes.RunAsync(() => RemoveUnchangedLockedAsync(values, summary, player, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> RemoveUnchangedLockedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var wanted = values.Keys.ToList();
+        var rows = (
+            await dbCtx
+                .GamedataTexts.Where(x => wanted.Contains(x.Key))
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
+            .Where(x => values.TryGetValue(x.Key, out var value) && value == x.Value)
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .ToList();
+
+        if (rows.Count == 0)
+            return null;
+
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            summary,
+            player,
+            [.. rows.Select(x => Change(GamedataRecordType.Text, x.Key, x.Value, null, x.Id))]
+        );
+
+        dbCtx.GamedataTexts.RemoveRange(rows);
+        dbCtx.GamedataChangeSets.Add(changeSet);
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        Changed();
+
+        return changeSet.ToSnapshot(changeSet.Changes!.Count);
+    }
+
+    /// <summary>Whether the file can hold the text as it is (<see cref="CheckKey"/>, <see cref="CheckValue"/>).</summary>
+    private static bool Fits(string key, string value)
+    {
+        try
+        {
+            return CheckKey(key) == key && CheckValue(value) == value;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>A key the file can hold: one line, before the first <c>=</c>, not a comment.</summary>
     internal static string CheckKey(string key)
     {

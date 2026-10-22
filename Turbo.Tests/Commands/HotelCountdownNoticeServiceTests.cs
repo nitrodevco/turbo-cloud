@@ -7,6 +7,7 @@ using Turbo.Operations;
 using Turbo.Operations.Configuration;
 using Turbo.PacketHandlers.Turbo;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Incoming.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Availability;
@@ -247,7 +248,8 @@ public class HotelCountdownNoticeServiceTests
             _fakes.Create<Orleans.IGrainFactory>(),
             new ExtensionPacketRegistry(),
             _fakes.Create<ICommandTreeService>(),
-            _notice
+            _notice,
+            _fakes.Create<IClientModuleDirectory>()
         );
 
         await handler.HandleAsync(
