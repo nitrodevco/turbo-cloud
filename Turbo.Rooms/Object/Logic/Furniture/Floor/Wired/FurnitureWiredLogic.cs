@@ -402,6 +402,12 @@ public abstract partial class FurnitureWiredLogic(
 
                 if (index < update.FurniSources.Count && update.FurniSources[index] is { } proposed)
                 {
+                    RefuseUnofferedSources(
+                        proposed,
+                        validFurniSources[index],
+                        WiredSaveErrors.INVALID_FURNI_SOURCE
+                    );
+
                     // Only sources this box offers survive; with none left the default stands.
                     var allowed = proposed
                         .Where(validFurniSources[index].Contains)
@@ -438,6 +444,12 @@ public abstract partial class FurnitureWiredLogic(
                     && update.PlayerSources[index] is { } proposed
                 )
                 {
+                    RefuseUnofferedSources(
+                        proposed,
+                        validPlayerSources[index],
+                        WiredSaveErrors.INVALID_USER_SOURCE
+                    );
+
                     // Only sources this box offers survive; with none left the default stands.
                     var allowed = proposed
                         .Where(validPlayerSources[index].Contains)
@@ -674,6 +686,19 @@ public abstract partial class FurnitureWiredLogic(
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// A save naming a source its slot does not offer is refused, as Habbo does (official client
+    /// capture 2026-10-22: a bot box's users slot saved with 100 or its bots slot with 900 ->
+    /// <c>wiredfurni.error.invalid_user_source</c>; Condition Evaluation's furni slot with 900 ->
+    /// <c>wiredfurni.error.invalid_furni_source</c>). <see cref="Configuration.WiredConfig.RefuseInvalidSources"/>
+    /// off keeps the offered ones and falls back to the slot's default.
+    /// </summary>
+    private void RefuseUnofferedSources<T>(T[] proposed, T[] offered, string errorKey)
+    {
+        if (WiredConfig.RefuseInvalidSources && proposed.Any(x => !offered.Contains(x)))
+            throw new WiredSaveRefusedException(errorKey);
     }
 
     /// <summary>

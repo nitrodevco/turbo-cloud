@@ -23,7 +23,8 @@ public class WiredActionBotFollowAvatar(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [BotSources, UserSources];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

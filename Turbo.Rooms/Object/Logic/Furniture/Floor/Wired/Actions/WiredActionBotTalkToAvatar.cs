@@ -43,7 +43,8 @@ public class WiredActionBotTalkToAvatar(
     public override Task<bool> RefreshEditorContextAsync(CancellationToken ct) =>
         Task.FromResult(true);
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [BotSources, UserSources];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
