@@ -10,11 +10,11 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// "Can Perform Movements": true when every furni move the stack's effects are about to make can
-/// be made. The box has no options; the moves are the ones the effects that would run make, in
-/// the order they would run them, each from where the moves before it left the furni
-/// (<see cref="Turbo.Rooms.Grains.Systems.RoomWiredSystem"/> works them out before the conditions are asked). A failed move
-/// fails the condition, and with it the stack.
+/// "Can Perform Movements": true when every furni move of one random order of the stack's effects
+/// can be made, each from where the moves before it left the furni. The box has no options; the
+/// order is its own, drawn apart from the one the effects then run in, "Execute In Order" or not
+/// (<see cref="Turbo.Rooms.Grains.Systems.RoomWiredSystem"/> works the moves out before the
+/// conditions are asked). A failed move fails the condition, and with it the stack.
 /// </summary>
 [RoomObjectLogic("wf_cnd_valid_moves")]
 public class WiredConditionValidMoves(

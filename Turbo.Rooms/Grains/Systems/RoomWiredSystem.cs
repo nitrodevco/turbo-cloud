@@ -621,19 +621,25 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return;
         }
 
-        // "Can Perform Movements" asks about moves that have not been made: the effects that would
-        // run are picked and put in order first, and their moves worked out on a ghost of the room.
-        // That pick is the one that runs if the conditions pass.
-        WiredActionPick? positivePick = null;
-
+        // "Can Perform Movements" asks about moves that have not been made: it draws its own pick
+        // of the effects, in a random order whether or not "Execute In Order" is on, and works
+        // their moves out on a ghost of the room. The effects that then run are picked and put in
+        // order again, so a pass does not promise those moves (official client capture,
+        // WIN63-202610201032, two move and two rotate effects on one sofa: the condition passed
+        // 24 of 44 firings and 13 of those 24 ran an order that blocked; with Execute In Order
+        // the effects ran in stack order 15 of 15 while the condition still failed 25 of 40).
         if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
         {
-            positivePick = ChooseActions(
+            var checkedPick = PickActions(
                 ActionsOfSide(ctx.Stack, negative: false),
                 ctx.Policy,
                 ctx.Stack.StackId
             );
-            ctx.MovePlans = PlanMoves(ctx, positivePick.Actions);
+
+            if (checkedPick.Actions.Count > 1)
+                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedPick.Actions));
+
+            ctx.MovePlans = PlanMoves(ctx, checkedPick.Actions);
         }
 
         // A stack call, positive or negative, runs the called stack "regardless of existing
@@ -660,18 +666,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         // A stack call runs the positive actions; a trigger runs the side its conditions chose.
-        var pick = passed
-            ? positivePick
-                ?? ChooseActions(
-                    ActionsOfSide(ctx.Stack, negative: false),
-                    ctx.Policy,
-                    ctx.Stack.StackId
-                )
-            : ChooseActions(
-                ActionsOfSide(ctx.Stack, negative: true),
-                ctx.Policy,
-                ctx.Stack.StackId
-            );
+        var pick = ChooseActions(
+            ActionsOfSide(ctx.Stack, negative: !passed),
+            ctx.Policy,
+            ctx.Stack.StackId
+        );
 
         if (pick.Actions.Count == 0)
             return;
@@ -681,7 +680,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
-        ScheduleStackExecution(ctx, pick.Actions, passed ? ctx.MovePlans : null, now);
+        ScheduleStackExecution(ctx, pick.Actions, now);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
@@ -966,7 +965,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private void ScheduleStackExecution(
         WiredProcessingContext ctx,
         List<IWiredAction> actions,
-        Dictionary<IWiredAction, WiredMovePlan>? movePlans,
         long dueAtMs
     )
     {
@@ -996,7 +994,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             NextActionIndex = 0,
             VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
             ContextValues = ctx.ContextValues,
-            MovePlans = movePlans,
         };
 
         // Without a delay the actions run in the execution that chose them; with one, they are
@@ -1088,6 +1085,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        var heldMoves = new WiredHeldFloorMoves(pending.Policy.ExecuteInOrder);
+
         for (var i = pending.NextActionIndex; i < pending.Actions.Count; i++)
         {
             var action = pending.Actions[i];
@@ -1110,6 +1109,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 if (delayMs > 0)
                 {
                     // What ran before the wait is one change; what runs after it is another.
+                    SendHeldFloorMoves(heldMoves);
                     await FlushVariableChangesAsync(pending, ct);
 
                     pending.WaitingActionIndex = i;
@@ -1164,12 +1164,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 try
                 {
-                    // A mover whose moves were checked makes those moves, not new ones.
-                    succeeded =
-                        action is FurnitureWiredMoveActionLogic mover
-                        && pending.MovePlans?.GetValueOrDefault(action) is { } plan
-                            ? await mover.ApplyAsync(ctx, plan)
-                            : await action.ExecuteAsync(ctx, ct);
+                    succeeded = await action.ExecuteAsync(ctx, ct);
                 }
                 finally
                 {
@@ -1177,7 +1172,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     _running = outerRunning;
                 }
 
-                FlushWiredContext(ctx);
+                FlushWiredContext(ctx, heldMoves);
             }
             catch (Exception ex)
             {
@@ -1196,6 +1191,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
         }
 
+        SendHeldFloorMoves(heldMoves);
         await FlushVariableChangesAsync(pending, ct);
 
         return true;
@@ -1297,9 +1293,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// What one action moved and changed, as one room message in the order it always went out:
     /// the moves, then the floor states, then the wall states. It is one message per action, not
     /// per tick, because an action also reaches the room by other routes (a chat bubble, a furni
-    /// put down or taken away) and a later action's moves must not overtake those.
+    /// put down or taken away) and a later action's moves must not overtake those. The furni
+    /// moves of a stack's effects are the exception: they go into <paramref name="heldMoves"/>
+    /// and out together once the effects have run (<see cref="WiredHeldFloorMoves"/>).
     /// </summary>
-    private void FlushWiredContext(WiredExecutionContext ctx)
+    private void FlushWiredContext(WiredExecutionContext ctx, WiredHeldFloorMoves? heldMoves = null)
     {
         var composers = ImmutableArray.CreateBuilder<IComposer>(3);
         var shownOrHidden =
@@ -1310,6 +1308,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     ctx.HiddenBeforeMove
                 )
                 : [];
+
+        heldMoves?.Hold(ctx.FloorItemMoves);
 
         if (
             ctx.UserMoves.Count > 0
@@ -1348,6 +1348,37 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             );
 
         _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
+    }
+
+    /// <summary>Tells the room the furni moves a stack's effects made (<see cref="WiredHeldFloorMoves"/>).</summary>
+    private void SendHeldFloorMoves(WiredHeldFloorMoves heldMoves)
+    {
+        if (heldMoves.IsEmpty)
+            return;
+
+        var composers = ImmutableArray.CreateBuilder<IComposer>(1 + heldMoves.Turned.Count);
+
+        foreach (var objectId in heldMoves.Turned)
+        {
+            if (FurniModule.TryGetItem(objectId, out var item))
+                composers.Add(item.GetUpdateComposer());
+        }
+
+        if (heldMoves.Moves.Count > 0)
+            composers.Add(
+                new WiredMovementsMessageComposer
+                {
+                    Users = [],
+                    FloorItems = [.. heldMoves.Moves],
+                    WallItems = [],
+                    UserDirections = [],
+                }
+            );
+
+        heldMoves.Clear();
+
+        if (composers.Count > 0)
+            _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
     }
 
     private async Task ProcessWiredStacksAsync(long now, CancellationToken ct)

@@ -10,9 +10,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
 /// An action that moves furni. It works its moves out first (<see cref="PlanMoves"/>) and makes
-/// them after, so a stack with "Can Perform Movements" can check every move its effects are about
-/// to make, in the order they will run, before any of them happens; the moves then made are the
-/// ones checked, random rolls included. Without that condition an action plans and moves at once.
+/// them after, so "Can Perform Movements" can work out the moves of a random order of the stack's
+/// effects on a ghost of the room before any of them happens. Running, an action plans and moves
+/// at once.
 /// </summary>
 public abstract class FurnitureWiredMoveActionLogic(
     IGrainFactory grainFactory,
@@ -64,7 +64,7 @@ public abstract class FurnitureWiredMoveActionLogic(
         return plan;
     }
 
-    internal async Task<bool> ApplyAsync(IWiredExecutionContext ctx, WiredMovePlan plan) =>
+    private async Task<bool> ApplyAsync(IWiredExecutionContext ctx, WiredMovePlan plan) =>
         await plan.ApplyAsync(ctx) || SucceedsWithoutMoving;
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>

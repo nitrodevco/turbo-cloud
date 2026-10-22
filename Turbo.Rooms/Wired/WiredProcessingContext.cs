@@ -16,9 +16,9 @@ public sealed class WiredProcessingContext(RoomGrain roomGrain)
     public IWiredTrigger? Trigger { get; init; }
 
     /// <summary>
-    /// The furni moves the stack's effects will make if its conditions pass, worked out before
-    /// they are asked, in the order the effects will run; what "Can Perform Movements" reads.
-    /// Null when the stack has no such condition.
+    /// The furni moves of one random order of the stack's effects, worked out before its
+    /// conditions are asked; what "Can Perform Movements" reads. The effects that run if they pass
+    /// are put in order again. Null when the stack has no such condition.
     /// </summary>
     internal Dictionary<IWiredAction, WiredMovePlan>? MovePlans { get; set; }
 }

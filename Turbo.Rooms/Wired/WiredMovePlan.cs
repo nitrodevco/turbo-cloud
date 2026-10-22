@@ -12,9 +12,9 @@ namespace Turbo.Rooms.Wired;
 
 /// <summary>
 /// One action's furni moves, worked out on a <see cref="WiredGhostLayout"/> before any of them is
-/// made: every random roll is taken here, once, so the moves that run are the moves that were
-/// checked. Applying it makes them in order, each checked again against the room as it then
-/// is, since a delay may have changed it; a move the room no longer takes is skipped. What the
+/// made: every random roll is taken here, once, so the moves made are the moves planned. Applying
+/// it makes them in order, each checked again against the room as it then is; a move the room
+/// no longer takes is skipped. What the
 /// action does besides moving (a collision, a state, a heading it remembers) is held back with
 /// <see cref="Then(Action)"/> and happens in its place among the moves.
 /// </summary>
