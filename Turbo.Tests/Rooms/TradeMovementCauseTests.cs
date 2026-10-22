@@ -38,6 +38,8 @@ public sealed class TradeMovementCauseTests
                 }
             );
         _fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        // Both own the trading pass badge.
+        _fakes.Handlers["HasBadgeAsync"] = _ => Task.FromResult(true);
         _fakes.Handlers[nameof(IInventoryGrain.TransferFurnitureAsync)] = _ =>
             Task.FromResult(true);
     }

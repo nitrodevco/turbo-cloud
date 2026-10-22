@@ -67,7 +67,11 @@ string literals above are the live set. The six it declares and never reads:
 
 `TRADE` is worth singling out: the server sends it and the Flash client ignores it, so **trading
 is not perk-gated client-side**. Whatever gates trading has to be enforced on the server. Same
-for `CALL_ON_HELPERS` and `VOTE_IN_COMPETITIONS`.
+for `CALL_ON_HELPERS` and `VOTE_IN_COMPETITIONS`. The server's gates are the `trade` node (a trade
+lock) and the trading pass (`Turbo:Trading`, `TradingConfig`): Habbo refuses a trade with either
+side lacking the pass badge `ACH_TraderPass1` (a prize of the Introduction reward track), and
+sells nothing on the marketplace for them. The `TRADE` perk still follows the node alone; Habbo
+sends it refused (`requirement.unfulfilled.citizenship_level_3`) to an account without the pass.
 
 `HEIGHTMAP_EDITOR_BETA` is a dead code in this revision — the floor plan editor is gated on
 Builders Club and `hasSecurity(4)` instead (see `docs/builders-club.md` §7).

@@ -8,8 +8,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Players.Configuration;
+using Turbo.Players.Trading;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -42,7 +45,11 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
     /// <summary>Credits cannot be offered by this client, so both sides always carry none.</summary>
     private const int NO_CREDITS = 0;
 
+    /// <summary>The notification Habbo sends a player who starts a trade without the trading pass.</summary>
+    private const string TRADING_PERK = "trade.trading_perk";
+
     private readonly RoomConfig _roomConfig;
+    private readonly IOptionsMonitor<TradingConfig> _tradingConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IRoomTradeGrain> _logger;
 
@@ -52,11 +59,13 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
     public RoomTradeGrain(
         IOptions<RoomConfig> roomConfig,
+        IOptionsMonitor<TradingConfig> tradingConfig,
         IGrainFactory grainFactory,
         ILogger<IRoomTradeGrain> logger
     )
     {
         _roomConfig = roomConfig.Value;
+        _tradingConfig = tradingConfig;
         _grainFactory = grainFactory;
         _logger = logger;
 
@@ -168,22 +177,65 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             return false;
         }
 
-        if (!parties.InitiatorMayTrade || !await HasTradePerkAsync(parties.InitiatorId, ct))
+        if (!parties.InitiatorMayTrade || !parties.PartnerMayTrade)
         {
-            await _grainFactory.SendComposerToPlayerAsync(
+            await SendOpenFailedAsync(
                 parties.InitiatorId,
-                new TradingYouAreNotAllowedEventMessageComposer(),
+                TradeOpenFailedType.RoomDisallows,
+                parties.PartnerName,
                 ct
             );
 
             return false;
         }
 
-        if (!parties.PartnerMayTrade || !await HasTradePerkAsync(parties.PartnerId, ct))
+        if (!await HasTradePerkAsync(parties.InitiatorId, ct))
+        {
+            await SendOpenFailedAsync(
+                parties.InitiatorId,
+                TradeOpenFailedType.YouAreTradeLocked,
+                parties.PartnerName,
+                ct
+            );
+
+            return false;
+        }
+
+        var config = _tradingConfig.CurrentValue;
+        var initiatorHasPass = await _grainFactory.HoldsTradingPassAsync(
+            config,
+            parties.InitiatorId,
+            ct
+        );
+
+        // Habbo answers a player without the pass with a notification of its own, and the
+        // partner hears nothing (official client capture, 2026-10-17 and 2026-10-22).
+        if (!initiatorHasPass && config.PassMode == TradingPassMode.Required)
         {
             await _grainFactory.SendComposerToPlayerAsync(
                 parties.InitiatorId,
-                new TradingOtherNotAllowedEventMessageComposer(),
+                new NotificationDialogMessageComposer { NotificationType = TRADING_PERK },
+                ct
+            );
+
+            return false;
+        }
+
+        var partnerHasPass = await _grainFactory.HoldsTradingPassAsync(
+            config,
+            parties.PartnerId,
+            ct
+        );
+
+        if (
+            !await HasTradePerkAsync(parties.PartnerId, ct)
+            || (!partnerHasPass && config.PassMode == TradingPassMode.Required)
+        )
+        {
+            await SendOpenFailedAsync(
+                parties.InitiatorId,
+                TradeOpenFailedType.OtherCannotTrade,
+                parties.PartnerName,
                 ct
             );
 
@@ -195,6 +247,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             InitiatorId = parties.InitiatorId,
             PartnerId = parties.PartnerId,
         };
+
+        session.InitiatorSide.CanOffer = initiatorHasPass;
+        session.PartnerSide.CanOffer = partnerHasPass;
 
         _state.TradesByPlayerId[session.InitiatorId] = session;
         _state.TradesByPlayerId[session.PartnerId] = session;
@@ -208,9 +263,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             new TradingOpenEventMessageComposer
             {
                 PlayerId = session.InitiatorId,
-                PlayerCanTrade = true,
+                PlayerCanTrade = initiatorHasPass,
                 OtherPlayerId = session.PartnerId,
-                OtherPlayerCanTrade = true,
+                OtherPlayerCanTrade = partnerHasPass,
             },
             ct
         );
@@ -236,6 +291,20 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
         }
 
         var side = session.SideOf(ctx.PlayerId);
+
+        // A player without the pass, where the hotel lets them receive only: the client hides
+        // their offer button, and this warning is what the trade window shows if one gets here.
+        if (!side.CanOffer)
+        {
+            await _grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new TradingYouAreNotAllowedEventMessageComposer(),
+                ct
+            );
+
+            return false;
+        }
+
         var wanted = itemIds.Where(id => !side.Items.ContainsKey(id)).Distinct().ToImmutableArray();
 
         if (wanted.Length == 0)

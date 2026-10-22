@@ -14,6 +14,8 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Extensions;
 using Turbo.Database.Movements;
+using Turbo.Players.Configuration;
+using Turbo.Players.Trading;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -45,6 +47,7 @@ namespace Turbo.Catalog.Marketplace;
 public sealed class MarketplaceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<CatalogConfig> config,
+    IOptionsMonitor<TradingConfig> tradingConfig,
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider definitions,
     IInventoryFurnitureLoader furnitureLoader,
@@ -303,6 +306,9 @@ public sealed class MarketplaceService(
                 tokens
             );
 
+        if (!await HoldsPassAsync(player, ct).ConfigureAwait(false))
+            return new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.NoTradingPass, tokens);
+
         if (TokensUsed && tokens <= 0)
             return new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.NoTokens, 0);
 
@@ -330,6 +336,7 @@ public sealed class MarketplaceService(
             || price < _config.OfferMinPrice
             || price > _config.OfferMaxPrice
             || !await CanTradeAsync(player, ct).ConfigureAwait(false)
+            || !await HoldsPassAsync(player, ct).ConfigureAwait(false)
         )
             return MarketplaceMakeOfferCode.TechnicalError;
 
@@ -893,6 +900,13 @@ public sealed class MarketplaceService(
         await grainFactory
             .HasPermissionAsync(player, PermissionNodes.TRADE, ct)
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Selling gives items away, so it asks for the trading pass whenever trading does; a hotel
+    /// that lets players without it receive in trades still keeps them from selling.
+    /// </summary>
+    private Task<bool> HoldsPassAsync(PlayerId player, CancellationToken ct) =>
+        grainFactory.HoldsTradingPassAsync(tradingConfig.CurrentValue, player, ct);
 
     private async Task<int> TokensAsync(PlayerId player, CancellationToken ct)
     {

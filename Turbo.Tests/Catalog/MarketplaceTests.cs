@@ -12,6 +12,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Movements;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -31,6 +32,7 @@ using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -74,6 +76,11 @@ public sealed class MarketplaceTests : IDisposable
     };
     private int _nextItemId = 500;
 
+    /// <summary>Whether a player owns the trading pass badge.</summary>
+    private bool _holdsPass = true;
+
+    private readonly TestOptionsMonitor<TradingConfig> _trading = new(new TradingConfig());
+
     /// <summary>The causes the inventories were handed: what was used up, and what was given.</summary>
     private readonly List<MovementCause> _consumeCauses = [];
     private readonly List<MovementCause> _grantCauses = [];
@@ -111,6 +118,7 @@ public sealed class MarketplaceTests : IDisposable
         fakes.Handlers["TryGetDefinitionBySprite"] = call =>
             definitions.TryGetDefinition((int)call.Args[1]!);
         fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        fakes.Handlers["HasBadgeAsync"] = _ => Task.FromResult(_holdsPass);
         fakes.Handlers["GetItemSnapshotsAsync"] = call =>
         {
             var inventory = _inventories[(long)call.Key!];
@@ -468,6 +476,7 @@ public sealed class MarketplaceTests : IDisposable
             Options.Create(
                 new CatalogConfig { Marketplace = new MarketplaceConfig { Enabled = true } }
             ),
+            _trading,
             _catalog.Fakes.Create<IGrainFactory>(),
             _catalog.Definitions,
             _catalog.Fakes.Create<IInventoryFurnitureLoader>(),
@@ -691,6 +700,33 @@ public sealed class MarketplaceTests : IDisposable
         (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
             .Should()
             .Be(new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.Allowed, 0));
+    }
+
+    [Fact]
+    public async Task Selling_asks_for_the_trading_pass_unless_the_hotel_turned_it_off()
+    {
+        // Flash MarketplaceModel.proceedOfferMaking: code 3 is inventory.marketplace.no_trading_pass
+        // ("Sorry, you need a trading pass to make a marketplace offer.").
+        _holdsPass = false;
+        var lamp = Give(SELLER, LAMP, "");
+
+        (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
+            .Should()
+            .Be(new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.NoTradingPass, 0));
+        (await _marketplace.MakeOfferAsync(SELLER, 10, [-lamp], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.TechnicalError);
+        _inventories[SELLER].Should().ContainKey(lamp, "nothing was listed");
+
+        _trading.Set(new TradingConfig { PassMode = TradingPassMode.ReceiveOnly });
+        (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
+            .Code.Should()
+            .Be(MarketplaceCanMakeOfferCode.NoTradingPass, "receiving only never lets one sell");
+
+        _trading.Set(new TradingConfig { PassMode = TradingPassMode.Off });
+        (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
+            .Code.Should()
+            .Be(MarketplaceCanMakeOfferCode.Allowed);
     }
 
     [Fact]
