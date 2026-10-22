@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Database.Context;
@@ -12,7 +13,8 @@ namespace Turbo.Tests.Support;
 /// <summary>
 /// Builds any Turbo grain without an Orleans runtime: an uninitialized instance, its
 /// &lt;Grain&gt;LiveState created with the given key, dependencies filled by type (the given
-/// database, the furniture custody over it, shipped config defaults, null loggers, a recording grain factory, an event system
+/// database, the furniture custody over it, shipped config defaults (an IOptionsMonitor of one too),
+/// null loggers, a recording grain factory, an event system
 /// with no handlers), and a fake
 /// grain context so timer registration is inert.
 /// </summary>
@@ -101,6 +103,18 @@ public static class GrainHarness
                 f.SetValue(grain, TestCustody.Over(db));
             else if (t.Name.EndsWith("Config", StringComparison.Ordinal) && t.IsClass)
                 f.SetValue(grain, Activator.CreateInstance(t));
+            else if (
+                t.IsGenericType
+                && t.GetGenericTypeDefinition() == typeof(IOptionsMonitor<>)
+                && t.GetGenericArguments()[0].Name.EndsWith("Config", StringComparison.Ordinal)
+            )
+                f.SetValue(
+                    grain,
+                    Activator.CreateInstance(
+                        typeof(TestOptionsMonitor<>).MakeGenericType(t.GetGenericArguments()),
+                        Activator.CreateInstance(t.GetGenericArguments()[0])
+                    )
+                );
             else if (t == typeof(IGrainFactory))
                 f.SetValue(grain, fakes.Create<IGrainFactory>());
             else if (t == typeof(Turbo.Database.Achievements.IAchievementFactRecorder))

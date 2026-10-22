@@ -34,6 +34,9 @@ public sealed class PlayerModule : IHostPluginModule
             builder.Configuration.GetSection(PlayerConfig.SECTION_NAME)
         );
         services.Configure<BadgeConfig>(builder.Configuration.GetSection(BadgeConfig.SECTION_NAME));
+        services.Configure<TradingConfig>(
+            builder.Configuration.GetSection(TradingConfig.SECTION_NAME)
+        );
         services.Configure<PlayerNavigatorConfig>(
             builder.Configuration.GetSection(PlayerNavigatorConfig.SECTION_NAME)
         );

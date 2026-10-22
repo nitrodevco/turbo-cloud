@@ -372,6 +372,8 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
                 }
             );
         _world.Fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
+        // Both own the trading pass badge.
+        _world.Fakes.Handlers["HasBadgeAsync"] = _ => Task.FromResult(true);
 
         var grain = GrainHarness.Create<RoomTradeGrain>(_world.Fakes);
         GrainHarness.Replace(grain, new RoomTradeLiveState { RoomId = ROOM });
