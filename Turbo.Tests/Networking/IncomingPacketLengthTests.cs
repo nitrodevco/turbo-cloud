@@ -80,7 +80,11 @@ public sealed class IncomingPacketLengthTests : IAsyncDisposable
         await SendFrameAsync(Packet(length, 16));
 
         await AssertRefusedAsync(session, $"declared a packet of {length} bytes");
-        session.ReceiveBuffer.Should().BeNull("a refused connection keeps nothing it sent");
+        // The decoder refuses (and sets the close reason) before the receiver lets go of the
+        // buffer, so under load the buffer can still be there the instant the reason is seen.
+        (await WaitUntilAsync(() => session.ReceiveBuffer is null, TimeSpan.FromSeconds(5)))
+            .Should()
+            .BeTrue("a refused connection keeps nothing it sent");
     }
 
     [Fact]
