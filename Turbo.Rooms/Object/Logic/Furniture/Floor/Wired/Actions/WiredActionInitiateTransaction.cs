@@ -101,14 +101,17 @@ public class WiredActionInitiateTransaction(
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.SelectorItems),
         ];
 
-    // The chests slot takes Wired chests and the contracts slot contracts (require_chests and
-    // its note, require_contracts; which box sends which text is inferred from the wording).
+    // The chests slot takes Wired chests (require_chests), the contracts slot contracts, custom
+    // ones too (require_contracts); neither has to hold anything to save (official client
+    // capture 2026-10-22: a custom contract in the chests pick refused, in the contracts pick
+    // saved with no chest; a lamp in the contracts pick refused).
     protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
         slot switch
         {
             SLOT_CHESTS when item.Logic is not FurnitureWiredChestLogic { IsWiredEnabled: true } =>
                 WiredSaveErrors.REQUIRE_CHESTS,
-            SLOT_CONTRACTS when item.Logic is not FurnitureWiredContractLogic =>
+            SLOT_CONTRACTS
+                when item.Logic is not (FurnitureWiredContractLogic or IWiredContractSource) =>
                 WiredSaveErrors.REQUIRE_CONTRACTS,
             _ => null,
         };
@@ -197,26 +200,37 @@ public class WiredActionInitiateTransaction(
     }
 
     /// <summary>
-    /// A custom contract addon on the stack wins, and the transaction is then this box's; a
-    /// picked contract is its own. Null when there is neither, or more than one contract: Habbo
-    /// names that failure "Misconfig Too Many Or No Contracts" (Creator Tools, failure reason 21).
+    /// A custom contract addon on the stack wins over the picked contracts, a picked custom
+    /// contract counting as one of them. The transaction is
+    /// the contract's, the custom one's too ("Contracts are special furniture that define the
+    /// contents of a transaction", <c>special_items.chests.body.wf_xtra_custom_contract.desc</c>),
+    /// and this box's only when no contract was involved, as
+    /// <c>wiredfurni.error.require_contracts_or_trade_wired</c> puts it. Null when there is
+    /// neither, or more than one contract: Habbo names that failure "Misconfig Too Many Or No
+    /// Contracts" (Creator Tools, failure reason 21).
     /// </summary>
     private (WiredContractSnapshot? Contract, RoomObjectId SourceId) ResolveContract(
         IWiredExecutionContext ctx
     )
     {
         if (ctx.Policy.CustomContract is { } custom)
-            return (custom.BuildContract(ctx), ObjectId);
+            return (custom.BuildContract(ctx), custom.ContractFurniId);
 
         var contracts = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CONTRACTS))
             .Select(x => x.Logic)
-            .OfType<FurnitureWiredContractLogic>()
+            .Where(x => x is FurnitureWiredContractLogic or IWiredContractSource)
             .Take(2)
             .ToList();
 
-        return contracts is [var contract]
-            ? (contract.Contract, contract.Context.ObjectId)
-            : (null, ObjectId);
+        return contracts switch
+        {
+            [FurnitureWiredContractLogic contract] => (
+                contract.Contract,
+                contract.Context.ObjectId
+            ),
+            [IWiredContractSource picked] => (picked.BuildContract(ctx), picked.ContractFurniId),
+            _ => (null, ObjectId),
+        };
     }
 
     private int ResolveMultiplier(IWiredExecutionContext ctx)

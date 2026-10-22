@@ -57,7 +57,7 @@ public sealed partial class RoomFurniModule
             await beforeShown();
 
         // Placed in a hidden area: it is there, and out of sight like the rest of the area.
-        if (!IsHiddenByArea(item))
+        if (!IsHidden(item))
             await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
 
         return true;
@@ -93,7 +93,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        var wasHidden = announce && IsHiddenByArea(item);
+        var wasHidden = announce && IsHidden(item);
 
         if (!MapModule.MoveWallItem(item, x, y, z, rot, wallOffset))
             return false;

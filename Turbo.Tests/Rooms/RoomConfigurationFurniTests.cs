@@ -7,6 +7,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Modules;
@@ -29,6 +30,7 @@ public sealed class RoomConfigurationFurniTests
     private const int HIDER = 31;
     private const int INSIDE = 32;
     private const int OUTSIDE = 33;
+    private const int INSIDE_TOO = 34;
     private const int HAND_ITEM = 5;
 
     private readonly WiredRoom _room = new(8, 8);
@@ -147,6 +149,9 @@ public sealed class RoomConfigurationFurniTests
     [Fact]
     public async Task The_hider_hides_its_area_and_what_stands_in_it_and_shows_it_again()
     {
+        // Official client capture 2026-10-22: on = ObjectDataUpdate, one ObjectRemoveMultiple
+        // {ids, picker -1, byInvisibleFurniManager} of the area's furni, AreaHide, then the area's
+        // tiles -1 in a HeightMapUpdate; off = ObjectDataUpdate, one Objects, AreaHide, heights.
         var hider = _room.AddFloorItem(
             HIDER,
             7,
@@ -155,36 +160,32 @@ public sealed class RoomConfigurationFurniTests
             createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(INSIDE, 2, 2);
+        _room.AddFloorItem(INSIDE_TOO, 3, 3);
         _room.AddFloorItem(OUTSIDE, 5, 5);
 
-        (
-            await hider.Logic.OnInteractAsync(
-                Owner,
-                new SetAreaHideInteraction
-                {
-                    RootX = 1,
-                    RootY = 1,
-                    Width = 3,
-                    Length = 3,
-                    Invisibility = false,
-                    WallItems = false,
-                    Invert = false,
-                },
-                Ct
-            )
-        ).Should().BeTrue();
-        _room
-            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
+        (await SetAreaAsync(hider, invisible: false)).Should().BeTrue();
+        AreaHideSends()
             .Should()
-            .BeEmpty("the hider is still off");
+            .Equal(["ObjectDataUpdate"], "a save while it is off is the data alone");
 
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
 
+        AreaHideSends().Should().Equal(["ObjectDataUpdate", "ObjectRemoveMultiple", "AreaHide"]);
         _room
-            .Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>()
-            .Select(x => x.ObjectId)
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
             .Should()
-            .Equal((RoomObjectId)INSIDE);
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    ObjectIdsToRemove = new long[] { INSIDE, INSIDE_TOO },
+                    PickerId = PlayerId.Invalid,
+                    ByInvisibleFurniManager = true,
+                }
+            );
+        (await EncodedHeightAsync(2, 2)).Should().Be(-1, "the area is no floor while hidden");
+        (await EncodedHeightAsync(5, 5)).Should().NotBe(-1);
         var view = await EntryViewAsync();
         view.AreaHides.Should().ContainSingle().Which.On.Should().BeTrue();
         view.FloorItems.Select(x => x.ObjectId)
@@ -193,16 +194,20 @@ public sealed class RoomConfigurationFurniTests
 
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
 
+        AreaHideSends().Should().Equal(["ObjectDataUpdate", "Objects", "AreaHide"]);
         _room
-            .Harness.Fakes.SentToRoom<ObjectAddMessageComposer>()
-            .Select(x => x.FloorItem.ObjectId)
+            .Harness.Fakes.SentToRoom<ObjectsMessageComposer>()
             .Should()
-            .Equal((RoomObjectId)INSIDE);
+            .ContainSingle()
+            .Which.FloorItems.Select(x => x.ObjectId)
+            .Should()
+            .BeEquivalentTo([(RoomObjectId)INSIDE, (RoomObjectId)INSIDE_TOO]);
         _room
             .Harness.Fakes.SentToRoom<AreaHideMessageComposer>()
             .Last()
             .AreaHideData.On.Should()
             .BeFalse();
+        (await EncodedHeightAsync(2, 2)).Should().NotBe(-1);
         (await EntryViewAsync()).AreaHides.Should().BeEmpty();
     }
 
@@ -292,6 +297,150 @@ public sealed class RoomConfigurationFurniTests
     // Player 101 (object 1) hands what they hold to player 102 (object 2), standing beside them.
     private Task<bool> PassHandItemAsync() =>
         _room.Harness.Room.PassHandItemAsync(ActionContext.CreateForPlayer(101, 1), 102, Ct);
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_controller_takes_away_the_invisible_furni_and_brings_them_back(
+        bool invisible
+    )
+    {
+        // Tester report 2026-10-22: "Make this furniture invisible" ticked, and the controller
+        // did nothing to the hider. Official client capture 2026-10-22: on = ObjectDataUpdate,
+        // ConfigurationItemStates, one ObjectRemoveMultiple of the hider set invisible and the
+        // room_invisible_block; off = the same with one Objects bringing them back.
+        var controller = _room.AddFloorItem(
+            CONTROLLER,
+            1,
+            1,
+            "invisible_furni_control",
+            createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
+        );
+        var hider = _room.AddFloorItem(
+            HIDER,
+            7,
+            7,
+            "area_hide",
+            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        );
+        _room.AddFloorItem(INSIDE, 6, 6, className: "room_invisible_block");
+        (await SetAreaAsync(hider, invisible)).Should().BeTrue();
+        AreaHideSends().Should().Equal(["ObjectDataUpdate"], "the option alone hides nothing");
+
+        await controller.Logic.OnUseAsync(Owner, 0, Ct);
+
+        RoomObjectId[] gone = invisible ? [HIDER, INSIDE] : [INSIDE];
+        AreaHideSends()
+            .Should()
+            .Equal(["ObjectDataUpdate", "ConfigurationItemStates", "ObjectRemoveMultiple"]);
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    ObjectIdsToRemove = gone.Select(x => (long)x.Value).ToArray(),
+                    PickerId = PlayerId.Invalid,
+                    ByInvisibleFurniManager = true,
+                }
+            );
+        (await EntryViewAsync()).FloorItems.Select(x => x.ObjectId).Should().NotContain(gone);
+
+        await controller.Logic.OnUseAsync(Owner, 0, Ct);
+
+        AreaHideSends().Should().Equal(["ObjectDataUpdate", "ConfigurationItemStates", "Objects"]);
+        _room
+            .Harness.Fakes.SentToRoom<ObjectsMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.FloorItems.Select(x => x.ObjectId)
+            .Should()
+            .BeEquivalentTo(gone);
+        (await EntryViewAsync()).FloorItems.Select(x => x.ObjectId).Should().Contain(gone);
+    }
+
+    [Fact]
+    public async Task A_hider_made_invisible_while_the_controller_is_on_goes_at_once()
+    {
+        // Official client capture 2026-10-22 (save while on): ObjectDataUpdate, then
+        // ObjectRemoveMultiple [hider], no AreaHide.
+        var controller = _room.AddFloorItem(
+            CONTROLLER,
+            1,
+            1,
+            "invisible_furni_control",
+            createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
+        );
+        var hider = _room.AddFloorItem(
+            HIDER,
+            7,
+            7,
+            "area_hide",
+            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        );
+        await SetAreaAsync(hider, invisible: false);
+        await hider.Logic.OnUseAsync(Owner, 0, Ct);
+        await controller.Logic.OnUseAsync(Owner, 0, Ct);
+        AreaHideSends();
+
+        (await SetAreaAsync(hider, invisible: true)).Should().BeTrue();
+
+        AreaHideSends().Should().Equal(["ObjectDataUpdate", "ObjectRemoveMultiple"]);
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
+            .Last()
+            .ObjectIdsToRemove.Should()
+            .Equal(HIDER);
+        var view = await EntryViewAsync();
+        view.FloorItems.Select(x => x.ObjectId).Should().NotContain((RoomObjectId)HIDER);
+        view.AreaHides.Should().ContainSingle("its area stays hidden");
+    }
+
+    private Task<bool> SetAreaAsync(IRoomFloorItem hider, bool invisible) =>
+        hider.Logic.OnInteractAsync(
+            Owner,
+            new SetAreaHideInteraction
+            {
+                RootX = 1,
+                RootY = 1,
+                Width = 3,
+                Length = 3,
+                Invisibility = invisible,
+                WallItems = false,
+                Invert = false,
+            },
+            Ct
+        );
+
+    // The furni and area packets the room got since the last call, by Habbo's message names.
+    private string[] AreaHideSends()
+    {
+        var all = _room.Harness.Fakes.Sent(SendRoute.Room).ToList();
+        var sent = all.Skip(_seen)
+            .Select(x => x.GetType().Name.Replace("MessageComposer", ""))
+            .Where(x =>
+                x
+                    is "ObjectDataUpdate"
+                        or "ObjectRemove"
+                        or "ObjectRemoveMultiple"
+                        or "ObjectAdd"
+                        or "Objects"
+                        or "AreaHide"
+                        or "ConfigurationItemStates"
+            )
+            .ToArray();
+
+        _seen = all.Count;
+
+        return sent;
+    }
+
+    private int _seen;
+
+    private async Task<short> EncodedHeightAsync(int x, int y) =>
+        (await _room.Harness.Room.GetMapSnapshotAsync(Ct)).TileEncodedHeights[y * 8 + x];
 
     private Task<RoomEntryViewSnapshot> EntryViewAsync() =>
         _room.Harness.Room.GetEntryViewAsync((PlayerId)105, Ct);

@@ -80,7 +80,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             return;
 
         _areaHiders ??= FurniModule.GetActiveAreaHiders();
-        HiddenBeforeMove[item.ObjectId] = _areaHiders.Any(x => x.Hides(item));
+        HiddenBeforeMove[item.ObjectId] = FurniModule.IsHidden(item, _areaHiders);
     }
 
     public async Task<bool> TryMoveFloorItemAsync(

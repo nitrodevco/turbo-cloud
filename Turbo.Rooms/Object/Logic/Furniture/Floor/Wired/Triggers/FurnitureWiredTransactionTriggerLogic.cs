@@ -10,7 +10,6 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 
@@ -18,8 +17,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
 /// The two transaction triggers: they fire for the user whose transaction it was, when it was
-/// for one of the picked contracts (or Initiate Transaction boxes, for a custom contract), or
-/// for any transaction when nothing is picked.
+/// for one of the picked contracts (custom contract addons too), or for any transaction when
+/// nothing is picked.
 /// </summary>
 public abstract class FurnitureWiredTransactionTriggerLogic<TEvent>(
     IGrainFactory grainFactory,
@@ -33,10 +32,12 @@ public abstract class FurnitureWiredTransactionTriggerLogic<TEvent>(
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [WiredSources.PickedFurni];
 
-    // Contracts, or the Initiate Transaction boxes of custom contracts
-    // (wiredfurni.error.require_contracts_or_trade_wired; inferred from its wording).
+    // Contracts, custom ones too; anything else, the Initiate Transaction box included, is
+    // refused with wiredfurni.error.require_contracts_or_trade_wired (official client capture
+    // 2026-10-22, Transaction Completed: custom contract and wf_contract_trade/_payment saved,
+    // a lamp and an Initiate Transaction box refused).
     protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
-        item.Logic is FurnitureWiredContractLogic or WiredActionInitiateTransaction
+        item.Logic is FurnitureWiredContractLogic or IWiredContractSource
             ? null
             : WiredSaveErrors.REQUIRE_CONTRACTS_OR_TRADE_WIRED;
 

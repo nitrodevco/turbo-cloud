@@ -262,6 +262,8 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
     public void ComputeAllTiles()
     {
+        FurniModule.UpdateAreaHiddenTiles();
+
         for (int idx = 0; idx < Size; idx++)
             ComputeTile(idx);
     }
@@ -292,12 +294,17 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         var prevEncoded = State.TileEncodedHeights[id];
         // A tile nothing may be stacked on shows the height its top furni stands at, not that
         // furni's top: a chair on the floor is 0, a bed on a 0.01 floor tile 0.01 (hhus, 2026-10-13).
-        var nextEncoded = EncodeHeight(
-            nextFlags.Has(RoomTileFlags.StackBlocked) && nextHighestItem is not null
-                ? nextHighestItem.Z
-                : nextHeight,
-            nextFlags
-        );
+        // A tile a switched-on area hider takes out of the floor is no tile to the client (official
+        // client capture 2026-10-22: the area's tiles go -1 in the HeightMapUpdate after AreaHide
+        // and in the HeightMap of a room entered with it on, and back when it is switched off).
+        var nextEncoded = FurniModule.IsTileHiddenByArea(id)
+            ? (short)-1
+            : EncodeHeight(
+                nextFlags.Has(RoomTileFlags.StackBlocked) && nextHighestItem is not null
+                    ? nextHighestItem.Z
+                    : nextHeight,
+                nextFlags
+            );
 
         if (prevEncoded != nextEncoded)
         {

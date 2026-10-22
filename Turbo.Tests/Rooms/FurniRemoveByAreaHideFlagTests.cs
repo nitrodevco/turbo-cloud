@@ -3,7 +3,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
@@ -122,12 +121,13 @@ public sealed class FurniRemoveByAreaHideFlagTests
         );
         await hider.Logic.SetStateAsync(1, false);
 
-        Removes(room)
+        // Official client capture 2026-10-22: one ObjectRemoveMultiple of the area's furni.
+        room.Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
             .Should()
             .ContainSingle()
             .Which.Should()
-            .Match<ObjectRemoveMessageComposer>(x =>
-                x.ObjectId == (RoomObjectId)CRATE && x.ByInvisibleFurniManager
+            .Match<ObjectRemoveMultipleMessageComposer>(x =>
+                x.ObjectIdsToRemove.SequenceEqual(new long[] { CRATE }) && x.ByInvisibleFurniManager
             );
 
         await hider.Logic.SetStateAsync(0, false);

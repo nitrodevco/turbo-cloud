@@ -39,12 +39,13 @@ public class WiredActionCancelTransaction(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    // Contracts, or the Initiate Transaction box of a custom contract
-    // (wiredfurni.error.require_contracts_or_trade_wired; inferred from its wording).
+    // Contracts, custom ones too; anything else is refused with wiredfurni.error.require_contracts
+    // (official client capture 2026-10-22: "Specified contract" with a custom contract saved,
+    // with a lamp refused; "Any ongoing transaction" saved with nothing picked).
     protected override string? RefusePickInSlot(int slot, IRoomItem item) =>
-        item.Logic is FurnitureWiredContractLogic or WiredActionInitiateTransaction
+        item.Logic is FurnitureWiredContractLogic or IWiredContractSource
             ? null
-            : WiredSaveErrors.REQUIRE_CONTRACTS_OR_TRADE_WIRED;
+            : WiredSaveErrors.REQUIRE_CONTRACTS;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
@@ -60,7 +61,7 @@ public class WiredActionCancelTransaction(
             :
             [
                 .. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0))
-                    .Where(x => x.Logic is FurnitureWiredContractLogic)
+                    .Where(x => x.Logic is FurnitureWiredContractLogic or IWiredContractSource)
                     .Select(x => x.ObjectId),
             ];
 

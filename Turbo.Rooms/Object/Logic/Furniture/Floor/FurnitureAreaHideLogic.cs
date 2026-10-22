@@ -48,6 +48,12 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     public int ValueAt(int index) =>
         StuffData is INumberStuffData numbers ? numbers.ValueAt(index) : 0;
 
+    /// <summary>
+    /// "Make this furniture invisible": the hider itself goes out of sight while an Invisible
+    /// Furni Controller is on, whether it is on or off.
+    /// </summary>
+    public bool IsInvisible => ValueAt(INVISIBILITY_INDEX) == 1;
+
     /// <summary>Changes one int data value, as a smart variable write does, and announces it.</summary>
     public async Task SetValueAtAsync(int index, int value)
     {
@@ -100,8 +106,9 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         var hiddenBefore = FurniModule.GetHiddenItemIds();
         _detached = false;
 
-        await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });
         await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, ct);
+        await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });
+        FurniModule.RefreshAreaHiddenTiles();
     }
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
@@ -179,6 +186,9 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     {
         _detached = false;
 
+        if (GetActiveArea() is not null)
+            FurniModule.RefreshAreaHiddenTiles();
+
         return base.OnAttachAsync(ct);
     }
 
@@ -194,10 +204,11 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         _detached = true;
 
+        await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, ct);
         await _ctx.SendComposerToRoomAsync(
             new AreaHideMessageComposer { AreaHideData = area with { On = false } }
         );
-        await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, ct);
+        FurniModule.RefreshAreaHiddenTiles();
     }
 
     private AreaHideDataSnapshot? ToSnapshot() =>
@@ -222,34 +233,55 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     /// </summary>
     public bool Hides(IRoomItem item)
     {
-        if (item.ObjectId == _ctx.ObjectId || GetActiveArea() is not { } area)
+        if (item.ObjectId == _ctx.ObjectId)
             return false;
 
         if (item is IRoomWallItem && ValueAt(WALL_ITEMS_INDEX) != 1)
             return false;
 
+        return HidesTile(item.X, item.Y);
+    }
+
+    /// <summary>Whether this hider, switched on, takes the tile out of the floor.</summary>
+    public bool HidesTile(int x, int y)
+    {
+        if (GetActiveArea() is not { } area)
+            return false;
+
         var inside =
-            item.X >= area.RootX
-            && item.X < area.RootX + area.Width
-            && item.Y >= area.RootY
-            && item.Y < area.RootY + area.Length;
+            x >= area.RootX
+            && x < area.RootX + area.Width
+            && y >= area.RootY
+            && y < area.RootY + area.Length;
 
         return inside != area.Invert;
     }
 
     /// <summary>
-    /// Stores new settings and tells the room: the area itself, then the furni it now hides or
-    /// shows again (Habbo: "Fixed floor furni not appearing after revealed by area hider").
+    /// Stores new settings and tells the room as Habbo does (official client capture 2026-10-22):
+    /// the new data, then the furni it now hides or shows again, then the area when the area in
+    /// force changed; the tiles' heights follow with the next flush. Settings saved while it is
+    /// off, or that leave its area as it was, are the data alone.
     /// </summary>
     private async Task ApplyAsync(int[] values, bool refresh = true)
     {
         var hiddenBefore = FurniModule.GetHiddenItemIds();
+        var areaBefore = GetActiveArea();
 
         await SetNumberDataAsync(values, refresh);
 
-        if (ToSnapshot() is { } area)
-            await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });
-
         await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, CancellationToken.None);
+
+        var areaNow = GetActiveArea();
+
+        if (areaNow != areaBefore)
+            await _ctx.SendComposerToRoomAsync(
+                new AreaHideMessageComposer
+                {
+                    AreaHideData = areaNow ?? areaBefore! with { On = false },
+                }
+            );
+
+        FurniModule.RefreshAreaHiddenTiles();
     }
 }

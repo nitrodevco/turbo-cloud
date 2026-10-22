@@ -225,14 +225,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
             foreach (var item in plan.MovedFloorItems)
             {
                 var floorItem = (IRoomFloorItem)item.RoomObject;
-                var wasHidden = FurniModule.IsHiddenByArea(floorItem);
+                var wasHidden = FurniModule.IsHidden(floorItem);
 
                 MapModule.RollFloorItem(floorItem, plan.ToIdx, item.ToZ);
 
                 // A furni an area hider hides rides like a player's move: left out of the
                 // slide while hidden, taken away when it rolls into an area, sent again when
                 // it rolls out.
-                var isHidden = FurniModule.IsHiddenByArea(floorItem);
+                var isHidden = FurniModule.IsHidden(floorItem);
 
                 if (!wasHidden && !isHidden)
                     continue;
