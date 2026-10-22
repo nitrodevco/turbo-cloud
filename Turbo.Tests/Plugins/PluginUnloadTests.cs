@@ -18,7 +18,13 @@ namespace Turbo.Tests.Plugins;
 /// the wait kept the context itself (its parameter) and the caller kept the plugin (its envelope,
 /// in the reload still the live one) while it waited, so the context could never be collected and
 /// each unload or reload waited the full 5 seconds.
+/// The unload waits on garbage collection, which the rest of the suite running beside it can
+/// delay past that timeout, so these run on their own.
 /// </summary>
+[CollectionDefinition("Plugin unload", DisableParallelization = true)]
+public class PluginUnloadCollection { }
+
+[Collection("Plugin unload")]
 public sealed class PluginUnloadTests : IDisposable
 {
     private const string LEAK = "did not unload";
