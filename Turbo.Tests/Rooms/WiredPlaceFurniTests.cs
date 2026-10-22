@@ -293,10 +293,15 @@ public sealed class WiredPlaceFurniTests
                 .Select(x => Convert.ToInt32(x.Key)),
         ];
 
+    // The placement failure's own, as Dialogs(): a loaded machine may also mark the room heavy.
     private List<T> Dialogs<T>(Func<NotificationDialogMessageComposer, T> select) =>
         [
             .. _room
                 .Harness.Fakes.Sent<NotificationDialogMessageComposer>(SendRoute.Direct)
+                .Where(x =>
+                    x.Parameters.TryGetValue("message", out var message)
+                    && message == "${room.error.wired.placement_failure}"
+                )
                 .Select(select),
         ];
 
