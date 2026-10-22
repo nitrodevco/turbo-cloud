@@ -956,6 +956,17 @@ else (a CMS, the load-test bots) are stored as written and work as before: witho
 login and a reusable ("locked") one never is. A plain ticket can only ever log in once, even if two
 logins race with it.
 
+### System accounts
+
+An account the hotel or a plugin acts as (a host, a bot that owns rooms) is a **system account**:
+staff with `admin.players.system` mark it on its page (`PUT /api/players/{id}/system-account`),
+for a player whose every permission they hold, and every change is in the
+[command log](#command-log) as `player system <id> on|off`. A system account is left out of what
+players are shown of other players: the online count (the hotel view's concurrent users goal),
+the friend search, and the badge and achievement leaderboards. It is still a player otherwise: it
+can own rooms, stand in them and be a friend of those it already is. Plugins ask
+`IPlayerDirectoryGrain.GetSystemAccountIdsAsync` for the list.
+
 ### Discord accounts
 
 Players who signed up on the [public site](public-site.md) have a **Discord** card on their page:
@@ -1192,6 +1203,7 @@ passkey; they add more while signed in instead.
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
+| `admin.players.system` | Marking a player as a system or service account, or a person again, for players whose every permission they hold. |
 | `admin.accounts.manage` | Unlinking a player's Discord and signing them out of the public site, for players whose every permission they hold. |
 | `admin.welcome.manage` | The Welcome message tab in Hotel controls: seeing and changing the message every player is shown when they log in. |
 | `catalog.manage` | Changing the catalog on that page, and publishing it to players. |

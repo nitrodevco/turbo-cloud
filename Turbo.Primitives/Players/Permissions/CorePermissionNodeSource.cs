@@ -342,6 +342,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Find any room in the admin panel and see its settings, occupants, rights and bans."
         ),
         new(
+            PermissionNodes.Admin.PLAYERS_SYSTEM,
+            "Mark a player as a system or service account in the admin panel, which keeps them out of the online count, the friend search and the leaderboards."
+        ),
+        new(
             PermissionNodes.Admin.ROOMS_TRANSFER,
             "Give any room to another player in the admin panel."
         ),

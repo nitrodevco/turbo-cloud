@@ -416,19 +416,26 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             _ => ImmutableArray<string>.Empty,
         };
 
-    /// <summary>Badges per player, over every badge or only the given codes.</summary>
+    /// <summary>
+    /// Badges per player, over every badge or only the given codes. System accounts are not on
+    /// a board: they are not players.
+    /// </summary>
     private static IQueryable<PlayerScore> Scores(
         TurboDbContext dbCtx,
         ImmutableArray<string>? codes,
         BadgeLeaderboardType type
     )
     {
+        var systemAccounts = dbCtx.Players.Where(p => p.IsSystemAccount).Select(p => p.Id);
+
         if (type == BadgeLeaderboardType.AchievementLevel)
             return dbCtx
                 .AchievementProjections.AsNoTracking()
-                .Where(x => x.EarnedLevels > 0)
+                .Where(x => x.EarnedLevels > 0 && !systemAccounts.Contains(x.PlayerId))
                 .Select(x => new PlayerScore { PlayerId = x.PlayerId, Score = x.EarnedLevels });
-        var badges = dbCtx.PlayerBadges.AsNoTracking();
+        var badges = dbCtx
+            .PlayerBadges.AsNoTracking()
+            .Where(x => !systemAccounts.Contains(x.PlayerEntityId));
 
         if (codes is { } list)
         {

@@ -156,6 +156,7 @@ public sealed class AdminPlayerQueries(
                 x.LastLoginAt,
                 x.CreatedAt,
                 x.RespectPoints,
+                x.IsSystemAccount,
                 RoomsOwned = x.Rooms!.Count,
             })
             .FirstOrDefaultAsync(ct)
@@ -271,7 +272,8 @@ public sealed class AdminPlayerQueries(
                     signIns
                 ),
             RestrictionOf(restrictions, PermissionNodes.Chat.SPEAK, now),
-            RestrictionOf(restrictions, PermissionNodes.TRADE, now)
+            RestrictionOf(restrictions, PermissionNodes.TRADE, now),
+            player.IsSystemAccount
         );
     }
 

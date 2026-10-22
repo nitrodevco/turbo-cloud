@@ -185,6 +185,48 @@ internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
         return playerId;
     }
 
+    public async Task<ImmutableArray<PlayerId>> GetSystemAccountIdsAsync(CancellationToken ct)
+    {
+        if (_state.SystemAccountIds is { } known)
+            return known;
+
+        var version = _state.SystemAccountsVersion;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var ids = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.IsSystemAccount)
+            .OrderBy(x => x.Id)
+            .Select(x => x.Id)
+            .ToListAsync(ct);
+        var read = ids.Select(PlayerId.Parse).ToImmutableArray();
+
+        // A change made while the query ran is newer than what it read; the next call reads again.
+        if (version == _state.SystemAccountsVersion)
+            _state.SystemAccountIds = read;
+
+        return read;
+    }
+
+    public async Task<bool> SetSystemAccountAsync(
+        PlayerId playerId,
+        bool isSystemAccount,
+        CancellationToken ct
+    )
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var found = await dbCtx
+            .Players.Where(x => x.Id == playerId.Value)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsSystemAccount, isSystemAccount), ct);
+
+        _state.SystemAccountsVersion++;
+        _state.SystemAccountIds = null;
+
+        return found > 0;
+    }
+
     /// <summary>
     /// Caches what a read found, unless the player was cached while the query ran: that entry
     /// came from <see cref="SetPlayerNameAsync"/> or a later read and is at least as new.

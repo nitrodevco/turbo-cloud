@@ -356,6 +356,13 @@ public static class PermissionNodes
         public const string ACCOUNTS_MANAGE = "admin.accounts.manage";
 
         /// <summary>
+        /// Mark a player as a system or service account in the panel, or as a person again: such an
+        /// account is left out of the online count, the friend search and the leaderboards. Only
+        /// for a player whose every node the staff member holds too.
+        /// </summary>
+        public const string PLAYERS_SYSTEM = "admin.players.system";
+
+        /// <summary>
         /// See and change the welcome message every player is shown when they log in, in the
         /// panel's hotel controls.
         /// </summary>

@@ -33,6 +33,9 @@ public sealed class AdminActionLog(
     /// <summary>A badge given or taken on the Content page: <c>badge give|take &lt;code&gt; &lt;player id&gt;</c>.</summary>
     public const string BADGE = "badge";
 
+    /// <summary>A player marked as a system account or a person again: <c>player system &lt;id&gt; on|off</c>.</summary>
+    public const string PLAYER = "player";
+
     /// <summary>A room given to another player: <c>room owner &lt;room id&gt; &lt;player id&gt;</c>.</summary>
     public const string ROOM = "room";
 

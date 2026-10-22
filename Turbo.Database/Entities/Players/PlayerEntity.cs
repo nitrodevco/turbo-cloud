@@ -91,6 +91,15 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(false)]
     public bool OnboardingRoomPending { get; set; }
 
+    /// <summary>
+    /// A system or service account: one the hotel or a plugin acts as, not a person. It stays out
+    /// of what players are shown of other players: the online count, the friend search and the
+    /// leaderboards. Set in the admin panel.
+    /// </summary>
+    [Column("is_system_account")]
+    [DefaultValue(false)]
+    public bool IsSystemAccount { get; set; }
+
     [Column("last_login")]
     public DateTime? LastLoginAt { get; set; }
 

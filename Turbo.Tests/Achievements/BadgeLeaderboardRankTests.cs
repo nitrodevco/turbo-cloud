@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Configuration;
 using Turbo.Players.Grains.Badges;
@@ -125,6 +126,31 @@ public sealed class BadgeLeaderboardRankTests : IDisposable
         page.OwnEntry.Should().NotBeNull();
         page.OwnEntry!.Name.Should().Be($"player-{NO_BADGES}");
         (page.OwnEntry.Rank, page.OwnEntry.Score).Should().Be((BadgeRanks.NONE, 0));
+    }
+
+    [Fact]
+    public async Task A_system_account_is_not_on_the_board()
+    {
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            await db
+                .Players.Where(x => x.Id == TOP)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsSystemAccount, true), Ct);
+
+        var page = await Board()
+            .GetLeaderboardAsync(
+                BadgeLeaderboardType.TotalBadges,
+                rarity: 0,
+                chunkIndex: 0,
+                chunkSize: 10,
+                forPlayerId: LAST,
+                Ct
+            );
+
+        page.TotalEntries.Should().Be(3);
+        page.Entries.Select(x => (x.PlayerId.Value, x.Rank))
+            .Should()
+            .Equal((FIRST_TIED, 1), (SECOND_TIED, 2), (LAST, 3));
+        page.OwnEntry!.Rank.Should().Be(3);
     }
 
     private IBadgeLeaderboardGrain Board(int heldEntries = 500)

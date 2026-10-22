@@ -8,9 +8,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Players;
 using Turbo.Primitives.Authentication;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
@@ -22,7 +24,8 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// Creating players (<c>admin.players.create</c>), a player's login ticket: its status, a new one,
 /// and taking it away (<c>admin.tickets.issue</c>), and how they sign in to the public site:
-/// unlinking their Discord and ending their sign-ins (<c>admin.accounts.manage</c>), each under
+/// unlinking their Discord and ending their sign-ins (<c>admin.accounts.manage</c>), and whether
+/// they are a system account (<c>admin.players.system</c>), each under
 /// <see cref="AdminTicketPolicy"/>.
 /// A new ticket is shown once, in the answer to issuing it; nothing reads it back.
 /// </summary>
@@ -32,6 +35,7 @@ internal sealed class PlayerAccountEndpoints(
     ILoginTicketService tickets,
     AdminTicketPolicy ticketPolicy,
     AdminSiteAccounts siteAccounts,
+    AdminActionLog actions,
     IOptionsMonitor<AdminConfig> config,
     ILogger<PlayerAccountEndpoints> logger
 )
@@ -59,6 +63,57 @@ internal sealed class PlayerAccountEndpoints(
         group
             .MapDelete("/{id:int}/site-sessions", EndSiteSessionsAsync)
             .ChecksInHandler(TICKET_POLICY);
+        group
+            .MapPut("/{id:int}/system-account", SetSystemAccountAsync)
+            .ChecksInHandler(TICKET_POLICY);
+    }
+
+    /// <summary>
+    /// Marks the player as a system or service account, or a person again, with
+    /// <c>admin.players.system</c>; every change is in the command log.
+    /// </summary>
+    private async Task<IResult> SetSystemAccountAsync(
+        HttpContext http,
+        int id,
+        PlayerSystemAccountRequest request,
+        CancellationToken ct
+    )
+    {
+        var player = PlayerId.Parse(id);
+        var staff = AdminIdentity.Of(http).PlayerId;
+
+        if (
+            await ticketPolicy
+                .RefusalAsync(
+                    staff,
+                    player,
+                    PermissionNodes.Admin.PLAYERS_SYSTEM,
+                    "You can't mark system accounts.",
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
+            return AdminResults.Error(StatusCodes.Status403Forbidden, refused);
+
+        var found = await grainFactory
+            .GetPlayerDirectoryGrain()
+            .SetSystemAccountAsync(player, request.SystemAccount, ct)
+            .ConfigureAwait(false);
+
+        await actions
+            .WriteAsync(
+                AdminActionLog.PLAYER,
+                staff,
+                $"system {id} {(request.SystemAccount ? "on" : "off")}",
+                found ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        return found
+            ? Results.NoContent()
+            : AdminResults.Error(StatusCodes.Status404NotFound, $"There is no player {id}.");
     }
 
     /// <summary>

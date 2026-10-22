@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -49,6 +50,18 @@ public sealed class ConcurrentUsersGoalTests
         (progress.State, progress.UserCount, progress.UserCountGoal)
             .Should()
             .Be((ConcurrentUsersGoalState.Disabled, 4, 0));
+    }
+
+    [Fact]
+    public async Task System_accounts_online_are_not_counted()
+    {
+        _online = 4;
+        _fakes.Handlers["GetSystemAccountIdsAsync"] = _ =>
+            Task.FromResult(ImmutableArray.Create<PlayerId>(2, 3, 9));
+
+        var progress = await Service(goal: 3).GetProgressAsync(PLAYER, Ct);
+
+        (progress.State, progress.UserCount).Should().Be((ConcurrentUsersGoalState.Active, 2));
     }
 
     [Fact]
