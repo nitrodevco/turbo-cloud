@@ -31,6 +31,7 @@ internal sealed class AssetPublishService(
     PublishConnections connections,
     PublishedPets pets,
     PublishedFurnitureIcons icons,
+    CloudflarePurge cloudflare,
     IOptions<AssetBundleConfig> config,
     TimeProvider time,
     ILogger<AssetPublishService> logger
@@ -215,6 +216,7 @@ internal sealed class AssetPublishService(
 
         // Refused here rather than in the job, so a password to enter again is said at once.
         var password = PasswordOf(target);
+        var purge = PurgeOf(target);
         var run = new AssetPublishRun(
             dbCtxFactory,
             store,
@@ -224,7 +226,8 @@ internal sealed class AssetPublishService(
             target,
             password,
             config.Value.PublishConcurrency,
-            player
+            player,
+            purge
         );
 
         return jobs.Start(
@@ -343,7 +346,25 @@ internal sealed class AssetPublishService(
             throw new ArgumentException(
                 $"A path or address can be at most {AssetPublishTargetEntity.PATH_MAX_LENGTH} characters."
             );
+
+        var zone = edit.CloudflareZoneId.Trim();
+
+        if (zone.Length > 0)
+        {
+            if (!IsZoneId(zone))
+                throw new ArgumentException(
+                    "A Cloudflare zone id is the 32 letters and digits (0-9, a-f) its dashboard shows."
+                );
+
+            if (edit.PublicUrl.Trim().Length == 0)
+                throw new ArgumentException(
+                    "Purging Cloudflare needs the public URL, to know the addresses to purge."
+                );
+        }
     }
+
+    private static bool IsZoneId(string zone) =>
+        zone.Length == 32 && zone.All(char.IsAsciiHexDigit);
 
     private void Apply(AssetPublishTargetEntity target, AssetPublishTargetEdit edit)
     {
@@ -368,7 +389,25 @@ internal sealed class AssetPublishService(
 
         if (edit.Password is { } password)
             target.Password = password.Length == 0 ? null : sealer.Seal(password);
+
+        var zone = edit.CloudflareZoneId.Trim().ToLowerInvariant();
+
+        target.CloudflareZoneId = zone.Length == 0 ? null : zone;
+
+        if (edit.CloudflareToken is { } token)
+            target.CloudflareToken = token.Trim().Length == 0 ? null : sealer.Seal(token.Trim());
     }
+
+    /// <summary>
+    /// What the target's publishes ask Cloudflare to purge, when it has a zone and a token; null
+    /// when it purges nothing.
+    /// </summary>
+    private AssetPublishPurge? PurgeOf(AssetPublishTargetEntity target) =>
+        target.CloudflareZoneId is { Length: > 0 } zone
+        && target.CloudflareToken is { Length: > 0 } sealedToken
+        && target.PublicUrl.Length > 0
+            ? new AssetPublishPurge(cloudflare, zone, sealer.Unseal(sealedToken))
+            : null;
 
     /// <summary>The target's password, unsealed; empty when it has none.</summary>
     private string PasswordOf(AssetPublishTargetEntity target) =>

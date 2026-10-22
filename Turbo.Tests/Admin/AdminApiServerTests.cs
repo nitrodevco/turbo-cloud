@@ -307,6 +307,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
+        services.AddSingleton<Turbo.Admin.Assets.AdminBrokenAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
         services.AddSingleton<Turbo.Admin.Commands.AdminActionLog>();

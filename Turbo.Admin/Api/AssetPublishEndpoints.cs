@@ -18,7 +18,7 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// Where the hotel's asset bundles are published (<c>/api/assets/targets</c>): a folder on this
-/// server, or an FTP, FTPS or SFTP server. Staff with <c>admin.gamedata.view</c> see the targets and
+/// server, or an FTP, FTPS or SFTP server, each optionally purging its Cloudflare zone after a publish. Staff with <c>admin.gamedata.view</c> see the targets and
 /// their history; adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
 /// </summary>
 internal sealed class AssetPublishEndpoints(
@@ -190,6 +190,8 @@ internal sealed class AssetPublishEndpoints(
                 RemotePath = input.RemotePath ?? "",
                 PublicUrl = input.PublicUrl ?? "",
                 AllowSelfSigned = input.AllowSelfSigned,
+                CloudflareZoneId = input.CloudflareZoneId ?? "",
+                CloudflareToken = input.CloudflareToken,
             }
             : null;
 

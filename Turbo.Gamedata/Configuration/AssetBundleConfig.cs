@@ -72,6 +72,15 @@ public sealed class AssetBundleConfig
     /// <summary>How long connecting to a publish target may take, in seconds.</summary>
     public int PublishTimeoutSeconds { get; init; } = 30;
 
+    /// <summary>
+    /// Cloudflare's API, which a target with a zone asks to purge what a publish sent. Only a
+    /// test points it elsewhere.
+    /// </summary>
+    public string CloudflareApiUrl { get; init; } = "https://api.cloudflare.com/client/v4";
+
+    /// <summary>Addresses asked to be purged in one request; Cloudflare takes up to 30.</summary>
+    public int CloudflarePurgeBatch { get; init; } = 30;
+
     /// <summary>The largest file an upload in the panel may be, in megabytes.</summary>
     public int UploadMaxMegabytes { get; init; } = 64;
 

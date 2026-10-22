@@ -20,7 +20,9 @@ namespace Turbo.Gamedata.Assets.Publishing;
 /// older copy of (by the hash recorded in <c>asset_published_files</c>), largest first and several
 /// at once, each sender on its own connection; records what is sent as it goes, so a publish that
 /// stops resumes where it was; and, when asked, deletes what the hotel no longer has. A file that
-/// fails is logged and counted; the publish fails only when it can't connect at all.
+/// fails is logged and counted; the publish fails only when it can't connect at all. With a
+/// <paramref name="purge"/>, Cloudflare is then asked to purge the addresses of exactly the files
+/// sent, and the history keeps how that went.
 /// </summary>
 internal sealed class AssetPublishRun(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -31,7 +33,8 @@ internal sealed class AssetPublishRun(
     AssetPublishTargetEntity target,
     string password,
     int concurrency,
-    PlayerId player
+    PlayerId player,
+    AssetPublishPurge? purge = null
 )
 {
     /// <summary>
@@ -52,6 +55,9 @@ internal sealed class AssetPublishRun(
     private string? _firstFailure;
     private int _deleted;
     private long _bytes;
+    private int _purged;
+    private string? _purgeError;
+    private readonly ConcurrentQueue<string> _sent = new();
 
     /// <summary>
     /// The bundles a target lacks or holds an older copy of, by what it recorded, and those it was
@@ -130,6 +136,8 @@ internal sealed class AssetPublishRun(
                 if (delete.Count > 0)
                     await DeleteAsync(first, delete, progress, ct).ConfigureAwait(false);
             }
+
+            await PurgeAsync(progress, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -160,7 +168,47 @@ internal sealed class AssetPublishRun(
         var result =
             $"{_uploaded} sent ({Megabytes(_bytes)}), {already} already there, {_deleted} deleted";
 
-        return _failed > 0 ? $"{result}, {_failed} failed" : result;
+        if (_failed > 0)
+            result += $", {_failed} failed";
+
+        if (purge is not null && _sent.Count > 0)
+            result += _purgeError is null
+                ? $", {_purged} purged from Cloudflare"
+                : $", Cloudflare purge failed: {_purgeError}";
+
+        return result;
+    }
+
+    /// <summary>
+    /// Asks Cloudflare to purge the addresses of the files sent, when the target purges. A purge
+    /// that fails is logged and kept in the history; the files were sent either way.
+    /// </summary>
+    private async Task PurgeAsync(IAssetJobProgress progress, CancellationToken ct)
+    {
+        if (purge is null || _sent.IsEmpty)
+            return;
+
+        var urls = CloudflarePurge.UrlsOf(target.PublicUrl, _sent);
+
+        progress.Step("Purging Cloudflare", 0);
+
+        var result = await purge
+            .Purger.PurgeAsync(purge.ZoneId, purge.Token, urls, progress.Log, ct)
+            .ConfigureAwait(false);
+
+        _purged = result.Purged;
+        _purgeError = result.Error;
+
+        if (result.Error is null)
+            progress.Log($"Cloudflare purged the {result.Purged} addresses sent.");
+        else
+            logger.LogWarning(
+                "Publish target {TargetId} purged {Purged} of {Count} addresses from Cloudflare: {Error}",
+                target.Id,
+                result.Purged,
+                urls.Count,
+                result.Error
+            );
     }
 
     /// <summary>A file that could not be sent or deleted: logged, counted, and the first kept for the history.</summary>
@@ -369,6 +417,7 @@ internal sealed class AssetPublishRun(
 
                     Interlocked.Increment(ref _uploaded);
                     Interlocked.Add(ref _bytes, file.Size);
+                    _sent.Enqueue(file.Path);
                     recorder.Add(file);
                     progress.Advance();
                 }
@@ -488,9 +537,8 @@ internal sealed class AssetPublishRun(
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var finishedAt = time.GetUtcNow().UtcDateTime;
-        var trimmed = error is { Length: > AssetPublishEntity.ERROR_MAX_LENGTH }
-            ? error[..AssetPublishEntity.ERROR_MAX_LENGTH]
-            : error;
+        var trimmed = Trim(error);
+        var purgeError = Trim(_purgeError);
 
         await dbCtx
             .AssetPublishes.Where(x => x.Id == historyId)
@@ -501,11 +549,18 @@ internal sealed class AssetPublishRun(
                         .SetProperty(p => p.Deleted, _deleted)
                         .SetProperty(p => p.Bytes, _bytes)
                         .SetProperty(p => p.Error, trimmed)
+                        .SetProperty(p => p.Purged, _purged)
+                        .SetProperty(p => p.PurgeError, purgeError)
                         .SetProperty(p => p.FinishedAt, finishedAt),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
     }
+
+    private static string? Trim(string? error) =>
+        error is { Length: > AssetPublishEntity.ERROR_MAX_LENGTH }
+            ? error[..AssetPublishEntity.ERROR_MAX_LENGTH]
+            : error;
 
     /// <summary>
     /// What has been sent and not yet saved, saved in batches. Saving is never canceled: a file

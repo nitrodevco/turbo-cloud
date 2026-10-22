@@ -355,6 +355,99 @@ namespace Turbo.Database.Migrations
                     b.ToTable("admin_sessions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetBrokenIgnoreEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("asset_key");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "Key")
+                        .IsUnique();
+
+                    b.ToTable("asset_broken_ignores");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetBrokenReportEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("IssueUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("issue_url");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<int>("Reports")
+                        .HasColumnType("int")
+                        .HasColumnName("reports");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Url")
+                        .IsUnique();
+
+                    b.ToTable("asset_broken_reports");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetBundleEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -471,6 +564,15 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("player_id");
 
+                    b.Property<string>("PurgeError")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("purge_error");
+
+                    b.Property<int>("Purged")
+                        .HasColumnType("int")
+                        .HasColumnName("purged");
+
                     b.Property<int>("Skipped")
                         .HasColumnType("int")
                         .HasColumnName("skipped");
@@ -502,6 +604,15 @@ namespace Turbo.Database.Migrations
                     b.Property<bool>("AllowSelfSigned")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("allow_self_signed");
+
+                    b.Property<byte[]>("CloudflareToken")
+                        .HasColumnType("longblob")
+                        .HasColumnName("cloudflare_token");
+
+                    b.Property<string>("CloudflareZoneId")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("cloudflare_zone_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()

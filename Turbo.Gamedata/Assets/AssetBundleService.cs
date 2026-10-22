@@ -518,6 +518,9 @@ internal sealed class AssetBundleService(
     public Task<ImmutableArray<AssetCheckSnapshot>> GetChecksAsync(CancellationToken ct) =>
         checks.RunAsync(ct);
 
+    public Task<ImmutableArray<AssetCheckFinding>> GetCheckFindingsAsync(CancellationToken ct) =>
+        checks.FindingsAsync(ct);
+
     /// <summary>
     /// The asset type a library of this kind converts as: clothing as <c>figure</c>, effects as
     /// <c>fx</c>, furniture and pets as they are.

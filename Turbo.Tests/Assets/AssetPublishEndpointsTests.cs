@@ -120,6 +120,42 @@ public sealed class AssetPublishEndpointsTests : IAsyncDisposable
             .Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task A_cloudflare_token_saved_is_never_shown_back_and_its_zone_is()
+    {
+        await _server.StartAsync(Ct);
+
+        var created = await SendAsync(
+            HttpMethod.Post,
+            "/api/assets/targets",
+            new
+            {
+                name = "Live",
+                protocol = "folder",
+                remotePath = _hotel.TargetFolder,
+                publicUrl = "https://assets.example.com",
+                cloudflareZoneId = "0123456789ABCDEF0123456789ABCDEF",
+                cloudflareToken = "cf-secret-token",
+            }
+        );
+
+        created.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await created.Content.ReadAsStringAsync(Ct);
+        body.Should().NotContain("cf-secret-token");
+        var target = JsonDocument.Parse(body).RootElement;
+        target
+            .GetProperty("cloudflareZoneId")
+            .GetString()
+            .Should()
+            .Be("0123456789abcdef0123456789abcdef");
+        target.GetProperty("hasCloudflareToken").GetBoolean().Should().BeTrue();
+        target.TryGetProperty("cloudflareToken", out _).Should().BeFalse();
+
+        var list = await SendAsync(HttpMethod.Get, "/api/assets/targets");
+
+        (await list.Content.ReadAsStringAsync(Ct)).Should().NotContain("cf-secret-token");
+    }
+
     [Theory]
     [InlineData("", "folder", "", "/web")]
     [InlineData("Live", "gopher", "host", "/web")]

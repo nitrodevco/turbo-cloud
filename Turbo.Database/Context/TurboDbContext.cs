@@ -64,6 +64,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AssetPublishTargetEntity> AssetPublishTargets { get; init; }
     public DbSet<AssetPublishedFileEntity> AssetPublishedFiles { get; init; }
     public DbSet<AssetPublishEntity> AssetPublishes { get; init; }
+    public DbSet<AssetBrokenReportEntity> AssetBrokenReports { get; init; }
+    public DbSet<AssetBrokenIgnoreEntity> AssetBrokenIgnores { get; init; }
     public DbSet<HabboTextVersionEntity> HabboTextVersions { get; init; }
     public DbSet<HabboTextEntity> HabboTexts { get; init; }
     public DbSet<HabboVariableVersionEntity> HabboVariableVersions { get; init; }

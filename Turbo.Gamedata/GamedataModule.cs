@@ -72,6 +72,18 @@ public sealed class GamedataModule : IHostPluginModule
                 http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
             }
         );
+        services.AddHttpClient(
+            CloudflarePurge.HTTP_CLIENT,
+            (sp, http) =>
+                http.Timeout = TimeSpan.FromSeconds(
+                    Math.Max(
+                        1,
+                        sp.GetRequiredService<
+                            IOptions<AssetBundleConfig>
+                        >().Value.PublishTimeoutSeconds
+                    )
+                )
+        );
         services.AddSingleton<HabboGamedataClient>();
         services.AddSingleton<HabboClientService>();
         services.AddSingleton<IHabboClientService>(sp =>
@@ -107,6 +119,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IChatStyleService, ChatStyleService>();
         services.AddSingleton<AssetPasswordSealer>();
         services.AddSingleton<PublishConnections>();
+        services.AddSingleton<CloudflarePurge>();
         services.AddSingleton<PublishedPets>();
         services.AddSingleton<PublishedFurnitureIcons>();
         services.AddSingleton<IAssetPublishService, AssetPublishService>();

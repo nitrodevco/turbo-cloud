@@ -29,6 +29,12 @@ public sealed record AssetPublishTargetSnapshot
 
     public required bool AllowSelfSigned { get; init; }
 
+    /// <summary>The Cloudflare zone purged after a publish; empty when it purges none.</summary>
+    public string CloudflareZoneId { get; init; } = "";
+
+    /// <summary>Whether it has a Cloudflare API token (never the token).</summary>
+    public bool HasCloudflareToken { get; init; }
+
     /// <summary>SFTP: the host key fingerprint trusted, once it has connected.</summary>
     public string? HostKey { get; init; }
 

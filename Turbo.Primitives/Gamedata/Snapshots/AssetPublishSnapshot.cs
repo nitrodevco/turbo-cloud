@@ -27,6 +27,12 @@ public sealed record AssetPublishSnapshot
     /// <summary>Why it failed or stopped, or how many files could not be sent.</summary>
     public string? Error { get; init; }
 
+    /// <summary>Addresses Cloudflare was asked to purge after it, when the target purges.</summary>
+    public int Purged { get; init; }
+
+    /// <summary>Why the purge failed, when it did.</summary>
+    public string? PurgeError { get; init; }
+
     public required DateTime StartedAt { get; init; }
 
     /// <summary>Null while it runs, or when the server stopped under it.</summary>

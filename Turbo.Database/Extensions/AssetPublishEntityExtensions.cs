@@ -24,6 +24,8 @@ public static class AssetPublishEntityExtensions
             RemotePath = entity.RemotePath,
             PublicUrl = entity.PublicUrl,
             AllowSelfSigned = entity.AllowSelfSigned,
+            CloudflareZoneId = entity.CloudflareZoneId ?? "",
+            HasCloudflareToken = entity.CloudflareToken is { Length: > 0 },
             HostKey = entity.HostKey,
             Pending = pending,
             LastPublish = lastPublish,
@@ -41,6 +43,8 @@ public static class AssetPublishEntityExtensions
             Deleted = entity.Deleted,
             Bytes = entity.Bytes,
             Error = entity.Error,
+            Purged = entity.Purged,
+            PurgeError = entity.PurgeError,
             StartedAt = entity.CreatedAt,
             FinishedAt = entity.FinishedAt,
         };
