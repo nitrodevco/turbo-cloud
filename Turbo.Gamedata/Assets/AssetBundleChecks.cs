@@ -36,7 +36,35 @@ internal sealed class AssetBundleChecks(
     public const string PETS_MISSING = "pets-missing";
     public const string FURNITURE_UNUSED = "furniture-unused";
 
-    public async Task<ImmutableArray<AssetCheckSnapshot>> RunAsync(CancellationToken ct)
+    public async Task<ImmutableArray<AssetCheckSnapshot>> RunAsync(CancellationToken ct) =>
+        [
+            .. (await CollectAsync(ct).ConfigureAwait(false)).Select(x =>
+                Check(x.Id, x.Severity, x.Title, x.Detail, x.Found, x.Kind, x.Status)
+            ),
+        ];
+
+    /// <summary>
+    /// Everything the checks of something broken found (not <see cref="FURNITURE_UNUSED"/>, which
+    /// does no harm), each whole rather than sampled: the broken assets page lists them.
+    /// </summary>
+    public async Task<ImmutableArray<AssetCheckFinding>> FindingsAsync(CancellationToken ct) =>
+        [
+            .. (await CollectAsync(ct).ConfigureAwait(false))
+                .Where(x => x.Id != FURNITURE_UNUSED)
+                .SelectMany(check =>
+                    check.Found.Select(x => new AssetCheckFinding
+                    {
+                        CheckId = check.Id,
+                        Severity = check.Severity,
+                        Label = x.Label,
+                        Kind = x.Kind,
+                        Name = x.Name,
+                        Detail = x.Detail,
+                    })
+                ),
+        ];
+
+    private async Task<List<CheckRun>> CollectAsync(CancellationToken ct)
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
@@ -78,69 +106,96 @@ internal sealed class AssetBundleChecks(
 
         return
         [
-            Check(
+            new(
                 FURNITURE_MISSING,
                 AssetCheckSeverity.Error,
                 "Furniture without a bundle",
                 "Furniture definitions whose asset has no bundle: the client draws a placeholder.",
-                usage
-                    .Furniture.Where(x =>
-                        x.Length > 0
-                        && !furnitureWithFile.Contains(x)
-                        // The one poster item is drawn from each poster's own bundle.
-                        && !(x == FurnitureAssetNames.POSTER && hasPosters)
-                    )
-                    .Order(StringComparer.Ordinal)
+                [
+                    .. usage
+                        .Furniture.Where(x =>
+                            x.Length > 0
+                            && !furnitureWithFile.Contains(x)
+                            // The one poster item is drawn from each poster's own bundle.
+                            && !(x == FurnitureAssetNames.POSTER && hasPosters)
+                        )
+                        .Order(StringComparer.Ordinal)
+                        .Select(x => new Finding(x, AssetBundleKind.Furniture, x)),
+                ]
             ),
-            Check(
+            new(
                 FILE_MISSING,
                 AssetCheckSeverity.Error,
                 "Bundles whose file is gone",
                 "Their row says they have a file that the bundle folder does not have. Delete them, and a sync takes Habbo's again.",
-                withFile
-                    .Where(x => !store.IsValidName(x.Name) || !onDisk[x.Kind].Contains(x.Name))
-                    .Select(x => Label(x.Kind, x.Name))
+                [
+                    .. withFile
+                        .Where(x => !store.IsValidName(x.Name) || !onDisk[x.Kind].Contains(x.Name))
+                        .Select(x => new Finding(Label(x.Kind, x.Name), x.Kind, x.Name)),
+                ]
             ),
-            Check(
+            new(
                 FAILED,
                 AssetCheckSeverity.Warning,
                 "Libraries that failed",
                 "Libraries that could not be downloaded or converted, with why.",
-                bundles
-                    .Where(x => x.Error is not null)
-                    .Select(x => $"{Label(x.Kind, x.Name)}: {x.Error}"),
-                status: AssetBundleStatusFilter.Failed
+                [
+                    .. bundles
+                        .Where(x => x.Error is not null)
+                        .Select(x => new Finding(
+                            $"{Label(x.Kind, x.Name)}: {x.Error}",
+                            x.Kind,
+                            x.Name,
+                            x.Error
+                        )),
+                ],
+                Status: AssetBundleStatusFilter.Failed
             ),
-            Check(
+            new(
                 EFFECTS_MISSING,
                 AssetCheckSeverity.Warning,
                 "Effects without a bundle",
                 "Effects the catalog sells that no effect bundle carries: the avatar wears nothing.",
-                soldEffects
-                    .Where(x => !effectIds.Contains(x))
-                    .Order()
-                    .Select(x => $"effect {x.ToString(CultureInfo.InvariantCulture)}")
+                [
+                    .. soldEffects
+                        .Where(x => !effectIds.Contains(x))
+                        .Order()
+                        .Select(x => new Finding(
+                            $"effect {x.ToString(CultureInfo.InvariantCulture)}",
+                            AssetBundleKind.Effect,
+                            null
+                        )),
+                ]
             ),
-            Check(
+            new(
                 PETS_MISSING,
                 AssetCheckSeverity.Warning,
                 "Pets without a bundle",
                 "Pet types with breeds that no pet bundle carries: the pet can't be drawn.",
-                usage
-                    .PetTypes.Where(x => !petTypes.Contains(x))
-                    .Order()
-                    .Select(x => $"pet type {x.ToString(CultureInfo.InvariantCulture)}")
+                [
+                    .. usage
+                        .PetTypes.Where(x => !petTypes.Contains(x))
+                        .Order()
+                        .Select(x => new Finding(
+                            $"pet type {x.ToString(CultureInfo.InvariantCulture)}",
+                            AssetBundleKind.Pet,
+                            null
+                        )),
+                ]
             ),
-            Check(
+            new(
                 FURNITURE_UNUSED,
                 AssetCheckSeverity.Warning,
                 "Furniture bundles nothing uses",
                 "Furniture bundles no definition names. They do no harm; they are only kept and published.",
-                bundles
-                    .Where(x =>
-                        x.Kind == AssetBundleKind.Furniture && !usage.IsUsed(x.Kind, x.Name, x.Ids)
-                    )
-                    .Select(x => x.Name),
+                [
+                    .. bundles
+                        .Where(x =>
+                            x.Kind == AssetBundleKind.Furniture
+                            && !usage.IsUsed(x.Kind, x.Name, x.Ids)
+                        )
+                        .Select(x => new Finding(x.Name, x.Kind, x.Name)),
+                ],
                 AssetBundleKind.Furniture,
                 AssetBundleStatusFilter.Unused
             ),
@@ -152,13 +207,11 @@ internal sealed class AssetBundleChecks(
         AssetCheckSeverity severity,
         string title,
         string detail,
-        IEnumerable<string> found,
-        AssetBundleKind? kind = null,
-        AssetBundleStatusFilter? status = null
+        List<Finding> all,
+        AssetBundleKind? kind,
+        AssetBundleStatusFilter? status
     )
     {
-        var all = found.ToList();
-
         return new AssetCheckSnapshot
         {
             Id = id,
@@ -166,7 +219,10 @@ internal sealed class AssetBundleChecks(
             Title = title,
             Detail = detail,
             Count = all.Count,
-            Samples = [.. all.Take(Math.Max(0, config.Value.CheckSampleLimit))],
+            Samples =
+            [
+                .. all.Take(Math.Max(0, config.Value.CheckSampleLimit)).Select(x => x.Label),
+            ],
             Kind = kind,
             Status = status,
         };
@@ -177,6 +233,24 @@ internal sealed class AssetBundleChecks(
 
     private static string Label(AssetBundleKind kind, string name) =>
         $"{kind.ToString().ToLowerInvariant()}/{name}";
+
+    /// <summary>What a check found: as its list says it, and the bundle it is about when one is named.</summary>
+    private sealed record Finding(
+        string Label,
+        AssetBundleKind? Kind,
+        string? Name,
+        string? Detail = null
+    );
+
+    private sealed record CheckRun(
+        string Id,
+        AssetCheckSeverity Severity,
+        string Title,
+        string Detail,
+        List<Finding> Found,
+        AssetBundleKind? Kind = null,
+        AssetBundleStatusFilter? Status = null
+    );
 
     private sealed record Row(
         AssetBundleKind Kind,

@@ -72,6 +72,9 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
+        services.AddSingleton<AdminBrokenAssets>();
+        services.AddSingleton<BrokenAssetReportQueue>();
+        services.AddHostedService(sp => sp.GetRequiredService<BrokenAssetReportQueue>());
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminActionLog>();
         services.AddSingleton<AdminLiveFeed>();

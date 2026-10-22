@@ -6,8 +6,8 @@ using Turbo.Primitives.Gamedata.Snapshots;
 namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
-/// A publish target as the panel shows it (<c>AssetTarget</c>): never its password, only whether it
-/// has one; <c>pending</c> is how many bundles it lacks or holds an older copy of.
+/// A publish target as the panel shows it (<c>AssetTarget</c>): never its password or Cloudflare
+/// token, only whether it has one; <c>pending</c> is how many bundles it lacks or holds an older copy of.
 /// </summary>
 public sealed record AssetPublishTargetResponse(
     int Id,
@@ -20,6 +20,8 @@ public sealed record AssetPublishTargetResponse(
     string RemotePath,
     string PublicUrl,
     bool AllowSelfSigned,
+    string CloudflareZoneId,
+    bool HasCloudflareToken,
     string? HostKey,
     int Pending,
     AssetPublishHistoryItem? LastPublish
@@ -40,6 +42,8 @@ public sealed record AssetPublishTargetResponse(
             target.RemotePath,
             target.PublicUrl,
             target.AllowSelfSigned,
+            target.CloudflareZoneId,
+            target.HasCloudflareToken,
             target.HostKey,
             target.Pending,
             target.LastPublish is { } last ? AssetPublishHistoryItem.From(last, names) : null
@@ -51,7 +55,8 @@ public sealed record AssetPublishTargetsResponse(AssetPublishTargetResponse[] It
 
 /// <summary>
 /// A publish target as staff enter it (<c>AssetTargetInput</c>). <c>password</c> null keeps the
-/// saved one, and empty removes it.
+/// saved one, and empty removes it; <c>cloudflareToken</c> likewise. An empty
+/// <c>cloudflareZoneId</c> purges nothing after a publish.
 /// </summary>
 public sealed record AssetPublishTargetInput(
     string? Name,
@@ -62,7 +67,9 @@ public sealed record AssetPublishTargetInput(
     string? Password,
     string? RemotePath,
     string? PublicUrl,
-    bool AllowSelfSigned
+    bool AllowSelfSigned,
+    string? CloudflareZoneId = null,
+    string? CloudflareToken = null
 );
 
 /// <summary>Whether a target could be reached and its folder listed, and what happened.</summary>
@@ -83,7 +90,9 @@ public sealed record AssetPublishHistoryItem(
     int Skipped,
     int Deleted,
     long Bytes,
-    string? Error
+    string? Error,
+    int Purged,
+    string? PurgeError
 )
 {
     public static AssetPublishHistoryItem From(
@@ -101,7 +110,9 @@ public sealed record AssetPublishHistoryItem(
             publish.Skipped,
             publish.Deleted,
             publish.Bytes,
-            publish.Error
+            publish.Error,
+            publish.Purged,
+            publish.PurgeError
         );
 }
 

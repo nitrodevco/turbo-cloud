@@ -227,6 +227,7 @@ A publish target is kept in `asset_publish_targets`, edited on the Publish tab:
 | Remote path | The folder the asset host serves from; `bundled/...` goes under it. A path on this server for `folder`. |
 | Public URL | Where the client reaches it, for the addresses the panel shows. |
 | Allow self-signed | FTPS only. |
+| Cloudflare zone, token | Optional: the zone the public URL is served through, and an API token allowed to purge its cache. |
 
 The password is sealed with AES-GCM before it is saved, and never sent back to the panel; leaving it
 empty when editing keeps it. The key is `Turbo:Assets:SecretKey` (32 bytes, base64), or, when that is
@@ -268,6 +269,32 @@ Then the pets:
 
 The job's log says what changed; the history entry's error names the first file that failed, and why.
 
+### Purging Cloudflare
+
+A target with a Cloudflare zone and token asks Cloudflare, after each publish that sent something, to
+purge exactly the addresses of the files it sent (the public URL and each file's path), 30 a request
+(`POST {CloudflareApiUrl}/zones/{zone}/purge_cache` with `files`): a file that was missing is otherwise
+served from Cloudflare's cache as missing for hours after it is published. The token is sealed like the
+password, never sent back to the panel and never logged; a zone needs the public URL. A purge that
+fails is logged, and the history keeps how many addresses were purged and why one failed (`purged`,
+`purgeError`); the files were sent either way.
+
+## Broken assets
+
+The Publish page's **Broken assets** tab lists everything players can't load, from four sources, each
+with the fixes that apply (`habbo`: take it from Habbo with a sync, or the catalog pictures by name;
+`upload`; `publish`):
+
+| Source | What it lists |
+| --- | --- |
+| `client` | The addresses players' clients were refused (`Invalid response 404 for <url>`), as the client errors plugin's notices of new and returning issues tell them (`docs/plugin-notices.md`), kept in `asset_broken_reports`. Read only while that plugin is loaded. An address under a target's public URL whose file the hotel has is published (the target, or a cache in front of it, lacks it); one it does not have is taken from Habbo or uploaded. |
+| `check` | Everything the checks below found that is broken (not `furniture-unused`), whole. |
+| `catalog` | The pictures catalog pages show that the hotel does not have, with the pages. |
+| `badge` | The badges players hold with no picture, by how many players hold each. |
+
+Staff may ignore one with a note (`asset_broken_ignores`); it stays listed, marked, until it is
+brought back.
+
 ## Checks
 
 | Check | Severity | What it finds |
@@ -296,6 +323,8 @@ Each lists how many, and up to `CheckSampleLimit` of them.
 | `JobLogLimit` | `300` | Lines of a job's log kept. |
 | `PageSize` | `60` | Bundles per page of the panel's list. |
 | `CheckSampleLimit` | `25` | Examples each check lists. |
+| `CloudflareApiUrl` | `https://api.cloudflare.com/client/v4` | Cloudflare's API, for a target's purge. |
+| `CloudflarePurgeBatch` | `30` | Addresses purged a request (Cloudflare takes up to 30). |
 | `SyncPreviewMinutes` | `15` | How long Habbo's lists are kept for the view of what a sync would download; read again when asked, and by every sync. |
 | `SyncPreviewItemLimit` | `500` | Libraries each kind of that view lists; its counts cover them all. |
 | `BadgeFileUrl` | `https://images.habbo.{domain}/c_images/album1584/{name}` | Where Habbo's badges are; `{name}` is `<code>.gif`. |
@@ -331,12 +360,15 @@ runs at a time; starting another while one runs is 409.
 | `GET /assets/checks` | `{ items: [ { id, severity: "error"\|"warning", title, detail, count, samples: string[], kind, status } ] }`. `kind` and `status` (when set) open the bundle list the check is about. |
 | `GET /assets/targets` | `{ items: [ AssetTarget ] }` |
 | `POST /assets/targets` | Body `AssetTargetInput`; answers the `AssetTarget`. |
-| `PUT /assets/targets/{id}` | Body `AssetTargetInput`; `password` null keeps it, `""` clears it. |
+| `PUT /assets/targets/{id}` | Body `AssetTargetInput`; `password` null keeps it, `""` clears it; `cloudflareToken` likewise. `cloudflareZoneId` empty purges nothing. `AssetTarget` says `cloudflareZoneId` and `hasCloudflareToken`, never the token. |
 | `DELETE /assets/targets/{id}` | 204, with what it recorded and its history. |
 | `POST /assets/targets/{id}/test` | `{ ok, message }`: connected and listed the folder, or why not. |
 | `POST /assets/targets/{id}/publish` | Body `{ dryRun, deleteRemoved }`; answers the `AssetJob`. |
 | `POST /assets/targets/{id}/forget-host-key` | 204: the next SFTP connection trusts the key it is shown. |
-| `GET /assets/targets/{id}/history` | `{ items: [ { id, startedAt, finishedAt, playerId, playerName, dryRun, uploaded, skipped, deleted, bytes, error } ] }`, newest first. |
+| `GET /assets/targets/{id}/history` | `{ items: [ { id, startedAt, finishedAt, playerId, playerName, dryRun, uploaded, skipped, deleted, bytes, error, purged, purgeError } ] }`, newest first. |
+| `GET /assets/broken` | `{ sources: [ { id, title, read, note, count } ], items: [ { source, key, title, kind, name, detail, count, actions: ("habbo"\|"upload"\|"publish")[], link, ignored: { note, playerId, playerName, ignoredAt } \| null } ] }`. A source's `count` leaves out the ignored. |
+| `POST /assets/broken/ignore` | Body `{ source, key, note }`; 204. |
+| `POST /assets/broken/unignore` | Body `{ source, key }`; 204, 404 when it was not ignored. |
 
 `AssetBundle`: `{ kind, name, revision, source: "habbo"|"upload", hash, size, ids: number[], error,
 updatedAt, used }`. `used` is whether the hotel names it: a furniture definition for furniture, a

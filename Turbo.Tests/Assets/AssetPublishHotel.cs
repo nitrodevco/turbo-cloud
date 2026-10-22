@@ -30,6 +30,9 @@ internal sealed class AssetPublishHotel : IDisposable
 {
     public static readonly PlayerId STAFF = new(7);
 
+    /// <summary>Where the fake Cloudflare answers; nothing here reaches the real one.</summary>
+    public const string CLOUDFLARE_API = "http://cloudflare.test/client/v4";
+
     private readonly string _temp = Directory
         .CreateTempSubdirectory("turbo-asset-publish-")
         .FullName;
@@ -44,15 +47,16 @@ internal sealed class AssetPublishHotel : IDisposable
                 Directory = Path.Combine(_temp, "store"),
                 PublishConcurrency = concurrency,
                 PublishTimeoutSeconds = 5,
+                CloudflareApiUrl = CLOUDFLARE_API,
             }
         );
 
         Store = new AssetBundleStore(Db, config, new TestEnvironment(_temp));
 
-        Fakes.Handlers["CreateClient"] = _ => new HttpClient(
-            new HabboHost(Habbo),
-            disposeHandler: true
-        );
+        Fakes.Handlers["CreateClient"] = call =>
+            (string)call.Args[0]! == CloudflarePurge.HTTP_CLIENT
+                ? new HttpClient(Cloudflare, disposeHandler: false)
+                : new HttpClient(new HabboHost(Habbo), disposeHandler: true);
 
         // A variable saved is kept in the database, as the variable service keeps it.
         Fakes.Handlers[nameof(IGamedataVariableService.SaveAsync)] = call =>
@@ -102,11 +106,19 @@ internal sealed class AssetPublishHotel : IDisposable
                 Options.Create(new GamedataConfig()),
                 NullLogger<PublishedFurnitureIcons>.Instance
             ),
+            new CloudflarePurge(
+                Fakes.Create<IHttpClientFactory>(),
+                config,
+                NullLogger<CloudflarePurge>.Instance
+            ),
             config,
             TimeProvider.System,
             NullLogger<AssetPublishService>.Instance
         );
     }
+
+    /// <summary>A local stand-in for Cloudflare's API: what it was asked, and what it answers.</summary>
+    public FakeCloudflare Cloudflare { get; } = new();
 
     public SqliteDb Db { get; } = new();
 
@@ -258,6 +270,55 @@ internal sealed class AssetPublishHotel : IDisposable
         catch (IOException)
         {
             // A file still held open by the OS for a moment; the temp folder is the OS's to clear.
+        }
+    }
+
+    /// <summary>
+    /// Cloudflare's purge endpoint as a test sees it: each request's address, token and files, and
+    /// an answer of <see cref="Status"/> with <see cref="Errors"/> (none: success).
+    /// </summary>
+    internal sealed class FakeCloudflare : HttpMessageHandler
+    {
+        public ConcurrentQueue<(
+            string Url,
+            string? Authorization,
+            string[] Files
+        )> Requests { get; } = new();
+
+        public System.Net.HttpStatusCode Status { get; set; } = System.Net.HttpStatusCode.OK;
+
+        public string? Error { get; set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            using var body = System.Text.Json.JsonDocument.Parse(
+                await request.Content!.ReadAsStringAsync(cancellationToken)
+            );
+
+            Requests.Enqueue(
+                (
+                    request.RequestUri!.ToString(),
+                    request.Headers.Authorization?.ToString(),
+                    [
+                        .. body
+                            .RootElement.GetProperty("files")
+                            .EnumerateArray()
+                            .Select(x => x.GetString()!),
+                    ]
+                )
+            );
+
+            var answer = Error is null
+                ? """{"success":true,"errors":[],"messages":[],"result":{"id":"zone"}}"""
+                : $$"""{"success":false,"errors":[{"code":10000,"message":"{{Error}}"}],"messages":[],"result":null}""";
+
+            return new HttpResponseMessage(Status)
+            {
+                Content = new StringContent(answer, System.Text.Encoding.UTF8, "application/json"),
+            };
         }
     }
 

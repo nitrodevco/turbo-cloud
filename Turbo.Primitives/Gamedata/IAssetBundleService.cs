@@ -85,4 +85,7 @@ public interface IAssetBundleService
 
     /// <summary>Every check of the bundles against the hotel, in a fixed order.</summary>
     Task<ImmutableArray<AssetCheckSnapshot>> GetChecksAsync(CancellationToken ct);
+
+    /// <summary>Everything the checks of something broken found, whole: what the broken assets page lists.</summary>
+    Task<ImmutableArray<AssetCheckFinding>> GetCheckFindingsAsync(CancellationToken ct);
 }

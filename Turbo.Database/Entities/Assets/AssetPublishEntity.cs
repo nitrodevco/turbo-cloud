@@ -36,6 +36,15 @@ public class AssetPublishEntity : TurboEntity
     [MaxLength(ERROR_MAX_LENGTH)]
     public string? Error { get; set; }
 
+    /// <summary>Addresses Cloudflare was asked to purge after it.</summary>
+    [Column("purged")]
+    public int Purged { get; set; }
+
+    /// <summary>Why the Cloudflare purge failed; null when it purged or none was asked.</summary>
+    [Column("purge_error")]
+    [MaxLength(ERROR_MAX_LENGTH)]
+    public string? PurgeError { get; set; }
+
     /// <summary>Null while it runs, or when the server stopped under it.</summary>
     [Column("finished_at")]
     public DateTime? FinishedAt { get; set; }

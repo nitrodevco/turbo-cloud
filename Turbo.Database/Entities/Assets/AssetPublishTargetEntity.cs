@@ -16,6 +16,7 @@ public class AssetPublishTargetEntity : TurboEntity
     public const int HOST_MAX_LENGTH = 255;
     public const int USER_MAX_LENGTH = 128;
     public const int PATH_MAX_LENGTH = 512;
+    public const int CLOUDFLARE_ZONE_MAX_LENGTH = 64;
 
     [Column("name")]
     [MaxLength(NAME_MAX_LENGTH)]
@@ -58,6 +59,15 @@ public class AssetPublishTargetEntity : TurboEntity
     [Column("host_key")]
     [MaxLength(512)]
     public string? HostKey { get; set; }
+
+    /// <summary>The Cloudflare zone the public URL is served through, purged after a publish; null for none.</summary>
+    [Column("cloudflare_zone_id")]
+    [MaxLength(CLOUDFLARE_ZONE_MAX_LENGTH)]
+    public string? CloudflareZoneId { get; set; }
+
+    /// <summary>The Cloudflare API token, sealed like the password; null when it has none.</summary>
+    [Column("cloudflare_token")]
+    public byte[]? CloudflareToken { get; set; }
 
     public IList<AssetPublishedFileEntity>? Files { get; set; }
 }

@@ -105,6 +105,27 @@ public sealed class AdminCatalogImages(
         );
     }
 
+    /// <summary>
+    /// The pictures pages show that the folder does not have, so no publish sends them and
+    /// players see none: each with the pages that show it, by name.
+    /// </summary>
+    public async Task<IReadOnlyList<CatalogImageItem>> MissingAsync(CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var usage = await UsageAsync(db, ct).ConfigureAwait(false);
+        var onDisk = store.NamesOnDisk(KIND);
+
+        return
+        [
+            .. usage
+                .Where(x => !onDisk.Contains(x.Key))
+                .Select(x => new CatalogImageItem(NameOf(x.Key), x.Key, 0, null, x.Value))
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
     /// <summary>A picture's file on this server; null when it has none.</summary>
     public string? FilePathOf(string name)
     {
