@@ -264,6 +264,12 @@ public class WiredConfig
     public bool RefuseInvalidSources { get; init; } = true;
 
     /// <summary>
+    /// How far the root tile of the "in neighbourhood" selectors may sit from the centre of their
+    /// drawing, each way (Habbo's editor inputs and server: -64 to 64; a further one is clamped).
+    /// </summary>
+    public int NeighborhoodMaxRootOffset { get; init; } = 64;
+
+    /// <summary>
     /// The furni logics Send Signal and Receive Signal take as antennas
     /// (<c>wiredfurni.error.require_antenna_furni</c>, "Can only select antenna furni."); Habbo's
     /// antennas are <c>wf_antenna1</c> and <c>wf_antenna2</c> (official furnidata 2026-10-13). A furni matches by its class
