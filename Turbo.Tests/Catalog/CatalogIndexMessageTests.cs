@@ -66,4 +66,58 @@ public sealed class CatalogIndexMessageTests : IDisposable
         packet.PopInt().Should().Be(1);
         Node(packet).Should().Be((true, 1, BUILDERS_PAGE, "builders", "Builders"));
     }
+
+    [Fact]
+    public async Task AFolderOnlyPage_IsSentAsPageMinusOne_WithItsTitleAndThePagesUnderIt()
+    {
+        // Habbo's "Hot now" is page -1 under Furni: choosing it opens the pages under it and
+        // loads no page of its own (CatalogNavigator.as:348).
+        var hotNow = Page(20, FURNITURE, "Hot now", sort: 5);
+        hotNow.FolderOnly = true;
+        _catalog.Db.Insert(hotNow);
+        _catalog.Db.Insert(Page(21, 20, "Wired"));
+        var provider = _catalog.NormalProvider();
+
+        await provider.ReloadAsync(Ct);
+
+        var nodes = Tree(Index(provider.Current));
+
+        nodes.Should().Contain(("Furniture", (true, 1, -1, "hot now", "Hot now")));
+        nodes.Should().Contain(("Hot now", (true, 1, 21, "wired", "Wired")));
+        nodes
+            .Should()
+            .Contain(
+                ("Furniture", (true, 1, CHILD, "chairs", "Chairs")),
+                "pages are sent as they were"
+            );
+    }
+
+    /// <summary>Every node under the root, with the title of the node it is under.</summary>
+    private static List<(string Parent, (bool, int, int, string, string) Node)> Tree(
+        ClientPacket packet
+    )
+    {
+        var nodes = new List<(string, (bool, int, int, string, string))>();
+
+        Read(string.Empty);
+
+        return nodes;
+
+        void Read(string parent)
+        {
+            var node = Node(packet);
+
+            nodes.Add((parent, node));
+
+            var offers = packet.PopInt();
+
+            for (var i = 0; i < offers; i++)
+                packet.PopInt();
+
+            var children = packet.PopInt();
+
+            for (var i = 0; i < children; i++)
+                Read(node.Item5);
+        }
+    }
 }

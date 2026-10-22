@@ -868,7 +868,8 @@ internal sealed class CatalogEndpoints(
                 request.Layout ?? string.Empty,
                 AdminCatalogQueries.Lines(request.ImageData),
                 AdminCatalogQueries.Lines(request.TextData),
-                display
+                display,
+                request.FolderOnly
             )
             : null;
 

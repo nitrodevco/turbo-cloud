@@ -179,7 +179,7 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
                             x.CostCurrency,
                             x.CurrencyTypeId,
                             x.Visible,
-                            x.Visible && IsShown(pages, x.CatalogPageEntityId)
+                            x.Visible && Sells(pages, x.CatalogPageEntityId)
                         )),
                 ]
             ))
@@ -305,7 +305,7 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
 
         foreach (var product in products)
         {
-            var shown = product.Visible && IsShown(pages, product.CatalogPageEntityId);
+            var shown = product.Visible && Sells(pages, product.CatalogPageEntityId);
 
             sold[product.Id] = sold.GetValueOrDefault(product.Id) || shown;
         }
@@ -313,7 +313,13 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
         return sold;
     }
 
-    private sealed record PageRow(int Id, int? ParentId, string Title, CatalogPageDisplay Display);
+    private sealed record PageRow(
+        int Id,
+        int? ParentId,
+        string Title,
+        CatalogPageDisplay Display,
+        bool FolderOnly
+    );
 
     private static async Task<Dictionary<int, PageRow>> PagesAsync(
         TurboDbContext db,
@@ -321,9 +327,22 @@ public sealed class AdminCatalogAudit(IDbContextFactory<TurboDbContext> database
     ) =>
         await db
             .CatalogPages.AsNoTracking()
-            .Select(x => new PageRow(x.Id, x.ParentEntityId, x.Localization, x.Display))
+            .Select(x => new PageRow(
+                x.Id,
+                x.ParentEntityId,
+                x.Localization,
+                x.Display,
+                x.FolderOnly
+            ))
             .ToDictionaryAsync(x => x.Id, ct)
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Whether players can buy what a page lists: they reach it, and it opens, which a heading
+    /// with no page of its own never does.
+    /// </summary>
+    private static bool Sells(Dictionary<int, PageRow> pages, int pageId) =>
+        IsShown(pages, pageId) && pages.GetValueOrDefault(pageId)?.FolderOnly != true;
 
     /// <summary>Whether players can reach a page: neither it nor a page above it is hidden.</summary>
     private static bool IsShown(Dictionary<int, PageRow> pages, int pageId)

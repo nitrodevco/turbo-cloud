@@ -10,5 +10,6 @@ public sealed record CatalogPageNode(
     string Layout,
     string Display,
     int SortOrder,
-    int OfferCount
+    int OfferCount,
+    bool FolderOnly
 );

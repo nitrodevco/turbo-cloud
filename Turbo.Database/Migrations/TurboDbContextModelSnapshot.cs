@@ -1014,6 +1014,11 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("display");
 
+                    b.Property<bool>("FolderOnly")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("folder_only");
+
                     b.Property<int>("Icon")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
