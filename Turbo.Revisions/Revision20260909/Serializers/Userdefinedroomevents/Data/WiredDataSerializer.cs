@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -100,6 +101,12 @@ internal class WiredDataSerializer
         }
     }
 
+    /// <summary>
+    /// Each slot's allowed sources go out in ascending id order, as Habbo sends them whatever the
+    /// default (every official editor-open capture, e.g. [[0,100,201]] with default 100); the
+    /// editor's "next" arrow and a merged section's type switch step through them in that order.
+    /// The defaults follow on their own.
+    /// </summary>
     private static void SerializeInputSources(IServerPacket packet, WiredDataSnapshot snapshot)
     {
         packet.WriteInteger(snapshot.AllowedFurniSources.Count);
@@ -108,10 +115,12 @@ internal class WiredDataSerializer
         {
             packet.WriteInteger(furniSourceList.Length);
 
-            foreach (var furniSourceId in furniSourceList)
-                packet.WriteInteger(
-                    (int)WiredFurniSourceTypeExtensions.GetProtocolId(furniSourceId)
-                );
+            foreach (
+                var id in furniSourceList
+                    .Select(x => (int)WiredFurniSourceTypeExtensions.GetProtocolId(x))
+                    .Order()
+            )
+                packet.WriteInteger(id);
         }
 
         packet.WriteInteger(snapshot.AllowedPlayerSources.Count);
@@ -120,10 +129,12 @@ internal class WiredDataSerializer
         {
             packet.WriteInteger(userSourceList.Length);
 
-            foreach (var userSourceId in userSourceList)
-                packet.WriteInteger(
-                    (int)WiredPlayerSourceTypeExtensions.GetProtocolId(userSourceId)
-                );
+            foreach (
+                var id in userSourceList
+                    .Select(x => (int)WiredPlayerSourceTypeExtensions.GetProtocolId(x))
+                    .Order()
+            )
+                packet.WriteInteger(id);
         }
 
         packet.WriteInteger(snapshot.DefaultFurniSources.Count);
