@@ -23,6 +23,7 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Link;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -57,6 +58,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // ObjectsDataUpdate per wired tick: the tiles the effects changed and the boxes that flashed
     // (WiredConfig.StateUpdateMs).
     private readonly HashSet<RoomObjectId> _pendingFloorStates = [];
+
+    // The furni moves of the effects run since the last state update. They follow that update's
+    // ObjectsDataUpdate in the same ms: the boxes flash, then the furni move (official client
+    // capture, 2026-10-22T22-02-10 and 22-09-06: 16 of 16 firings).
+    private readonly List<IComposer> _pendingFloorMoves = [];
     private bool _collectingTickStates;
     private long _nextStateUpdateMs;
     private readonly Dictionary<
@@ -141,6 +147,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 FlushPendingFloorStates();
             }
+            // Nothing waits to flash: the moves need not wait for the next state update.
+            else if (_pendingFloorStates.Count == 0)
+                FlushPendingFloorStates();
         }
     }
 
@@ -621,25 +630,24 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return;
         }
 
-        // "Can Perform Movements" asks about moves that have not been made: it draws its own pick
-        // of the effects, in a random order whether or not "Execute In Order" is on, and works
-        // their moves out on a ghost of the room. The effects that then run are picked and put in
-        // order again, so a pass does not promise those moves (official client capture,
-        // WIN63-202610201032, two move and two rotate effects on one sofa: the condition passed
-        // 24 of 44 firings and 13 of those 24 ran an order that blocked; with Execute In Order
-        // the effects ran in stack order 15 of 15 while the condition still failed 25 of 40).
+        // "Can Perform Movements" asks about moves that have not been made: it takes every effect
+        // of the stack, whatever the random add-on would pick, in a random order whether or not
+        // "Execute In Order" is on, and works their moves out on a ghost of the room. The effects
+        // that then run are picked and put in order again, so a pass does not promise those moves
+        // (official client capture, WIN63-202610201032, two move and two rotate effects on one
+        // sofa: the condition passed 24 of 44 firings and 13 of those 24 ran an order that
+        // blocked; with Execute In Order the effects ran in stack order 15 of 15 while the
+        // condition still failed 25 of 40. 2026-10-22T22-04-45, the random add-on picking 2 of
+        // them, every pick of 2 able to move: passed 7 of 20; 22-06-39, a blocker that let half the
+        // picks move but no order of all 4: passed 0 of 20).
         if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
         {
-            var checkedPick = PickActions(
-                ActionsOfSide(ctx.Stack, negative: false),
-                ctx.Policy,
-                ctx.Stack.StackId
-            );
+            var checkedActions = ActionsOfSide(ctx.Stack, negative: false);
 
-            if (checkedPick.Actions.Count > 1)
-                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedPick.Actions));
+            if (checkedActions.Count > 1)
+                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedActions));
 
-            ctx.MovePlans = PlanMoves(ctx, checkedPick.Actions);
+            ctx.MovePlans = PlanMoves(ctx, checkedActions);
         }
 
         // A stack call, positive or negative, runs the called stack "regardless of existing
@@ -1350,35 +1358,47 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
     }
 
-    /// <summary>Tells the room the furni moves a stack's effects made (<see cref="WiredHeldFloorMoves"/>).</summary>
+    /// <summary>
+    /// Tells the room the furni moves a stack's effects made (<see cref="WiredHeldFloorMoves"/>):
+    /// a furni only turned at once, before the boxes' flash; the moves after it, with the next
+    /// state update (official client capture, 2026-10-22T22-02-10: the turn's ObjectUpdate came
+    /// before the flash's ObjectsDataUpdate 6/6, a WiredMovements after it 16/16, same ms).
+    /// </summary>
     private void SendHeldFloorMoves(WiredHeldFloorMoves heldMoves)
     {
         if (heldMoves.IsEmpty)
             return;
 
-        var composers = ImmutableArray.CreateBuilder<IComposer>(1 + heldMoves.Turned.Count);
+        var turned = ImmutableArray.CreateBuilder<IComposer>();
 
         foreach (var objectId in heldMoves.Turned)
         {
             if (FurniModule.TryGetItem(objectId, out var item))
-                composers.Add(item.GetUpdateComposer());
+                turned.Add(item.GetUpdateComposer());
         }
 
-        if (heldMoves.Moves.Count > 0)
-            composers.Add(
-                new WiredMovementsMessageComposer
-                {
-                    Users = [],
-                    FloorItems = [.. heldMoves.Moves],
-                    WallItems = [],
-                    UserDirections = [],
-                }
-            );
+        List<WiredFloorItemMovementSnapshot> moves = [.. heldMoves.Moves];
 
         heldMoves.Clear();
 
-        if (composers.Count > 0)
-            _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
+        if (turned.Count > 0)
+            _roomGrain.SendComposersToRoomAndForget(turned.ToImmutable());
+
+        if (moves.Count == 0)
+            return;
+
+        var movements = new WiredMovementsMessageComposer
+        {
+            Users = [],
+            FloorItems = moves,
+            WallItems = [],
+            UserDirections = [],
+        };
+
+        if (_collectingTickStates)
+            _pendingFloorMoves.Add(movements);
+        else
+            _roomGrain.SendComposersToRoomAndForget([movements]);
     }
 
     private async Task ProcessWiredStacksAsync(long now, CancellationToken ct)
@@ -1671,11 +1691,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     // Sends each pending furni's state as it is now, so a change made outside wired since (a
     // player's double-click, already sent) is never overwritten by an older one.
+    // The furni moves held for the update follow it (_pendingFloorMoves).
     private void FlushPendingFloorStates()
     {
-        if (_pendingFloorStates.Count == 0)
+        if (_pendingFloorStates.Count == 0 && _pendingFloorMoves.Count == 0)
             return;
 
+        var composers = ImmutableArray.CreateBuilder<IComposer>(1 + _pendingFloorMoves.Count);
         List<(RoomObjectId, StuffDataSnapshot)> stuffDatas = [];
 
         foreach (var objectId in _pendingFloorStates)
@@ -1686,12 +1708,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         _pendingFloorStates.Clear();
 
-        if (stuffDatas.Count == 0)
-            return;
+        if (stuffDatas.Count > 0)
+            composers.Add(new ObjectsDataUpdateMessageComposer { StuffDatas = stuffDatas });
 
-        _roomGrain.SendComposersToRoomAndForget([
-            new ObjectsDataUpdateMessageComposer { StuffDatas = stuffDatas },
-        ]);
+        composers.AddRange(_pendingFloorMoves);
+        _pendingFloorMoves.Clear();
+
+        if (composers.Count > 0)
+            _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
     }
 
     private void Flash(IWiredBox box) =>

@@ -7,6 +7,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
@@ -26,6 +27,7 @@ public sealed class WiredValidMovesTests
     private const int CONDITION = 2;
     private const int TOGGLE = 3;
     private const int FIRST_MOVE = 4;
+    private const int RANDOM = 9;
 
     private const int CLICK_ME = 20;
     private const int LAMP = 21;
@@ -105,6 +107,28 @@ public sealed class WiredValidMovesTests
         }
 
         movedAfterAPass.Should().BeEquivalentTo([true, false]);
+    }
+
+    // Official (2026-10-22T22-06-39): with the random add-on picking 2 of 4 effects and a blocker
+    // letting half the picks move but no order of all 4, the check passed 0 of 20; it checks every
+    // effect, not the pick. Here either effect picked alone could move; both together cannot.
+    [Fact]
+    public async Task The_check_takes_every_effect_whatever_the_random_addon_picks()
+    {
+        _room.AddFloorItem(LAMP, 1, 3);
+        _room.AddBox<WiredAddonRandomActions>(RANDOM, 5, 0, "wf_xtra_random");
+        (await _room.SaveAsync<UpdateAddonMessage>(RANDOM, intParams: [0, 1])).Should().BeTrue();
+        await BuildAsync(MOVE_WEST, MOVE_WEST);
+
+        for (var i = 0; i < 20; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(LAMP), _room.Map.ToIdx(1, 3));
+
+            await ClickAsync();
+
+            _room.FloorItem(LAMP).X.Should().Be(1, $"click {i + 1} failed the check");
+            SwitchState().Should().Be(0);
+        }
     }
 
     private int SwitchState() => _room.FloorItem(SWITCH).Logic.GetState();
