@@ -259,8 +259,8 @@ public class WiredConfig
     /// <summary>
     /// The furni logics Send Signal and Receive Signal take as antennas
     /// (<c>wiredfurni.error.require_antenna_furni</c>, "Can only select antenna furni."); Habbo's
-    /// antennas are <c>wf_antenna1</c> and <c>wf_antenna2</c> (official furnidata 2026-10-13).
-    /// Empty lets any furni be an antenna.
+    /// antennas are <c>wf_antenna1</c> and <c>wf_antenna2</c> (official furnidata 2026-10-13). A furni matches by its class
+    /// name or its logic name. Empty lets any furni be an antenna.
     /// </summary>
     public string[] AntennaLogicNames { get; init; } = ["wf_antenna1", "wf_antenna2"];
     public int MaxIntParams { get; init; } = 16;
