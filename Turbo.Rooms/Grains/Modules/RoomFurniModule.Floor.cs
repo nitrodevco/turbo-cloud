@@ -131,8 +131,9 @@ public sealed partial class RoomFurniModule
         if (!MapModule.MoveFloorItem(item, tileIdx, z, rot))
             return false;
 
-        if (announce && GetMoveComposer(item, wasHidden) is { } moved)
-            await _roomGrain.SendComposerToRoomAsync(moved, ct);
+        if (announce)
+            foreach (var moved in GetFloorMoveComposers(item, wasHidden))
+                await _roomGrain.SendComposerToRoomAsync(moved, ct);
 
         await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
 

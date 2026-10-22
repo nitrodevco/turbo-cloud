@@ -55,7 +55,7 @@ public sealed partial class RoomFurniModule
     /// <summary>
     /// Whether the Invisible Furni Controller takes the item away: a hider set to "Make this
     /// furniture invisible" or a furni of a kind the hotel lists as invisible (Habbo:
-    /// <c>room_invisible_block</c>, official client capture 2026-10-22).
+    /// the seven invisible blocks and tiles, official client capture 2026-10-22).
     /// </summary>
     internal bool IsInvisibleFurni(IRoomItem item) =>
         item.Logic is FurnitureAreaHideLogic { IsInvisible: true }
@@ -290,6 +290,23 @@ public sealed partial class RoomFurniModule
         wallMoves.RemoveAll(x => !Shown(x.ObjectId));
 
         return composers;
+    }
+
+    /// <summary>
+    /// What the room is told of a floor furni that moved: as <see cref="GetMoveComposer"/>, with
+    /// its update after the removal or the add when it crossed a hidden area's edge (official
+    /// client capture 2026-10-22, MoveObject: into = ObjectRemove then ObjectUpdate 2/2, out of =
+    /// ObjectAdd then ObjectUpdate 3/3, in the same millisecond).
+    /// </summary>
+    private IEnumerable<IComposer> GetFloorMoveComposers(IRoomItem item, bool wasHidden)
+    {
+        if (GetMoveComposer(item, wasHidden) is not { } moved)
+            yield break;
+
+        yield return moved;
+
+        if (wasHidden != IsHidden(item))
+            yield return item.GetUpdateComposer();
     }
 
     /// <summary>

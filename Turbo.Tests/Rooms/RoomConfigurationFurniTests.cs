@@ -398,6 +398,90 @@ public sealed class RoomConfigurationFurniTests
         view.AreaHides.Should().ContainSingle("its area stays hidden");
     }
 
+    [Theory]
+    [InlineData("room_invisible_block")]
+    [InlineData("room_invisible_block2")]
+    [InlineData("room_invisible_block3")]
+    [InlineData("room_invisible_block4")]
+    [InlineData("room_invisible_sit_tile")]
+    [InlineData("room_invisible_click_tile")]
+    [InlineData("room_invisible_lay_tile")]
+    public async Task The_controller_takes_away_every_invisible_block_and_tile(string className)
+    {
+        // Official client capture 2026-10-22T23-01-23-UseFurniture (2/2): the controller's one
+        // ObjectRemoveMultiple holds all seven invisible classes.
+        var controller = _room.AddFloorItem(
+            CONTROLLER,
+            1,
+            1,
+            "invisible_furni_control",
+            createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
+        );
+        _room.AddFloorItem(INSIDE, 6, 6, className: className);
+
+        await controller.Logic.OnUseAsync(Owner, 0, Ct);
+
+        _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.ObjectIdsToRemove.Should()
+            .Equal(INSIDE);
+    }
+
+    [Fact]
+    public async Task A_furni_moved_across_a_hidden_areas_edge_is_removed_or_added_then_updated()
+    {
+        // Official client capture 2026-10-22T23-04-14-MoveObject: into the area = ObjectRemove
+        // {picker -1, byInvisibleFurniManager} then ObjectUpdate (2/2); out of it = ObjectAdd
+        // then ObjectUpdate (3/3).
+        var hider = _room.AddFloorItem(
+            HIDER,
+            7,
+            7,
+            "area_hide",
+            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        );
+        _room.AddFloorItem(OUTSIDE, 5, 5);
+        await SetAreaAsync(hider, invisible: false);
+        await hider.Logic.OnUseAsync(Owner, 0, Ct);
+        var furni = _room.Harness.Module<RoomFurniModule>();
+
+        (await furni.MoveFloorItemByIdAsync(Owner, OUTSIDE, 2, 2, null, null, Ct))
+            .Should()
+            .BeTrue();
+
+        MoveSends().Should().Equal(["ObjectRemove", "ObjectUpdate"]);
+
+        (await furni.MoveFloorItemByIdAsync(Owner, OUTSIDE, 5, 5, null, null, Ct))
+            .Should()
+            .BeTrue();
+
+        MoveSends().Should().Equal(["ObjectAdd", "ObjectUpdate"]);
+
+        (await furni.MoveFloorItemByIdAsync(Owner, OUTSIDE, 6, 5, null, null, Ct))
+            .Should()
+            .BeTrue();
+
+        MoveSends().Should().Equal(["ObjectUpdate"], "a move in sight is the update alone");
+    }
+
+    // The single-furni packets the room got since the last call, by Habbo's message names.
+    private string[] MoveSends()
+    {
+        var all = _room.Harness.Fakes.Sent(SendRoute.Room).ToList();
+        var sent = all.Skip(_moveSeen)
+            .Select(x => x.GetType().Name.Replace("MessageComposer", ""))
+            .Where(x => x is "ObjectRemove" or "ObjectAdd" or "ObjectUpdate")
+            .ToArray();
+
+        _moveSeen = all.Count;
+
+        return sent;
+    }
+
+    private int _moveSeen;
+
     private Task<bool> SetAreaAsync(IRoomFloorItem hider, bool invisible) =>
         hider.Logic.OnInteractAsync(
             Owner,

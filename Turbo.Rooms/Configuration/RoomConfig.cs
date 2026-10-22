@@ -328,10 +328,20 @@ public class RoomConfig
 
     /// <summary>
     /// The furni (definition names) an Invisible Furni Controller takes out of the room while it
-    /// is on, besides area hiders set to "Make this furniture invisible". Habbo's
-    /// <c>room_invisible_block</c> is (official client capture, 2026-10-22).
+    /// is on, besides area hiders set to "Make this furniture invisible". Habbo's are the seven
+    /// invisible blocks and tiles (official client capture 2026-10-22T23-01-23-UseFurniture, 2/2:
+    /// all seven in one ObjectRemoveMultiple, back in one Objects).
     /// </summary>
-    public string[] InvisibleFurniNames { get; init; } = ["room_invisible_block"];
+    public string[] InvisibleFurniNames { get; init; } =
+    [
+        "room_invisible_block",
+        "room_invisible_block2",
+        "room_invisible_block3",
+        "room_invisible_block4",
+        "room_invisible_sit_tile",
+        "room_invisible_click_tile",
+        "room_invisible_lay_tile",
+    ];
 
     /// <summary>How long both sides of a love lock have to confirm before it is cancelled.</summary>
     public int FriendFurniLockTimeoutMs { get; init; } = 60000;
