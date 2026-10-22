@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
+using Turbo.Assets.Conversion;
 using Turbo.Assets.Hab;
 using Turbo.Assets.Nitro;
 using Turbo.Assets.Swf;
@@ -33,7 +34,7 @@ public static class FurnitureAssetReader
     };
 
     /// <summary>
-    /// Reads a file of any of the three kinds, told apart by its first bytes. <paramref name="name"/>
+    /// Reads a file of any of the three kinds (a <c>.nitro</c> of either layout), told apart by its first bytes. <paramref name="name"/>
     /// is the library's name, which a <c>.hab</c> or a bundle with several files may need.
     /// </summary>
     public static FurnitureAssetInfo Read(byte[] file, string? name = null)
@@ -47,6 +48,12 @@ public static class FurnitureAssetReader
         if (NitroBundle.IsNitro(file))
             return FromAssetData(
                 NitroBundle.Read(file).AssetData(name)
+                    ?? throw new AssetFormatException("The .nitro bundle has no asset data.")
+            );
+
+        if (LegacyNitroBundle.IsLegacy(file))
+            return FromAssetData(
+                NitroConverter.Convert(file, name).AssetData(name)
                     ?? throw new AssetFormatException("The .nitro bundle has no asset data.")
             );
 

@@ -97,6 +97,7 @@ public sealed class GamedataImportTests : IDisposable
             new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
             writes,
             _fakes.Create<IRoomObjectLogicProvider>(),
+            _fakes.Create<IAssetBundleStore>(),
             TimeProvider.System,
             NullLogger<GamedataFurnitureService>.Instance
         );

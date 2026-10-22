@@ -16,12 +16,15 @@ holds the targets.
 The panel has one upload, for any file. The server reads what the file is from its content, not its
 name or a kind chosen for it (`AssetBundleService.UploadFileAsync`):
 
-- **A library** (an SWF, a `.hab` or a `.nitro`, by its first bytes) is converted, and its asset
+- **A library** (an SWF, a `.hab` or a `.nitro`, by its first bytes; a `.nitro` of the old layout,
+  from before bundles were zips, by its layout, repacked as the current one) is converted, and its asset
   data says its kind (`AssetKindDetector`): a `pet` logic or `pet_...` visualization is a pet; any
   other logic or visualization is furniture; an animation of its own is an effect; assets named
   `h_...` are clothing. When the data says none of these, a bundle already of that name gives its
   kind. An effect or clothing library is converted again as one, dropping its shadows. It is kept
   as an upload, which a sync never replaces.
+  A furniture bundle no definition draws from yet can be made one from its own data (see
+  `docs/gamedata.md`, furniture of the hotel's own): the upload offers it.
 - **A gamedata file** (furniture data, product data, figure data, the figure or effect map, texts,
   variables or a client config, as JSON, XML or text; `GamedataFileDetector`) is recognised and
   not taken: the hotel builds its gamedata from the database. The panel points to where it is

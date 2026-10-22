@@ -74,6 +74,21 @@ Whether it is floor or wall furniture is not edited: that changes which fields i
   not, for every furniture Habbo has. Each field shows how many definitions differ first. It is one change set (`habbo values`)
   that rolls back as one. The hotel's own furniture and the fields not chosen are left alone.
   The editor also offers **Use Habbo's** beside each field of one definition that differs.
+- **Furniture of the hotel's own** is made from its bundle. Once a furniture bundle is uploaded
+  (see `docs/asset-bundles.md`), `GET /api/gamedata/furniture/draft/{bundle}` reads what its own
+  asset data says (`FurnitureAssetReader`) and prefills a definition: the classname is the
+  bundle's name; `xdim`, `ydim` and `height` are its logic's dimensions; `states` counts its
+  state animations as an import does; it is a wall item when its logic or visualization is one
+  only wall items have (`furniture_stickie`, `furniture_window`, `furniture_poster`,
+  `furniture_external_image_wallitem`), otherwise a floor item. Its logic is the one the server
+  registers under its classname, else the server's logic its client logic names
+  (`furniture_dice` is `dice`), else plain furniture. Whether it is a seat, a bed or a surface is
+  not in a bundle and is left for staff. The draft lists its colours and the definitions already
+  drawn from it. `POST /api/gamedata/furniture` (`type` `floor` or `wall`, the `fields` by
+  furnidata and server key, `colors`) makes the definition and one `classname*N` for each colour
+  chosen, each under the sprite id above every one the hotel's definitions and Habbo's items of
+  its kind use (or the `id` given), as one change set that rolls back as a whole. Its fields are
+  checked as an edit's; a classname or sprite id another definition of its kind has is refused.
 - **History.** Every import, edit and rollback is a change set in `gamedata_change_sets` and
   `gamedata_changes`. Each change records the fields before and after.
   - Rolling a set back restores each field unless it has changed again since.
@@ -222,6 +237,7 @@ pieces.
 | `.swf` | `SwfLibrary` | Habbo's SWF libraries: `FWS` and zlib `CWS`. LZMA `ZWS` is refused for now. |
 | `.hab` | `HabLibrary` | The HTML client's libraries: a zlib'd JSON manifest and its entries. |
 | `.nitro` | `NitroBundle` | The client's bundles: a zip of the asset data, the sheet and its frames. |
+| `.nitro` (old layout) | `LegacyNitroBundle` | Bundles from before they were zips: a big-endian count, then each file's name and zlib'd data. Its asset data keys its lists by name or id and holds the spritesheet. |
 
 `FurnitureAssetReader.Read` tells them apart by their first bytes and reads a furniture's
 `FurnitureAssetInfo` from any of them. Each file is checked against `AssetLimits` before it is
@@ -243,6 +259,10 @@ studio's converter ported to C#, and writes what that converter wrote:
   identical ones sharing a place, packed by MaxRects. Frames are in the Pixi layout.
 - **A prebuilt `.hab`** keeps its packed sheet, with its JSON brought to the current layout.
 - **A `.nitro`** is taken as it is.
+- **A `.nitro` of the old layout** is repacked as the current one, as a prebuilt `.hab` is: its
+  JSON brought to the current layout, the spritesheet moved beside it as
+  `<name>_spritesheet.json` and its frames named as their assets (the old ones carry the
+  library's name in front: `lamp_lamp_64_a_0_0` is `lamp_64_a_0_0`).
 
 It was checked against the studio's converter on 79 of Habbo's libraries (furniture, pets,
 clothing), and on all 252 of Habbo's effect libraries: the asset data is byte for byte the same, and

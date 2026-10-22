@@ -89,6 +89,7 @@ public sealed class FurnitureListTests : IDisposable
             new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
             new GamedataWriteLock(),
             _fakes.Create<IRoomObjectLogicProvider>(),
+            _fakes.Create<IAssetBundleStore>(),
             TimeProvider.System,
             NullLogger<GamedataFurnitureService>.Instance
         );

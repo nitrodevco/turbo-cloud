@@ -430,7 +430,10 @@ internal sealed class AssetBundleService(
     }
 
     private static bool IsLibrary(byte[] data) =>
-        SwfLibrary.IsSwf(data) || HabLibrary.IsHab(data) || NitroBundle.IsNitro(data);
+        SwfLibrary.IsSwf(data)
+        || HabLibrary.IsHab(data)
+        || NitroBundle.IsNitro(data)
+        || LegacyNitroBundle.IsLegacy(data);
 
     private void CheckFile(byte[] data)
     {
@@ -533,12 +536,15 @@ internal sealed class AssetBundleService(
             _ => null,
         };
 
-    /// <summary>The upload as the bundle to keep: a library converted, a <c>.nitro</c> as it is once it reads.</summary>
+    /// <summary>
+    /// The upload as the bundle to keep: a library converted, a <c>.nitro</c> as it is once it
+    /// reads, one of the old layout repacked as the current one.
+    /// </summary>
     private static byte[] ToBundle(AssetBundleKind kind, string name, string extension, byte[] data)
     {
         try
         {
-            if (extension == AssetBundleStore.EXTENSION)
+            if (extension == AssetBundleStore.EXTENSION && !LegacyNitroBundle.IsLegacy(data))
             {
                 NitroBundle.Read(data);
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,6 +59,30 @@ public interface IGamedataFurnitureService
     public Task<FurnitureDefinitionDetail?> UpdateDefinitionAsync(
         int id,
         JsonObject fields,
+        PlayerId player,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The definition a furniture bundle's own data says it would be (<see cref="FurnitureDraft"/>).
+    /// Null when there is no furniture bundle of that name with a file. Throws
+    /// <see cref="System.ArgumentException"/> when its file can't be read.
+    /// </summary>
+    public Task<FurnitureDraft?> DraftFromBundleAsync(string bundle, CancellationToken ct);
+
+    /// <summary>
+    /// Makes a definition of <paramref name="type"/> with these fields (furnidata and server keys,
+    /// as <see cref="UpdateDefinitionAsync"/> takes them; <c>classname</c> is needed), and one more
+    /// for each of <paramref name="colors"/> named <c>classname*N</c>: one change set, which rolls
+    /// back as a whole. Without an <c>id</c> each gets the sprite id above every one the hotel and
+    /// Habbo use; without a <c>logic</c>, the one a new item of its classname gets. Throws
+    /// <see cref="System.ArgumentException"/> as an edit does, and for a classname or sprite id
+    /// another definition of the kind has. Returns the ids made, the plain one first.
+    /// </summary>
+    public Task<ImmutableArray<int>> CreateDefinitionsAsync(
+        ProductType type,
+        JsonObject fields,
+        IReadOnlyCollection<int> colors,
         PlayerId player,
         CancellationToken ct
     );

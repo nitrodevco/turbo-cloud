@@ -21,7 +21,9 @@ namespace Turbo.Assets.Conversion;
 /// (<see cref="SpriteSheetPacker"/>);</item>
 /// <item>a prebuilt <c>.hab</c> (the small generic libraries): its packed sheet kept, its JSON brought
 /// to the current layout (<see cref="LegacyAssetData"/>);</item>
-/// <item>a <c>.nitro</c>: taken as it is.</item>
+/// <item>a <c>.nitro</c>: taken as it is;</item>
+/// <item>a <c>.nitro</c> of the old layout (<see cref="LegacyNitroBundle"/>): repacked as a zip, its JSON
+/// brought to the current layout as a prebuilt <c>.hab</c>'s is.</item>
 /// </list>
 /// </summary>
 public static class NitroConverter
@@ -55,6 +57,9 @@ public static class NitroConverter
 
         if (NitroBundle.IsNitro(file))
             return NitroBundle.Read(file);
+
+        if (LegacyNitroBundle.IsLegacy(file))
+            return FromLegacy(LegacyNitroBundle.Read(file), name, assetType);
 
         throw new AssetFormatException("The file is not an SWF, a .hab or a .nitro bundle.");
     }
@@ -163,6 +168,79 @@ public static class NitroConverter
 
         return NitroBundle.Create(files);
     }
+
+    /// <summary>
+    /// An old bundle as the current one: its asset data (<c>&lt;name&gt;.json</c>, the spritesheet
+    /// inside it) as <c>&lt;name&gt;.json</c> and <c>&lt;name&gt;_spritesheet.json</c>, its image beside
+    /// them. Its frames carry the library's name in front of the asset's
+    /// (<c>lamp_lamp_64_a_0_0</c>); the client looks them up by the asset's.
+    /// </summary>
+    private static NitroBundle FromLegacy(
+        IReadOnlyDictionary<string, byte[]> legacyFiles,
+        string? name,
+        string? assetType
+    )
+    {
+        var jsons = legacyFiles
+            .Keys.Where(x =>
+                x.EndsWith(".json", StringComparison.Ordinal)
+                && !x.EndsWith("_spritesheet.json", StringComparison.Ordinal)
+            )
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        var json =
+            jsons.FirstOrDefault(x => x == $"{name}.json")
+            ?? jsons.FirstOrDefault()
+            ?? throw new AssetFormatException("The old .nitro bundle has no asset data.");
+
+        JsonObject legacy;
+
+        try
+        {
+            legacy =
+                JsonNode.Parse(legacyFiles[json]) as JsonObject
+                ?? throw new AssetFormatException($"The bundle's {json} is not a JSON object.");
+        }
+        catch (JsonException ex)
+        {
+            throw new AssetFormatException($"The bundle's {json} is not JSON.", ex);
+        }
+
+        var converted = LegacyAssetData.Convert(legacy);
+        var library = legacy["name"]?.GetValue<string>() ?? json[..^".json".Length];
+        var bundleName = name ?? library;
+        var image =
+            legacyFiles.Keys.FirstOrDefault(x => x == $"{json[..^".json".Length]}.png")
+            ?? legacyFiles.Keys.FirstOrDefault(x =>
+                x.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+            );
+        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+
+        AssetDataFilter.Apply(converted.AssetData, assetType);
+        files[$"{bundleName}.json"] = Json(converted.AssetData);
+
+        if (image is not null)
+            files[$"{bundleName}.png"] = legacyFiles[image];
+
+        if (converted.Spritesheet is { } spritesheet)
+            files[$"{bundleName}_spritesheet.json"] = Json(
+                LegacyAssetData.Spritesheet(
+                    spritesheet,
+                    library,
+                    $"{bundleName}.png",
+                    AssetNames(converted.AssetData)
+                )
+            );
+
+        return NitroBundle.Create(files);
+    }
+
+    private static HashSet<string> AssetNames(JsonObject data) =>
+        (data["assets"] as JsonArray ?? [])
+            .OfType<JsonObject>()
+            .Select(x => x["name"]?.GetValue<string>())
+            .OfType<string>()
+            .ToHashSet(StringComparer.Ordinal);
 
     private static byte[] Json(JsonNode node) => Encoding.UTF8.GetBytes(node.ToJsonString(JSON));
 }
