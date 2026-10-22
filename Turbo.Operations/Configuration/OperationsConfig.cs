@@ -86,6 +86,16 @@ public class OperationsConfig
     public int CfhReportsListed { get; init; } = 50;
 
     /// <summary>
+    /// Whether a muted player (one who does not hold <c>chat.speak</c>) may not call for help: the
+    /// client then tells them so ("You have been muted. You won't be able to send calls for help
+    /// until you are unmuted") and nothing is stored.
+    /// </summary>
+    public bool CfhRefuseMuted { get; init; } = true;
+
+    /// <summary>Where that refusal's "more information" link goes; empty for none.</summary>
+    public string CfhMutedInfoUrl { get; init; } = "";
+
+    /// <summary>
     /// The issue handler's default sanctions, in the order a reported player earns them, each one
     /// of the mod action window's (given as it gives them): <c>ALERT</c> (a caution), <c>MUTE</c>
     /// (1 h), <c>BAN:18</c>, <c>BAN:168</c>, <c>BAN:720</c> or <c>BAN_PERMANENT</c> (the names the

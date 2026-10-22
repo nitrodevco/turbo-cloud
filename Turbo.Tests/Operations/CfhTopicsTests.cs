@@ -39,7 +39,8 @@ public sealed class CfhTopicsTests : IDisposable
             Options.Create(new OperationsConfig()),
             new Fakes().Create<IHotelTextProvider>(),
             TimeProvider.System,
-            new Fakes().Create<IModerationIssueService>()
+            new Fakes().Create<IModerationIssueService>(),
+            new Fakes().Create<Orleans.IGrainFactory>()
         ).GetTopicsAsync(Ct);
 
         categories.Select(x => x.Name).Should().Equal("sexual_content", "trolling_bad_behavior");

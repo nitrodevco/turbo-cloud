@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Extensions;
@@ -13,7 +14,9 @@ using Turbo.Operations.Configuration;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Moderation.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Operations;
@@ -23,13 +26,15 @@ namespace Turbo.Operations;
 /// sends them, and a hotel changes them about never (a change shows after a restart). Reports
 /// are <c>cfh_reports</c> with their chat lines; a new one goes to the moderators' issue queue
 /// (<see cref="IModerationIssueService"/>), and a reporter may appeal a report closed without action.
+/// A muted player's call is refused (<see cref="OperationsConfig.CfhRefuseMuted"/>).
 /// </summary>
 public sealed class CallForHelpService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<OperationsConfig> config,
     IHotelTextProvider texts,
     TimeProvider timeProvider,
-    IModerationIssueService issues
+    IModerationIssueService issues,
+    IGrainFactory grainFactory
 ) : ICallForHelpService
 {
     public const string TOO_MANY_TEXT = "moderation.cfh.too_many";
@@ -85,6 +90,12 @@ public sealed class CallForHelpService(
             _topicsLock.Release();
         }
     }
+
+    public async Task<string?> GetRefusedInfoUrlAsync(PlayerId reporter, CancellationToken ct) =>
+        _config.CfhRefuseMuted
+        && !await grainFactory.HasPermissionAsync(reporter, PermissionNodes.Chat.SPEAK, ct)
+            ? _config.CfhMutedInfoUrl
+            : null;
 
     public async Task<CfhResultSnapshot> SubmitAsync(
         PlayerId reporter,
