@@ -29,10 +29,4 @@ internal sealed class WiredPendingStackExecution
 
     /// <summary>The firing's context variable values, which its actions read and write.</summary>
     public required KeyValueStore ContextValues { get; init; }
-
-    /// <summary>
-    /// The moves "Can Perform Movements" checked, which the movers make instead of working them
-    /// out again; null when nothing was checked.
-    /// </summary>
-    public Dictionary<IWiredAction, WiredMovePlan>? MovePlans { get; init; }
 }

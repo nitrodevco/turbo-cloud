@@ -15,10 +15,10 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// "Can Perform Movements" (wf_cnd_valid_moves) checks the moves the stack's effects are about to
-/// make before any of them is made: in the order they will run, each from where the moves before
-/// it leave the furni, with the random rolls that will then be used. A click runs the stack; a
-/// switch the stack toggles shows whether its effects ran.
+/// "Can Perform Movements" (wf_cnd_valid_moves) checks the moves of the stack's effects before any
+/// of them is made: in a random order of its own, each from where the moves before it leave the
+/// furni, with rolls of its own. A click runs the stack; a switch the stack toggles shows whether
+/// its effects ran.
 /// </summary>
 public sealed class WiredValidMovesTests
 {
@@ -75,17 +75,19 @@ public sealed class WiredValidMovesTests
         SwitchState().Should().Be(1);
     }
 
-    // In the corner a random step is blocked half the time. The step that was checked must be
-    // the step that runs: the stack's other effect runs exactly when the lamp moved.
+    // In the corner a random step is blocked half the time. The check rolls its own step and the
+    // effect rolls again when it runs, as the effects draw their order again after the check
+    // (official client capture, WIN63-202610201032: 13 of 24 passes then ran a blocked order;
+    // that the rolls are drawn again likewise is inferred from it). A failed check moves nothing.
     [Fact]
-    public async Task A_random_move_runs_the_direction_that_was_checked()
+    public async Task A_random_move_is_rolled_again_after_the_check()
     {
         _room.AddFloorItem(LAMP, 0, 7);
         await BuildAsync(MOVE_RANDOM);
 
-        var outcomes = new HashSet<bool>();
+        var movedAfterAPass = new HashSet<bool>();
 
-        for (var i = 0; i < 40; i++)
+        for (var i = 0; i < 60; i++)
         {
             _room.Map.MoveFloorItem(_room.FloorItem(LAMP), _room.Map.ToIdx(0, 7));
 
@@ -96,13 +98,13 @@ public sealed class WiredValidMovesTests
             var lamp = _room.FloorItem(LAMP);
             var moved = (lamp.X, lamp.Y) != (0, 7);
 
-            (SwitchState() != stateBefore)
-                .Should()
-                .Be(moved, $"click {i + 1}: the stack ran exactly when its move could be made");
-            outcomes.Add(moved);
+            if (SwitchState() == stateBefore)
+                moved.Should().BeFalse($"click {i + 1} failed the check and moved nothing");
+            else
+                movedAfterAPass.Add(moved);
         }
 
-        outcomes.Should().BeEquivalentTo([true, false]);
+        movedAfterAPass.Should().BeEquivalentTo([true, false]);
     }
 
     private int SwitchState() => _room.FloorItem(SWITCH).Logic.GetState();
