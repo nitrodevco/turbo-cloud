@@ -104,8 +104,9 @@ services there. Core grants nothing by default. A handler that throws is logged 
 
 `IGameAccessPolicy` (`Turbo.Primitives.Games`) decides how many games a player has left
 (`GetFreeGamesLeftAsync(playerId, gameTypeId, ct)`, `-1` unlimited) and is asked before a join.
-The default reads the settings below and counts the games the player started today (server time).
-A plugin replaces it by registering its own `IGameAccessPolicy` with the host services.
+The default reads the settings below and counts the games the player started since midnight UTC.
+A plugin replaces it by declaring a public class implementing `IGameAccessPolicy`, found and
+registered as games are (the last one loaded wins; unloading the plugin brings the default back).
 
 ## Settings (`Turbo:Games`, panel Settings, live)
 
@@ -117,13 +118,14 @@ A plugin replaces it by registering its own `IGameAccessPolicy` with the host se
 | `ClubFreeGamesPerDay` | `30` | The same for Habbo Club members (official recordings show 30 for a member, 3 for a new account). |
 | `CountdownSeconds` | `10` | The lobby countdown once the minimum players are in. |
 | `LeaderboardMaxEntries` | `50` | Most entries one leaderboard request is answered with. |
-| `WeekStartsOn` | `Monday` | The weekly leaderboards' week (ISO weeks). |
+| `LeaderboardMaxWeeksBack` | `4` | Weeks back a weekly leaderboard can be read (ISO weeks, Monday first). |
 
 ## Where it lives
 
 - `Turbo.Primitives/Games`: the contracts above (`IRoomGame`, `GameDefinition`, `GameLaunch`,
   `GameArena`, `GameResult`, `IGameRegistry`, `IGameResultService`, `IGameRewardHandler`,
-  `IGameAccessPolicy`, `IGameDirectoryGrain`).
-- `Turbo.Rooms/Games`: the registry, the assembly scan, the directory grain (lobbies, queue,
-  countdown) and the score store (`game_player_results`).
+  `IGameAccessPolicy`, `IGameLeaderboardService`, `Grains/IGameDirectoryGrain`).
+- `Turbo.Rooms/Games`: the registry, the assembly scan (`GameFeatureProcessor`), the directory
+  grain (lobbies, countdown, launch) and the score store (`GameScoreStore`, table
+  `game_player_results`); settings in `Turbo.Rooms/Configuration/GameCenterConfig.cs`.
 - `Turbo.PacketHandlers/Game`: the `Game2*` handlers, orchestration only.

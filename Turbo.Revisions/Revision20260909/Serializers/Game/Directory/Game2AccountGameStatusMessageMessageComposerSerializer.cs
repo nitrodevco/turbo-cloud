@@ -11,6 +11,9 @@ internal class Game2AccountGameStatusMessageMessageComposerSerializer(int header
         Game2AccountGameStatusMessageMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Status.GameTypeId)
+            .WriteInteger(message.Status.FreeGamesLeft)
+            .WriteInteger(message.Status.GamesPlayedTotal);
     }
 }

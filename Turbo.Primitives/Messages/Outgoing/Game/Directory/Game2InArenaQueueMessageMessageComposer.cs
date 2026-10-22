@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Game.Directory;
 [GenerateSerializer, Immutable]
 public sealed record Game2InArenaQueueMessageMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int Position { get; init; }
 }

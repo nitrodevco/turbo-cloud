@@ -11,6 +11,6 @@ internal class Game2StartCounterMessageMessageComposerSerializer(int header)
         Game2StartCounterMessageMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.CountDownLength);
     }
 }

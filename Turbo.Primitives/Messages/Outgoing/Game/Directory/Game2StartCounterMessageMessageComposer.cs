@@ -6,5 +6,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Game.Directory;
 [GenerateSerializer, Immutable]
 public sealed record Game2StartCounterMessageMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    /// <summary>Seconds until the game starts.</summary>
+    [Id(0)]
+    public required int CountDownLength { get; init; }
 }

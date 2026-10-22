@@ -94,6 +94,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Catalog.Grains.IPlayerTargetedOf
   B76C693E: SendNextOfferAsync(System.Threading.CancellationToken) -> Task
   04BC6F5A: SetTrackingStateAsync(int, int, System.Threading.CancellationToken) -> Task
 
+interface [GrainInterfaceType("Turbo.Primitives.Games.Grains.IGameDirectoryGrain")] Turbo.Primitives.Games.Grains.IGameDirectoryGrain [Version(0)]
+  EDFA1327: GetAccountStatusAsync(Turbo.Primitives.Players.PlayerId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Games.Snapshots.GameAccountStatusSnapshot>
+  A297FF4C: GetDirectoryStatusAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Games.Snapshots.GameDirectoryStatusSnapshot>
+  1268A38A: JoinAsync(Turbo.Primitives.Players.PlayerId, string?, System.Threading.CancellationToken) -> Task
+  7137FB31: LeaveAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildDirectoryGrain")] Turbo.Primitives.Guilds.Grains.IGuildDirectoryGrain [Version(0)]
   EEAD8CC2: GetDefaultBadgePartsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildBadgePartSnapshot>>
   EC544848: GetEditorDataAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildEditorDataSnapshot>

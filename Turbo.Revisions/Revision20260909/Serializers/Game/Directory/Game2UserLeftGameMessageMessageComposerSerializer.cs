@@ -11,6 +11,6 @@ internal class Game2UserLeftGameMessageMessageComposerSerializer(int header)
         Game2UserLeftGameMessageMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.PlayerId);
     }
 }

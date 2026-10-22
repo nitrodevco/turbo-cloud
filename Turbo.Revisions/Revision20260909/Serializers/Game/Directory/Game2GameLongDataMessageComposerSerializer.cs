@@ -11,6 +11,6 @@ internal class Game2GameLongDataMessageComposerSerializer(int header)
         Game2GameLongDataMessageComposer message
     )
     {
-        //
+        GameLobbyWriter.Write(packet, message.Lobby);
     }
 }

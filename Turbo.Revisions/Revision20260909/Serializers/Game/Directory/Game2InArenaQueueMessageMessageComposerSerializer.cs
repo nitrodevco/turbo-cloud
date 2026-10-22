@@ -11,6 +11,6 @@ internal class Game2InArenaQueueMessageMessageComposerSerializer(int header)
         Game2InArenaQueueMessageMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Position);
     }
 }

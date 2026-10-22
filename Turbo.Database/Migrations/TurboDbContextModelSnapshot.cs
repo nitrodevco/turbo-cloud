@@ -3005,6 +3005,66 @@ namespace Turbo.Database.Migrations
                     b.ToTable("habbo_variable_versions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Games.GamePlayerResultEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int")
+                        .HasColumnName("game_id");
+
+                    b.Property<int>("GameTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("game_type_id");
+
+                    b.Property<int>("Placement")
+                        .HasColumnType("int")
+                        .HasColumnName("placement");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int")
+                        .HasColumnName("score");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int")
+                        .HasColumnName("team_id");
+
+                    b.Property<int>("Week")
+                        .HasColumnType("int")
+                        .HasColumnName("week");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId", "GameTypeId");
+
+                    b.HasIndex("GameTypeId", "Year", "Week");
+
+                    b.HasIndex("GameTypeId", "GameId", "PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("game_player_results");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildBadgePartEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -9607,6 +9667,17 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("ChangeSet");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Games.GamePlayerResultEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildEntity", b =>

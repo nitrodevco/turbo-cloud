@@ -8,6 +8,7 @@ using Orleans;
 using Turbo.Primitives.Admin.Grains;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
+using Turbo.Primitives.Games.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Habbicons.Grains;
@@ -249,6 +250,9 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerEffectGrain>(playerId.Value);
+
+    public static IGameDirectoryGrain GetGameDirectoryGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IGameDirectoryGrain>(SingletonGrainId.GLOBAL);
 
     public static IBadgeLeaderboardGrain GetBadgeLeaderboardGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeLeaderboardGrain>(SingletonGrainId.GLOBAL);

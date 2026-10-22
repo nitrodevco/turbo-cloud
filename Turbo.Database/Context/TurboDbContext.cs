@@ -7,6 +7,7 @@ using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
+using Turbo.Database.Entities.Games;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Habbicons;
 using Turbo.Database.Entities.Hotel;
@@ -230,6 +231,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerChatStyleBitmapEntity> PlayerChatStyleBitmaps { get; init; }
     public DbSet<ChatStyleLibraryBitmapEntity> ChatStyleLibraryBitmaps { get; init; }
     public DbSet<PlayerCustomFilterWordEntity> PlayerCustomFilterWords { get; init; }
+
+    public DbSet<GamePlayerResultEntity> GamePlayerResults { get; init; }
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 

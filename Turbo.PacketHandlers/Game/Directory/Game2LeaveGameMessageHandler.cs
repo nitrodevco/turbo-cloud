@@ -1,11 +1,15 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Game.Directory;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Game.Directory;
 
-public class Game2LeaveGameMessageHandler : IMessageHandler<Game2LeaveGameMessage>
+/// <summary>The lobby window's close: leaves the lobby, or the started game.</summary>
+public class Game2LeaveGameMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<Game2LeaveGameMessage>
 {
     public async ValueTask HandleAsync(
         Game2LeaveGameMessage message,
@@ -13,6 +17,9 @@ public class Game2LeaveGameMessageHandler : IMessageHandler<Game2LeaveGameMessag
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await grainFactory
+            .GetGameDirectoryGrain()
+            .LeaveAsync(ctx.PlayerId, ct)
+            .ConfigureAwait(false);
     }
 }

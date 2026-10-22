@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Game.Directory;
 
 internal class Game2StartSnowWarMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new Game2StartSnowWarMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new Game2StartSnowWarMessage { Key = packet.PopString() };
 }
