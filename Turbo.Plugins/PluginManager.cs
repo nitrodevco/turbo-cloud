@@ -20,6 +20,7 @@ using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
@@ -489,8 +490,20 @@ public sealed class PluginManager(
             );
 
         var extensions = new PluginExtensions();
-        var (sp, contexts, settings) = CreatePluginServiceProvider(inst, m, extensions);
+        var clientModules = host.GetService<IClientModuleDirectory>() is { } directory
+            ? new PluginClientModules(directory, m, folder)
+            : null;
+        var (sp, contexts, settings) = CreatePluginServiceProvider(
+            inst,
+            m,
+            extensions,
+            clientModules
+        );
         var disposables = new List<object> { sp };
+
+        // Its client module goes when it stops, whether or not it took it away itself.
+        if (clientModules is not null)
+            disposables.Add(clientModules);
 
         try
         {
@@ -515,6 +528,7 @@ public sealed class PluginManager(
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
+            await SeedGamedataAsync(m, folder, ct).ConfigureAwait(false);
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
             await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
 
@@ -595,14 +609,15 @@ public sealed class PluginManager(
     ) CreatePluginServiceProvider(
         ITurboPlugin plugin,
         PluginManifest manifest,
-        PluginExtensions extensions
+        PluginExtensions extensions,
+        PluginClientModules? clientModules
     )
     {
         var services = new ServiceCollection();
 
         services.AddSingleton(manifest);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
-        services.AddSingleton<IHostServices>(new HostServices(host, extensions));
+        services.AddSingleton<IHostServices>(new HostServices(host, extensions, clientModules));
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
         if (host.GetService<IConfiguration>() is { } configuration)
@@ -896,6 +911,25 @@ public sealed class PluginManager(
         _dependents.TryGetValue(key, out var deps)
             ? [.. deps.Where(_live.ContainsKey).Distinct()]
             : [];
+
+    /// <summary>
+    /// Gives the hotel the external variables and texts the plugin brings that it has none of,
+    /// before the plugin starts and reads them. A failure is logged; the plugin loads either way.
+    /// </summary>
+    private async Task SeedGamedataAsync(PluginManifest m, string folder, CancellationToken ct)
+    {
+        if (host.GetService<IPluginGamedataSeeds>() is not { } seeds)
+            return;
+
+        try
+        {
+            await seeds.SeedAsync(m.Key, folder, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Adding the gamedata the plugin {Key} brings failed", m.Key);
+        }
+    }
 
     private async Task StartPluginAsync(
         ITurboPlugin plugin,

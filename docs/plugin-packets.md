@@ -11,7 +11,8 @@ its packets.
   A header outside that space is refused with `ArgumentOutOfRangeException`.
 - One parser per header and one serializer per composer type, across all plugins; a second claim
   is refused with `InvalidOperationException`. Name headers and capabilities after your plugin.
-- A capability name is not empty and not a core name (`permission.nodes`, `chat.commands.v2`).
+- A capability name is not empty and not a core name (`permission.nodes`, `chat.commands.v2`,
+  `client.modules`, ...: every name in `ClientCapabilities.SUPPORTED`).
 - Core is looked up first, then the registry, so a plugin cannot replace a core packet. A header
   nobody knows is logged as unknown, as before.
 - Extension packets are shared by every revision, so write serializers against the wire layout.
@@ -84,3 +85,6 @@ gives the agreed version, 0 when there is none.
 
 A registered capability is accepted at version 1 when a client asks for it
 (`ClientCapabilities.Negotiate`); core names keep their own versions.
+
+A plugin's client half, the code that runs in the client and speaks these packets, is a client
+module served from the plugin's own folder: `docs/client-modules.md`.

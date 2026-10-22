@@ -103,4 +103,32 @@ public interface IGamedataVariableService
         PlayerId player,
         CancellationToken ct
     );
+
+    /// <summary>The hotel's own values of the keys it has, a variable that follows a setting or a file left out.</summary>
+    public Task<IReadOnlyDictionary<string, string>> GetValuesAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Adds the variables (JSON values, as <see cref="ImportAsync"/> reads them) the hotel has none
+    /// of, leaving every one it has as it is: a plugin's own, as it loads. One change set by nobody,
+    /// with <paramref name="summary"/>; null when the hotel had them all.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> SeedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Removes the variables that still hold the value given, leaving any the hotel changed: a
+    /// plugin's own, as it is uninstalled. One change set; null when none was left as given.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> RemoveUnchangedAsync(
+        IReadOnlyDictionary<string, string> values,
+        string summary,
+        PlayerId player,
+        CancellationToken ct
+    );
 }

@@ -1,0 +1,6 @@
+# The example client module's words: the hotel can change them in the panel.
+hello.window.title=Hello
+hello.window.body=This window comes from a client module.
+hello.window.clicks=Clicks: %count%
+hello.window.button=Click me
+hello.toolbar.tooltip=Hello

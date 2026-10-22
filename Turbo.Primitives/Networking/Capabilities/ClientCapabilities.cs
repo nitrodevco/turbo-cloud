@@ -39,6 +39,12 @@ public static class ClientCapabilities
     /// </summary>
     public const string LIVE_NOTICES = "notices.live";
 
+    /// <summary>
+    /// <c>TurboClientModulesMessage</c>: the client modules the hotel's plugins bring, JavaScript
+    /// the client loads and runs, sent after the capability answer and again when they change.
+    /// </summary>
+    public const string CLIENT_MODULES = "client.modules";
+
     /// <summary>Maximum preceding argument text in a suggestion request.</summary>
     public const int MAX_SUGGEST_CONTEXT = 1024;
 
@@ -61,6 +67,7 @@ public static class ClientCapabilities
         [CHAT_COMMANDS] = 1,
         [STARTER_ROOMS] = 1,
         [LIVE_NOTICES] = 1,
+        [CLIENT_MODULES] = 1,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

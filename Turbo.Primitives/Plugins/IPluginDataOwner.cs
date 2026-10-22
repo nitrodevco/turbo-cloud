@@ -39,12 +39,14 @@ public interface IPluginDataOwner
 /// of one whose prefix starts with this one's ("bug_" and "bug_report_") is never taken for it.
 /// <see cref="NodeRoots"/> are the first segments of its permission nodes (<c>plugin.&lt;key&gt;</c>,
 /// and its key, as <c>IPermissionNodeSource.Prefix</c> is the plugin id), none of them core's.
+/// <see cref="Folder"/> is where it lies on disk, null when that is not known.
 /// </summary>
 public sealed record PluginDataScope(
     string Key,
     string? TablePrefix,
     ImmutableArray<string> OtherTablePrefixes,
-    ImmutableArray<string> NodeRoots
+    ImmutableArray<string> NodeRoots,
+    string? Folder = null
 );
 
 /// <summary>What kind of data an item is.</summary>
@@ -58,6 +60,12 @@ public enum PluginDataKind
 
     /// <summary>One of its nodes or meta keys given to groups or players; <see cref="PluginDataItem.Count"/> is how many.</summary>
     Grant,
+
+    /// <summary>An external variable it brought, still as it gave it; <see cref="PluginDataItem.Detail"/> is the value.</summary>
+    Variable,
+
+    /// <summary>An external text it brought, still as it gave it; <see cref="PluginDataItem.Detail"/> is the value.</summary>
+    Text,
 }
 
 /// <summary>One thing a plugin left: its kind, its name (a table, a setting's path, a node), how many rows or holders, and what to show of it.</summary>

@@ -8,6 +8,7 @@ using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.ChatStyles;
+using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Files;
@@ -16,11 +17,14 @@ using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Habbo.Client;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.HotelView;
+using Turbo.Gamedata.Plugins;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Gamedata;
@@ -125,6 +129,19 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IAssetPublishService, AssetPublishService>();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<ClientBuildAfterDownload>();
+        services.AddSingleton<ClientModuleRegistry>();
+        services.AddSingleton<IClientModuleDirectory>(sp =>
+            sp.GetRequiredService<ClientModuleRegistry>()
+        );
+        services.AddSingleton<IClientModuleRegistry>(sp =>
+            sp.GetRequiredService<ClientModuleRegistry>()
+        );
+        services.AddHostedService<ClientModuleBroadcast>();
+        services.AddSingleton<PluginGamedataSeeds>();
+        services.AddSingleton<IPluginGamedataSeeds>(sp =>
+            sp.GetRequiredService<PluginGamedataSeeds>()
+        );
+        services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginGamedataSeeds>());
         services.AddHostedService<GamedataServer>();
     }
 }
