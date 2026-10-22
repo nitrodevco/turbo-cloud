@@ -260,6 +260,7 @@ the withdrawal's refund cause.
 | `jukebox.add`, `jukebox.remove` | a disk in or out (cause ref: the jukebox; `jukebox.remove` actor 0) |
 | `room.post_it` | a sheet of a post-it pad stuck to a wall, by a builder or on a room's post-it wall (actor: the player; cause ref: the pad; owner: the room's owner): the note made in the room, destroyed at the next seq when the room refuses it. A pad's other sheets are its sheet count, not furni, so they move nothing; its last sheet is the pad itself, used up at seq 0 before the note. A sheet no note came of is given back under the operation's refund (`ForRefund`): a pad used up comes back as a new pad of one sheet |
 | `onboarding.starter_room` | a new player's starter room furnished (actor: the player; cause ref: the room) |
+| `onboarding.gift` | a new player's pick of the new user gift offer: its furni and pets (actor: the player; cause ref: the step, `nux:<day>:<step>`) |
 | `room.bc_borrow` | a borrow (cause ref: the offer); the give-back carries the cause of what removed it |
 | `room.delete` | the backstop, an operation of its own after the hand-overs: furni, then pets, then bots |
 

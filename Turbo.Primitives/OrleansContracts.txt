@@ -263,6 +263,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] T
   F313E327: TryUsePetRespectAsync(System.Threading.CancellationToken) -> Task<bool>
   B5F55D30: TryUseRespectAsync(System.Threading.CancellationToken) -> Task<bool>
 
+interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerNuxGiftGrain")] Turbo.Primitives.Players.Grains.IPlayerNuxGiftGrain [Version(0)]
+  F4D0191B: GetDueStepsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Onboarding.Snapshots.NuxGiftStepSnapshot>>
+  32D254D6: OfferAsync(System.Threading.CancellationToken) -> Task
+  990A22B9: SelectAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Onboarding.Snapshots.NuxGiftSelectionSnapshot>, System.Threading.CancellationToken) -> Task<int>
+
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGrain")] Turbo.Primitives.Players.Grains.IPlayerPresenceGrain [Version(0)]
   BCF99BC6: ClearActiveRoomAsync(System.Threading.CancellationToken) -> Task
   C36B0902: ClearPendingRoomAsync(System.Threading.CancellationToken) -> Task
