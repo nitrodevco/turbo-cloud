@@ -366,6 +366,7 @@ public sealed class PluginManager(
 
         // Checks come first so a refused load does not leave an assembly context behind.
         var asm = GetLoadedPluginAssembly(m, folder);
+        WeakReference? unloading = null;
 
         if (current is not null)
         {
@@ -380,12 +381,16 @@ public sealed class PluginManager(
                     Migrations = [],
                 };
 
-            await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
+            unloading = await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
+            current = null;
         }
 
         var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
 
         _live[m.Key] = next;
+
+        // The old version is out of the live map only now.
+        await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
 
         return (asm, next);
     }
@@ -407,7 +412,10 @@ public sealed class PluginManager(
 
             if (_live.TryRemove(key, out var env))
             {
-                await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
+                var unloading = await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
+
+                env = null!;
+                await WaitForUnloadAsync(unloading, key, ct).ConfigureAwait(false);
 
                 if (
                     _status.TryGetValue(key, out var status)
@@ -996,7 +1004,15 @@ public sealed class PluginManager(
         }
     }
 
-    private async Task StopAndTearDownAsync(PluginEnvelope env, CancellationToken ct)
+    /// <summary>
+    /// Stops the plugin, disposes what it registered and starts unloading its context; answers a
+    /// weak reference to the context for <see cref="WaitForUnloadAsync"/>, which the caller awaits
+    /// only once it holds nothing of the plugin itself (its envelope, the live entry).
+    /// </summary>
+    private async Task<WeakReference?> StopAndTearDownAsync(
+        PluginEnvelope env,
+        CancellationToken ct
+    )
     {
         try
         {
@@ -1063,18 +1079,23 @@ public sealed class PluginManager(
             _logger.LogWarning(ex, "Failed to destroy {Key}", env.Manifest.Key);
         }
 
-        if (env.Alc is not null)
-        {
-            var unloaded = await AssemblyMemoryLoader
-                .UnloadAndWaitAsync(env.Alc, 5000, ct)
-                .ConfigureAwait(false);
+        return env.Alc is null ? null : AssemblyMemoryLoader.BeginUnload(env.Alc);
+    }
 
-            if (!unloaded)
-                _logger.LogWarning(
-                    "ALC for plugin {Key} did not unload within timeout. Possible memory leak from retained type references.",
-                    env.Manifest.Key
-                );
-        }
+    /// <summary>
+    /// Waits for a plugin's context to be collected, and says so when something outside the
+    /// plugin still holds it or a type loaded in it (a registration it did not dispose).
+    /// </summary>
+    private async Task WaitForUnloadAsync(WeakReference? alc, string key, CancellationToken ct)
+    {
+        if (alc is null)
+            return;
+
+        if (!await AssemblyMemoryLoader.WaitForUnloadAsync(alc, 5000, ct).ConfigureAwait(false))
+            _logger.LogWarning(
+                "ALC for plugin {Key} did not unload within timeout. Possible memory leak from retained type references.",
+                key
+            );
     }
 
     private SemaphoreSlim GetKeyGate(string key) =>
