@@ -28,6 +28,7 @@ using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
@@ -77,6 +78,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     internal readonly IRoomItemsProvider _itemsLoader;
     internal readonly IRoomNpcProvider _npcProvider;
     internal readonly IRoomObjectLogicProvider _logicProvider;
+    private readonly IExtensionPacketRegistry _extensions;
     internal readonly IRoomAvatarProvider _avatarProvider;
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IPetBreedProvider _petBreedProvider;
@@ -174,6 +176,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         IPlayerOnboardingService onboarding,
         IFurnitureCustody custody,
         IAssetMovementRecorder movements,
+        IExtensionPacketRegistry extensions,
         TimeProvider time,
         ILogger<IRoomGrain> logger
     )
@@ -209,6 +212,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         _achievementFacts = achievementFacts;
         _custody = custody;
         _movements = movements;
+        _extensions = extensions;
         _time = time;
 
         _state = new() { RoomId = this.GetRoomId() };
@@ -598,7 +602,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             new RoomOutboundSnapshot
             {
                 RoomId = _state.RoomId,
-                Composers = [composer],
+                Composers = [WrittenExtensionPacket.For(composer, _extensions)],
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
                 ReleasesHold = releases,
             }
@@ -617,7 +621,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             new RoomOutboundSnapshot
             {
                 RoomId = _state.RoomId,
-                Composers = [composer],
+                Composers = [WrittenExtensionPacket.For(composer, _extensions)],
                 ExcludedPlayerIds = excludedPlayerIds,
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
             }
@@ -638,7 +642,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             new RoomOutboundSnapshot
             {
                 RoomId = _state.RoomId,
-                Composers = composers,
+                Composers = WrittenExtensionPacket.For(composers, _extensions),
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
             }
         );
@@ -661,7 +665,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             new RoomOutboundSnapshot
             {
                 RoomId = _state.RoomId,
-                Composers = composers,
+                Composers = WrittenExtensionPacket.For(composers, _extensions),
                 ExcludedPlayerIds = excludedPlayerIds,
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
             }

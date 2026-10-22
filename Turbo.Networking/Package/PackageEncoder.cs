@@ -40,6 +40,18 @@ public sealed class PackageEncoder(
             if (revision is null)
                 return 0;
 
+            // A plugin's packet a room sent is already written; only the copy is encrypted.
+            if (composer is WrittenExtensionPacket written)
+            {
+                var bytes = writer.GetSpan(written.Bytes.Length)[..written.Bytes.Length];
+
+                written.Bytes.AsSpan().CopyTo(bytes);
+                session.CryptoOut?.ProcessInPlace(bytes);
+                writer.Advance(bytes.Length);
+
+                return bytes.Length;
+            }
+
             var composerType = composer.GetType();
 
             // Core first; the plugin overlay is only asked about a type the revision lacks.

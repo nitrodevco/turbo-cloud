@@ -60,7 +60,11 @@ internal sealed class HudStateSerializer() : AbstractSerializer<HudStateMessage>
 ```
 
 A composer that implements `ICapabilityComposer` goes only to sessions that accepted its
-capability. The parsed message is a normal `IMessageEvent`, handled by an `IMessageHandler<T>` in
+capability. Send it as any other: to a player with `grainFactory.SendComposerToPlayerAsync`, to a
+room with `IRoomGrain.SendComposerToRoomAsync` (or a room object's or wired context's
+`SendComposerToRoomAsync`). The room writes a plugin's composer with its registered serializer
+before its stream carries it (`WrittenExtensionPacket`), as the host's serializer knows no plugin's
+types; a composer with no capability then goes to every session in the room. The parsed message is a normal `IMessageEvent`, handled by an `IMessageHandler<T>` in
 the plugin. Like a core handler, it is reached only from a session that has logged in (`SignInGate`,
 `docs/permissions.md` §11), unless it carries `[AllowAnonymous]`. A client may send an extension
 packet whether or not it accepted the capability, so a handler should check that first, for the
