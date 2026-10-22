@@ -31,8 +31,12 @@ public sealed partial class RoomWiredSystem
     private readonly RoomActiveStore _roomActiveStore = new(roomGrain._time);
     private WiredVariablesSnapshot? _variablesSnapshot = null;
 
-    /// <summary>The hash of every variable as last sent; a box editor echoes it to ask what changed.</summary>
-    public WiredVariableHash AllVariablesHash { get; private set; } = new(0);
+    /// <summary>
+    /// The hash of every variable as they are now. A box editor carries it, and the client asks
+    /// for the list again only when it differs from the one it holds, so it must never lag a
+    /// variable box saved since the list was last sent.
+    /// </summary>
+    public WiredVariableHash AllVariablesHash => CurrentVariablesSnapshot().AllVariablesHash;
 
     public IWiredVariable? GetVariableById(WiredVariableId id)
     {
@@ -114,7 +118,10 @@ public sealed partial class RoomWiredSystem
         };
     }
 
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct)
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
+        Task.FromResult(CurrentVariablesSnapshot());
+
+    private WiredVariablesSnapshot CurrentVariablesSnapshot()
     {
         // Every smart variable is listed, invisible while nothing of its kind is in the room: the
         // list is described again whenever which of them are present changes.
@@ -129,7 +136,7 @@ public sealed partial class RoomWiredSystem
             _variablesSnapshot = BuildVariablesSnapshot();
         }
 
-        return Task.FromResult(_variablesSnapshot);
+        return _variablesSnapshot;
     }
 
     private HashSet<WiredVariableId> _presentSmartVariables = [];
@@ -526,14 +533,10 @@ public sealed partial class RoomWiredSystem
             snapshots.Add(snapshot);
         }
 
-        var allVariablesSnapshot = new WiredVariablesSnapshot()
+        return new WiredVariablesSnapshot()
         {
             AllVariablesHash = WiredVariableHashBuilder.HashFromHashes(hashes),
             Variables = snapshots,
         };
-
-        AllVariablesHash = allVariablesSnapshot.AllVariablesHash;
-
-        return allVariablesSnapshot;
     }
 }
