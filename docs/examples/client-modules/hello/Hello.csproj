@@ -22,7 +22,13 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The host's own assemblies: referenced, never copied beside the plugin. -->
-    <ProjectReference Include="..\..\..\..\Turbo.Contracts\Turbo.Contracts.csproj" Private="false" />
-    <ProjectReference Include="..\..\..\..\Turbo.Primitives\Turbo.Primitives.csproj" Private="false" />
+    <ProjectReference
+      Include="..\..\..\..\Turbo.Contracts\Turbo.Contracts.csproj"
+      Private="false"
+    />
+    <ProjectReference
+      Include="..\..\..\..\Turbo.Primitives\Turbo.Primitives.csproj"
+      Private="false"
+    />
   </ItemGroup>
 </Project>

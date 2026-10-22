@@ -27,8 +27,8 @@ namespace Turbo.Tests.Plugins;
 
 /// <summary>
 /// The example in <c>docs/examples/client-modules/hello</c> is the documentation's proof, so it is
-/// built and loaded here as a hotel would: its module is listed for clients, and its texts and
-/// variables are given to the hotel.
+/// built and loaded here as a hotel would: its module is listed for clients, and its texts are
+/// given to the hotel.
 /// </summary>
 public sealed class HelloExamplePluginTests : IDisposable
 {
@@ -50,7 +50,7 @@ public sealed class HelloExamplePluginTests : IDisposable
     }
 
     [Fact]
-    public async Task The_example_plugin_loads_lists_its_module_and_gives_the_hotel_its_words()
+    public async Task The_example_plugin_loads_lists_its_module_and_gives_the_hotel_its_texts()
     {
         var example = Path.Combine(RepositoryRoot(), "docs", "examples", "client-modules", "hello");
         var key = JsonDocument
@@ -125,12 +125,19 @@ public sealed class HelloExamplePluginTests : IDisposable
         module.Url.Should().StartWith("/gamedata/plugins/hello/hello.js?v=");
         registry.FindFile("hello", "hello.js").Should().NotBeNull();
 
-        (await texts.GetValuesAsync(["hello.window.title", "hello.toolbar.tooltip"], Ct))
+        registry
+            .FindFile("hello", "hello.png")
             .Should()
-            .HaveCount(2);
-        (await variables.GetValuesAsync(["hello.bar.color"], Ct))
+            .NotBeNull("the module loads its icon beside it");
+        (await texts.GetValuesAsync(["hello.module.title", "hello.module.clicks"], Ct))
             .Should()
-            .ContainKey("hello.bar.color");
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["hello.module.title"] = "Hello",
+                    ["hello.module.clicks"] = "Clicks: %count%",
+                }
+            );
 
         await manager.UnloadAllAsync(Ct);
 

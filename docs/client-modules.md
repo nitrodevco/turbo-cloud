@@ -15,8 +15,9 @@ them (the Flash client, any other port) is never told of one and works as before
 plugins/hello/
   manifest.json
   Hello.dll
-  wwwroot/            what clients may load: the module and anything it imports
+  wwwroot/            what clients may load: the module and the files it loads (icons, images)
     hello.js
+    hello.png
   gamedata/           optional: what the plugin brings of the client's gamedata (§5)
     external_texts.txt
     external_variables.json
@@ -46,15 +47,17 @@ public Task StopAsync(CancellationToken ct)
   `relativePath` the entry file under `wwwroot/`. A path outside `wwwroot/`, a hidden file or folder
   (`.env`, `.git/`) or a file that is not there is refused (`ArgumentException`).
 - One module per plugin; a second `Register` while the first is live is refused
-  (`InvalidOperationException`). A module that needs more files imports them (§3).
+  (`InvalidOperationException`). The module is one file: nitro-next runs the checked bytes, so it
+  cannot import files beside it; it bundles its code and loads its images and data from
+  `wwwroot/` by address (§3, §4).
 - Disposing the handle takes the module away. Unloading, reloading, turning off or uninstalling the
   plugin takes it away too, whether or not the plugin disposed it.
 - Only a plugin can register: the registry in the host's own container has no folder to serve from
   and refuses.
 
 `docs/examples/client-modules/hello` is a complete plugin: `HelloPlugin.cs`, its `manifest.json`,
-`wwwroot/hello.js` (a toolbar icon opening a window, and a small bar over the player's own avatar)
-and the texts and variables it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
+`wwwroot/hello.js` (a toolbar icon, a me menu entry and the `hello/open` link opening a window, and
+a small bar over the player's own avatar), its icon `wwwroot/hello.png`, and the texts it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
 as a hotel would, so it keeps working as the server changes. Build it with
 `dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net10.0/` to
 `plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`.
@@ -94,9 +97,9 @@ gamedata on passes the modules too.
 - `Access-Control-Allow-Origin: *`, as for every gamedata file: they are what every player's client
   downloads, never anything private. Do not put secrets in `wwwroot/`.
 - Asked for with `?v=` matching the start of the file's own hash (the address the list gives), it is
-  cached for good (`immutable`). Asked for otherwise, as a module's own imports (`import './chunk.js'`)
-  are, it is `no-cache` with its hash as `ETag`, answered 304 while unchanged. A module's relative
-  imports therefore always load the files beside it, and a new version's entry has a new address.
+  cached for good (`immutable`). Asked for otherwise, as the files a module loads beside it are
+  (`new URL('hello.png', api.baseUrl)`), it is `no-cache` with its hash as `ETag`, answered 304 while
+  unchanged. Those files are therefore always current, and a new version's entry has a new address.
 - The content type follows the extension (`.js`/`.mjs` as `text/javascript`, `.json`, `.css`,
   images, fonts).
 - A file changed in `wwwroot/` is served as it is now at once, but clients are sent the entry's new
@@ -109,15 +112,18 @@ warning in the log as a module registers: its clients could not load it.
 ## 4. The client side
 
 The client decides how a module runs; nitro-next documents its side (its loader, the host allowlist
-`client.modules.hosts` for modules on another site, the shared libraries a module imports instead of
-bundling its own, and the `api` object). In short, for api version 1:
+`client.modules.hosts` for modules on another site, the shared libraries a module takes from
+`api.libs` (React, the theme's components) instead of bundling its own, and the `api` object). In
+short, for api version 1:
 
-- The client imports the module (`import(url)`), checks its SHA-256 first when one is given, and
-  refuses an address on another site unless that site is in `client.modules.hosts`.
+- The client refuses an address on another site unless that site is in `client.modules.hosts`.
+  With a SHA-256 it fetches the file, checks it, and runs the checked bytes, so the module is one
+  file; `api.baseUrl` is its folder's address, for the files it loads beside it.
+  Without one it imports the address.
 - It calls the module's default export `activate(api)`, and `deactivate()` when the module is no
   longer listed or the client leaves.
 - `api` gives a module the client's own parts rather than a copy of them: windows
-  (`windows.open/close/register`, from the client's own window templates), `toolbar.add`,
+  (`windows.register/open/close/toggle`, drawn with the theme's own frames), `toolbar.add`,
   `meMenu.add`, `links.handle(prefix, fn)`, the plugin's packets
   (`packets.registerParser/registerComposer/send`, headers 20000-32767 outside Turbo's 30000-30099),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
@@ -172,12 +178,12 @@ the hotel had before the plugin. **Keep its data** leaves them all.
 - `PluginGamedataSeedTests`: loading adds what the hotel lacks once and keeps the hotel's own; the
   uninstall dry run lists, and deleting the data removes, only what is still as the plugin gave it.
 - `HelloExamplePluginTests`: the example in `docs/examples/client-modules/hello` builds, loads, lists
-  its module and gives the hotel its words.
+  its module and its icon, and gives the hotel its texts.
 
 ## 8. Open
 
 - **The panel** lists a plugin's data by kind; it shows variables and texts once it names the two new
   kinds (`variable`, `text`). Until then the uninstall still removes them and its summary counts them.
-- **More than one module per plugin.** One entry file covers what a plugin needs today (it imports
+- **More than one module per plugin.** One entry file covers what a plugin needs today (it bundles
   the rest); a plugin that wants two independent modules can be split, or the registry can take a
   module name beside the key when one needs it.
