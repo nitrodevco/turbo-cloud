@@ -249,13 +249,18 @@ public sealed partial class RoomPetModule
             return false;
         }
 
+        // The success window finds the baby among the room's pets by its id and does not open
+        // without it (AvatarInfoWidget.showNestBreedingSuccess -> findPetRoomObjectIdByWebId,
+        // NestBreedingSuccessView.open), so it is put down where the nest was before the news.
+        await PlaceOffspringAsync(pet1.OwnerId, offspring.Id, nest, ct);
+
         foreach (var ownerId in session.OwnerIds)
             await GrainFactory.SendComposerToPlayerAsync(
                 ownerId,
                 new NestBreedingSuccessEventMessageComposer
                 {
                     PetId = offspring.Id,
-                    RarityCategory = rarityLevel,
+                    RarityCategory = SuccessRarityCategory(rarityLevel),
                 },
                 ct
             );
@@ -264,6 +269,61 @@ public sealed partial class RoomPetModule
 
         return true;
     }
+
+    /// <summary>
+    /// The success window's rarity line, <c>breedpets.nestbreeding.success.raritycategory.&lt;n&gt;</c>:
+    /// 0 is EPIC and 3 COMMON, the confirm window's rows in the order they are sent, where the
+    /// highest rarity level comes first (<see cref="ConfirmWindowCategoriesFor"/>).
+    /// </summary>
+    internal static int SuccessRarityCategory(int rarityLevel) =>
+        System.Math.Clamp(CONFIRM_WINDOW_ROWS - 1 - rarityLevel, 0, CONFIRM_WINDOW_ROWS - 1);
+
+    /// <summary>
+    /// The baby on the nest's tile, or the nearest free one around it (the parents still stand
+    /// on the nest), from its owner's inventory. An owner who left keeps it in the inventory.
+    /// </summary>
+    private async Task PlaceOffspringAsync(
+        PlayerId ownerId,
+        int offspringId,
+        IRoomItem nest,
+        CancellationToken ct
+    )
+    {
+        if (!AvatarModule.TryGetPlayer(ownerId, out _))
+            return;
+
+        var (x, y) = (0, 0);
+
+        for (var radius = 0; radius <= OFFSPRING_TILE_RADIUS && (x, y) == (0, 0); radius++)
+        for (var dx = -radius; dx <= radius && (x, y) == (0, 0); dx++)
+        for (var dy = -radius; dy <= radius; dy++)
+        {
+            var (tileX, tileY) = (nest.X + dx, nest.Y + dy);
+
+            if (
+                System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)) == radius
+                && MapModule.InBounds(tileX, tileY)
+                && IsTileFreeForNpc(MapModule.ToIdx(tileX, tileY))
+            )
+            {
+                (x, y) = (tileX, tileY);
+
+                break;
+            }
+        }
+
+        // Nothing free near the nest: (0, 0) lets the room pick a tile, as the place button does.
+        await PlacePetAsync(
+            ActionContext.CreateForPlayer(ownerId, _roomGrain.RoomId),
+            offspringId,
+            x,
+            y,
+            ct
+        );
+    }
+
+    /// <summary>How far from the nest a free tile for the baby is looked for.</summary>
+    private const int OFFSPRING_TILE_RADIUS = 2;
 
     public async Task<bool> CancelNestBreedingAsync(
         ActionContext ctx,

@@ -96,6 +96,49 @@ public sealed class PetBreedingNestTests
             .BeLessThan(calls.FindIndex(x => x.Method == nameof(IInventoryGrain.CreatePetAsync)));
     }
 
+    /// <summary>
+    /// The success window finds the baby among the room's pets by its id and does not open
+    /// without it (AvatarInfoWidget.showNestBreedingSuccess, NestBreedingSuccessView.open). It was
+    /// only put in the owner's inventory, so the window showed no picture and no name.
+    /// </summary>
+    [Fact]
+    public async Task The_baby_is_put_down_by_the_nest_before_the_success_is_sent()
+    {
+        await SitBothInNestAsync();
+
+        (await Pets.ConfirmNestBreedingAsync(Owner, NEST, "Puppy", PET1, PET2, Ct))
+            .Should()
+            .BeTrue();
+
+        _room
+            .Harness.Fakes.SentToPlayer<NestBreedingSuccessEventMessageComposer>(OWNER)
+            .Should()
+            .ContainSingle();
+        Pets.TryGetPet(OFFSPRING, out var baby).Should().BeTrue("the baby is in the room");
+        Math.Max(Math.Abs(baby!.X - 6), Math.Abs(baby.Y - 6))
+            .Should()
+            .BeLessThanOrEqualTo(2, "it is put down by the nest at 6,6");
+    }
+
+    /// <summary>
+    /// breedpets.nestbreeding.success.raritycategory.0 is EPIC and .3 COMMON; the rarity level was
+    /// sent as it is, so a common baby (level 0, the most likely) said EPIC.
+    /// </summary>
+    [Fact]
+    public async Task A_common_baby_is_announced_as_common()
+    {
+        await SitBothInNestAsync();
+
+        await Pets.ConfirmNestBreedingAsync(Owner, NEST, "Puppy", PET1, PET2, Ct);
+
+        _room
+            .Harness.Fakes.SentToPlayer<NestBreedingSuccessEventMessageComposer>(OWNER)
+            .Should()
+            .ContainSingle()
+            .Which.RarityCategory.Should()
+            .Be(3);
+    }
+
     [Fact]
     public async Task A_nest_picked_up_before_the_last_confirm_breeds_nothing()
     {
