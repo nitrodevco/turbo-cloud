@@ -15,6 +15,7 @@ using SuperSocket.Server.Abstractions.Session;
 using SuperSocket.Server.Host;
 using SuperSocket.WebSocket.Server;
 using Turbo.Networking.Configuration;
+using Turbo.Networking.Extensions;
 using Turbo.Networking.Package;
 using Turbo.Networking.Session;
 using Turbo.Networking.Tcp;
@@ -35,7 +36,7 @@ namespace Turbo.Tests.Networking;
 /// decoder or keeping the connection buffering for a packet that never ends; a WebSocket
 /// connection never holds more than one largest packet unread, and lets go of a buffer that
 /// grew for a large packet once that packet has been read. Both servers are the real ones,
-/// with the filter and message handler the hotel registers.
+/// with the filter, message handler and connections the hotel registers.
 /// </summary>
 public sealed class IncomingPacketLengthTests : IAsyncDisposable
 {
@@ -249,6 +250,7 @@ public sealed class IncomingPacketLengthTests : IAsyncDisposable
                 logging.AddProvider(new EverythingTo(_serverLog));
             }
         );
+        builder.UseClosingConnections();
         builder.UseSessionHandler(session =>
         {
             _connected.TrySetResult((ISessionContext)session);

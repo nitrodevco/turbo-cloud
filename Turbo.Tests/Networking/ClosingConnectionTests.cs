@@ -63,6 +63,40 @@ public sealed class ClosingConnectionTests
         await reading.WaitAsync(TimeSpan.FromSeconds(5), Ct);
     }
 
+    // A receive buffer set by hand stops Linux sizing it and caps the TCP window, which made a
+    // 256 KiB packet take seconds to arrive; the other socket options still apply.
+    [Fact]
+    public async Task AConnection_LeavesItsSocketsReceiveBufferToTheSystem()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, port, Ct);
+        using var socket = await listener.AcceptSocketAsync(Ct);
+        var systemSize = socket.ReceiveBufferSize;
+        var options = new ConnectionOptions { Logger = NullLogger.Instance, SendTimeout = 1234 };
+
+        var factory = new ClosingConnectionFactoryBuilder(
+            new SocketOptionsSetter(_ => { }),
+            null!
+        ).Build(
+            new ListenOptions
+            {
+                Ip = "127.0.0.1",
+                Port = port,
+                NoDelay = true,
+            },
+            options
+        );
+        await factory.CreateConnection(socket, Ct);
+
+        options.ReceiveBufferSize.Should().BeGreaterThan(0).And.NotBe(systemSize);
+        socket.ReceiveBufferSize.Should().Be(systemSize);
+        socket.NoDelay.Should().BeTrue();
+        socket.SendTimeout.Should().Be(1234);
+    }
+
     [Fact]
     public void AHostWithClosingConnections_BuildsItsConnectionsThatWay()
     {

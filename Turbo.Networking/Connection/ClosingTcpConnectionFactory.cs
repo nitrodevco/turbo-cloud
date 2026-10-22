@@ -38,6 +38,15 @@ internal sealed class ClosingConnectionFactoryBuilder(
 /// <see cref="ClosingTcpPipeConnection"/>. A listener with stream initializers (TLS) is left to
 /// the base factory.
 /// </summary>
+/// <remarks>
+/// The socket's kernel receive buffer is left to the operating system. SuperSocket sets it to
+/// <see cref="ConnectionOptions.ReceiveBufferSize"/>, which is also how much it reads per receive
+/// (4 KiB unless configured). On Linux a receive buffer set by hand turns off its automatic
+/// sizing and caps the TCP window at about twice that, so a client's 256 KiB packet took about
+/// five seconds to arrive even over loopback (Windows still answered it in milliseconds).
+/// The read size still comes from <c>receiveBufferSize</c>; the kernel buffer from the system's
+/// settings (on Linux <c>net.ipv4.tcp_rmem</c>).
+/// </remarks>
 internal sealed class ClosingTcpConnectionFactory(
     ListenOptions listenOptions,
     ConnectionOptions connectionOptions,
@@ -75,6 +84,43 @@ internal sealed class ClosingTcpConnectionFactory(
         return Task.FromResult<IConnection>(
             new ClosingTcpPipeConnection(socket, ConnectionOptions, _socketSenderPool)
         );
+    }
+
+    // The base's options, in its order, except the receive buffer size (see the remarks).
+    protected override void ApplySocketOptions(Socket socket)
+    {
+        TryApply("NoDelay", () => socket.NoDelay = true, ListenOptions.NoDelay);
+        TryApply(
+            "SendBufferSize",
+            () => socket.SendBufferSize = ConnectionOptions.SendBufferSize,
+            ConnectionOptions.SendBufferSize > 0
+        );
+        TryApply(
+            "ReceiveTimeout",
+            () => socket.ReceiveTimeout = ConnectionOptions.ReceiveTimeout,
+            ConnectionOptions.ReceiveTimeout > 0
+        );
+        TryApply(
+            "SendTimeout",
+            () => socket.SendTimeout = ConnectionOptions.SendTimeout,
+            ConnectionOptions.SendTimeout > 0
+        );
+        TryApply("the socket options setter", () => SocketOptionsSetter?.Invoke(socket), true);
+    }
+
+    private void TryApply(string option, Action apply, bool configured)
+    {
+        if (!configured)
+            return;
+
+        try
+        {
+            apply();
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogWarning(ex, "Failed to set {Option} for the socket", option);
+        }
     }
 }
 
