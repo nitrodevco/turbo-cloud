@@ -125,11 +125,13 @@ short, for api version 1:
 - It calls the module's default export `activate(api)`, and `deactivate()` when the module is no
   longer listed or the client leaves.
 - `api` gives a module the client's own parts rather than a copy of them: windows
-  (`windows.register/open/close/toggle`, drawn with the theme's own frames), `toolbar.add`,
-  `meMenu.add`, `links.handle(prefix, fn)`, the plugin's packets
+  (`windows.register/open/close/toggle`, drawn with the theme's own frames, `onTop` to stay above
+  the others), `toolbar.add`, `meMenu.add/toggle`, `links.handle(prefix, fn)` and `links.open`
+  (Habbo's own links too, `toolbar/memenu` among them), the plugin's packets
   (`packets.registerParser/registerComposer/send`, headers 20000-32767 outside Turbo's 30000-30099),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
-  `room.avatarOverlay(fn)` and `notifications.registerLayout`.
+  `room.avatarOverlay(fn)`, `room.leave()`, `notifications.registerLayout` and `notifications.add`
+  (a bubble that may `stay` up until the module takes it down).
 
 ## 5. Texts and variables a plugin brings
 
