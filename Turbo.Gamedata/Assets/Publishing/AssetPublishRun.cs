@@ -53,11 +53,20 @@ internal sealed class AssetPublishRun(
     private int _deleted;
     private long _bytes;
 
-    /// <summary>The bundles a target lacks or holds an older copy of, by what it recorded.</summary>
+    /// <summary>
+    /// The bundles a target lacks or holds an older copy of, by what it recorded, and those it was
+    /// found no longer to hold (<paramref name="gone"/>).
+    /// </summary>
     public static IEnumerable<AssetBundleFile> ToSend(
         IEnumerable<AssetBundleFile> files,
-        IReadOnlyDictionary<string, string> recorded
-    ) => files.Where(x => !recorded.TryGetValue(x.Path, out var hash) || hash != x.Hash);
+        IReadOnlyDictionary<string, string> recorded,
+        IReadOnlySet<string>? gone = null
+    ) =>
+        files.Where(x =>
+            !recorded.TryGetValue(x.Path, out var hash)
+            || hash != x.Hash
+            || gone?.Contains(x.Path) == true
+        );
 
     public async Task<string> RunAsync(
         bool dryRun,
@@ -70,24 +79,12 @@ internal sealed class AssetPublishRun(
 
         var files = await store.ListFilesAsync(ct).ConfigureAwait(false);
         var recorded = await LoadRecordedAsync(ct).ConfigureAwait(false);
-        var send = ToSend(files, recorded).OrderByDescending(x => x.Size).ToList();
-        var already = files.Count - send.Count;
         var present = files.Select(x => x.Path).ToHashSet(StringComparer.Ordinal);
         var delete = deleteRemoved
             ? recorded.Keys.Where(x => !present.Contains(x)).Order(StringComparer.Ordinal).ToList()
             : [];
         var historyId = await StartHistoryAsync(dryRun, ct).ConfigureAwait(false);
-
-        if (dryRun)
-        {
-            var counted =
-                $"{send.Count} to send ({Megabytes(send.Sum(x => x.Size))}), {already} already there, {delete.Count} to delete";
-
-            progress.Log(counted);
-            await FinishHistoryAsync(historyId, already, null).ConfigureAwait(false);
-
-            return counted;
-        }
+        var already = 0;
 
         try
         {
@@ -97,6 +94,37 @@ internal sealed class AssetPublishRun(
             {
                 await TrustHostKeyAsync(dbCtxFactory, logger, target, first.HostKey, ct)
                     .ConfigureAwait(false);
+
+                progress.Step("Checking the target", 0);
+
+                var gone = await GoneAsync(
+                        first,
+                        recorded.Keys.Where(present.Contains),
+                        progress,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                var send = ToSend(files, recorded, gone).OrderByDescending(x => x.Size).ToList();
+
+                already = files.Count - send.Count;
+
+                if (dryRun)
+                {
+                    var counted =
+                        $"{send.Count} to send ({Megabytes(send.Sum(x => x.Size))}), {already} already there, {delete.Count} to delete"
+                        + (gone.Count > 0 ? $", {gone.Count} gone from the target" : "");
+
+                    progress.Log(counted);
+                    await FinishHistoryAsync(historyId, already, null).ConfigureAwait(false);
+
+                    return counted;
+                }
+
+                if (gone.Count > 0)
+                    progress.Log(
+                        $"{gone.Count} files recorded as sent are gone from the target: sent again"
+                    );
+
                 await UploadAsync(first, send, recorded, progress, ct).ConfigureAwait(false);
 
                 if (delete.Count > 0)
@@ -144,6 +172,61 @@ internal sealed class AssetPublishRun(
     }
 
     private static string Megabytes(long bytes) => $"{bytes / BYTES_PER_MEGABYTE:0.0} MB";
+
+    /// <summary>
+    /// The recorded files the target no longer holds, found by listing each folder they are in: a
+    /// file removed there, or lost with its folder, is sent again instead of being counted as there
+    /// for good. Only that it is there is checked, not what it holds (a file changed on the target
+    /// is left alone). A folder that cannot be listed is taken as recorded.
+    /// </summary>
+    private static async Task<HashSet<string>> GoneAsync(
+        IPublishConnection connection,
+        IEnumerable<string> recorded,
+        IAssetJobProgress progress,
+        CancellationToken ct
+    )
+    {
+        var gone = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var folder in recorded.GroupBy(FolderOf, StringComparer.Ordinal))
+        {
+            IReadOnlyList<string> names;
+
+            try
+            {
+                names = await connection.ListAsync(folder.Key, ct).ConfigureAwait(false);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                names = [];
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                progress.Log(
+                    $"{(folder.Key.Length == 0 ? "The target's folder" : folder.Key)} could not be listed, so its files are taken as there: {ex.Message}"
+                );
+
+                continue;
+            }
+
+            var held = names.ToHashSet(StringComparer.Ordinal);
+
+            foreach (var path in folder)
+            {
+                if (!held.Contains(path[(path.LastIndexOf('/') + 1)..]))
+                    gone.Add(path);
+            }
+        }
+
+        return gone;
+    }
+
+    private static string FolderOf(string path)
+    {
+        var slash = path.LastIndexOf('/');
+
+        return slash < 0 ? string.Empty : path[..slash];
+    }
 
     private async Task<Dictionary<string, string>> LoadRecordedAsync(CancellationToken ct)
     {

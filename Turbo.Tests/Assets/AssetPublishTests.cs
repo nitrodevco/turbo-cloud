@@ -99,6 +99,40 @@ public sealed class AssetPublishTests : IDisposable
     }
 
     [Fact]
+    public async Task A_file_gone_from_the_target_is_sent_again_though_it_was_recorded()
+    {
+        await _hotel.PutBundleAsync("chair", Bytes("chair", 300), Ct);
+        await _hotel.PutBundleAsync("table", Bytes("table", 900), Ct);
+        var target = await _hotel.AddFolderTargetAsync(Ct);
+        await _hotel.PublishAsync(target.Id, Ct);
+
+        // Removed on the target behind the hotel's back (nitrodev 2026-10-22: 14 catalog pictures
+        // recorded as sent answered 404 for days, and every publish counted them as there).
+        File.Delete(_hotel.TargetFileOf("table"));
+
+        var dry = await _hotel.PublishAsync(target.Id, Ct, dryRun: true);
+
+        dry.Result.Should()
+            .StartWith("1 to send")
+            .And.Contain("1 already there")
+            .And.EndWith("1 gone from the target");
+        File.Exists(_hotel.TargetFileOf("table")).Should().BeFalse("a dry run sends nothing");
+
+        var job = await _hotel.PublishAsync(target.Id, Ct);
+
+        job.Status.Should().Be(AssetJobStatus.Done);
+        (await File.ReadAllBytesAsync(_hotel.TargetFileOf("table"), Ct))
+            .Should()
+            .Equal(Bytes("table", 900));
+        (await _hotel.RecordedAsync(target.Id, Ct)).Should().HaveCount(2);
+        (await _hotel.Publishing.GetHistoryAsync(target.Id, Ct))![0].Uploaded.Should().Be(1);
+
+        (await _hotel.PublishAsync(target.Id, Ct, dryRun: true))
+            .Result.Should()
+            .StartWith("0 to send");
+    }
+
+    [Fact]
     public async Task Delete_removed_takes_away_what_the_hotel_dropped_and_only_when_asked()
     {
         await _hotel.PutBundleAsync("chair", Bytes("chair", 300), Ct);
