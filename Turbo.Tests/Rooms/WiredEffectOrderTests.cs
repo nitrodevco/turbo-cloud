@@ -2,6 +2,7 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -195,7 +196,69 @@ public sealed class WiredEffectOrderTests
         (update.X, update.Y, update.Rotation).Should().Be((1, 3, Rotation.East));
     }
 
+    // Official (2026-10-22T22-02-10): one rotate effect, no add-on, turned the sofa with a plain
+    // ObjectUpdate 6 of 6, never a WiredMovements, and two rotates the random add-on picked 1 of 1.
+    [Fact]
+    public async Task Without_an_addon_a_furni_only_turned_gets_an_object_update()
+    {
+        await BuildAsync(inOrder: false, checkMoves: false, Turn, West, East);
+
+        for (var i = 0; i < 10; i++)
+        {
+            var updatesBefore = LampUpdates();
+
+            (await ClickAndRecordAsync(3))
+                .Should()
+                .BeEmpty($"click {i + 1} left the lamp on its tile");
+            LampUpdates().Should().Be(updatesBefore + 1);
+        }
+    }
+
+    // Official (2026-10-22T22-02-10, same ms each time): the turn's ObjectUpdate came before the
+    // boxes' flash (ObjectsDataUpdate) 6 of 6, a WiredMovements after it 16 of 16.
+    [Fact]
+    public async Task A_turn_goes_before_the_boxes_flash()
+    {
+        await BuildAsync(inOrder: false, checkMoves: false, Turn);
+
+        (await SentForClickAsync(3)).Should().Equal("ObjectUpdate", "ObjectsDataUpdate");
+    }
+
+    [Fact]
+    public async Task A_move_goes_after_the_boxes_flash()
+    {
+        await BuildAsync(inOrder: false, checkMoves: false, West, Turn);
+
+        (await SentForClickAsync(3)).Should().Equal("ObjectsDataUpdate", "WiredMovements");
+    }
+
     private int SwitchState() => _room.FloorItem(SWITCH).Logic.GetState();
+
+    /// <summary>What the room was sent about the lamp and the boxes for one click, in order.</summary>
+    private async Task<List<string>> SentForClickAsync(int fromX)
+    {
+        var before = RoomSent().Count;
+
+        await ClickFromAsync(fromX);
+
+        return
+        [
+            .. RoomSent()
+                .Skip(before)
+                .Select(x =>
+                    x switch
+                    {
+                        ObjectUpdateMessageComposer => "ObjectUpdate",
+                        ObjectsDataUpdateMessageComposer => "ObjectsDataUpdate",
+                        WiredMovementsMessageComposer => "WiredMovements",
+                        _ => null,
+                    }
+                )
+                .OfType<string>(),
+        ];
+    }
+
+    private List<IComposer> RoomSent() => [.. _room.Harness.Fakes.Sent(SendRoute.Room)];
 
     private int LampUpdates() =>
         _room
