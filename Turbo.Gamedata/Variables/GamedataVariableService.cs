@@ -710,6 +710,70 @@ internal sealed class GamedataVariableService(
         return changeSet.ToSnapshot(changeSet.Changes!.Count);
     }
 
+    public Task<GamedataChangeSetSnapshot?> ReplaceUnchangedAsync(
+        IReadOnlyDictionary<string, GamedataValueChange> changes,
+        string summary,
+        CancellationToken ct
+    ) => writes.RunAsync(() => ReplaceUnchangedLockedAsync(changes, summary, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> ReplaceUnchangedLockedAsync(
+        IReadOnlyDictionary<string, GamedataValueChange> changes,
+        string summary,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var wanted = changes.Keys.ToList();
+        var rows = (
+            await dbCtx
+                .GamedataVariables.Where(x => wanted.Contains(x.Key))
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
+            .Where(x =>
+                x.SettingPath is null
+                && x.LinkedFile is null
+                && changes.TryGetValue(x.Key, out var change)
+                && change.From == x.Value
+                && change.To != x.Value
+            )
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .ToList();
+
+        if (rows.Count == 0)
+            return null;
+
+        var records = new List<GamedataChangeEntity>();
+
+        foreach (var row in rows)
+        {
+            var before = State(row);
+
+            if (changes[row.Key].To is { } to)
+            {
+                row.Value = ExternalVariablesFile.Normalize(to);
+                records.Add(Change(row.Key, before, State(row), row.Id));
+            }
+            else
+            {
+                dbCtx.GamedataVariables.Remove(row);
+                records.Add(Change(row.Key, before, null, row.Id));
+            }
+        }
+
+        var changeSet = GamedataChangeSets.Create(GamedataChangeKind.Edit, summary, null, records);
+
+        dbCtx.GamedataChangeSets.Add(changeSet);
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+
+        return changeSet.ToSnapshot(changeSet.Changes!.Count);
+    }
+
     /// <summary>A key the hotel can keep: not empty, not too long.</summary>
     internal static string CheckKey(string key)
     {

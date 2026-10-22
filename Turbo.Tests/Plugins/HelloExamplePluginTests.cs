@@ -104,8 +104,11 @@ public sealed class HelloExamplePluginTests : IDisposable
                 .AddSingleton<IClientModuleDirectory>(registry)
                 .AddSingleton<IPluginGamedataSeeds>(
                     new PluginGamedataSeeds(
+                        _db,
                         variables,
                         texts,
+                        files,
+                        new LoadedPluginGamedata(),
                         NullLogger<PluginGamedataSeeds>.Instance
                     )
                 )

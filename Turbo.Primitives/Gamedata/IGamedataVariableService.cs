@@ -131,4 +131,16 @@ public interface IGamedataVariableService
         PlayerId player,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Gives each variable that still holds its change's <see cref="GamedataValueChange.From"/> its
+    /// <see cref="GamedataValueChange.To"/> (JSON values), or removes it when that is null, leaving any
+    /// the hotel changed or linked: a plugin's own, as a new version of it gives another value or
+    /// none. One change set by nobody, with <paramref name="summary"/>; null when none was left as given.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> ReplaceUnchangedAsync(
+        IReadOnlyDictionary<string, GamedataValueChange> changes,
+        string summary,
+        CancellationToken ct
+    );
 }

@@ -150,6 +150,40 @@ public sealed class ClientModuleTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_plugin_without_a_module_has_its_wwwroot_served_while_it_is_loaded()
+    {
+        // A theme: files its variables name, no module.
+        PluginBuilder.Write(_folder, "theme", THEME);
+
+        var wwwroot = Path.Combine(_folder, "theme", "wwwroot");
+
+        Directory.CreateDirectory(wwwroot);
+        File.WriteAllText(Path.Combine(wwwroot, "habbo-room-ui-com.nitro"), "library");
+
+        var manager = Manager();
+        var http = await StartServerAsync();
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        manager.Snapshot().Single().State.Should().Be(PluginStateType.Loaded);
+        _registry.Modules.Should().BeEmpty("clients are sent no module for it");
+
+        using (
+            var file = await http.GetAsync("/gamedata/plugins/theme/habbo-room-ui-com.nitro", Ct)
+        )
+        {
+            file.StatusCode.Should().Be(HttpStatusCode.OK);
+            (await file.Content.ReadAsStringAsync(Ct)).Should().Be("library");
+        }
+
+        await manager.UnloadAllAsync(Ct);
+
+        using var gone = await http.GetAsync("/gamedata/plugins/theme/habbo-room-ui-com.nitro", Ct);
+
+        gone.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public void The_address_starts_with_the_hotels_public_gamedata_address_when_it_has_one()
     {
         _config.Set(new GamedataConfig { PublicUrl = "https://gamedata.example.com/" });
@@ -386,6 +420,26 @@ public sealed class ClientModuleTests : IAsyncDisposable
                 return Task.CompletedTask;
             }
 
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+        """;
+
+    private const string THEME = """
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+
+        public sealed class ThemePlugin : ITurboPlugin
+        {
+            public string Key => "theme";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
             public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
             public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;

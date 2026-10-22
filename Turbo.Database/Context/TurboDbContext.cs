@@ -78,6 +78,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HabboFigureEntity> HabboFigures { get; init; }
     public DbSet<GamedataFigureEntity> GamedataFigures { get; init; }
     public DbSet<GamedataVariableEntity> GamedataVariables { get; init; }
+    public DbSet<GamedataPluginValueEntity> GamedataPluginValues { get; init; }
     public DbSet<ServerSettingEntity> ServerSettings { get; init; }
     public DbSet<ServerSettingChangeEntity> ServerSettingChanges { get; init; }
     public DbSet<GamedataChangeSetEntity> GamedataChangeSets { get; init; }
@@ -336,6 +337,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             .Property(x => x.SearchCode)
             .UseCollation(GamedataProductEntity.CODE_COLLATION);
         mb.Entity<GamedataVariableEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataVariableEntity.KEY_COLLATION);
+        mb.Entity<GamedataPluginValueEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataVariableEntity.KEY_COLLATION);
     }

@@ -382,6 +382,69 @@ internal sealed class GamedataTextService(
         return changeSet.ToSnapshot(changeSet.Changes!.Count);
     }
 
+    public Task<GamedataChangeSetSnapshot?> ReplaceUnchangedAsync(
+        IReadOnlyDictionary<string, GamedataValueChange> changes,
+        string summary,
+        CancellationToken ct
+    ) => Writes.RunAsync(() => ReplaceUnchangedLockedAsync(changes, summary, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> ReplaceUnchangedLockedAsync(
+        IReadOnlyDictionary<string, GamedataValueChange> changes,
+        string summary,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await DbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var wanted = changes.Keys.ToList();
+        var rows = (
+            await dbCtx
+                .GamedataTexts.Where(x => wanted.Contains(x.Key))
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
+            .Where(x =>
+                changes.TryGetValue(x.Key, out var change)
+                && change.From == x.Value
+                && change.To != x.Value
+                && (change.To is null || Fits(x.Key, change.To))
+            )
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .ToList();
+
+        if (rows.Count == 0)
+            return null;
+
+        var records = new List<GamedataChangeEntity>();
+
+        foreach (var row in rows)
+        {
+            var before = row.Value;
+
+            if (changes[row.Key].To is { } to)
+            {
+                row.Value = to;
+                records.Add(Change(GamedataRecordType.Text, row.Key, before, to, row.Id));
+            }
+            else
+            {
+                dbCtx.GamedataTexts.Remove(row);
+                records.Add(Change(GamedataRecordType.Text, row.Key, before, null, row.Id));
+            }
+        }
+
+        var changeSet = GamedataChangeSets.Create(GamedataChangeKind.Edit, summary, null, records);
+
+        dbCtx.GamedataChangeSets.Add(changeSet);
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        Changed();
+
+        return changeSet.ToSnapshot(changeSet.Changes!.Count);
+    }
+
     /// <summary>Whether the file can hold the text as it is (<see cref="CheckKey"/>, <see cref="CheckValue"/>).</summary>
     private static bool Fits(string key, string value)
     {

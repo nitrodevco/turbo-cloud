@@ -123,7 +123,7 @@ internal sealed partial class PluginAdministration(
 
             return new PluginActionResult(
                 true,
-                $"Turned {plugin.Name} off. It stays off after a restart.",
+                $"Turned {plugin.Name} off. It stays off after a restart. While it is off, clients are not sent the external variables and texts it brought that the hotel has not changed.",
                 Find(plugin.Key)
             );
         }
@@ -271,7 +271,7 @@ internal sealed partial class PluginAdministration(
             if (mode == PluginUninstallMode.KeepData)
                 return new PluginActionResult(
                     true,
-                    $"Uninstalled {plugin.Name}. Its data is kept: installing it again picks it up.",
+                    $"Uninstalled {plugin.Name}. Its data is kept: installing it again picks it up. Until then, clients are not sent the external variables and texts it brought that the hotel has not changed.",
                     null
                 );
 

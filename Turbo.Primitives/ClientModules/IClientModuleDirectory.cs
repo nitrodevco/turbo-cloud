@@ -23,8 +23,15 @@ public interface IClientModuleDirectory
     IDisposable Add(ClientModuleSource source);
 
     /// <summary>
-    /// The full path of a file a module serves, <paramref name="path"/> under its <c>wwwroot/</c>;
-    /// null when there is no such module, the path leaves the folder, names a hidden file or folder,
+    /// Serves the files under <paramref name="root"/> (a plugin's <c>wwwroot/</c>) as the plugin
+    /// <paramref name="key"/>'s, whether or not it registers a module: a theme or data-only plugin
+    /// whose variables name them. Disposing the handle stops it. Clients are sent no module for it.
+    /// </summary>
+    IDisposable AddFiles(string key, string root);
+
+    /// <summary>
+    /// The full path of a file a plugin serves, <paramref name="path"/> under its <c>wwwroot/</c>;
+    /// null when no module or files are served under the key, the path leaves the folder, names a hidden file or folder,
     /// or there is no such file.
     /// </summary>
     string? FindFile(string key, string path);
