@@ -1,5 +1,6 @@
 using System.Globalization;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Admin.Configuration;
@@ -270,6 +271,19 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             .Sanctions.First(x => x.Reason == "spamming")
             .ExpiresUtc!.Value.Kind.Should()
             .Be(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public async Task APlayer_ShowsWhetherTheyAreASystemAccount()
+    {
+        (await Queries().GetAsync(ALICE, Ct))!.IsSystemAccount.Should().BeFalse();
+
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            await db
+                .Players.Where(x => x.Id == ALICE)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsSystemAccount, true), Ct);
+
+        (await Queries().GetAsync(ALICE, Ct))!.IsSystemAccount.Should().BeTrue();
     }
 
     [Fact]

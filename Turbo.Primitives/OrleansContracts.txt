@@ -242,8 +242,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerDirectoryG
   4DF23856: GetPlayerIdAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
   21AA0807: GetPlayerNameAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<string>
   CD6A348E: GetPlayerNamesAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableDictionary<Turbo.Primitives.Players.PlayerId, string>>
+  361BE1E1: GetSystemAccountIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>>
   D50E55CD: SearchNamesAsync(string, int, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<string>>
   859B846F: SetPlayerNameAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
+  D254242A: SetSystemAccountAsync(Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<bool>
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] Turbo.Primitives.Players.Grains.IPlayerGrain [Version(0)]
   3956094B: ChooseNameAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.NameCheckResult>
@@ -658,6 +660,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   02CF499A: TogglePetBreedingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   4057A1C8: TogglePetRidingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   87B3024D: ToggleRoomMuteAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
+  AF68F0DA: TransferOwnershipAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomOwnerTransferOutcome>
   936C79A2: UnbanPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   8AB1D64D: UnmutePlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   291D4364: UpdateAvatarWithPlayerAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<bool>

@@ -448,4 +448,17 @@ public class RoomConfig
     /// ads_wowpball_camp, ads_alvinsurf = ads_alvinsurfcmp.
     /// </remarks>
     public Dictionary<string, string> FurnitureAliases { get; init; } = [];
+
+    /// <summary>
+    /// Whether a room that is a group's home room may be given to another player
+    /// (<c>IRoomOwnershipService</c>). It stays the group's home room, so who may build there is
+    /// still the group's to say. Off, such a room keeps its owner until the group is deleted.
+    /// </summary>
+    public bool TransferGroupHomeRooms { get; init; }
+
+    /// <summary>
+    /// Whether a room's former owner is given rights in it when it is given to another player.
+    /// Off, they keep nothing there; the rights other players had are kept either way.
+    /// </summary>
+    public bool TransferGivesFormerOwnerRights { get; init; }
 }

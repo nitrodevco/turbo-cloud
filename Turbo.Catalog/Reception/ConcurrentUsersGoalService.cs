@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,7 @@ namespace Turbo.Catalog.Reception;
 /// <summary>
 /// The concurrent users goal (<see cref="IConcurrentUsersGoalService"/>), set by
 /// <see cref="ReceptionConfig.ConcurrentUsersGoal"/>. The players online are those connected to
-/// this host, as the panel's dashboard counts them. Once the count reaches the goal the goal stays
+/// this host, as the panel's dashboard counts them, less the system accounts among them. Once the count reaches the goal the goal stays
 /// reached until the host restarts, so a player who has not taken the reward yet keeps it to take
 /// when the count drops again. Whether a player took it is whether they own the reward badge.
 /// </summary>
@@ -36,7 +37,15 @@ public sealed class ConcurrentUsersGoalService(
         CancellationToken ct
     )
     {
-        var userCount = sessionGateway.GetOnlinePlayerIds().Count;
+        // Players are counted, not the system accounts the hotel or its plugins keep online.
+        var online = sessionGateway.GetOnlinePlayerIds();
+        var systemAccounts = await grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetSystemAccountIdsAsync(ct)
+            .ConfigureAwait(false);
+        var userCount = systemAccounts.IsDefaultOrEmpty
+            ? online.Count
+            : online.Count - systemAccounts.Count(online.Contains);
         var goal = _config.ConcurrentUsersGoal;
 
         if (goal <= 0)

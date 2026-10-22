@@ -271,6 +271,12 @@ public static class PermissionNodes
         public const string ROOMS_VIEW = "admin.rooms.view";
 
         /// <summary>
+        /// Give any room to another player in the panel. Needs <see cref="ROOMS_VIEW"/> as well;
+        /// every change is in the command log.
+        /// </summary>
+        public const string ROOMS_TRANSFER = "admin.rooms.transfer";
+
+        /// <summary>
         /// See every group, any player's permissions, who is given a node, and the permission log
         /// in the panel. Changing them needs <see cref="Permissions.MANAGE"/> as well.
         /// </summary>
@@ -348,6 +354,13 @@ public static class PermissionNodes
         /// end their sign-ins there. Only for a player whose every node the staff member holds too.
         /// </summary>
         public const string ACCOUNTS_MANAGE = "admin.accounts.manage";
+
+        /// <summary>
+        /// Mark a player as a system or service account in the panel, or as a person again: such an
+        /// account is left out of the online count, the friend search and the leaderboards. Only
+        /// for a player whose every node the staff member holds too.
+        /// </summary>
+        public const string PLAYERS_SYSTEM = "admin.players.system";
 
         /// <summary>
         /// See and change the welcome message every player is shown when they log in, in the

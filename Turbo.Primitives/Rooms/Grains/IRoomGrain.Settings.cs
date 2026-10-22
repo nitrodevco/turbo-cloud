@@ -47,6 +47,18 @@ public partial interface IRoomGrain
     public Task CompleteRoomDeletionAsync(CancellationToken ct);
 
     /// <summary>
+    /// Gives the room to another player, whether it is loaded or not: the room row, the new
+    /// owner's own rights (an owner needs none) and, as the hotel is set, the former owner's. A
+    /// loaded room shows its new owner at once and both players' controller levels move. Use
+    /// <c>IRoomOwnershipService</c>, which checks the player first.
+    /// </summary>
+    public Task<RoomOwnerTransferOutcome> TransferOwnershipAsync(
+        PlayerId newOwnerId,
+        string newOwnerName,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Makes the room a new user lobby (<see cref="RoomDoorModeType.NoobLobby"/>), or a lobby an
     /// open room again; false when it already was, or is not a lobby to turn back.
     /// </summary>

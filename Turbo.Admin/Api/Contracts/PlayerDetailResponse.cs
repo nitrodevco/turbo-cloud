@@ -8,6 +8,7 @@ namespace Turbo.Admin.Api.Contracts;
 /// sanctions, and the Discord account they sign in to the public site with, when they have one. A
 /// silence and a trade lock are not sanctions but denials of a node on the player;
 /// <c>Silenced</c> and <c>TradeLocked</c> are the ones that hold now, null when none does.
+/// <c>IsSystemAccount</c>: an account the hotel or a plugin acts as, left out of player-facing lists.
 /// </summary>
 public sealed record PlayerDetailResponse(
     int Id,
@@ -25,5 +26,6 @@ public sealed record PlayerDetailResponse(
     IReadOnlyList<PlayerSanctionItem> Sanctions,
     PlayerDiscordInfo? Discord,
     PlayerRestrictionItem? Silenced,
-    PlayerRestrictionItem? TradeLocked
+    PlayerRestrictionItem? TradeLocked,
+    bool IsSystemAccount
 );

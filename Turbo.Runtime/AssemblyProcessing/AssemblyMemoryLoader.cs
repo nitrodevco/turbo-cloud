@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,16 +43,31 @@ public static class AssemblyMemoryLoader
         return new LoadedAssembly(asm, alc, baseDir);
     }
 
-    public static async Task<bool> UnloadAndWaitAsync(
-        ByteLoadingAlc alc,
+    /// <summary>
+    /// Starts unloading <paramref name="alc"/> and answers a weak reference to it, for
+    /// <see cref="WaitForUnloadAsync"/>. Only a weak reference may be kept past this call: a
+    /// context is collected once nothing holds it or anything loaded in it, the caller's own
+    /// locals and parameters included, so the caller drops what it holds of the plugin before it
+    /// waits. Not inlined, so this frame's strong reference goes with it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static WeakReference BeginUnload(ByteLoadingAlc alc)
+    {
+        alc.Unload();
+
+        return new WeakReference(alc);
+    }
+
+    /// <summary>
+    /// Collects until the context <see cref="BeginUnload"/> started unloading is gone, for at most
+    /// <paramref name="maxMs"/>; false when something still holds it.
+    /// </summary>
+    public static async Task<bool> WaitForUnloadAsync(
+        WeakReference alc,
         int maxMs = 5000,
         CancellationToken ct = default
     )
     {
-        var wr = new WeakReference(alc);
-
-        alc.Unload();
-
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         while (sw.ElapsedMilliseconds < maxMs && !ct.IsCancellationRequested)
@@ -60,7 +76,7 @@ public static class AssemblyMemoryLoader
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
-            if (!wr.IsAlive)
+            if (!alc.IsAlive)
                 return true;
 
             try
@@ -73,6 +89,6 @@ public static class AssemblyMemoryLoader
             }
         }
 
-        return !wr.IsAlive;
+        return !alc.IsAlive;
     }
 }

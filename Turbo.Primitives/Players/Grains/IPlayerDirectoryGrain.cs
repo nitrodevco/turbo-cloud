@@ -39,4 +39,19 @@ public interface IPlayerDirectoryGrain : IGrainWithStringKey
 
     [AlwaysInterleave]
     public Task SetPlayerNameAsync(PlayerId playerId, string name, CancellationToken ct);
+
+    /// <summary>
+    /// The system and service accounts (<c>players.is_system_account</c>): accounts the hotel or a
+    /// plugin acts as, which player-facing lists leave out.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<ImmutableArray<PlayerId>> GetSystemAccountIdsAsync(CancellationToken ct);
+
+    /// <summary>Marks a player as a system account or a person again; false when there is no such player.</summary>
+    [AlwaysInterleave]
+    public Task<bool> SetSystemAccountAsync(
+        PlayerId playerId,
+        bool isSystemAccount,
+        CancellationToken ct
+    );
 }
