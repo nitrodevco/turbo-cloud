@@ -31,13 +31,15 @@ public sealed class RoomTradeModule(RoomGrain roomGrain) : RoomGrainComponent(ro
         )
             return null;
 
+        var roomAllows = await AllowsTradeBetweenAsync(ctx.PlayerId, partner.PlayerId);
+
         return new TradePartiesSnapshot
         {
             InitiatorId = ctx.PlayerId,
             PartnerId = partner.PlayerId,
             PartnerName = partner.Name,
-            InitiatorMayTrade = await AllowsTradeByAsync(ctx.PlayerId),
-            PartnerMayTrade = await AllowsTradeByAsync(partner.PlayerId),
+            InitiatorMayTrade = roomAllows,
+            PartnerMayTrade = roomAllows,
         };
     }
 
@@ -60,13 +62,22 @@ public sealed class RoomTradeModule(RoomGrain roomGrain) : RoomGrainComponent(ro
         AvatarModule.TryGetPlayer(playerId, out var player)
         && player.HasStatus(AvatarStatusType.Trading);
 
-    private async Task<bool> AllowsTradeByAsync(PlayerId playerId) =>
+    /// <summary>
+    /// Whether the room's trade mode lets these two trade. In a rights-only room one side
+    /// holding rights is enough, so the owner can trade any visitor; group members without
+    /// rights count as having none, as in the client's own check
+    /// (<c>InfoStandWidgetHandler</c>, trade mode 1).
+    /// </summary>
+    private async Task<bool> AllowsTradeBetweenAsync(PlayerId initiatorId, PlayerId partnerId) =>
         State.RoomSnapshot.TradeType switch
         {
             RoomTradeModeType.Disabled => false,
-            RoomTradeModeType.RoomOwnerAndRights => await SecurityModule.GetControllerLevelAsync(
-                playerId
-            ) >= RoomControllerType.Rights,
+            RoomTradeModeType.RoomOwnerAndRights => await HasTradeRightsAsync(initiatorId)
+                || await HasTradeRightsAsync(partnerId),
             _ => true,
         };
+
+    private async Task<bool> HasTradeRightsAsync(PlayerId playerId) =>
+        await SecurityModule.GetControllerLevelAsync(playerId)
+            is not (RoomControllerType.None or RoomControllerType.GroupRights);
 }
