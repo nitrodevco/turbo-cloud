@@ -271,6 +271,12 @@ public static class PermissionNodes
         public const string ROOMS_VIEW = "admin.rooms.view";
 
         /// <summary>
+        /// Give any room to another player in the panel. Needs <see cref="ROOMS_VIEW"/> as well;
+        /// every change is in the command log.
+        /// </summary>
+        public const string ROOMS_TRANSFER = "admin.rooms.transfer";
+
+        /// <summary>
         /// See every group, any player's permissions, who is given a node, and the permission log
         /// in the panel. Changing them needs <see cref="Permissions.MANAGE"/> as well.
         /// </summary>

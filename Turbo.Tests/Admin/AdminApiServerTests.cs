@@ -214,6 +214,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IPlayerNoticeService),
                 typeof(IDbContextFactory<TurboDbContext>),
                 typeof(IRoomService),
+                typeof(Turbo.Primitives.Rooms.IRoomOwnershipService),
                 typeof(IFurnitureDefinitionProvider),
                 typeof(ICatalogEditService),
                 typeof(IGivableEffects),

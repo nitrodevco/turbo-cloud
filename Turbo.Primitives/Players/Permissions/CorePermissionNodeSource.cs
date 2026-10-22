@@ -342,6 +342,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Find any room in the admin panel and see its settings, occupants, rights and bans."
         ),
         new(
+            PermissionNodes.Admin.ROOMS_TRANSFER,
+            "Give any room to another player in the admin panel."
+        ),
+        new(
             PermissionNodes.Admin.PLAYERS_VIEW,
             "Find any player in the admin panel and see their profile, wallet, rooms and sanctions."
         ),

@@ -8,9 +8,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Rooms;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -38,6 +40,8 @@ internal sealed class RoomEndpoints(
     AdminRoomPets pets,
     AdminRoomEditor editor,
     IRoomService roomService,
+    IRoomOwnershipService ownership,
+    AdminActionLog actions,
     IOptions<AdminConfig> config,
     ILogger<RoomEndpoints> logger
 )
@@ -70,6 +74,7 @@ internal sealed class RoomEndpoints(
         group.MapPost("/{id:int}/pets/{petId:int}/pickup", PickupPetAsync);
         group.MapPut("/{id:int}/settings", SaveSettingsAsync);
         group.MapPut("/{id:int}/staff-pick", SetStaffPickAsync);
+        group.MapPut("/{id:int}/owner", TransferOwnerAsync);
         group.MapPost("/{id:int}/kick", KickAsync);
         group.MapPost("/{id:int}/mute", MuteAsync);
         group.MapPost("/{id:int}/ban", BanAsync);
@@ -240,6 +245,78 @@ internal sealed class RoomEndpoints(
         return Done(
             request.StaffPick ? "The room is a staff pick." : "The room is no longer a staff pick."
         );
+    }
+
+    /// <summary>
+    /// Gives the room to the named player through the room ownership service, loaded or not, and
+    /// writes the request to the command log whatever came of it.
+    /// </summary>
+    private async Task<IResult> TransferOwnerAsync(
+        HttpContext http,
+        int id,
+        RoomOwnerRequest request,
+        CancellationToken ct
+    )
+    {
+        if (await RefuseAsync(http, id, x => x.TransferOwner, ct).ConfigureAwait(false) is { } no)
+            return no;
+
+        var name = request.Name?.Trim() ?? string.Empty;
+
+        if (name.Length == 0)
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "Name the player to give the room to."
+            );
+
+        if (
+            await grainFactory
+                .GetPlayerDirectoryGrain()
+                .GetPlayerIdAsync(name, ct)
+                .ConfigureAwait(false)
+            is not { } playerId
+        )
+            return AdminResults.Error(
+                StatusCodes.Status404NotFound,
+                $"There is no player called {name}."
+            );
+
+        var outcome = await ownership
+            .TransferAsync(new RoomId(id), playerId, ct)
+            .ConfigureAwait(false);
+        var transferred = outcome == RoomOwnerTransferOutcome.Transferred;
+
+        await actions
+            .WriteAsync(
+                AdminActionLog.ROOM,
+                AdminIdentity.Of(http).PlayerId,
+                $"owner {id} {playerId.Value}",
+                transferred ? CommandOutcome.Completed : CommandOutcome.Failed,
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
+
+        if (transferred)
+            Log(http, "gave room {RoomId} to player {PlayerId}", id, playerId.Value);
+
+        return outcome switch
+        {
+            RoomOwnerTransferOutcome.Transferred => Done($"The room is {name}'s now."),
+            RoomOwnerTransferOutcome.NoSuchRoom => NoSuchRoom(id),
+            RoomOwnerTransferOutcome.NoSuchPlayer => AdminResults.Error(
+                StatusCodes.Status404NotFound,
+                $"There is no player called {name}."
+            ),
+            RoomOwnerTransferOutcome.AlreadyOwner => Refused($"{name} owns the room already."),
+            RoomOwnerTransferOutcome.GroupHomeRoom => Refused(
+                "The room is a group's home room, and this hotel keeps those with their owner."
+            ),
+            RoomOwnerTransferOutcome.Deleting => Refused("The room is being deleted."),
+            _ => AdminResults.Error(
+                StatusCodes.Status500InternalServerError,
+                "The room could not be given; nothing changed."
+            ),
+        };
     }
 
     private async Task<IResult> KickAsync(

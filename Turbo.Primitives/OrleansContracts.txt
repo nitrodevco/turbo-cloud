@@ -658,6 +658,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   02CF499A: TogglePetBreedingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   4057A1C8: TogglePetRidingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   87B3024D: ToggleRoomMuteAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<bool>
+  AF68F0DA: TransferOwnershipAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomOwnerTransferOutcome>
   936C79A2: UnbanPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   8AB1D64D: UnmutePlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   291D4364: UpdateAvatarWithPlayerAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<bool>

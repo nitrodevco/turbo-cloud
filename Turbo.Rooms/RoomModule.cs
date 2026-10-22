@@ -47,5 +47,6 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IAssemblyFeatureProcessor, WiredVariableFeatureProcessor>();
 
         services.AddSingleton<IRoomService, RoomService>();
+        services.AddSingleton<IRoomOwnershipService, RoomOwnershipService>();
     }
 }

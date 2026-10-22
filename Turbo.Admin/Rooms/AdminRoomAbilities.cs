@@ -13,8 +13,8 @@ namespace Turbo.Admin.Rooms;
 /// asks for, so a room is edited and moderated from the browser exactly as it would be by the same
 /// person standing in it: its owner, or <c>room.control.any</c>, may change its settings and
 /// rights and set the bots and pets standing in it; <c>room.moderate.any</c> kicks, mutes and
-/// bans (the room still decides who outranks whom); and each room-wide action needs its
-/// command's node.
+/// bans (the room still decides who outranks whom); each room-wide action needs its
+/// command's node; and giving the room to another player needs <c>admin.rooms.transfer</c>.
 /// </summary>
 public static class AdminRoomAbilities
 {
@@ -42,7 +42,8 @@ public static class AdminRoomAbilities
             MuteRoom: resolved.Has(PermissionNodes.Command.ROOMMUTE)
                 || resolved.Has(PermissionNodes.Command.ROOMUNMUTE),
             Unload: resolved.Has(PermissionNodes.Command.UNLOADROOM),
-            Alert: resolved.Has(PermissionNodes.Command.ROOMALERT)
+            Alert: resolved.Has(PermissionNodes.Command.ROOMALERT),
+            TransferOwner: resolved.Has(PermissionNodes.Admin.ROOMS_TRANSFER)
         );
     }
 }

@@ -430,6 +430,7 @@ group rooms' rights, the settings' limits). Buttons only appear for what you may
 | Kick everyone (its owner and room moderators stay) | `command.roomkickall` | Yes |
 | Unload (sends everyone out) | `command.unloadroom` | Yes |
 | Room alert (a pop-up for everyone inside, up to 500 characters) | `command.roomalert` | Yes |
+| **Give to another player** (by name) | `admin.rooms.transfer` | No |
 
 The settings are saved through the room itself, the same way the owner's settings dialog saves
 them: values are kept within the hotel's limits, the navigator is updated, and everyone inside
@@ -442,8 +443,21 @@ rights and bans, not its furniture), as visiting its settings in the hotel would
 
 Every action is written to Turbo's log as `Admin panel: <name> ...`, with who did it.
 
+**Giving a room to another player** goes through the room, loaded or not, as a plugin's does
+(`IRoomOwnershipService`): the room row, the new owner's rights row (an owner needs none) and a
+loaded room change together. Everyone inside sees the new owner's name at once, the new owner
+standing in it is told they own it and the former owner that they control nothing there (the
+Flash client only ever sets its owner flag, `RoomPermissionsHandler.onYouAreOwner`, so their owner
+menus stay until they enter again; the room refuses what those menus ask). The navigator's
+listings move with it. Other players' rights are kept. Two settings decide the rest:
+`Turbo:Rooms:TransferGivesFormerOwnerRights` (off: the former owner keeps nothing there) and
+`Turbo:Rooms:TransferGroupHomeRooms` (off: a group's home room keeps its owner, and the panel says
+so; on: it stays the group's home room, whose rights are the group's). Furni, pets and bots in the
+room keep their owners. Every request, given or not, is in the [command log](#command-log) as
+`room owner <room id> <player id>`.
+
 A room's **Visitors** tab links to every visit in the [Room visits](#room-visits) log. Deleting
-rooms and changing owners aren't in the panel yet.
+rooms isn't in the panel yet.
 
 ## Players
 
@@ -1170,6 +1184,7 @@ passkey; they add more while signed in instead.
 | `admin.panel` | Signing in to the panel. Checked on every request, so removing it locks the person out at once. |
 | `admin.passkeys.reset` | Making setup and reset links for other players (Access → Staff passkeys, `:adminsetup <name>`), within the rule above. |
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
+| `admin.rooms.transfer` | With `admin.rooms.view`: giving any room to another player. |
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |

@@ -33,6 +33,9 @@ public sealed class AdminActionLog(
     /// <summary>A badge given or taken on the Content page: <c>badge give|take &lt;code&gt; &lt;player id&gt;</c>.</summary>
     public const string BADGE = "badge";
 
+    /// <summary>A room given to another player: <c>room owner &lt;room id&gt; &lt;player id&gt;</c>.</summary>
+    public const string ROOM = "room";
+
     public const string SOURCE = "panel";
 
     public async Task WriteAsync(
