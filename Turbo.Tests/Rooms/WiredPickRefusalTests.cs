@@ -9,6 +9,7 @@ using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
@@ -36,6 +37,8 @@ public sealed class WiredPickRefusalTests
     private const int CONTRACT = 14;
     private const int LINKER = 15;
     private const int INIT_BOX = 16;
+    private const int CUSTOM_CONTRACT = 17;
+    private const int TRADE_CONTRACT = 18;
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -163,40 +166,76 @@ public sealed class WiredPickRefusalTests
     }
 
     [Fact]
-    public async Task Initiate_transaction_takes_contracts_in_its_contract_slot()
+    public async Task Initiate_transaction_takes_chests_and_contracts_custom_ones_too_in_their_slots()
     {
+        // Official client capture 2026-10-22: the contract goes in the second pick, a custom
+        // one too, and saves with no chest picked; a custom contract in the chests pick is
+        // refused, and so is a lamp in the contracts pick.
         AddContract();
         _room.AddBox<WiredActionInitiateTransaction>(BOX, 0, 0, "wf_act_init_transaction");
 
         (await SaveWithResultAsync<UpdateActionMessage>(stuffIds2: [LAMP]))
             .ErrorKey.Should()
             .Be("wiredfurni.error.require_contracts");
+        (await SaveWithResultAsync<UpdateActionMessage>(stuffIds: [CUSTOM_CONTRACT]))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.require_chests");
         (await SaveAsync<UpdateActionMessage>(stuffIds2: [CONTRACT])).Should().BeTrue();
+        (await SaveAsync<UpdateActionMessage>(stuffIds: [], stuffIds2: [CUSTOM_CONTRACT]))
+            .Should()
+            .BeTrue();
     }
 
     [Fact]
-    public async Task Cancel_transaction_takes_contracts_or_an_initiate_transaction_box()
+    public async Task Cancel_transaction_takes_contracts_custom_ones_too_and_nothing_for_any()
     {
+        // Official client capture 2026-10-22: "Specified contract" saves with a custom contract
+        // and refuses a lamp with require_contracts; "Any ongoing transaction" saves with nothing.
         AddContract();
         _room.AddBox<WiredActionInitiateTransaction>(INIT_BOX, 6, 6, "wf_act_init_transaction");
         _room.AddBox<WiredActionCancelTransaction>(BOX, 0, 0, "wf_act_cancel_transaction");
 
         (await SaveWithResultAsync<UpdateActionMessage>(stuffIds: [LAMP]))
             .ErrorKey.Should()
-            .Be("wiredfurni.error.require_contracts_or_trade_wired");
-        (await SaveAsync<UpdateActionMessage>(stuffIds: [CONTRACT, INIT_BOX])).Should().BeTrue();
+            .Be("wiredfurni.error.require_contracts");
+        (await SaveWithResultAsync<UpdateActionMessage>(stuffIds: [INIT_BOX]))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.require_contracts");
+        (await SaveAsync<UpdateActionMessage>(stuffIds: [CUSTOM_CONTRACT])).Should().BeTrue();
+        (await SaveAsync<UpdateActionMessage>(stuffIds: [CONTRACT])).Should().BeTrue();
+        (await _room.SaveWithResultAsync<UpdateActionMessage>(BOX, intParams: [1], stuffIds: []))
+            .IsSaved.Should()
+            .BeTrue();
     }
 
     [Fact]
-    public async Task Transaction_triggers_take_contracts_or_an_initiate_transaction_box()
+    public async Task Transaction_triggers_take_contracts_custom_ones_too_but_no_initiate_transaction_box()
     {
+        // Tester report 2026-10-22: the custom contract was refused as "not a contract".
+        // Official client capture 2026-10-22, Transaction Completed: the custom contract and
+        // [wf_contract_trade, wf_contract_payment] save; a lamp and the Initiate Transaction box
+        // are refused with require_contracts_or_trade_wired.
         AddContract();
+        _room.AddFloorItem(
+            TRADE_CONTRACT,
+            3,
+            6,
+            "wired_contract_trade",
+            createLogic: (factory, ctx) => new FurnitureWiredTradeContractLogic(factory, ctx)
+        );
+        _room.AddBox<WiredActionInitiateTransaction>(INIT_BOX, 6, 6, "wf_act_init_transaction");
         _room.AddBox<WiredTriggerTransactionCompleted>(BOX, 0, 0, "wf_trg_transaction_complete");
 
         (await SaveWithResultAsync<UpdateTriggerMessage>(stuffIds: [LAMP]))
             .ErrorKey.Should()
             .Be("wiredfurni.error.require_contracts_or_trade_wired");
-        (await SaveAsync<UpdateTriggerMessage>(stuffIds: [CONTRACT])).Should().BeTrue();
+        (await SaveWithResultAsync<UpdateTriggerMessage>(stuffIds: [INIT_BOX]))
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.require_contracts_or_trade_wired");
+        (await SaveAsync<UpdateTriggerMessage>(stuffIds: [TRADE_CONTRACT, CONTRACT]))
+            .Should()
+            .BeTrue();
+        (await SaveAsync<UpdateTriggerMessage>(stuffIds: [CUSTOM_CONTRACT])).Should().BeTrue();
     }
 
     [Fact]
@@ -316,7 +355,8 @@ public sealed class WiredPickRefusalTests
         }
     }
 
-    private void AddContract() =>
+    private void AddContract()
+    {
         _room.AddFloorItem(
             CONTRACT,
             4,
@@ -324,4 +364,6 @@ public sealed class WiredPickRefusalTests
             "wired_contract_payment",
             createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
+        _room.AddBox<WiredAddonCustomContract>(CUSTOM_CONTRACT, 5, 6, "wf_xtra_custom_contract");
+    }
 }

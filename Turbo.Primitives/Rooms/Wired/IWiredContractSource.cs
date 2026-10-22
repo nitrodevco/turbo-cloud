@@ -1,3 +1,4 @@
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.WiredTrading.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Wired;
@@ -8,6 +9,12 @@ namespace Turbo.Primitives.Rooms.Wired;
 /// </summary>
 public interface IWiredContractSource
 {
+    /// <summary>
+    /// The custom contract furni in this room: the contract its transactions were made with, as
+    /// the transaction triggers and Cancel Transaction pick it.
+    /// </summary>
+    public RoomObjectId ContractFurniId { get; }
+
     /// <summary>The contract as it stands for this firing; null when it is misconfigured.</summary>
     public WiredContractSnapshot? BuildContract(IWiredContext ctx);
 }

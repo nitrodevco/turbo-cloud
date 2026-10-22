@@ -17,7 +17,7 @@ public sealed record WiredContractTradeRequest
     [Id(0)]
     public required RoomId RoomId { get; init; }
 
-    /// <summary>The contract furni, or the Initiate Transaction box for a custom contract.</summary>
+    /// <summary>The contract furni (a custom contract addon too).</summary>
     [Id(1)]
     public required RoomObjectId SourceId { get; init; }
 

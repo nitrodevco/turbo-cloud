@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -49,6 +50,8 @@ public class WiredAddonCustomContract(
     private const int MAX_AMOUNT = 100000;
 
     public override int WiredCode => (int)WiredAddonType.CUSTOM_CONTRACT;
+
+    public RoomObjectId ContractFurniId => _ctx.ObjectId;
 
     protected override bool AllowsWallFurni => true;
 
