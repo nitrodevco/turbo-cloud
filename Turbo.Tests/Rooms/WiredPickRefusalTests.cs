@@ -102,6 +102,17 @@ public sealed class WiredPickRefusalTests
         (await SaveAsync<UpdateTriggerMessage>(stuffIds: [ANTENNA])).Should().BeTrue();
     }
 
+    // nitrodev 2026-10-22 (tester): Habbo's antennas wf_antenna1/2 imported with the default logic were refused as "Can only
+    // select antenna furni." - the configured names are their class names.
+    [Fact]
+    public async Task An_antenna_is_known_by_its_class_name_whatever_its_logic()
+    {
+        _room.AddFloorItem(20, 3, 3, "default_floor", className: "wf_antenna2");
+        _room.AddBox<WiredActionSendSignal>(BOX, 0, 0, "wf_act_send_signal");
+
+        (await SaveAsync<UpdateActionMessage>(stuffIds: [20])).Should().BeTrue();
+    }
+
     [Fact]
     public async Task Which_furni_are_antennas_is_configured()
     {

@@ -714,9 +714,13 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     protected virtual string? RefusePickInSlot(int slot, IRoomItem item) => null;
 
-    /// <summary>Whether the furni is one of the antennas signals go to (<see cref="Configuration.WiredConfig.AntennaLogicNames"/>).</summary>
+    /// <summary>
+    /// Whether the furni is one of the antennas signals go to (<see cref="Configuration.WiredConfig.AntennaLogicNames"/>):
+    /// by its class name, which Habbo's antennas keep whatever logic a hotel gave them, or by its logic.
+    /// </summary>
     protected bool IsAntenna(IRoomItem item) =>
         WiredConfig.AntennaLogicNames is not { Length: > 0 } antennas
+        || antennas.Contains(item.Definition.Name, StringComparer.OrdinalIgnoreCase)
         || antennas.Contains(item.Definition.LogicName, StringComparer.OrdinalIgnoreCase);
 
     private void RefuseUnpickableFurni(

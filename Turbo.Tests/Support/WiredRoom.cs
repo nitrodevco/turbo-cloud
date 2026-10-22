@@ -144,7 +144,8 @@ public sealed class WiredRoom
         bool canSit = false,
         bool canLay = false,
         string? customParams = null,
-        int totalStates = 2
+        int totalStates = 2,
+        string? className = null
     )
     {
         var item = new RoomFloorItem
@@ -156,7 +157,7 @@ public sealed class WiredRoom
             {
                 Id = definitionId ?? 1000 + id,
                 SpriteId = definitionId ?? 1000 + id,
-                Name = logicName,
+                Name = className ?? logicName,
                 ProductType = ProductType.Floor,
                 FurniCategory = FurnitureCategory.Default,
                 LogicName = logicName,
