@@ -18,6 +18,8 @@ class [GrainType("playermessenger")] Turbo.Players.Grains.Messenger.PlayerMessen
 
 class [GrainType("playernavigator")] Turbo.Players.Grains.Navigator.PlayerNavigatorGrain
 
+class [GrainType("playernuxgift")] Turbo.Players.Grains.Onboarding.PlayerNuxGiftGrain
+
 class [GrainType("permissiongroupdirectory")] Turbo.Players.Grains.Permissions.PermissionGroupDirectoryGrain
 
 class [GrainType("playerpermission")] Turbo.Players.Grains.Permissions.PlayerPermissionGrain

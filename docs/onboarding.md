@@ -18,6 +18,7 @@ behaviour as the default.
 | Names no one may take | `Turbo:Players:BlockedNames` | none |
 | How long a player counts as new | `Turbo:Onboarding:NewUserHours` | 24 |
 | The new user lobbies | `:nooblobby` in the hotel (below) | none |
+| The new user gifts and how long they are offered | `Turbo:Onboarding:Gifts`, `GiftDays` (below) | none, 7 days |
 | The reward tracks (Introduction, Habboween 2026) | the panel's Reward Tracks (`/api/reward-tracks`, docs/reward-tracks.md) | Habbo's two |
 | Suggestions for a taken name | `Turbo:Onboarding:NameSuggestions`, `SuggestionWords` | 3, Turbo's words |
 | Room types, pictures and names in the client | written by `:starterroom` (client `new.user.flow.roomTypes`, `new.user.flow.room.image.url`, texts `room.name.<type>` / `room.description.<type>`) | Habbo's |
@@ -79,6 +80,45 @@ track is not complete. With no tracks of its own, Turbo offers Habbo's Introduct
 sent it to the new account (30 tasks, its points and premium) with the 16 of its 49 prizes Turbo can
 give: duckets, diamonds, badges and furni, found by sprite. Its 30 Habbicons, 2 pets and a bot are
 left out until Turbo can give those. Turbo counts 17 of the 30 task types so far.
+
+### New user gifts
+
+Habbo's client has a window that cannot be closed, **"Choose gift option"** - "Get your free gift!"
+over up to three gifts side by side, each with a picture, its name and **Get this**. A step is one
+row of gifts; with more than one step due the window goes through them one after another
+("Choose gift option 1/2") and sends every pick at the end. Turbo offers the steps of
+`Turbo:Onboarding:Gifts` (a list, edited as JSON on the panel's Settings page; empty, the default,
+offers none):
+
+```json
+[
+  { "Day": 1, "Step": 1, "Options": [
+    { "Thumbnail": "nux/gift_chair.png", "Products": [ { "ProductCode": "chair_norja", "Amount": 2 } ] },
+    { "Products": [ { "ProductCode": "pet_cat", "LocalizationKey": "nux.gift.cat", "Pet": "1 0 ffffff", "PetName": "Kitty" } ] }
+  ] }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `Day` | Offered from this day on; day 1 is the day the player signed up |
+| `Step` | Tells a day's steps apart; each day and step is picked once |
+| `Thumbnail` | The gift's picture, a path under the client's `image.library.url`; empty for none |
+| `ProductCode` | The client names the product by its product data (else the text `product_<code>_name`); also the furni given |
+| `LocalizationKey` | A text the client names the product by instead (Habbo's `nux.gift.cat`, `.dog`, `.pig`) |
+| `Furni` | The furni definition given, when it is not the product code's |
+| `Pet`, `PetName` | A pet given instead of a furni, as a pet figure: "type palette colour" |
+| `Amount` | How many are given (1) |
+
+A player is offered the steps due to them that they have not picked from as they enter a room,
+until `Turbo:Onboarding:GiftDays` (7) days after sign-up; 0 offers them whatever the player's age.
+The window cannot be closed, so a reload or a room change brings it back at the next room. Picks
+of a step not due, already picked or naming furni or a pet the hotel does not have are left out,
+and the step stays open. A pick is kept as a free product claim (`player_product_claims`, claim id
+`nux:<day>:<step>`); the gifts are moved with cause `onboarding.gift`.
+
+What Habbo offers and when is not recorded: its texts speak of a gift on the second day ("For your
+gift today, you have three options" - a cat, a dog or a pig) and a refrigerator on the first.
 
 ### Blocked names
 

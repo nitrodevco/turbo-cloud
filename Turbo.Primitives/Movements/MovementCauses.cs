@@ -125,6 +125,9 @@ public static class MovementCauses
 
     public const string ONBOARDING_STARTER_ROOM = "onboarding.starter_room";
 
+    /// <summary>A new player's pick of the new user gift offer; cause ref: the step, <c>nux:day:step</c>.</summary>
+    public const string ONBOARDING_GIFT = "onboarding.gift";
+
     public const string REWARD_TRACK = "reward.track";
 
     /// <summary>A reward track's premium bought: its price, apart from the prizes the track pays.</summary>

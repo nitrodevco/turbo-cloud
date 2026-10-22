@@ -318,6 +318,11 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerProductClaimGrain>(playerId.Value);
 
+    public static IPlayerNuxGiftGrain GetPlayerNuxGiftGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerNuxGiftGrain>(playerId.Value);
+
     public static IPlayerRoomPollGrain GetPlayerRoomPollGrain(
         this IGrainFactory factory,
         PlayerId playerId

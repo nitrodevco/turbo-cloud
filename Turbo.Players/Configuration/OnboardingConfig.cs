@@ -57,4 +57,17 @@ public sealed class OnboardingConfig
     /// may enter. Habbo's length is not known; 0 makes no one new. Not tied to <see cref="Enabled"/>.
     /// </summary>
     public int NewUserHours { get; init; } = 24;
+
+    /// <summary>
+    /// The new user gift offer, Habbo's "Choose gift option": a new player entering a room is
+    /// offered every step due to them they have not picked from. Empty offers none. Not tied to
+    /// <see cref="Enabled"/>.
+    /// </summary>
+    public List<NuxGiftStep> Gifts { get; init; } = [];
+
+    /// <summary>
+    /// How many days after sign-up a player is still offered gifts: a step not picked by then is
+    /// gone. Habbo's length is not known; 0 offers gifts whatever the player's age.
+    /// </summary>
+    public int GiftDays { get; init; } = 7;
 }
