@@ -226,9 +226,9 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         (await SentVariablesAsync()).ContainsKey(OVERRIDES).Should().BeFalse();
         (await SentTextsAsync()).Should().NotContainKey("theme.title");
         // Kept: installing it again sends them again.
-        (await _variables.GetValuesAsync([OVERRIDES], Ct))
+        (await _texts.GetValuesAsync(["theme.title"], Ct))
             .Should()
-            .ContainKey(OVERRIDES);
+            .ContainKey("theme.title");
 
         WriteTheme(THEME_VARIABLES, "theme.title=Theme\ntheme.body=Body\n");
         await _manager.LoadAllAsync(ct: Ct);
@@ -247,8 +247,10 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.LoadAllAsync(ct: Ct);
 
         _manager.Snapshot().Single().State.Should().Be(PluginStateType.Failed);
-        (await _variables.GetValuesAsync([OVERRIDES], Ct)).Should().ContainKey(OVERRIDES);
-        (await SentVariablesAsync()).ContainsKey(OVERRIDES).Should().BeFalse();
+        (await _variables.GetValuesAsync(["theme.color"], Ct)).Should().ContainKey("theme.color");
+        var sent = await SentVariablesAsync();
+        sent.ContainsKey(OVERRIDES).Should().BeFalse();
+        sent.ContainsKey("theme.color").Should().BeFalse();
         (await SentTextsAsync()).Should().NotContainKey("theme.title");
     }
 
@@ -320,16 +322,139 @@ public sealed class PluginOwnedGamedataTests : IDisposable
     public async Task A_key_already_holding_its_value_becomes_its_own()
     {
         // A hotel that ran the plugin before what it gave was kept.
-        await _variables.SaveAsync(OVERRIDES, OVERRIDES_VALUE, STAFF, Ct);
+        await _variables.SaveAsync("theme.color", "\"#ffcc00\"", STAFF, Ct);
         WriteTheme(THEME_VARIABLES, string.Empty);
 
         await _manager.LoadAllAsync(ct: Ct);
-        (await SentVariablesAsync()).ContainsKey(OVERRIDES).Should().BeTrue();
+        (await SentVariablesAsync()).ContainsKey("theme.color").Should().BeTrue();
 
         await _plugins.SetEnabledAsync("theme", false, Ct);
 
-        (await SentVariablesAsync()).ContainsKey(OVERRIDES).Should().BeFalse();
+        (await SentVariablesAsync()).ContainsKey("theme.color").Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Each_plugin_adds_its_own_libraries_and_the_hotels_entries_win()
+    {
+        WriteTheme(
+            """{ "asset.bundles.templates.overrides": { "lib-a": "/theme/a", "lib-b": "/theme/b" } }""",
+            string.Empty
+        );
+        WritePlugin(
+            "view",
+            """{ "asset.bundles.templates.overrides": "{\"lib-b\":\"/view/b\",\"lib-c\":\"/view/c\"}" }"""
+        );
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        (await SentOverridesAsync())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["lib-a"] = "/theme/a",
+                    ["lib-b"] = "/theme/b",
+                    ["lib-c"] = "/view/c",
+                },
+                "each plugin's libraries are sent, the first plugin's where two name one"
+            );
+        (await _variables.GetValuesAsync([OVERRIDES], Ct))
+            .Should()
+            .BeEmpty("the hotel is given none of it");
+
+        // Staff point one library elsewhere and take another away.
+        await _variables.SaveAsync(OVERRIDES, """{"lib-a":"/hotel/a","lib-c":""}""", STAFF, Ct);
+
+        (await SentOverridesAsync())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["lib-a"] = "/hotel/a",
+                    ["lib-b"] = "/theme/b",
+                    ["lib-c"] = "",
+                }
+            );
+
+        // A plugin turned off takes its libraries with it; the hotel's stay.
+        (await _plugins.SetEnabledAsync("theme", false, Ct))!
+            .Ok.Should()
+            .BeTrue();
+
+        (await SentOverridesAsync())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["lib-a"] = "/hotel/a",
+                    ["lib-b"] = "/view/b",
+                    ["lib-c"] = "",
+                }
+            );
+
+        (await _plugins.SetEnabledAsync("view", false, Ct))!.Ok.Should().BeTrue();
+
+        (await SentVariablesAsync())[OVERRIDES]!
+            .ToJsonString()
+            .Should()
+            .Be("""{"lib-a":"/hotel/a","lib-c":""}""", "the hotel's own value, as it is");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_plugin_that_gave_the_hotel_its_libraries_before_takes_them_back()
+    {
+        // As a hotel that ran the theme before its libraries were merged: the variable is the
+        // plugin's own, still as it gave it.
+        await _variables.SaveAsync(OVERRIDES, OVERRIDES_VALUE, STAFF, Ct);
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            db.GamedataPluginValues.Add(
+                new Turbo.Database.Entities.Gamedata.GamedataPluginValueEntity
+                {
+                    PluginKey = "theme",
+                    RecordType = Turbo.Primitives.Gamedata.Enums.GamedataRecordType.Variable,
+                    Key = OVERRIDES,
+                    Value = OVERRIDES_VALUE,
+                }
+            );
+            await db.SaveChangesAsync(Ct);
+        }
+        WriteTheme(THEME_VARIABLES, string.Empty);
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        (await _variables.GetValuesAsync([OVERRIDES], Ct)).Should().BeEmpty();
+        (await SentVariablesAsync())[OVERRIDES]!.ToJsonString().Should().Be(OVERRIDES_VALUE);
+
+        WritePlugin("view", """{ "asset.bundles.templates.overrides": { "lib-c": "/view/c" } }""");
+        await _manager.LoadAllAsync(ct: Ct);
+
+        (await SentOverridesAsync()).Should().ContainKeys("habbo-room-ui-com", "lib-c");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    private void WritePlugin(string key, string variables)
+    {
+        PluginBuilder.Write(
+            _folder,
+            key,
+            SOURCE.Replace("ThemePlugin", key + "Plugin").Replace("\"theme\"", $"\"{key}\"")
+        );
+
+        var gamedata = Path.Combine(_folder, key, "gamedata");
+
+        Directory.CreateDirectory(gamedata);
+        File.WriteAllText(Path.Combine(gamedata, "external_variables.json"), variables);
+    }
+
+    /// <summary>The template library overrides a client would read now.</summary>
+    private async Task<Dictionary<string, string>> SentOverridesAsync() =>
+        (await SentVariablesAsync())[OVERRIDES]!
+            .AsObject()
+            .ToDictionary(x => x.Key, x => x.Value!.GetValue<string>());
 
     private const string SOURCE = """
         using System;

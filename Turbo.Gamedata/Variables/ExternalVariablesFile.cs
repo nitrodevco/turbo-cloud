@@ -49,7 +49,57 @@ internal static class ExternalVariablesFile
         Indented = true,
     };
 
+    /// <summary>
+    /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
+    /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
+    /// library). Each loaded plugin's entries are written into the client's file with the hotel's
+    /// own (<see cref="Merge"/>); none is ever given to the hotel.
+    /// </summary>
+    public static readonly IReadOnlyList<string> MERGED = ["asset.bundles.templates.overrides"];
+
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
+
+    public static bool IsMerged(string key) => MERGED.Contains(key, StringComparer.Ordinal);
+
+    /// <summary>
+    /// A merged variable's value (<see cref="MERGED"/>): every entry of the plugins'
+    /// <paramref name="parts"/>, the first plugin's where two name the same, and the hotel's own
+    /// entries over them, so a hotel's edit wins (an empty url takes the plugin's library away).
+    /// A value may be the object or the object as JSON text, as the client reads it; one that is
+    /// neither adds nothing.
+    /// </summary>
+    public static string Merge(IEnumerable<string> parts, string? hotel)
+    {
+        var merged = new JsonObject();
+
+        foreach (var part in parts)
+        foreach (var (name, value) in Entries(part))
+            if (!merged.ContainsKey(name))
+                merged[name] = value?.DeepClone();
+
+        if (hotel is not null)
+            foreach (var (name, value) in Entries(hotel))
+                merged[name] = value?.DeepClone();
+
+        return merged.ToJsonString(TEXT);
+    }
+
+    private static IEnumerable<KeyValuePair<string, JsonNode?>> Entries(string json)
+    {
+        try
+        {
+            var node = JsonNode.Parse(json);
+
+            if (node is JsonValue text && text.TryGetValue<string>(out var inner))
+                node = JsonNode.Parse(inner);
+
+            return node is JsonObject entries ? [.. entries] : [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
 
     /// <summary>
     /// The value the file writes for a variable: its setting's value, or its file's address by
