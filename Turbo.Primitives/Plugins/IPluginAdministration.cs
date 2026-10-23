@@ -27,7 +27,10 @@ public interface IPluginAdministration
     /// <summary>Every plugin found on disk, and every folder whose manifest could not be read.</summary>
     public ImmutableArray<PluginSnapshot> List();
 
-    /// <summary>Loads the plugin again from its folder. Null when no plugin has the key.</summary>
+    /// <summary>
+    /// Loads the plugin again from its folder, then the plugins that depend on it; the others keep
+    /// running. Null when no plugin has the key.
+    /// </summary>
     public Task<PluginActionResult?> ReloadAsync(string key, CancellationToken ct);
 
     /// <summary>Scans the plugin folders again: loads new and changed plugins, unloads removed ones.</summary>

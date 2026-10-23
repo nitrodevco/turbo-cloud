@@ -2,6 +2,7 @@ using System.IO;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Commands;
@@ -9,6 +10,7 @@ using Turbo.Contracts.Plugins;
 using Turbo.Players.Permissions;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Data;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
@@ -125,6 +127,95 @@ public sealed class PluginIsolationTests : IDisposable
             .Should()
             .BeTrue();
     }
+
+    [Fact]
+    public async Task A_changed_plugin_reloads_with_its_dependents_and_the_rest_keep_running()
+    {
+        var (manager, _) = Create();
+        using var db = new SqliteDb();
+        var tables = new PluginTables(db, NullLogger<PluginTables>.Instance);
+        var admin = new PluginAdministration(
+            manager,
+            tables,
+            [tables],
+            NullLogger<PluginAdministration>.Instance
+        );
+
+        PluginBuilder.Write(_folder, "lib", Plugin("lib", NODES));
+        PluginBuilder.Write(_folder, "user", Plugin("user", NODES), null, "lib");
+        PluginBuilder.Write(_folder, "other", Plugin("other", NODES));
+
+        await admin.RescanAsync(Ct);
+
+        var loaded = LoadedAt(manager);
+
+        // Nothing changed on disk: nothing is reloaded.
+        await admin.RescanAsync(Ct);
+
+        LoadedAt(manager).Should().Equal(loaded);
+
+        // A new version of one plugin dropped in, and the folders scanned (as the file watcher
+        // does): every plugin was reloaded, ~5 s each, and "lib" refused, "dependents active".
+        PluginBuilder.Write(_folder, "lib", Plugin("lib", NODES + "public sealed class Added { }"));
+
+        await admin.RescanAsync(Ct);
+
+        var plugins = manager.Snapshot().ToDictionary(x => x.Key);
+
+        plugins.Values.Should().OnlyContain(x => x.State == PluginStateType.Loaded);
+        plugins["other"].LoadedAtUtc.Should().Be(loaded["other"]);
+        plugins["lib"].LoadedAtUtc.Should().BeAfter(loaded["lib"]!.Value);
+        plugins["user"].LoadedAtUtc.Should().BeAfter(loaded["user"]!.Value);
+    }
+
+    [Fact]
+    public async Task Reloading_a_plugin_others_depend_on_reloads_them_with_it()
+    {
+        var (manager, _) = Create();
+
+        PluginBuilder.Write(_folder, "lib", Plugin("lib", NODES));
+        PluginBuilder.Write(_folder, "user", Plugin("user", NODES), null, "lib");
+        PluginBuilder.Write(_folder, "other", Plugin("other", NODES));
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var loaded = LoadedAt(manager);
+
+        // It was refused while "user" was live: "dependents active".
+        await manager.ReloadAsync("lib", Ct);
+
+        var plugins = manager.Snapshot().ToDictionary(x => x.Key);
+
+        plugins.Values.Should().OnlyContain(x => x.State == PluginStateType.Loaded);
+        plugins["other"].LoadedAtUtc.Should().Be(loaded["other"]);
+        plugins["lib"].LoadedAtUtc.Should().BeAfter(loaded["lib"]!.Value);
+        plugins["user"].LoadedAtUtc.Should().BeAfter(loaded["user"]!.Value);
+    }
+
+    [Fact]
+    public async Task Reloading_every_plugin_replaces_one_others_depend_on()
+    {
+        var (manager, _) = Create();
+
+        PluginBuilder.Write(_folder, "lib", Plugin("lib", NODES));
+        PluginBuilder.Write(_folder, "user", Plugin("user", NODES), null, "lib");
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var loaded = LoadedAt(manager);
+
+        // "lib" was marked Failed, "dependents active", and kept its old version live.
+        await manager.LoadAllAsync(ct: Ct);
+
+        var plugins = manager.Snapshot().ToDictionary(x => x.Key);
+
+        plugins.Values.Should().OnlyContain(x => x.State == PluginStateType.Loaded);
+        plugins["lib"].LoadedAtUtc.Should().BeAfter(loaded["lib"]!.Value);
+        plugins["user"].LoadedAtUtc.Should().BeAfter(loaded["user"]!.Value);
+    }
+
+    private static Dictionary<string, DateTime?> LoadedAt(PluginManager manager) =>
+        manager.Snapshot().ToDictionary(x => x.Key, x => x.LoadedAtUtc);
 
     private (PluginManager Manager, ServiceProvider Host) Create(
         Action<IServiceCollection>? configure = null

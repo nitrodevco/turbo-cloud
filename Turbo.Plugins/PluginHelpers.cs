@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins.Exceptions;
@@ -121,6 +124,50 @@ internal static partial class PluginHelpers
             throw new PluginDependencyException(PluginDependencyErrorType.Cycle);
 
         return [.. order.Select(k => byKey[k])];
+    }
+
+    /// <summary>
+    /// The files a plugin's code is loaded from. A change to one of them is a new version of the
+    /// plugin; its other files (texts, client module files) are read by reloading it.
+    /// </summary>
+    public static readonly string[] CODE_FILES = ["manifest.json", "*.dll", "*.pdb", "*.deps.json"];
+
+    public static bool IsCodeFile(string path)
+    {
+        var fileName = Path.GetFileName(path);
+
+        return !string.IsNullOrWhiteSpace(fileName)
+            && CODE_FILES.Any(glob =>
+                FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true)
+            );
+    }
+
+    /// <summary>
+    /// The names, sizes and write times of the plugin's code files: the same while none of them
+    /// changed on disk.
+    /// </summary>
+    public static string CodeFingerprint(string pluginDir)
+    {
+        var text = new StringBuilder();
+
+        foreach (
+            var file in Directory
+                .EnumerateFiles(pluginDir, "*", SearchOption.AllDirectories)
+                .Where(IsCodeFile)
+                .Order(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            var info = new FileInfo(file);
+
+            text.Append(Path.GetRelativePath(pluginDir, file))
+                .Append('|')
+                .Append(info.Length)
+                .Append('|')
+                .Append(info.LastWriteTimeUtc.Ticks)
+                .Append('\n');
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
 
     public static string GetAssemblyPath(string pluginDir, PluginManifest manifest)

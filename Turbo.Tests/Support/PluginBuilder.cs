@@ -20,7 +20,8 @@ internal static class PluginBuilder
         string pluginsFolder,
         string key,
         string source,
-        int? apiVersion = null
+        int? apiVersion = null,
+        params string[] dependsOn
     )
     {
         var folder = Path.Combine(pluginsFolder, key);
@@ -38,6 +39,7 @@ internal static class PluginBuilder
                     AssemblyFile = $"{key}.dll",
                     ApiVersion = apiVersion ?? PluginApi.VERSION,
                     BuiltAgainst = "abc1234",
+                    Dependencies = dependsOn.Select(k => new { Key = k }).ToArray(),
                 }
             )
         );
