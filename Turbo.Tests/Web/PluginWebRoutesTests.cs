@@ -23,8 +23,8 @@ using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Web;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Tests.Support;
@@ -139,6 +139,7 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     private readonly Fakes _fakes = new();
     private readonly PluginWebRoutes _routes = new();
     private readonly CapturingLogger<PluginWebEndpoints> _log = new();
+    private readonly CapturingLogger<PluginManager> _managerLog = new();
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
         "turbo-web-routes-" + Guid.NewGuid().ToString("N")
@@ -155,7 +156,8 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
 
     public PluginWebRoutesTests()
     {
-        _fakes.Handlers["HasAsync"] = call => Task.FromResult(_held.Contains((string)call.Args[0]!));
+        _fakes.Handlers["HasAsync"] = call =>
+            Task.FromResult(_held.Contains((string)call.Args[0]!));
         _db.Insert(
             new PlayerEntity
             {
@@ -202,7 +204,12 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             .Be(401, "a route is for players unless it says it is anonymous");
 
         var token = _tokens!.Issue(PLAYER)!;
-        var saved = await SendAsync(HttpMethod.Post, "notes/today", new { text = "hi" }, token.Token);
+        var saved = await SendAsync(
+            HttpMethod.Post,
+            "notes/today",
+            new { text = "hi" },
+            token.Token
+        );
 
         saved.Status.Should().Be(200);
         saved.Json.GetProperty("player").GetInt32().Should().Be(PLAYER);
@@ -215,7 +222,9 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             .GetInt32()
             .Should()
             .Be(PLAYER);
-        token.BaseUrl.Should().Be(SITE, "with no address of their own the routes are the site's /api");
+        token
+            .BaseUrl.Should()
+            .Be(SITE, "with no address of their own the routes are the site's /api");
     }
 
     [Fact]
@@ -226,7 +235,11 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         var (session, _) = await _sessions!.StartAsync(PLAYER, Ct);
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/plugins/board/notes/x")
         {
-            Content = new StringContent("{\"text\":\"from the site\"}", Encoding.UTF8, "application/json"),
+            Content = new StringContent(
+                "{\"text\":\"from the site\"}",
+                Encoding.UTF8,
+                "application/json"
+            ),
         };
 
         request.Headers.Add("Cookie", $"turbo_session={session}");
@@ -284,7 +297,11 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     public async Task A_player_and_an_address_are_limited_per_minute()
     {
         await StartAsync(
-            new PluginRoutesConfig { RequestsPerMinutePerPlayer = 2, RequestsPerMinutePerAddress = 4 }
+            new PluginRoutesConfig
+            {
+                RequestsPerMinutePerPlayer = 2,
+                RequestsPerMinutePerAddress = 4,
+            }
         );
 
         var token = _tokens!.Issue(PLAYER)!.Token;
@@ -299,7 +316,9 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         (await SendAsync(HttpMethod.Get, "notes"))
             .Status.Should()
             .Be(200, "anonymous calls count against the address only");
-        (await SendAsync(HttpMethod.Get, "notes")).Status.Should().Be(429, "the address's fifth call");
+        (await SendAsync(HttpMethod.Get, "notes"))
+            .Status.Should()
+            .Be(429, "the address's fifth call");
     }
 
     [Fact]
@@ -307,7 +326,10 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     {
         await StartAsync();
 
-        using var preflight = new HttpRequestMessage(HttpMethod.Options, "/api/plugins/board/notes/x");
+        using var preflight = new HttpRequestMessage(
+            HttpMethod.Options,
+            "/api/plugins/board/notes/x"
+        );
 
         preflight.Headers.Add("Origin", CLIENT);
         preflight.Headers.Add("Access-Control-Request-Method", "POST");
@@ -392,22 +414,25 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     public async Task A_plugins_play_policy_is_found_as_it_loads_and_taken_away_as_it_unloads()
     {
         var policies = new PlayPolicies(NullLogger<PlayPolicies>.Instance);
-        var source = Route("gate", "GET", "x", anonymous: true, attribute: "")
+        var source =
+            Route("gate", "GET", "x", anonymous: true, attribute: "")
             + """
 
-            public sealed class VoteFirst : Turbo.Primitives.Authentication.IPlayPolicy
-            {
-                public System.Threading.Tasks.ValueTask<Turbo.Primitives.Authentication.PlayDecision> CheckAsync(
-                    Turbo.Primitives.Authentication.PlayRequest request,
-                    System.Threading.CancellationToken ct
-                ) => System.Threading.Tasks.ValueTask.FromResult(
-                    Turbo.Primitives.Authentication.PlayDecision.Refuse("Vote first.", "https://vote.example.com/")
-                );
-            }
-            """;
+                public sealed class VoteFirst : Turbo.Primitives.Authentication.IPlayPolicy
+                {
+                    public System.Threading.Tasks.ValueTask<Turbo.Primitives.Authentication.PlayDecision> CheckAsync(
+                        Turbo.Primitives.Authentication.PlayRequest request,
+                        System.Threading.CancellationToken ct
+                    ) => System.Threading.Tasks.ValueTask.FromResult(
+                        Turbo.Primitives.Authentication.PlayDecision.Refuse("Vote first.", "https://vote.example.com/")
+                    );
+                }
+                """;
         var request = new PlayRequest(PLAYER, PlaySource.Site, "127.0.0.1");
 
-        (await policies.CheckAsync(request, Ct)).Allowed.Should().BeTrue("with no policy everyone plays");
+        (await policies.CheckAsync(request, Ct))
+            .Allowed.Should()
+            .BeTrue("with no policy everyone plays");
         (await LoadAsync("gate", source, new PlayPolicyFeatureProcessor(policies)))
             .State.Should()
             .Be(PluginStateType.Loaded);
@@ -420,6 +445,33 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         await _manager!.UnloadAllAsync(Ct);
 
         (await policies.CheckAsync(request, Ct)).Allowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_plugin_whose_routes_answered_reloads_and_unloads_without_a_leak()
+    {
+        await StartAsync();
+
+        // Its answers are its own types (anonymous ones here), which the serializer learns: the host
+        // must not keep them once the plugin is gone.
+        (await SendAsync(HttpMethod.Get, "notes"))
+            .Status.Should()
+            .Be(200);
+
+        await _manager!.ReloadAsync("board", Ct);
+
+        (await SendAsync(HttpMethod.Get, "notes"))
+            .Status.Should()
+            .Be(200, "the new version answers");
+
+        await _manager.UnloadAllAsync(Ct);
+
+        (await SendAsync(HttpMethod.Get, "notes")).Status.Should().Be(404);
+        _managerLog
+            .AtLeast(LogLevel.Warning)
+            .Where(x => x.Message.Contains("did not unload"))
+            .Should()
+            .BeEmpty();
     }
 
     [Theory]
@@ -446,7 +498,13 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     {
         var state = await LoadAsync(
             "bad",
-            Route("bad", "GET", "notes", anonymous: true, attribute: "[RequiresPermission(\"plugin.bad.x\")]")
+            Route(
+                "bad",
+                "GET",
+                "notes",
+                anonymous: true,
+                attribute: "[RequiresPermission(\"plugin.bad.x\")]"
+            )
         );
 
         state.State.Should().Be(PluginStateType.Failed);
@@ -506,7 +564,7 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             new ServiceCollection().AddSingleton(_routes).BuildServiceProvider(),
             new AssemblyProcessor(processors),
             Options.Create(new PluginConfig { PluginFolderPath = _folder }),
-            NullLogger<PluginManager>.Instance
+            _managerLog
         );
 
         await _manager.LoadAllAsync(ct: Ct);
