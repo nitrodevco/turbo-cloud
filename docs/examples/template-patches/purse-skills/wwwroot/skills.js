@@ -7,6 +7,9 @@
  * - `api.templates.bind`: the button's click, as the purse's own code binds its buttons.
  * - `api.windows.register`: the Skills window, which asks the plugin's server half for the player's
  *   level (header 20100), shows the answer (20101) and trains (20102).
+ * - `api.http.get`: the window's "best" line, from the plugin's web route `GET top`
+ *   (`/api/plugins/skills/top`, which the hotel's site can show too). The client signs the call in
+ *   as the player; the module never sees a token.
  *
  * A theme that recolours the purse (the `pursetheme` example) and this add-on change the same window
  * without either shipping a copy of its library or knowing of the other.
@@ -31,10 +34,16 @@ const SkillsWindow = ({ close }) => {
     const { createElement: h, useEffect, useState } = api.libs.react;
     const { Box, Button, Frame, ThemeText } = api.libs.theme;
     const [ shown, setShown ] = useState(skill);
+    const [ best, setBest ] = useState(undefined);
 
     useEffect(() => {
         listeners.add(setShown);
         api.packets.send(GET_SKILL);
+
+        // A client from before api.http has no web routes; the window works without the line.
+        api.http?.get('top').then(response => {
+            if (response.ok && response.data?.length) setBest(response.data[0].level);
+        });
 
         return () => {
             listeners.delete(setShown);
@@ -48,10 +57,11 @@ const SkillsWindow = ({ close }) => {
         centered: true,
         resizeDirection: 'none',
         onClose: close,
-        layout: { width: 240, height: 130 },
+        layout: { width: 240, height: 160 },
     }, h(Box, { layout: { flexDirection: 'column', gap: 8, padding: 10, width: 238 } },
         h(ThemeText, { text: api.texts.get('skills.window.level', 'Level %level%', { level: String(shown.level) }), textStyle: 'u_regular' }),
         h(ThemeText, { text: api.texts.get('skills.window.experience', '%experience% / %needed% experience', { experience: String(shown.experience), needed: String(shown.needed) }), textStyle: 'u_regular' }),
+        (best !== undefined) && h(ThemeText, { text: api.texts.get('skills.window.best', 'Best in the hotel: level %level%', { level: String(best) }), textStyle: 'u_regular' }),
         h(Button, { variant: '101', onPointerTap: () => api.packets.send(TRAIN), layout: { width: 100, height: 22 } }, api.texts.get('skills.window.train', 'Train')),
     ));
 };

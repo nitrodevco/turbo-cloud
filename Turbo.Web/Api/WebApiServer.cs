@@ -12,7 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Plugins.Web;
 using Turbo.Web.Configuration;
+using Turbo.Web.Plugins;
 
 namespace Turbo.Web.Api;
 
@@ -32,6 +34,7 @@ internal sealed class WebApiServer(
     public const string SIGN_IN_POLICY = "web-sign-in";
 
     private WebApplication? _app;
+    private PluginWebEndpoints? _plugins;
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -86,6 +89,13 @@ internal sealed class WebApiServer(
         ActivatorUtilities.CreateInstance<PublicRoomsEndpoints>(services).Map(api);
         ActivatorUtilities.CreateInstance<VersionEndpoints>(services).Map(api);
 
+        // Plugins' routes, where the server loads plugins at all.
+        if (services.GetService<IPluginWebRoutes>() is not null)
+        {
+            _plugins = ActivatorUtilities.CreateInstance<PluginWebEndpoints>(services);
+            _plugins.Map(api);
+        }
+
         try
         {
             await app.StartAsync(ct).ConfigureAwait(false);
@@ -125,6 +135,9 @@ internal sealed class WebApiServer(
     {
         if (_app is { } app)
             await app.DisposeAsync().ConfigureAwait(false);
+
+        if (_plugins is { } plugins)
+            await plugins.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>A failure is logged with the request; the browser gets a bare 500, never the details.</summary>

@@ -66,4 +66,6 @@ public sealed class WebConfig
     public WiredApiConfig WiredApi { get; init; } = new();
 
     public PublicApiConfig PublicApi { get; init; } = new();
+
+    public PluginRoutesConfig PluginRoutes { get; init; } = new();
 }

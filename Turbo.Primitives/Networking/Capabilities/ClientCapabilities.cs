@@ -52,6 +52,12 @@ public static class ClientCapabilities
     /// </summary>
     public const string CLIENT_MESSAGES = "client.messages";
 
+    /// <summary>
+    /// <c>TurboWebSessionRequestMessage</c> and <c>TurboWebSessionMessage</c>: a token the client
+    /// attaches to plugins' web routes, so a client module calls them as its player.
+    /// </summary>
+    public const string WEB_SESSION = "web.session";
+
     /// <summary>Maximum preceding argument text in a suggestion request.</summary>
     public const int MAX_SUGGEST_CONTEXT = 1024;
 
@@ -76,6 +82,7 @@ public static class ClientCapabilities
         [LIVE_NOTICES] = 1,
         [CLIENT_MODULES] = 1,
         [CLIENT_MESSAGES] = 1,
+        [WEB_SESSION] = 1,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

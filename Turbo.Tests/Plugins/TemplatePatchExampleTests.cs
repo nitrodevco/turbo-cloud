@@ -90,8 +90,10 @@ public sealed class TemplatePatchExampleTests : IDisposable
             new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
             NullLogger<ClientModuleRegistry>.Instance
         );
+        var webRoutes = new PluginWebRoutes();
         var manager = new PluginManager(
             new ServiceCollection()
+                .AddSingleton(webRoutes)
                 .AddSingleton<IClientModuleDirectory>(registry)
                 .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
                     new Turbo.Networking.Extensions.ExtensionPacketRegistry()
@@ -150,7 +152,32 @@ public sealed class TemplatePatchExampleTests : IDisposable
 
         registry.Modules.Should().ContainSingle().Which.Key.Should().Be("skills");
 
+        // Its web routes: the hotel's best players for anyone, and the player's own skill.
+        var top = webRoutes.Match("skills", "GET", "top", out _);
+
+        top.Should().NotBeNull();
+        top!.Anonymous.Should().BeTrue();
+        webRoutes.Match("skills", "GET", "me", out _)!.Anonymous.Should().BeFalse();
+        (
+            await top.Route.HandleAsync(
+                new Turbo.Contracts.Plugins.Web.PluginWebRequest(
+                    "GET",
+                    "top",
+                    new Dictionary<string, string>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    null,
+                    "127.0.0.1"
+                ),
+                Ct
+            )
+        )
+            .Status.Should()
+            .Be(200);
+
         await manager.UnloadAllAsync(Ct);
+
+        webRoutes.Match("skills", "GET", "top", out _).Should().BeNull();
 
         registry.Modules.Should().BeEmpty();
         loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_PATCHES).Should().BeEmpty();
