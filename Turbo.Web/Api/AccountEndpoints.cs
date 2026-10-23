@@ -30,6 +30,7 @@ internal sealed class AccountEndpoints(
     WebSessions sessions,
     PendingSignUps signUps,
     ILoginTicketService tickets,
+    IPlayPolicies playPolicies,
     ISanctionService sanctions,
     IWordFilter wordFilter,
     IOptions<WebConfig> config,
@@ -170,6 +171,27 @@ internal sealed class AccountEndpoints(
                 ban.ExpiresAtUtc is { } until
                     ? $"You're banned until {until:u}: {ban.Reason}"
                     : $"You're banned: {ban.Reason}"
+            );
+
+        // The hotel's plugins may ask something of the player first (a vote, a check of the address).
+        var play = await playPolicies
+            .CheckAsync(
+                new PlayRequest(
+                    player,
+                    PlaySource.Site,
+                    http.Connection.RemoteIpAddress?.ToString() ?? string.Empty
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (!play.Allowed)
+            return Results.Json(
+                new PlayRefusedResponse(
+                    play.Reason ?? "You can't play right now.",
+                    play.RedirectUrl
+                ),
+                statusCode: StatusCodes.Status403Forbidden
             );
 
         var ticket = await tickets

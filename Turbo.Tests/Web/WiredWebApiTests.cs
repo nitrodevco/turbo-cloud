@@ -1383,6 +1383,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         );
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
+        services.AddSingleton<IPlayPolicies>(new PlayPolicies(NullLogger<PlayPolicies>.Instance));
         services.AddSingleton(fakes.Create<ISanctionService>());
         services.AddSingleton<IWordFilter, PassThroughWordFilter>();
         services.AddSingleton(sp => new DiscordOAuthClient(

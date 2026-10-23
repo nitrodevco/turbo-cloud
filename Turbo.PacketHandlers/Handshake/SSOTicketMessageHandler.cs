@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,9 +46,13 @@ public class SSOTicketMessageHandler(
     IModerationToolService moderation,
     IModerationIssueService issues,
     IPlayerNoticeService notices,
-    IClientTelemetry telemetry
+    IClientTelemetry telemetry,
+    IPlayPolicies playPolicies
 ) : IMessageHandler<SSOTicketMessage>
 {
+    /// <summary>The notification type of a play policy's refusal at login; a hotel styles it with <c>notification.turbo.play.refused</c>.</summary>
+    public const string PLAY_REFUSED = "turbo.play.refused";
+
     private readonly IAuthenticationService _authService = authService;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
@@ -113,6 +118,20 @@ public class SSOTicketMessageHandler(
                 .ConfigureAwait(false);
             telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
             await ctx.CloseSessionAsync("hotel closed for maintenance").ConfigureAwait(false);
+
+            return;
+        }
+
+        // The hotel's plugins may ask something of the player first; the site's Play asked the same.
+        var play = await playPolicies
+            .CheckAsync(new PlayRequest(playerId, PlaySource.Login, string.Empty), ct)
+            .ConfigureAwait(false);
+
+        if (!play.Allowed)
+        {
+            await ctx.SendComposerAsync(PlayRefusal(play), ct).ConfigureAwait(false);
+            telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_FAIL);
+            await ctx.CloseSessionAsync("refused by a play policy").ConfigureAwait(false);
 
             return;
         }
@@ -381,5 +400,26 @@ public class SSOTicketMessageHandler(
         // Persistent notifications that came while they were away (a wired chest's), last, as
         // bubbles over a hotel view that is already up.
         await notices.DeliverPersistentAsync(playerId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A play policy's refusal as Habbo's notification popup (<c>NotificationDialog</c>): its
+    /// reason, and a button to the address it gives.
+    /// </summary>
+    private static NotificationDialogMessageComposer PlayRefusal(PlayDecision play)
+    {
+        var parameters = ImmutableDictionary.CreateBuilder<string, string>();
+
+        parameters.Add("display", "POP_UP");
+        parameters.Add("message", play.Reason ?? string.Empty);
+
+        if (!string.IsNullOrEmpty(play.RedirectUrl))
+            parameters.Add("linkUrl", play.RedirectUrl);
+
+        return new NotificationDialogMessageComposer
+        {
+            NotificationType = PLAY_REFUSED,
+            Parameters = parameters.ToImmutable(),
+        };
     }
 }

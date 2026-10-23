@@ -41,6 +41,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
+    private readonly PlayPolicies _policies = new(NullLogger<PlayPolicies>.Instance);
     private readonly RecordingOwner _owner = new();
     private readonly FakeDiscord _discord = new();
     private readonly int _port;
@@ -106,6 +107,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         );
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
+        services.AddSingleton<IPlayPolicies>(_policies);
         services.AddSingleton(_fakes.Create<ISanctionService>());
         // The Wired Variables endpoints ask rooms; none is asked here.
         services.AddSingleton(_fakes.Create<Orleans.IGrainFactory>());
@@ -280,6 +282,43 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
         play.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await play.Content.ReadAsStringAsync(Ct)).Should().Contain("spam");
+    }
+
+    [Fact]
+    public async Task APlayPolicy_RefusesPlay_WithItsReasonAndAddress_AndNoTicketIsIssued()
+    {
+        await SignInWithDiscordAsync("cool");
+        await SignUpAsync("cool.user_");
+
+        PlayRequest? asked = null;
+
+        _policies.Register("votes", new RefuseFirst(r => asked = r));
+
+        var play = await _browser.PostAsync("/api/play", null, Ct);
+
+        play.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var body = JsonDocument.Parse(await play.Content.ReadAsStringAsync(Ct)).RootElement;
+
+        body.GetProperty("message").GetString().Should().Be("Vote for the hotel first.");
+        body.GetProperty("redirectUrl").GetString().Should().Be("https://vote.example.com/");
+        asked!.Source.Should().Be(PlaySource.Site);
+        asked.PlayerId.Value.Should().Be(1);
+        (await new LoginTicketService(_db, TimeProvider.System).GetAsync(1, Ct))
+            .Should()
+            .BeNull("a refused Play hands out no ticket");
+    }
+
+    private sealed class RefuseFirst(Action<PlayRequest> seen) : IPlayPolicy
+    {
+        public ValueTask<PlayDecision> CheckAsync(PlayRequest request, CancellationToken ct)
+        {
+            seen(request);
+
+            return ValueTask.FromResult(
+                PlayDecision.Refuse("Vote for the hotel first.", "https://vote.example.com/")
+            );
+        }
     }
 
     [Fact]

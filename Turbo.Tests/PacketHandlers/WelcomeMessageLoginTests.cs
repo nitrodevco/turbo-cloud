@@ -32,6 +32,14 @@ public class WelcomeMessageLoginTests
     private const int PLAYER = 5;
 
     private readonly Fakes _fakes = new();
+    private readonly Turbo.Authentication.PlayPolicies _policies = new(
+        Microsoft
+            .Extensions
+            .Logging
+            .Abstractions
+            .NullLogger<Turbo.Authentication.PlayPolicies>
+            .Instance
+    );
     private readonly ISessionContext _session;
     private readonly SSOTicketMessageHandler _handler;
     private string _welcome = string.Empty;
@@ -72,7 +80,8 @@ public class WelcomeMessageLoginTests
             _fakes.Create<Turbo.Primitives.Moderation.IModerationToolService>(),
             _fakes.Create<Turbo.Primitives.Moderation.IModerationIssueService>(),
             _fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
-            _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>()
+            _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>(),
+            _policies
         );
     }
 
