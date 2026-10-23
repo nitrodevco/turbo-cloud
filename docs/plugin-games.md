@@ -64,6 +64,12 @@ public sealed class CollectGame(IGrainFactory grains) : IRoomGame
 | `OpenArenaAsync(GameLaunch, ct)` | Called once per lobby at the end of its countdown. `GameLaunch` has `GameId`, the `Definition` and `Players` (`PlayerId`, `Name`, `Figure`, `Gender`, `TeamId`; teams are dealt round-robin by join order). Return the room to send the players to. Throwing (or returning `RoomId <= 0`) cancels the game: `Game2StartingGameFailed` to every player, no game is counted. |
 | `OnPlayerLeftAsync(GameLaunch, PlayerId, ct)` | Optional (default does nothing): a player of a started game left it through the game centre. |
 
+A plugin that builds its games itself (only the ones its settings turn on, or with a definition read
+from them) marks each class `[ManualGameRegistration]` (`Turbo.Primitives.Games`) so the scan skips
+it, and registers them with `IGameRegistry.Register(games, rewardHandlers)` from its own start-up,
+disposing the result when it stops. The same attribute keeps a reward handler or an access policy
+out of the scan.
+
 ## In the arena room
 
 The arena is an ordinary room, so the game uses what rooms already have: the room's game system

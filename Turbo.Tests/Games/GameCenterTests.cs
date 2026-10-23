@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Orleans.Runtime;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Games;
 using Turbo.Primitives.Messages.Outgoing.Game.Directory;
@@ -128,6 +131,84 @@ public sealed class GameCenterTests : IDisposable
     }
 
     [Fact]
+    public async Task The_countdown_timer_launches_the_lobby_on_a_live_token()
+    {
+        // The timer's callback token is cancelled when the timer is disposed, as Orleans does;
+        // the launch must not run on a token it cancelled itself.
+        Func<GameDirectoryGrain, CancellationToken, Task>? tick = null;
+        var timerToken = new CancellationTokenSource();
+        _fakes.Handlers["RegisterGrainTimer"] = call =>
+        {
+            tick = (Func<GameDirectoryGrain, CancellationToken, Task>)call.Args[1]!;
+
+            return _fakes.Create<IGrainTimer>("countdown");
+        };
+        _fakes.Handlers["Dispose"] = call =>
+        {
+            if (call.Interface == typeof(IGrainTimer))
+                timerToken.Cancel();
+
+            return null;
+        };
+        var game = new TestGame();
+        using var _ = _registry.Register([game], []);
+        var directory = Directory();
+
+        await directory.JoinAsync(ALICE, null, Ct);
+        await directory.JoinAsync(BOB, null, Ct);
+        _clock.AdvanceMs(10_000);
+        await tick!(directory, timerToken.Token);
+
+        game.Launches.Should().ContainSingle();
+        _fakes
+            .SentToPlayer<Game2StartingGameFailedMessageMessageComposer>(ALICE)
+            .Should()
+            .BeEmpty();
+        _fakes.SentToPlayer<Game2GameStartedMessageComposer>(ALICE).Should().ContainSingle();
+        _fakes.Log.Of("ForwardToRoomAsync").Should().HaveCount(2);
+        timerToken.IsCancellationRequested.Should().BeTrue("the spent timer is disposed");
+    }
+
+    [Fact]
+    public async Task The_assembly_scan_skips_a_game_its_plugin_registers_by_hand()
+    {
+        const string SOURCE = """
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Turbo.Primitives.Games;
+
+            public sealed class ScannedGame : IRoomGame
+            {
+                public GameDefinition Definition { get; } =
+                    new() { GameTypeId = 200, Key = "scanned", LevelName = "Scanned" };
+
+                public Task<GameArena> OpenArenaAsync(GameLaunch launch, CancellationToken ct) =>
+                    Task.FromResult<GameArena>(null!);
+            }
+
+            [ManualGameRegistration]
+            public sealed class ManualGame : IRoomGame
+            {
+                public GameDefinition Definition { get; } =
+                    new() { GameTypeId = 201, Key = "manual", LevelName = "Manual" };
+
+                public Task<GameArena> OpenArenaAsync(GameLaunch launch, CancellationToken ct) =>
+                    Task.FromResult<GameArena>(null!);
+            }
+            """;
+        var plugin = Assembly.Load(PluginBuilder.Compile("games", SOURCE));
+        using var services = new ServiceCollection().BuildServiceProvider();
+
+        using var registration = await new GameFeatureProcessor(_registry).ProcessAsync(
+            plugin,
+            services,
+            Ct
+        );
+
+        _registry.Games.Select(game => game.Definition.Key).Should().Equal("scanned");
+    }
+
+    [Fact]
     public async Task No_free_games_left_refuses_the_join()
     {
         _config.Set(new GameCenterConfig { FreeGamesPerDay = 0 });
@@ -240,6 +321,7 @@ public sealed class GameCenterTests : IDisposable
 
         public Task<GameArena> OpenArenaAsync(GameLaunch launch, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             Launches.Add(launch);
 
             return Task.FromResult(new GameArena(new RoomId(ARENA)));

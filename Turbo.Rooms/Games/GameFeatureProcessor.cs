@@ -49,6 +49,7 @@ internal sealed class GameFeatureProcessor(GameRegistry registry) : IAssemblyFea
         AssemblyExplorer
             .FindAssignees(asm, typeof(T))
             .Where(concrete => concrete != typeof(DefaultGameAccessPolicy))
+            .Where(concrete => !concrete.IsDefined(typeof(ManualGameRegistrationAttribute), false))
             .Select(concrete => (T)ActivatorUtilities.CreateInstance(sp, concrete))
             .ToList();
 }
