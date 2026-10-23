@@ -60,6 +60,13 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     public Task SetFriendRequestsDisabledAsync(bool friendRequestsDisabled, CancellationToken ct);
 
     /// <summary>
+    /// Stops or lets the player's friends follow them from room to room. Another website
+    /// preference the client sends no packet for; <see cref="Turbo.Primitives.Players.Messenger.IMessengerService.SetFollowingAllowedAsync"/>
+    /// also tells the player's friends.
+    /// </summary>
+    public Task SetFollowingDisabledAsync(bool followingDisabled, CancellationToken ct);
+
+    /// <summary>
     /// Hides or shows the player's profile to others. Like friend requests, a website preference
     /// the client sends no packet for; the entry point for web and admin tools.
     /// </summary>

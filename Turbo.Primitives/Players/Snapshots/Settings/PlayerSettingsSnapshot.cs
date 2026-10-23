@@ -109,4 +109,8 @@ public sealed record PlayerSettingsSnapshot
 
     [Id(32)]
     public bool DiscordAllowJoining { get; init; }
+
+    /// <summary>Whether the player's friends may not follow them from room to room.</summary>
+    [Id(33)]
+    public bool FollowingDisabled { get; init; }
 }

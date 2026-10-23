@@ -66,6 +66,17 @@ internal sealed partial class RoomService(
         if (!await friendPresence.HasActiveSessionAsync(ct).ConfigureAwait(false))
             return FollowFriendErrorCodeType.Offline;
 
+        // The friend's privacy setting "Friends can follow me from room to room" is off:
+        // friendlist.followerror.prevented.
+        if (
+            await _grainFactory
+                .GetPlayerSettingsGrain(friendId)
+                .GetSettingsAsync(ct)
+                .ConfigureAwait(false) is
+            { FollowingDisabled: true }
+        )
+            return FollowFriendErrorCodeType.Prevented;
+
         var activeRoom = await friendPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
 
         if (activeRoom.RoomId <= 0)

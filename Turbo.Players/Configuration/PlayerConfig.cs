@@ -50,6 +50,21 @@ public class PlayerConfig
     public int MessengerSearchLimit { get; init; } = 25;
 
     /// <summary>
+    /// Whether players may manage their own friend list categories - add, rename and remove them
+    /// and file friends under them - through the site's friends page or a plugin
+    /// (<c>IMessengerService</c>). The client only lists the categories it is sent and leaves
+    /// managing them to the hotel's web page (<c>link.format.friendlist.pref</c>, shown with
+    /// <c>friendship.category.management.enabled</c>), which Habbo has off.
+    /// </summary>
+    public bool MessengerCategoriesEnabled { get; init; } = false;
+
+    /// <summary>How many friend list categories one player may have.</summary>
+    public int MessengerMaxCategories { get; init; } = 10;
+
+    /// <summary>The longest name a friend list category may have, in characters.</summary>
+    public int MessengerCategoryNameMaxLength { get; init; } = 32;
+
+    /// <summary>
     /// Shortest time between two player searches by one player. A search inside it is answered
     /// with no results rather than another query.
     /// </summary>

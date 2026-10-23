@@ -285,6 +285,56 @@ public sealed class MessengerService(
             };
     }
 
+    public Task<List<MessengerCategoryDto>> GetCategoriesAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => _grainFactory.GetPlayerMessengerGrain(playerId).GetCategoriesAsync(ct);
+
+    public Task<(
+        MessengerCategoryResultType Result,
+        MessengerCategoryDto? Category
+    )> CreateCategoryAsync(PlayerId playerId, string name, CancellationToken ct) =>
+        _grainFactory.GetPlayerMessengerGrain(playerId).CreateCategoryAsync(name, ct);
+
+    public Task<MessengerCategoryResultType> RenameCategoryAsync(
+        PlayerId playerId,
+        int categoryId,
+        string name,
+        CancellationToken ct
+    ) => _grainFactory.GetPlayerMessengerGrain(playerId).RenameCategoryAsync(categoryId, name, ct);
+
+    public Task<MessengerCategoryResultType> DeleteCategoryAsync(
+        PlayerId playerId,
+        int categoryId,
+        CancellationToken ct
+    ) => _grainFactory.GetPlayerMessengerGrain(playerId).DeleteCategoryAsync(categoryId, ct);
+
+    public Task<MessengerCategoryResultType> SetFriendCategoryAsync(
+        PlayerId playerId,
+        PlayerId friendId,
+        int categoryId,
+        CancellationToken ct
+    ) =>
+        _grainFactory
+            .GetPlayerMessengerGrain(playerId)
+            .SetFriendCategoryAsync(friendId, categoryId, ct);
+
+    public async Task SetFollowingAllowedAsync(
+        PlayerId playerId,
+        bool followingAllowed,
+        CancellationToken ct
+    )
+    {
+        await _grainFactory
+            .GetPlayerSettingsGrain(playerId)
+            .SetFollowingDisabledAsync(!followingAllowed, ct)
+            .ConfigureAwait(false);
+        await _grainFactory
+            .GetPlayerMessengerGrain(playerId)
+            .UpdateFriendsFollowingAsync(followingAllowed, ct)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IComposer?> FollowFriendAsync(
         PlayerId playerId,
         PlayerId friendId,

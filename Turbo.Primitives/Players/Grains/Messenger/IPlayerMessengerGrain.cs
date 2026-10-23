@@ -67,6 +67,45 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         MessengerFriendRelationType status,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Adds a friend list category; the client hears the new list in a <c>FriendListUpdate</c>.
+    /// The new category is null unless the result is <see cref="MessengerCategoryResultType.Done"/>.
+    /// </summary>
+    public Task<(
+        MessengerCategoryResultType Result,
+        MessengerCategoryDto? Category
+    )> CreateCategoryAsync(string name, CancellationToken ct);
+
+    public Task<MessengerCategoryResultType> RenameCategoryAsync(
+        int categoryId,
+        string name,
+        CancellationToken ct
+    );
+
+    /// <summary>Removes a category; its friends go back to the list's own (category 0).</summary>
+    public Task<MessengerCategoryResultType> DeleteCategoryAsync(
+        int categoryId,
+        CancellationToken ct
+    );
+
+    /// <summary>Files a friend under one of the player's categories, or under none with 0.</summary>
+    public Task<MessengerCategoryResultType> SetFriendCategoryAsync(
+        PlayerId friendId,
+        int categoryId,
+        CancellationToken ct
+    );
+
+    /// <summary>Tells the owner's online friends whether the owner now lets them follow.</summary>
+    public Task UpdateFriendsFollowingAsync(bool followingAllowed, CancellationToken ct);
+
+    /// <summary>A friend let their friends follow them, or stopped it.</summary>
+    [AlwaysInterleave]
+    public Task ReceiveFriendFollowingAsync(
+        PlayerId friendId,
+        bool followingAllowed,
+        CancellationToken ct
+    );
     public Task<(
         List<MessengerSearchResultSnapshot> Friends,
         List<MessengerSearchResultSnapshot> Others

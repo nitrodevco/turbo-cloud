@@ -306,6 +306,13 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         return Task.CompletedTask;
     }
 
+    public Task SetFollowingDisabledAsync(bool followingDisabled, CancellationToken ct)
+    {
+        Apply(_state.Settings with { FollowingDisabled = followingDisabled });
+
+        return Task.CompletedTask;
+    }
+
     public Task SetProfileHiddenAsync(bool profileHidden, CancellationToken ct)
     {
         Apply(_state.Settings with { ProfileHidden = profileHidden });
@@ -560,6 +567,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             TraxVolume = entity.TraxVolume,
             RoomInvitesIgnored = entity.RoomInvitesIgnored,
             FriendRequestsDisabled = entity.FriendRequestsDisabled,
+            FollowingDisabled = entity.FollowingDisabled,
             ProfileHidden = entity.ProfileHidden,
             RoomCameraFollowDisabled = entity.RoomCameraFollowDisabled,
             UIFlags = entity.UIFlags,
@@ -597,6 +605,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         entity.TraxVolume = settings.TraxVolume;
         entity.RoomInvitesIgnored = settings.RoomInvitesIgnored;
         entity.FriendRequestsDisabled = settings.FriendRequestsDisabled;
+        entity.FollowingDisabled = settings.FollowingDisabled;
         entity.ProfileHidden = settings.ProfileHidden;
         entity.RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled;
         entity.UIFlags = settings.UIFlags;

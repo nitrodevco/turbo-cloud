@@ -60,6 +60,17 @@ public class PlayerSettingsEntity : TurboEntity
     public bool FriendRequestsDisabled { get; set; }
 
     /// <summary>
+    /// Whether the player's friends may not follow them from room to room - Habbo's privacy
+    /// setting "Friends can follow me from room to room" (<c>settings.privacy.follow_description</c>),
+    /// a website preference the Flash client has no switch for. A friend's follow button reads
+    /// it (<c>FriendData.followingAllowed</c>) and a follow is refused
+    /// (<c>friendlist.followerror.prevented</c>).
+    /// </summary>
+    [Column("following_disabled")]
+    [DefaultValue(false)]
+    public bool FollowingDisabled { get; set; }
+
+    /// <summary>
     /// Whether the player's profile is hidden from others: groups, friend count, last login and
     /// relationships are withheld and the client says so (<c>full_profile_hidden</c>). Another
     /// website preference the Flash client has no switch for.

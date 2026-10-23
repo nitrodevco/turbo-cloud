@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Primitives.Players.Messenger;
 
@@ -121,4 +122,51 @@ public interface IMessengerService
     /// player first whether one was found.
     /// </summary>
     public Task FindNewFriendsAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>
+    /// The player's friend list categories. The client has no message to manage them - Flash
+    /// opens the hotel's web page for it (<c>link.format.friendlist.pref</c>) - so these are the
+    /// entry points for the site's friends page and for plugins; each change reaches the client
+    /// in a <c>FriendListUpdate</c>.
+    /// </summary>
+    public Task<List<MessengerCategoryDto>> GetCategoriesAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    );
+
+    public Task<(
+        MessengerCategoryResultType Result,
+        MessengerCategoryDto? Category
+    )> CreateCategoryAsync(PlayerId playerId, string name, CancellationToken ct);
+
+    public Task<MessengerCategoryResultType> RenameCategoryAsync(
+        PlayerId playerId,
+        int categoryId,
+        string name,
+        CancellationToken ct
+    );
+
+    public Task<MessengerCategoryResultType> DeleteCategoryAsync(
+        PlayerId playerId,
+        int categoryId,
+        CancellationToken ct
+    );
+
+    /// <summary>Files a friend under one of the player's categories, or under none with 0.</summary>
+    public Task<MessengerCategoryResultType> SetFriendCategoryAsync(
+        PlayerId playerId,
+        PlayerId friendId,
+        int categoryId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Habbo's privacy setting "Friends can follow me from room to room": saved, and the
+    /// player's online friends' follow buttons follow it at once.
+    /// </summary>
+    public Task SetFollowingAllowedAsync(
+        PlayerId playerId,
+        bool followingAllowed,
+        CancellationToken ct
+    );
 }

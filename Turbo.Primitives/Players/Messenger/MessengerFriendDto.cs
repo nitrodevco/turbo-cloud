@@ -82,4 +82,11 @@ public sealed record MessengerFriendDto
     [Id(13)]
     public MessengerFriendRelationType RelationshipStatus { get; set; } =
         MessengerFriendRelationType.Zero;
+
+    /// <summary>
+    /// The friend's own privacy setting: they let no one follow them. Not sent; it keeps
+    /// <see cref="FollowingAllowed"/> false while they are online.
+    /// </summary>
+    [Id(15)]
+    public bool FollowingDisabled { get; set; } = false;
 }
