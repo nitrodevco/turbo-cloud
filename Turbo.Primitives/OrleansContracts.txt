@@ -757,6 +757,7 @@ interface [GrainInterfaceType("Turbo.Primitives.WiredTrading.Grains.IWiredTradeG
   856E676B: ConfirmAsync(bool, System.Threading.CancellationToken) -> Task
   6AED8BB2: RemoveItemsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task
   371D88DA: StartChestDepositAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.WiredTrading.Enums.WiredChestKind, System.Threading.CancellationToken) -> Task
+  39B6C68D: StartChestDepositAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.WiredTrading.Enums.WiredChestKind, int, System.Threading.CancellationToken) -> Task
   9E5EEA56: StartContractAsync(Turbo.Primitives.WiredTrading.WiredContractTradeRequest, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.WiredTrading.Grains.IWiredTransactionLogGrain")] Turbo.Primitives.WiredTrading.Grains.IWiredTransactionLogGrain [Version(0)]

@@ -19,11 +19,15 @@ namespace Turbo.Primitives.WiredTrading.Grains;
 /// </summary>
 public interface IWiredTradeGrain : IGrainWithIntegerKey
 {
-    /// <summary>Opens the trade window to put things into a chest in this room.</summary>
+    /// <summary>
+    /// Opens the trade window to put things into a chest in this room, which takes
+    /// <paramref name="freeCapacity"/> more items, or credits for a credit chest.
+    /// </summary>
     public Task StartChestDepositAsync(
         RoomId roomId,
         RoomObjectId chestId,
         WiredChestKind kind,
+        int freeCapacity,
         CancellationToken ct
     );
 

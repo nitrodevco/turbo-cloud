@@ -22,6 +22,12 @@ internal sealed class WiredTradeSession
     /// <summary>What a deposit takes; unused for a contract's trade.</summary>
     public WiredChestKind Kind { get; init; }
 
+    /// <summary>
+    /// How much more the chest took when the deposit opened: items, or credits for a credit
+    /// chest. Unused for a contract's trade.
+    /// </summary>
+    public int FreeCapacity { get; init; }
+
     /// <summary>The contract's trade; null for a deposit.</summary>
     public WiredContractTradeRequest? Contract { get; init; }
 

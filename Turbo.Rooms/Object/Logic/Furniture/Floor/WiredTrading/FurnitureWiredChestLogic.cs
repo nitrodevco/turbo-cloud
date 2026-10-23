@@ -167,7 +167,7 @@ public abstract class FurnitureWiredChestLogic(
                 // A tell: the trade grain awaits this room when the deposit is confirmed.
                 _roomGrain
                     ._grainFactory.GetWiredTradeGrain(ctx.PlayerId)
-                    .StartChestDepositAsync(_ctx.RoomId, _ctx.ObjectId, Kind, ct)
+                    .StartChestDepositAsync(_ctx.RoomId, _ctx.ObjectId, Kind, FreeCapacity, ct)
                     .LogAndForget(
                         Logger,
                         "start a deposit into wired chest {ChestId}",

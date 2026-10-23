@@ -21,6 +21,7 @@ using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.WiredTrading;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
@@ -213,7 +214,7 @@ public class WiredChestRoomTests
         var trade = TradeGrain(fakes);
         fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("rare_dragonlamp"));
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 1000, Ct);
         await trade.AddItemsAsync([20], Ct);
 
         fakes
@@ -234,7 +235,7 @@ public class WiredChestRoomTests
         var trade = TradeGrain(fakes);
         fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("CF_10_goldbar"));
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 1000, Ct);
         await trade.AddItemsAsync([20], Ct);
 
         fakes
@@ -246,6 +247,73 @@ public class WiredChestRoomTests
             .Last()
             .FirstItems.Should()
             .BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_deposit_offer_stops_at_the_chests_free_capacity()
+    {
+        // Habbo's wired_transactions.notification.trade_error.9: "Exceeds the chest's capacity".
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair", 20, 21, 22));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 2, Ct);
+        await trade.AddItemsAsync([20, 21, 22], Ct);
+
+        fakes
+            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
+            .Should()
+            .ContainSingle(x => x.Error == WiredTradeErrorType.ExceedsChestCapacity);
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
+            .Last()
+            .FirstItems.Should()
+            .HaveCount(2);
+    }
+
+    [Fact]
+    public async Task A_credit_chest_deposit_offer_counts_the_credits_against_its_free_capacity()
+    {
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
+            Task.FromResult(Offer("CF_10_goldbar", 20, 21));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Coins, 15, Ct);
+        await trade.AddItemsAsync([20, 21], Ct);
+
+        fakes
+            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
+            .Should()
+            .ContainSingle(x => x.Error == WiredTradeErrorType.ExceedsChestCapacity);
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
+            .Last()
+            .FirstItems.Should()
+            .ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_deposit_offer_takes_items_past_the_capacity_when_the_hotel_turns_the_check_off()
+    {
+        var fakes = new Fakes();
+        var grain = GrainHarness.Create<WiredTradeGrain>(fakes, playerId: GUEST);
+        GrainHarness.Replace(grain, new WiredChestConfig { RefuseOfferOverCapacity = false });
+        var trade = (IWiredTradeGrain)grain;
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair", 20, 21, 22));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 2, Ct);
+        await trade.AddItemsAsync([20, 21, 22], Ct);
+
+        fakes
+            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
+            .Should()
+            .BeEmpty();
+        fakes
+            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
+            .Last()
+            .FirstItems.Should()
+            .HaveCount(3);
     }
 
     [Fact]
@@ -266,7 +334,7 @@ public class WiredChestRoomTests
                 }
             );
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 1000, Ct);
         await trade.AddItemsAsync([20], Ct);
 
         await trade.ConfirmAsync(isFinalConfirm: false, Ct);
@@ -286,7 +354,7 @@ public class WiredChestRoomTests
         var trade = TradeGrain(fakes);
         fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair"));
 
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, Ct);
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 1000, Ct);
         await trade.AddItemsAsync([20], Ct);
         await trade.ConfirmAsync(isFinalConfirm: true, Ct);
 
@@ -310,44 +378,45 @@ public class WiredChestRoomTests
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>
         (IWiredTradeGrain)GrainHarness.Create<WiredTradeGrain>(fakes, playerId: GUEST);
 
-    private static ImmutableArray<FurnitureItemSnapshot> Offer(string name) =>
-        [
-            new FurnitureItemSnapshot
+    private static ImmutableArray<FurnitureItemSnapshot> Offer(string name, params int[] itemIds) =>
+        [.. (itemIds.Length > 0 ? itemIds : [20]).Select(id => Item(name, id))];
+
+    private static FurnitureItemSnapshot Item(string name, int itemId) =>
+        new FurnitureItemSnapshot
+        {
+            ItemId = itemId,
+            SpriteId = 20,
+            OwnerId = GUEST,
+            OwnerName = "guest",
+            Definition = new FurnitureDefinitionSnapshot
             {
-                ItemId = 20,
+                Id = 20,
                 SpriteId = 20,
-                OwnerId = GUEST,
-                OwnerName = "guest",
-                Definition = new FurnitureDefinitionSnapshot
-                {
-                    Id = 20,
-                    SpriteId = 20,
-                    Name = name,
-                    ProductType = ProductType.Floor,
-                    FurniCategory = FurnitureCategory.Default,
-                    LogicName = "default_floor",
-                    TotalStates = 1,
-                    Width = 1,
-                    Length = 1,
-                    StackHeight = Altitude.FromInt(100),
-                    CanStack = true,
-                    CanWalk = false,
-                    CanSit = false,
-                    CanLay = false,
-                    CanRecycle = true,
-                    CanTrade = true,
-                    CanGroup = true,
-                    CanSell = true,
-                    UsagePolicy = FurnitureUsageType.Everybody,
-                    ExtraData = null,
-                },
-                StuffData = new LegacyStuffSnapshot { StuffBitmask = 0, Data = "" },
-                ExtraData = "",
-                SecondsToExpiration = 0,
-                HasRentPeriodStarted = false,
-                RoomId = -1,
+                Name = name,
+                ProductType = ProductType.Floor,
+                FurniCategory = FurnitureCategory.Default,
+                LogicName = "default_floor",
+                TotalStates = 1,
+                Width = 1,
+                Length = 1,
+                StackHeight = Altitude.FromInt(100),
+                CanStack = true,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = true,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+                UsagePolicy = FurnitureUsageType.Everybody,
+                ExtraData = null,
             },
-        ];
+            StuffData = new LegacyStuffSnapshot { StuffBitmask = 0, Data = "" },
+            ExtraData = "",
+            SecondsToExpiration = 0,
+            HasRentPeriodStarted = false,
+            RoomId = -1,
+        };
 
     private static void AddPlayer(RoomHarness room, int playerId)
     {
