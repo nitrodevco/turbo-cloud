@@ -45,27 +45,31 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     {
         ArgumentNullException.ThrowIfNull(envType);
 
-        var b = _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
         var resolutionProvider = sp == _host ? _host : new CompositeServiceProvider(sp, _host);
-
-        lock (b.Gate)
-        {
-            b.Handlers = b.Handlers.Add(
-                new HandlerReg<TContext>(handlerType, sp, resolutionProvider, activator, invoker)
-            );
-            OnRegistrationsChanged();
-        }
+        var b = AddTo(
+            envType,
+            x =>
+                x.Handlers = x.Handlers.Add(
+                    new HandlerReg<TContext>(
+                        handlerType,
+                        sp,
+                        resolutionProvider,
+                        activator,
+                        invoker
+                    )
+                )
+        );
 
         return new ActionDisposable(() =>
-        {
-            lock (b.Gate)
-            {
-                b.Handlers = b.Handlers.RemoveAll(h =>
-                    h.Activator == activator && h.Invoker == invoker
-                );
-                OnRegistrationsChanged();
-            }
-        });
+            RemoveFrom(
+                envType,
+                b,
+                x =>
+                    x.Handlers = x.Handlers.RemoveAll(h =>
+                        h.Activator == activator && h.Invoker == invoker
+                    )
+            )
+        );
     }
 
     public IDisposable RegisterBehavior(
@@ -79,33 +83,31 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     {
         ArgumentNullException.ThrowIfNull(envType);
 
-        var b = _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
-
-        lock (b.Gate)
-        {
-            b.Behaviors = b.Behaviors.Add(
-                new BehaviorReg<TContext>(
-                    behaviorType,
-                    sp,
-                    new CompositeServiceProvider(_host, sp),
-                    order,
-                    activator,
-                    invoker
+        var b = AddTo(
+            envType,
+            x =>
+                x.Behaviors = x.Behaviors.Add(
+                    new BehaviorReg<TContext>(
+                        behaviorType,
+                        sp,
+                        new CompositeServiceProvider(_host, sp),
+                        order,
+                        activator,
+                        invoker
+                    )
                 )
-            );
-            OnRegistrationsChanged();
-        }
+        );
 
         return new ActionDisposable(() =>
-        {
-            lock (b.Gate)
-            {
-                b.Behaviors = b.Behaviors.RemoveAll(x =>
-                    x.Activator == activator && x.Invoker == invoker && x.Order == order
-                );
-                OnRegistrationsChanged();
-            }
-        });
+            RemoveFrom(
+                envType,
+                b,
+                x =>
+                    x.Behaviors = x.Behaviors.RemoveAll(r =>
+                        r.Activator == activator && r.Invoker == invoker && r.Order == order
+                    )
+            )
+        );
     }
 
     public async Task PublishAsync(TEnvelope env, TMeta? meta, CancellationToken ct)
@@ -122,6 +124,47 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         var ctx = await _opt.CreateContextAsync(env, meta).ConfigureAwait(false);
 
         await pipeline(env, ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Adds to the bucket of <paramref name="envType"/>, the one the map holds: a bucket emptied and
+    /// taken out of the map at the same moment is not added to, but a new one is made.
+    /// </summary>
+    private Bucket<TContext> AddTo(Type envType, Action<Bucket<TContext>> add)
+    {
+        while (true)
+        {
+            var b = _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
+
+            lock (b.Gate)
+            {
+                if (!_byEvent.TryGetValue(envType, out var current) || current != b)
+                    continue;
+
+                add(b);
+                OnRegistrationsChanged();
+
+                return b;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Takes a registration out of its bucket, and the bucket out of the map once it holds nothing:
+    /// the map's key is the envelope's type, which for a plugin's own messages and events would
+    /// otherwise keep the plugin's assembly, and its whole load context, alive after it unloads.
+    /// </summary>
+    private void RemoveFrom(Type envType, Bucket<TContext> b, Action<Bucket<TContext>> remove)
+    {
+        lock (b.Gate)
+        {
+            remove(b);
+
+            if (b.Handlers.IsEmpty && b.Behaviors.IsEmpty)
+                _byEvent.TryRemove(KeyValuePair.Create(envType, b));
+
+            OnRegistrationsChanged();
+        }
     }
 
     private void OnRegistrationsChanged()
