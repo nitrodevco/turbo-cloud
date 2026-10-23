@@ -75,6 +75,14 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
 
         foreach (var avatar in State.AvatarsByObjectId.Values)
         {
+            // A wired slide is said with "wf" until it is over, or until the avatar walks off:
+            // the client would hold a walk step where the slide put it.
+            if (
+                avatar.WiredMoveEndsAtMs > 0
+                && (now >= avatar.WiredMoveEndsAtMs || avatar.HasStatus(AvatarStatusType.Move))
+            )
+                avatar.EndWiredMove();
+
             if (!avatar.IsDirty)
                 continue;
 

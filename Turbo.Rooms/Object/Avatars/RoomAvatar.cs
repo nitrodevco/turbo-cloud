@@ -47,6 +47,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public bool IsIdle { get; private set; } = false;
     public bool IsFrozen { get; private set; } = false;
     public bool ThawsOnTeleport { get; private set; } = false;
+    public long WiredMoveEndsAtMs { get; private set; } = 0;
 
     private int _goalTries = 0;
 
@@ -205,6 +206,28 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     public void SetIdle(bool isIdle) => IsIdle = isIdle;
 
+    public void BeginWiredMove(long endsAtMs)
+    {
+        WiredMoveEndsAtMs = Math.Max(endsAtMs, 1);
+
+        MarkDirty();
+    }
+
+    /// <summary>
+    /// Said once more without the <c>wf</c>: official sends the next UserUpdate of a user it no
+    /// longer slides even with nothing else changed (2026-10-17T18-25-30, "/wf/sit 0.55 0/" then
+    /// "/sit 0.55 0/" on the same tile a second after its last move).
+    /// </summary>
+    public void EndWiredMove()
+    {
+        if (WiredMoveEndsAtMs == 0)
+            return;
+
+        WiredMoveEndsAtMs = 0;
+
+        MarkDirty();
+    }
+
     public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false)
     {
         IsFrozen = isFrozen;
@@ -218,6 +241,11 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     protected string BuildStatusString()
     {
         var status = new StringBuilder("/");
+
+        // A key alone, first: "/wf/sit 0.55 0/" (official client capture 2026-10-17T18-25-30,
+        // every UserUpdate in the half second after a wired move, 16/16).
+        if (WiredMoveEndsAtMs > 0)
+            status.Append("wf/");
 
         foreach (var (type, value) in Statuses)
             status.Append(type.ToLegacyString()).Append(' ').Append(value).Append('/');
