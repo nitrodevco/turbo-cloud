@@ -68,7 +68,8 @@ internal static class PluginBuilder
             .Select(x => MetadataReference.CreateFromFile(x));
     }
 
-    private static byte[] Compile(string name, string source)
+    /// <summary>The assembly <paramref name="source"/> compiles to, as a plugin's would.</summary>
+    public static byte[] Compile(string name, string source)
     {
         var compilation = CSharpCompilation.Create(
             name,

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.Runtime;
 using Turbo.Database.Entities.Players;
@@ -165,6 +167,45 @@ public sealed class GameCenterTests : IDisposable
         _fakes.SentToPlayer<Game2GameStartedMessageComposer>(ALICE).Should().ContainSingle();
         _fakes.Log.Of("ForwardToRoomAsync").Should().HaveCount(2);
         timerToken.IsCancellationRequested.Should().BeTrue("the spent timer is disposed");
+    }
+
+    [Fact]
+    public async Task The_assembly_scan_skips_a_game_its_plugin_registers_by_hand()
+    {
+        const string SOURCE = """
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Turbo.Primitives.Games;
+
+            public sealed class ScannedGame : IRoomGame
+            {
+                public GameDefinition Definition { get; } =
+                    new() { GameTypeId = 200, Key = "scanned", LevelName = "Scanned" };
+
+                public Task<GameArena> OpenArenaAsync(GameLaunch launch, CancellationToken ct) =>
+                    Task.FromResult<GameArena>(null!);
+            }
+
+            [ManualGameRegistration]
+            public sealed class ManualGame : IRoomGame
+            {
+                public GameDefinition Definition { get; } =
+                    new() { GameTypeId = 201, Key = "manual", LevelName = "Manual" };
+
+                public Task<GameArena> OpenArenaAsync(GameLaunch launch, CancellationToken ct) =>
+                    Task.FromResult<GameArena>(null!);
+            }
+            """;
+        var plugin = Assembly.Load(PluginBuilder.Compile("games", SOURCE));
+        using var services = new ServiceCollection().BuildServiceProvider();
+
+        using var registration = await new GameFeatureProcessor(_registry).ProcessAsync(
+            plugin,
+            services,
+            Ct
+        );
+
+        _registry.Games.Select(game => game.Definition.Key).Should().Equal("scanned");
     }
 
     [Fact]
