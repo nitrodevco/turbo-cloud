@@ -191,18 +191,34 @@ internal sealed class ClientModuleRegistry(
             return null;
 
         var hash = HashOf(file);
-        var publicUrl = config.CurrentValue.PublicUrl;
-        var host = string.IsNullOrWhiteSpace(publicUrl) ? string.Empty : publicUrl.TrimEnd('/');
-        var path = string.Join('/', source.Entry.Split('/').Select(Uri.EscapeDataString));
 
         return new ClientModuleSnapshot
         {
             Key = source.Key,
-            Url =
-                $"{host}{GamedataServer.PLUGIN_FILES_ROUTE}{Uri.EscapeDataString(source.Key)}/{path}?v={hash[..VERSION_LENGTH]}",
+            Url = Address(source.Key, source.Entry, hash),
             Version = source.Version,
             Sha256 = hash,
         };
+    }
+
+    /// <summary>
+    /// The address clients load a file of a plugin's <c>wwwroot/</c> at, by its hash (cached for
+    /// good, a new one when it changes); null when <paramref name="path"/> is not a file there.
+    /// </summary>
+    public string? AddressOf(string key, string root, string path)
+    {
+        var file = Resolve(root, path);
+
+        return file is null ? null : Address(key, path, HashOf(file));
+    }
+
+    private string Address(string key, string path, string hash)
+    {
+        var publicUrl = config.CurrentValue.PublicUrl;
+        var host = string.IsNullOrWhiteSpace(publicUrl) ? string.Empty : publicUrl.TrimEnd('/');
+        var escaped = string.Join('/', Normalize(path).Split('/').Select(Uri.EscapeDataString));
+
+        return $"{host}{GamedataServer.PLUGIN_FILES_ROUTE}{Uri.EscapeDataString(key)}/{escaped}?v={hash[..VERSION_LENGTH]}";
     }
 
     /// <summary>

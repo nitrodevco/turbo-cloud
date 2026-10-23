@@ -50,12 +50,24 @@ internal static class ExternalVariablesFile
     };
 
     /// <summary>
+    /// The window patch files clients load (nitro-next <c>docs/template-patches.md</c>): a url per
+    /// plugin key. A plugin's <c>wwwroot/template-patches.json</c> is its entry without it naming
+    /// it; the hotel takes one away with an empty url.
+    /// </summary>
+    public const string TEMPLATE_PATCHES = "templates.patches";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
-    /// library). Each loaded plugin's entries are written into the client's file with the hotel's
-    /// own (<see cref="Merge"/>); none is ever given to the hotel.
+    /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin). Each loaded plugin's entries are
+    /// written into the client's file with the hotel's own (<see cref="Merge"/>); none is ever
+    /// given to the hotel.
     /// </summary>
-    public static readonly IReadOnlyList<string> MERGED = ["asset.bundles.templates.overrides"];
+    public static readonly IReadOnlyList<string> MERGED =
+    [
+        "asset.bundles.templates.overrides",
+        TEMPLATE_PATCHES,
+    ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
 
@@ -83,6 +95,23 @@ internal static class ExternalVariablesFile
 
         return merged.ToJsonString(TEXT);
     }
+
+    /// <summary>
+    /// The entries of a merged variable that more than one plugin brings, each with the plugins
+    /// that bring it in merge order: the first one's is used (<see cref="Merge"/>).
+    /// </summary>
+    public static IReadOnlyList<(string Entry, IReadOnlyList<string> Plugins)> Collisions(
+        IEnumerable<(string Plugin, string Part)> parts
+    ) =>
+        [
+            .. parts
+                .SelectMany(x => Entries(x.Part).Select(entry => (Entry: entry.Key, x.Plugin)))
+                .GroupBy(x => x.Entry, StringComparer.Ordinal)
+                .Where(x =>
+                    x.Select(y => y.Plugin).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1
+                )
+                .Select(x => (x.Key, (IReadOnlyList<string>)[.. x.Select(y => y.Plugin)])),
+        ];
 
     private static IEnumerable<KeyValuePair<string, JsonNode?>> Entries(string json)
     {
