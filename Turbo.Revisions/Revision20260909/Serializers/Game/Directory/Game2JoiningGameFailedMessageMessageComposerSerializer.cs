@@ -11,6 +11,6 @@ internal class Game2JoiningGameFailedMessageMessageComposerSerializer(int header
         Game2JoiningGameFailedMessageMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Reason);
     }
 }

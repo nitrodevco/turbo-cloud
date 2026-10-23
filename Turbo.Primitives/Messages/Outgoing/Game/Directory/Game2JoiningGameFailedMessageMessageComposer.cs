@@ -6,5 +6,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Game.Directory;
 [GenerateSerializer, Immutable]
 public sealed record Game2JoiningGameFailedMessageMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    /// <summary>A <c>GameCenter.JOIN_FAILED_*</c> reason.</summary>
+    [Id(0)]
+    public required int Reason { get; init; }
 }

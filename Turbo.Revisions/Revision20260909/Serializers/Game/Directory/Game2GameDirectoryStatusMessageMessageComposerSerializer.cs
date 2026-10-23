@@ -11,6 +11,10 @@ internal class Game2GameDirectoryStatusMessageMessageComposerSerializer(int head
         Game2GameDirectoryStatusMessageMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Status.Status)
+            .WriteInteger(message.Status.BlockLength)
+            .WriteInteger(message.Status.GamesPlayed)
+            .WriteInteger(message.Status.FreeGamesLeft);
     }
 }

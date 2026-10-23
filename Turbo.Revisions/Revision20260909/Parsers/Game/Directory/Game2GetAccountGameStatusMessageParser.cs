@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Game.Directory;
 
 internal class Game2GetAccountGameStatusMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new Game2GetAccountGameStatusMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new Game2GetAccountGameStatusMessage { GameTypeId = packet.PopInt() };
 }

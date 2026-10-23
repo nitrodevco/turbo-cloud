@@ -11,6 +11,6 @@ internal class Game2UserBlockedMessageMessageComposerSerializer(int header)
         Game2UserBlockedMessageMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.PlayerBlockLength);
     }
 }

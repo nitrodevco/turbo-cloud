@@ -1,5 +1,3 @@
-using Turbo.Primitives.Networking;
-
 namespace Turbo.Primitives.Messages.Incoming.Game.Score;
 
-public record Game2GetWeeklyLeaderboardMessage : IMessageEvent { }
+public record Game2GetWeeklyLeaderboardMessage : Game2LeaderboardRequest;

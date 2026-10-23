@@ -11,6 +11,7 @@ internal class Game2UserJoinedGameMessageComposerSerializer(int header)
         Game2UserJoinedGameMessageComposer message
     )
     {
-        //
+        GameLobbyWriter.WritePlayer(packet, message.Player);
+        packet.WriteBoolean(message.WasTeamSwitched);
     }
 }

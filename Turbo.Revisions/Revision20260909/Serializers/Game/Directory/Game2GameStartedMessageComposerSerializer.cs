@@ -8,6 +8,6 @@ internal class Game2GameStartedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, Game2GameStartedMessageComposer message)
     {
-        //
+        GameLobbyWriter.Write(packet, message.Lobby);
     }
 }

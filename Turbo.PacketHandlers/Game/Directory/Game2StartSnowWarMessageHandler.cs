@@ -1,11 +1,15 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Game.Directory;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Game.Directory;
 
-public class Game2StartSnowWarMessageHandler : IMessageHandler<Game2StartSnowWarMessage>
+/// <summary>Joins the lobby of the game named by its key. The directory sends the lobby (or the refusal) itself.</summary>
+public class Game2StartSnowWarMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<Game2StartSnowWarMessage>
 {
     public async ValueTask HandleAsync(
         Game2StartSnowWarMessage message,
@@ -13,6 +17,9 @@ public class Game2StartSnowWarMessageHandler : IMessageHandler<Game2StartSnowWar
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await grainFactory
+            .GetGameDirectoryGrain()
+            .JoinAsync(ctx.PlayerId, message.Key, ct)
+            .ConfigureAwait(false);
     }
 }

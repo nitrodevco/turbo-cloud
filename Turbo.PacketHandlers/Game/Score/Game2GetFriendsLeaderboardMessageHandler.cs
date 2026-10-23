@@ -1,11 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Games;
 using Turbo.Primitives.Messages.Incoming.Game.Score;
+using Turbo.Primitives.Messages.Outgoing.Game.Score;
 
 namespace Turbo.PacketHandlers.Game.Score;
 
-public class Game2GetFriendsLeaderboardMessageHandler
+/// <summary>A page of a game's Friends leaderboard, as the game centre's leaderboard window scrolls it.</summary>
+public class Game2GetFriendsLeaderboardMessageHandler(IGameLeaderboardService leaderboards)
     : IMessageHandler<Game2GetFriendsLeaderboardMessage>
 {
     public async ValueTask HandleAsync(
@@ -14,6 +17,18 @@ public class Game2GetFriendsLeaderboardMessageHandler
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        var board = await leaderboards
+            .GetLeaderboardAsync(
+                ctx.PlayerId,
+                GameLeaderboardRequests.ToQuery(message, GameLeaderboardKind.Friends),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        await ctx.SendComposerAsync(
+                new Game2FriendsLeaderboardMessageComposer { Leaderboard = board },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

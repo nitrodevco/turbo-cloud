@@ -4,11 +4,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Games;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Games;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Providers;
 using Turbo.Rooms.Wired.Variables;
@@ -45,6 +47,19 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IAssemblyFeatureProcessor, RoomObjectLogicFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, RoomEventListenerFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, WiredVariableFeatureProcessor>();
+
+        services.Configure<GameCenterConfig>(
+            builder.Configuration.GetSection(GameCenterConfig.SECTION_NAME)
+        );
+        services.AddSingleton<GameRegistry>();
+        services.AddSingleton<IGameRegistry>(sp => sp.GetRequiredService<GameRegistry>());
+        services.AddSingleton<GameScoreStore>();
+        services.AddSingleton<IGameResultService>(sp => sp.GetRequiredService<GameScoreStore>());
+        services.AddSingleton<IGameLeaderboardService>(sp =>
+            sp.GetRequiredService<GameScoreStore>()
+        );
+        services.AddSingleton<DefaultGameAccessPolicy>();
+        services.AddSingleton<IAssemblyFeatureProcessor, GameFeatureProcessor>();
 
         services.AddSingleton<IRoomService, RoomService>();
         services.AddSingleton<IRoomOwnershipService, RoomOwnershipService>();
