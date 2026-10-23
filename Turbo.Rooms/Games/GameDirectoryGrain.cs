@@ -231,6 +231,10 @@ internal sealed class GameDirectoryGrain(
 
     private async Task LaunchAsync(GameDirectoryLiveState.Lobby lobby, CancellationToken ct)
     {
+        // The countdown timer's callback runs on the timer's token, which disposing the timer
+        // cancels: the spent timer goes once the launch is done, not before.
+        using var timer = lobby.Timer;
+        lobby.Timer = null;
         CloseLobby(lobby);
 
         foreach (var player in lobby.Players)
