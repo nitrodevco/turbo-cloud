@@ -70,7 +70,7 @@ internal sealed partial class PluginAdministration(
 
     public async Task<PluginActionResult> RescanAsync(CancellationToken ct)
     {
-        await manager.LoadAllAsync(true, ct).ConfigureAwait(false);
+        await manager.LoadChangedAsync(ct).ConfigureAwait(false);
 
         var plugins = manager.Snapshot();
         var loaded = plugins.Count(p => p.State == PluginStateType.Loaded);

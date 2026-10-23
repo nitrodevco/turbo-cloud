@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -137,18 +138,30 @@ public sealed class PluginManager(
     }
 
     /// <summary>
-    /// Loads every discovered plugin in dependency order, replacing live ones. A plugin that fails
-    /// is logged and skipped so the rest still load; with <paramref name="unloadRemoved"/>, live
-    /// plugins whose folder is gone are unloaded.
+    /// Loads every discovered plugin in dependency order, replacing live ones: the live dependents
+    /// of each are unloaded first and load again after it. A plugin that fails is logged and
+    /// skipped so the rest still load; with <paramref name="unloadRemoved"/>, live plugins whose
+    /// folder is gone are unloaded.
     /// </summary>
-    public async Task LoadAllAsync(bool unloadRemoved = true, CancellationToken ct = default)
+    public Task LoadAllAsync(bool unloadRemoved = true, CancellationToken ct = default) =>
+        ScanAsync(unloadRemoved, changedOnly: false, ct);
+
+    /// <summary>
+    /// Loads the plugins that are new, whose code changed on disk since they loaded, or that are
+    /// not live (failed, or waiting for a dependency), each with its dependents, and unloads the
+    /// live ones whose folder is gone. A live plugin that did not change, and none of whose
+    /// dependencies did, keeps running untouched. A plugin that fails is logged and skipped.
+    /// </summary>
+    public Task LoadChangedAsync(CancellationToken ct = default) =>
+        ScanAsync(unloadRemoved: true, changedOnly: true, ct);
+
+    private async Task ScanAsync(bool unloadRemoved, bool changedOnly, CancellationToken ct)
     {
         await _reloadGate.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
             var plugins = DiscoverSorted();
-            var tasks = new List<Func<Task>>();
             var disabled = ReadDisabled();
 
             RebuildDependents(plugins.Select(p => p.Manifest));
@@ -164,59 +177,13 @@ public sealed class PluginManager(
                     continue;
                 }
 
-                var gate = GetKeyGate(m.Key);
+                // Its dependents come later in the order: one whose dependency was replaced was
+                // unloaded with it, so it is not live here and loads again.
+                if (changedOnly && IsCurrent(m.Key, folder))
+                    continue;
 
-                await gate.WaitAsync(ct).ConfigureAwait(false);
-
-                try
-                {
-                    var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
-
-                    // Feature processing for different plugins is independent, so it runs
-                    // concurrently once every plugin is live.
-                    tasks.Add(async () =>
-                    {
-                        var disp = await processor
-                            .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
-                            .ConfigureAwait(false);
-
-                        next.Disposables.Add(disp);
-                    });
-                }
-                catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
-                {
-                    // Its tables cannot be brought up to date (a database from a newer version,
-                    // a destructive migration not allowed, migrations set to Check). The message
-                    // says what to do; the server carries on without the plugin.
-                    SetStatus(m, folder, PluginStateType.Failed, migration.Message);
-                    _logger.LogError(
-                        "Not loading {Name}@{Version} by {Author}: {Message}",
-                        m.Name,
-                        m.Version,
-                        m.Author,
-                        migration.Message
-                    );
-                }
-                catch (Exception ex)
-                {
-                    SetStatus(m, folder, PluginStateType.Failed, ex.Message);
-                    _logger.LogError(
-                        ex,
-                        "Failed to load {Name}@{Version} by {Author}",
-                        m.Name,
-                        m.Version,
-                        m.Author
-                    );
-                }
-                finally
-                {
-                    gate.Release();
-                }
+                await TryLoadAsync(m, folder, plugins, ct).ConfigureAwait(false);
             }
-
-            var degree = Math.Max(2, Environment.ProcessorCount * 4);
-
-            await BoundedHelper.RunAsync(tasks, degree, ct).ConfigureAwait(false);
 
             // Only a plugin whose folder is gone counts as removed. One that failed to reload is
             // still on disk and keeps its previous live version.
@@ -236,8 +203,10 @@ public sealed class PluginManager(
     }
 
     /// <summary>
-    /// Reloads one plugin, or unloads it when its folder is gone. Unlike
-    /// <see cref="LoadAllAsync"/>, a failure is thrown to the caller, who asked for this plugin.
+    /// Reloads one plugin, or unloads it when its folder is gone, and loads again the plugins that
+    /// depend on it (they were bound to the version replaced); the other plugins keep running.
+    /// Unlike <see cref="LoadAllAsync"/>, a failure of this plugin is thrown to the caller, who
+    /// asked for it; a dependent that fails is marked Failed and logged.
     /// </summary>
     public async Task ReloadAsync(string key, CancellationToken ct = default)
     {
@@ -246,6 +215,7 @@ public sealed class PluginManager(
         try
         {
             var plugins = DiscoverSorted();
+            var disabled = ReadDisabled();
 
             RebuildDependents(plugins.Select(p => p.Manifest));
 
@@ -261,7 +231,7 @@ public sealed class PluginManager(
                 return;
             }
 
-            if (ReadDisabled().Contains(key))
+            if (disabled.Contains(key))
             {
                 await UnloadAsync(key, ct).ConfigureAwait(false);
                 SetStatus(match.Manifest, match.Folder, PluginStateType.Disabled, null);
@@ -269,42 +239,123 @@ public sealed class PluginManager(
                 return;
             }
 
-            var gate = GetKeyGate(key);
-            await gate.WaitAsync(ct).ConfigureAwait(false);
+            var failure = await TryLoadAsync(match.Manifest, match.Folder, plugins, ct)
+                .ConfigureAwait(false);
 
-            try
-            {
-                var (asm, next) = await LoadPluginAsync(match.Manifest, match.Folder, ct)
-                    .ConfigureAwait(false);
-
-                var disp = await processor
-                    .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
-                    .ConfigureAwait(false);
-                next.Disposables.Add(disp);
-
+            if (failure is null)
                 _logger.LogInformation("Reloaded plugin {Key}", key);
-            }
-            catch (Exception ex)
-            {
-                SetStatus(
-                    match.Manifest,
-                    match.Folder,
-                    PluginStateType.Failed,
-                    MigrationException.FindIn(ex)?.Message ?? ex.Message
-                );
 
-                throw;
-            }
-            finally
+            foreach (var (m, folder) in DependentsOf(key, plugins))
             {
-                gate.Release();
+                if (!disabled.Contains(m.Key))
+                    await TryLoadAsync(m, folder, plugins, ct).ConfigureAwait(false);
             }
+
+            if (failure is not null)
+                ExceptionDispatchInfo.Throw(failure);
         }
         finally
         {
             _reloadGate.Release();
         }
     }
+
+    /// <summary>
+    /// Loads or replaces one plugin, holding its key gate. Its live dependents are unloaded first
+    /// (dependents of dependents before them); the caller loads them again after it. A failure
+    /// marks the plugin Failed with the reason the panel shows, is logged, and is answered rather
+    /// than thrown.
+    /// </summary>
+    private async Task<Exception?> TryLoadAsync(
+        PluginManifest m,
+        string folder,
+        IReadOnlyList<(PluginManifest Manifest, string Folder)> plugins,
+        CancellationToken ct
+    )
+    {
+        var gate = GetKeyGate(m.Key);
+
+        await gate.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            foreach (var (dependent, _) in Enumerable.Reverse(DependentsOf(m.Key, plugins)))
+            {
+                if (_live.ContainsKey(dependent.Key))
+                    await UnloadAsync(dependent.Key, ct).ConfigureAwait(false);
+            }
+
+            await LoadAndProcessAsync(m, folder, ct).ConfigureAwait(false);
+
+            return null;
+        }
+        catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
+        {
+            // Its tables cannot be brought up to date (a database from a newer version,
+            // a destructive migration not allowed, migrations set to Check). The message
+            // says what to do; the server carries on without the plugin.
+            SetStatus(m, folder, PluginStateType.Failed, migration.Message);
+            _logger.LogError(
+                "Not loading {Name}@{Version} by {Author}: {Message}",
+                m.Name,
+                m.Version,
+                m.Author,
+                migration.Message
+            );
+
+            return ex;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(m, folder, PluginStateType.Failed, ex.Message);
+            _logger.LogError(
+                ex,
+                "Failed to load {Name}@{Version} by {Author}",
+                m.Name,
+                m.Version,
+                m.Author
+            );
+
+            return ex;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The plugins on disk that depend on <paramref name="key"/>, directly or through another, in
+    /// load order.
+    /// </summary>
+    private List<(PluginManifest Manifest, string Folder)> DependentsOf(
+        string key,
+        IReadOnlyList<(PluginManifest Manifest, string Folder)> plugins
+    )
+    {
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<string>([key]);
+
+        while (queue.TryDequeue(out var next))
+        {
+            if (!_dependents.TryGetValue(next, out var deps))
+                continue;
+
+            foreach (var dep in deps)
+            {
+                if (found.Add(dep))
+                    queue.Enqueue(dep);
+            }
+        }
+
+        return [.. plugins.Where(p => found.Contains(p.Manifest.Key))];
+    }
+
+    /// <summary>The live version of the plugin was loaded from this folder as its code is now.</summary>
+    private bool IsCurrent(string key, string folder) =>
+        _live.TryGetValue(key, out var live)
+        && string.Equals(live.Folder, folder, StringComparison.OrdinalIgnoreCase)
+        && live.Fingerprint == PluginHelpers.CodeFingerprint(folder);
 
     /// <summary>
     /// The plugins on disk with their folders, dependencies before their dependents.
@@ -324,6 +375,46 @@ public sealed class PluginManager(
                 .SortManifests([.. discovered.Select(d => d.manifest)])
                 .Select(m => (m, byKey[m.Key])),
         ];
+    }
+
+    /// <summary>
+    /// Loads the plugin, then registers what its assembly declares (commands, permission nodes,
+    /// handlers, room logic...). When that fails (a class whose services can't be resolved), the
+    /// plugin is stopped and taken out again before the exception goes on: one plugin that can't
+    /// load leaves nothing of itself behind, and the server and the other plugins carry on. The
+    /// caller holds the plugin's key gate.
+    /// </summary>
+    private async Task LoadAndProcessAsync(PluginManifest m, string folder, CancellationToken ct)
+    {
+        var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
+
+        try
+        {
+            // Its classes take the plugin's own services first, then the host's, as its packet
+            // handlers and room object logic always did: a command or permission source may take
+            // IGrainFactory, ISessionGateway... by constructor as core's do.
+            var disp = await processor
+                .ProcessAsync(
+                    asm.Assembly,
+                    new CompositeServiceProvider(next.ServiceProvider, host),
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            next.Disposables.Add(disp);
+        }
+        catch
+        {
+            _live.TryRemove(new KeyValuePair<string, PluginEnvelope>(m.Key, next));
+
+            var unloading = await StopAndTearDownAsync(next, ct).ConfigureAwait(false);
+
+            next = null!;
+            asm = null!;
+            await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
+
+            throw;
+        }
     }
 
     /// <summary>
@@ -364,7 +455,9 @@ public sealed class PluginManager(
                 deps.Where(_live.ContainsKey)
             );
 
-        // Checks come first so a refused load does not leave an assembly context behind.
+        // Checks come first so a refused load does not leave an assembly context behind. Its code
+        // is fingerprinted before it is read: a change while it loads is seen by the next scan.
+        var fingerprint = PluginHelpers.CodeFingerprint(folder);
         var asm = GetLoadedPluginAssembly(m, folder);
         WeakReference? unloading = null;
 
@@ -381,15 +474,17 @@ public sealed class PluginManager(
                     Migrations = [],
                 };
 
+            // Torn down, it is no longer live: a new version that fails to build leaves the
+            // plugin out rather than a stopped one in the live map.
+            _live.TryRemove(m.Key, out _);
             unloading = await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
             current = null;
         }
 
-        var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
+        var next = await BuildEnvelopeAsync(asm, m, folder, fingerprint, ct).ConfigureAwait(false);
 
         _live[m.Key] = next;
 
-        // The old version is out of the live map only now.
         await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
 
         return (asm, next);
@@ -437,6 +532,10 @@ public sealed class PluginManager(
         }
     }
 
+    /// <summary>
+    /// Unloads every live plugin, as the server stops: a plugin after the plugins that depend on
+    /// it, so each is stopped while what it depends on still runs.
+    /// </summary>
     public async Task UnloadAllAsync(CancellationToken ct = default)
     {
         var keys = _live.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -453,7 +552,12 @@ public sealed class PluginManager(
 
         while (keys.Count > 0)
         {
-            var leafs = keys.Where(k => !dependents.Values.Any(list => list.Contains(k))).ToList();
+            // The plugins no live plugin depends on any more. A dependency taken first was refused
+            // ("dependents active") and left running.
+            var leafs = keys.Where(k =>
+                    !dependents.TryGetValue(k, out var list) || !list.Any(keys.Contains)
+                )
+                .ToList();
 
             if (leafs.Count == 0)
                 leafs = [.. keys];
@@ -485,6 +589,7 @@ public sealed class PluginManager(
         LoadedAssembly asm,
         PluginManifest m,
         string folder,
+        string fingerprint,
         CancellationToken ct
     )
     {
@@ -573,6 +678,7 @@ public sealed class PluginManager(
             Alc = asm.Alc,
             Manifest = m,
             Folder = folder,
+            Fingerprint = fingerprint,
             Instance = inst,
             ServiceProvider = sp,
             Disposables = disposables,

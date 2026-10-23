@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Enumeration;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -18,14 +16,6 @@ public sealed class PluginHotReloadService(
     ILogger<PluginHotReloadService> logger
 ) : IHostedService, IDisposable
 {
-    private static readonly string[] WATCH_GLOBS =
-    [
-        "manifest.json",
-        "*.dll",
-        "*.pdb",
-        "*.deps.json",
-    ];
-
     private readonly PluginManager _pluginManager = pluginManager;
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger<PluginHotReloadService> _logger = logger;
@@ -173,7 +163,7 @@ public sealed class PluginHotReloadService(
             {
                 try
                 {
-                    await _pluginManager.LoadAllAsync(true, _cts.Token).ConfigureAwait(false);
+                    await _pluginManager.LoadChangedAsync(_cts.Token).ConfigureAwait(false);
                     _logger.LogInformation("Plugin reload completed.");
                     return;
                 }
@@ -205,15 +195,7 @@ public sealed class PluginHotReloadService(
         }
     }
 
-    private static bool ShouldReactToPath(string path)
-    {
-        var fileName = Path.GetFileName(path);
-
-        return !string.IsNullOrWhiteSpace(fileName)
-            && WATCH_GLOBS.Any(glob =>
-                FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true)
-            );
-    }
+    private static bool ShouldReactToPath(string path) => PluginHelpers.IsCodeFile(path);
 
     private void DisposeWatchers()
     {

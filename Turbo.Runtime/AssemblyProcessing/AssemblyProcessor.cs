@@ -17,7 +17,10 @@ public sealed class AssemblyProcessor(IEnumerable<IAssemblyFeatureProcessor> pro
         CancellationToken ct = default
     )
     {
-        var tasks = _processors.Select(p => p.ProcessAsync(asm, sp, ct)).ToArray();
+        // A processor that throws before it returns a task (building a command whose service
+        // can't be resolved) fails like one whose task faults, so what the others registered is
+        // taken away and a later load of the assembly does not find it registered twice.
+        var tasks = _processors.Select(p => Run(p, asm, sp, ct)).ToArray();
 
         try
         {
@@ -32,6 +35,23 @@ public sealed class AssemblyProcessor(IEnumerable<IAssemblyFeatureProcessor> pro
                     (await t.ConfigureAwait(false)).Dispose();
 
             throw;
+        }
+    }
+
+    private static Task<IDisposable> Run(
+        IAssemblyFeatureProcessor processor,
+        Assembly asm,
+        IServiceProvider sp,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return processor.ProcessAsync(asm, sp, ct);
+        }
+        catch (Exception ex)
+        {
+            return Task.FromException<IDisposable>(ex);
         }
     }
 }
