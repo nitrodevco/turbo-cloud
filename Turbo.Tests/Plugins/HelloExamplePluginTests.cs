@@ -109,6 +109,7 @@ public sealed class HelloExamplePluginTests : IDisposable
                         texts,
                         files,
                         new LoadedPluginGamedata(),
+                        registry,
                         NullLogger<PluginGamedataSeeds>.Instance
                     )
                 )

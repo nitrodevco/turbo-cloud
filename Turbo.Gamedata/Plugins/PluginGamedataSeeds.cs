@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
+using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Gamedata;
@@ -37,6 +38,7 @@ internal sealed class PluginGamedataSeeds(
     IGamedataTextService texts,
     IGamedataFileService files,
     LoadedPluginGamedata loaded,
+    ClientModuleRegistry modules,
     ILogger<PluginGamedataSeeds> logger
 ) : IPluginGamedataSeeds, IPluginDataOwner
 {
@@ -49,6 +51,15 @@ internal sealed class PluginGamedataSeeds(
     /// <summary>Its external texts: <c>key=value</c> lines, as Habbo's file is.</summary>
     public const string TEXTS_FILE = "external_texts.txt";
 
+    /// <summary>
+    /// Its window patches (nitro-next <c>docs/template-patches.md</c>), in its <c>wwwroot/</c>: listed
+    /// for clients in <see cref="ExternalVariablesFile.TEMPLATE_PATCHES"/> under the plugin's key
+    /// while it is loaded, without the plugin naming it anywhere.
+    /// </summary>
+    public const string TEMPLATE_PATCHES_FILE = "template-patches.json";
+
+    private const string WWWROOT = "wwwroot";
+
     public async Task SeedAsync(string pluginKey, string folder, CancellationToken ct)
     {
         var (variableSeed, textSeed) = await ReadAsync(pluginKey, folder, ct).ConfigureAwait(false);
@@ -56,12 +67,23 @@ internal sealed class PluginGamedataSeeds(
         // Its parts of the merged variables are written into the client's file beside the
         // hotel's own while it is loaded, never given to the hotel: a key it gave before as its
         // own goes below as one it brings no more.
-        loaded.SetParts(
-            pluginKey,
-            variableSeed
-                .Where(x => ExternalVariablesFile.IsMerged(x.Key))
-                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal)
-        );
+        var parts = variableSeed
+            .Where(x => ExternalVariablesFile.IsMerged(x.Key))
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+
+        // A patch file in its wwwroot is its entry of the patches list, by its own key, so two
+        // plugins' entries never meet; one it names itself in its variables comes first.
+        if (
+            !parts.ContainsKey(ExternalVariablesFile.TEMPLATE_PATCHES)
+            && modules.AddressOf(pluginKey, Path.Combine(folder, WWWROOT), TEMPLATE_PATCHES_FILE)
+                is { } patches
+        )
+            parts[ExternalVariablesFile.TEMPLATE_PATCHES] = new System.Text.Json.Nodes.JsonObject
+            {
+                [pluginKey] = patches,
+            }.ToJsonString();
+
+        loaded.SetParts(pluginKey, parts);
         Invalidate();
 
         await FollowAsync(

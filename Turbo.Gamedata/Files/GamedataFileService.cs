@@ -636,13 +636,26 @@ internal sealed class GamedataFileService(
         // The loaded plugins' parts of a merged variable, with the hotel's own entries over them.
         foreach (var key in ExternalVariablesFile.MERGED)
         {
-            var parts = plugins.PartsOf(key);
+            var owned = plugins.OwnedPartsOf(key);
 
-            if (parts.Count > 0)
-                variables[key] = ExternalVariablesFile.Merge(
-                    parts,
-                    variables.GetValueOrDefault(key)
+            if (owned.Count == 0)
+                continue;
+
+            // Two plugins naming one entry (one template library each overriding) cannot both
+            // win: the first's is used, and staff are told which, rather than it being silent.
+            foreach (var (entry, owners) in ExternalVariablesFile.Collisions(owned))
+                logger.LogWarning(
+                    "Plugins {Plugins} all set {Entry} of {Variable}; {First}'s is used",
+                    string.Join(", ", owners),
+                    entry,
+                    key,
+                    owners[0]
                 );
+
+            variables[key] = ExternalVariablesFile.Merge(
+                owned.Select(x => x.Part),
+                variables.GetValueOrDefault(key)
+            );
         }
 
         return (

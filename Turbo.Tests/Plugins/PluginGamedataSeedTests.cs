@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Gamedata;
+using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Plugins;
@@ -82,6 +83,10 @@ public sealed class PluginGamedataSeedTests : IDisposable
             _texts,
             files,
             new LoadedPluginGamedata(),
+            new ClientModuleRegistry(
+                new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
+                NullLogger<ClientModuleRegistry>.Instance
+            ),
             NullLogger<PluginGamedataSeeds>.Instance
         );
 

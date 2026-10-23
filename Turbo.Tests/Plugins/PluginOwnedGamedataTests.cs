@@ -56,6 +56,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
     private readonly GamedataTextService _texts;
     private readonly PluginManager _manager;
     private readonly PluginAdministration _plugins;
+    private readonly CapturingLogger<GamedataFileService> _filesLog = new();
 
     public PluginOwnedGamedataTests()
     {
@@ -75,7 +76,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             new Fakes().Create<IAssetBundleStore>(),
             TimeProvider.System,
             loaded,
-            NullLogger<GamedataFileService>.Instance
+            _filesLog
         );
         _variables = new GamedataVariableService(
             _catalog.Db,
@@ -99,24 +100,24 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             NullLogger<GamedataTextService>.Instance
         );
 
+        var modules = new ClientModuleRegistry(
+            new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
+            NullLogger<ClientModuleRegistry>.Instance
+        );
         var seeds = new PluginGamedataSeeds(
             _catalog.Db,
             _variables,
             _texts,
             _files,
             loaded,
+            modules,
             NullLogger<PluginGamedataSeeds>.Instance
         );
 
         _manager = new PluginManager(
             new ServiceCollection()
                 .AddSingleton<IPluginGamedataSeeds>(seeds)
-                .AddSingleton<IClientModuleDirectory>(
-                    new ClientModuleRegistry(
-                        new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
-                        NullLogger<ClientModuleRegistry>.Instance
-                    )
-                )
+                .AddSingleton<IClientModuleDirectory>(modules)
                 .BuildServiceProvider(),
             new AssemblyProcessor([]),
             Options.Create(new PluginConfig { PluginFolderPath = _folder, UploadEnabled = true }),
@@ -435,6 +436,100 @@ public sealed class PluginOwnedGamedataTests : IDisposable
 
         await _manager.UnloadAllAsync(Ct);
     }
+
+    [Fact]
+    public async Task A_plugins_window_patch_file_is_listed_for_clients_under_its_key_while_it_is_loaded()
+    {
+        WriteTheme("{}", string.Empty);
+        WritePlugin("view", "{}");
+        WritePatches("theme");
+        WritePatches("view");
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var sent = await SentPatchesAsync();
+        sent.Keys.Should().BeEquivalentTo(["theme", "view"], "each plugin's file, by its own key");
+        sent["theme"]
+            .Should()
+            .MatchRegex(
+                @"^/gamedata/plugins/theme/template-patches\.json\?v=[0-9a-f]{16}$",
+                "served from its wwwroot by hash"
+            );
+        (await _variables.GetValuesAsync([ExternalVariablesFile.TEMPLATE_PATCHES], Ct))
+            .Should()
+            .BeEmpty("the hotel is given none of it");
+
+        // Staff take one plugin's patches away; turning the other off takes its own with it.
+        await _variables.SaveAsync(
+            ExternalVariablesFile.TEMPLATE_PATCHES,
+            """{"view":""}""",
+            STAFF,
+            Ct
+        );
+        (await _plugins.SetEnabledAsync("theme", false, Ct))!.Ok.Should().BeTrue();
+
+        (await SentPatchesAsync())
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["view"] = "" });
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_plugin_without_a_patch_file_adds_no_entry()
+    {
+        WriteTheme("{}", string.Empty);
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        (await SentVariablesAsync())
+            .ContainsKey(ExternalVariablesFile.TEMPLATE_PATCHES)
+            .Should()
+            .BeFalse();
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    [Fact]
+    public async Task Two_plugins_overriding_one_library_is_logged_naming_both_and_the_one_used()
+    {
+        WriteTheme(
+            """{ "asset.bundles.templates.overrides": { "lib-a": "/theme/a", "lib-b": "/theme/b" } }""",
+            string.Empty
+        );
+        WritePlugin("view", """{ "asset.bundles.templates.overrides": { "lib-b": "/view/b" } }""");
+
+        await _manager.LoadAllAsync(ct: Ct);
+        await SentVariablesAsync();
+
+        _filesLog
+            .AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning)
+            .Select(x => x.Message)
+            .Should()
+            .Contain(x =>
+                x.Contains("theme, view") && x.Contains("lib-b") && x.Contains("theme's is used")
+            )
+            .And.NotContain(x => x.Contains("lib-a"));
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    private void WritePatches(string key)
+    {
+        var wwwroot = Path.Combine(_folder, key, "wwwroot");
+
+        Directory.CreateDirectory(wwwroot);
+        File.WriteAllText(
+            Path.Combine(wwwroot, PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
+            """{ "patches": [ { "template": "habbo-friend-list-com/friend_list_xml", "ops": [ { "element": "", "set": { "color": 4294954240 } } ] } ] }"""
+        );
+    }
+
+    /// <summary>The window patch files a client would load now, by plugin key.</summary>
+    private async Task<Dictionary<string, string>> SentPatchesAsync() =>
+        (await SentVariablesAsync())[ExternalVariablesFile.TEMPLATE_PATCHES]!
+            .AsObject()
+            .ToDictionary(x => x.Key, x => x.Value!.GetValue<string>());
 
     private void WritePlugin(string key, string variables)
     {

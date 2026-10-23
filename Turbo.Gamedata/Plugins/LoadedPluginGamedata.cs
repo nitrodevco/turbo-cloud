@@ -34,14 +34,15 @@ internal sealed class LoadedPluginGamedata
             _parts[pluginKey] = parts;
     }
 
-    /// <summary>The loaded plugins' parts of one merged variable, in the order of their keys.</summary>
-    public IReadOnlyList<string> PartsOf(string key) =>
+    /// <summary>The loaded plugins' parts of one merged variable, in the order of their keys, each with its plugin's key.</summary>
+    public IReadOnlyList<(string Plugin, string Part)> OwnedPartsOf(string key) =>
         [
             .. _parts
                 .Where(x => IsLoaded(x.Key))
                 .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(x => x.Value.TryGetValue(key, out var part) ? part : null)
-                .OfType<string>(),
+                .Select(x => (x.Key, Part: x.Value.TryGetValue(key, out var part) ? part : null))
+                .Where(x => x.Part is not null)
+                .Select(x => (x.Key, x.Part!)),
         ];
 
     /// <summary>The plugin is loaded until the handle is disposed; <paramref name="changed"/> runs after each.</summary>
