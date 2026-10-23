@@ -242,6 +242,16 @@ public class WiredConfig
     public bool NotifyWhisperRead { get; init; }
 
     /// <summary>
+    /// Whether a Says Keyword box with "Hide the triggerer's message" hides a line only when its
+    /// stack's conditions pass, as Habbo does (official client video, nitro-tester 2026-10-22: a
+    /// "match all text" box with hide and "triggering user is on furni" showed the line to the
+    /// room while the speaker stood beside the furni, and whispered it back to the speaker alone
+    /// while they stood on it). Off, the box hides every line it picks up, whatever its
+    /// conditions decide.
+    /// </summary>
+    public bool HideKeywordOnlyWhenConditionsPass { get; init; } = true;
+
+    /// <summary>
     /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
     /// that work on any furni's state, position, type or variables may (the editor's
     /// <c>allowWallFurni</c>, per box); off, none may.

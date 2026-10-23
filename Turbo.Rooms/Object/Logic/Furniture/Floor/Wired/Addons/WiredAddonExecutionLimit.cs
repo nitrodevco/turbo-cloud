@@ -46,6 +46,9 @@ public class WiredAddonExecutionLimit(
         if (_executionsInWindow >= GetIntParamOrDefault(0, 100))
             return Task.FromResult(false);
 
+        if (ctx.IsDryRun)
+            return Task.FromResult(true);
+
         _executionsInWindow++;
 
         return Task.FromResult(true);
