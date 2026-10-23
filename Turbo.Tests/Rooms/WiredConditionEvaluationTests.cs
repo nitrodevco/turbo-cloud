@@ -127,7 +127,50 @@ public sealed class WiredConditionEvaluationTests
         Eval.GetSnapshot().IntParams.Should().Equal(stored);
     }
 
-    private async Task BuildAsync(int[] picked)
+    // One of the three conditions holds, so the count is 1 (official client capture
+    // WIN63-202610201032, 2026-10-23T00-05-33 / 00-06-44 / 00-07-24-UpdateAddon, A true and B false).
+    [Theory]
+    [InlineData(0, 1, false)]
+    [InlineData(1, 1, true)]
+    [InlineData(2, -1, true)]
+    [InlineData(3, 0, false)]
+    [InlineData(3, 1, true)]
+    [InlineData(3, 1001, true)]
+    [InlineData(4, 1, false)]
+    [InlineData(4, 2, true)]
+    [InlineData(5, 1, true)]
+    [InlineData(5, 2, false)]
+    [InlineData(6, 0, false)]
+    [InlineData(6, 1, false)]
+    public async Task A_counted_mode_compares_the_conditions_that_hold_with_the_number(
+        int countedMode,
+        int number,
+        bool passes
+    )
+    {
+        await BuildAsync(picked: [], evalParams: [-1, countedMode, number]);
+
+        await ClickAsync();
+
+        Game.GetTeam((PlayerId)105).Should().Be(passes ? GameTeamType.Red : GameTeamType.None);
+    }
+
+    [Theory]
+    [InlineData(new[] { -1, -3, 5 }, new[] { -1, 0, 5 })]
+    [InlineData(new[] { -1, 0, 99999 }, new[] { -1, 0, 99999 })]
+    [InlineData(new[] { -1, 0, -1000 }, new[] { -1, 0, -1000 })]
+    [InlineData(new[] { -1, 6, 1001 }, new[] { -1, 6, 1001 })]
+    public async Task A_negative_counted_mode_is_stored_as_0_and_the_number_as_sent(
+        int[] sent,
+        int[] stored
+    )
+    {
+        (await SaveEvalAsync(sent)).IsSaved.Should().BeTrue();
+
+        Eval.GetSnapshot().IntParams.Should().Equal(stored);
+    }
+
+    private async Task BuildAsync(int[] picked, int[]? evalParams = null)
     {
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
@@ -146,7 +189,7 @@ public sealed class WiredConditionEvaluationTests
                 .Should()
                 .BeTrue();
 
-        (await SaveEvalAsync([1, 0, 0], stuffIds: picked)).IsSaved.Should().BeTrue();
+        (await SaveEvalAsync(evalParams ?? [1, 0, 0], stuffIds: picked)).IsSaved.Should().BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 JOIN,

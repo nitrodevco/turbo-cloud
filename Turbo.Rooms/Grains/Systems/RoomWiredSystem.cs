@@ -1769,7 +1769,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         var matched = conditions.Count(c => c.Evaluate(ctx));
-        var threshold = Math.Max(0, ctx.Policy.ConditionThreshold);
+
+        // The number is used as saved, below zero or past the editor's 1000 alike (official client
+        // capture WIN63-202610201032: "more than -1" passed 5 of 5, 2026-10-23T00-05-33, and "at
+        // most 1001" 3 of 3, 00-07-24-UpdateAddon).
+        var threshold = ctx.Policy.ConditionThreshold;
 
         return ctx.Policy.ConditionMode switch
         {
@@ -1780,6 +1784,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             WiredConditionModeType.LessThan => matched < threshold,
             WiredConditionModeType.Exactly => matched == threshold,
             WiredConditionModeType.MoreThan => matched > threshold,
+            WiredConditionModeType.AtMost => matched <= threshold,
+            WiredConditionModeType.NotExactly => matched != threshold,
+            WiredConditionModeType.AtLeast => matched >= threshold,
+            WiredConditionModeType.Never => false,
             _ => matched == conditions.Count,
         };
     }

@@ -26,7 +26,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// Conditions this add-on applies to. If the selection is empty, it will apply to all available
 /// conditions."); only conditions and add-ons can be picked. Habbo clamps the mode into range
 /// (9 is stored as 3) and stores the counted mode as sent (official client capture
-/// 2026-10-22T22-57-02-UpdateAddon).
+/// 2026-10-22T22-57-02-UpdateAddon), a negative one as 0, and the number as sent, past the
+/// editor's bounds too (-1000, 1001, 99999: official client capture WIN63-202610201032,
+/// 2026-10-23T00-04-56 / 00-06-20-UpdateAddon).
 /// </summary>
 [RoomObjectLogic("wf_xtra_or_eval")]
 public class WiredAddonConditionsEval(
@@ -51,8 +53,12 @@ public class WiredAddonConditionsEval(
     private const int COUNTED_EXACTLY = 1;
     private const int COUNTED_MORE_THAN = 2;
 
-    // The bounds of the editor's number inputs.
-    private const int COUNT_MAX = 1000;
+    // Counted modes the editor does not offer, which Habbo runs all the same (official client
+    // capture WIN63-202610201032, 2026-10-23T00-06-44 / 00-07-24-UpdateAddon); 6 never passed, and
+    // anything higher is taken to do the same (inference: 7 and up were not tried).
+    private const int COUNTED_AT_MOST = 3;
+    private const int COUNTED_NOT_EXACTLY = 4;
+    private const int COUNTED_AT_LEAST = 5;
 
     public override int WiredCode => (int)WiredAddonType.CONDITION_EVALUATION;
 
@@ -61,8 +67,8 @@ public class WiredAddonConditionsEval(
             // A fresh box asks for at least one on the official server (defaults [1,0,0],
             // 2026-10-20T17-35-39-Open-wait).
             new WiredClampParamRule(COUNTED, MODE_NONE, MODE_ANY),
-            new WiredParamRule(COUNTED_LESS_THAN),
-            new WiredRangeParamRule(0, COUNT_MAX, 0),
+            new WiredClampParamRule(COUNTED_LESS_THAN, int.MaxValue, COUNTED_LESS_THAN),
+            new WiredParamRule(0),
         ];
 
     // "Select Furni [0/20]", picked furni by default (official client capture
@@ -85,9 +91,13 @@ public class WiredAddonConditionsEval(
             MODE_NONE => WiredConditionModeType.NoneMatch,
             COUNTED => GetIntParamOrDefault(PARAM_COUNTED_MODE, COUNTED_LESS_THAN) switch
             {
+                <= COUNTED_LESS_THAN => WiredConditionModeType.LessThan,
                 COUNTED_EXACTLY => WiredConditionModeType.Exactly,
                 COUNTED_MORE_THAN => WiredConditionModeType.MoreThan,
-                _ => WiredConditionModeType.LessThan,
+                COUNTED_AT_MOST => WiredConditionModeType.AtMost,
+                COUNTED_NOT_EXACTLY => WiredConditionModeType.NotExactly,
+                COUNTED_AT_LEAST => WiredConditionModeType.AtLeast,
+                _ => WiredConditionModeType.Never,
             },
             _ => WiredConditionModeType.All,
         };
