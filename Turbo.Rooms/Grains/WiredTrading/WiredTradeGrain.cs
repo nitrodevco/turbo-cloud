@@ -80,6 +80,7 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         RoomId roomId,
         RoomObjectId chestId,
         WiredChestKind kind,
+        int freeCapacity,
         CancellationToken ct
     )
     {
@@ -90,6 +91,7 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
             RoomId = roomId,
             TargetId = chestId,
             Kind = kind,
+            FreeCapacity = freeCapacity,
         };
 
         KeepWhileTrading();
@@ -236,6 +238,13 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
             if (session.Offer.Count >= _config.MaxItemsPerDeposit)
             {
                 error = WiredTradeErrorType.TooManyItems;
+
+                break;
+            }
+
+            if (ExceedsChestCapacity(session, item))
+            {
+                error = WiredTradeErrorType.ExceedsChestCapacity;
 
                 break;
             }
@@ -536,6 +545,26 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
                 && item.RoomId <= 0
                 && CreditFurniValue.TryParse(item.Definition.Name, out _)
                     == (session.Kind == WiredChestKind.Coins);
+
+    /// <summary>
+    /// Whether a deposit offering this item too would hold more than the chest takes: Habbo's
+    /// <c>wired_transactions.notification.trade_error.9</c> ("Exceeds the chest's capacity").
+    /// A credit chest counts the credits its credit furni are worth.
+    /// </summary>
+    private bool ExceedsChestCapacity(WiredTradeSession session, FurnitureItemSnapshot item)
+    {
+        if (!_config.RefuseOfferOverCapacity || session.Contract is not null)
+            return false;
+
+        var offered = session.Offer.Append(item).Sum(x => CapacityTaken(session.Kind, x));
+
+        return offered > session.FreeCapacity;
+    }
+
+    private static long CapacityTaken(WiredChestKind kind, FurnitureItemSnapshot item) =>
+        kind != WiredChestKind.Coins ? 1
+        : CreditFurniValue.TryParse(item.Definition.Name, out var credits) ? credits
+        : 0;
 
     private static bool CanAccept(WiredTradeSession session) =>
         session.Contract is { } request

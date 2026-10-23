@@ -294,7 +294,7 @@ public class WiredContractTests
         fakes.Handlers["GetItemSnapshotsAsync"] = _ =>
             Task.FromResult<ImmutableArray<FurnitureItemSnapshot>>([Item(1, CHAIR_SPRITE)]);
 
-        await trade.StartChestDepositAsync(1, 100, WiredChestKind.Furni, Ct);
+        await trade.StartChestDepositAsync(1, 100, WiredChestKind.Furni, 1000, Ct);
         await trade.AddItemsAsync([1], Ct);
 
         Pins(fakes)
