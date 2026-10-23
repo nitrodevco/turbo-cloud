@@ -130,8 +130,9 @@ short, for api version 1:
   (Habbo's own links too, `toolbar/memenu` among them), the plugin's packets
   (`packets.registerParser/registerComposer/send`, headers 20000-32767 outside Turbo's 30000-30099),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
-  `room.avatarOverlay(fn)`, `room.leave()`, `notifications.registerLayout` and `notifications.add`
-  (a bubble that may `stay` up until the module takes it down).
+  `room.avatarOverlay(fn)`, `room.leave()`, `hotelView.addLayer(component, { replacesBackground })` (drawn in the
+  reception behind its widgets), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up
+  until the module takes it down).
 
 ## 5. Texts and variables a plugin brings
 
