@@ -44,6 +44,35 @@ public sealed class PluginIsolationTests : IDisposable
     }
 
     [Fact]
+    public async Task A_plugin_whose_command_cannot_be_built_fails_alone_and_the_server_starts()
+    {
+        PluginBuilder.Write(_folder, "broken", Plugin("broken", NEEDS_MISSING));
+        PluginBuilder.Write(_folder, "good", Plugin("good", NODES));
+
+        var (manager, host) = Create();
+        var bootstrapper = new PluginBootstrapper(
+            [],
+            manager,
+            host.GetRequiredService<AssemblyProcessor>(),
+            host
+        );
+
+        // The hosted service the server starts with: it threw, so "Hosting failed to start".
+        await bootstrapper.StartAsync(Ct);
+
+        var plugins = manager.Snapshot().ToDictionary(x => x.Key);
+
+        plugins["good"].State.Should().Be(PluginStateType.Loaded);
+        plugins["broken"].State.Should().Be(PluginStateType.Failed);
+        plugins["broken"].Error.Should().Contain("IMissing");
+
+        var nodes = host.GetRequiredService<IPermissionRegistryProvider>().Current;
+
+        nodes.IsRegistered("good.use").Should().BeTrue();
+        nodes.IsRegistered("broken.use").Should().BeFalse();
+    }
+
+    [Fact]
     public async Task A_plugin_that_failed_part_way_loads_once_fixed_without_a_duplicate_node()
     {
         PluginBuilder.Write(_folder, "half", Plugin("half", NEEDS_MISSING));

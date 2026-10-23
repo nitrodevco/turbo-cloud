@@ -24,7 +24,6 @@ using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
-using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Runtime.Configuration;
 
@@ -148,7 +147,6 @@ public sealed class PluginManager(
         try
         {
             var plugins = DiscoverSorted();
-            var tasks = new List<Func<Task>>();
             var disabled = ReadDisabled();
 
             RebuildDependents(plugins.Select(p => p.Manifest));
@@ -170,18 +168,7 @@ public sealed class PluginManager(
 
                 try
                 {
-                    var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
-
-                    // Feature processing for different plugins is independent, so it runs
-                    // concurrently once every plugin is live.
-                    tasks.Add(async () =>
-                    {
-                        var disp = await processor
-                            .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
-                            .ConfigureAwait(false);
-
-                        next.Disposables.Add(disp);
-                    });
+                    await LoadAndProcessAsync(m, folder, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
                 {
@@ -213,10 +200,6 @@ public sealed class PluginManager(
                     gate.Release();
                 }
             }
-
-            var degree = Math.Max(2, Environment.ProcessorCount * 4);
-
-            await BoundedHelper.RunAsync(tasks, degree, ct).ConfigureAwait(false);
 
             // Only a plugin whose folder is gone counts as removed. One that failed to reload is
             // still on disk and keeps its previous live version.
@@ -274,13 +257,7 @@ public sealed class PluginManager(
 
             try
             {
-                var (asm, next) = await LoadPluginAsync(match.Manifest, match.Folder, ct)
-                    .ConfigureAwait(false);
-
-                var disp = await processor
-                    .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
-                    .ConfigureAwait(false);
-                next.Disposables.Add(disp);
+                await LoadAndProcessAsync(match.Manifest, match.Folder, ct).ConfigureAwait(false);
 
                 _logger.LogInformation("Reloaded plugin {Key}", key);
             }
@@ -324,6 +301,39 @@ public sealed class PluginManager(
                 .SortManifests([.. discovered.Select(d => d.manifest)])
                 .Select(m => (m, byKey[m.Key])),
         ];
+    }
+
+    /// <summary>
+    /// Loads the plugin, then registers what its assembly declares (commands, permission nodes,
+    /// handlers, room logic...). When that fails (a class whose services can't be resolved), the
+    /// plugin is stopped and taken out again before the exception goes on: one plugin that can't
+    /// load leaves nothing of itself behind, and the server and the other plugins carry on. The
+    /// caller holds the plugin's key gate.
+    /// </summary>
+    private async Task LoadAndProcessAsync(PluginManifest m, string folder, CancellationToken ct)
+    {
+        var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
+
+        try
+        {
+            var disp = await processor
+                .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
+                .ConfigureAwait(false);
+
+            next.Disposables.Add(disp);
+        }
+        catch
+        {
+            _live.TryRemove(new KeyValuePair<string, PluginEnvelope>(m.Key, next));
+
+            var unloading = await StopAndTearDownAsync(next, ct).ConfigureAwait(false);
+
+            next = null!;
+            asm = null!;
+            await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
+
+            throw;
+        }
     }
 
     /// <summary>
@@ -381,6 +391,9 @@ public sealed class PluginManager(
                     Migrations = [],
                 };
 
+            // Torn down, it is no longer live: a new version that fails to build leaves the
+            // plugin out rather than a stopped one in the live map.
+            _live.TryRemove(m.Key, out _);
             unloading = await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
             current = null;
         }
@@ -389,7 +402,6 @@ public sealed class PluginManager(
 
         _live[m.Key] = next;
 
-        // The old version is out of the live map only now.
         await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
 
         return (asm, next);
