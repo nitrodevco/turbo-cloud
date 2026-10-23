@@ -768,6 +768,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             {
                 CategoryId = friendDto.CategoryId,
                 RelationshipStatus = friendDto.RelationshipStatus,
+                FollowingDisabled = friendDto.FollowingDisabled,
+                FollowingAllowed = snapshot.IsOnline && !friendDto.FollowingDisabled,
             };
 
             ForceUpdate(snapshot.PlayerId);
@@ -816,6 +818,221 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         FlushUpdates();
 
         return true;
+    }
+
+    public async Task<(
+        MessengerCategoryResultType Result,
+        MessengerCategoryDto? Category
+    )> CreateCategoryAsync(string name, CancellationToken ct)
+    {
+        var check = !_playerConfig.MessengerCategoriesEnabled
+            ? MessengerCategoryResultType.Disabled
+            : CheckCategoryName(ref name, exceptId: null);
+
+        if (
+            check == MessengerCategoryResultType.Done
+            && _state.Categories.Count >= _playerConfig.MessengerMaxCategories
+        )
+            check = MessengerCategoryResultType.LimitReached;
+
+        if (check != MessengerCategoryResultType.Done)
+            return (check, null);
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entity = new MessengerCategoryEntity
+        {
+            PlayerEntityId = _state.PlayerId.Value,
+            Name = name,
+            PlayerEntity = null!,
+        };
+
+        dbCtx.MessengerCategories.Add(entity);
+
+        await dbCtx.SaveChangesAsync(ct);
+
+        var category = new MessengerCategoryDto { CategoryId = entity.Id, Name = name };
+
+        _state.Categories.Add(category);
+
+        FlushUpdates(categoriesChanged: true);
+
+        return (MessengerCategoryResultType.Done, category);
+    }
+
+    public async Task<MessengerCategoryResultType> RenameCategoryAsync(
+        int categoryId,
+        string name,
+        CancellationToken ct
+    )
+    {
+        var index = _state.Categories.FindIndex(x => x.CategoryId == categoryId);
+        var check =
+            !_playerConfig.MessengerCategoriesEnabled ? MessengerCategoryResultType.Disabled
+            : index < 0 ? MessengerCategoryResultType.CategoryNotFound
+            : CheckCategoryName(ref name, exceptId: categoryId);
+
+        if (check != MessengerCategoryResultType.Done)
+            return check;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .MessengerCategories.Where(x =>
+                x.Id == categoryId && x.PlayerEntityId == _state.PlayerId.Value
+            )
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.Name, name), ct);
+
+        _state.Categories[index] = _state.Categories[index] with { Name = name };
+
+        // FriendCategories.updateCategories renames a category the client already lists.
+        FlushUpdates(categoriesChanged: true);
+
+        return MessengerCategoryResultType.Done;
+    }
+
+    public async Task<MessengerCategoryResultType> DeleteCategoryAsync(
+        int categoryId,
+        CancellationToken ct
+    )
+    {
+        if (!_playerConfig.MessengerCategoriesEnabled)
+            return MessengerCategoryResultType.Disabled;
+
+        if (!_state.Categories.Exists(x => x.CategoryId == categoryId))
+            return MessengerCategoryResultType.CategoryNotFound;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .MessengerFriends.Where(x =>
+                x.PlayerEntityId == _state.PlayerId.Value
+                && x.MessengerCategoryEntityId == categoryId
+            )
+            .ExecuteUpdateAsync(
+                up => up.SetProperty(x => x.MessengerCategoryEntityId, (int?)null),
+                ct
+            );
+        await dbCtx
+            .MessengerCategories.Where(x =>
+                x.Id == categoryId && x.PlayerEntityId == _state.PlayerId.Value
+            )
+            .ExecuteDeleteAsync(ct);
+
+        _state.Categories.RemoveAll(x => x.CategoryId == categoryId);
+
+        foreach (
+            var friend in _state.Friends.Values.Where(x => x.CategoryId == categoryId).ToList()
+        )
+        {
+            _state.Friends[friend.PlayerId] = friend with { CategoryId = 0 };
+
+            ForceUpdate(friend.PlayerId);
+        }
+
+        FlushUpdates(categoriesChanged: true);
+
+        return MessengerCategoryResultType.Done;
+    }
+
+    public async Task<MessengerCategoryResultType> SetFriendCategoryAsync(
+        PlayerId friendId,
+        int categoryId,
+        CancellationToken ct
+    )
+    {
+        if (!_playerConfig.MessengerCategoriesEnabled)
+            return MessengerCategoryResultType.Disabled;
+
+        if (!_state.Friends.TryGetValue(friendId, out var friendDto) || friendId <= 0)
+            return MessengerCategoryResultType.NotFriend;
+
+        if (categoryId != 0 && !_state.Categories.Exists(x => x.CategoryId == categoryId))
+            return MessengerCategoryResultType.CategoryNotFound;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        int? stored = categoryId == 0 ? null : categoryId;
+
+        await dbCtx
+            .MessengerFriends.Where(x =>
+                x.PlayerEntityId == _state.PlayerId.Value
+                && x.FriendPlayerEntityId == friendId.Value
+            )
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.MessengerCategoryEntityId, stored), ct);
+
+        _state.Friends[friendId] = friendDto with { CategoryId = categoryId };
+
+        ForceUpdate(friendId);
+
+        FlushUpdates();
+
+        return MessengerCategoryResultType.Done;
+    }
+
+    /// <summary>
+    /// A category name trimmed and checked: not empty, within <c>MessengerCategoryNameMaxLength</c>,
+    /// clean by the word filter, and not one of the player's other categories' (the table's
+    /// unique index is on the player and the name).
+    /// </summary>
+    private MessengerCategoryResultType CheckCategoryName(ref string name, int? exceptId)
+    {
+        name = (name ?? string.Empty).Trim();
+
+        if (
+            name.Length == 0
+            || name.Length > _playerConfig.MessengerCategoryNameMaxLength
+            || !_wordFilter.IsClean(name)
+        )
+            return MessengerCategoryResultType.InvalidName;
+
+        var candidate = name;
+
+        return _state.Categories.Exists(x =>
+            x.CategoryId != exceptId
+            && string.Equals(x.Name, candidate, StringComparison.OrdinalIgnoreCase)
+        )
+            ? MessengerCategoryResultType.NameTaken
+            : MessengerCategoryResultType.Done;
+    }
+
+    public async Task UpdateFriendsFollowingAsync(bool followingAllowed, CancellationToken ct)
+    {
+        var onlineFriendIds = _state
+            .Friends.Values.Where(friend => friend.Online && friend.PlayerId > 0)
+            .Select(friend => friend.PlayerId)
+            .ToList();
+
+        await Task.WhenAll(
+            onlineFriendIds.Select(friendId =>
+                _grainFactory
+                    .GetPlayerMessengerGrain(friendId)
+                    .ReceiveFriendFollowingAsync(_state.PlayerId, followingAllowed, ct)
+            )
+        );
+    }
+
+    public Task ReceiveFriendFollowingAsync(
+        PlayerId friendId,
+        bool followingAllowed,
+        CancellationToken ct
+    )
+    {
+        if (_state.Friends.TryGetValue(friendId, out var friendDto))
+        {
+            _state.Friends[friendId] = friendDto with
+            {
+                FollowingDisabled = !followingAllowed,
+                FollowingAllowed = friendDto.Online && followingAllowed,
+            };
+
+            // FriendCategories.onFriendListUpdate: the follow button follows the update.
+            ForceUpdate(friendId);
+
+            FlushUpdates();
+        }
+
+        return Task.CompletedTask;
     }
 
     public async Task<(
@@ -892,9 +1109,14 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 RealName = string.Empty,
             };
 
-            if (_state.Friends.ContainsKey(snapshot.PlayerId))
+            if (_state.Friends.TryGetValue(snapshot.PlayerId, out var friend))
             {
-                friends.Add(snapshot with { FollowingAllowed = isOnline });
+                friends.Add(
+                    snapshot with
+                    {
+                        FollowingAllowed = isOnline && !friend.FollowingDisabled,
+                    }
+                );
             }
             else
             {
@@ -1673,13 +1895,14 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     /// tells (<see cref="OnFriendAddedAsync"/>, <see cref="OnFriendRemovedAsync"/>) end here and
     /// must await nothing, and one way to flush is all this grain needs.
     /// </summary>
-    private void FlushUpdates()
+    private void FlushUpdates(bool categoriesChanged = false)
     {
         var updates = _state.PendingUpdates.Values.ToList();
 
         _state.PendingUpdates.Clear();
 
-        if (updates.Count == 0)
+        // A category change alone still goes out: FriendListUpdate carries the whole list.
+        if (updates.Count == 0 && !categoriesChanged)
             return;
 
         _grainFactory
@@ -2045,6 +2268,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 Gender = x.FriendPlayerEntity.Gender,
                 Online = false,
                 FollowingAllowed = false,
+                FollowingDisabled = dbCtx.PlayerSettings.Any(settings =>
+                    settings.PlayerEntityId == x.FriendPlayerEntityId && settings.FollowingDisabled
+                ),
                 Figure = x.FriendPlayerEntity.Figure,
                 // Category 0 is the list's own "friends"; -1 is the offline caption, which
                 // FriendCategories.addFriend uses for every offline friend itself.
@@ -2111,7 +2337,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             fresh[rows[i].PlayerId] = rows[i] with
             {
                 Online = online[i],
-                FollowingAllowed = online[i],
+                FollowingAllowed = online[i] && !rows[i].FollowingDisabled,
             };
 
         foreach (var friendId in before.Keys.Union(fresh.Keys).ToList())

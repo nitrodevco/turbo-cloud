@@ -6571,6 +6571,11 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("discord_show_habbo");
 
+                    b.Property<bool>("FollowingDisabled")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("following_disabled");
+
                     b.Property<bool>("FriendRequestsDisabled")
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
