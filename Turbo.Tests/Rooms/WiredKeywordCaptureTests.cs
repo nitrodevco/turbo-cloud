@@ -163,6 +163,34 @@ public sealed class WiredKeywordCaptureTests
         (await _trigger.MatchesEventAsync(Chat(said), Ct)).Should().Be(fires);
     }
 
+    /// <summary>
+    /// A connector put on a variable's stack after the variable labels it at once (r55 tester
+    /// report: a capturer in text mode never fired until the room was reloaded, and its editor kept
+    /// "Textual" greyed out): the variable is described again, and so is the room's variable list
+    /// the client keeps in step by its hash (VariableCapturerAddon.onChangeVariable reads
+    /// hasTextConnector from it, WiredVariablesSynchronizer).
+    /// </summary>
+    [Fact]
+    public async Task A_connector_added_after_its_variable_labels_it_at_once()
+    {
+        await BuildAsync(0, textMode: true);
+
+        var hash = Wired.AllVariablesHash;
+
+        (await _trigger.MatchesEventAsync(Chat("price silver"), Ct)).Should().BeFalse();
+
+        _room.AddBox<WiredAddonVariableTextConnector>(12, 3, 3, "wf_xtra_var_text_connector");
+        (await _room.SaveAsync<UpdateAddonMessage>(12, stringParam: "7=Silver")).Should().BeTrue();
+        await TickAsync(1);
+
+        Wired.AllVariablesHash.Should().NotBe(hash);
+        (await _trigger.MatchesEventAsync(Chat("price silver"), Ct)).Should().BeTrue();
+
+        await SayAsync("price silver");
+
+        PriceValue().Should().Be(7);
+    }
+
     /// <summary>The connector's text area takes 1000 characters (VariableTextConnectorAddon).</summary>
     [Fact]
     public async Task The_text_connector_keeps_its_first_thousand_characters()
@@ -224,7 +252,8 @@ public sealed class WiredKeywordCaptureTests
     private async Task BuildAsync(
         int matchMode,
         string keyword = "price #(p)",
-        string? connector = null
+        string? connector = null,
+        bool? textMode = null
     )
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
@@ -299,7 +328,7 @@ public sealed class WiredKeywordCaptureTests
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 2,
-                intParams: [connector is null ? 0 : 1],
+                intParams: [textMode ?? connector is not null ? 1 : 0],
                 stringParam: "p",
                 variableIds: [pId]
             )
