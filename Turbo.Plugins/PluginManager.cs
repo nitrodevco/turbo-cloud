@@ -383,10 +383,13 @@ public sealed class PluginManager(
     /// plugin is stopped and taken out again before the exception goes on: one plugin that can't
     /// load leaves nothing of itself behind, and the server and the other plugins carry on. The
     /// caller holds the plugin's key gate.
+    /// A version it replaces is waited for only after that: clients are sent the new version's
+    /// module as it starts, so its handlers must not wait on the old assembly being collected,
+    /// which a reference left behind holds up for the whole unload timeout.
     /// </summary>
     private async Task LoadAndProcessAsync(PluginManifest m, string folder, CancellationToken ct)
     {
-        var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
+        var (asm, next, replaced) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
 
         try
         {
@@ -415,19 +418,24 @@ public sealed class PluginManager(
 
             throw;
         }
+        finally
+        {
+            await WaitForUnloadAsync(replaced, m.Key, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
     /// Replaces the live version of one plugin with a fresh load of <paramref name="folder"/>.
-    /// The caller holds the plugin's key gate and runs feature processing on the result. Refuses
-    /// while a dependency is not live, and refuses to replace a live version that live dependents
-    /// are bound to.
+    /// The caller holds the plugin's key gate, runs feature processing on the result and then
+    /// waits for the replaced version's context (`Replaced`) to unload. Refuses while a
+    /// dependency is not live, and refuses to replace a live version that live dependents are
+    /// bound to.
     /// </summary>
-    private async Task<(LoadedAssembly Assembly, PluginEnvelope Envelope)> LoadPluginAsync(
-        PluginManifest m,
-        string folder,
-        CancellationToken ct
-    )
+    private async Task<(
+        LoadedAssembly Assembly,
+        PluginEnvelope Envelope,
+        WeakReference? Replaced
+    )> LoadPluginAsync(PluginManifest m, string folder, CancellationToken ct)
     {
         // A folder copied in by hand is held to the API as an installed package is.
         if (PluginApi.Refusal(m) is { } refusal)
@@ -485,9 +493,7 @@ public sealed class PluginManager(
 
         _live[m.Key] = next;
 
-        await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
-
-        return (asm, next);
+        return (asm, next, unloading);
     }
 
     private async Task UnloadAsync(string key, CancellationToken ct = default)
