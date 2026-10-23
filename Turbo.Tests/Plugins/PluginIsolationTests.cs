@@ -214,6 +214,22 @@ public sealed class PluginIsolationTests : IDisposable
         plugins["user"].LoadedAtUtc.Should().BeAfter(loaded["user"]!.Value);
     }
 
+    [Fact]
+    public async Task Stopping_the_server_unloads_a_plugin_after_its_dependents()
+    {
+        var (manager, _) = Create();
+
+        PluginBuilder.Write(_folder, "lib", Plugin("lib", NODES));
+        PluginBuilder.Write(_folder, "user", Plugin("user", NODES), null, "lib");
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        // "lib" was taken first, refused while "user" was live, and never stopped.
+        await manager.UnloadAllAsync(Ct);
+
+        manager.Snapshot().Should().OnlyContain(x => x.State == PluginStateType.NotLoaded);
+    }
+
     private static Dictionary<string, DateTime?> LoadedAt(PluginManager manager) =>
         manager.Snapshot().ToDictionary(x => x.Key, x => x.LoadedAtUtc);
 

@@ -532,6 +532,10 @@ public sealed class PluginManager(
         }
     }
 
+    /// <summary>
+    /// Unloads every live plugin, as the server stops: a plugin after the plugins that depend on
+    /// it, so each is stopped while what it depends on still runs.
+    /// </summary>
     public async Task UnloadAllAsync(CancellationToken ct = default)
     {
         var keys = _live.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -548,7 +552,12 @@ public sealed class PluginManager(
 
         while (keys.Count > 0)
         {
-            var leafs = keys.Where(k => !dependents.Values.Any(list => list.Contains(k))).ToList();
+            // The plugins no live plugin depends on any more. A dependency taken first was refused
+            // ("dependents active") and left running.
+            var leafs = keys.Where(k =>
+                    !dependents.TryGetValue(k, out var list) || !list.Any(keys.Contains)
+                )
+                .ToList();
 
             if (leafs.Count == 0)
                 leafs = [.. keys];
