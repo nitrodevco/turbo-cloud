@@ -472,6 +472,24 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         )
             return;
 
+        var ctx = await CreateFiringContextAsync(trigger, evt, stack, dryRun: false, ct);
+
+        await RunStackAsync(ctx, now, calledByStack: false, ct);
+    }
+
+    /// <summary>
+    /// The context <paramref name="trigger"/> runs its stack in for <paramref name="evt"/>: what
+    /// the event carries and selects. A dry run's context is only asked whether the stack would
+    /// pass (<see cref="WouldPassAsync"/>).
+    /// </summary>
+    private async Task<WiredProcessingContext> CreateFiringContextAsync(
+        IWiredTrigger trigger,
+        RoomEvent evt,
+        IWiredStack stack,
+        bool dryRun,
+        CancellationToken ct
+    )
+    {
         var (signal, depth) = evt switch
         {
             WiredSignalEvent signalEvt => (
@@ -491,6 +509,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Signal = signal,
             Depth = depth,
             CancellationToken = ct,
+            IsDryRun = dryRun,
             // A signalled stack starts from a copy of what the sender's context held.
             ContextValues = ContextValuesFor(evt),
             CarriedPlaceholders = PlaceholdersFor(evt),
@@ -520,7 +539,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         else
             ctx.Selected.UnionWith(selection);
 
-        await RunStackAsync(ctx, now, calledByStack: false, ct);
+        return ctx;
     }
 
     private static async Task CaptureLinkPayloadAsync(
@@ -603,61 +622,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        // The selectors' picks add up first; "filter existing selection" ones then narrow them,
-        // wherever they stand in the stack (official client capture: a filter placed below its
-        // seed still removed a seeded user of the wrong type).
-        foreach (var selector in ctx.Stack.Selectors)
-        {
-            if (selector.GetIsFilter())
-                continue;
-
-            await ApplySelectorAsync(ctx, selector, ct);
-            Flash(selector);
-        }
-
-        foreach (var selector in ctx.Stack.Selectors)
-        {
-            if (!selector.GetIsFilter())
-                continue;
-
-            await ApplySelectorAsync(ctx, selector, ct);
-            Flash(selector);
-        }
-
-        foreach (var addon in ctx.Stack.Addons)
-        {
-            if (!await addon.MutatePolicyAsync(ctx, ct))
-                return;
-        }
-
-        // "Can Perform Movements" asks about moves that have not been made: it takes every effect
-        // of the stack, whatever the random add-on would pick, in a random order whether or not
-        // "Execute In Order" is on, and works their moves out on a ghost of the room. The effects
-        // that then run are picked and put in order again, so a pass does not promise those moves
-        // (official client capture, WIN63-202610201032, two move and two rotate effects on one
-        // sofa: the condition passed 24 of 44 firings and 13 of those 24 ran an order that
-        // blocked; with Execute In Order the effects ran in stack order 15 of 15 while the
-        // condition still failed 25 of 40. 2026-10-22T22-04-45, the random add-on picking 2 of
-        // them, every pick of 2 able to move: passed 7 of 20; 22-06-39, a blocker that let half the
-        // picks move but no order of all 4: passed 0 of 20).
-        if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
-        {
-            var checkedActions = ActionsOfSide(ctx.Stack, negative: false);
-
-            if (checkedActions.Count > 1)
-                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedActions));
-
-            ctx.MovePlans = PlanMoves(ctx, checkedActions);
-        }
-
-        // A stack call, positive or negative, runs the called stack "regardless of existing
-        // conditions or triggers" (official furnidata 2026-10-13, wf_act_call_stacks): its
-        // conditions are not asked and do not flash (official client capture, WIN63-202610171745:
-        // the callee's effect ran with its condition false 5/5 and true 2/2 from a negative call,
-        // and its passing condition never flashed). The negative box is the caller's else branch.
-        var passed = calledByStack || EvaluateConditions(ctx.Stack.Conditions, ctx);
-
-        if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
+        if (await DecideAsync(ctx, calledByStack, ct) is not { } passed)
             return;
 
         // Habbo flashes a trigger each time it fires, whatever its conditions then decide, and the
@@ -692,6 +657,81 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
+    }
+
+    /// <summary>
+    /// Selects, applies the add-ons and asks the conditions: true when the stack takes its
+    /// positive side, false its negative one, null when it stops before either (an add-on
+    /// refused, or the trigger cannot fire for this event). A dry run flashes nothing.
+    /// </summary>
+    private async Task<bool?> DecideAsync(
+        WiredProcessingContext ctx,
+        bool calledByStack,
+        CancellationToken ct
+    )
+    {
+        // The selectors' picks add up first; "filter existing selection" ones then narrow them,
+        // wherever they stand in the stack (official client capture: a filter placed below its
+        // seed still removed a seeded user of the wrong type).
+        foreach (var selector in ctx.Stack.Selectors)
+        {
+            if (selector.GetIsFilter())
+                continue;
+
+            await ApplySelectorAsync(ctx, selector, ct);
+
+            if (!ctx.IsDryRun)
+                Flash(selector);
+        }
+
+        foreach (var selector in ctx.Stack.Selectors)
+        {
+            if (!selector.GetIsFilter())
+                continue;
+
+            await ApplySelectorAsync(ctx, selector, ct);
+
+            if (!ctx.IsDryRun)
+                Flash(selector);
+        }
+
+        foreach (var addon in ctx.Stack.Addons)
+        {
+            if (!await addon.MutatePolicyAsync(ctx, ct))
+                return null;
+        }
+
+        // "Can Perform Movements" asks about moves that have not been made: it takes every effect
+        // of the stack, whatever the random add-on would pick, in a random order whether or not
+        // "Execute In Order" is on, and works their moves out on a ghost of the room. The effects
+        // that then run are picked and put in order again, so a pass does not promise those moves
+        // (official client capture, WIN63-202610201032, two move and two rotate effects on one
+        // sofa: the condition passed 24 of 44 firings and 13 of those 24 ran an order that
+        // blocked; with Execute In Order the effects ran in stack order 15 of 15 while the
+        // condition still failed 25 of 40. 2026-10-22T22-04-45, the random add-on picking 2 of
+        // them, every pick of 2 able to move: passed 7 of 20; 22-06-39, a blocker that let half the
+        // picks move but no order of all 4: passed 0 of 20).
+        if (!calledByStack && ctx.Stack.Conditions.Any(x => x is WiredConditionValidMoves))
+        {
+            var checkedActions = ActionsOfSide(ctx.Stack, negative: false);
+
+            if (checkedActions.Count > 1)
+                Random.Shared.Shuffle(CollectionsMarshal.AsSpan(checkedActions));
+
+            ctx.MovePlans = PlanMoves(ctx, checkedActions);
+        }
+
+        // A stack call, positive or negative, runs the called stack "regardless of existing
+        // conditions or triggers" (official furnidata 2026-10-13, wf_act_call_stacks): its
+        // conditions are not asked and do not flash (official client capture, WIN63-202610171745:
+        // the callee's effect ran with its condition false 5/5 and true 2/2 from a negative call,
+        // and its passing condition never flashed). The negative box is the caller's else branch.
+        var passed = calledByStack || EvaluateConditions(ctx.Stack.Conditions, ctx);
+
+        if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
+            return null;
+
+        return passed;
     }
 
     private static List<IWiredAction> ActionsOfSide(IWiredStack stack, bool negative)
@@ -1769,7 +1809,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         var matched = conditions.Count(c => c.Evaluate(ctx));
-        var threshold = Math.Max(0, ctx.Policy.ConditionThreshold);
+
+        // The number is used as saved, below zero or past the editor's 1000 alike (official client
+        // capture WIN63-202610201032: "more than -1" passed 5 of 5, 2026-10-23T00-05-33, and "at
+        // most 1001" 3 of 3, 00-07-24-UpdateAddon).
+        var threshold = ctx.Policy.ConditionThreshold;
 
         return ctx.Policy.ConditionMode switch
         {
@@ -1780,6 +1824,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             WiredConditionModeType.LessThan => matched < threshold,
             WiredConditionModeType.Exactly => matched == threshold,
             WiredConditionModeType.MoreThan => matched > threshold,
+            WiredConditionModeType.AtMost => matched <= threshold,
+            WiredConditionModeType.NotExactly => matched != threshold,
+            WiredConditionModeType.AtLeast => matched >= threshold,
+            WiredConditionModeType.Never => false,
             _ => matched == conditions.Count,
         };
     }

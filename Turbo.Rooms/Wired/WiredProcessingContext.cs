@@ -15,6 +15,8 @@ public sealed class WiredProcessingContext(RoomGrain roomGrain)
     /// <summary>Null when the stack was run by a "call stack" action rather than a trigger.</summary>
     public IWiredTrigger? Trigger { get; init; }
 
+    public bool IsDryRun { get; init; }
+
     /// <summary>
     /// The furni moves of one random order of the stack's effects, worked out before its
     /// conditions are asked; what "Can Perform Movements" reads. The effects that run if they pass
