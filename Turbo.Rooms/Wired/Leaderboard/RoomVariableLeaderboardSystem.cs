@@ -67,6 +67,12 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
         {
             case RoomWiredStackChangedEvent:
             case WiredVariableBoxChangedEvent:
+                // The rows show what the stack's add-ons make of a value (a text connector's
+                // label, a level): an add-on saved there changes them, not only a value. A chunk
+                // that comes out the same is not sent again.
+                _overlaysDirty = true;
+                _rowsDirty = true;
+                break;
             case RoomItemDetachedEvent:
             case RoomItemPlacedEvent:
             case RoomItemMovedEvent:

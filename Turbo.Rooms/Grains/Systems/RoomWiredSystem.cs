@@ -372,7 +372,19 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case RoomWiredStackChangedEvent stackEvt:
                 {
                     foreach (var stackId in stackEvt.StackIds)
+                    {
                         _dirtyStackIds.Add(stackId);
+
+                        // A variable describes itself with the add-ons on its tile (a text
+                        // connector's labels): one placed, saved, moved or picked up there has
+                        // it described again, or the capturer and the client's variable list
+                        // keep the old labels until the room is reloaded.
+                        foreach (var item in FurniModule.GetFloorItemsOnTile(stackId))
+                        {
+                            if (item.Logic is FurnitureWiredVariableLogic)
+                                _dirtyVariableBoxIds.Add(item.ObjectId.Value);
+                        }
+                    }
                 }
                 break;
             case WiredVariableBoxChangedEvent boxEvt:

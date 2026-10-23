@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Wired.Leaderboard;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -124,6 +125,49 @@ public sealed class WiredVariableLeaderboardTests
 
         chunk.End.Should().BeTrue();
         ranked.Should().Equal((1, 102, "20"), (2, 103, "10"), (3, 101, "5"));
+    }
+
+    /// <summary>
+    /// The Text column shows the label a text connector on the stack gives each value, also when
+    /// the connector is put there after the variable (r55 tester report: "-" for a holder of 10
+    /// under a connector "0=Test0 10=Test10" until the room was reloaded). Viewers get the
+    /// labelled rows without subscribing again.
+    /// </summary>
+    [Fact]
+    public async Task The_text_column_takes_a_connector_added_after_the_variable()
+    {
+        int[] usernameAndText =
+        [
+            0,
+            2,
+            0,
+            VariableLeaderboardConfig.COLUMN_TEXT,
+            -1,
+            -1,
+            .. Ints()[6..],
+        ];
+        var variableId = await BuildPublishedAsync(usernameAndText);
+        var revision = await RevisionAsync();
+
+        await SubscribeAsync(Subscription(1, revision, variableId, 0), player: 1);
+        await _room.Harness.Room.VariableLeaderboardSystem.ProcessAsync(15_000, Ct);
+
+        _room.AddBox<WiredAddonVariableTextConnector>(12, 3, 3, "wf_xtra_var_text_connector");
+        (await _room.SaveAsync<UpdateAddonMessage>(12, stringParam: "5=Five\n10=Ten\n20=Twenty"))
+            .Should()
+            .BeTrue();
+        await Wired.ProcessWiredAsync(20_000, dormant: false, Ct);
+        await _room.Harness.Room.VariableLeaderboardSystem.ProcessAsync(20_000, Ct);
+
+        var pushed = _room
+            .Harness.Fakes.Log.Calls.Where(x =>
+                x.Method == "SendComposerAsync" && x.Key is long key && key == 101
+            )
+            .SelectMany(x => x.Args.OfType<VariableLeaderboardChunkUpdateMessageComposer>())
+            .LastOrDefault();
+
+        pushed.Should().NotBeNull("the viewer's chunk changed");
+        pushed!.Rows.Select(x => x.TextConnection).Should().Equal("Twenty", "Ten", "Five");
     }
 
     [Fact]
@@ -473,7 +517,7 @@ public sealed class WiredVariableLeaderboardTests
             .. System.Text.Encoding.UTF8.GetBytes(text),
         ]);
 
-    private async Task<string> BuildPublishedAsync()
+    private async Task<string> BuildPublishedAsync(int[]? ints = null)
     {
         var variable = await BuildStackAsync();
         var variableId = variable.GetVarSnapshot().VariableId.ToString();
@@ -481,7 +525,7 @@ public sealed class WiredVariableLeaderboardTests
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 LEADERBOARD,
-                intParams: Ints(),
+                intParams: ints ?? Ints(),
                 stringParam: Strings(title: "Richest"),
                 variableIds: NoVariables()
             )
