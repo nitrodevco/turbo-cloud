@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Plugins.Messages;
 
 namespace Turbo.PacketHandlers.Turbo;
 
@@ -18,14 +19,15 @@ namespace Turbo.PacketHandlers.Turbo;
 /// A client opting in to Turbo's protocol extensions. The accepted ones are kept for the session
 /// and answered, then whatever an accepted extension carries is sent: the permission nodes and the
 /// command tree, after the answer, through the same queue so they cannot overtake it, the
-/// countdown notice up now, and the client modules. The rights and perks the client was sent at login are not sent again.
+/// countdown notice up now, the plugin messages and the client modules. The rights and perks the client was sent at login are not sent again.
 /// </summary>
 public class TurboClientCapabilitiesMessageHandler(
     IGrainFactory grainFactory,
     IExtensionPacketRegistry extensions,
     ICommandTreeService commandTreeService,
     IHotelCountdownNotice countdownNotice,
-    IClientModuleDirectory clientModules
+    IClientModuleDirectory clientModules,
+    IPluginMessageDirectory pluginMessages
 ) : IMessageHandler<TurboClientCapabilitiesMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
@@ -33,6 +35,7 @@ public class TurboClientCapabilitiesMessageHandler(
     private readonly ICommandTreeService _commandTreeService = commandTreeService;
     private readonly IHotelCountdownNotice _countdownNotice = countdownNotice;
     private readonly IClientModuleDirectory _clientModules = clientModules;
+    private readonly IPluginMessageDirectory _pluginMessages = pluginMessages;
 
     public async ValueTask HandleAsync(
         TurboClientCapabilitiesMessage message,
@@ -69,6 +72,17 @@ public class TurboClientCapabilitiesMessageHandler(
         )
             await _grainFactory
                 .SendComposerToPlayerAsync(ctx.PlayerId, notice, ct)
+                .ConfigureAwait(false);
+
+        // The messages before the modules, so a module that listens by name as it starts finds
+        // the names already known.
+        if (accepted.Any(x => x.Name == ClientCapabilities.CLIENT_MESSAGES))
+            await _grainFactory
+                .SendComposerToPlayerAsync(
+                    ctx.PlayerId,
+                    new TurboPluginMessagesMessage { Messages = _pluginMessages.Messages },
+                    ct
+                )
                 .ConfigureAwait(false);
 
         if (accepted.Any(x => x.Name == ClientCapabilities.CLIENT_MODULES))

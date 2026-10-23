@@ -3,7 +3,7 @@
 A plugin can bring code that runs in the client: a **client module**, a JavaScript ES module the
 client loads and runs beside its own. Server code stays in the plugin's assembly; the module adds
 what the player sees (a toolbar icon, a window, a drawing over an avatar) and talks to the plugin
-through the plugin's own packets (`docs/plugin-packets.md`). A hotel turns a feature on or off by
+through the plugin's named messages (`docs/plugin-messages.md`) or its own packets (`docs/plugin-packets.md`). A hotel turns a feature on or off by
 installing or removing one plugin: its server half and its client half come and go together.
 
 Client modules are a Turbo extension (`docs/client-capabilities.md`): a client that does not ask for
@@ -154,6 +154,8 @@ short, for api version 1:
   the others), `toolbar.add`, `meMenu.add/toggle`, `links.handle(prefix, fn)` and `links.open`
   (Habbo's own links too, `toolbar/memenu` among them), the plugin's packets
   (`packets.registerParser/registerComposer/send`, headers 20000-32767 outside Turbo's 30000-30099),
+  the plugin's named messages by name (`messages.on(name, handler)`, `messages.send(name, object)`,
+  read and written from the schema `client.messages` sends: `docs/plugin-messages.md`),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
   `room.avatarOverlay(fn)`, `room.leave()`, `hotelView.addLayer(component, { replacesBackground })` (drawn in the
   reception behind its widgets), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up

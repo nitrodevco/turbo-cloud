@@ -32,4 +32,7 @@ public interface IExtensionPacketRegistry
     bool TryGetSerializer(Type composerType, out ISerializer serializer);
 
     bool HasCapability(string name);
+
+    /// <summary>Whether a parser or a serializer uses <paramref name="header"/>.</summary>
+    bool HasHeader(int header);
 }

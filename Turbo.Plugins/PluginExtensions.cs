@@ -73,5 +73,7 @@ internal sealed class PluginExtensions
             inner.TryGetSerializer(composerType, out serializer);
 
         public bool HasCapability(string name) => inner.HasCapability(name);
+
+        public bool HasHeader(int header) => inner.HasHeader(header);
     }
 }

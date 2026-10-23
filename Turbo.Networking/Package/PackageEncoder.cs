@@ -1,10 +1,12 @@
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
+using Turbo.Primitives.Plugins.Messages;
 
 namespace Turbo.Networking.Package;
 
@@ -12,13 +14,15 @@ public sealed class PackageEncoder(
     IRevisionManager revisionManager,
     IExtensionPacketRegistry extensions,
     ComposerPayloadCache payloadCache,
-    ILogger<PackageEncoder> logger
+    ILogger<PackageEncoder> logger,
+    IPluginMessageDirectory? pluginMessages = null
 ) : IPackageEncoder<OutgoingPackage>
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IExtensionPacketRegistry _extensions = extensions;
     private readonly ComposerPayloadCache _payloadCache = payloadCache;
     private readonly ILogger<PackageEncoder> _logger = logger;
+    private readonly IPluginMessageDirectory? _pluginMessages = pluginMessages;
 
     public int Encode(IBufferWriter<byte> writer, OutgoingPackage pack) =>
         Encode(writer, pack.Session, pack.Composer);
@@ -51,6 +55,9 @@ public sealed class PackageEncoder(
 
                 return bytes.Length;
             }
+
+            if (composer is PluginMessageComposer message)
+                return EncodePluginMessage(writer, session, message);
 
             var composerType = composer.GetType();
 
@@ -93,5 +100,39 @@ public sealed class PackageEncoder(
         }
 
         return 0;
+    }
+
+    // A plugin message is written already; it is framed here with the header its name has now,
+    // and dropped when its plugin has gone since it was sent.
+    private int EncodePluginMessage(
+        IBufferWriter<byte> writer,
+        ISessionContext session,
+        PluginMessageComposer message
+    )
+    {
+        if (_pluginMessages is null || !_pluginMessages.TryGetHeader(message.Name, out var header))
+        {
+            _logger.LogWarning(
+                "Plugin message {Name} is not registered; not sent to {SessionKey}",
+                message.Name,
+                session.SessionKey
+            );
+
+            return 0;
+        }
+
+        var length = 4 + 2 + message.Body.Length;
+        var span = writer.GetSpan(length)[..length];
+
+        BinaryPrimitives.WriteInt32BigEndian(span, length - 4);
+        BinaryPrimitives.WriteInt16BigEndian(span[4..], (short)header);
+        message.Body.AsSpan().CopyTo(span[6..]);
+        session.CryptoOut?.ProcessInPlace(span);
+        writer.Advance(length);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Outgoing plugin message {Name} as {Header}", message.Name, header);
+
+        return length;
     }
 }

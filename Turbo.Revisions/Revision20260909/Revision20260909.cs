@@ -5139,6 +5139,12 @@ public class Revision20260909 : IRevision
                     MessageComposer.TurboClientModulesMessageComposer
                 )
             },
+            {
+                typeof(TurboPluginMessagesMessage),
+                new TurboPluginMessagesMessageSerializer(
+                    MessageComposer.TurboPluginMessagesMessageComposer
+                )
+            },
             #endregion
 
             #region Userclassification

@@ -5,6 +5,11 @@ A plugin can add packets of its own to Turbo's protocol without touching a revis
 `docs/client-capabilities.md`: a client that never asks for a plugin's capability never receives
 its packets.
 
+For a new plugin, prefer **named messages** (`docs/plugin-messages.md`): a record and a name, with
+the header, the codec and the client's map handled by the host. The registry below stays for
+plugins that number their own packets; named messages take their headers from the top of the
+plugin space and skip every header registered here.
+
 ## Rules
 
 - Headers are `20000`-`32767` except Turbo's `30000`-`30099` (`ExtensionPackets.IsPluginHeader`).

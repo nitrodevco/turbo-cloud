@@ -29,6 +29,7 @@ using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -136,6 +137,26 @@ public static class GrainFactoryExtensions
         Task.WhenAll(
             playerIds.Select(playerId => factory.SendComposerToPlayerAsync(playerId, composer, ct))
         );
+
+    /// <summary>
+    /// Sends a plugin message to a player, wherever they are connected: written by its schema here
+    /// and sent as <see cref="SendComposerToPlayerAsync"/> sends a composer, to a session that
+    /// accepted <c>client.messages</c> (<c>docs/plugin-messages.md</c>).
+    /// </summary>
+    public static Task SendPluginMessageToPlayerAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        IPluginMessage message,
+        CancellationToken ct
+    ) => factory.SendComposerToPlayerAsync(playerId, PluginMessageComposer.For(message), ct);
+
+    /// <summary>The same plugin message to several players, written once.</summary>
+    public static Task SendPluginMessageToPlayersAsync(
+        this IGrainFactory factory,
+        IEnumerable<PlayerId> playerIds,
+        IPluginMessage message,
+        CancellationToken ct
+    ) => factory.SendComposerToPlayersAsync(playerIds, PluginMessageComposer.For(message), ct);
 
     public static IPlayerPresenceGrain GetPlayerPresenceGrain(
         this IGrainFactory factory,

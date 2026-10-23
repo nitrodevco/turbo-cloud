@@ -21,6 +21,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Plugins.Messages;
 
 namespace Turbo.Networking;
 
@@ -31,7 +32,8 @@ public sealed class NetworkManager(
     IExtensionPacketRegistry extensions,
     MessageSystem messageSystem,
     ILoggerFactory loggerFactory,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    IPluginMessageDirectory pluginMessages
 ) : INetworkManager
 {
     private readonly NetworkingConfig _config = config.Value;
@@ -59,7 +61,8 @@ public sealed class NetworkManager(
         revisionManager,
         extensions,
         new ComposerPayloadCache(),
-        loggerFactory.CreateLogger<PackageEncoder>()
+        loggerFactory.CreateLogger<PackageEncoder>(),
+        pluginMessages
     );
 
     private readonly object _tcpGate = new();

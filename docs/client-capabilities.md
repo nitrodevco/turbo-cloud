@@ -307,3 +307,17 @@ plugin side, the serving and the client side, is in `docs/client-modules.md`.
 Sent straight after the capability answer, and again to everyone who accepted it whenever a plugin
 with a module loads, unloads or reloads: always the whole set, so a module no longer listed is taken
 away.
+
+## `client.messages` (version 1)
+
+The plugins' named messages: each plugin message's name, the header the host gave it and its field
+schema, so a client module reads and writes plugin messages by name. The whole of it, the plugin
+side, the headers, the wire encoding and the schema, is in `docs/plugin-messages.md`.
+
+| Direction | Header | Packet | Body |
+| --- | --- | --- | --- |
+| server → client | 30010 | `TurboPluginMessagesMessage` | `int count`, then per message `string name`, `int header`, `string schema` |
+
+Sent straight after the capability answer, and again to everyone who accepted it whenever a plugin
+with messages loads, unloads or reloads: always the whole set. Plugin messages themselves go only to
+a session that accepted it.
