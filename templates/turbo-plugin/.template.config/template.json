@@ -4,7 +4,7 @@
     "classifications": [ "Turbo", "Plugin", "Nitro" ],
     "identity": "Turbo.Plugin",
     "name": "Turbo plugin (server half + client module)",
-    "description": "A Turbo plugin with both halves: a server assembly (settings, a permission node, a command, packets and their handlers) and a Nitro client module (a window, a toolbar icon, a template patch), with tests and one dev command.",
+    "description": "A Turbo plugin with both halves: a server assembly (settings, a permission node, a command, named messages and their handlers) and a Nitro client module (a window, a toolbar icon, a template patch), with tests and one dev command.",
     "shortName": "turbo-plugin",
     "tags": {
         "language": "C#",

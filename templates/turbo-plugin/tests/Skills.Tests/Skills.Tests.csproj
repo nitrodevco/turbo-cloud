@@ -18,8 +18,6 @@
   <ItemGroup>
     <Reference Include="$(TurboBin)/Turbo.Contracts.dll" />
     <Reference Include="$(TurboBin)/Turbo.Primitives.dll" />
-    <Reference Include="$(TurboBin)/Turbo.Messages.dll" />
-    <Reference Include="$(TurboBin)/Turbo.Pipeline.dll" />
     <Reference Include="$(TurboBin)/Orleans.Core.Abstractions.dll" />
     <Reference Include="$(TurboBin)/Orleans.Serialization.Abstractions.dll" />
   </ItemGroup>

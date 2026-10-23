@@ -23,8 +23,6 @@
     <!-- The host's own assemblies: referenced, never copied beside the plugin. -->
     <Reference Include="$(TurboBin)/Turbo.Contracts.dll" Private="false" />
     <Reference Include="$(TurboBin)/Turbo.Primitives.dll" Private="false" />
-    <Reference Include="$(TurboBin)/Turbo.Messages.dll" Private="false" />
-    <Reference Include="$(TurboBin)/Turbo.Pipeline.dll" Private="false" />
     <Reference Include="$(TurboBin)/Orleans.Core.Abstractions.dll" Private="false" />
     <Reference Include="$(TurboBin)/Orleans.Serialization.Abstractions.dll" Private="false" />
   </ItemGroup>

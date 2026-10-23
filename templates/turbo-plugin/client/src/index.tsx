@@ -3,12 +3,12 @@
  * `wwwroot/skills.js`, which the server half registers and every client that runs modules loads.
  *
  * - a window of its own (`SkillsWindow`), opened from a toolbar icon and the `skills/open` link;
- * - the plugin's packets, read and sent by number (`skill.ts`);
+ * - the plugin's messages, read and sent by name (`skill.ts`);
  * - a template patch: a Skills button in the purse, a core window, as data.
  */
 import { assetUrl, defineModule } from '@nitrodevco/client-module-sdk';
 
-import { GET_SKILL, readSkill, SKILL, TRAIN } from './skill';
+import { SKILL, toSkill } from './skill';
 import { skillStore } from './skillStore';
 import { SkillsWindow } from './SkillsWindow';
 
@@ -16,9 +16,7 @@ const PURSE = 'habbo-toolbar-com/purse_xml';
 
 export default defineModule({
     activate(api) {
-        api.packets.registerParser(SKILL, readSkill, skill => skillStore.set(skill));
-        api.packets.registerComposer(GET_SKILL);
-        api.packets.registerComposer(TRAIN);
+        api.messages.on(SKILL, data => skillStore.set(toSkill(data)));
 
         api.windows.register('skills', SkillsWindow);
         api.toolbar.add({
