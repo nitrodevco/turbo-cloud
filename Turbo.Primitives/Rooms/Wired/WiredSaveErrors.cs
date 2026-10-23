@@ -6,6 +6,18 @@ public static class WiredSaveErrors
     /// <summary>This server's own, for a refusal the hotel's texts have no word for.</summary>
     public const string GENERIC = "wired.validation.error";
 
+    /// <summary>
+    /// A furni source the slot does not offer. The hotel texts have no entry for it, so Habbo's
+    /// editor shows the raw key (official client capture 2026-10-20).
+    /// </summary>
+    public const string INVALID_FURNI_SOURCE = "wiredfurni.error.invalid_furni_source";
+
+    /// <summary>A user source the slot does not offer (official client capture 2026-10-22).</summary>
+    public const string INVALID_USER_SOURCE = "wiredfurni.error.invalid_user_source";
+
+    /// <summary>"Can only select WIRED Conditions and Add-Ons!": Condition Evaluation's picks.</summary>
+    public const string CONDITION_EVALUATION_FURNI = "wiredfurni.error.condition_evaluation_furni";
+
     /// <summary>"Can only select invisible click furniture."</summary>
     public const string REQUIRE_CLICK_TILES = "wiredfurni.error.require_click_tiles";
 

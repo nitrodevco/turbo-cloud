@@ -45,11 +45,11 @@ public abstract class FurnitureWiredBotActionLogic(
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [BotSources];
 
     /// <summary>
-    /// The two slots of a bot box that also acts on users (follow, hand item, talk to): the
-    /// bots first, then the users.
+    /// The second slot of a bot box that also acts on users (follow, hand item, talk to): the
+    /// users, defaulting to the triggering one ("Select users source:", allowed [0,200,201],
+    /// default 0; official client capture 2026-10-22T22-54-01-Open).
     /// </summary>
-    protected static List<WiredPlayerSourceType[]> UserAndBotSources() =>
-        [BotSources, WiredSources.Users];
+    protected static WiredPlayerSourceType[] UserSources => WiredSources.Users;
 
     /// <summary>The users of the second slot, for the boxes that act on users too.</summary>
     protected IWiredSelectionSet TargetUsers(IWiredContext ctx) =>

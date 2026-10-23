@@ -5,7 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -23,6 +25,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// or exponential), then the mode figures: linear step and max level, or exponential first
 /// level XP, growth factor and max level. Manual mode reads "level=xp" lines from the string
 /// param.
+///
+/// The editor sends only the mode's ints (2 manual, 4 linear, 5 exponential); Habbo stores 5,
+/// padding with 0 and zeroing the ones the mode does not use, raises a growth factor below 1
+/// and a max level below 2 instead of refusing them, keeps any sub-variable mask, and stores a
+/// manual table with a line that is not "level=xp" as empty (official client capture
+/// 2026-10-22T22-57-46 / 22-58-38 / 22-59-07).
 /// </summary>
 [RoomObjectLogic("wf_xtra_var_lvlup_system")]
 public class WiredAddonVariableLevelUp(
@@ -34,6 +42,12 @@ public class WiredAddonVariableLevelUp(
     private const int MODE_MANUAL = 0;
     private const int MODE_LINEAR = 1;
     private const int MODE_EXPONENTIAL = 2;
+
+    private const int PARAM_MODE = 1;
+    private const int PARAM_LINEAR_MAX_LEVEL = 3;
+    private const int PARAM_EXPONENTIAL_FACTOR = 3;
+    private const int PARAM_EXPONENTIAL_MAX_LEVEL = 4;
+    private const int MIN_FACTOR = 1;
 
     // Bounds of the level count slider in the client editor.
     private const int MIN_LEVELS = 2;
@@ -55,16 +69,85 @@ public class WiredAddonVariableLevelUp(
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_LEVEL_UP;
 
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 255, 0), new WiredRangeParamRule(0, 2, MODE_LINEAR)];
-
-    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.NonNegative();
-
     // A fresh box exposes no sub-variables and holds linear figures plus a third one (the editor
     // sends two ints for manual, four for linear, five for exponential: AS3 wired_setup/addons/
     // VariableLvlUpAddon.as:133-151), like the official one (defaults [0,1,100,50,50],
     // 2026-10-20T17-35-39-Open-wait).
-    public override List<int> GetDefaultIntParams() => [.. base.GetDefaultIntParams(), 100, 50, 50];
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [
+            new WiredParamRule(0), // sub-variable mask
+            new WiredRangeParamRule(MODE_MANUAL, MODE_EXPONENTIAL, MODE_LINEAR),
+            new WiredRangeParamRule(0, int.MaxValue, 100), // step size / first level XP
+            new WiredRangeParamRule(0, int.MaxValue, 50), // max level / growth factor
+            new WiredRangeParamRule(0, int.MaxValue, 50), // exponential max level
+        ];
+
+    protected override int GetRequiredIntParamCount() => PARAM_MODE + 1;
+
+    protected override bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
+    {
+        if (!base.TryNormalizeIntParams(proposed, out normalized))
+            return false;
+
+        for (var i = proposed.Count; i < normalized.Count; i++)
+            normalized[i] = 0;
+
+        switch (normalized[PARAM_MODE])
+        {
+            case MODE_MANUAL:
+                for (var i = PARAM_MODE + 1; i < normalized.Count; i++)
+                    normalized[i] = 0;
+
+                break;
+            case MODE_LINEAR:
+                normalized[PARAM_LINEAR_MAX_LEVEL] = Math.Max(
+                    MIN_LEVELS,
+                    normalized[PARAM_LINEAR_MAX_LEVEL]
+                );
+                normalized[PARAM_EXPONENTIAL_MAX_LEVEL] = 0;
+
+                break;
+            case MODE_EXPONENTIAL:
+                normalized[PARAM_EXPONENTIAL_FACTOR] = Math.Max(
+                    MIN_FACTOR,
+                    normalized[PARAM_EXPONENTIAL_FACTOR]
+                );
+                normalized[PARAM_EXPONENTIAL_MAX_LEVEL] = Math.Max(
+                    MIN_LEVELS,
+                    normalized[PARAM_EXPONENTIAL_MAX_LEVEL]
+                );
+
+                break;
+        }
+
+        return true;
+    }
+
+    public override async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        await base.ApplyWiredUpdateAsync(
+            ctx,
+            update with
+            {
+                StringParam = IsLevelTable(update.StringParam) ? update.StringParam : string.Empty,
+            },
+            ct
+        );
+
+    /// <summary>Whether every line of a manual table is "level=xp" in digits, one per "\n".</summary>
+    private static bool IsLevelTable(string? text) =>
+        !string.IsNullOrEmpty(text)
+        && text.Split('\n')
+            .All(line =>
+                line.Split('=') is [var level, var xp]
+                && level.Length > 0
+                && xp.Length > 0
+                && level.All(char.IsAsciiDigit)
+                && xp.All(char.IsAsciiDigit)
+            );
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {

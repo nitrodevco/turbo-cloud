@@ -28,7 +28,8 @@ public class WiredActionBotGiveHandItem(
 
     public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.HandItem(WiredConfig)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [BotSources, UserSources];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

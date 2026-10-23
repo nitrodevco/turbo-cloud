@@ -1749,6 +1749,25 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (ctx.Policy.ConditionMode == WiredConditionModeType.None)
             return true;
 
+        // A Condition Evaluation add-on with picked conditions combines only those; the others
+        // keep the plain rule that each must match (wiredfurni.params.cond_eval.note: "You can
+        // select the WIRED Conditions this add-on applies to"; inference for the others).
+        if (ctx.Policy.ConditionIds is { } ids)
+        {
+            var others = conditions.Where(c => !AppliesTo(c, ids)).ToList();
+
+            if (others.Count > 0)
+            {
+                if (!others.All(c => c.Evaluate(ctx)))
+                    return false;
+
+                conditions = [.. conditions.Where(c => AppliesTo(c, ids))];
+
+                if (conditions.Count == 0)
+                    return true;
+            }
+        }
+
         var matched = conditions.Count(c => c.Evaluate(ctx));
         var threshold = Math.Max(0, ctx.Policy.ConditionThreshold);
 
@@ -1764,4 +1783,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             _ => matched == conditions.Count,
         };
     }
+
+    private static bool AppliesTo(IWiredCondition condition, IReadOnlySet<int> ids) =>
+        condition is FurnitureWiredLogic box && ids.Contains(box.ObjectId.Value);
 }

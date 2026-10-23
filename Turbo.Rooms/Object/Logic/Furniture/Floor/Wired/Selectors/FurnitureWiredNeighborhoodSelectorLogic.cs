@@ -14,8 +14,11 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 /// <summary>
 /// Picks what stands on the tiles of a painted neighbourhood around each input furni or user.
-/// Params: merged flag, root x, root y, then the spiral mask ints. The furni and the users
-/// selector differ only in what they collect from a tile.
+/// Params: what the neighbourhood is around ("In neighbourhood of": 1 the users of the user
+/// slot, 0 the furni of the furni slot), root x, root y, then 15 ints of the spiral tile mask.
+/// The editor sends 14 mask ints; Habbo stores 15, padding with 0 and dropping any past them,
+/// and clamps the root into -64..64 (official client capture 2026-10-22T22-51-19 / 22-53-42).
+/// The furni and the users selector differ only in what they collect from a tile.
 /// </summary>
 public abstract class FurnitureWiredNeighborhoodSelectorLogic(
     IGrainFactory grainFactory,
@@ -23,6 +26,7 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
+    private const int PARAM_USERS = 0;
     private const int MASK_START_INDEX = 3;
 
     // A fresh box opens on the official server merged, rooted on its input, with the 5x5 square
@@ -47,23 +51,30 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredBoolParamRule(true), // merged source
-            WiredRules.TileOffset(WiredConfig), // rootX
-            WiredRules.TileOffset(WiredConfig), // rootY
+            new WiredBoolParamRule(true), // in neighbourhood of users
+            RootOffset, // rootX
+            RootOffset, // rootY
+            .. Enumerable
+                .Range(0, DEFAULT_MASK_INTS)
+                .Select(i => WiredRules.AnyInt(i == 0 ? DEFAULT_MASK_SQUARE : 0)),
         ];
 
-    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
+    private WiredClampParamRule RootOffset =>
+        new(-WiredConfig.NeighborhoodMaxRootOffset, WiredConfig.NeighborhoodMaxRootOffset, 0);
 
-    public override List<int> GetDefaultIntParams() =>
-        [
-            .. base.GetDefaultIntParams(),
-            DEFAULT_MASK_SQUARE,
-            .. Enumerable.Repeat(0, DEFAULT_MASK_INTS - 1),
-        ];
+    // The editor sends the 21x21 drawing in 14 mask ints; Habbo stores 15 and drops the rest.
+    protected override int GetRequiredIntParamCount() => MASK_START_INDEX;
 
-    // The editor always sends the whole 21x21 drawing: 3 ints and 14 of mask; the official
-    // default holds 15.
-    protected override int GetMaxIntParams() => MASK_START_INDEX + DEFAULT_MASK_INTS;
+    protected override bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
+    {
+        var count = GetIntParamRules().Count;
+        List<int> sent = [.. proposed.Take(count)];
+
+        while (sent.Count >= MASK_START_INDEX && sent.Count < count)
+            sent.Add(0);
+
+        return base.TryNormalizeIntParams(sent, out normalized);
+    }
 
     protected abstract void CollectTile(int tileId, WiredSelectionSet output);
 
@@ -72,7 +83,9 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
         CancellationToken ct
     )
     {
-        var input = ctx.GetSelection(this);
+        var input = GetIntParamOrDefault(PARAM_USERS, true)
+            ? WiredSlotSelection.ForUserSlot(this, ctx, 0)
+            : WiredSlotSelection.ForSlot(this, ctx, 0);
         var output = new WiredSelectionSet();
         var tiles = new HashSet<int>();
         var rootX = GetIntParamOrDefault(1, 0);

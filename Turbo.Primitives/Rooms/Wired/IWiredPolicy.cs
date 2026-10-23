@@ -15,6 +15,12 @@ public interface IWiredPolicy
 
     /// <summary>The count the counted condition modes compare the matches against.</summary>
     public int ConditionThreshold { get; set; }
+
+    /// <summary>
+    /// The conditions <see cref="ConditionMode"/> applies to, by furni id; null for all of them.
+    /// The stack's other conditions must all match.
+    /// </summary>
+    public IReadOnlySet<int>? ConditionIds { get; set; }
     public WiredEffectModeType EffectMode { get; set; }
 
     /// <summary>

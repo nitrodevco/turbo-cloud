@@ -4,9 +4,11 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -19,6 +21,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// counted mode (less than, exactly, more than) and the number it compares against. The editor
 /// keeps one number input per counted mode, so the two later params are zero unless a counted
 /// mode is chosen.
+///
+/// The furni slot holds the conditions the mode applies to ("You can select the WIRED
+/// Conditions this add-on applies to. If the selection is empty, it will apply to all available
+/// conditions."); only conditions and add-ons can be picked. Habbo clamps the mode into range
+/// (9 is stored as 3) and stores the counted mode as sent (official client capture
+/// 2026-10-22T22-57-02-UpdateAddon).
 /// </summary>
 [RoomObjectLogic("wf_xtra_or_eval")]
 public class WiredAddonConditionsEval(
@@ -52,10 +60,19 @@ public class WiredAddonConditionsEval(
         [
             // A fresh box asks for at least one on the official server (defaults [1,0,0],
             // 2026-10-20T17-35-39-Open-wait).
-            new WiredRangeParamRule(COUNTED, MODE_NONE, MODE_ANY),
-            new WiredRangeParamRule(COUNTED_LESS_THAN, COUNTED_MORE_THAN, COUNTED_LESS_THAN),
+            new WiredClampParamRule(COUNTED, MODE_NONE, MODE_ANY),
+            new WiredParamRule(COUNTED_LESS_THAN),
             new WiredRangeParamRule(0, COUNT_MAX, 0),
         ];
+
+    // "Select Furni [0/20]", picked furni by default (official client capture
+    // 2026-10-22T22-55-58-Open: allowed [0,100,200,201], default 100).
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
+
+    protected override bool CanPickFurni(IRoomItem item) =>
+        item.Logic is IWiredCondition or IWiredAddon;
+
+    protected override string? PickRefusedErrorKey => WiredSaveErrors.CONDITION_EVALUATION_FURNI;
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -75,6 +92,10 @@ public class WiredAddonConditionsEval(
             _ => WiredConditionModeType.All,
         };
         ctx.Policy.ConditionThreshold = GetIntParamOrDefault(PARAM_COUNT, 0);
+
+        var picked = WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds;
+
+        ctx.Policy.ConditionIds = picked.Count > 0 ? picked : null;
 
         return Task.FromResult(true);
     }
