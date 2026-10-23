@@ -53,7 +53,26 @@ internal sealed class PluginGamedataSeeds(
     {
         var (variableSeed, textSeed) = await ReadAsync(pluginKey, folder, ct).ConfigureAwait(false);
 
-        await FollowAsync(pluginKey, Variables, variableSeed, ct).ConfigureAwait(false);
+        // Its parts of the merged variables are written into the client's file beside the
+        // hotel's own while it is loaded, never given to the hotel: a key it gave before as its
+        // own goes below as one it brings no more.
+        loaded.SetParts(
+            pluginKey,
+            variableSeed
+                .Where(x => ExternalVariablesFile.IsMerged(x.Key))
+                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal)
+        );
+        Invalidate();
+
+        await FollowAsync(
+                pluginKey,
+                Variables,
+                variableSeed
+                    .Where(x => !ExternalVariablesFile.IsMerged(x.Key))
+                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
+                ct
+            )
+            .ConfigureAwait(false);
         await FollowAsync(pluginKey, Texts, textSeed, ct).ConfigureAwait(false);
     }
 
@@ -67,6 +86,11 @@ internal sealed class PluginGamedataSeeds(
         var (variableSeed, textSeed) = plugin.Folder is null
             ? (new Dictionary<string, string>(), new Dictionary<string, string>())
             : await ReadAsync(plugin.Key, plugin.Folder, ct).ConfigureAwait(false);
+
+        variableSeed = variableSeed
+            .Where(x => !ExternalVariablesFile.IsMerged(x.Key))
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+
         var items = ImmutableArray.CreateBuilder<PluginDataItem>();
 
         items.AddRange(

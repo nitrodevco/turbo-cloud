@@ -18,7 +18,13 @@ namespace Turbo.Tests.Plugins;
 /// the wait kept the context itself (its parameter) and the caller kept the plugin (its envelope,
 /// in the reload still the live one) while it waited, so the context could never be collected and
 /// each unload or reload waited the full 5 seconds.
+/// The unload waits on garbage collection, which the rest of the suite running beside it can
+/// delay past that timeout, so these run on their own.
 /// </summary>
+[CollectionDefinition("Plugin unload", DisableParallelization = true)]
+public class PluginUnloadCollection { }
+
+[Collection("Plugin unload")]
 public sealed class PluginUnloadTests : IDisposable
 {
     private const string LEAK = "did not unload";
@@ -64,6 +70,101 @@ public sealed class PluginUnloadTests : IDisposable
 
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task A_plugin_with_a_database_context_unloads_and_reloads_without_a_leak()
+    {
+        // The host's database settings, as a plugin reaches them; the version is given, so
+        // nothing connects.
+        var host = new ServiceCollection()
+            .AddSingleton(
+                Options.Create(
+                    new Turbo.Database.Configuration.DatabaseConfig
+                    {
+                        ConnectionString = "server=127.0.0.1;database=none",
+                        ServerVersion = "8.0.0-mysql",
+                    }
+                )
+            )
+            .BuildServiceProvider();
+
+        // The plugin is compiled against the assemblies loaded: EF Core's too, run alone.
+        _ = typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly;
+        PluginBuilder.Write(_folder, "stored", STORED);
+
+        var manager = new PluginManager(
+            host,
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            _log
+        );
+
+        await manager.LoadAllAsync(ct: Ct);
+        manager
+            .Snapshot()
+            .Single()
+            .State.Should()
+            .Be(
+                PluginStateType.Loaded,
+                string.Join(
+                    " | ",
+                    _log.AtLeast(LogLevel.Warning).Select(x => x.Exception?.ToString())
+                )
+            );
+
+        await manager.ReloadAsync("stored", Ct);
+        manager.Snapshot().Single().State.Should().Be(PluginStateType.Loaded);
+
+        await manager.UnloadAllAsync(Ct);
+
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
+    }
+
+    /// <summary>A plugin with tables of its own: its context's model is built as it starts.</summary>
+    private const string STORED = """
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.EntityFrameworkCore;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Database.Extensions;
+
+        public sealed class StoredPlugin : ITurboPlugin
+        {
+            public string Key => "stored";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) =>
+                services.AddPluginDatabaseContext<StoredDbContext, StoredDbModule>();
+            public Task StartAsync(IServiceProvider services, CancellationToken ct)
+            {
+                using var scope = services.CreateScope();
+                _ = scope.ServiceProvider.GetRequiredService<StoredDbContext>().Model;
+                return Task.CompletedTask;
+            }
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        public sealed class StoredRow
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = "";
+        }
+
+        public sealed class StoredDbContext(DbContextOptions<StoredDbContext> options) : DbContext(options)
+        {
+            public DbSet<StoredRow> Rows => Set<StoredRow>();
+        }
+
+        public sealed class StoredDbModule : IPluginDbModule
+        {
+            public Task MigrateAsync(IServiceProvider sp, CancellationToken ct) => Task.CompletedTask;
+            public Task UninstallAsync(IServiceProvider sp, CancellationToken ct) => Task.CompletedTask;
+        }
+        """;
 
     private const string SOURCE = """
         using System;

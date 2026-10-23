@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Capabilities;
+using Turbo.Primitives.Networking.Extensions;
 
 namespace Turbo.Players.Grains;
 
@@ -41,7 +42,11 @@ internal sealed partial class PlayerPresenceGrain
                 : 0
         );
 
-    /// <summary>Whether the current session accepted the extension <paramref name="composer"/> belongs to.</summary>
+    /// <summary>
+    /// Whether the current session accepted the extension <paramref name="composer"/> belongs to;
+    /// a plugin's packet that names none (<see cref="WrittenExtensionPacket"/>) goes to every one.
+    /// </summary>
     private bool AcceptsExtension(ICapabilityComposer composer) =>
-        _state.ClientCapabilities.ContainsKey(composer.Capability);
+        composer.Capability.Length == 0
+        || _state.ClientCapabilities.ContainsKey(composer.Capability);
 }

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
@@ -176,21 +177,59 @@ public static class ServiceCollectionExtensions
         services.AddPluginTablePrefix<TContext>();
         services.AddTransient<IPluginDbModule, TModule>();
 
+        // EF Core keeps each context's model in an internal service provider that it caches for
+        // the whole process; one holding a plugin's context would keep the plugin's assembly
+        // load context alive after it unloads. The plugin's own goes with the plugin's services.
+        services.TryAddSingleton(sp => new PluginEntityFrameworkServices(
+            sp.GetRequiredService<IHostServices>()
+                .GetRequiredService<IOptions<DatabaseConfig>>()
+                .Value
+        ));
+
         services.AddDbContext<TContext>(
             (sp, options) =>
             {
                 var prefix = sp.GetRequiredService<TablePrefixProvider>();
                 var host = sp.GetRequiredService<IHostServices>();
 
+                options.UseInternalServiceProvider(
+                    sp.GetRequiredService<PluginEntityFrameworkServices>().Services
+                );
+
+                // Its logging is the internal services' to set (UseLoggerFactory is refused with them).
                 UseTurboMySql(
                     options,
                     host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
-                    mysql => mysql.MigrationsHistoryTable(MigrationHelper.HistoryTableOf(prefix()))
+                    mysql => mysql.MigrationsHistoryTable(MigrationHelper.HistoryTableOf(prefix())),
+                    ownLogging: false
                 );
             }
         );
 
         return services;
+    }
+
+    /// <summary>
+    /// The internal services EF Core gives a plugin's contexts (their models among them), built
+    /// for the plugin and disposed with its services as it unloads, rather than EF's
+    /// process-wide cache.
+    /// </summary>
+    internal sealed class PluginEntityFrameworkServices(DatabaseConfig dbConfig) : IDisposable
+    {
+        public ServiceProvider Services { get; } = Build(dbConfig);
+
+        public void Dispose() => Services.Dispose();
+
+        private static ServiceProvider Build(DatabaseConfig dbConfig)
+        {
+            var services = new ServiceCollection();
+
+            // As UseTurboMySql: with LoggingEnabled off, EF is given no logger at all.
+            if (!dbConfig.LoggingEnabled)
+                services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+
+            return services.AddEntityFrameworkMySql().BuildServiceProvider();
+        }
     }
 
     // The emulator's and every plugin's contexts connect the same way; only the migrations
@@ -199,14 +238,15 @@ public static class ServiceCollectionExtensions
     private static void UseTurboMySql(
         DbContextOptionsBuilder options,
         DatabaseConfig dbConfig,
-        Action<MySqlDbContextOptionsBuilder> configureMySql
+        Action<MySqlDbContextOptionsBuilder> configureMySql,
+        bool ownLogging = true
     )
     {
         var connectionString = dbConfig.ConnectionString;
 
         options.UseMySql(connectionString, GetServerVersion(dbConfig), configureMySql);
 
-        if (!dbConfig.LoggingEnabled)
+        if (ownLogging && !dbConfig.LoggingEnabled)
             options.UseLoggerFactory(NullLoggerFactory.Instance);
     }
 }

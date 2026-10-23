@@ -17,5 +17,11 @@ public partial interface IRoomGrain : IGrainWithIntegerKey
     public Task<bool> GetIsGroupRoomAsync(CancellationToken ct);
     public Task<int> GetRoomPopulationAsync(CancellationToken ct);
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
+
+    /// <summary>
+    /// Sends <paramref name="composer"/> to everyone in the room. A plugin's composer goes too:
+    /// the room writes it with the serializer the plugin registered
+    /// (<see cref="Networking.Extensions.WrittenExtensionPacket"/>) before its stream carries it.
+    /// </summary>
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct);
 }

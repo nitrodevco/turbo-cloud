@@ -125,11 +125,13 @@ short, for api version 1:
 - It calls the module's default export `activate(api)`, and `deactivate()` when the module is no
   longer listed or the client leaves.
 - `api` gives a module the client's own parts rather than a copy of them: windows
-  (`windows.register/open/close/toggle`, drawn with the theme's own frames), `toolbar.add`,
-  `meMenu.add`, `links.handle(prefix, fn)`, the plugin's packets
+  (`windows.register/open/close/toggle`, drawn with the theme's own frames, `onTop` to stay above
+  the others), `toolbar.add`, `meMenu.add/toggle`, `links.handle(prefix, fn)` and `links.open`
+  (Habbo's own links too, `toolbar/memenu` among them), the plugin's packets
   (`packets.registerParser/registerComposer/send`, headers 20000-32767 outside Turbo's 30000-30099),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
-  `room.avatarOverlay(fn)` and `notifications.registerLayout`.
+  `room.avatarOverlay(fn)`, `room.leave()`, `notifications.registerLayout` and `notifications.add`
+  (a bubble that may `stay` up until the module takes it down).
 
 ## 5. Texts and variables a plugin brings
 
@@ -166,6 +168,15 @@ hotel's from then on.
 
 A key staff remove while the plugin is installed comes back at its next load, as the plugin needs
 it: change its value instead.
+
+A **merged** variable is one several plugins add to rather than own: `asset.bundles.templates.overrides`
+(a url per template library, `{ "<library>": "<url>" }` or that object as JSON text). What a plugin
+brings of it is never given to the hotel; the client's file carries every loaded plugin's entries
+(the first plugin's by key where two name one library) with the hotel's own entries over them, so
+staff point a library elsewhere, or take a plugin's away with an empty url, by changing the hotel's
+value. A plugin that unloads takes its entries with it. A plugin that gave the hotel the whole
+variable before keeps nothing of it there once it loads again, while the hotel's value is still the
+one it gave.
 
 Uninstalling the plugin from the panel with **Delete its data** lists, in the dry run, the variables
 and texts still as the plugin gave them, and takes those away (one change set each, by the staff

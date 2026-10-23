@@ -620,22 +620,34 @@ internal sealed class GamedataFileService(
                 .ConfigureAwait(false)
         ).Where(x => !(x.SettingPath is null && x.LinkedFile is null && withheld.TryGetValue(x.Key, out var value) && value == x.Value)).ToList();
 
+        var variables = rows.ToDictionary(
+            x => x.Key,
+            x =>
+                ExternalVariablesFile.Resolve(
+                    x.Value,
+                    x.SettingPath,
+                    x.LinkedFile,
+                    addresses,
+                    settings
+                ),
+            StringComparer.Ordinal
+        );
+
+        // The loaded plugins' parts of a merged variable, with the hotel's own entries over them.
+        foreach (var key in ExternalVariablesFile.MERGED)
+        {
+            var parts = plugins.PartsOf(key);
+
+            if (parts.Count > 0)
+                variables[key] = ExternalVariablesFile.Merge(
+                    parts,
+                    variables.GetValueOrDefault(key)
+                );
+        }
+
         return (
-            ExternalVariablesFile.Write(
-                rows.Select(x =>
-                    (
-                        x.Key,
-                        ExternalVariablesFile.Resolve(
-                            x.Value,
-                            x.SettingPath,
-                            x.LinkedFile,
-                            addresses,
-                            settings
-                        )
-                    )
-                )
-            ),
-            rows.Count
+            ExternalVariablesFile.Write(variables.Select(x => (x.Key, x.Value))),
+            variables.Count
         );
     }
 
