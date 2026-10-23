@@ -10,7 +10,10 @@ nitro-next `docs/template-patches.md`).
 - `purse-skills/`: an add-on with a server half and a client module. The module adds a "Skills"
   button to the same purse (`api.templates.patch`), gives it a click (`api.templates.bind`) that
   opens a window of its own (`api.windows.register`), and that window asks the plugin's server half
-  for the player's level over the plugin's packets.
+  for the player's level over the plugin's packets. Its server half also serves two web routes
+  (`docs/plugin-web-routes.md`): `GET /api/plugins/skills/top`, the hotel's best players, for
+  anyone, and `GET /api/plugins/skills/me` for the signed-in player; the window shows the best level
+  through `api.http.get('top')`.
 
 Both can be installed together, alone, or in either order: the theme's order (-10) runs it first,
 and the add-on's elements are named `skills:<name>`, so neither can overwrite the other. Turbo.Tests

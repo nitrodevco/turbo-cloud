@@ -32,7 +32,9 @@ It has two parts:
 - **Play** issues a ticket that works once, for `PlayTicketMinutes`, and opens `ClientUrl` with
   it in a frame. Each Play replaces the player's previous ticket, the same one-per-player ticket
   as the panel's **Login ticket** card, so a ticket issued from the panel is replaced too. A
-  banned player is told so instead of getting a ticket.
+  banned player is told so instead of getting a ticket. A plugin's play policy may refuse Play too
+  (403 `{"message": "...", "redirectUrl": "..."}`, no ticket): the site shows the message and offers
+  the address (`docs/plugin-web-routes.md` §3).
 - **Links.** `player_discord_links` ties one Discord account to one player. The player's Discord
   username is refreshed on each sign-in.
 
@@ -148,6 +150,7 @@ All settings live under `Turbo:Web`.
 | `PlayTicketMinutes` | `5` | | How long Play's ticket works. Its login uses it up anyway. |
 | `SignUpMinutes` | `15` | | How long someone has to choose a name after their first Discord sign-in. |
 | `SignInAttemptsPerMinute` | `20` | | Sign-in and sign-up requests per address per minute. |
+| `PluginRoutes:*` | | | Plugins' player-facing routes at `/api/plugins/<key>/...` on this API, their limits and the token clients get for them: `docs/plugin-web-routes.md` §4. |
 | `ShowVersion` | `true` | | Whether `/api/version` answers `{"version":"1.0.0","commit":"<sha>"}`: the commit the server was built from, so a deploy can be checked from outside. Off, there is no such endpoint. |
 | `Discord:ClientId` | empty | `TURBO_DISCORD_CLIENT_ID` | The Discord application's client id. |
 | `Discord:ClientSecret` | empty | `TURBO_DISCORD_CLIENT_SECRET` | Its secret. Without both, the site says Discord sign-in isn't available. |
