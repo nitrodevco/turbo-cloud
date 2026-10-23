@@ -1,0 +1,6 @@
+<Project>
+  <!-- The plugin pins its own packages: nothing above this folder decides them. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

@@ -62,6 +62,31 @@ as a hotel would, so it keeps working as the server changes. Build it with
 `dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net10.0/` to
 `plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`.
 
+### Start from the template
+
+`templates/turbo-plugin` is a `dotnet new` template for a plugin with both halves: the server
+assembly (a settings class for the panel, a permission node source, a command, packets and their
+handlers) and a client module in TypeScript and React written with nitro-next's
+`@nitrodevco/client-module-sdk` (a window, a toolbar icon, a patch to the purse), with server and
+client tests. Three commands:
+
+```sh
+dotnet new install <turbo-cloud>/templates/turbo-plugin
+dotnet new turbo-plugin -n Skills --key skills --turbo <turbo-cloud> --nitro <nitro-next>
+cd Skills && npm run dev
+```
+
+`npm run dev` builds both halves into `dist/skills/` and keeps it current; name that folder once in
+`Turbo:Plugin:DevPluginPaths` and run the server in Development. A saved `.cs` file is rebuilt and
+the plugin reloaded; a saved client file is rebundled and the plugin reloaded, so clients are sent
+the module's new address and run it without a page reload (measured: about 2.5-3 s from saving a
+server line, 1.5 s from saving a client line, to the change in a player's open client).
+`npm run package` makes the zip the panel's plugin upload takes. The server half builds against a
+server's own assemblies (`TurboBin`, by default the checkout's `Turbo.Main/bin/Debug/net10.0`),
+never copied beside the plugin. `Turbo.Tests` (`PluginTemplateTests`) compiles and loads the
+template's server half and checks what its project references against the server's assemblies, so
+the template keeps working as the server changes; the generated `README.md` has the rest.
+
 ## 2. The protocol: `client.modules` (version 1)
 
 | Direction | Header | Packet | Body |

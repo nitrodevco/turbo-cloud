@@ -1,0 +1,74 @@
+{
+    "$schema": "http://json.schemastore.org/template",
+    "author": "Turbo",
+    "classifications": [ "Turbo", "Plugin", "Nitro" ],
+    "identity": "Turbo.Plugin",
+    "name": "Turbo plugin (server half + client module)",
+    "description": "A Turbo plugin with both halves: a server assembly (settings, a permission node, a command, packets and their handlers) and a Nitro client module (a window, a toolbar icon, a template patch), with tests and one dev command.",
+    "shortName": "turbo-plugin",
+    "tags": {
+        "language": "C#",
+        "type": "project"
+    },
+    "preferNameDirectory": true,
+    "forms": {
+        "asIs": { "identifier": "identity" },
+        "lower": { "identifier": "lowerCaseInvariant" }
+    },
+    "symbols": {
+        "pluginName": {
+            "type": "derived",
+            "valueSource": "name",
+            "valueTransform": "asIs",
+            "replaces": "Skills",
+            "fileRename": "Skills",
+            "description": "The plugin's class and assembly name, from -n."
+        },
+        "key": {
+            "type": "parameter",
+            "datatype": "text",
+            "defaultValue": "",
+            "description": "The plugin's key: its folder, texts, permission nodes and client module are named by it. Default: the name in lower case."
+        },
+        "keyFromName": {
+            "type": "derived",
+            "valueSource": "name",
+            "valueTransform": "lower"
+        },
+        "pluginKey": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "key",
+                "fallbackVariableName": "keyFromName"
+            },
+            "replaces": "skills",
+            "fileRename": "skills"
+        },
+        "turbo": {
+            "type": "parameter",
+            "datatype": "text",
+            "defaultValue": "../turbo-cloud",
+            "replaces": "../turbo-cloud",
+            "description": "The turbo-cloud checkout the server half builds against (its built server's assemblies), relative to the new plugin's folder or absolute. TurboBin overrides it with any server's bin folder."
+        },
+        "nitro": {
+            "type": "parameter",
+            "datatype": "text",
+            "defaultValue": "../nitro-next",
+            "replaces": "../nitro-next",
+            "description": "The nitro-next checkout whose client module SDK the client half uses, relative to the new plugin's folder or absolute."
+        }
+    },
+    "sources": [
+        {
+            "exclude": [
+                "**/[Bb]in/**",
+                "**/[Oo]bj/**",
+                "**/node_modules/**",
+                "dist/**",
+                ".template.config/**"
+            ]
+        }
+    ]
+}
