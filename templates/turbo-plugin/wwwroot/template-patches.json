@@ -1,0 +1,10 @@
+{
+    "patches": [
+        {
+            "template": "habbo-toolbar-com/purse_xml",
+            "ops": [
+                { "element": "help_button", "set": { "vars": { "tool_tip_caption": "Help and safety" } } }
+            ]
+        }
+    ]
+}

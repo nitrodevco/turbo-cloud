@@ -235,13 +235,17 @@ noted.
    (modules, patches, overrides, messages, commands, listeners, settings) with conflicts and
    failures; the client's patch report feeds it.
 6. **Typed client SDK**: `ClientModuleApi` published as types with `defineModule`, a narrow read-only
-   store API in place of raw stores, namespaced links and layouts. In progress (with step 9).
+   store API in place of raw stores, namespaced links and layouts. The types, `defineModule`,
+   `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the
+   client's API by its type check; the store API, links and layouts are next.
 7. **Policies** for trade, purchase, room entry and placement (§4.2), then post-commit domain events
    (§4.1).
 8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the
-   zip the panel installs. In progress.
+   zip the panel installs: `templates/turbo-plugin` (`docs/client-modules.md`, "Start from the
+   template"); `PluginTemplateTests` keeps it building against the server. Next: named messages
+   in the template once step 3 lands, `make:module` / `make:message`.
 
 **How we know it works** (run after steps 6 and 9, then every release):
 - **The stranger test**: an author with no knowledge of either code base - in practice an agent given

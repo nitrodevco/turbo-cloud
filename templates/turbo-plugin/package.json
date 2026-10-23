@@ -1,0 +1,20 @@
+{
+    "name": "skills-plugin",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "node tools/dev.mjs dev",
+        "build": "node tools/dev.mjs build",
+        "package": "node tools/dev.mjs package",
+        "test": "node tools/dev.mjs test",
+        "typecheck": "tsc -p client/tsconfig.json"
+    },
+    "devDependencies": {
+        "@nitrodevco/client-module-sdk": "file:../nitro-next/packages/client-module-sdk",
+        "@types/node": "^22.0.0",
+        "@types/react": "^19.2.0",
+        "esbuild": "^0.28.2",
+        "typescript": "^5.9.3"
+    }
+}

@@ -22,6 +22,15 @@ internal static class PluginBuilder
         string source,
         int? apiVersion = null,
         params string[] dependsOn
+    ) => Write(pluginsFolder, key, [source], apiVersion, dependsOn);
+
+    /// <summary>A plugin compiled from several files, as a plugin project's are.</summary>
+    public static void Write(
+        string pluginsFolder,
+        string key,
+        IReadOnlyList<string> sources,
+        int? apiVersion = null,
+        params string[] dependsOn
     )
     {
         var folder = Path.Combine(pluginsFolder, key);
@@ -43,12 +52,13 @@ internal static class PluginBuilder
                 }
             )
         );
-        File.WriteAllBytes(Path.Combine(folder, $"{key}.dll"), Compile(key, source));
+        File.WriteAllBytes(Path.Combine(folder, $"{key}.dll"), Compile(key, sources));
     }
 
     /// <summary>
     /// What a plugin compiled in a test builds against: every assembly loaded, and the host's
-    /// contracts and the options extensions, which a test run alone may not have loaded yet.
+    /// contracts, its message handlers and the options extensions, which a test run alone may not
+    /// have loaded yet.
     /// </summary>
     public static IEnumerable<MetadataReference> References()
     {
@@ -59,6 +69,9 @@ internal static class PluginBuilder
             typeof(IOptionsMonitor<>),
             typeof(OptionsBuilderConfigurationExtensions),
             typeof(Turbo.Primitives.Settings.SecretSettingAttribute),
+            typeof(Turbo.Messages.Registry.MessageContext),
+            typeof(Turbo.Pipeline.EnvelopeInvokerFactory<>),
+            typeof(Microsoft.Extensions.Configuration.BinderOptions),
         ];
 
         return AppDomain
@@ -71,11 +84,14 @@ internal static class PluginBuilder
     }
 
     /// <summary>The assembly <paramref name="source"/> compiles to, as a plugin's would.</summary>
-    public static byte[] Compile(string name, string source)
+    public static byte[] Compile(string name, string source) => Compile(name, [source]);
+
+    /// <summary>The assembly <paramref name="sources"/> compile to, one file each.</summary>
+    public static byte[] Compile(string name, IReadOnlyList<string> sources)
     {
         var compilation = CSharpCompilation.Create(
             name,
-            [CSharpSyntaxTree.ParseText(source)],
+            sources.Select(source => CSharpSyntaxTree.ParseText(source)),
             References(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );

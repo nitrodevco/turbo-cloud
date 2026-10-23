@@ -110,6 +110,8 @@ Example:
 
 If the same plugin key exists in both places, `DevPluginPaths` wins and a warning is logged.
 
+A new plugin with a server half and a client module: `dotnet new turbo-plugin` from `templates/turbo-plugin` gives both, tests and one `npm run dev` (`docs/client-modules.md`, "Start from the template").
+
 ### Plugin project setup
 Your plugin's `.csproj` must copy `manifest.json` to the build output:
 
