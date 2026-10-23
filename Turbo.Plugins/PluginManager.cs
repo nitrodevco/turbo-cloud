@@ -24,6 +24,7 @@ using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
+using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Runtime.Configuration;
 
@@ -316,8 +317,15 @@ public sealed class PluginManager(
 
         try
         {
+            // Its classes take the plugin's own services first, then the host's, as its packet
+            // handlers and room object logic always did: a command or permission source may take
+            // IGrainFactory, ISessionGateway... by constructor as core's do.
             var disp = await processor
-                .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
+                .ProcessAsync(
+                    asm.Assembly,
+                    new CompositeServiceProvider(next.ServiceProvider, host),
+                    ct
+                )
                 .ConfigureAwait(false);
 
             next.Disposables.Add(disp);

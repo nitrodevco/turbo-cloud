@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Turbo.Commands;
 using Turbo.Contracts.Plugins;
 using Turbo.Players.Permissions;
@@ -103,6 +104,28 @@ public sealed class PluginIsolationTests : IDisposable
             .BeTrue();
     }
 
+    [Fact]
+    public async Task A_plugin_command_takes_a_host_service_by_constructor()
+    {
+        var (manager, host) = Create(services =>
+            services.AddSingleton(new Fakes().Create<IGrainFactory>())
+        );
+
+        // Built after the host, which loads the Orleans assembly the plugin compiles against.
+        PluginBuilder.Write(_folder, "hosted", Plugin("hosted", NEEDS_GRAINS));
+
+        // As core's commands do, and as a plugin's packet handlers and room logic already could.
+        await manager.LoadAllAsync(ct: Ct);
+
+        var plugin = manager.Snapshot().Single();
+
+        plugin.State.Should().Be(PluginStateType.Loaded, plugin.Error);
+        host.GetRequiredService<ICommandRegistryProvider>()
+            .Current.TryFind("grains", out _)
+            .Should()
+            .BeTrue();
+    }
+
     private (PluginManager Manager, ServiceProvider Host) Create(
         Action<IServiceCollection>? configure = null
     )
@@ -167,6 +190,17 @@ public sealed class PluginIsolationTests : IDisposable
             """;
 
     private const string NODES = "";
+
+    /// <summary>A command that takes a host service the plugin did not register itself.</summary>
+    private const string NEEDS_GRAINS = """
+        [Command("grains")]
+        [RequiresPermission("hosted.use")]
+        public sealed class GrainsCommand(Orleans.IGrainFactory grains) : ICommand<NoArguments>
+        {
+            public ValueTask<CommandResult> ExecuteAsync(ICommandContext ctx, NoArguments arguments, CancellationToken ct) =>
+                ValueTask.FromResult(CommandResult.Ok);
+        }
+        """;
 
     /// <summary>A command that takes a service nobody registered.</summary>
     private const string NEEDS_MISSING = """

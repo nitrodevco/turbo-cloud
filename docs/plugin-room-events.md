@@ -20,7 +20,8 @@ public sealed class WelcomeListener(ILogger<WelcomeListener> logger) : IRoomEven
 ```
 
 The class must be public, concrete and top level in the plugin assembly (the scan skips anything
-else), and its constructor is resolved from the plugin's service provider.
+else), and its constructor is resolved from the plugin's services, then the host's ([what a
+plugin's classes can take](plugin-loading.md#what-a-plugins-classes-can-take)).
 
 ## What a listener hears
 
