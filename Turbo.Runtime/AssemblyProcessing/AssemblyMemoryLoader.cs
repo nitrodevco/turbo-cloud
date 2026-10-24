@@ -60,21 +60,32 @@ public static class AssemblyMemoryLoader
 
     /// <summary>
     /// Collects until the context <see cref="BeginUnload"/> started unloading is gone, for at most
-    /// <paramref name="maxMs"/>; false when something still holds it.
+    /// <paramref name="maxMs"/> but at least <paramref name="minCollections"/> collections; false
+    /// when something still holds it.
+    /// Methods the runtime generated for the context's types (a service provider's compiled
+    /// constructors, a serializer's accessors) are freed by finalizers, a step per collection, and
+    /// a collection of a large heap on a busy machine can take seconds: a time alone gives up
+    /// while the context is still on its way out.
     /// </summary>
     public static async Task<bool> WaitForUnloadAsync(
         WeakReference alc,
         int maxMs = 5000,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        int minCollections = 0
     )
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        var collections = 0;
 
-        while (sw.ElapsedMilliseconds < maxMs && !ct.IsCancellationRequested)
+        while (
+            (sw.ElapsedMilliseconds < maxMs || collections < minCollections)
+            && !ct.IsCancellationRequested
+        )
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+            collections++;
 
             if (!alc.IsAlive)
                 return true;

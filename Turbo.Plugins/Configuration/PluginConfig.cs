@@ -39,6 +39,23 @@ public class PluginConfig
     public int KeepVersions { get; init; } = 3;
 
     /// <summary>
+    /// How long, in milliseconds, an unloaded or replaced plugin's code is waited for to leave
+    /// memory before the log says something still holds it.
+    /// </summary>
+    public int UnloadWaitMs { get; init; } = 5000;
+
+    /// <summary>
+    /// How many full garbage collections, however long they take, an unloaded plugin's code is
+    /// given to leave memory besides <see cref="UnloadWaitMs"/>; 0 waits for the time alone. Code
+    /// the runtime generated for the plugin's types (its services' constructors, its serialised
+    /// types) goes only a step per collection, and a collection takes far longer on a busy
+    /// machine, so a time alone can report a leak that is not there. Each is a pause for the whole
+    /// server, so a plugin something does hold costs this many. Code that is held stays whatever
+    /// the count.
+    /// </summary>
+    public int UnloadMinCollections { get; init; }
+
+    /// <summary>
     /// The GitHub owners (users or organisations) plugins may be linked from; empty allows any.
     /// </summary>
     public string[] AllowedSources { get; init; } = [];
