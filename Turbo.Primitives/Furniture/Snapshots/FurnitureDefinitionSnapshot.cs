@@ -91,4 +91,14 @@ public sealed record FurnitureDefinitionSnapshot
     /// </summary>
     [Id(20)]
     public string? CustomParams { get; init; }
+
+    /// <summary>The furnidata <c>name</c>: what players call the furni ("Small Block").</summary>
+    [Id(21)]
+    public string? PublicName { get; init; }
+
+    /// <summary>
+    /// The name to show players: <see cref="PublicName"/>, or the class name (<see cref="Name"/>)
+    /// when the hotel's furnidata has none.
+    /// </summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(PublicName) ? Name : PublicName;
 }
