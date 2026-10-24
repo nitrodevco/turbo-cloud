@@ -21,7 +21,13 @@ namespace Turbo.Database.Entities.Room;
 [Index(nameof(HiddenByBc))]
 public class RoomEntity : TurboEntity
 {
-    public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK = WiredPermissionFlags.Rights;
+    /// <summary>
+    /// A room's wired is modified and read by its owner and the group's admins until the owner
+    /// ticks more: Habbo sent masks 8 / 8 for rooms whose wired settings were never saved
+    /// (official client capture, WiredRoomSettings in 5 of 5 recordings 2026-10-13 to 10-20).
+    /// </summary>
+    public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK =
+        WiredPermissionFlags.GroupAdmins;
     public const string DEFAULT_WIRED_TIMEZONE = "UTC";
     public const int WIRED_TIMEZONE_MAX_LENGTH = 64;
     public const int TAGS_MAX_LENGTH = 128;

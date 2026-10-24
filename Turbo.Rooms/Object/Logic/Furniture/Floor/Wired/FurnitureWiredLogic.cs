@@ -1189,10 +1189,16 @@ public abstract partial class FurnitureWiredLogic(
 
     /// <summary>
     /// Habbo flips the box's state on every use, then opens the editor (ObjectDataUpdate before
-    /// Open in the official client's capture).
+    /// Open in the official client's capture). A player the room's wired permissions do not let
+    /// modify wired gets neither: a rights holder double-clicking a box, or pressing Use, opened
+    /// no editor and the owner in the room saw no state change (official client capture
+    /// 2026-10-24, two accounts, wlabduo-full-20261024-155825, W3 lab trigger.24.E7, 2/2).
     /// </summary>
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
+        if (ctx.Origin == ActionOrigin.Player && !await _roomGrain.CanModifyWiredAsync(ctx, ct))
+            return;
+
         await FlashActivationStateAsync(ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
