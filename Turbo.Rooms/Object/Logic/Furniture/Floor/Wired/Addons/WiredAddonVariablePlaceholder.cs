@@ -46,7 +46,11 @@ public class WiredAddonVariablePlaceholder(
             new WiredBoolParamRule(false),
         ];
 
-    /// <summary>The name, and the delimiter with "show all", are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    /// <summary>
+    /// The name, and the delimiter with "show all", are refused as Habbo refuses them
+    /// (<see cref="WiredNameRules.PlaceholderError"/>), and so is a name another placeholder of
+    /// this kind on the stack has (<see cref="WiredPlaceholderText.IsNameTakenOnStack"/>).
+    /// </summary>
     public override Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
@@ -55,7 +59,13 @@ public class WiredAddonVariablePlaceholder(
         WiredNameRules.PlaceholderError(update.StringParam, showsAll: update.IntParams is [1, ..])
             is { } error
             ? throw new WiredSaveRefusedException(error)
-            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+        : WiredPlaceholderText.IsNameTakenOnStack(
+            this,
+            FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()),
+            update.StringParam
+        )
+            ? throw new WiredSaveRefusedException(WiredSaveErrors.CAPTURE_DESTINATION_CONFLICT)
+        : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     // Its holders come from one source, the furni or the user kind as the variable's target is
     // (AS3: mergedSelections [[0, 0]]); the triggering ones first, as it read before it had a
@@ -75,7 +85,7 @@ public class WiredAddonVariablePlaceholder(
     }
 
     public string Token =>
-        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam).Item1
+        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData?.StringParam).Item1
             is { Length: > 0 } name
             ? WiredPlaceholderText.Token(SIGIL, name)
             : string.Empty;
