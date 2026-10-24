@@ -96,9 +96,58 @@ public sealed class MultiHeightBlockTests
         }
     }
 
-    private IRoomFloorItem AddBlock()
+    // W2 action.0.B4: block K at its lowest state (0 high) with block K2 put on it at the same
+    // altitude; Toggle Furni State picking both leaves K as it is and toggles K2, and toggles K
+    // again once K2 is picked up (official client capture 2026-10-24, WIN63-202610201032: K 0/5,
+    // K2 2/2, K after the pickup 2/2). Ours toggled K under K2.
+    [Fact]
+    public async Task Action0B4_ABlockWithAnotherOnTopIsNotToggledAndTheTopOneIs()
     {
-        var item = _room.AddFloorItem(BLOCK, 2, 2, "bc_block_1*1");
+        const int TOP = 41;
+        var ct = TestContext.Current.CancellationToken;
+        var block = AddBlock();
+
+        await block.Logic.SetStateAsync(4);
+
+        var top = AddBlock(TOP);
+        var toggle = _room.AddBox<WiredActionToggleItemState>(7, 0, 0, "wf_act_toggle_state");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                7,
+                intParams: [0],
+                stuffIds: [BLOCK, TOP],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        async Task<List<RoomObjectId>> ToggleAsync()
+        {
+            var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = ct };
+
+            await toggle.ExecuteAsync(ctx, ct);
+
+            return [.. ctx.FloorItemStateUpdates.Select(x => x.Item1)];
+        }
+
+        (await ToggleAsync()).Should().Equal((RoomObjectId)TOP);
+        block.Logic.GetState().Should().Be(4);
+        top.Logic.GetState().Should().Be(1);
+
+        _room.Map.RemoveItem(top);
+        _room.Harness.State.ItemsById.Remove(TOP);
+
+        (await ToggleAsync()).Should().Equal((RoomObjectId)BLOCK);
+        block.Logic.GetState().Should().Be(0);
+    }
+
+    private IRoomFloorItem AddBlock(int id = BLOCK)
+    {
+        var item = _room.AddFloorItem(id, 2, 2, "bc_block_1*1");
 
         item.GetType()
             .GetProperty(nameof(item.Definition))!
