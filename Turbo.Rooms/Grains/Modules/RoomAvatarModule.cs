@@ -18,6 +18,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Permissions;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
@@ -25,6 +26,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -831,7 +833,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         avatar.MarkDirty();
 
         if (notifyFurni)
-            await NotifyWalkOnAsync(avatar, tileIdx, ct);
+            await NotifyWalkOnAsync(avatar, tileIdx, ct, sourceIdx);
     }
 
     /// <summary>
@@ -867,7 +869,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         avatar.NeedsInvoke = true;
         avatar.MarkDirty();
 
-        await NotifyWalkOnAsync(avatar, tileIdx, ct);
+        await NotifyWalkOnAsync(avatar, tileIdx, ct, steppingTo);
 
         if (
             lastStep
@@ -890,11 +892,37 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             ? item.Logic.OnWalkOffAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
             : Task.CompletedTask;
 
-    /// <summary>Tells the furni on a tile that an avatar arrived on it.</summary>
-    public Task NotifyWalkOnAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
-        MapModule.TryGetHighestFloorItem(tileIdx, out var item)
-            ? item.Logic.OnWalkOnAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
-            : Task.CompletedTask;
+    /// <summary>
+    /// Tells the furni on a tile that an avatar arrived on it. A bot coming onto the furni from
+    /// a tile it does not cover has reached it, however it came (<see
+    /// cref="RoomBotTickSystem.NotifyItemReachedAsync"/>); <paramref name="fromTileIdx"/> is the
+    /// tile it came from, -1 for none.
+    /// </summary>
+    public async Task NotifyWalkOnAsync(
+        IRoomAvatar avatar,
+        int tileIdx,
+        CancellationToken ct,
+        int fromTileIdx = -1
+    )
+    {
+        if (!MapModule.TryGetHighestFloorItem(tileIdx, out var item))
+            return;
+
+        await item.Logic.OnWalkOnAsync((IRoomAvatarContext)avatar.Logic.Context, ct);
+
+        if (avatar is not IRoomBot bot)
+            return;
+
+        if (fromTileIdx >= 0)
+        {
+            var (fromX, fromY) = MapModule.GetTileXY(fromTileIdx);
+
+            if (FloorFootprint.Of(item).DistanceTo(fromX, fromY) == 0)
+                return;
+        }
+
+        await BotTickSystem.NotifyItemReachedAsync(bot, item, ct);
+    }
 
     /// <summary>
     /// Furni that dresses a player (a mannequin, a clothing booth) changes their figure here.

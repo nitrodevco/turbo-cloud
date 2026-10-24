@@ -152,7 +152,9 @@ public sealed class WiredRoom
         string? customParams = null,
         int totalStates = 2,
         string? className = null,
-        string? publicName = null
+        string? publicName = null,
+        int width = 1,
+        int length = 1
     )
     {
         var item = NewFloorItem(
@@ -168,7 +170,9 @@ public sealed class WiredRoom
             customParams,
             totalStates,
             className,
-            publicName: publicName
+            publicName: publicName,
+            width: width,
+            length: length
         );
 
         var context = new RoomFloorItemContext(Harness.Room, item);
@@ -205,7 +209,9 @@ public sealed class WiredRoom
         int totalStates = 2,
         string? className = null,
         string? extraData = null,
-        string? publicName = null
+        string? publicName = null,
+        int width = 1,
+        int length = 1
     )
     {
         var item = new RoomFloorItem
@@ -222,8 +228,8 @@ public sealed class WiredRoom
                 FurniCategory = FurnitureCategory.Default,
                 LogicName = logicName,
                 TotalStates = totalStates,
-                Width = 1,
-                Length = 1,
+                Width = width,
+                Length = length,
                 StackHeight = Altitude.FromInt(100),
                 CanStack = true,
                 CanWalk = canWalk,

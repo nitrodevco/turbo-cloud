@@ -15,10 +15,11 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires when a bot sent to a furni arrives on it. String param: the bot's name, matched as Bot
-/// Talk matches it; an empty name names no bot, so the box never fires (official client capture
-/// 2026-10-24, trigger.13.B1 0/3; "frank " never fired for bot "frank", trigger.13.R1). Picked
-/// furni narrow which destinations count.
+/// Fires when a bot steps onto a furni, whatever sent it there (<see
+/// cref="Turbo.Rooms.Grains.Systems.RoomBotTickSystem.NotifyItemReachedAsync"/>). String param:
+/// the bot's name, matched as Bot Talk matches it; an empty name names no bot, so the box never
+/// fires (official client capture 2026-10-24, trigger.13.B1 0/3; "frank " never fired for bot
+/// "frank", trigger.13.R1). Picked furni narrow which furni count.
 /// </summary>
 [RoomObjectLogic("wf_trg_bot_reached_stf")]
 public class WiredTriggerBotReachesItem(

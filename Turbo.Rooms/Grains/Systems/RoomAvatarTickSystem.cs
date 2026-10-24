@@ -273,7 +273,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
             MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
-            await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
+            await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct, prevTileId);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(

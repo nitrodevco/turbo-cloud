@@ -47,28 +47,25 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         }
     }
 
-    /// <summary>Raises the "bot reached furni" trigger for the item the bot was sent to.</summary>
-    public async Task NotifyItemReachedAsync(IRoomBot bot, CancellationToken ct)
-    {
-        var itemId = bot.TargetItemId;
-
-        bot.TargetItemId = -1;
-
-        if (itemId <= 0 || !FurniModule.HasItem(itemId))
-            return;
-
-        await _roomGrain.PublishRoomEventAsync(
+    /// <summary>
+    /// Raises the "bot reached furni" trigger: a bot stepped onto a furni from a tile it does not
+    /// cover. Habbo fires it for any bot's first step onto any tile of the furni, walking there on
+    /// a Bot Move order or not, and for a Bot Teleport onto it; further steps on the furni do not
+    /// fire it again (official client capture 2026-10-24, W8 lab trigger.13.R1 2 fires per run
+    /// 2/2, R1b teleport, R4 after a reload 2/2).
+    /// </summary>
+    public Task NotifyItemReachedAsync(IRoomBot bot, IRoomFloorItem item, CancellationToken ct) =>
+        _roomGrain.PublishRoomEventAsync(
             new BotReachedItemEvent
             {
                 RoomId = _roomGrain.RoomId,
                 CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
                 BotObjectId = bot.ObjectId,
                 BotName = bot.Name,
-                FurniId = itemId,
+                FurniId = item.ObjectId,
             },
             ct
         );
-    }
 
     private async Task ProcessBotAsync(IRoomBot bot, long now, CancellationToken ct)
     {
@@ -152,9 +149,10 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             return;
         }
 
+        // The trigger fired with the step onto the furni; standing on it ends the order.
         if (BotModule.IsOnItem(bot, item))
         {
-            await NotifyItemReachedAsync(bot, ct);
+            bot.TargetItemId = -1;
 
             return;
         }
