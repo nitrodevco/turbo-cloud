@@ -103,7 +103,9 @@ public class WiredActionMoveRotateFurni(
     public static Rotation GetMoveDirection(int movementType) =>
         movementType switch
         {
-            1 => RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)],
+            // Any of the eight ways, diagonals included (official client capture
+            // 2026-10-24T08-13-33, W1 lab action.4.R9); a blocked draw is no move, no redraw.
+            1 => (Rotation)Random.Shared.Next(0, 8),
             2 => Random.Shared.NextDouble() < 0.5 ? Rotation.East : Rotation.West,
             3 => Random.Shared.NextDouble() < 0.5 ? Rotation.North : Rotation.South,
             4 => Rotation.North,
