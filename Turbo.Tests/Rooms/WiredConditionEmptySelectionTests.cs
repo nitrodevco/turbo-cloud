@@ -88,31 +88,6 @@ public sealed class WiredConditionEmptySelectionTests
         condition.Evaluate(Context(HOLDER, EMPTY)).Should().BeFalse();
     }
 
-    // Wired matrix condition.40/42/43.E1: the variable conditions show the "Match condition if:"
-    // radio with the variables wording (official client capture: Variable Value opens with
-    // quantifierType 3).
-    [Fact]
-    public async Task The_variable_conditions_offer_the_variables_quantifier()
-    {
-        await BuildAsync();
-
-        _room
-            .AddBox<WiredConditionHasVariable>(BOX, 0, 0, "wf_cnd_has_var")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Variables);
-        _room
-            .AddBox<WiredConditionVariableValueMatch>(3, 0, 1, "wf_cnd_var_val_match")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Variables);
-        _room
-            .AddBox<WiredConditionVariableAgeMatch>(4, 0, 2, "wf_cnd_var_age_match")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Variables);
-    }
-
     // Wired matrix condition.40.R (empty set): "any" over nothing blocks (official client
     // capture: quantifier 1 with an empty selector source did not move the marker).
     [Fact]

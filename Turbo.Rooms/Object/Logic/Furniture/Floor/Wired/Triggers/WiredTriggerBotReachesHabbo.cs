@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
@@ -23,7 +24,7 @@ public class WiredTriggerBotReachesHabbo(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx), IWiredUserSourceProvider
 {
     public override int WiredCode => (int)WiredTriggerType.BOT_AVATAR_REACHED;
     public override List<Type> SupportedEventTypes { get; } = [typeof(BotReachedAvatarEvent)];
@@ -34,6 +35,14 @@ public class WiredTriggerBotReachesHabbo(
         [
             [WiredPlayerSourceType.BotByName, WiredPlayerSourceType.SelectorUsers],
         ];
+
+    // Every bot box stacked with it offers "The reached user" (wiredfurni.params.sources.users.10):
+    // all seven did on a stack with this trigger and Bot Reached Furni (official client capture
+    // 2026-10-24T14-21-24, all placed on one tile 14-20-52) and none did once moved off it
+    // (14-29-58, 14-31-08, 14-32-32). Which of the two triggers names the user is inference: this
+    // is the one that reaches a user.
+    public IReadOnlyList<WiredPlayerSourceType> ProvidedUserSources { get; } =
+    [WiredPlayerSourceType.ReachedUser];
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct) =>
         Task.FromResult(

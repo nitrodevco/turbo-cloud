@@ -26,6 +26,10 @@ public class WiredConditionHabboPerformsAction(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
+    // The users' quantifier radio (quantifierType 2 in the official Opens of codes 32 and 33,
+    // 2026-10-20T17-37-19).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var action = GetIntParamOrDefault(0, WiredAvatarActionType.Wave);
@@ -35,7 +39,7 @@ public class WiredConditionHabboPerformsAction(
             avatars.Select(x =>
                 WiredAvatarActionMatcher.IsPerforming(x, action, _wiredData.StringParam, NowMs())
             ),
-            true
+            QuantifierRequiresAll
         );
     }
 }

@@ -42,6 +42,10 @@ public class WiredConditionCounterTimeMatch(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
+    // The furni quantifier radio (quantifierType 1 in the official Open of code 35,
+    // 2026-10-20T17-37-19); a fresh box asks for all of them (quantifier code 0).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Furni;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var target =
@@ -55,7 +59,7 @@ public class WiredConditionCounterTimeMatch(
 
         return Quantify(
             clocks.Select(c => WiredComparison.CompareThreeWay(comparison, c!.HalfSeconds, target)),
-            false
+            QuantifierRequiresAll
         );
     }
 }

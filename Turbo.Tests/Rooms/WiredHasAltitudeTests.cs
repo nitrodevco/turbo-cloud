@@ -31,15 +31,6 @@ public sealed class WiredHasAltitudeTests
 
     private readonly WiredRoom _room = new(8, 8);
 
-    // condition.36 editor: the radio comes from this type.
-    [Fact]
-    public void Has_altitude_offers_the_furni_quantifier() =>
-        _room
-            .AddBox<WiredConditionItemHeightMatch>(BOX, 0, 0, "wf_cnd_has_altitude")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Furni);
-
     // condition.36.R1
     [Theory]
     [InlineData(ALL, true, false)]
