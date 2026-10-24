@@ -7,6 +7,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
@@ -63,6 +64,26 @@ public abstract class FurnitureWiredMoveActionLogic(
                 continue;
 
             plan.Move(mover, at.X + dx, at.Y + dy);
+        }
+    }
+
+    /// <summary>
+    /// The wall items of <paramref name="selection"/> are announced where they are, each in the
+    /// action's WiredMovements as a wall move whose source is its target: Set Altitude and Furni
+    /// To Furni keep a wall pick and send that on every firing (official client capture
+    /// 2026-10-24T17-49-51, WIN63-202610201032, wired matrix action.29.B11 / action.34.B11, 2/2).
+    /// </summary>
+    protected void PlanWallItemsInPlace(IWiredSelectionSet selection, WiredMovePlan plan)
+    {
+        foreach (var itemId in selection.SelectedFurniIds)
+        {
+            if (FurniModule.TryGetItem(itemId, out var item) && item is IRoomWallItem wallItem)
+                plan.Then(execution =>
+                {
+                    (execution as WiredExecutionContext)?.AnnounceWallItemInPlace(wallItem);
+
+                    return Task.CompletedTask;
+                });
         }
     }
 

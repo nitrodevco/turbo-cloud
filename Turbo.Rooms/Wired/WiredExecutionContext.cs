@@ -244,6 +244,25 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>A wall move that leaves the wall item where it is: its source is its target.</summary>
+    public void AnnounceWallItemInPlace(IRoomWallItem wallItem) =>
+        WallItemMoves.Add(
+            new()
+            {
+                ObjectId = wallItem.ObjectId,
+                IsDirectionRight = wallItem.Rotation != Rotation.South,
+                SourceX = wallItem.X,
+                SourceY = wallItem.Y,
+                SourceOffsetX = wallItem.WallOffset,
+                SourceOffsetY = (int)wallItem.Z,
+                TargetX = wallItem.X,
+                TargetY = wallItem.Y,
+                TargetOffsetX = wallItem.WallOffset,
+                TargetOffsetY = (int)wallItem.Z,
+                AnimationTime = GetAnimationTime(),
+            }
+        );
+
     public async Task ProcessWallItemMovementAsync(
         IRoomWallItem wallItem,
         int x,

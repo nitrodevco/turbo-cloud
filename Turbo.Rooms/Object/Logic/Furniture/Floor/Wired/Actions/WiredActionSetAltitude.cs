@@ -45,6 +45,8 @@ public class WiredActionSetAltitude(
         var op = GetIntParamOrDefault(1, WiredOperatorType.Add);
         var maxStackHeight = RoomConfig.MaxStackHeight.ToInt();
 
+        PlanWallItemsInPlace(ctx.GetSelection(this), plan);
+
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
             // The furni's top stays within the room's stack height: set 80.00 put a block 1.00
