@@ -67,17 +67,22 @@ public abstract class WiredAddonSelectorFilter(
         return Task.FromResult(true);
     }
 
+    // The kept entries stay in the pool's own order: amount 2 of four picked furni listed its two
+    // random furni in room order, 3/3 (official client capture 2026-10-24, W4 lab addon.10.R1).
     private static void KeepAtRandom<T>(ISet<T> pool, int keep)
     {
         if (pool.Count <= keep)
             return;
 
         var all = pool.ToArray();
+        var shuffled = all.ToArray();
 
-        Random.Shared.Shuffle(all);
+        Random.Shared.Shuffle(shuffled);
+
+        var kept = shuffled.Take(keep).ToHashSet();
 
         pool.Clear();
-        pool.UnionWith(all.Take(keep));
+        pool.UnionWith(all.Where(kept.Contains));
     }
 
     private long ResolveCount(IWiredProcessingContext ctx)

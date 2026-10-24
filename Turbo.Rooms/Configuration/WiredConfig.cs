@@ -33,6 +33,13 @@ public class WiredConfig
     public int StackVisitWindowMs { get; init; } = 500;
 
     /// <summary>
+    /// Whether two execution limit add-ons on one stack add up, as in Habbo (official client
+    /// capture 2026-10-24, W4 lab addon.5.R2: [1,20] and [3,20] let 4 firings in 10 s run). Off
+    /// makes every limit hold on its own, so the tightest one wins.
+    /// </summary>
+    public bool ExecutionLimitsAddUp { get; init; } = true;
+
+    /// <summary>
     /// Whether "Call Stacks" skips a stack that already ran in the same execution, as Habbo does
     /// (official client capture 2026-10-24, WIN63-202610201032: two stacks calling each other ran
     /// once each per click, 2/2, with no error; a stack calling its own trigger ran once). Off lets
