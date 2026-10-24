@@ -76,6 +76,13 @@ public interface IRoomAvatar : IRoomObject
     public long LastActiveAtMs { get; }
     public bool IsIdle { get; }
 
+    /// <summary>
+    /// The avatar's last expression (wave, blow kiss, laugh...) and when, on the room clock, it
+    /// was made; <see cref="AvatarExpressionType.None"/> before the first.
+    /// </summary>
+    public AvatarExpressionType Expression { get; }
+    public long ExpressionAtMs { get; }
+
     /// <summary>Frozen avatars cannot walk. Whatever freezes one also thaws it.</summary>
     public bool IsFrozen { get; }
 
@@ -111,6 +118,7 @@ public interface IRoomAvatar : IRoomObject
     public bool SetEffect(int effectId = 0);
     public void Touch(long nowMs);
     public void SetIdle(bool isIdle);
+    public void SetExpression(AvatarExpressionType expression, long atMs);
     public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

@@ -37,9 +37,19 @@ public class WiredSelectorEntitiesByAction(
         var output = new WiredSelectionSet();
         var action = GetIntParamOrDefault(0, WiredAvatarActionType.Wave);
 
+        var now = NowMs();
+
         foreach (var avatar in AvatarModule.Avatars)
         {
-            if (WiredAvatarActionMatcher.IsPerforming(avatar, action, _wiredData.StringParam))
+            if (
+                WiredAvatarActionMatcher.IsPerforming(
+                    avatar,
+                    action,
+                    _wiredData.StringParam,
+                    now,
+                    WiredConfig.ActionExpressionHoldMs
+                )
+            )
                 output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 

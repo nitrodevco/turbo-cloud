@@ -63,6 +63,11 @@ public class WiredActionShowMessage(
 
         text = await ctx.FormatTextAsync(text, ct);
 
+        var cut = WiredConfig.ShowMessageOutputMaxLength;
+
+        if (cut > 0 && text.Length > cut)
+            text = text[..cut];
+
         var visibility = GetIntParamOrDefault(0, WiredChatVisibilityType.SelectedUsersOnly);
         var styleId = GetIntParamOrDefault(1, DEFAULT_STYLE_ID);
         var width = GetIntParamOrDefault(2, -1);

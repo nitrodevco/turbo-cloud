@@ -76,10 +76,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // rebuilt, so the tick does not walk every trigger of every stack to find them.
     private readonly List<(IWiredStack Stack, IWiredTrigger Trigger)> _timedTriggers = [];
 
-    // Scratch lists for a filter selector, reused across firings.
-    private readonly List<int> _keptFurni = [];
-    private readonly List<RoomObjectId> _keptAvatars = [];
-
     // Events turned away because the queue was full, reported once per tick.
     private int _droppedEvents;
 
@@ -697,27 +693,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         // The selectors' picks add up first; "filter existing selection" ones then narrow them,
         // wherever they stand in the stack (official client capture: a filter placed below its
         // seed still removed a seeded user of the wrong type).
-        foreach (var selector in ctx.Stack.Selectors)
-        {
-            if (selector.GetIsFilter())
-                continue;
-
-            await ApplySelectorAsync(ctx, selector, ct);
-
-            if (!ctx.IsDryRun)
-                Flash(selector);
-        }
-
-        foreach (var selector in ctx.Stack.Selectors)
-        {
-            if (!selector.GetIsFilter())
-                continue;
-
-            await ApplySelectorAsync(ctx, selector, ct);
-
-            if (!ctx.IsDryRun)
-                Flash(selector);
-        }
+        if (ctx.Stack.Selectors.Count > 0)
+            await WiredSelectorChain.RunAsync(
+                ctx.Stack.Selectors,
+                ctx,
+                ctx.SelectorPool,
+                FurniModule.Items,
+                AvatarModule.Avatars,
+                ctx.IsDryRun ? null : Flash,
+                ct
+            );
 
         foreach (var addon in ctx.Stack.Addons)
         {
@@ -810,95 +795,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         return plans;
-    }
-
-    /// <summary>
-    /// Adds a selector's result to the pool. Filter selectors narrow what the other selectors
-    /// picked and pick nothing on their own: with no seed the pool stays empty, the triggering
-    /// user or a signal's furni included (official client capture: a users-by-type filter alone
-    /// selected no user, and a furni-with-variable filter whose "furni from signal" seed was moved
-    /// off the stack forwarded nothing). Filtering and inverting work on the selector's own kind,
-    /// furni or users, and leave the other kind in the pool as it was.
-    /// </summary>
-    private async Task ApplySelectorAsync(
-        WiredProcessingContext ctx,
-        IWiredSelector selector,
-        CancellationToken ct
-    )
-    {
-        var set = await selector.SelectAsync(ctx, ct);
-
-        if (selector.GetIsInvert())
-            set = InvertSelection(selector, set);
-
-        if (!selector.GetIsFilter())
-        {
-            ctx.SelectorPool.UnionWith(set);
-
-            return;
-        }
-
-        // The pool is rebuilt from the kept ids in its own order, through buffers this system
-        // keeps, as it is read out while it is being narrowed.
-        var pool = ctx.SelectorPool;
-
-        if (selector.SelectsFurni)
-        {
-            _keptFurni.Clear();
-
-            foreach (var furniId in pool.SelectedFurniIds)
-            {
-                if (set.SelectedFurniIds.Contains(furniId))
-                    _keptFurni.Add(furniId);
-            }
-
-            pool.SelectedFurniIds.Clear();
-            pool.SelectedFurniIds.UnionWith(_keptFurni);
-        }
-
-        if (selector.SelectsUsers)
-        {
-            _keptAvatars.Clear();
-
-            foreach (var avatarId in pool.SelectedAvatarIds)
-            {
-                if (set.SelectedAvatarIds.Contains(avatarId))
-                    _keptAvatars.Add(avatarId);
-            }
-
-            pool.SelectedAvatarIds.Clear();
-            pool.SelectedAvatarIds.UnionWith(_keptAvatars);
-        }
-    }
-
-    /// <summary>
-    /// What an inverted selector picks: every furni or user of its kind in the room that it did
-    /// not match (<c>wiredfurni.danger.1.change.confirm.body</c>: "all furni/users that do NOT
-    /// match the requirement").
-    /// </summary>
-    private WiredSelectionSet InvertSelection(IWiredSelector selector, IWiredSelectionSet set)
-    {
-        var inverted = new WiredSelectionSet();
-
-        if (selector.SelectsFurni)
-        {
-            foreach (var item in FurniModule.Items)
-            {
-                if (!set.SelectedFurniIds.Contains(item.ObjectId))
-                    inverted.SelectedFurniIds.Add(item.ObjectId);
-            }
-        }
-
-        if (selector.SelectsUsers)
-        {
-            foreach (var avatar in AvatarModule.Avatars)
-            {
-                if (!set.SelectedAvatarIds.Contains(avatar.ObjectId))
-                    inverted.SelectedAvatarIds.Add(avatar.ObjectId);
-            }
-        }
-
-        return inverted;
     }
 
     /// <summary>The furni and users an event is about become the triggering selection.</summary>

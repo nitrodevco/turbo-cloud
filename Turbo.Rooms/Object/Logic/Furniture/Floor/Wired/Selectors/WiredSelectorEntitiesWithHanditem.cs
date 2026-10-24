@@ -12,7 +12,11 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
-/// <summary>Picks the players carrying the hand item in param 0 (zero: any hand item).</summary>
+/// <summary>
+/// Picks the users carrying the hand item in param 0; 0, what the editor saves for none, picks
+/// the users holding nothing (official client capture 2026-10-24, W4 lab selector.14.R5 / R2:
+/// an empty-handed user selected 1/1 and 4/4), as Has Hand Item reads it.
+/// </summary>
 [RoomObjectLogic("wf_slc_users_handitem")]
 public class WiredSelectorEntitiesWithHanditem(
     IGrainFactory grainFactory,
@@ -38,7 +42,7 @@ public class WiredSelectorEntitiesWithHanditem(
 
         foreach (var avatar in AvatarModule.Avatars)
         {
-            if (handItemId == 0 ? avatar.HandItemId != 0 : avatar.HandItemId == handItemId)
+            if (avatar.HandItemId == handItemId)
                 output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 

@@ -15,8 +15,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 /// <summary>
-/// "Remote selection": reuses the selectors of other stacks. Every selector box it picks is run
-/// here, and their selections - furni and users alike - are combined as the editor's selection
+/// "Remote selection": reuses the selectors of other stacks. The selector pile of every selector
+/// box it picks is run here, as its own stack runs it, and the piles' selections - furni and users
+/// alike - are combined as the editor's selection
 /// type says (<c>wiredfurni.params.remote_selection.type.0</c> / <c>.1</c>: union or intersection).
 /// Param 1 filters the stacks (<c>remote_selection.filter</c>): 0 uses every picked one, a number
 /// above 0 that many picked at random. Nested remote selectors are not followed.
@@ -55,35 +56,32 @@ public class WiredSelectorRemoteSelection(
         CancellationToken ct
     )
     {
-        var remotes = new List<FurnitureWiredSelectorLogic>();
-
-        foreach (var itemId in WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds)
-        {
-            if (
-                FurniModule.TryGetItem(itemId, out var item)
-                && item.Logic is FurnitureWiredSelectorLogic remote
-                && remote is not WiredSelectorRemoteSelection
-            )
-                remotes.Add(remote);
-        }
-
+        var stacks = PickedStacks(ctx);
         var pick = GetIntParamOrDefault(1, 0);
 
-        if (pick > 0 && pick < remotes.Count)
-            remotes = [.. remotes.OrderBy(_ => Random.Shared.Next()).Take(pick)];
+        if (pick > 0 && pick < stacks.Count)
+            stacks = [.. stacks.OrderBy(_ => Random.Shared.Next()).Take(pick)];
 
         var intersect = GetIntParamOrDefault(0, 0) == TYPE_INTERSECTION;
         WiredSelectionSet? output = null;
 
-        foreach (var remote in remotes)
+        foreach (var stack in stacks)
         {
-            var set = await remote.SelectAsync(ctx, ct);
+            var set = new WiredSelectionSet();
+
+            await WiredSelectorChain.RunAsync(
+                stack,
+                ctx,
+                set,
+                FurniModule.Items,
+                AvatarModule.Avatars,
+                null,
+                ct
+            );
 
             if (output is null)
             {
-                output = new WiredSelectionSet();
-                output.SelectedFurniIds.UnionWith(set.SelectedFurniIds);
-                output.SelectedAvatarIds.UnionWith(set.SelectedAvatarIds);
+                output = set;
 
                 continue;
             }
@@ -100,6 +98,58 @@ public class WiredSelectorRemoteSelection(
             }
         }
 
-        return output ?? new WiredSelectionSet();
+        if (output is null)
+            return new WiredSelectionSet();
+
+        WiredSelectorChain.PutInRoomOrder(output);
+
+        return output;
+    }
+
+    /// <summary>
+    /// The selector piles to run: each picked selector box stands for every selector on its tile,
+    /// lowest first, the tile counted once (official client capture 2026-10-24, W4 lab
+    /// selector.19.R7: picking one box of a parked pile with no trigger gave the furni and user
+    /// selections of the whole pile, 2/2), unless <see cref="Configuration.WiredConfig.RemoteSelectorRunsWholePile"/>
+    /// is off. Remote selectors are skipped, so one cannot run itself (inference: not measured).
+    /// </summary>
+    private List<List<IWiredSelector>> PickedStacks(IWiredProcessingContext ctx)
+    {
+        var stacks = new List<List<IWiredSelector>>();
+        var tiles = new HashSet<int>();
+
+        foreach (var itemId in WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds)
+        {
+            if (
+                !FurniModule.TryGetItem(itemId, out var item)
+                || item is not IRoomFloorItem floorItem
+                || item.Logic is not FurnitureWiredSelectorLogic picked
+                || picked is WiredSelectorRemoteSelection
+            )
+                continue;
+
+            if (!WiredConfig.RemoteSelectorRunsWholePile)
+            {
+                stacks.Add([picked]);
+
+                continue;
+            }
+
+            var tile = MapModule.ToIdx(floorItem.X, floorItem.Y);
+
+            if (!tiles.Add(tile))
+                continue;
+
+            stacks.Add([
+                .. FurniModule
+                    .GetFloorItemsOnTile(tile)
+                    .OrderBy(x => x.Z.Value)
+                    .Select(x => x.Logic)
+                    .OfType<FurnitureWiredSelectorLogic>()
+                    .Where(x => x is not WiredSelectorRemoteSelection),
+            ]);
+        }
+
+        return stacks;
     }
 }

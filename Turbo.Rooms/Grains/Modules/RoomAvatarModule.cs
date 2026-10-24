@@ -1091,6 +1091,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             PublishAction(avatar, AvatarActionType.Dance, (int)avatar.DanceType);
         }
 
+        avatar.SetExpression(expressionType, NowMs());
+
         _roomGrain.SendComposerToRoomAndForget(
             new ExpressionMessageComposer
             {
