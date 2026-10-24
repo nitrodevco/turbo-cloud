@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using FluentAssertions;
 using Orleans;
 using Turbo.Primitives.Orleans;
@@ -15,17 +15,21 @@ namespace Turbo.Tests.Players;
 /// </summary>
 public sealed class PermissionWhoHoldsTests
 {
-    private const int CALL_MS = 100;
-
     [Fact]
     public async Task The_players_are_asked_at_once_and_only_holders_come_back()
     {
         const int PLAYERS = 20;
         var fakes = new Fakes();
-        fakes.Handlers["HasAsync"] = call => HeldAfterAWhileAsync(Convert.ToInt64(call.Key));
-        var clock = Stopwatch.StartNew();
+        var pending = new ConcurrentDictionary<long, TaskCompletionSource<bool>>();
+        fakes.Handlers["HasAsync"] = call =>
+            pending
+                .GetOrAdd(
+                    Convert.ToInt64(call.Key),
+                    _ => new(TaskCreationOptions.RunContinuationsAsynchronously)
+                )
+                .Task;
 
-        var holders = await fakes
+        var asking = fakes
             .Create<IGrainFactory>()
             .WhoHoldsAsync(
                 Enumerable.Range(1, PLAYERS).Select(x => new PlayerId(x)),
@@ -33,20 +37,17 @@ public sealed class PermissionWhoHoldsTests
                 TestContext.Current.CancellationToken
             );
 
+        // No grain has answered yet: asked one after another, only the first would be waiting.
+        asking.IsCompleted.Should().BeFalse();
+        pending.Keys.Order().Should().Equal(Enumerable.Range(1, PLAYERS).Select(x => (long)x));
+
+        foreach (var (playerId, answer) in pending)
+        {
+            answer.SetResult(playerId % 2 == 0);
+        }
+
+        var holders = await asking;
+
         holders.Select(x => x.Value).Should().Equal(2, 4, 6, 8, 10, 12, 14, 16, 18, 20);
-        clock
-            .ElapsedMilliseconds.Should()
-            .BeLessThan(
-                PLAYERS * CALL_MS / 2,
-                "one after another it takes {0} ms",
-                PLAYERS * CALL_MS
-            );
-    }
-
-    private static async Task<bool> HeldAfterAWhileAsync(long playerId)
-    {
-        await Task.Delay(CALL_MS);
-
-        return playerId % 2 == 0;
     }
 }
