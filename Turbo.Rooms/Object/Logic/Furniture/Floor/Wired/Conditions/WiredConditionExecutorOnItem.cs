@@ -50,10 +50,10 @@ public class WiredConditionExecutorOnItem(
         if (tiles.Count == 0)
             return false;
 
+        // No triggering user (a Periodically stack): "all of the users match" holds and "any"
+        // does not, as Quantify folds an empty set (official client capture 2026-10-24, 5 of 5
+        // and 6 of 6).
         var players = GetPlayers(selection);
-
-        if (players.Count == 0)
-            return false;
 
         return Quantify(
             players.Select(p => tiles.Contains(MapModule.ToIdx(p.X, p.Y))),

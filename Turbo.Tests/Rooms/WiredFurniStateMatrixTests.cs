@@ -628,6 +628,54 @@ public sealed class WiredFurniStateMatrixTests
         box.GetSnapshot().StringParam.Should().Be(expected);
     }
 
+    // condition.8.R1 / condition.2.R2: with nothing to count (Furni Matches on the triggering
+    // furni, Triggerer Is On Furni on the triggering user, both under Periodically) "all" passes
+    // and "any" blocks (official client capture 2026-10-24: 6/6 + 6/6, 5/5 + 6/6). Ours blocked
+    // under both.
+    [Theory]
+    [InlineData(false, QUANTIFIER_ALL, true)]
+    [InlineData(false, QUANTIFIER_ANY, false)]
+    [InlineData(true, QUANTIFIER_ALL, true)]
+    [InlineData(true, QUANTIFIER_ANY, false)]
+    public async Task Nothing_to_count_passes_all_and_blocks_any(
+        bool usersBox,
+        int quantifier,
+        bool passes
+    )
+    {
+        _room.AddFloorItem(LAMP_A, 3, 3);
+
+        IWiredCondition condition = usersBox
+            ? _room.AddBox<WiredConditionExecutorOnItem>(BOX, 0, 0, "wf_cnd_trggrer_on_frn")
+            : _room.AddBox<WiredConditionItemPerType>(BOX, 0, 0, "wf_cnd_stuff_is");
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                stuffIds: [LAMP_A],
+                furniSources: usersBox
+                    ?
+                    [
+                        [WiredFurniSourceType.SelectedItems],
+                    ]
+                    :
+                    [
+                        [WiredFurniSourceType.TriggeredItem],
+                        [WiredFurniSourceType.SelectedItems],
+                    ],
+                playerSources: usersBox
+                    ?
+                    [
+                        [WiredPlayerSourceType.TriggeredUser],
+                    ]
+                    : null,
+                definitionSpecifics: [quantifier]
+            )
+        ).Should().BeTrue();
+
+        condition.Evaluate(Context()).Should().Be(passes);
+    }
+
     private WiredProcessingContext Context() =>
         new(_room.Harness.Room)
         {

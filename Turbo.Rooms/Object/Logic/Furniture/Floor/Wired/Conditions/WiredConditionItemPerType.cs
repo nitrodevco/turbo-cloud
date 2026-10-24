@@ -49,14 +49,13 @@ public class WiredConditionItemPerType(
         if (compareWith.Count == 0)
             return false;
 
-        var subjects = Existing(WiredSlotSelection.ForSlot(this, ctx, 0)).ToList();
-
-        // No furni to match is no match whatever the quantifier (inference: the measured
-        // empty-set rule covers the variable conditions only).
-        if (subjects.Count == 0)
-            return false;
-
-        return Quantify(subjects.Select(compareWith.Contains), QuantifierRequiresAll);
+        // No furni to match (a trigger without one): "all of the furni match" holds and "any"
+        // does not, as Quantify folds an empty set (official client capture 2026-10-24, under
+        // Periodically, 6 of 6 each).
+        return Quantify(
+            Existing(WiredSlotSelection.ForSlot(this, ctx, 0)).Select(compareWith.Contains),
+            QuantifierRequiresAll
+        );
     }
 
     private IEnumerable<int> Existing(IWiredSelectionSet selection) =>
