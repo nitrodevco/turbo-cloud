@@ -6,10 +6,8 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
@@ -17,99 +15,15 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// The sources the editor is offered for the boxes that take two pick lists, as the official
-/// client capture shows them: every slot offers both pick lists ("Use picked furnis" 100 and
-/// "Secondary furni picks" 101) with the pool sources, and each slot has its own default. The
-/// movement physics addon also gets its three source sections, defaulting to the whole room,
-/// and "move through users" passes only the users its user source names.
+/// The boxes that take two pick lists read each slot's own picks, and the movement physics
+/// addon's "move through users" passes only the users its user source names. What their editors
+/// are offered is held to Habbo's by WiredOfficialEditorContractTests.
 /// </summary>
 public sealed class WiredSecondaryFurniSourcesTests
 {
-    private static readonly int[] Both = [0, 100, 101, 200, 201];
-    private static readonly int[] Users = [0, 200, 201];
-
     private readonly WiredRoom _room = new(8, 8);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    public static TheoryData<string, int[][], int[], int[][], int[]> OfficialContracts =>
-        new()
-        {
-            // name, allowed furni, default furni, allowed users, default users
-            { "wf_act_send_signal", [Both, Both], [100, 200], [Users], [200] },
-            {
-                "wf_act_init_transaction",
-                [Both, Both, Both],
-                [100, 101, 200],
-                [Users, Users],
-                [0, 200]
-            },
-            { "wf_cnd_chest_has_item_type", [Both, Both, Both], [100, 101, 0], [Users], [0] },
-            { "wf_xtra_scan_chest_furni_by_type", [Both, Both], [0, 100], [], [] },
-            { "wf_act_give_furni", [Both, Both], [100, 200], [Users, Users], [0, 200] },
-            { "wf_act_give_currency", [Both, Both], [100, 200], [Users, Users], [0, 200] },
-            {
-                "wf_xtra_custom_contract",
-                [Both, Both, Both, Both],
-                [0, 0, 200, 200],
-                [Users, Users],
-                [200, 200]
-            },
-            { "wf_act_move_furni_as_group", [Both, Both], [100, 0], [Users], [0] },
-            { "wf_act_furni_to_furni", [Both, Both], [0, 100], [], [] },
-            {
-                "wf_cnd_chest_has_items",
-                [
-                    [0, 100, 200, 201],
-                    [0, 100, 200, 201],
-                ],
-                [100, 200],
-                [Users],
-                [200]
-            },
-            {
-                "wf_xtra_mov_physics",
-                [
-                    [.. Both, 900],
-                    [.. Both, 900],
-                ],
-                [900, 900],
-                [
-                    [.. Users, 900],
-                ],
-                [900]
-            },
-        };
-
-    [Theory]
-    [MemberData(nameof(OfficialContracts))]
-    public void TheEditorIsOfferedTheOfficialSourcesAndDefaults(
-        string logic,
-        int[][] furni,
-        int[] defaultFurni,
-        int[][] users,
-        int[] defaultUsers
-    )
-    {
-        var box = AddBox(logic);
-
-        box.GetAllowedFurniSources()
-            .Select(Sorted<WiredFurniSourceType>(WiredFurniSourceTypeExtensions.GetProtocolId))
-            .Should()
-            .BeEquivalentTo(furni, o => o.WithStrictOrdering());
-        box.GetDefaultFurniSources()
-            .Select(slot => (int)WiredFurniSourceTypeExtensions.GetProtocolId(slot.Single()))
-            .Should()
-            .Equal(defaultFurni);
-        box.GetAllowedPlayerSources()
-            .Select(Sorted<WiredPlayerSourceType>(WiredPlayerSourceTypeExtensions.GetProtocolId))
-            .Should()
-            .BeEquivalentTo(users, o => o.WithStrictOrdering());
-        box.GetDefaultPlayerSources()
-            .Select(slot => (int)WiredPlayerSourceTypeExtensions.GetProtocolId(slot.Single()))
-            .Should()
-            .Equal(defaultUsers);
-    }
 
     [Fact]
     public async Task PickedFurniOnASecondSlot_IsTheFirstPickList()
@@ -271,44 +185,4 @@ public sealed class WiredSecondaryFurniSourcesTests
             .Should()
             .BeTrue();
     }
-
-    private static Func<T[], int[]> Sorted<T>(Func<T, WiredSourceType> toWire) =>
-        slot => [.. slot.Select(x => (int)toWire(x)).Order()];
-
-    private FurnitureWiredLogic AddBox(string logic) =>
-        logic switch
-        {
-            "wf_act_send_signal" => _room.AddBox<WiredActionSendSignal>(1, 0, 0, logic),
-            "wf_act_init_transaction" => _room.AddBox<WiredActionInitiateTransaction>(
-                1,
-                0,
-                0,
-                logic
-            ),
-            "wf_cnd_chest_has_item_type" => _room.AddBox<WiredConditionChestHasItemTypes>(
-                1,
-                0,
-                0,
-                logic
-            ),
-            "wf_cnd_chest_has_items" => _room.AddBox<WiredConditionChestHasItems>(1, 0, 0, logic),
-            "wf_xtra_scan_chest_furni_by_type" => _room.AddBox<WiredAddonChestItemTypeScanner>(
-                1,
-                0,
-                0,
-                logic
-            ),
-            "wf_act_give_furni" => _room.AddBox<WiredActionGiveFurniFromChest>(1, 0, 0, logic),
-            "wf_act_give_currency" => _room.AddBox<WiredActionGiveCurrencyFromChest>(
-                1,
-                0,
-                0,
-                logic
-            ),
-            "wf_xtra_custom_contract" => _room.AddBox<WiredAddonCustomContract>(1, 0, 0, logic),
-            "wf_act_move_furni_as_group" => _room.AddBox<WiredActionMoveAsGroup>(1, 0, 0, logic),
-            "wf_act_furni_to_furni" => _room.AddBox<WiredActionFurniToFurni>(1, 0, 0, logic),
-            "wf_xtra_mov_physics" => _room.AddBox<WiredAddonMovementPhysics>(1, 0, 0, logic),
-            _ => throw new ArgumentOutOfRangeException(nameof(logic), logic, null),
-        };
 }

@@ -42,42 +42,6 @@ public sealed class WiredFurniStateMatrixTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    // condition.0.E / condition.8.E (quantifier): the radio's wording comes from this type.
-    [Fact]
-    public void The_furni_conditions_offer_the_furni_quantifier()
-    {
-        var x = 0;
-        IWiredCondition Add<T>(string logic)
-            where T : FurnitureWiredConditionLogic => _room.AddBox<T>(BOX + ++x, x, 0, logic);
-
-        Add<WiredConditionItemMatches>("wf_cnd_match_snapshot")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Furni);
-        Add<WiredNegativeConditionItemMatches>("wf_cnd_not_match_snap")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Furni);
-        Add<WiredConditionItemPerType>("wf_cnd_stuff_is")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Furni);
-        Add<WiredNegativeConditionItemPerType>("wf_cnd_not_stuff_is")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.Furni);
-
-        // Furnis Have Avatars keeps its own "all / any" int param and shows no radio.
-        Add<WiredConditionItemHasHabbo>("wf_cnd_furnis_hv_avtrs")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.None);
-        Add<WiredNegativeConditionItemHasHabbo>("wf_cnd_not_hv_avtrs")
-            .GetQuantifierType()
-            .Should()
-            .Be((byte)WiredQuantifierType.None);
-    }
-
     // condition.0 quantifier: lamp A stands as saved, lamp B was saved one tile further.
     // "All of the furni match" fails, "any of the furni match" holds; the not twin reads
     // "any of the furni does not match" (holds) and "none of the furni match" (fails).

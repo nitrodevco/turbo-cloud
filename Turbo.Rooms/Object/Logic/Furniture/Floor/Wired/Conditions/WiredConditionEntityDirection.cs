@@ -26,6 +26,9 @@ public class WiredConditionEntityDirection(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
+    // The users' quantifier radio (quantifierType 2 in the official Open of code 37, 2026-10-20T17-37-19).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var mask = GetIntParamOrDefault(0, 0);
@@ -35,6 +38,9 @@ public class WiredConditionEntityDirection(
 
         var players = GetAvatars(ctx.GetSelection(this));
 
-        return Quantify(players.Select(p => (mask & (1 << (int)p.Rotation)) != 0), true);
+        return Quantify(
+            players.Select(p => (mask & (1 << (int)p.Rotation)) != 0),
+            QuantifierRequiresAll
+        );
     }
 }

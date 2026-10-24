@@ -46,6 +46,10 @@ public class WiredConditionExecutorMatches(
             ],
         ];
 
+    // The users' quantifier radio (quantifierType 2 in the official Opens of codes 26 and 27,
+    // 2026-10-20T17-37-19).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var mask = GetIntParamOrDefault(0, USER_TYPE_PLAYER);
@@ -67,7 +71,7 @@ public class WiredConditionExecutorMatches(
                         ?? (wantedName.Length == 0 || NamesMatch(avatar.Name, wantedName))
                     )
                 ),
-            true
+            QuantifierRequiresAll
         );
     }
 

@@ -26,14 +26,14 @@ public class WiredActionBotTalk(
 {
     public override int WiredCode => (int)WiredActionType.BOT_TALK;
 
-    // The bot named in the box by default, or the bots among the triggering, reached, selector
-    // or signal users (official client capture of the box's sources).
+    // The bot named in the box by default, or the bots among the triggering, selector or signal
+    // users (official client capture 2026-10-24T14-32-32: [[0,100,200,201]]). "The reached user"
+    // joins them only on a Bot Reached Avatar stack (WiredTriggerBotReachesHabbo).
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [
             [
                 WiredPlayerSourceType.BotByName,
                 WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.ReachedUser,
                 WiredPlayerSourceType.SelectorUsers,
                 WiredPlayerSourceType.SignalUsers,
             ],

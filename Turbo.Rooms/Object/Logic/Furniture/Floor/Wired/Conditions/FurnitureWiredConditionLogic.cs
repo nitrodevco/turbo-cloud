@@ -33,7 +33,14 @@ public abstract class FurnitureWiredConditionLogic(
 
     // Nothing is stored: the client sends the quantifier code back and nothing else.
     public override List<object> GetTypeSpecifics() =>
-        [.. base.GetTypeSpecifics(), (byte)QuantifierType, IsNegative()];
+        [.. base.GetTypeSpecifics(), (byte)QuantifierType, SendsInvert];
+
+    /// <summary>
+    /// The invert flag the editor is sent, which only words the quantifier radio
+    /// (<c>wiredfurni.params.quantifier.*.neg.</c>, AS3 UserDefinedRoomEventsCtrl.as:509-515):
+    /// a "not" box's, unless Habbo files the box as one of its own.
+    /// </summary>
+    protected virtual bool SendsInvert => IsNegative();
 
     public int GetQuantifierCode() => _quantifierCode;
 

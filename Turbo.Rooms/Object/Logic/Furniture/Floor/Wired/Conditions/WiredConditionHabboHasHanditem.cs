@@ -25,6 +25,10 @@ public class WiredConditionHabboHasHanditem(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
+    // The users' quantifier radio (quantifierType 2 in the official Opens of codes 25 and 30,
+    // 2026-10-20T17-37-19).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var handItemId = GetIntParamOrDefault(0, 0);
@@ -32,6 +36,6 @@ public class WiredConditionHabboHasHanditem(
 
         // Item 0 is no item: it holds for an empty hand (official client capture 2026-10-24,
         // saved [0]: passes with nothing in hand 3/3, blocks while holding item 4 2/2).
-        return Quantify(players.Select(p => p.HandItemId == handItemId), true);
+        return Quantify(players.Select(p => p.HandItemId == handItemId), QuantifierRequiresAll);
     }
 }

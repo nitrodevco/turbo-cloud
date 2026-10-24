@@ -27,13 +27,16 @@ public class WiredConditionGroupMember(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
+    // The users' quantifier radio (quantifierType 2 in the official Open of code 10 and 21, 2026-10-20T17-37-19).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var wantedGroupId = GetPositiveIdParam() ?? State.RoomSnapshot?.Guild?.GuildId.Value;
         var players = GetPlayers(ctx.GetSelection(this));
 
         if (wantedGroupId is not > 0)
-            return Quantify(players.Select(_ => false), true);
+            return Quantify(players.Select(_ => false), QuantifierRequiresAll);
 
         return Quantify(
             players.Select(player =>
@@ -42,7 +45,7 @@ public class WiredConditionGroupMember(
 
                 return groupId == wantedGroupId;
             }),
-            true
+            QuantifierRequiresAll
         );
     }
 }

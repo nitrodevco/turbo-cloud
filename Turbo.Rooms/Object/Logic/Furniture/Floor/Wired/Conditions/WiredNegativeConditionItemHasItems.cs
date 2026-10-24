@@ -23,6 +23,10 @@ public class WiredNegativeConditionItemHasItems(
 
     public override bool IsNegative() => true;
 
+    // A box of its own on Habbo, not an inverted "has furni on": isInvert false in every
+    // official Open of code 18 (2026-10-24T10-19-25).
+    protected override bool SendsInvert => false;
+
     // not (all have furni) = one has none; not (any has furni) = all have none.
     protected override bool RequiresAllFurni() => !RequiresAll();
 }

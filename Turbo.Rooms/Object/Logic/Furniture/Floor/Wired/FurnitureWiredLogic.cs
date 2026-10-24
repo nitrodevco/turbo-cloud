@@ -835,6 +835,20 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>The client's "no variable" (<c>WiredVariable.NONE</c>), and the "0" Habbo answers with for one.</summary>
     private const string CLIENT_NO_VARIABLE = "n";
 
+    /// <summary>
+    /// The editor is sent one id per variable slot, "0" for an empty one, picked or not: every
+    /// official editor-open capture of a box holds as many as the box has slots (Has Variable
+    /// ["0"] fresh 2026-10-24T08-25-21, ["&lt;id&gt;"] saved 2026-10-24T11-19-29; Filter Furni By
+    /// Variable ["0","0"] fresh 2026-10-24T12-55-57, ["&lt;id&gt;","0"] saved 2026-10-24T12-56-42).
+    /// </summary>
+    private List<WiredVariableId> OnePerVariableSlot(List<WiredVariableId> ids)
+    {
+        for (var slot = ids.Count; slot < GetMaxVariableIds(); slot++)
+            ids.Add(NO_VARIABLE);
+
+        return ids;
+    }
+
     private static bool IsEmptyVariableSlot(string id) =>
         (id == CLIENT_NO_VARIABLE)
         || (WiredVariableId.TryParse(id, out var parsed) && (parsed == NO_VARIABLE));
@@ -1096,13 +1110,15 @@ public abstract partial class FurnitureWiredLogic(
             Id = _ctx.ObjectId,
             StringParam = GetEditorStringParam(),
             IntParams = _wiredData.IntParams,
-            VariableIds = GetValidVariableIds(
-                _wiredData.VariableIds,
-                out var validVariableIds,
-                keepRemoved: true
-            )
-                ? validVariableIds
-                : [],
+            VariableIds = OnePerVariableSlot(
+                GetValidVariableIds(
+                    _wiredData.VariableIds,
+                    out var validVariableIds,
+                    keepRemoved: true
+                )
+                    ? validVariableIds
+                    : []
+            ),
             FurniSourceTypes = GetFurniSources(),
             PlayerSourceTypes = GetPlayerSources(),
             Code = WiredCode,

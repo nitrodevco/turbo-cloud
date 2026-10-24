@@ -27,8 +27,6 @@ public class WiredSelectorSelectedItems(
 
     protected override bool AllowsWallFurni => true;
 
-    public override bool SupportsAdvancedMode() => false;
-
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
