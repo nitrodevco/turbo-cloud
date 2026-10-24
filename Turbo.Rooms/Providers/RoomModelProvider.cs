@@ -90,10 +90,10 @@ public sealed class RoomModelProvider(
         return entity.ToSnapshot(modelData, CompileModelFromString(modelData));
     }
 
-    private static string CleanModelString(string model) =>
+    internal static string CleanModelString(string model) =>
         model.Trim().ToLowerInvariant().Replace("\r\n", "\r").Replace("\n", "\r");
 
-    private static CompiledRoomModelSnapshot CompileModelFromString(string model)
+    internal static CompiledRoomModelSnapshot CompileModelFromString(string model)
     {
         var rows = SplitLines(model);
 
