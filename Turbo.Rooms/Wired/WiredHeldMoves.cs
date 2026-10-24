@@ -14,12 +14,14 @@ namespace Turbo.Rooms.Wired;
 /// of a furni as one, from where it stood to where they leave it, facing the way they leave it.
 /// With it, the room sees only the last move, from where the move before it left the furni. A
 /// furni left on the tile it stood on was only turned: that is a plain update of it
-/// (<see cref="Turned"/>), with or without the add-on (official client capture,
+/// (<see cref="PlainUpdates"/>), with or without the add-on (official client capture,
 /// 2026-10-22T22-02-10: one rotate effect 6/6, and two rotates picked by the random add-on 1/1).
 /// Wall items and users are held the same way as furni (inferred: a carried user's move has to
-/// match its furni's); a user's turns, the last one each.
+/// match its furni's); a user's turns, the last one each. With "no animation" every furni move is
+/// a plain update, and only the users it carried go out as movements (official client capture
+/// 2026-10-24, W1 lab addon.6.R1 3/3, addon.6.R5 2/2).
 /// </summary>
-internal sealed class WiredHeldMoves(bool inOrder)
+internal sealed class WiredHeldMoves(bool inOrder, bool instant = false)
 {
     private readonly List<WiredFloorItemMovementSnapshot> _floorMoves = [];
     private readonly List<WiredWallItemMovementSnapshot> _wallMoves = [];
@@ -33,7 +35,7 @@ internal sealed class WiredHeldMoves(bool inOrder)
         {
             foreach (var move in _floorMoves)
             {
-                if (!IsTurnOnly(move))
+                if (!IsPlainUpdate(move))
                     yield return move;
             }
         }
@@ -45,14 +47,17 @@ internal sealed class WiredHeldMoves(bool inOrder)
 
     public IReadOnlyList<WiredUserDirectionSnapshot> UserDirections => _userDirections;
 
-    /// <summary>The furni the moves left on their own tile, only turned.</summary>
-    public IEnumerable<RoomObjectId> Turned
+    /// <summary>
+    /// The furni told with a plain update instead: the ones the moves left on their own tile, only
+    /// turned, and with "no animation" all of them.
+    /// </summary>
+    public IEnumerable<RoomObjectId> PlainUpdates
     {
         get
         {
             foreach (var move in _floorMoves)
             {
-                if (IsTurnOnly(move))
+                if (IsPlainUpdate(move))
                     yield return move.ObjectId;
             }
         }
@@ -173,8 +178,9 @@ internal sealed class WiredHeldMoves(bool inOrder)
         held[index] = fromHeld(move, held[index]);
     }
 
-    private static bool IsTurnOnly(WiredFloorItemMovementSnapshot move) =>
-        move.SourceX == move.TargetX
-        && move.SourceY == move.TargetY
-        && move.SourceZ == move.TargetZ;
+    private bool IsPlainUpdate(WiredFloorItemMovementSnapshot move) =>
+        instant
+        || move.SourceX == move.TargetX
+            && move.SourceY == move.TargetY
+            && move.SourceZ == move.TargetZ;
 }

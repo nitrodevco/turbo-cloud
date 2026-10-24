@@ -1145,7 +1145,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var heldMoves = new WiredHeldMoves(pending.Policy.ExecuteInOrder);
+        var heldMoves = new WiredHeldMoves(
+            pending.Policy.ExecuteInOrder,
+            pending.Policy.AnimationMode == WiredAnimationModeType.Instant
+        );
 
         for (var i = pending.NextActionIndex; i < pending.Actions.Count; i++)
         {
@@ -1412,7 +1415,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     /// <summary>
     /// Tells the room the movements a stack's effects made (<see cref="WiredHeldMoves"/>): a
-    /// furni only turned at once, before the boxes' flash; the moves after it, with the next state
+    /// furni only turned, or moved with "no animation", at once, before the boxes' flash; the moves after it, with the next state
     /// update, in one WiredMovements (official client capture, 2026-10-22T22-02-10: the turn's
     /// ObjectUpdate came before the flash's ObjectsDataUpdate 6/6, a WiredMovements after it
     /// 16/16, same ms; 2026-10-03: a carried user in the furni's packet, 1/1).
@@ -1424,7 +1427,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         var turned = ImmutableArray.CreateBuilder<IComposer>();
 
-        foreach (var objectId in heldMoves.Turned)
+        foreach (var objectId in heldMoves.PlainUpdates)
         {
             if (FurniModule.TryGetItem(objectId, out var item))
                 turned.Add(item.GetUpdateComposer());
