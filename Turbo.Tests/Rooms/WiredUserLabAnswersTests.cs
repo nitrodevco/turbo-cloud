@@ -118,6 +118,49 @@ public sealed class WiredUserLabAnswersTests
     }
 
     /// <summary>
+    /// condition.32.B3: Performs Action "stand", "lay" and "sit" hold for the posture the user is
+    /// in, not only at the moment they took it: a lying user passes lay and fails stand, a
+    /// standing one passes stand and fails sit (official client capture 2026-10-24T17-58-01 /
+    /// 17-59-15, WIN63-202610201032, 4/4).
+    /// </summary>
+    [Theory]
+    [InlineData(true, WiredAvatarActionType.Lay, true)]
+    [InlineData(true, WiredAvatarActionType.Stand, false)]
+    [InlineData(false, WiredAvatarActionType.Stand, true)]
+    [InlineData(false, WiredAvatarActionType.Sit, false)]
+    public async Task Performs_action_reads_the_current_posture_condition_32_B3(
+        bool lying,
+        WiredAvatarActionType action,
+        bool holds
+    )
+    {
+        var user = _room.Enter(USER, 1, 1);
+
+        if (lying)
+            user.AddStatus(AvatarStatusType.Lay, "0.5");
+
+        var condition = _room.AddBox<WiredConditionHabboPerformsAction>(
+            BOX,
+            0,
+            0,
+            "wf_cnd_user_performs_action"
+        );
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: [(int)action],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+
+        condition.Evaluate(TriggeredBy(USER)).Should().Be(holds);
+    }
+
+    /// <summary>
     /// action.19.B1: Kick on the room owner does not kick them; they are whispered "Wired kick
     /// exception: Room owner" in bubble 34 over their own avatar, each fire.
     /// </summary>
