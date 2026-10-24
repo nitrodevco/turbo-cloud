@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -149,19 +148,6 @@ public sealed class WiredFlowAddonLabAnswersTests
         await ActivateAsync();
 
         (await RunsOfClicksAsync(runs.Length)).Should().Equal(runs);
-    }
-
-    // The setting keeps the old reading: every limit holds on its own, the tightest wins.
-    [Fact]
-    public async Task Addon5R2_OffTheTightestLimitWins()
-    {
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { ExecutionLimitsAddUp = false });
-        await BoxAsync<WiredAddonExecutionLimit>(10, "wf_xtra_execution_limit", [1, 20]);
-        await BoxAsync<WiredAddonExecutionLimit>(11, "wf_xtra_execution_limit", [3, 20]);
-        await ToggleAsync(40, 30);
-        await ActivateAsync();
-
-        (await RunsOfClicksAsync(3)).Should().Equal(true, false, false);
     }
 
     // addon.2.R1: one effect per firing in box-id order, whatever the stacking order. Box 42 is

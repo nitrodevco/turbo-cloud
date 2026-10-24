@@ -71,7 +71,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
     // The fx placed since the last flush, whose first statuses are drawn as a sync.
     private readonly HashSet<int> _newConfigIds = [];
 
-    // The values written since the last flush, changed or not: each is shown again.
+    // The values written since the last flush, changed or not: each is shown again, as Habbo does
+    // (official client capture 2026-10-24, WIN63-202610201032, wired matrix addon.1200.R1: set 30
+    // then 30 again sent a VariableFxStatus both times, 4/4).
     private readonly HashSet<(WiredVariableId VariableId, bool IsUser, int HolderId)> _written = [];
 
     private bool _configsDirty = true;
@@ -106,10 +108,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 break;
             case WiredVariableChangedEvent changed:
                 if (
-                    WiredConfig.VariableFxShowsEveryWrite
-                    && changed.TargetType
-                        is WiredVariableTargetType.User
-                            or WiredVariableTargetType.Furni
+                    changed.TargetType
+                    is WiredVariableTargetType.User
+                        or WiredVariableTargetType.Furni
                 )
                     _written.Add(
                         (

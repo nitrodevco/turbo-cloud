@@ -11,7 +11,6 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -203,38 +202,6 @@ public sealed class WiredFurniStateMatrixTests
         ctx.Selected.SelectedFurniIds.Add(LAMP_A);
 
         condition.Evaluate(ctx).Should().Be(passes);
-    }
-
-    // condition.8.R5 setting: FurniMatchesByKind keeps the earlier kind match for rooms built on
-    // it, so another lamp of the same kind matches again.
-    [Fact]
-    public async Task Furni_matches_compares_the_kind_when_the_hotel_asks_for_it()
-    {
-        const int LAMP_KIND = 500;
-
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { FurniMatchesByKind = true });
-        _room.AddFloorItem(LAMP_A, 3, 3, definitionId: LAMP_KIND);
-        _room.AddFloorItem(LAMP_B, 4, 4, definitionId: LAMP_KIND);
-
-        var condition = _room.AddBox<WiredConditionItemPerType>(BOX, 0, 0, "wf_cnd_stuff_is");
-
-        (
-            await _room.SaveAsync<UpdateConditionMessage>(
-                BOX,
-                stuffIds: [LAMP_B],
-                furniSources:
-                [
-                    [WiredFurniSourceType.TriggeredItem],
-                    [WiredFurniSourceType.SelectedItems],
-                ],
-                definitionSpecifics: [QUANTIFIER_ALL]
-            )
-        ).Should().BeTrue();
-
-        var ctx = Context();
-        ctx.Selected.SelectedFurniIds.Add(LAMP_A);
-
-        condition.Evaluate(ctx).Should().BeTrue();
     }
 
     // condition.2.R1 / R5: Triggerer Is On Furni quantifies the users (quantifierType 2). Two

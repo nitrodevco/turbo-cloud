@@ -10,7 +10,6 @@ using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -73,21 +72,6 @@ public sealed class WiredSelectorLabAnswersTests
 
         set.SelectedFurniIds.Should().Contain([A, B, C]);
         set.SelectedFurniIds.Should().Contain(picked, "the selector itself is room furni too");
-    }
-
-    // The setting keeps the old reading: only the picked box runs.
-    [Fact]
-    public async Task Selector19R7_OffRunsOnlyThePickedBox()
-    {
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { RemoteSelectorRunsWholePile = false });
-        var picked = await AddPicksAsync(0, 0, [C]);
-        await AddPicksAsync(0, 0, [B]);
-        await AddUsersByTypeAsync(0, 0);
-
-        var set = await RemoteAsync(picked);
-
-        set.SelectedFurniIds.Should().Equal(C);
-        set.SelectedAvatarIds.Should().BeEmpty();
     }
 
     // selector.19.R5: two boxes of one pile are one stack, so "1 random stack" still runs both.

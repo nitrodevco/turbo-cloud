@@ -110,8 +110,7 @@ public class WiredSelectorRemoteSelection(
     /// The selector piles to run: each picked selector box stands for every selector on its tile,
     /// lowest first, the tile counted once (official client capture 2026-10-24, W4 lab
     /// selector.19.R7: picking one box of a parked pile with no trigger gave the furni and user
-    /// selections of the whole pile, 2/2), unless <see cref="Configuration.WiredConfig.RemoteSelectorRunsWholePile"/>
-    /// is off. Remote selectors are skipped, so one cannot run itself (inference: not measured).
+    /// selections of the whole pile, 2/2). Remote selectors are skipped, so one cannot run itself (inference: not measured).
     /// </summary>
     private List<List<IWiredSelector>> PickedStacks(IWiredProcessingContext ctx)
     {
@@ -127,13 +126,6 @@ public class WiredSelectorRemoteSelection(
                 || picked is WiredSelectorRemoteSelection
             )
                 continue;
-
-            if (!WiredConfig.RemoteSelectorRunsWholePile)
-            {
-                stacks.Add([picked]);
-
-                continue;
-            }
 
             var tile = MapModule.ToIdx(floorItem.X, floorItem.Y);
 

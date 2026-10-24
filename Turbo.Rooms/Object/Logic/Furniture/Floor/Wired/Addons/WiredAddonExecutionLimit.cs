@@ -17,7 +17,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// half-second pulses). Firings past the cap are dropped until the window rolls over. Two limits on
 /// one stack add up: [1,20] and [3,20] let 4 clicks in 10 s run and blocked the 5th, in either
 /// placement order (official client capture 2026-10-24, W4 lab addon.5.R2, 4/4 + 5/5), so the box
-/// is a budget the room spends from (<see cref="WiredConfig.ExecutionLimitsAddUp"/>).
+/// is a budget the room spends from.
 /// </summary>
 [RoomObjectLogic("wf_xtra_execution_limit")]
 public class WiredAddonExecutionLimit(

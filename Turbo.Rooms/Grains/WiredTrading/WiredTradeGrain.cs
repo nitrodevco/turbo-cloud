@@ -553,7 +553,7 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
     /// </summary>
     private bool ExceedsChestCapacity(WiredTradeSession session, FurnitureItemSnapshot item)
     {
-        if (!_config.RefuseOfferOverCapacity || session.Contract is not null)
+        if (session.Contract is not null)
             return false;
 
         var offered = session.Offer.Append(item).Sum(x => CapacityTaken(session.Kind, x));

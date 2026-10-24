@@ -595,10 +595,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     )
     {
         // A call back into a stack that already ran in this execution is dropped without an
-        // error; signals are not (a signal ring runs each receiver up to its visit limit).
+        // error, as Habbo does (official client capture 2026-10-24, WIN63-202610201032: two
+        // stacks calling each other ran once each per click, 2/2; a stack calling its own trigger
+        // ran once); signals are not (a signal ring runs each receiver up to its visit limit).
         if (
             ctx.Event is WiredStackCalledEvent
-            && WiredConfig.CallStacksOncePerExecution
             && _execution is { } caller
             && caller.RanStackIds.Contains(ctx.Stack.StackId)
         )
@@ -758,9 +759,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     /// <summary>
     /// Whether the stack's execution limits let this firing go ahead, spending one execution when
-    /// they do (a dry run spends nothing). Limits add up: the first with room left is spent
-    /// (<see cref="WiredConfig.ExecutionLimitsAddUp"/>; which one is spent is an inference, the lab
-    /// only measured two limits of one window). Off, every limit must have room and each is spent.
+    /// they do (a dry run spends nothing). Limits add up, as Habbo's do (official client capture
+    /// 2026-10-24, W4 lab addon.5.R2: [1,20] and [3,20] let 4 firings in 10 s run): the first with
+    /// room left is spent (which one is an inference, the lab only measured two limits of one window).
     /// </summary>
     private bool SpendExecutionBudget(WiredProcessingContext ctx)
     {
@@ -769,24 +770,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (budgets.Count == 0)
             return true;
 
-        if (WiredConfig.ExecutionLimitsAddUp)
-        {
-            var open = budgets.Find(x => x.HasRoom());
+        var open = budgets.Find(x => x.HasRoom());
 
-            if (open is null)
-                return false;
-
-            if (!ctx.IsDryRun)
-                open.Spend();
-
-            return true;
-        }
-
-        if (!budgets.TrueForAll(x => x.HasRoom()))
+        if (open is null)
             return false;
 
         if (!ctx.IsDryRun)
-            budgets.ForEach(x => x.Spend());
+            open.Spend();
 
         return true;
     }

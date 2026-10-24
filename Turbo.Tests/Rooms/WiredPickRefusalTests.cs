@@ -270,18 +270,6 @@ public sealed class WiredPickRefusalTests
         refused.ErrorKey.Should().Be("wiredfurni.error.temp_furni_not_allowed");
     }
 
-    [Fact]
-    public async Task Temporary_furni_can_be_picked_when_configured()
-    {
-        Configure(("RefuseTemporaryFurniPicks", "false"));
-        _room.AddFloorItem(FurniIdBands.TemporaryMin, 4, 4);
-        _room.AddBox<WiredActionToggleItemState>(BOX, 0, 0, "wf_act_toggle_state");
-
-        (await SaveAsync<UpdateActionMessage>(stuffIds: [LAMP, FurniIdBands.TemporaryMin]))
-            .Should()
-            .BeTrue();
-    }
-
     // Each box's own int params, so the picks are all that is checked.
     private Task<WiredSaveResult> SaveWithResultAsync<TMessage>(
         int[]? stuffIds = null,

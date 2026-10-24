@@ -64,13 +64,6 @@ public class WiredChestConfig
     /// <summary>Items one deposit may offer.</summary>
     public int MaxItemsPerDeposit { get; init; } = 500;
 
-    /// <summary>
-    /// Whether an item a deposit's offer would take past the chest's free capacity is refused
-    /// while offering, with Habbo's <c>wired_transactions.notification.trade_error.9</c>. Off,
-    /// the offer takes it and the deposit fails only when it is confirmed.
-    /// </summary>
-    public bool RefuseOfferOverCapacity { get; init; } = true;
-
     /// <summary>The most transactions one page of the logs window lists.</summary>
     public int MaxLogPageSize { get; init; } = 50;
 

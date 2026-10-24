@@ -11,7 +11,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -182,18 +181,6 @@ public sealed class WiredNoTriggererTests
         var move = await ClickForMoveAsync();
 
         move.FloorItems.Should().ContainSingle().Which.AnimationTime.Should().Be(2175);
-    }
-
-    /// <summary>A hotel that keeps the upper box of a kind gets the old rule back.</summary>
-    [Fact]
-    public async Task Two_animation_times_keep_the_upper_box_when_the_hotel_says_so()
-    {
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { DoubledAddonsAsMeasured = false });
-        await BuildMoverAsync(AnimationTime(175), AnimationTime(2000));
-
-        var move = await ClickForMoveAsync();
-
-        move.FloorItems.Should().ContainSingle().Which.AnimationTime.Should().Be(2000);
     }
 
     /// <summary>

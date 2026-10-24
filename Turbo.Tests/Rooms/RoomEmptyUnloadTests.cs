@@ -1,7 +1,6 @@
 using System.Reflection;
 using FluentAssertions;
 using Orleans.Runtime;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
 using Xunit;
@@ -36,16 +35,6 @@ public sealed class RoomEmptyUnloadTests
 
         await TickForAsync(room, 2_000);
         Deactivations(room).Should().Be(1, "36 s after the last user left it unloads, once");
-    }
-
-    [Fact]
-    public async Task With_the_setting_off_the_room_waits_for_the_directory()
-    {
-        var room = new WiredRoom(roomConfig: new RoomConfig { EmptyRoomUnloadMs = 0 });
-
-        await TickForAsync(room, 120_000);
-
-        Deactivations(room).Should().Be(0);
     }
 
     private static int Deactivations(WiredRoom room) =>

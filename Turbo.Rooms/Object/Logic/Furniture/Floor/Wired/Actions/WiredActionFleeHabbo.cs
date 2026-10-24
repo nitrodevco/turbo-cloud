@@ -16,8 +16,8 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// Moves the picked furni one tile away from the nearest player within reach (WiredConfig
-/// FleeRange, ChaseFleeInLineOnly). With nobody in reach it keeps going the way it last fled
+/// Moves the picked furni one tile away from the nearest player within reach on its row
+/// or column (<see cref="NOTICE_RANGE"/>). With nobody in reach it keeps going the way it last fled
 /// (east if it never fled), turning left when that way is blocked; an adjacent player is caught: no move, the collision
 /// trigger fires (official client capture 2026-10-24, W1 lab: away from a player 2 tiles off
 /// 8/8, the last way N 5/5 then E 10/10, also after the furni was moved by hand; blocked E ->
@@ -31,6 +31,11 @@ public class WiredActionFleeHabbo(
 ) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int COLLISION_RANGE = 1;
+
+    // How far it notices a player, and only on its row or column: Habbo stepped away from a player
+    // 2 tiles away in its row or column 8/8 and ignored one 4 tiles away or off them (official
+    // client capture 2026-10-24, W1 lab action.12.R1-R2); 3, as Chase, is inferred.
+    private const int NOTICE_RANGE = WiredActionChaseHabbo.NOTICE_RANGE;
 
     private readonly Dictionary<RoomObjectId, Rotation> _headingByItemId = [];
 
@@ -49,7 +54,6 @@ public class WiredActionFleeHabbo(
     {
         var selection = ctx.GetSelection(this);
         var map = MapModule;
-        var range = WiredConfig.FleeRange;
 
         foreach (var item in GetFloorItems(selection))
         {
@@ -60,10 +64,10 @@ public class WiredActionFleeHabbo(
             if (
                 AvatarModule.TryGetNearestPlayer(
                     itemIdx,
-                    range > 0 ? range : int.MaxValue,
+                    NOTICE_RANGE,
                     out var nearest,
                     out var distance,
-                    WiredConfig.ChaseFleeInLineOnly
+                    inLineOnly: true
                 )
             )
             {

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -137,21 +136,6 @@ public sealed class WiredChaseFleeTests
         await RunAsync(flee);
 
         Block().Should().Be((7, 5));
-    }
-
-    // The operator's settings: the whole room, anywhere, is what ours did before.
-    [Fact]
-    public async Task Chase_reaches_the_whole_room_when_the_settings_say_so()
-    {
-        _room.Harness.Room.UseWiredConfig(
-            new WiredConfig { ChaseRange = 0, ChaseFleeInLineOnly = false }
-        );
-        _room.Enter(USER, 11, 9);
-        var chase = await PlaceAsync<WiredActionChaseHabbo>("wf_act_chase", 1, 5);
-
-        await RunAsync(chase);
-
-        Block().Should().Be((2, 5));
     }
 
     // action.12.R1, then action.12.R2: the user leaves the line, the block keeps fleeing east.

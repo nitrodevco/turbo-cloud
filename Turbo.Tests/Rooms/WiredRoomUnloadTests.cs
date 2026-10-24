@@ -85,23 +85,6 @@ public sealed class WiredRoomUnloadTests
         after[1].Should().Be(after[0] + periodMs);
     }
 
-    // The operator's setting: off, a reloaded room's timer waits a whole period first, as a box
-    // placed or saved in a loaded room does.
-    [Fact]
-    public async Task With_the_setting_off_a_reloaded_room_waits_a_period_first()
-    {
-        _loads = new RoomLoads(
-            wiredConfig: new WiredConfig { PeriodicTriggersFireOnRoomLoad = false }
-        );
-        await BuildTimerStackAsync("wf_trg_periodically", 4);
-        await UnloadForAsync(49_000);
-
-        var entered = await EnterAsync(2, offBoundaryMs: 120);
-        var after = await RunAsync(2_600);
-
-        after[0].Should().BeGreaterThanOrEqualTo(entered + 2_000);
-    }
-
     // A box placed in a room already loaded is no load: its first firing waits a period.
     [Fact]
     public async Task A_periodic_trigger_placed_in_a_loaded_room_waits_a_period()

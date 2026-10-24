@@ -31,6 +31,38 @@ public class WiredActionShowMessage(
     // opens, e.g. 2026-10-18T08-26-07-Open-wait), not the editor's first style (34).
     private const int DEFAULT_STYLE_ID = 202;
 
+    // The bubble styles it may be saved with: the editor's style list (NOTIFICATION_STYLES,
+    // actiontypes/_-21t.as:22, AS3 WIN63-202610201032). Any other style is refused, so a room
+    // cannot speak in a bubble its users could not pick.
+    private static readonly int[] STYLE_IDS =
+    [
+        34,
+        200,
+        201,
+        202,
+        210,
+        211,
+        212,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        250,
+        251,
+        252,
+    ];
+
+    // Where the text is cut once the placeholders are filled in, without an ellipsis (official
+    // client capture 2026-10-24, WIN63-202610201032: a whisper with a long furni name list ended
+    // at exactly 1000 characters, 2/2).
+    private const int OUTPUT_MAX_LENGTH = 1000;
+
     public override int WiredCode => (int)WiredActionType.CHAT;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
@@ -38,7 +70,7 @@ public class WiredActionShowMessage(
             new WiredEnumParamRule<WiredChatVisibilityType>(
                 WiredChatVisibilityType.SelectedUsersOnly
             ),
-            new WiredSetParamRule(DEFAULT_STYLE_ID, WiredConfig.ShowMessageStyleIds),
+            new WiredSetParamRule(DEFAULT_STYLE_ID, STYLE_IDS),
             new WiredRangeParamRule(-1, 2, -1),
         ];
 
@@ -63,10 +95,8 @@ public class WiredActionShowMessage(
 
         text = await ctx.FormatTextAsync(text, ct);
 
-        var cut = WiredConfig.ShowMessageOutputMaxLength;
-
-        if (cut > 0 && text.Length > cut)
-            text = text[..cut];
+        if (text.Length > OUTPUT_MAX_LENGTH)
+            text = text[..OUTPUT_MAX_LENGTH];
 
         var visibility = GetIntParamOrDefault(0, WiredChatVisibilityType.SelectedUsersOnly);
         var styleId = GetIntParamOrDefault(1, DEFAULT_STYLE_ID);

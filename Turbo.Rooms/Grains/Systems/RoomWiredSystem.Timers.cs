@@ -24,16 +24,13 @@ public sealed partial class RoomWiredSystem
     private bool _timedTriggersStarted;
 
     /// <summary>
-    /// Restarts the timer that "time elapsed" and "at given time" wired read, and with
-    /// <see cref="WiredConfig.ResetTimersRestartsPeriodicTriggers"/> the periodic triggers too.
+    /// Restarts the timer that "time elapsed" and "at given time" wired read, and the periodic
+    /// triggers too.
     /// </summary>
     public void ResetTimers(long now)
     {
         _timersEpochMs = now;
         _timersEpochVersion++;
-
-        if (!WiredConfig.ResetTimersRestartsPeriodicTriggers)
-            return;
 
         // Habbo's Timer Reset "resets triggers that use timers" (furnidata): a repeater it resets
         // fires on the next avatar tick. In its own 3 s repeater's stack it fired the stack on
@@ -107,9 +104,11 @@ public sealed partial class RoomWiredSystem
 
     /// <summary>
     /// When a periodic trigger the room loaded with first fires: on the first avatar tick of the
-    /// room's first pass with someone in it, where the entering user is first shown
-    /// (<see cref="WiredConfig.PeriodicTriggersFireOnRoomLoad"/>). One placed since the load waits
-    /// a period (<see cref="FirstPeriodicAt"/>).
+    /// room's first pass with someone in it, where the entering user is first shown,
+    /// as Habbo's do: a room unloaded and loaded again had its 2 s, 5 s and 500 ms repeaters flash
+    /// together in the entering user's first UserUpdate, about 470 ms after RoomReady (official
+    /// client capture 2026-10-24, WIN63-202610201032, 2/2). One placed since the load waits a
+    /// period (<see cref="FirstPeriodicAt"/>).
     /// </summary>
     private long LoadedPeriodicAt(long now)
     {
@@ -135,7 +134,7 @@ public sealed partial class RoomWiredSystem
     {
         var elapsedMs = GetElapsedTimerMs(now);
         var restartPeriodic = _restartPeriodicTriggers;
-        var roomLoad = !_timedTriggersStarted && WiredConfig.PeriodicTriggersFireOnRoomLoad;
+        var roomLoad = !_timedTriggersStarted;
 
         _restartPeriodicTriggers = false;
         _timedTriggersStarted = true;
@@ -183,11 +182,12 @@ public sealed partial class RoomWiredSystem
                 {
                     var objectId = atTime.ObjectId;
 
-                    // A box new to the room whose time the timer has passed already missed it
-                    // (WiredConfig.AtGivenTimeWaitsForTimerRestart).
+                    // A box new to the room whose time the timer has passed already missed it and
+                    // waits for the next room load or Timer Reset: a box saved at 1 s in a room
+                    // loaded 72 minutes earlier never fired, and fired about 1.45 s after the next
+                    // load (official client capture 2026-10-24, wired matrix trigger.3.R5, 4/4).
                     if (
-                        WiredConfig.AtGivenTimeWaitsForTimerRestart
-                        && !_atTimeFiredVersion.ContainsKey(objectId)
+                        !_atTimeFiredVersion.ContainsKey(objectId)
                         && !State.LoadedItemSnapshots.ContainsKey(objectId)
                         && elapsedMs >= atTime.GetTargetMs()
                     )

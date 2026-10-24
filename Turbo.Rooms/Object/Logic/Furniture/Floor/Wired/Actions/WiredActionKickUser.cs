@@ -15,7 +15,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
 /// Throws the selected users out of the room after whispering them the string param. The room
-/// owner is never kicked, and is whispered <see cref="Configuration.WiredConfig.KickExceptionMessage"/> instead. The room drops the avatar, then the presence closes the session
+/// owner is never kicked, and is whispered <see cref="EXCEPTION_MESSAGE"/> instead. The room drops the avatar, then the presence closes the session
 /// through <c>OnRemovedFromRoomAsync</c>, the eviction call that never re-enters the room. It is
 /// not awaited: a wired tick must not wait on a presence that may itself be waiting on the room.
 /// </summary>
@@ -26,6 +26,11 @@ public class WiredActionKickUser(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
+    // What one the room keeps is whispered over their own avatar, in bubble 34 (official client
+    // capture 2026-10-24, Kick on the room owner, 2/2).
+    private const string EXCEPTION_MESSAGE = "Wired kick exception: Room owner";
+    private const int EXCEPTION_STYLE_ID = 34;
+
     public override int WiredCode => (int)WiredActionType.KICK_FROM_ROOM;
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
@@ -56,8 +61,8 @@ public class WiredActionKickUser(
             if (AvatarModule.TryGetPlayer(player.PlayerId, out var kept))
                 await ChatSystem.SayAsAvatarAsync(
                     kept,
-                    WiredConfig.KickExceptionMessage,
-                    new AvatarSpeech { StyleId = WiredConfig.KickExceptionStyleId, OnlyFor = kept },
+                    EXCEPTION_MESSAGE,
+                    new AvatarSpeech { StyleId = EXCEPTION_STYLE_ID, OnlyFor = kept },
                     ct
                 );
         }

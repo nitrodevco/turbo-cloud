@@ -23,9 +23,14 @@ public class WiredActionChaseHabbo(
 {
     // How close counts as having caught a player: the furni never moves when adjacent and the
     // collision trigger fires every firing (official client capture 2026-10-16, and 2026-10-24
-    // W1 lab action.11.B1 3/3). How far it notices one, and whether only in a straight line, is
-    // WiredConfig.ChaseRange and ChaseFleeInLineOnly; nobody noticed, it steps at random.
+    // W1 lab action.11.B1 3/3). With nobody noticed, it steps at random.
     private const int COLLISION_RANGE = 1;
+
+    // How far it notices a player, and only on its row or column: Habbo steps toward a player 2 or
+    // 3 tiles away in the furni's row or column every time (16/16), and takes a random straight
+    // step when the player is 4 or 5 tiles away (23 firings) or off its row and column (31
+    // firings) (official client capture 2026-10-24, W1 lab action.11.R1-R3).
+    internal const int NOTICE_RANGE = 3;
 
     public override int WiredCode => (int)WiredActionType.CHASE;
 
@@ -36,7 +41,6 @@ public class WiredActionChaseHabbo(
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var map = MapModule;
-        var range = WiredConfig.ChaseRange;
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {
@@ -47,10 +51,10 @@ public class WiredActionChaseHabbo(
             if (
                 AvatarModule.TryGetNearestPlayer(
                     floorIdx,
-                    range > 0 ? range : int.MaxValue,
+                    NOTICE_RANGE,
                     out var player,
                     out var distance,
-                    WiredConfig.ChaseFleeInLineOnly
+                    inLineOnly: true
                 )
             )
             {
