@@ -14,6 +14,11 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Protocol\Fixtures\achievements.json" />
+    <!-- Why each wired and room setting exists (ConfigAllowlistTests). -->
+    <EmbeddedResource
+      Include="Architecture\config-allowlist.txt"
+      LogicalName="Architecture.config-allowlist.txt"
+    />
     <!-- The built-in variables as hhus describes them (WIN63-202610121709). -->
     <EmbeddedResource
       Include="Rooms\Fixtures\*.json"

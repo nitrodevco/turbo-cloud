@@ -21,29 +21,19 @@ public class HandlerSendTests
             .Where(x => x.Name == nameof(IPlayerPresenceGrain.SendComposerAsync)),
     ];
 
-    public static TheoryData<Type> Handlers()
+    [Fact]
+    public void Every_handler_sends_only_the_sanctioned_ways()
     {
-        var data = new TheoryData<Type>();
-
-        foreach (var type in PermissionGateTests.HandlerTypes())
-            data.Add(type);
-
-        return data;
-    }
-
-    [Theory]
-    [MemberData(nameof(Handlers))]
-    public void Handler_SendsOnlyTheSanctionedWays(Type handler)
-    {
-        var (_, calls) = PermissionGateTests.ReadHandleAsyncBody(handler);
-
-        calls
-            .Intersect(PRESENCE_SENDS)
-            .Should()
-            .BeEmpty(
-                "{0} sends through the presence grain itself; use SendComposerToPlayerAsync",
-                handler.Name
+        var offenders = PermissionGateTests
+            .HandlerTypes()
+            .Where(handler =>
+                PermissionGateTests.ReadHandleAsyncBody(handler).Calls.Overlaps(PRESENCE_SENDS)
+            )
+            .Select(handler =>
+                $"{handler.Name} sends through the presence grain itself; use SendComposerToPlayerAsync"
             );
+
+        offenders.Should().BeEmpty();
     }
 
     [Fact]
