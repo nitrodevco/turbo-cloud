@@ -19,7 +19,8 @@ namespace Turbo.Tests.Rooms;
 /// Set Furni Altitude at its limits (official client capture 2026-10-24, W1 lab, own room, a
 /// block 1.00 high): a saved altitude out of 0..8000 is kept at the nearest end, not refused
 /// (action.29.E1, 3/3); "set 80.00" stops the block's top at 80.00, z 79.00, and an increase
-/// there sends nothing (action.29.L1, 3/3).
+/// there sends nothing (action.29.L1, 3/3); moved in the same firing, the furni still ends at
+/// the set altitude (action.29.X1, 16/16).
 /// </summary>
 public sealed class WiredSetAltitudeLabTests
 {
@@ -71,6 +72,40 @@ public sealed class WiredSetAltitudeLabTests
 
         packets.Should().BeEmpty();
         _room.FloorItem(BLOCK).Z.ToInt().Should().Be(7900);
+    }
+
+    // action.29.X1: moved and given an altitude in one firing, the furni always ends at that
+    // altitude on its new tile, whichever box runs first.
+    [Fact]
+    public async Task A_moved_furni_ends_at_the_altitude_set_in_the_same_firing()
+    {
+        _room.Enter(USER, 1, 1);
+        _room.AddBox<WiredActionRelativeMove>(3, 0, 0, "wf_act_rel_mov");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                3,
+                intParams: [0, 2],
+                stuffIds: [BLOCK],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await BuildAsync(200, SET);
+
+        for (var i = 0; i < 12; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(5, 3));
+            _room.FloorItem(BLOCK).SetPositionZ(Altitude.Zero);
+
+            await ClickAsync();
+
+            (_room.FloorItem(BLOCK).Y, _room.FloorItem(BLOCK).Z.ToInt())
+                .Should()
+                .Be((5, 200), $"firing {i + 1}");
+        }
     }
 
     private async Task<List<WiredMovementsMessageComposer>> ClickAsync()

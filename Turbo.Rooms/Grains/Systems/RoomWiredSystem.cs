@@ -1566,7 +1566,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// <summary>
     /// The effects a run of the stack makes and their order. Effects run in a random order unless
     /// "Execute In Order" keeps them in stacking order (<see cref="IWiredPolicy.ExecuteInOrder"/>).
-    /// Nothing is remembered until <see cref="CommitPick"/>.
+    /// In the random order Set Furni Altitude comes after the other effects: a furni moved and
+    /// given an altitude in one firing always ended at that altitude, the altitude box below or
+    /// above the mover (official client capture 2026-10-24, W1 lab action.29.X1, 16/16; the move
+    /// alone drops the furni to the target tile's top). Nothing is remembered until
+    /// <see cref="CommitPick"/>.
     /// </summary>
     private WiredActionPick ChooseActions(
         List<IWiredAction> actions,
@@ -1577,7 +1581,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         var pick = PickActions(actions, policy, stackId);
 
         if (!policy.ExecuteInOrder && pick.Actions.Count > 1)
+        {
             Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pick.Actions));
+
+            var altitudes = pick.Actions.FindAll(x => x is WiredActionSetAltitude);
+
+            if (altitudes.Count > 0 && altitudes.Count < pick.Actions.Count)
+            {
+                pick.Actions.RemoveAll(x => x is WiredActionSetAltitude);
+                pick.Actions.AddRange(altitudes);
+            }
+        }
 
         return pick;
     }
