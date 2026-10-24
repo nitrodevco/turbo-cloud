@@ -19,7 +19,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// <summary>
 /// Moves the picked furni one tile in a heading it remembers per item, turning when blocked.
 /// Params: the starting direction (0-7), the turn rule on collision, and whether a user in the
-/// way blocks the move (raising the collision trigger) instead of being passed.
+/// way stops the furni where it is (else it turns away from the user as from furni); a user in
+/// the way raises the collision trigger either way.
 /// </summary>
 [RoomObjectLogic("wf_act_move_to_dir")]
 public class WiredActionMoveToDirection(
@@ -72,6 +73,7 @@ public class WiredActionMoveToDirection(
                 heading = startDirection;
 
             var moved = false;
+            var tried = 0;
 
             // Try the heading, then the turned headings until one is free or we give up. Only
             // giving up is a blocked move: turning and going another way is the box working.
@@ -79,25 +81,36 @@ public class WiredActionMoveToDirection(
             {
                 var at = plan.Where(item);
 
-                if (
-                    map.TryGetTileInFront(map.ToIdx(at.X, at.Y), heading, out var nextIdx)
-                    && !IsBlockedByUser(nextIdx, blockOnUsers, item, plan)
-                )
+                tried |= 1 << (int)heading;
+
+                if (map.TryGetTileInFront(map.ToIdx(at.X, at.Y), heading, out var nextIdx))
                 {
-                    var (x, y) = map.GetTileXY(nextIdx);
-
-                    if (plan.TryMove(item, x, y))
+                    // A user ahead raises the collision trigger either way. With "block furni
+                    // movements" ticked the furni stays where it is, without turning; unticked,
+                    // the user is in the way like any furni and the turn rule applies (official
+                    // client capture 2026-10-24, W1 action.13.B5 4/4, B6 4/4).
+                    if (MeetsUser(nextIdx, item, plan))
                     {
-                        moved = true;
+                        if (blockOnUsers)
+                            break;
+                    }
+                    else
+                    {
+                        var (x, y) = map.GetTileXY(nextIdx);
 
-                        break;
+                        if (plan.TryMove(item, x, y))
+                        {
+                            moved = true;
+
+                            break;
+                        }
                     }
                 }
 
                 if (turnMode == TURN_WAIT)
                     break;
 
-                heading = Turn(heading, turnMode);
+                heading = Turn(heading, turnMode, tried);
             }
 
             if (!moved)
@@ -109,14 +122,10 @@ public class WiredActionMoveToDirection(
         }
     }
 
-    private bool IsBlockedByUser(
-        int tileIdx,
-        bool blockOnUsers,
-        IRoomFloorItem item,
-        WiredMovePlan plan
-    )
+    /// <summary>Whether a user stands on the tile, raising the collision trigger for each.</summary>
+    private bool MeetsUser(int tileIdx, IRoomFloorItem item, WiredMovePlan plan)
     {
-        if (!blockOnUsers || !AvatarModule.HasAvatarOnTile(tileIdx))
+        if (!AvatarModule.HasAvatarOnTile(tileIdx))
             return false;
 
         foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileIdx))
@@ -128,15 +137,34 @@ public class WiredActionMoveToDirection(
         return true;
     }
 
-    private static Rotation Turn(Rotation heading, int turnMode) =>
+    /// <summary>
+    /// The next heading to try. "Random" picks one of the headings not tried yet, so a furni
+    /// with a free neighbour always moves (official client capture 2026-10-24, W1 action.13.B3:
+    /// moved to a free neighbour 8/8, never stayed).
+    /// </summary>
+    private static Rotation Turn(Rotation heading, int turnMode, int tried) =>
         turnMode switch
         {
             TURN_RIGHT_90 => heading.Rotate(2),
             TURN_LEFT_90 => heading.Rotate(-2),
             TURN_RIGHT_45 => heading.Rotate(1),
             TURN_LEFT_45 => heading.Rotate(-1),
-            TURN_RANDOM => (Rotation)Random.Shared.Next(0, 8),
+            TURN_RANDOM => RandomUntried(heading, tried),
             TURN_BACK => heading.Opposite(),
             _ => heading,
         };
+
+    private static Rotation RandomUntried(Rotation heading, int tried)
+    {
+        Span<int> untried = stackalloc int[8];
+        var count = 0;
+
+        for (var direction = 0; direction < 8; direction++)
+        {
+            if ((tried & (1 << direction)) == 0)
+                untried[count++] = direction;
+        }
+
+        return count == 0 ? heading : (Rotation)untried[Random.Shared.Next(count)];
+    }
 }
