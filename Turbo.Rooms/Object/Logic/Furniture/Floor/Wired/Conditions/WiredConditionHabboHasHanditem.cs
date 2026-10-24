@@ -11,7 +11,7 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>True when the triggering users carry the hand item in param 0 (zero: anything).</summary>
+/// <summary>True when the triggering users carry the hand item in param 0 (zero: an empty hand).</summary>
 [RoomObjectLogic("wf_cnd_has_handitem")]
 public class WiredConditionHabboHasHanditem(
     IGrainFactory grainFactory,
@@ -30,9 +30,8 @@ public class WiredConditionHabboHasHanditem(
         var handItemId = GetIntParamOrDefault(0, 0);
         var players = GetAvatars(ctx.GetSelection(this));
 
-        return Quantify(
-            players.Select(p => handItemId == 0 ? p.HandItemId != 0 : p.HandItemId == handItemId),
-            true
-        );
+        // Item 0 is no item: it holds for an empty hand (official client capture 2026-10-24,
+        // saved [0]: passes with nothing in hand 3/3, blocks while holding item 4 2/2).
+        return Quantify(players.Select(p => p.HandItemId == handItemId), true);
     }
 }

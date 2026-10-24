@@ -406,6 +406,15 @@ public class WiredConfig
     /// </summary>
     public int RegexMatchTimeoutMs { get; init; } = 50;
     public int KickMessageMaxLength { get; init; } = 100;
+
+    /// <summary>
+    /// What Kick whispers to a player the room keeps (its owner, and staff who control every
+    /// room) over their own avatar, in bubble <see cref="KickExceptionStyleId"/> (official client
+    /// capture 2026-10-24, Kick on the room owner, 2/2). Empty whispers nothing.
+    /// </summary>
+    public string KickExceptionMessage { get; init; } = "Wired kick exception: Room owner";
+
+    public int KickExceptionStyleId { get; init; } = 34;
     public int LogMessageMaxLength { get; init; } = 400;
     public int MaxRewardsPerBox { get; init; } = 20;
 

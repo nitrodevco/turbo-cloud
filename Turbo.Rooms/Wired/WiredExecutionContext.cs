@@ -474,9 +474,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         if (avatar is null)
             return Task.CompletedTask;
 
-        avatar.SetBodyRotation(body);
-        avatar.SetHeadRotation(head);
-        avatar.MarkDirty();
+        // A seat holds its sitter's direction: the turn is announced, but the user keeps facing
+        // the way the seat does, and the next turn starts from there again (official client
+        // capture 2026-10-24, rotation 9 on a sitter facing 4: WiredMovements body 5, UserUpdate
+        // body 4, the next fire 5 again, 2/2). A bed holding its sleeper: inference.
+        if (!avatar.HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
+        {
+            avatar.SetBodyRotation(body);
+            avatar.SetHeadRotation(head);
+            avatar.MarkDirty();
+        }
 
         UserDirections.Add(
             new()

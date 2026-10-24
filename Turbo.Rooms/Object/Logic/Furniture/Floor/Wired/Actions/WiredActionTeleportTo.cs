@@ -116,6 +116,7 @@ public class WiredActionTeleportTo(
 
         var config = WiredConfig;
         var effectId = fast ? config.TeleportFastEffectId : config.TeleportEffectId;
+        var worn = avatar.EffectId;
 
         if (effectId > 0)
             await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct);
@@ -129,12 +130,20 @@ public class WiredActionTeleportTo(
             token => ArriveAsync(avatar, tileIdx, token)
         );
 
+        // A user still frozen when the teleport's effect ends gets their freeze effect back; anyone
+        // else none (official client capture 2026-10-24, Freeze with "cancel on teleport" off then
+        // Teleport To: AvatarEffect 4 at the fire, 218 again 3.4 s later, still frozen; with it on,
+        // thawed on landing and AvatarEffect 0 at the same point, 1/1 each).
         if (effectId > 0)
             WiredSystem.RunAfter(
                 fast ? config.TeleportFastEffectMs : config.TeleportEffectMs,
                 token =>
                     IsInRoom(avatar) && avatar.EffectId == effectId
-                        ? AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, 0, token)
+                        ? AvatarModule.SetAvatarEffectAsync(
+                            avatar.ObjectId,
+                            avatar.IsFrozen ? worn : 0,
+                            token
+                        )
                         : Task.FromResult(false)
             );
 
