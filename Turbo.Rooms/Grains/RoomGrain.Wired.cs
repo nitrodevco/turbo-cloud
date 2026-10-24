@@ -85,7 +85,7 @@ public sealed partial class RoomGrain
         {
             return await WiredSystem.ApplyUpdateAsync(ctx, itemId, update, ct)
                 ? WiredSaveResult.Saved
-                : WiredSaveResult.Refused;
+                : RefusedWithoutText();
         }
         catch (WiredSaveRefusedException refused)
         {
@@ -109,9 +109,16 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return WiredSaveResult.Refused;
+            return RefusedWithoutText();
         }
     }
+
+    /// <summary>
+    /// A refused save with no hotel text to show: Habbo's server error (<see cref="WiredSaveResult.ServerError"/>),
+    /// or this server's own text when <see cref="Configuration.WiredConfig.RefusalsAsServerError"/> is off.
+    /// </summary>
+    private WiredSaveResult RefusedWithoutText() =>
+        _wiredConfig.RefusalsAsServerError ? WiredSaveResult.ServerError : WiredSaveResult.Refused;
 
     public async Task<bool> ApplyWiredSnapshotAsync(
         ActionContext ctx,
