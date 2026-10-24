@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -262,6 +263,47 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 AnimationTime = GetAnimationTime(),
             }
         );
+
+    /// <summary>
+    /// A wall item turned onto the other wall side goes out as its own item update, not as a
+    /// wall move: Move and Rotate with a rotation sent the wall item's ItemUpdate each firing
+    /// and no WiredMovements (official client capture 2026-10-24T17-49-51, W1 lab action.4.B11,
+    /// 2/2; without a rotation it was a wall move, action.4.X11).
+    /// </summary>
+    public async Task TurnWallItemAsync(IRoomWallItem wallItem, WallPosition to)
+    {
+        try
+        {
+            await FurniModule.MoveWallItemAsync(
+                AsActionContext(),
+                wallItem,
+                to.X,
+                to.Y,
+                to.Z,
+                to.WallOffset,
+                to.Rotation,
+                announce: true,
+                CancellationToken
+            );
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(
+                ex,
+                "Wired could not turn wall item {ItemId} in room {RoomId}",
+                wallItem.ObjectId,
+                _roomGrain.RoomId
+            );
+        }
+    }
+
+    /// <summary>
+    /// A wall item's state sent as it is, changed or not: Match Snapshot restoring a wall item
+    /// sends its ItemsStateUpdate every firing (official client capture 2026-10-24T17-49-51, W1
+    /// lab action.3.B11, 2/2, the item in its saved state both times).
+    /// </summary>
+    public void AnnounceWallItemState(IRoomWallItem wallItem) =>
+        WallItemStateUpdates.Add((wallItem.ObjectId, wallItem.Logic.GetLegacyString()));
 
     public async Task ProcessWallItemMovementAsync(
         IRoomWallItem wallItem,

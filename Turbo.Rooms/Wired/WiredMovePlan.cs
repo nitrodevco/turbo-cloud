@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Modules;
 
@@ -106,6 +108,36 @@ public sealed class WiredMovePlan
             )
         );
     }
+
+    /// <summary>
+    /// A wall item's move, sent in the action's WiredMovements as a wall move, also when it
+    /// stays where it is (<see cref="WiredWallMoves"/>). Nothing on the floor is in its way and
+    /// it is in nobody's.
+    /// </summary>
+    public void MoveWallItem(IRoomWallItem item, WallPosition to) =>
+        _steps.Add(async ctx =>
+        {
+            await ctx.ProcessWallItemMovementAsync(
+                item,
+                to.X,
+                to.Y,
+                to.Z,
+                to.Rotation,
+                to.WallOffset
+            );
+
+            return true;
+        });
+
+    /// <summary>A wall item turned onto the other wall side, sent as its own item update.</summary>
+    public void TurnWallItem(IRoomWallItem item, WallPosition to) =>
+        _steps.Add(async ctx =>
+        {
+            if (ctx is WiredExecutionContext execution)
+                await execution.TurnWallItemAsync(item, to);
+
+            return true;
+        });
 
     /// <summary>The action meant to move a furni and found no way to.</summary>
     public void Block() => HasBlockedMove = true;

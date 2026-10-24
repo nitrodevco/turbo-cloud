@@ -64,15 +64,29 @@ public class WiredActionMoveAsGroup(
 
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
-        var group = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
+        var selection = WiredSlotSelection.ForSlot(this, ctx, 0);
+        var group = GetFloorItems(selection);
+        var wallItems = GetWallItems(selection);
 
-        if (group.Count == 0 || !TryGetTargetTile(ctx, plan, out var targetX, out var targetY))
+        if (
+            (group.Count == 0 && wallItems.Count == 0)
+            || !TryGetTargetTile(ctx, plan, out var targetX, out var targetY)
+        )
             return;
 
         var map = MapModule;
         var placements = group.Select(x => (Item: x, At: plan.Where(x))).ToList();
-        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - placements.Min(x => x.At.X);
-        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - placements.Min(x => x.At.Y);
+
+        // A wall pick is one of the group at its wall coordinates (W1 lab action.57.B11, the
+        // wall item alone, 2/2; inferred for a group of floor and wall items).
+        var corners = placements
+            .Select(x => (x.At.X, x.At.Y))
+            .Concat(wallItems.Select(x => (x.X, x.Y)))
+            .ToList();
+        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - corners.Min(x => x.Item1);
+        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - corners.Min(x => x.Item2);
+
+        PlanWallItemSteps(selection, plan, dx, dy);
 
         if (dx == 0 && dy == 0)
             return;

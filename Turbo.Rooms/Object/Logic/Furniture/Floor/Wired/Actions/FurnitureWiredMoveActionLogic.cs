@@ -39,14 +39,17 @@ public abstract class FurnitureWiredMoveActionLogic(
     /// Plans the furni in slot 0 onto the first furni in slot 1 (with
     /// <paramref name="anyTarget"/>, one of them drawn at random), offset by
     /// (<paramref name="dx"/>, <paramref name="dy"/>) tiles. "Furni to furni" is this with no
-    /// offset and "move furni to" with one; they were the same loop written twice.
+    /// offset and "move furni to" with one; they were the same loop written twice. With
+    /// <paramref name="blockedByUsers"/>, an avatar on the target tile blocks the move (see
+    /// <see cref="IsBlockedByUser"/>).
     /// </summary>
     protected void PlanOntoTargetFurni(
         IWiredContext ctx,
         WiredMovePlan plan,
         int dx,
         int dy,
-        bool anyTarget = false
+        bool anyTarget = false,
+        bool blockedByUsers = false
     )
     {
         var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
@@ -63,6 +66,18 @@ public abstract class FurnitureWiredMoveActionLogic(
             if (mover.ObjectId == target.ObjectId)
                 continue;
 
+            var moverAt = plan.Where(mover);
+
+            if (
+                blockedByUsers
+                && IsBlockedByUser(ctx, mover, moverAt, at.X + dx, at.Y + dy, moverAt.Rotation)
+            )
+            {
+                plan.Block();
+
+                continue;
+            }
+
             plan.Move(mover, at.X + dx, at.Y + dy);
         }
     }
@@ -75,15 +90,45 @@ public abstract class FurnitureWiredMoveActionLogic(
     /// </summary>
     protected void PlanWallItemsInPlace(IWiredSelectionSet selection, WiredMovePlan plan)
     {
-        foreach (var itemId in selection.SelectedFurniIds)
-        {
-            if (FurniModule.TryGetItem(itemId, out var item) && item is IRoomWallItem wallItem)
-                plan.Then(execution =>
-                {
-                    (execution as WiredExecutionContext)?.AnnounceWallItemInPlace(wallItem);
+        foreach (var wallItem in GetWallItems(selection))
+            plan.Then(execution =>
+            {
+                (execution as WiredExecutionContext)?.AnnounceWallItemInPlace(wallItem);
 
-                    return Task.CompletedTask;
-                });
+                return Task.CompletedTask;
+            });
+    }
+
+    /// <summary>
+    /// Moves the wall items of <paramref name="selection"/> by (<paramref name="dx"/>,
+    /// <paramref name="dy"/>) tiles (<see cref="WiredWallMoves.TryStep"/>), each in the action's
+    /// WiredMovements; with <paramref name="turn"/>, each also turns onto the other wall side and
+    /// goes out as its own item update instead. Relative Move, Move and Rotate and Move As Group
+    /// keep a wall pick and move it (official client capture 2026-10-24T17-49-51, W1 lab
+    /// action.33.B11, action.4.B11, action.57.B11, 2/2 each); a wall item that does not move
+    /// is still sent where it is (action.57.B11, its second firing).
+    /// </summary>
+    protected void PlanWallItemSteps(
+        IWiredSelectionSet selection,
+        WiredMovePlan plan,
+        int dx,
+        int dy,
+        bool turn = false
+    )
+    {
+        foreach (var wallItem in GetWallItems(selection))
+        {
+            if (!WiredWallMoves.TryStep(MapModule, WiredWallMoves.At(wallItem), dx, dy, out var to))
+            {
+                plan.Block();
+
+                continue;
+            }
+
+            if (turn)
+                plan.TurnWallItem(wallItem, WiredWallMoves.Turned(to));
+            else
+                plan.MoveWallItem(wallItem, to);
         }
     }
 

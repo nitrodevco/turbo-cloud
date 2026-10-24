@@ -116,6 +116,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     public Altitude GetTileHeight(int tileIdx) =>
         InBounds(tileIdx) ? State.TileHeights[tileIdx] : Altitude.Zero;
 
+    /// <summary>The level of the room's floor on a tile, without furni. Zero outside the room.</summary>
+    public int GetFloorLevel(int x, int y) =>
+        InBounds(x, y) ? (int)(State.Model?.BaseHeights[ToIdx(x, y)].Value ?? 0) : 0;
+
     /// <summary>
     /// The neighbouring tiles that bring <paramref name="fromIdx"/> closer to
     /// <paramref name="toIdx"/>, straight steps only: the axis with more ground to cover first,
