@@ -56,6 +56,7 @@ public class WiredAddonProjectile(
     private const int SLOT_PROJECTILES = 0;
 
     // The bounds of the editor's inputs.
+    private const int TIME_PER_TILE_MIN_MS = 1;
     private const int TIME_PER_TILE_MAX_MS = 100000;
     private const int SPEED_INCREASE_MAX_MS = 100000;
     private const int ROTATION_OFFSET_MAX = 7;
@@ -81,7 +82,7 @@ public class WiredAddonProjectile(
             ),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, TIME_PER_TILE_MAX_MS, 100),
+            new WiredRangeParamRule(TIME_PER_TILE_MIN_MS, TIME_PER_TILE_MAX_MS, 100),
             WiredRules.VariableTarget(WiredVariableTargetType.Context),
             new WiredBoolParamRule(true),
             new WiredBoolParamRule(true),

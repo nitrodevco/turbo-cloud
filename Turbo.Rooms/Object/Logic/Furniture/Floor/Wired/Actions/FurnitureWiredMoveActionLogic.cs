@@ -1,7 +1,11 @@
+using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
@@ -31,11 +35,18 @@ public abstract class FurnitureWiredMoveActionLogic(
     protected virtual bool SucceedsWithoutMoving => false;
 
     /// <summary>
-    /// Plans the furni in slot 0 onto the first furni in slot 1, offset by
+    /// Plans the furni in slot 0 onto the first furni in slot 1 (with
+    /// <paramref name="anyTarget"/>, one of them drawn at random), offset by
     /// (<paramref name="dx"/>, <paramref name="dy"/>) tiles. "Furni to furni" is this with no
     /// offset and "move furni to" with one; they were the same loop written twice.
     /// </summary>
-    protected void PlanOntoTargetFurni(IWiredContext ctx, WiredMovePlan plan, int dx, int dy)
+    protected void PlanOntoTargetFurni(
+        IWiredContext ctx,
+        WiredMovePlan plan,
+        int dx,
+        int dy,
+        bool anyTarget = false
+    )
     {
         var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
         var targets = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1));
@@ -43,7 +54,7 @@ public abstract class FurnitureWiredMoveActionLogic(
         if (movers.Count == 0 || targets.Count == 0)
             return;
 
-        var target = targets[0];
+        var target = anyTarget ? targets[Random.Shared.Next(targets.Count)] : targets[0];
         var at = plan.Where(target);
 
         foreach (var mover in movers)
@@ -53,6 +64,51 @@ public abstract class FurnitureWiredMoveActionLogic(
 
             plan.Move(mover, at.X + dx, at.Y + dy);
         }
+    }
+
+    /// <summary>
+    /// Whether a user stands on the tiles a furni would move onto from <paramref name="from"/>:
+    /// that blocks Move and Rotate Furni, Relative Furni Movement, Match To Snapshot and Move As
+    /// Group, with no collision (official client capture 2026-10-24, W1 lab action.4.B1 4/4,
+    /// action.33.X5 3/3, action.3.B2 2/2, action.57.B1 2/2). The movement physics add-on's "move
+    /// through users" lets the furni through them, all or the ones it names (addon.7.R1, 1/1).
+    /// A user on the furni itself is not in its way, nor is one a turn in place covers
+    /// (action.4.B2b, 1/1).
+    /// </summary>
+    protected bool IsBlockedByUser(
+        IWiredContext ctx,
+        IRoomFloorItem item,
+        WiredFurniPlacement from,
+        int x,
+        int y,
+        Rotation rotation
+    )
+    {
+        if (
+            (from.X == x && from.Y == y)
+            || !MapModule.GetTileIdForSize(
+                x,
+                y,
+                rotation,
+                item.Definition.Width,
+                item.Definition.Length,
+                out var tileIds
+            )
+        )
+            return false;
+
+        var throughUsers = ctx.Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers);
+        var passable = ctx.Policy.MoveThroughUserIds;
+        var onIt = AvatarModule.GetAvatarsOnItem(item, standingOnIt: false).ToHashSet();
+
+        return tileIds.Any(idx =>
+            AvatarModule
+                .GetAvatarsOnTile(idx)
+                .Any(avatar =>
+                    !onIt.Contains(avatar)
+                    && !(throughUsers && (passable?.Contains(avatar.ObjectId) ?? true))
+                )
+        );
     }
 
     internal WiredMovePlan Plan(IWiredContext ctx, WiredGhostLayout layout)

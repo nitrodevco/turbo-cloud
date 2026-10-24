@@ -21,10 +21,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// Int params, as the client's editor writes them: whether the target location is a user
 /// (otherwise the second furni slot), offset x, offset y (-64 to 64 each).
 ///
-/// Assumption: neither the editor nor its usage text ("the distance between the moving
-/// furniture will stay consistent") says which point of the group lands on the target, so the
-/// group's first furni is taken as its pivot. It lands on the target tile plus the offset and
-/// every other furni moves by the same delta.
+/// The corner of the box around the group (its smallest x and smallest y) lands on the target
+/// tile plus the offset, whichever furni stands there and in whatever order they were picked,
+/// and every furni moves by the same delta; a furni that cannot move stays and the others still
+/// move (official client capture 2026-10-24, W1 lab action.57.R3 4/4, action.57.B1/B2 2/2).
 /// </summary>
 [RoomObjectLogic("wf_act_move_furni_as_group")]
 public class WiredActionMoveAsGroup(
@@ -70,39 +70,32 @@ public class WiredActionMoveAsGroup(
             return;
 
         var map = MapModule;
-        var lead = plan.Where(group[0]);
-        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - lead.X;
-        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - lead.Y;
+        var placements = group.Select(x => (Item: x, At: plan.Where(x))).ToList();
+        var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - placements.Min(x => x.At.X);
+        var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - placements.Min(x => x.At.Y);
 
         if (dx == 0 && dy == 0)
             return;
 
-        // As a group: when any of them would leave the room, none of them moves.
-        if (
-            group.Any(x =>
-            {
-                var at = plan.Where(x);
-
-                return !map.InBounds(at.X + dx, at.Y + dy);
-            })
-        )
-        {
-            plan.Block();
-
-            return;
-        }
-
         // The furni furthest along the way goes first, so each one steps onto a tile the one
-        // before it has just left instead of being blocked by its own group.
+        // before it has just left instead of being blocked by its own group. One that cannot go
+        // (off the room, a user, furni in the way) stays; the rest go on.
         foreach (
-            var (item, at) in group
-                .Select(x => (Item: x, At: plan.Where(x)))
-                .OrderByDescending(x => x.At.X * Math.Sign(dx) + x.At.Y * Math.Sign(dy))
+            var (item, at) in placements.OrderByDescending(x =>
+                x.At.X * Math.Sign(dx) + x.At.Y * Math.Sign(dy)
+            )
         )
         {
-            // A blocked furni stops the ones behind it too: they would run into it.
-            if (!plan.Move(item, at.X + dx, at.Y + dy))
-                break;
+            var (x, y) = (at.X + dx, at.Y + dy);
+
+            if (!map.InBounds(x, y) || IsBlockedByUser(ctx, item, at, x, y, at.Rotation))
+            {
+                plan.Block();
+
+                continue;
+            }
+
+            plan.Move(item, x, y);
         }
     }
 

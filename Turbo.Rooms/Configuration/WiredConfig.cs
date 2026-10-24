@@ -363,11 +363,26 @@ public class WiredConfig
     public int TeleportFastEffectMs { get; init; } = 1500;
 
     /// <summary>
-    /// How many tiles away Chase notices a player; 0 is the whole room. Habbo chased from 7, 6,
-    /// 5, 4, 3 and 2 tiles in an 8-wide room (official client capture 2026-10-16), so no limit
-    /// showed there; ours stopped at 3. Farther than 7 is untested.
+    /// How many tiles away Chase notices a player; 0 is the whole room. Habbo steps toward a
+    /// player 2 or 3 tiles away in the furni's row or column every time (16/16), and takes a
+    /// random straight step when the player is 4 or 5 tiles away (23 firings) or off its row and
+    /// column (31 firings) (official client capture 2026-10-24, W1 lab action.11.R1-R3).
     /// </summary>
-    public int ChaseRange { get; init; } = 0;
+    public int ChaseRange { get; init; } = 3;
+
+    /// <summary>
+    /// How many tiles away Flee notices a player; 0 is the whole room. Habbo stepped away from a
+    /// player 2 tiles away in its row or column 8/8 and ignored one 4 tiles away (official client
+    /// capture 2026-10-24, W1 lab action.12.R1-R2); 3, as Chase, is inferred.
+    /// </summary>
+    public int FleeRange { get; init; } = 3;
+
+    /// <summary>
+    /// Whether Chase and Flee notice only a player on the furni's row or column (Habbo: a player
+    /// off them is never chased or fled, official client capture 2026-10-24, W1 lab
+    /// action.11.R3, action.12.R2). Off, they notice the nearest player in range anywhere.
+    /// </summary>
+    public bool ChaseFleeInLineOnly { get; init; } = true;
 
     /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the

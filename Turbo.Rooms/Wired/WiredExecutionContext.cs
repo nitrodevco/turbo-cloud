@@ -104,7 +104,8 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         IRoomFloorItem floorItem,
         int tileIdx,
         Altitude? z,
-        Rotation? rot
+        Rotation? rot,
+        bool carryStanding = false
     )
     {
         if (floorItem is null)
@@ -114,7 +115,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         {
             var (sourceX, sourceY, sourceZ) = (floorItem.X, floorItem.Y, floorItem.Z);
             var sourceIdx = MapModule.ToIdx(sourceX, sourceY);
-            var carried = CollectCarriedAvatars(floorItem);
+            var carried = CollectCarriedAvatars(floorItem, carryStanding);
 
             if (Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
                 z ??= floorItem.Z;
@@ -610,10 +611,20 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     private int GetAnimationTime() =>
         Policy.AnimationMode == WiredAnimationModeType.Instant ? 0 : Policy.AnimationTimeMs;
 
-    /// <summary>Avatars the "carry users" addon drags along with a moving item.</summary>
-    private List<IRoomAvatar> CollectCarriedAvatars(IRoomFloorItem floorItem)
+    /// <summary>
+    /// Avatars the "carry users" addon drags along with a moving item; without it, with
+    /// <paramref name="carryStanding"/>, the avatars standing on the item.
+    /// </summary>
+    private List<IRoomAvatar> CollectCarriedAvatars(IRoomFloorItem floorItem, bool carryStanding)
     {
         var carried = new List<IRoomAvatar>();
+
+        if (Policy.CarryUsers is null && carryStanding)
+        {
+            carried.AddRange(AvatarModule.GetAvatarsOnItem(floorItem, standingOnIt: true));
+
+            return carried;
+        }
 
         if (Policy.CarryUsers is not { } carryMode)
             return carried;

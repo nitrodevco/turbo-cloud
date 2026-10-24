@@ -28,11 +28,18 @@ public interface IWiredExecutionContext : IWiredContext
     public List<(RoomObjectId, StuffDataSnapshot)> FloorItemStateUpdates { get; }
     public List<(RoomObjectId, string)> WallItemStateUpdates { get; }
     public Task ProcessItemStateUpdateAsync(IRoomItem item, int state);
+
+    /// <summary>
+    /// Moves a floor item where a wired effect puts it. The users the stack's carry add-on names
+    /// ride along; with <paramref name="carryStanding"/> the users standing on it ride along even
+    /// without the add-on (Set Furni Altitude).
+    /// </summary>
     public Task<bool> ProcessFloorItemMovementAsync(
         IRoomFloorItem floorItem,
         int tileIdx,
         Altitude? z = null,
-        Rotation? rotation = null
+        Rotation? rotation = null,
+        bool carryStanding = false
     );
 
     /// <summary>

@@ -50,7 +50,9 @@ public class WiredAddonJumpStrength(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(MIN_STRENGTH, MAX_STRENGTH, DEFAULT_STRENGTH),
+            // Out of range is kept at the nearest end: 5000 -> 1000, -5000 -> -1000 (official
+            // client capture 2026-10-24, W1 lab addon.22.E9b, 3/3).
+            new WiredClampParamRule(MIN_STRENGTH, MAX_STRENGTH, DEFAULT_STRENGTH),
             WiredRules.VariableTarget(WiredVariableTargetType.Context),
         ];
 
@@ -72,8 +74,11 @@ public class WiredAddonJumpStrength(
         )
             return Task.FromResult(true);
 
-        // A variable can hold anything; the client's input cannot.
-        ctx.Policy.JumpStrength = (int)Math.Clamp(strength, MIN_STRENGTH, MAX_STRENGTH);
+        // A variable can hold anything; the client's input cannot. A strength of 0 is no curve
+        // at all: the furni moves carry no curve strength (addon.22.E9b, 1/1).
+        var clamped = (int)Math.Clamp(strength, MIN_STRENGTH, MAX_STRENGTH);
+
+        ctx.Policy.JumpStrength = clamped == 0 ? null : clamped;
 
         return Task.FromResult(true);
     }

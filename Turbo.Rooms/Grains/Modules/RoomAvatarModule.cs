@@ -460,21 +460,29 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         }
     }
 
-    /// <summary>The player closest to a tile and no further than <paramref name="maxDistance"/>.</summary>
+    /// <summary>
+    /// The player closest to a tile and no further than <paramref name="maxDistance"/>; with
+    /// <paramref name="inLineOnly"/>, only a player on the tile's row or column.
+    /// </summary>
     public bool TryGetNearestPlayer(
         int tileIdx,
         int maxDistance,
         out IRoomPlayer nearest,
-        out int distance
+        out int distance,
+        bool inLineOnly = false
     )
     {
         nearest = null!;
         distance = int.MaxValue;
 
         var map = MapModule;
+        var (x, y) = (map.GetX(tileIdx), map.GetY(tileIdx));
 
         foreach (var player in Players)
         {
+            if (inLineOnly && player.X != x && player.Y != y)
+                continue;
+
             var away = map.GetDistanceBetween(tileIdx, map.ToIdx(player.X, player.Y));
 
             if (away > maxDistance || away >= distance)

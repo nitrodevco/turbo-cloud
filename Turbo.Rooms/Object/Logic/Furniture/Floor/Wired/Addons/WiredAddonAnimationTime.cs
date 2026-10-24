@@ -29,7 +29,9 @@ public class WiredAddonAnimationTime(
     private int _animationTimeMs = DEFAULT_ANIMATION_MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, DEFAULT_ANIMATION_MS)];
+        // Out of range is kept at the nearest end, off-step values as they are: 10 -> 50, 3000 ->
+        // 2000, 175 stays 175 (official client capture 2026-10-24, W1 lab addon.9.E9b, 4/4).
+        [new WiredClampParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, DEFAULT_ANIMATION_MS)];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {

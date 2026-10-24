@@ -18,13 +18,9 @@ internal class WiredMovementsMessageComposerSerializer(int header)
 
         packet.WriteInteger(updatesCount);
 
-        foreach (var user in message.Users)
-        {
-            packet.WriteInteger((int)WiredMovementType.User);
-
-            WiredMovementSerializer.SerializeUserMovement(packet, user);
-        }
-
+        // Furni, then users, then user turns: the order of every official WiredMovements with
+        // more than one kind (official client capture, 254 of 254; wall items were never recorded
+        // beside another kind and stay with the furni). The client reads each entry's kind.
         foreach (var floorItem in message.FloorItems)
         {
             packet.WriteInteger((int)WiredMovementType.FloorItem);
@@ -37,6 +33,13 @@ internal class WiredMovementsMessageComposerSerializer(int header)
             packet.WriteInteger((int)WiredMovementType.WallItem);
 
             WiredMovementSerializer.SerializeWallItemMovement(packet, wallItem);
+        }
+
+        foreach (var user in message.Users)
+        {
+            packet.WriteInteger((int)WiredMovementType.User);
+
+            WiredMovementSerializer.SerializeUserMovement(packet, user);
         }
 
         foreach (var userDirection in message.UserDirections)
