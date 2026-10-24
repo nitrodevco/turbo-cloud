@@ -20,7 +20,8 @@ namespace Turbo.Tests.Rooms;
 /// block 1.00 high): a saved altitude out of 0..8000 is kept at the nearest end, not refused
 /// (action.29.E1, 3/3); "set 80.00" stops the block's top at 80.00, z 79.00, and an increase
 /// there sends nothing (action.29.L1, 3/3); moved in the same firing, the furni still ends at
-/// the set altitude (action.29.X1, 16/16).
+/// the set altitude (action.29.X1, 16/16); a user standing on it goes up or down with it in the
+/// furni's WiredMovements, carry add-on or not (action.29.R2, 4/4: 1 with it, 3 without).
 /// </summary>
 public sealed class WiredSetAltitudeLabTests
 {
@@ -106,6 +107,26 @@ public sealed class WiredSetAltitudeLabTests
                 .Should()
                 .Be((5, 200), $"firing {i + 1}");
         }
+    }
+
+    // action.29.R2, without the carry add-on.
+    [Fact]
+    public async Task A_user_standing_on_the_block_goes_up_with_it()
+    {
+        var user = _room.Enter(USER, 5, 5);
+        await _room.Map.InvokeAvatarAsync(user, Ct);
+        _room.Clock.AdvanceMs(500);
+        await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(_room.Harness.NowMs(), Ct);
+        await BuildAsync(200, SET);
+
+        var packets = await ClickAsync();
+
+        packets.Should().ContainSingle();
+        packets[0].FloorItems.Should().ContainSingle(x => (int)x.ObjectId == BLOCK);
+        packets[0]
+            .Users.Should()
+            .ContainSingle(x => (int)x.ObjectId == USER && x.SourceX == 5 && x.TargetX == 5);
+        user.Z.ToInt().Should().Be(300);
     }
 
     private async Task<List<WiredMovementsMessageComposer>> ClickAsync()

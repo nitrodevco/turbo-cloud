@@ -87,7 +87,9 @@ public sealed class WiredMovePlan
 
     /// <summary>
     /// Changes only a furni's altitude, on whatever tile it stands on when the move is made; no
-    /// placement is asked, the altitude being the action's to set.
+    /// placement is asked, the altitude being the action's to set. The users standing on it go up
+    /// or down with it, carry add-on or not (official client capture 2026-10-24, W1 lab
+    /// action.29.R2: in the furni's WiredMovements, 1/1 with the add-on, 3/3 without).
     /// </summary>
     public void SetAltitude(IRoomFloorItem item, Altitude z)
     {
@@ -95,7 +97,13 @@ public sealed class WiredMovePlan
 
         _layout.Move(item, at.X, at.Y, z, at.Rotation);
         _steps.Add(ctx =>
-            ctx.ProcessFloorItemMovementAsync(item, _map.ToIdx(item.X, item.Y), z, item.Rotation)
+            ctx.ProcessFloorItemMovementAsync(
+                item,
+                _map.ToIdx(item.X, item.Y),
+                z,
+                item.Rotation,
+                carryStanding: true
+            )
         );
     }
 
