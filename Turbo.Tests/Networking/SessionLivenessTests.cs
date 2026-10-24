@@ -189,24 +189,18 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         await _slowHandlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), Ct);
         await _hotel.Gateway.AddSessionToPlayerAsync(session.SessionKey, SessionHarness.PlayerId);
 
-        // The client goes on sending behind the stuck handler until the server stops reading it,
-        // then goes away. SuperSocket cannot finish closing such a connection, by the client or
-        // by the server, until the handler returns.
-        using (var flooding = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
-        {
-            try
-            {
-                for (var i = 0; i < 200; i++)
-                    await _client.SendAsync(
-                        new ArraySegment<byte>(new byte[1000]),
-                        WebSocketMessageType.Binary,
-                        true,
-                        flooding.Token
-                    );
-            }
-            catch (OperationCanceledException) { }
-        }
-        _client.Abort();
+        // The client sends a few packets behind the stuck handler, then falls silent and never
+        // answers the close. SuperSocket cannot finish closing such a connection until the
+        // handler returns, so only the heartbeat can take it offline. The client stays connected:
+        // an aborted one let ubuntu-latest CI read the reset and close the session itself before
+        // the heartbeat's first tick (no server reason, 2026-10-20 and 2026-10-24).
+        for (var i = 0; i < 20; i++)
+            await _client.SendAsync(
+                new ArraySegment<byte>(new byte[1000]),
+                WebSocketMessageType.Binary,
+                true,
+                Ct
+            );
 
         var heartbeat = new SessionHeartbeat(
             new NetworkingConfig
