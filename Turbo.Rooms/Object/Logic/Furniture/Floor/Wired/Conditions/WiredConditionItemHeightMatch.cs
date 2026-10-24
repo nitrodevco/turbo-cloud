@@ -11,7 +11,12 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>Compares the altitude of the picked furni (hundredths) with the three-way radio.</summary>
+/// <summary>
+/// Compares the altitude of the picked furni (their own z, in hundredths) with the three-way radio,
+/// all or any of them as the furni quantifier says; with none picked "all" passes and "any" fails
+/// (official client capture 2026-10-24, W1 lab condition.36.R1 6/6, R5 9/9; the editor opens with
+/// quantifierType 1, 2026-10-20T17-37-19).
+/// </summary>
 [RoomObjectLogic("wf_cnd_has_altitude")]
 public class WiredConditionItemHeightMatch(
     IGrainFactory grainFactory,
@@ -22,6 +27,8 @@ public class WiredConditionItemHeightMatch(
     public override int WiredCode => (int)WiredConditionType.FURNI_HAS_ALTITUDE;
 
     protected override bool AllowsWallFurni => true;
+
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Furni;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 8000, 0), new WiredRangeParamRule(0, 2, 0)];
@@ -36,7 +43,7 @@ public class WiredConditionItemHeightMatch(
 
         return Quantify(
             items.Select(x => WiredComparison.CompareThreeWay(comparison, x.Z.ToInt(), altitude)),
-            true
+            QuantifierRequiresAll
         );
     }
 }
