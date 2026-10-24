@@ -92,9 +92,9 @@ public sealed class WiredFurniVariablePickupTests
 
     private async Task<List<(WiredVariableId Id, int Value)>> ValuesAsync() =>
         [
-            .. (await _room.Harness.Room.GetAllVariablesForBindingAsync(Owner, Chest(), Ct))!.Values.Select(
-                x => (x.id, x.value.ToClient())
-            ),
+            .. (
+                await _room.Harness.Room.GetAllVariablesForBindingAsync(Owner, Chest(), Ct)
+            )!.Values.Select(x => (x.id, x.value.ToClient())),
         ];
 
     private static WiredVariableBinding Chest() => new(WiredVariableTargetType.Furni, CHEST);

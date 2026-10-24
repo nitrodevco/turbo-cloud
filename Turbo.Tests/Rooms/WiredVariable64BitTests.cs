@@ -81,10 +81,7 @@ public sealed class WiredVariable64BitTests
                 operand
             );
 
-            new WiredVariableValue(value)
-                .ToClient()
-                .Should()
-                .Be(int.Parse(rest[1].Trim()), step);
+            new WiredVariableValue(value).ToClient().Should().Be(int.Parse(rest[1].Trim()), step);
         }
     }
 

@@ -122,12 +122,13 @@ public static class WiredVariableOperations
     /// long (official client capture 2026-10-24, action.41.B4f, 3/3, no error). A negative value
     /// going to the smallest and 0 staying 0 is inference: a division as a double makes those.
     /// </summary>
-    private static long DivideByZero(long value) => value switch
-    {
-        > 0 => long.MaxValue,
-        < 0 => long.MinValue,
-        _ => 0,
-    };
+    private static long DivideByZero(long value) =>
+        value switch
+        {
+            > 0 => long.MaxValue,
+            < 0 => long.MinValue,
+            _ => 0,
+        };
 
     private static bool IsBitPosition(long position) => position is >= 0 and < 64;
 
