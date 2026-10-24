@@ -101,7 +101,10 @@ public class WiredSelectorRemoteSelection(
         if (output is null)
             return new WiredSelectionSet();
 
-        WiredSelectorChain.PutInRoomOrder(output);
+        WiredSelectorChain.PutInRoomOrder(
+            output,
+            WiredSelectorChain.UserOrderOf(stacks.SelectMany(x => x))
+        );
 
         return output;
     }

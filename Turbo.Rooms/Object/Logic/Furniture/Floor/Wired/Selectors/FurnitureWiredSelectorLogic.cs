@@ -90,6 +90,11 @@ public abstract class FurnitureWiredSelectorLogic(
 
     public virtual bool SelectsUsers => false;
 
+    // Users By Type, By Name and In Area list the user who entered last first (official client
+    // capture 2026-10-24, two accounts, W4 lab selector.2/11/13.R4 and R4b). The other user
+    // selectors were not measured with two users and list the same way (inference).
+    public virtual WiredUserOrderType UserOrder => WiredUserOrderType.NewestFirst;
+
     public virtual Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct

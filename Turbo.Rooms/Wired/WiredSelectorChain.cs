@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -20,10 +21,15 @@ namespace Turbo.Rooms.Wired;
 /// chair] listed alike 2/2; selector.19.R4: a union interleaved, not one selector after the
 /// other). Habbo's own room order is not the ids' (selector.0.R4); ours is, an inference that
 /// keeps the one measured property: the order does not depend on how the furni were picked.
-/// Users come newest first: Users By Type, By Name (whatever its list order) and In Area all put
-/// the user who entered or re-entered last in front, not by name, tile or entry order (official
-/// client capture 2026-10-24, two accounts, W4 lab selector.2/11/13.R4 and R4b, 2/2 each). That a
-/// bot is placed the same way is inferred: the one sample with a bot does not fit any rule.
+/// Users come in the order of the selector that picked them (<see cref="IWiredSelector.UserOrder"/>):
+/// Users By Type, By Name (whatever its list order) and In Area put the user who entered or
+/// re-entered last in front (official client capture 2026-10-24, two accounts, W4 lab
+/// selector.2/11/13.R4 and R4b, 2/2 each); Users Performing Action and In Neighborhood list by
+/// ascending room index, bots included (selector.9/12.R4, 2/2 each). Where a newest-first
+/// selector puts a bot is open: ours sorts it by its room index, but Users By Name picking two
+/// bots listed the one placed first first (2026-10-24T17-24-24) and In Area put a bot placed last
+/// between two users (selector.13.R4). A pile mixing both orders following its first user
+/// selector that is not a filter is inferred.
 /// </summary>
 public static class WiredSelectorChain
 {
@@ -52,8 +58,16 @@ public static class WiredSelectorChain
             }
         }
 
-        PutInRoomOrder(pool);
+        PutInRoomOrder(pool, UserOrderOf(selectors));
     }
+
+    /// <summary>
+    /// The order a pile lists its users in: that of its first user selector that picks rather
+    /// than filters (filters only narrow what it picked).
+    /// </summary>
+    public static WiredUserOrderType UserOrderOf(IEnumerable<IWiredSelector> selectors) =>
+        selectors.FirstOrDefault(x => x.SelectsUsers && !x.GetIsFilter())?.UserOrder
+        ?? WiredUserOrderType.NewestFirst;
 
     /// <summary>
     /// Adds a selector's result to the pool. Filter selectors narrow what the other selectors
@@ -129,9 +143,9 @@ public static class WiredSelectorChain
 
     /// <summary>
     /// Rebuilds the pool in room order: furni by id, users newest first (a room index is handed out
-    /// on every entry, so the highest is the user who came in last).
+    /// on every entry, so the highest is the user who came in last) or by ascending room index.
     /// </summary>
-    public static void PutInRoomOrder(IWiredSelectionSet pool)
+    public static void PutInRoomOrder(IWiredSelectionSet pool, WiredUserOrderType userOrder)
     {
         if (pool.SelectedFurniIds.Count > 1)
         {
@@ -143,7 +157,10 @@ public static class WiredSelectorChain
 
         if (pool.SelectedAvatarIds.Count > 1)
         {
-            var avatars = pool.SelectedAvatarIds.OrderByDescending(x => x.Value).ToArray();
+            var avatars =
+                userOrder == WiredUserOrderType.RoomIndex
+                    ? pool.SelectedAvatarIds.OrderBy(x => x.Value).ToArray()
+                    : pool.SelectedAvatarIds.OrderByDescending(x => x.Value).ToArray();
 
             pool.SelectedAvatarIds.Clear();
             pool.SelectedAvatarIds.UnionWith(avatars);

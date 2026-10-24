@@ -82,6 +82,37 @@ public sealed class WiredSelectorLabAnswersTests
         (await RunChainAsync(box)).Should().Equal(7, 6);
     }
 
+    // selector.9.R4 / selector.12.R4: Users Performing Action (stand) and Users In Neighborhood
+    // list by ascending room index, the user who entered last LAST: "Frank,Hutch.,frank,results!"
+    // for indices 0,2,3,6 with results! re-entered last (official client capture
+    // 2026-10-24T18-20-40, 2/2 each). Ann and Bob re-enter beside the middle furni, Bob first.
+    [Theory]
+    [InlineData("wf_slc_users_byaction")]
+    [InlineData("wf_slc_users_neighborhood")]
+    public async Task Selector9R4_12R4_ActionAndNeighborhoodListByAscendingRoomIndex(
+        string logicName
+    )
+    {
+        IWiredSelector box =
+            logicName == "wf_slc_users_byaction"
+                ? await AddSelectorAsync<WiredSelectorEntitiesByAction>(
+                    logicName,
+                    intParams: [(int)WiredAvatarActionType.Stand]
+                )
+                : await AddSelectorAsync<WiredSelectorEntitiesInNeighborhood>(
+                    logicName,
+                    intParams: [0, 0, 0, 33554431],
+                    stuffIds: [B]
+                );
+
+        _room.Harness.State.AvatarsByObjectId.Remove(5);
+        _room.Harness.State.AvatarsByObjectId.Remove(6);
+        _room.Enter(7, 4, 4, "Bob", playerId: 106);
+        _room.Enter(8, 4, 6, "Ann", playerId: 105);
+
+        (await RunChainAsync(box)).Should().Equal(7, 8);
+    }
+
     // selector.19.R7: with an inverted selector in the pile the union is the whole room.
     [Fact]
     public async Task Selector19R7_AnInvertedSelectorInThePileGivesTheWholeRoom()
