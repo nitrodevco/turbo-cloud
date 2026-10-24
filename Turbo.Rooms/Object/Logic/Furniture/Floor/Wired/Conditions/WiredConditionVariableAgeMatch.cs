@@ -33,6 +33,10 @@ public class WiredConditionVariableAgeMatch(
 
     protected override bool AllowsWallFurni => true;
 
+    // The variables quantifier, as Variable Value's (the same holder selection; inferred, its own
+    // open payload is not recorded).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Variables;
+
     private const int PARAM_FROM_VARIABLE = 6;
     private const int PARAM_REFERENCE_TARGET = 7;
 
@@ -119,7 +123,7 @@ public class WiredConditionVariableAgeMatch(
 
                 return WiredComparison.CompareThreeWay(comparison, age, durationMs);
             }),
-            true
+            QuantifierRequiresAll
         );
     }
 }

@@ -24,6 +24,10 @@ public class WiredConditionHasVariable(
 
     protected override bool AllowsWallFurni => true;
 
+    // The variables quantifier, as Variable Value's (official client capture: over an empty
+    // selection "all" passes and "any" blocks, for both boxes).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Variables;
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
@@ -48,7 +52,7 @@ public class WiredConditionHasVariable(
 
         return Quantify(
             targets.Select(id => ReadVariable(variable, targetType, id) is not null),
-            true
+            QuantifierRequiresAll
         );
     }
 }
