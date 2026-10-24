@@ -28,7 +28,7 @@ namespace Turbo.Tests.Rooms;
 /// their room). Under Periodically a box reading the triggering user has nobody to read: every
 /// user condition passes over the empty set ("all" of nobody), its "not" twin is the exact
 /// inverse, and the user effects run and change nothing. Two Animation Times add up, two
-/// Movement Physics and two Projectiles keep the lower box, two Curves the upper one, two Carry
+/// Movement Physics add up, two Projectiles keep the lower box, two Curves the upper one, two Carry
 /// Users carry the user once, and the movement add-ons on a stack that moves nothing let it run.
 /// Each test is named by the matrix case it holds.
 /// </summary>
@@ -197,18 +197,29 @@ public sealed class WiredNoTriggererTests
     }
 
     /// <summary>
-    /// addon.7.R2: Movement Physics with keep altitude below one without it: a furni moved off
-    /// its height keeps it (11-04-38, 1/1; keep alone keeps it, the other alone drops it).
+    /// addon.7.R2 / R3: two Movement Physics keep a furni at its height when either has keep
+    /// altitude, in both stack orders, and drop it when neither has (official client capture
+    /// 2026-10-24, 11-04-38 and 12-41-27, 7/7 kept, 1/1 dropped).
     /// </summary>
-    [Fact]
-    public async Task Two_physics_keep_the_lower_box_addon_7_R2()
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public async Task Two_physics_keep_altitude_when_either_has_it_addon_7_R2_R3(
+        bool lower,
+        bool upper,
+        bool kept
+    )
     {
-        await BuildMoverAsync(Physics(keepAltitude: true), Physics(keepAltitude: false));
+        await BuildMoverAsync(Physics(keepAltitude: lower), Physics(keepAltitude: upper));
         _room.FloorItem(BLOCK).SetPositionZ(Altitude.FromInt(205));
 
         await ClickForMoveAsync();
 
-        _room.FloorItem(BLOCK).Z.Should().Be(Altitude.FromInt(205));
+        if (kept)
+            _room.FloorItem(BLOCK).Z.Should().Be(Altitude.FromInt(205));
+        else
+            _room.FloorItem(BLOCK).Z.Should().NotBe(Altitude.FromInt(205));
     }
 
     /// <summary>

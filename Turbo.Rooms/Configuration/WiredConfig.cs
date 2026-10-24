@@ -466,8 +466,9 @@ public class WiredConfig
 
     /// <summary>
     /// How two movement add-ons of one kind on a stack combine. On, as Habbo: two Animation
-    /// Times add up, two Movement Physics and two Projectiles keep the lower box (official
-    /// client capture 2026-10-24, W1 lab addon.9.R2 175 + 2000 = 2175, addon.7.R2, addon.21.R2).
+    /// Times add up, two Movement Physics add up (keep altitude when either has it) and two
+    /// Projectiles keep the lower box (official client capture 2026-10-24, W1 lab addon.9.R2
+    /// 175 + 2000 = 2175, addon.7.R2/R3 7/7, addon.21.R2).
     /// Off, the upper box of each kind replaces the lower one.
     /// </summary>
     public bool DoubledAddonsAsMeasured { get; init; } = true;
