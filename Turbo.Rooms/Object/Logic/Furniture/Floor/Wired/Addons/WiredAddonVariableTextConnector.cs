@@ -79,9 +79,13 @@ public class WiredAddonVariableTextConnector(
         return null;
     }
 
+    // One line per "\n" only, which is all the editor sends (TextAreaPreset turns the text field's
+    // "\r" into "\n"): a text separated by "\r" alone is one line whose label holds the rest
+    // (official client capture: "0=zero\r1=one\r2=two" read back as one entry, the same with
+    // "\n" as three).
     private string[] Lines() =>
         (_wiredData?.StringParam ?? string.Empty).Split(
-            ['\r', '\n'],
+            '\n',
             StringSplitOptions.RemoveEmptyEntries
         );
 
