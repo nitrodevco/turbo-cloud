@@ -80,32 +80,41 @@ public class WiredAddonConditionsEval(
 
     protected override string? PickRefusedErrorKey => WiredSaveErrors.CONDITION_EVALUATION_FURNI;
 
+    /// <summary>
+    /// Adds this box's rule to the firing. Two boxes on one stack must both hold: mode "at least
+    /// one" with mode "all" over a passing and a failing condition did not run, and neither did
+    /// "at least one" with "none" over no conditions, where either alone would have (official
+    /// client capture 2026-10-24, W4 lab addon.0.R2, 4/4).
+    /// </summary>
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         var mode = GetIntParamOrDefault(PARAM_MODE, MODE_ANY);
-
-        ctx.Policy.ConditionMode = mode switch
-        {
-            MODE_ANY => WiredConditionModeType.Any,
-            MODE_NOT_ALL => WiredConditionModeType.NotAll,
-            MODE_NONE => WiredConditionModeType.NoneMatch,
-            COUNTED => GetIntParamOrDefault(PARAM_COUNTED_MODE, COUNTED_LESS_THAN) switch
-            {
-                <= COUNTED_LESS_THAN => WiredConditionModeType.LessThan,
-                COUNTED_EXACTLY => WiredConditionModeType.Exactly,
-                COUNTED_MORE_THAN => WiredConditionModeType.MoreThan,
-                COUNTED_AT_MOST => WiredConditionModeType.AtMost,
-                COUNTED_NOT_EXACTLY => WiredConditionModeType.NotExactly,
-                COUNTED_AT_LEAST => WiredConditionModeType.AtLeast,
-                _ => WiredConditionModeType.Never,
-            },
-            _ => WiredConditionModeType.All,
-        };
-        ctx.Policy.ConditionThreshold = GetIntParamOrDefault(PARAM_COUNT, 0);
-
         var picked = WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds;
 
-        ctx.Policy.ConditionIds = picked.Count > 0 ? picked : null;
+        ctx.Policy.ConditionEvaluations.Add(
+            new WiredConditionEvaluation
+            {
+                Mode = mode switch
+                {
+                    MODE_ANY => WiredConditionModeType.Any,
+                    MODE_NOT_ALL => WiredConditionModeType.NotAll,
+                    MODE_NONE => WiredConditionModeType.NoneMatch,
+                    COUNTED => GetIntParamOrDefault(PARAM_COUNTED_MODE, COUNTED_LESS_THAN) switch
+                    {
+                        <= COUNTED_LESS_THAN => WiredConditionModeType.LessThan,
+                        COUNTED_EXACTLY => WiredConditionModeType.Exactly,
+                        COUNTED_MORE_THAN => WiredConditionModeType.MoreThan,
+                        COUNTED_AT_MOST => WiredConditionModeType.AtMost,
+                        COUNTED_NOT_EXACTLY => WiredConditionModeType.NotExactly,
+                        COUNTED_AT_LEAST => WiredConditionModeType.AtLeast,
+                        _ => WiredConditionModeType.Never,
+                    },
+                    _ => WiredConditionModeType.All,
+                },
+                Threshold = GetIntParamOrDefault(PARAM_COUNT, 0),
+                ConditionIds = picked.Count > 0 ? picked : null,
+            }
+        );
 
         return Task.FromResult(true);
     }

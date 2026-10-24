@@ -11,16 +11,17 @@ namespace Turbo.Primitives.Rooms.Wired;
 /// </summary>
 public interface IWiredPolicy
 {
-    public WiredConditionModeType ConditionMode { get; set; }
-
-    /// <summary>The count the counted condition modes compare the matches against.</summary>
-    public int ConditionThreshold { get; set; }
+    /// <summary>
+    /// The condition evaluation add-ons' rules; the stack takes its positive side when every one
+    /// holds, and with none each condition must match. A condition no rule applies to must match.
+    /// </summary>
+    public List<WiredConditionEvaluation> ConditionEvaluations { get; }
 
     /// <summary>
-    /// The conditions <see cref="ConditionMode"/> applies to, by furni id; null for all of them.
-    /// The stack's other conditions must all match.
+    /// The execution limits of the stack: a firing goes ahead while one of them has room and
+    /// spends one execution of it. Empty means no limit.
     /// </summary>
-    public IReadOnlySet<int>? ConditionIds { get; set; }
+    public List<IWiredExecutionBudget> ExecutionBudgets { get; }
     public WiredEffectModeType EffectMode { get; set; }
 
     /// <summary>

@@ -8,9 +8,8 @@ namespace Turbo.Rooms.Wired;
 
 public sealed class WiredPolicy : IWiredPolicy
 {
-    public WiredConditionModeType ConditionMode { get; set; } = WiredConditionModeType.All;
-    public int ConditionThreshold { get; set; } = 1;
-    public IReadOnlySet<int>? ConditionIds { get; set; }
+    public List<WiredConditionEvaluation> ConditionEvaluations { get; } = [];
+    public List<IWiredExecutionBudget> ExecutionBudgets { get; } = [];
     public WiredEffectModeType EffectMode { get; set; } = WiredEffectModeType.All;
     public bool ExecuteInOrder { get; set; }
     public int RandomPickCount { get; set; } = 1;

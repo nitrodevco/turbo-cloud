@@ -710,6 +710,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return null;
         }
 
+        if (!SpendExecutionBudget(ctx))
+            return null;
+
         // "Can Perform Movements" asks about moves that have not been made: it takes every effect
         // of the stack, whatever the random add-on would pick, in a random order whether or not
         // "Execute In Order" is on, and works their moves out on a ghost of the room. The effects
@@ -741,6 +744,41 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             return null;
 
         return passed;
+    }
+
+    /// <summary>
+    /// Whether the stack's execution limits let this firing go ahead, spending one execution when
+    /// they do (a dry run spends nothing). Limits add up: the first with room left is spent
+    /// (<see cref="WiredConfig.ExecutionLimitsAddUp"/>; which one is spent is an inference, the lab
+    /// only measured two limits of one window). Off, every limit must have room and each is spent.
+    /// </summary>
+    private bool SpendExecutionBudget(WiredProcessingContext ctx)
+    {
+        var budgets = ctx.Policy.ExecutionBudgets;
+
+        if (budgets.Count == 0)
+            return true;
+
+        if (WiredConfig.ExecutionLimitsAddUp)
+        {
+            var open = budgets.Find(x => x.HasRoom());
+
+            if (open is null)
+                return false;
+
+            if (!ctx.IsDryRun)
+                open.Spend();
+
+            return true;
+        }
+
+        if (!budgets.TrueForAll(x => x.HasRoom()))
+            return false;
+
+        if (!ctx.IsDryRun)
+            budgets.ForEach(x => x.Spend());
+
+        return true;
     }
 
     private static List<IWiredAction> ActionsOfSide(IWiredStack stack, bool negative)
@@ -1519,13 +1557,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return new() { Actions = [actions[0]] };
             case WiredEffectModeType.Random:
                 return ChooseRandomActions(actions, policy, stackId);
+            // One effect per firing, in a fixed cycle by box id, not by stacking order: A, B, C and
+            // then F, which stood lowest of the four, ran A,B,C,F,A,B; two unseen add-ons share
+            // the one cycle (official client capture 2026-10-24, W4 lab addon.2.R1 9/9 + 6/6,
+            // addon.2.R2 6/6).
             case WiredEffectModeType.Unseen:
             {
                 _nextUnseenIndexByStackId.TryGetValue(stackId, out var index);
+                var byId = actions.OrderBy(BoxId).ToList();
 
                 return new()
                 {
-                    Actions = [actions[index % actions.Count]],
+                    Actions = [byId[index % byId.Count]],
                     NextUnseenIndex = (index + 1) % actions.Count,
                 };
             }
@@ -1719,49 +1762,85 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// Whether the stack takes its positive side. Without a condition evaluation add-on each
+    /// condition must match; with them every add-on's rule must hold over the conditions it
+    /// applies to, and a condition no rule applies to must match.
+    /// </summary>
     private static bool EvaluateConditions(
         List<IWiredCondition> conditions,
         WiredProcessingContext ctx
     )
     {
-        if (conditions.Count == 0)
-            return true;
+        var rules = ctx.Policy.ConditionEvaluations;
 
-        if (ctx.Policy.ConditionMode == WiredConditionModeType.None)
-            return true;
+        if (rules.Count == 0)
+            return conditions.TrueForAll(c => c.Evaluate(ctx));
 
         // A Condition Evaluation add-on with picked conditions combines only those; the others
         // keep the plain rule that each must match (wiredfurni.params.cond_eval.note: "You can
         // select the WIRED Conditions this add-on applies to"; inference for the others).
-        if (ctx.Policy.ConditionIds is { } ids)
+        if (!rules.Exists(r => r.ConditionIds is null))
         {
-            var others = conditions.Where(c => !AppliesTo(c, ids)).ToList();
-
-            if (others.Count > 0)
+            foreach (var condition in conditions)
             {
-                if (!others.All(c => c.Evaluate(ctx)))
+                if (
+                    !rules.Exists(r => AppliesTo(condition, r.ConditionIds!))
+                    && !condition.Evaluate(ctx)
+                )
                     return false;
-
-                conditions = [.. conditions.Where(c => AppliesTo(c, ids))];
-
-                if (conditions.Count == 0)
-                    return true;
             }
         }
 
-        var matched = conditions.Count(c => c.Evaluate(ctx));
+        foreach (var rule in rules)
+        {
+            if (!Holds(rule, conditions, ctx))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// One add-on's rule over the conditions it applies to. With none of them the mode is taken
+    /// as written: "all" and "none" hold, "at least one" and "not all" do not (official client
+    /// capture 2026-10-24, W4 lab addon.0.R3, 4/4; the counted modes compare 0 with the number,
+    /// an inference, as is applying this to picks that hold no condition of the stack).
+    /// </summary>
+    private static bool Holds(
+        WiredConditionEvaluation rule,
+        List<IWiredCondition> conditions,
+        WiredProcessingContext ctx
+    )
+    {
+        if (rule.Mode == WiredConditionModeType.None)
+            return true;
+
+        var count = 0;
+        var matched = 0;
+
+        foreach (var condition in conditions)
+        {
+            if (rule.ConditionIds is { } ids && !AppliesTo(condition, ids))
+                continue;
+
+            count++;
+
+            if (condition.Evaluate(ctx))
+                matched++;
+        }
 
         // The number is used as saved, below zero or past the editor's 1000 alike (official client
         // capture WIN63-202610201032: "more than -1" passed 5 of 5, 2026-10-23T00-05-33, and "at
         // most 1001" 3 of 3, 00-07-24-UpdateAddon).
-        var threshold = ctx.Policy.ConditionThreshold;
+        var threshold = rule.Threshold;
 
-        return ctx.Policy.ConditionMode switch
+        return rule.Mode switch
         {
             WiredConditionModeType.Any => matched > 0,
-            WiredConditionModeType.All => matched == conditions.Count,
+            WiredConditionModeType.All => matched == count,
             WiredConditionModeType.NoneMatch => matched == 0,
-            WiredConditionModeType.NotAll => matched < conditions.Count,
+            WiredConditionModeType.NotAll => matched < count,
             WiredConditionModeType.LessThan => matched < threshold,
             WiredConditionModeType.Exactly => matched == threshold,
             WiredConditionModeType.MoreThan => matched > threshold,
@@ -1769,10 +1848,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             WiredConditionModeType.NotExactly => matched != threshold,
             WiredConditionModeType.AtLeast => matched >= threshold,
             WiredConditionModeType.Never => false,
-            _ => matched == conditions.Count,
+            _ => matched == count,
         };
     }
 
     private static bool AppliesTo(IWiredCondition condition, IReadOnlySet<int> ids) =>
         condition is FurnitureWiredLogic box && ids.Contains(box.ObjectId.Value);
+
+    private static int BoxId(IWiredAction action) =>
+        action is FurnitureWiredLogic box ? box.ObjectId.Value : int.MaxValue;
 }
