@@ -425,6 +425,35 @@ public sealed class WiredFurniStateMatrixTests
             .NotContain([copies[0].ObjectId, copies[1].ObjectId]);
     }
 
+    // action.54.E9b: Click Configuration saved with [9, 9] is stored as [2, 1], each pulled to
+    // the end of its options (official client capture 2026-10-24). Ours refused the save.
+    [Theory]
+    [InlineData(9, 9, 2, 1)]
+    [InlineData(1, 0, 1, 0)]
+    public async Task Click_configuration_pulls_its_options_into_range(
+        int user,
+        int furni,
+        int storedUser,
+        int storedFurni
+    )
+    {
+        var box = _room.AddBox<WiredActionClickSettings>(BOX, 0, 0, "wf_act_click_conf");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: [user, furni],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        box.GetSnapshot().IntParams.Should().Equal(storedUser, storedFurni);
+    }
+
     private WiredProcessingContext Context() =>
         new(_room.Harness.Room)
         {

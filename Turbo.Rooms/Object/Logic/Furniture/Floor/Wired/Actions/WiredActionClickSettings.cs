@@ -32,8 +32,14 @@ public class WiredActionClickSettings(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredEnumParamRule<WiredClickUserType>(WiredClickUserType.Default),
-            new WiredEnumParamRule<WiredClickFurniType>(WiredClickFurniType.Default),
+            new WiredEnumParamRule<WiredClickUserType>(WiredClickUserType.Default)
+            {
+                ClampsOutOfRange = true,
+            },
+            new WiredEnumParamRule<WiredClickFurniType>(WiredClickFurniType.Default)
+            {
+                ClampsOutOfRange = true,
+            },
         ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
