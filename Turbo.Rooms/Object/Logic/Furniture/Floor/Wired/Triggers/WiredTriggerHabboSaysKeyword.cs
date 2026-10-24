@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -28,6 +29,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 /// The third mode is "Match all text", and the editor greys the keyword box out for it: it
 /// fires on anything that is said. The other two need a keyword and match it against the whole
 /// message.
+///
+/// A bot's line fires it too, the bot triggering (<see cref="BotChatEvent"/>).
 /// </summary>
 [RoomObjectLogic("wf_trg_says_something")]
 public class WiredTriggerHabboSaysKeyword(
@@ -53,7 +56,8 @@ public class WiredTriggerHabboSaysKeyword(
     );
 
     public override int WiredCode => (int)WiredTriggerType.AVATAR_SAYS_SOMETHING;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerChatEvent)];
+    public override List<Type> SupportedEventTypes { get; } =
+    [typeof(PlayerChatEvent), typeof(BotChatEvent)];
 
     // A fresh box hides the message (official client capture: defaultIntParams [0,0,1]).
     public override List<IWiredParamRule> GetIntParamRules() =>
@@ -91,8 +95,15 @@ public class WiredTriggerHabboSaysKeyword(
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        // A whisper counts unless its speaker opted out (RoomChatSystem decides WiredMayRead).
-        if (evt is not PlayerChatEvent chatEvt || !chatEvt.WiredMayRead)
+        var said = evt switch
+        {
+            // A whisper counts unless its speaker opted out (RoomChatSystem decides WiredMayRead).
+            PlayerChatEvent { WiredMayRead: true } chatEvt => chatEvt.Text,
+            BotChatEvent botEvt => botEvt.Text,
+            _ => null,
+        };
+
+        if (said is null)
             return Task.FromResult(false);
 
         var mode = GetIntParamOrDefault(MATCH_MODE_PARAM_INDEX, MATCH_CONTAINS);
@@ -107,7 +118,7 @@ public class WiredTriggerHabboSaysKeyword(
         if (keyword.Length == 0 || keyword.Length > WiredConfig.ChatTriggerPatternMaxLength)
             return Task.FromResult(false);
 
-        var text = chatEvt.Text.Trim();
+        var text = said.Trim();
 
         if (MarkerPattern.IsMatch(keyword))
             return Task.FromResult(TryCapture(text, out _));
@@ -214,9 +225,14 @@ public class WiredTriggerHabboSaysKeyword(
     private static string Literal(string text) => Regex.Escape(text).Replace("\\ ", "\\s+");
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
-        ctx.Event is PlayerChatEvent chatEvt
-            ? SpeakerMayTriggerAsync(chatEvt, ct)
-            : Task.FromResult(false);
+        ctx.Event switch
+        {
+            PlayerChatEvent chatEvt => SpeakerMayTriggerAsync(chatEvt, ct),
+            // A bot is never the room's owner (inference: the owner-only box was not recorded
+            // with a bot speaking).
+            BotChatEvent => Task.FromResult(!GetIntParamOrDefault(OWNER_ONLY_PARAM_INDEX, false)),
+            _ => Task.FromResult(false),
+        };
 
     private async Task<bool> SpeakerMayTriggerAsync(PlayerChatEvent chatEvt, CancellationToken ct)
     {

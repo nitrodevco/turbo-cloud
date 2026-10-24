@@ -33,13 +33,15 @@ public class WiredConditionGroupMember(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var wantedGroupId = GetPositiveIdParam() ?? State.RoomSnapshot?.Guild?.GuildId.Value;
-        var players = GetPlayers(ctx.GetSelection(this));
+        // A bot is in no group: one triggering fails the box (official client capture
+        // 2026-10-24, W3 lab condition.10.B2, 4/4).
+        var users = GetUsers(ctx.GetSelection(this));
 
         if (wantedGroupId is not > 0)
-            return Quantify(players.Select(_ => false), QuantifierRequiresAll);
+            return Quantify(users.Select(_ => false), QuantifierRequiresAll);
 
         return Quantify(
-            players.Select(player =>
+            users.Select(player =>
             {
                 var groupId = player is RoomPlayerAvatar avatar ? avatar.GuildId : -1;
 

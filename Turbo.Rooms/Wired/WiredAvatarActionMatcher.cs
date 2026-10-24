@@ -60,7 +60,11 @@ public static class WiredAvatarActionMatcher
             AvatarActionType.Posture => (AvatarPostureType)evt.Value == AvatarPostureType.Sit
                 ? WiredAvatarActionType.Sit
                 : WiredAvatarActionType.Stand,
-            AvatarActionType.Dance => WiredAvatarActionType.Dance,
+            // Stopping a dance is not dancing: a bot starting to dance fired the box 3/3, the
+            // same bot stopping 0/2 (official client capture 2026-10-24, W3 lab trigger.16.R2).
+            AvatarActionType.Dance => evt.Value == (int)AvatarDanceType.None
+                ? null
+                : WiredAvatarActionType.Dance,
             AvatarActionType.Sign => WiredAvatarActionType.Sign,
             _ => null,
         };

@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -35,12 +36,15 @@ public class WiredConditionHabboInTeam(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var wanted = GetIntParamOrDefault(0, GameTeamType.None);
-        var players = GetPlayers(ctx.GetSelection(this));
+        // A bot is in no team (inference from Actor In Group, GetUsers).
+        var users = GetUsers(ctx.GetSelection(this));
 
         return Quantify(
-            players.Select(player =>
+            users.Select(user =>
             {
-                var team = GameSystem.GetTeam(player.PlayerId);
+                var team = user is IRoomPlayer player
+                    ? GameSystem.GetTeam(player.PlayerId)
+                    : GameTeamType.None;
 
                 return wanted == GameTeamType.None ? team != GameTeamType.None : team == wanted;
             }),

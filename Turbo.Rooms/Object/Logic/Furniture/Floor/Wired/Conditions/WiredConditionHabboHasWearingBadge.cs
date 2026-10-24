@@ -4,6 +4,7 @@ using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -30,11 +31,13 @@ public class WiredConditionHabboHasWearingBadge(
         if (badgeCode.Length == 0)
             return false;
 
-        var players = GetPlayers(ctx.GetSelection(this));
+        // A bot wears no badge (inference from Actor In Group, GetUsers).
+        var users = GetUsers(ctx.GetSelection(this));
 
         return Quantify(
-            players.Select(player =>
-                player.BadgeCodes.Any(code =>
+            users.Select(user =>
+                user is IRoomPlayer player
+                && player.BadgeCodes.Any(code =>
                     string.Equals(code, badgeCode, StringComparison.OrdinalIgnoreCase)
                 )
             ),

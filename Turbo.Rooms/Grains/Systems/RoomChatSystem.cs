@@ -18,6 +18,7 @@ using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -269,10 +270,15 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     /// <summary>
     /// A bubble over an avatar that is not a player typing: a bot's line, a pet's reply, a wired
     /// message, the room telling a player why they were muted. The words are filtered like
-    /// anything players read, but it is not chat: no flood check, no commands, no chat log, no
-    /// event. Every such bubble is built here, so a change to what a bubble carries is one edit.
+    /// anything players read, but it is not chat: no flood check, no commands, no chat log. Every
+    /// such bubble is built here, so a change to what a bubble carries is one edit.
+    ///
+    /// What a bot says or shouts to the room is heard by wired as a user speaking
+    /// (<see cref="BotChatEvent"/>): Says Keyword fired for a bot's line, once per line, with the
+    /// bot as the triggering user (official client capture 2026-10-24, W3 lab trigger.0.R2, 7/7
+    /// fires, 4/4 triggerer). A bot's whisper is not offered (inference: only talk was recorded).
     /// </summary>
-    public Task SayAsAvatarAsync(
+    public async Task SayAsAvatarAsync(
         IRoomAvatar speaker,
         string text,
         AvatarSpeech speech,
@@ -280,12 +286,13 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     )
     {
         if (string.IsNullOrWhiteSpace(text))
-            return Task.CompletedTask;
+            return;
 
         text = ModerationModule.ApplyFilter(text);
 
         if (speech.OnlyFor is { } listener)
-            return GrainFactory.SendComposerToPlayerAsync(
+        {
+            await GrainFactory.SendComposerToPlayerAsync(
                 listener.PlayerId,
                 CreateComposer(
                     RoomChatType.Whisper,
@@ -300,6 +307,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                 ),
                 ct
             );
+
+            return;
+        }
 
         var composer = CreateComposer(
             speech.Shout ? RoomChatType.Shout : RoomChatType.Chat,
@@ -317,7 +327,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         // mute_all_pets_checkbox): no one in the room is sent what pets say. Inference from the
         // setting's name; not recorded.
         if (speaker is IRoomPet && State.RoomSnapshot.MuteAllPets)
-            return Task.CompletedTask;
+            return;
 
         // ":mutepets Ignore pet chats" and ":mutebots Ignore bot chats" (habbopages/chat/commands):
         // whoever said it is not sent what pets, or bots, say.
@@ -329,13 +339,26 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         };
 
         if (mutedBy is { Count: > 0 })
-            return GrainFactory.SendComposerToPlayersAsync(
+            await GrainFactory.SendComposerToPlayersAsync(
                 [.. AvatarModule.Players.Select(x => x.PlayerId).Where(x => !mutedBy.Contains(x))],
                 composer,
                 ct
             );
+        else
+            await _roomGrain.SendComposerToRoomAsync(composer, ct);
 
-        return _roomGrain.SendComposerToRoomAsync(composer, ct);
+        if (speaker is IRoomBot)
+            await _roomGrain.PublishRoomEventAsync(
+                new BotChatEvent
+                {
+                    RoomId = State.RoomId,
+                    CausedBy = ActionContext.CreateForSystem(State.RoomId),
+                    ObjectId = speaker.ObjectId,
+                    ChatType = speech.Shout ? RoomChatType.Shout : RoomChatType.Chat,
+                    Text = text,
+                },
+                ct
+            );
     }
 
     /// <summary>

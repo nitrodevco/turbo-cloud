@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -48,11 +49,15 @@ public class WiredActionChaseHabbo(
             var floorIdx = map.ToIdx(at.X, at.Y);
             List<int> candidates = [];
 
+            // A bot is chased like a player: the furni stepped toward the only bot in line 3/3
+            // and stayed beside it 2/2 (official client capture 2026-10-24, W1 lab action.11.B3).
+            // Whether catching a bot fires the collision trigger was not recorded; it does not.
             if (
-                AvatarModule.TryGetNearestPlayer(
+                AvatarModule.TryGetNearestAvatar(
                     floorIdx,
                     NOTICE_RANGE,
-                    out var player,
+                    WiredUsers.Counts,
+                    out var user,
                     out var distance,
                     inLineOnly: true
                 )
@@ -60,14 +65,15 @@ public class WiredActionChaseHabbo(
             {
                 if (distance <= COLLISION_RANGE)
                 {
-                    plan.Then(() => PublishCollision(floorItem, player));
+                    if (user is IRoomPlayer player)
+                        plan.Then(() => PublishCollision(floorItem, player));
 
                     continue;
                 }
 
-                // Which tiles lie toward the player is the map's to say; this box only
+                // Which tiles lie toward the user is the map's to say; this box only
                 // decides that the furni takes the first of them it can.
-                candidates.AddRange(map.GetStepsToward(floorIdx, map.ToIdx(player.X, player.Y)));
+                candidates.AddRange(map.GetStepsToward(floorIdx, map.ToIdx(user.X, user.Y)));
             }
 
             // Nobody near, or no way toward them: a random straight step onto a tile it can

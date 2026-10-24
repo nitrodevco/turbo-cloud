@@ -463,13 +463,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
-    /// The player closest to a tile and no further than <paramref name="maxDistance"/>; with
-    /// <paramref name="inLineOnly"/>, only a player on the tile's row or column.
+    /// The avatar <paramref name="counts"/> takes that is closest to a tile and no further than
+    /// <paramref name="maxDistance"/>; with <paramref name="inLineOnly"/>, only one on the tile's
+    /// row or column.
     /// </summary>
-    public bool TryGetNearestPlayer(
+    public bool TryGetNearestAvatar(
         int tileIdx,
         int maxDistance,
-        out IRoomPlayer nearest,
+        Func<IRoomAvatar, bool> counts,
+        out IRoomAvatar nearest,
         out int distance,
         bool inLineOnly = false
     )
@@ -480,17 +482,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         var map = MapModule;
         var (x, y) = (map.GetX(tileIdx), map.GetY(tileIdx));
 
-        foreach (var player in Players)
+        foreach (var avatar in Avatars)
         {
-            if (inLineOnly && player.X != x && player.Y != y)
+            if (!counts(avatar) || (inLineOnly && avatar.X != x && avatar.Y != y))
                 continue;
 
-            var away = map.GetDistanceBetween(tileIdx, map.ToIdx(player.X, player.Y));
+            var away = map.GetDistanceBetween(tileIdx, map.ToIdx(avatar.X, avatar.Y));
 
             if (away > maxDistance || away >= distance)
                 continue;
 
-            nearest = player;
+            nearest = avatar;
             distance = away;
         }
 

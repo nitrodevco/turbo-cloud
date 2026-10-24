@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -62,10 +63,13 @@ public class WiredActionFleeHabbo(
             var itemIdx = map.ToIdx(at.X, at.Y);
             List<int> candidates;
 
+            // A bot is fled from as Chase chases one (inference: only Chase was recorded with a
+            // bot, WiredUsers).
             if (
-                AvatarModule.TryGetNearestPlayer(
+                AvatarModule.TryGetNearestAvatar(
                     itemIdx,
                     NOTICE_RANGE,
+                    WiredUsers.Counts,
                     out var nearest,
                     out var distance,
                     inLineOnly: true
@@ -74,7 +78,8 @@ public class WiredActionFleeHabbo(
             {
                 if (distance == COLLISION_RANGE)
                 {
-                    plan.Then(() => PublishCollision(item, nearest));
+                    if (nearest is IRoomPlayer player)
+                        plan.Then(() => PublishCollision(item, player));
 
                     continue;
                 }

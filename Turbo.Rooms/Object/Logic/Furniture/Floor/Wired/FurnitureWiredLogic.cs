@@ -1258,6 +1258,25 @@ public abstract partial class FurnitureWiredLogic(
     }
 
     /// <summary>
+    /// The users a selection picked, as <see cref="WiredUsers"/> counts them: players and bots. A
+    /// box asking a user for what only a player has (a group, a badge, a team) finds a bot
+    /// without it rather than leaving it out: Actor In Group failed for a bot triggering (official
+    /// client capture 2026-10-24, W3 lab condition.10.B2, 4/4), where an empty selection passes.
+    /// </summary>
+    protected List<IRoomAvatar> GetUsers(IWiredSelectionSet selection)
+    {
+        var users = new List<IRoomAvatar>();
+
+        foreach (var avatar in GetAvatars(selection))
+        {
+            if (WiredUsers.Counts(avatar))
+                users.Add(avatar);
+        }
+
+        return users;
+    }
+
+    /// <summary>
     /// Only the players a selection picked. A box that can act on a pet or a bot asks for
     /// <see cref="GetAvatars"/> instead; this one is for what a player alone can be (kicked,
     /// muted, given a badge).
