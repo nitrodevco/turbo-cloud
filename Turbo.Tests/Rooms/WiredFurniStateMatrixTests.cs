@@ -1,10 +1,18 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.ExtraData;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Wired;
@@ -217,6 +225,91 @@ public sealed class WiredFurniStateMatrixTests
 
             ctx.FloorItemStateUpdates.Should().HaveCount(lamp.Logic.GetState() == before ? 0 : 1);
         }
+    }
+
+    // action.56.R3: a selector holding two real furni and two temporary copies; Remove
+    // Temporary Furni takes only the copies, told to the room in ONE ObjectRemoveMultiple with
+    // picker -1 (official client capture 2026-10-24: four ids, pickerId -1). Ours sent one
+    // ObjectRemove per copy.
+    [Fact]
+    public async Task Removing_temporary_furni_tells_the_room_once()
+    {
+        var furni = _room.Harness.Module<RoomFurniModule>();
+
+        // What the items loader makes of a definition, as TemporaryFurniIdBandTests has it.
+        _room.Harness.Fakes.Handlers["CreateFloorItem"] = call =>
+        {
+            var item = new RoomFloorItem
+            {
+                ObjectId = (RoomObjectId)call.Args[0]!,
+                OwnerId = (PlayerId)call.Args[1]!,
+                OwnerName = string.Empty,
+                Definition = (FurnitureDefinitionSnapshot)call.Args[2]!,
+            };
+
+            item.SetExtraData(null);
+
+            return item;
+        };
+        var lamp = _room.AddFloorItem(LAMP_A, 2, 2);
+        _room.AddFloorItem(LAMP_B, 3, 3);
+
+        var copies = new List<IRoomFloorItem>();
+
+        foreach (var x in new[] { 4, 5 })
+            copies.Add(
+                (
+                    await furni.PlaceTemporaryFloorItemAsync(
+                        ActionContext.CreateForSystem(1),
+                        lamp.Definition,
+                        PlayerId.Invalid,
+                        x,
+                        4,
+                        null,
+                        Rotation.North,
+                        Ct
+                    )
+                )!
+            );
+
+        var box = _room.AddBox<WiredActionRemoveFurni>(BOX, 0, 0, "wf_act_remove_furni");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectorItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        var selected = new[] { copies[1].ObjectId.Value, LAMP_A, copies[0].ObjectId.Value, LAMP_B };
+        var ctx = new WiredExecutionContext(_room.Harness.Room)
+        {
+            CancellationToken = Ct,
+            SelectorPool = new WiredSelectionSet(),
+        };
+
+        foreach (var id in selected)
+            ctx.SelectorPool.SelectedFurniIds.Add(id);
+
+        (await box.ExecuteAsync(ctx, Ct)).Should().BeTrue();
+
+        _room.Harness.Fakes.SentToRoom<ObjectRemoveMessageComposer>().Should().BeEmpty();
+        var removed = _room
+            .Harness.Fakes.SentToRoom<ObjectRemoveMultipleMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        removed
+            .ObjectIdsToRemove.Should()
+            .Equal(copies[1].ObjectId.Value, copies[0].ObjectId.Value);
+        removed.PickerId.Should().Be(PlayerId.Invalid);
+        _room.Harness.State.ItemsById.Should().ContainKeys(LAMP_A, LAMP_B);
+        _room
+            .Harness.State.ItemsById.Keys.Should()
+            .NotContain([copies[0].ObjectId, copies[1].ObjectId]);
     }
 
     private WiredProcessingContext Context() =>
