@@ -12,7 +12,7 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
-/// <summary>Sets the picked furni to a random one of their states.</summary>
+/// <summary>Sets the picked furni to a random one of their states, their current one included.</summary>
 [RoomObjectLogic("wf_act_toggle_to_rnd")]
 public class WiredActionToggleToRandomState(
     IGrainFactory grainFactory,
@@ -37,7 +37,8 @@ public class WiredActionToggleToRandomState(
                 continue;
 
             var totalStates = Math.Max(1, item.Definition.TotalStates);
-
+            // The draw may be the state the furni is in, which changes nothing
+            // (WiredExecutionContext.ProcessItemStateUpdateAsync).
             await ctx.ProcessItemStateUpdateAsync(item, Random.Shared.Next(totalStates));
 
             changed = true;

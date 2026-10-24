@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
@@ -77,6 +79,29 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         SecurityModule.CanUseFurniAsync(ctx, GetUsagePolicy());
 
     public virtual bool CanToggle() => false;
+
+    // Per logic type: whether it brings a use of its own rather than the plain state step.
+    private static readonly ConcurrentDictionary<Type, bool> _ownUse = new();
+
+    /// <summary>
+    /// Whether a player's use of the item does anything. The plain use only steps the item to
+    /// its next state, so an item without states has none: Habbo answers a use of a stateless
+    /// chair with nothing at all and "Furni Is Used" does not fire (official client capture
+    /// 2026-10-24, 3 of 3; a lamp in the same box fired it). A logic with a use of its own
+    /// (an <see cref="OnUseAsync"/> override) is always usable.
+    /// </summary>
+    public virtual bool HasUse() =>
+        _ctx.RoomObject.Definition.TotalStates > 1
+        || _ownUse.GetOrAdd(
+            GetType(),
+            type =>
+                type.GetMethod(
+                    nameof(OnUseAsync),
+                    [typeof(ActionContext), typeof(int), typeof(CancellationToken)]
+                )?.DeclaringType
+                    is not { IsGenericType: true } declaring
+                || declaring.GetGenericTypeDefinition() != typeof(FurnitureLogic<,,>)
+        );
 
     public virtual bool CanChangeState() => true;
 

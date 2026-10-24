@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -95,4 +97,43 @@ public sealed partial class RoomFurniModule
         IRoomItem item,
         CancellationToken ct
     ) => item.IsTemporary ? ObjectModule.RemoveObjectAsync(ctx, item, ct) : Task.FromResult(false);
+
+    /// <summary>
+    /// Takes the temporary furni among <paramref name="items"/> out of the room and tells the
+    /// room once: one ObjectRemoveMultiple with every id in the given order and picker -1, as
+    /// Habbo's Remove Temporary Furni does (official client capture 2026-10-24, four copies). The
+    /// others stay. False when none was temporary.
+    /// </summary>
+    public async Task<bool> RemoveTemporaryItemsAsync(
+        ActionContext ctx,
+        IEnumerable<IRoomFloorItem> items,
+        CancellationToken ct
+    )
+    {
+        var removed = new List<long>();
+
+        foreach (var item in items)
+        {
+            if (
+                item.IsTemporary
+                && await ObjectModule.RemoveObjectAsync(ctx, item, ct, announce: false)
+            )
+                removed.Add(item.ObjectId.Value);
+        }
+
+        if (removed.Count == 0)
+            return false;
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new ObjectRemoveMultipleMessageComposer
+            {
+                ObjectIdsToRemove = [.. removed],
+                PickerId = PlayerId.Invalid,
+                ByInvisibleFurniManager = false,
+            },
+            ct
+        );
+
+        return true;
+    }
 }

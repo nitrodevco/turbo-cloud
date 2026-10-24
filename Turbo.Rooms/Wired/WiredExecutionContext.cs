@@ -43,9 +43,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     public List<(RoomObjectId, StuffDataSnapshot)> FloorItemStateUpdates { get; } = [];
     public List<(RoomObjectId, string)> WallItemStateUpdates { get; } = [];
 
+    /// <summary>
+    /// Sets a furni to a state for a wired effect. A furni already in that state is left alone:
+    /// Habbo sends no state update for it and "Furni state changes" does not fire, whether Toggle
+    /// To Random State drew its current state (5 of 12 draws), Toggle Furni State met a furni
+    /// without states, or Match Snapshot found it as saved (3 of 3; official client capture
+    /// 2026-10-24, wired lab).
+    /// </summary>
     public async Task ProcessItemStateUpdateAsync(IRoomItem item, int state)
     {
-        if (item is null || !item.Logic.CanChangeState())
+        if (item is null || !item.Logic.CanChangeState() || item.Logic.GetState() == state)
             return;
 
         try

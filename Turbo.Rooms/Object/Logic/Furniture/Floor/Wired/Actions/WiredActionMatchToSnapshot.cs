@@ -58,6 +58,16 @@ public class WiredActionMatchToSnapshot(
 
     protected override bool KeepsFurniSnapshot => true;
 
+    // The snapshot in the editor's text, the parts this box leaves out as "N" (official client
+    // capture 2026-10-24).
+    protected override string GetEditorStringParam() =>
+        FormatFurniSnapshot(
+            GetIntParamOrDefault(0, false),
+            GetIntParamOrDefault(1, false),
+            GetIntParamOrDefault(2, false),
+            GetIntParamOrDefault(3, false)
+        );
+
     protected override bool SucceedsWithoutMoving => true;
 
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)

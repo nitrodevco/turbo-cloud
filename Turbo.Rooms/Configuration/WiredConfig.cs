@@ -177,6 +177,14 @@ public class WiredConfig
     public bool PlaceFurniBuildersClubOnly { get; init; } = true;
 
     /// <summary>
+    /// Whether "Furni Matches" compares the kind of furni instead of the furni themselves. Habbo
+    /// compares the furni themselves: a furni matches only itself, never another of the same kind,
+    /// colour, state and direction (official client capture 2026-10-24). On keeps rooms built for
+    /// the earlier kind match working, where any lamp matched any other lamp.
+    /// </summary>
+    public bool FurniMatchesByKind { get; init; }
+
+    /// <summary>
     /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,
     /// as on Habbo ("Steady Color Tint only works on BC or temporary furniture. Normal furniture
     /// cannot use this setting.", <c>wiredfurni.error.set_furni_highlight.normal_furni</c>): a

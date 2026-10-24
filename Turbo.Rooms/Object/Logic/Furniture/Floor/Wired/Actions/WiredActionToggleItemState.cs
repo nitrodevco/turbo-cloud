@@ -48,6 +48,8 @@ public class WiredActionToggleItemState(
                     true => item.Logic.GetPrevToggleableState(),
                 };
 
+                // A furni without states has nothing to toggle to: it is skipped
+                // (WiredExecutionContext.ProcessItemStateUpdateAsync).
                 await ctx.ProcessItemStateUpdateAsync(item, state);
             }
             catch (Exception ex)

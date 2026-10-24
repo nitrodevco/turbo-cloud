@@ -35,14 +35,11 @@ public class WiredActionRemoveFurni(
             ],
         ];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
-    {
-        var actionCtx = ctx.AsActionContext();
-        var removed = false;
-
-        foreach (var item in GetFloorItems(ctx.GetSelection(this)))
-            removed |= await FurniModule.RemoveTemporaryItemAsync(actionCtx, item, ct);
-
-        return removed;
-    }
+    // The room hears of all of them in one message (RoomFurniModule.RemoveTemporaryItemsAsync).
+    public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
+        FurniModule.RemoveTemporaryItemsAsync(
+            ctx.AsActionContext(),
+            GetFloorItems(ctx.GetSelection(this)),
+            ct
+        );
 }

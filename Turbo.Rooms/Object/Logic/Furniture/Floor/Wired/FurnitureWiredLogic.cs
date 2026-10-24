@@ -1044,6 +1044,12 @@ public abstract partial class FurnitureWiredLogic(
     /// <summary>Drops the cached editor snapshot, so the next read builds it again.</summary>
     public void InvalidateSnapshot() => _snapshot = null;
 
+    /// <summary>
+    /// The box's text as the editor is sent it: what was saved, unless the box writes something
+    /// of its own there (the snapshot boxes, <see cref="FormatFurniSnapshot"/>).
+    /// </summary>
+    protected virtual string GetEditorStringParam() => _wiredData.StringParam;
+
     protected virtual WiredDataSnapshot BuildSnapshot() =>
         new()
         {
@@ -1057,7 +1063,7 @@ public abstract partial class FurnitureWiredLogic(
                 : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
-            StringParam = _wiredData.StringParam,
+            StringParam = GetEditorStringParam(),
             IntParams = _wiredData.IntParams,
             VariableIds = GetValidVariableIds(_wiredData.VariableIds, out var validVariableIds)
                 ? validVariableIds

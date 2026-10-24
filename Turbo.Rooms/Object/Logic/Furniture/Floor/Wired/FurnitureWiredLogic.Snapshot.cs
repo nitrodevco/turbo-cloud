@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
@@ -65,8 +68,44 @@ public abstract partial class FurnitureWiredLogic
 
         // Writing the section marks the item dirty, so the new snapshot is persisted.
         CaptureFurniSnapshot(GetStuffIds());
+        InvalidateSnapshot();
 
         return true;
+    }
+
+    /// <summary>
+    /// The snapshot as Habbo writes it into the box's text for the editor: one
+    /// "id,state,rotation,x,y,altitude" entry per furni (altitude in hundredths) joined by ";",
+    /// with "N" for each part the box leaves out (position: x and y both). Official client
+    /// capture 2026-10-24: "2147418140,1,0,6,8,0;2147418135,0,0,8,9,0", state only
+    /// "2147418135,0,N,N,N,N". The entries follow the picks as saved (inference: the recorded
+    /// picks were sent in that order). Empty without a snapshot, as a fresh box opens.
+    /// </summary>
+    protected string FormatFurniSnapshot(
+        bool state = true,
+        bool rotation = true,
+        bool position = true,
+        bool altitude = true
+    )
+    {
+        static string Part(bool kept, int value) =>
+            kept ? value.ToString(CultureInfo.InvariantCulture) : "N";
+
+        return string.Join(
+            ';',
+            GetFurniSnapshot()
+                .Select(x =>
+                    string.Join(
+                        ',',
+                        WiredFurniIds.ToClient(FurniModule, [x.Key])[0],
+                        Part(state, x.Value.State),
+                        Part(rotation, x.Value.Rotation),
+                        Part(position, x.Value.X),
+                        Part(position, x.Value.Y),
+                        Part(altitude, x.Value.Z)
+                    )
+                )
+        );
     }
 
     private void DeleteFurniSnapshot() =>

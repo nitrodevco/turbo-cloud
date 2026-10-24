@@ -31,6 +31,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     public bool CanToggle();
 
     /// <summary>
+    /// Whether a player's use of the item does anything at all; false answers the use with
+    /// nothing, no state update and no "Furni Is Used".
+    /// </summary>
+    public bool HasUse();
+
+    /// <summary>
     /// Whether wired may change this item's state now. False leaves it out of the wired state
     /// update altogether (a wired door someone stands in).
     /// </summary>

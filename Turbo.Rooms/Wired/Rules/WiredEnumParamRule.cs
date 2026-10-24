@@ -25,9 +25,19 @@ public sealed class WiredEnumParamRule<TEnum> : WiredParamRule
             throw new ArgumentException("Default enum value is not in allowed set.");
     }
 
-    public override bool IsValid(int value) => _allowed.Contains(value);
+    /// <summary>
+    /// Whether a value outside the allowed ones is pulled to the nearest end of them instead of
+    /// refusing the save, as Habbo does for some boxes (Click Configuration's [9, 9] is stored as
+    /// [2, 1]; official client capture 2026-10-24).
+    /// </summary>
+    public bool ClampsOutOfRange { get; init; }
 
-    public override int Sanitize(int value) => _allowed.Contains(value) ? value : DefaultValue;
+    public override bool IsValid(int value) => ClampsOutOfRange || _allowed.Contains(value);
+
+    public override int Sanitize(int value) =>
+        _allowed.Contains(value) ? value
+        : ClampsOutOfRange ? Math.Clamp(value, _allowed.Min(), _allowed.Max())
+        : DefaultValue;
 
     public override object FromInt(int value) => Enum.ToObject(typeof(TEnum), value);
 
