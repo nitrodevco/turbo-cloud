@@ -44,6 +44,15 @@ public class WiredActionRelativeMove(
         {
             var at = plan.Where(item);
 
+            // Straight to the target, the tiles between not checked; a user there blocks it
+            // (official client capture 2026-10-24, W1 lab action.33.R3 2/2, action.33.X5 3/3).
+            if (IsBlockedByUser(ctx, item, at, at.X + dx, at.Y + dy, at.Rotation))
+            {
+                plan.Block();
+
+                continue;
+            }
+
             plan.Move(item, at.X + dx, at.Y + dy);
         }
     }

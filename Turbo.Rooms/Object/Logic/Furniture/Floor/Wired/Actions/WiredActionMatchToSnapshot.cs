@@ -96,6 +96,13 @@ public class WiredActionMatchToSnapshot(
             )
                 continue;
 
+            if (IsBlockedByUser(ctx, item, at, targetX, targetY, targetRotation))
+            {
+                plan.Block();
+
+                continue;
+            }
+
             plan.Move(item, targetX, targetY, targetZ, targetRotation);
         }
     }

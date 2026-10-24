@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -88,8 +89,10 @@ public class WiredActionMoveToDirection(
                     // A user ahead raises the collision trigger either way. With "block furni
                     // movements" ticked the furni stays where it is, without turning; unticked,
                     // the user is in the way like any furni and the turn rule applies (official
-                    // client capture 2026-10-24, W1 action.13.B5 4/4, B6 4/4).
-                    if (MeetsUser(nextIdx, item, plan))
+                    // client capture 2026-10-24, W1 action.13.B5 4/4, B6 4/4). The movement
+                    // physics add-on's "move through users" outranks both: the furni goes onto
+                    // the user's tile, the collision still raised (addon.7.X5, 1/1).
+                    if (MeetsUser(nextIdx, item, plan) && !MovesThroughUsersAt(ctx, nextIdx))
                     {
                         if (blockOnUsers)
                             break;
@@ -136,6 +139,13 @@ public class WiredActionMoveToDirection(
 
         return true;
     }
+
+    private bool MovesThroughUsersAt(IWiredContext ctx, int tileIdx) =>
+        ctx.Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
+        && (
+            ctx.Policy.MoveThroughUserIds is not { } passable
+            || AvatarModule.GetAvatarsOnTile(tileIdx).All(x => passable.Contains(x.ObjectId))
+        );
 
     /// <summary>
     /// The next heading to try. "Random" picks one of the headings not tried yet, so a furni
