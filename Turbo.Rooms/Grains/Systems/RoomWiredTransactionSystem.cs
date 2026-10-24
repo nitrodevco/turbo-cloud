@@ -171,15 +171,13 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
     /// Whether wired may move chest contents to or from the player. Habbo refuses a player who
     /// may not trade before it looks at what the chests hold: an empty chest, an insufficient one
     /// and a reward all answered 8 to an account without the trading pass (official client
-    /// capture 2026-10-24). <see cref="WiredChestConfig.RefuseWhoMayNotTrade"/> turns it off.
+    /// capture 2026-10-24). Who may trade is the hotel's trade policy (trading pass, permission).
     /// </summary>
     public async Task<bool> MayTradeAsync(
         PlayerId playerId,
         bool givingAway,
         CancellationToken ct
-    ) =>
-        !_roomGrain._wiredChestConfig.RefuseWhoMayNotTrade
-        || await _roomGrain._tradePolicy.MayTradeAsync(playerId, givingAway, ct);
+    ) => await _roomGrain._tradePolicy.MayTradeAsync(playerId, givingAway, ct);
 
     /// <summary>Tells the player why wired could not give to or take from them, and nothing else.</summary>
     public Task TellFailureAsync(

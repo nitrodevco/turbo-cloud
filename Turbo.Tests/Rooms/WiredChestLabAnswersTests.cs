@@ -217,21 +217,6 @@ public sealed class WiredChestLabAnswersTests
         _withdrawn.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task With_the_trade_rule_off_the_chest_gives_to_a_user_who_may_not_trade()
-    {
-        _room.Harness.Room.UseWiredChestConfig(
-            new WiredChestConfig { RefuseWhoMayNotTrade = false }
-        );
-        AddChest(locked: false, coins: CHEST_COINS);
-        var box = await AddGiveCurrencyAsync([CHEST], mode: 0);
-        _room.Harness.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
-
-        (await box.ExecuteAsync(ExecutionContext(userSelected: true), Ct)).Should().BeTrue();
-
-        _withdrawn.Should().Equal(1);
-    }
-
     // action.47.B1 (4 of 4): a credit chest and a fresh payment contract, the user may not trade:
     // 8 to the user and Transaction Failed for that user with reason 8; no trade window.
     [Fact]
