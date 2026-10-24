@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 
@@ -92,6 +93,13 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         if (bot.IsWalking)
             return;
 
+        if (bot.HandOverObjectId > 0)
+        {
+            await module.ContinueHandOverAsync(bot, ct);
+
+            return;
+        }
+
         if (bot.TargetItemId > 0)
         {
             await ProcessItemTargetAsync(bot, ct);
@@ -134,23 +142,24 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
     /// <summary>A bot that stopped walking while sent to a furni either arrived or gave up.</summary>
     private async Task ProcessItemTargetAsync(IRoomBot bot, CancellationToken ct)
     {
-        if (!FurniModule.TryGetItem(bot.TargetItemId, out var item))
+        if (
+            !FurniModule.TryGetItem(bot.TargetItemId, out var found)
+            || found is not IRoomFloorItem item
+        )
         {
             bot.TargetItemId = -1;
 
             return;
         }
 
-        var map = MapModule;
-
-        if (map.ToIdx(bot.X, bot.Y) == map.ToIdx(item.X, item.Y))
+        if (BotModule.IsOnItem(bot, item))
         {
             await NotifyItemReachedAsync(bot, ct);
 
             return;
         }
 
-        if (!await AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct))
+        if (!await BotModule.WalkTowardItemAsync(bot, item, ct))
             bot.TargetItemId = -1;
     }
 
@@ -194,25 +203,11 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         if (!RoomAvatarModule.IsFollowDue(bot, targetIdx, now))
             return;
 
-        AvatarModule.RecordFollow(bot, targetIdx, await WalkBesideAsync(), now);
-
-        async Task<bool> WalkBesideAsync()
-        {
-            foreach (var direction in Primitives.Rooms.Enums.RotationExtensions.CARDINAL)
-            {
-                if (!map.TryGetTileInFront(targetIdx, direction, out var nextIdx))
-                    continue;
-
-                if (nextIdx != botIdx && !PetModule.IsTileFreeForNpc(nextIdx))
-                    continue;
-
-                var (x, y) = map.GetTileXY(nextIdx);
-
-                if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
-                    return true;
-            }
-
-            return false;
-        }
+        AvatarModule.RecordFollow(
+            bot,
+            targetIdx,
+            await BotModule.WalkBesideAsync(bot, targetIdx, ct),
+            now
+        );
     }
 }

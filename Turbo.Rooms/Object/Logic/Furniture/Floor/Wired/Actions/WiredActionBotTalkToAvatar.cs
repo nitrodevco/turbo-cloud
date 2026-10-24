@@ -13,9 +13,12 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// A named bot addresses the selected users: whispering to each (param 0 = 1) or talking
-/// once for all (0). Param 1 is the bubble width, param 2 hides the bot's name over the
-/// bubble (WIN63-202610121624 <c>actiontypes/_-7V</c>).
+/// A named bot addresses the selected users: whispering to each (param 0 = 1), which nobody
+/// else hears, or talking to the room with the user's name before the text, "results!: hi"
+/// (0). Param 1 is the bubble width, param 2 hides the bot's name over the bubble
+/// (WIN63-202610121624 <c>actiontypes/_-7V</c>; official client capture 2026-10-24, two
+/// accounts, action.27.R3/R3b 1/1 each). One bot of the name speaks. With several users the
+/// talk is said once per user (inferred: recorded with one user).
 /// </summary>
 [RoomObjectLogic("wf_act_bot_talk_to_avatar")]
 public class WiredActionBotTalkToAvatar(
@@ -25,6 +28,8 @@ public class WiredActionBotTalkToAvatar(
 ) : FurnitureWiredBotActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.BOT_TALK_DIRECT_TO_AVTR;
+
+    protected override bool ActsOnOneBot => true;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
@@ -65,16 +70,19 @@ public class WiredActionBotTalkToAvatar(
             return false;
 
         foreach (var bot in bots)
+        foreach (var player in players)
         {
-            if (!whisper)
-            {
-                await BotModule.TalkAsync(bot, text, false, bubbleWidth, hideName, ct);
-
-                continue;
-            }
-
-            foreach (var player in players)
+            if (whisper)
                 await BotModule.WhisperAsync(bot, player, text, bubbleWidth, hideName, ct);
+            else
+                await BotModule.TalkAsync(
+                    bot,
+                    $"{player.Name}: {text}",
+                    false,
+                    bubbleWidth,
+                    hideName,
+                    ct
+                );
         }
 
         return true;

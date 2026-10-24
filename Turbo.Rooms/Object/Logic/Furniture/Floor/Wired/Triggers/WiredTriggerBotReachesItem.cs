@@ -15,7 +15,9 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires when a bot sent to a furni arrives. String param: bot name, empty for any; picked
+/// Fires when a bot sent to a furni arrives on it. String param: the bot's name, matched as Bot
+/// Talk matches it; an empty name names no bot, so the box never fires (official client capture
+/// 2026-10-24, trigger.13.B1 0/3; "frank " never fired for bot "frank", trigger.13.R1). Picked
 /// furni narrow which destinations count.
 /// </summary>
 [RoomObjectLogic("wf_trg_bot_reached_stf")]
@@ -43,9 +45,7 @@ public class WiredTriggerBotReachesItem(
         if (evt is not BotReachedItemEvent reached)
             return Task.FromResult(false);
 
-        var botName = GetStringParam();
-
-        if (IsBotByName() && botName.Length > 0 && !NamesMatch(reached.BotName, botName))
+        if (IsBotByName() && !NamesBot(reached.BotName))
             return Task.FromResult(false);
 
         var stuffIds = GetStuffIds();

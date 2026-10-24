@@ -13,7 +13,11 @@ using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
-/// <summary>Fires when a following bot catches up with its avatar. String param: bot name, empty for any.</summary>
+/// <summary>
+/// Fires when a following bot catches up with its avatar. String param: the bot's name, matched
+/// as Bot Talk matches it; an empty name names no bot, so the box never fires (official client
+/// capture 2026-10-24, trigger.14.B1 0/2).
+/// </summary>
 [RoomObjectLogic("wf_trg_bot_reached_avtr")]
 public class WiredTriggerBotReachesHabbo(
     IGrainFactory grainFactory,
@@ -33,12 +37,7 @@ public class WiredTriggerBotReachesHabbo(
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct) =>
         Task.FromResult(
-            evt is BotReachedAvatarEvent reached
-                && (
-                    !IsBotByName()
-                    || GetStringParam().Length == 0
-                    || NamesMatch(reached.BotName, GetStringParam())
-                )
+            evt is BotReachedAvatarEvent reached && (!IsBotByName() || NamesBot(reached.BotName))
         );
 
     // A selector's bots are not known before the stack runs, so that source does not narrow

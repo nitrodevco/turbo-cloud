@@ -91,6 +91,48 @@ public static class FigureRules
         return Write(worn);
     }
 
+    /// <summary>
+    /// The figure with only its colours made fit: every piece kept as given, whoever it is for,
+    /// and each colour of a piece the figure data knows that the club level may not use swapped
+    /// for the first it may. With no figure data, the figure as given.
+    /// </summary>
+    public static string FitColors(FigureData data, string figure, int clubLevel)
+    {
+        if (data.IsEmpty)
+            return figure;
+
+        var parts = figure.Split('.');
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var fields = parts[i].Split('-');
+
+            if (
+                fields.Length < 3
+                || !data.SetTypes.TryGetValue(fields[0], out var type)
+                || !TryNumber(fields[1], out var setId)
+                || !type.Sets.TryGetValue(setId, out var set)
+                || !set.Colorable
+                || !data.Palettes.TryGetValue(type.PaletteId, out var palette)
+                || palette.FirstAllowed(clubLevel) is not { } fallback
+            )
+                continue;
+
+            for (var field = 2; field < fields.Length; field++)
+                if (
+                    !TryNumber(fields[field], out var id)
+                    || !palette.Colors.TryGetValue(id, out var color)
+                    || !color.Selectable
+                    || color.Club > clubLevel
+                )
+                    fields[field] = fallback.Id.ToString(CultureInfo.InvariantCulture);
+
+            parts[i] = string.Join('-', fields);
+        }
+
+        return string.Join('.', parts);
+    }
+
     /// <summary>Whether the wearer may put the piece on.</summary>
     public static bool MayWear(
         FigureSet set,

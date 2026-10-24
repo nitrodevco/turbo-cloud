@@ -502,7 +502,7 @@ public abstract partial class FurnitureWiredLogic(
             }
 
             _wiredData.IntParams = intParams;
-            _wiredData.StringParam = stringParam;
+            _wiredData.StringParam = await StoredStringParamAsync(stringParam, ct);
             _wiredData.StuffIds = stuffIds;
             _wiredData.StuffIds2 = stuffIds2;
             _wiredData.VariableIds = variableIds;
@@ -574,6 +574,15 @@ public abstract partial class FurnitureWiredLogic(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// The text as this box keeps it, from the sanitized text of a save: as sent unless the box
+    /// stores its own form of it (Bot Change Figure keeps the figure as the bot may wear it).
+    /// </summary>
+    protected virtual Task<string> StoredStringParamAsync(
+        string stringParam,
+        CancellationToken ct
+    ) => Task.FromResult(stringParam);
+
     /// <summary>The text the box was saved with, trimmed; empty when there is none.</summary>
     protected string GetStringParam() => _wiredData.StringParam?.Trim() ?? string.Empty;
 
@@ -600,6 +609,13 @@ public abstract partial class FurnitureWiredLogic(
 
     /// <summary>Whether two names are the same name, by <see cref="NameComparer"/>.</summary>
     protected static bool NamesMatch(string? a, string? b) => NameComparer.Equals(a, b);
+
+    /// <summary>
+    /// Whether the box's text names this bot, as the bot boxes read a name: as saved, nothing
+    /// trimmed, case ignored; an empty text names no bot.
+    /// </summary>
+    protected bool NamesBot(string? botName) =>
+        _wiredData.StringParam is { Length: > 0 } name && NamesMatch(botName, name);
 
     private static object CreateDefaultSpecific(Type specType) =>
         specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;
