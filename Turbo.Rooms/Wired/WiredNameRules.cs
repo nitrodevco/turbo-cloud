@@ -17,6 +17,21 @@ public static class WiredNameRules
 
     public static bool HasValidLength(string name) => name.Length is > 0 and <= MAX_LENGTH;
 
+    /// <summary>
+    /// A variable's name as Habbo stores it: trimmed, lower case, a space made "_" ("  w6pad  "
+    /// stored "w6pad", "W6Up" "w6up", "a b" "a_b"; official client capture 2026-10-24, wired
+    /// matrix variable.2.E9, 12/12). The rules are checked on what this gives.
+    /// </summary>
+    public static string NormalizeVariableName(string name) =>
+        name.Trim().ToLowerInvariant().Replace(' ', '_');
+
+    /// <summary>
+    /// 1 to 40 characters, and more than underscores: "_" alone was refused with
+    /// <c>name_length</c> (variable.0.E9; that any name of only underscores is, is inference).
+    /// </summary>
+    public static bool HasValidVariableLength(string name) =>
+        HasValidLength(name) && name.Trim('_').Length > 0;
+
     public static bool HasValidSyntax(string name)
     {
         foreach (var c in name)
