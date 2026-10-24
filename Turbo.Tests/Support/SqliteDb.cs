@@ -31,18 +31,39 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     {
         _conn = new SqliteConnection("DataSource=:memory:");
         _conn.Open();
-        _options = new DbContextOptionsBuilder<TurboDbContext>()
-            .UseSqlite(_conn)
-            .AddInterceptors(new StampTimestamps(), new NoRowLocks(), _beforeTransaction)
+        _options = OptionsFor(_conn, new StampTimestamps(), new NoRowLocks(), _beforeTransaction);
+        lock (SCHEMA)
+            SCHEMA.Value.BackupDatabase(_conn);
+    }
+
+    /// <summary>
+    /// The empty schema, created once a run and copied into each new database: EnsureCreated on
+    /// the full schema took 200-300 ms a database, the copy takes a few.
+    /// </summary>
+    private static readonly Lazy<SqliteConnection> SCHEMA = new(() =>
+    {
+        var conn = new SqliteConnection("DataSource=:memory:");
+        conn.Open();
+        using var ctx = new SqliteTurboDbContext(OptionsFor(conn));
+        ctx.Database.EnsureCreated();
+
+        return conn;
+    });
+
+    // The same warnings for the schema's context as for a database's, so EF builds one model.
+    private static DbContextOptions<TurboDbContext> OptionsFor(
+        SqliteConnection conn,
+        params IInterceptor[] interceptors
+    ) =>
+        new DbContextOptionsBuilder<TurboDbContext>()
+            .UseSqlite(conn)
+            .AddInterceptors(interceptors)
             .ConfigureWarnings(w =>
             {
                 w.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning);
                 w.Throw(CoreEventId.FirstWithoutOrderByAndFilterWarning);
             })
             .Options;
-        using var ctx = new SqliteTurboDbContext(_options);
-        ctx.Database.EnsureCreated();
-    }
 
     public TurboDbContext CreateDbContext() => new SqliteTurboDbContext(_options);
 
