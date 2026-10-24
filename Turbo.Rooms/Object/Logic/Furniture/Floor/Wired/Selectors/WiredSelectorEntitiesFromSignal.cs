@@ -24,6 +24,10 @@ public class WiredSelectorEntitiesFromSignal(
 
     public override bool SelectsUsers => true;
 
+    // The users in the order the sender's selection had them (official client capture
+    // 2026-10-24, wired matrix selector.10.R4: "frank,Frank,Hutch." as sent, 4/4).
+    public override WiredUserOrderType UserOrder => WiredUserOrderType.AsSelected;
+
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct

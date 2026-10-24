@@ -8,4 +8,7 @@ public enum WiredUserOrderType
 
     /// <summary>Ascending room index, bots included.</summary>
     RoomIndex = 1,
+
+    /// <summary>The order the selector found them in, kept as it is.</summary>
+    AsSelected = 2,
 }

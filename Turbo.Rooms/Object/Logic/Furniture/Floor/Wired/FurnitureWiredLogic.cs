@@ -76,6 +76,63 @@ public abstract partial class FurnitureWiredLogic(
     public Task EnsureWiredLoadedAsync(CancellationToken ct) =>
         _wiredData is null ? LoadWiredAsync(ct) : Task.CompletedTask;
 
+    // Set while the box runs with a held configuration, which is not the box's to persist.
+    private bool _runsHeldConfig;
+
+    /// <summary>
+    /// The box as it is saved now, for a run that has to keep it through a later save. A save
+    /// stores new lists rather than changing the stored ones; the copy takes its own anyway.
+    /// </summary>
+    internal IWiredData CaptureConfig()
+    {
+        var held = new WiredData
+        {
+            IntParams = [.. _wiredData.IntParams],
+            StringParam = _wiredData.StringParam,
+            StuffIds = [.. _wiredData.StuffIds],
+            StuffIds2 = [.. _wiredData.StuffIds2],
+            VariableIds = [.. _wiredData.VariableIds],
+            FurniSources = [.. _wiredData.FurniSources],
+            PlayerSources = [.. _wiredData.PlayerSources],
+            DefinitionSpecifics = [.. _wiredData.DefinitionSpecifics],
+            TypeSpecifics = [.. _wiredData.TypeSpecifics],
+        };
+
+        held.AttatchRules(GetIntParamRules(), GetIntParamTailRule());
+
+        return held;
+    }
+
+    /// <summary>
+    /// Runs <paramref name="run"/> with the box configured as <paramref name="held"/>, then puts
+    /// the box's saved configuration back. Nothing the run changes on the held copy is stored.
+    /// </summary>
+    internal async Task<T> RunWithConfigAsync<T>(
+        IWiredData held,
+        Func<Task<T>> run,
+        CancellationToken ct
+    )
+    {
+        var saved = _wiredData;
+
+        _wiredData = held;
+        _runsHeldConfig = true;
+
+        try
+        {
+            await FillInternalDataAsync(ct);
+
+            return await run();
+        }
+        finally
+        {
+            _wiredData = saved;
+            _runsHeldConfig = false;
+
+            await FillInternalDataAsync(ct);
+        }
+    }
+
     /// <summary>
     /// The box as saved, for a share add-on to pass on as one of <paramref name="category"/>;
     /// null while it is not loaded.
@@ -425,9 +482,6 @@ public abstract partial class FurnitureWiredLogic(
             // Checked against the slots as saved: a slot refuses only picks it reads.
             RefuseUnpickableFurni(update.StuffIds, secondary: false, furniSources);
             RefuseUnpickableFurni(update.StuffIds2, secondary: true, furniSources);
-
-            if (PicksOverLimit(update.StuffIds) || PicksOverLimit(update.StuffIds2))
-                return false;
 
             if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
                 stuffIds = validStuffIds;
@@ -815,8 +869,8 @@ public abstract partial class FurnitureWiredLogic(
     /// itself stops picking at the limit, <c>UserDefinedRoomEventsCtrl.as:211</c>). Inference: the
     /// picks are counted as sent and the second slot is held to the same limit.
     /// </summary>
-    private bool PicksOverLimit(List<int> proposed) =>
-        proposed.Count > WiredConfig.SelectedItemsLimit;
+    internal static bool PicksOverLimit(UpdateWiredMessage update, int limit) =>
+        update.StuffIds.Count > limit || update.StuffIds2.Count > limit;
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {
@@ -1061,8 +1115,9 @@ public abstract partial class FurnitureWiredLogic(
             _wiredData.MarkDirty();
         }
 
-        // A copy runs on another box's furni: what it holds is not that furni's to keep.
-        if (IsImported)
+        // A copy runs on another box's furni: what it holds is not that furni's to keep; nor is a
+        // configuration a pending run holds on to.
+        if (IsImported || _runsHeldConfig)
             return Task.CompletedTask;
 
         _wiredData.SetAction(() =>

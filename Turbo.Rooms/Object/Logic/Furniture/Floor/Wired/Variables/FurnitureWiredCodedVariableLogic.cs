@@ -70,6 +70,14 @@ public abstract class FurnitureWiredCodedVariableLogic(
         return index < 0 ? value : value[..index];
     }
 
+    protected override string WithVariableName(string? stringParam, string name)
+    {
+        var value = stringParam ?? string.Empty;
+        var index = value.IndexOf(SEPARATOR);
+
+        return index < 0 ? name : name + value[index..];
+    }
+
     private string NameOf(string? stringParam)
     {
         var name = VariableNameOf(stringParam);

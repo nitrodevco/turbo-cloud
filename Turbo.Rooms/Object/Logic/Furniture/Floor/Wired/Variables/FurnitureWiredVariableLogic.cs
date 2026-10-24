@@ -50,7 +50,8 @@ public abstract class FurnitureWiredVariableLogic
     protected virtual int? AvailabilityParamIndex => null;
 
     /// <summary>
-    /// The name is the variable's, so it is refused rather than cut: 1 to 40 letters, digits and
+    /// The name is the variable's, stored trimmed, in lower case and with "_" for a space, then
+    /// refused rather than cut unless it is 1 to 40 letters, digits and
     /// "_" (<see cref="WiredNameRules"/>; Habbo answers an empty name with
     /// <c>wiredfurni.error.variables.name_length</c>, official client capture
     /// session-20261012-102507 and -181511), and not one another variable of this room already
@@ -80,9 +81,11 @@ public abstract class FurnitureWiredVariableLogic
         )
             throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_OWNER_OR_ROOM_OWNER_ONLY);
 
-        var name = VariableNameOf(update.StringParam);
+        var name = WiredNameRules.NormalizeVariableName(VariableNameOf(update.StringParam));
 
-        if (!WiredNameRules.HasValidLength(name))
+        update = update with { StringParam = WithVariableName(update.StringParam, name) };
+
+        if (!WiredNameRules.HasValidVariableLength(name))
             throw new WiredSaveRefusedException(WiredSaveErrors.VARIABLE_NAME_LENGTH);
 
         if (!WiredNameRules.HasValidSyntax(name))
@@ -120,9 +123,13 @@ public abstract class FurnitureWiredVariableLogic
     /// </summary>
     protected virtual string VariableNameOf(string? stringParam) => stringParam ?? string.Empty;
 
+    /// <summary>The string param with its name part replaced by <paramref name="name"/>.</summary>
+    protected virtual string WithVariableName(string? stringParam, string name) => name;
+
     /// <summary>
-    /// Whether another variable box in this room has the name, whatever its target. Compared
-    /// exactly (inference: the capture had the same name twice, not two spellings of it).
+    /// Whether another variable box in this room has the name, whatever its target, in any case
+    /// (official client capture 2026-10-24, wired matrix variable.0-3.E9 / 7.E9: a room variable's
+    /// name refused for a furni, user, context and echo variable, "W6_OK" refused next to "w6_ok").
     /// </summary>
     private bool IsNameTaken(string name) =>
         FurniModule.Items.Any(item =>
@@ -131,7 +138,7 @@ public abstract class FurnitureWiredVariableLogic
             && string.Equals(
                 other.VariableNameOf(other._wiredData?.StringParam),
                 name,
-                System.StringComparison.Ordinal
+                System.StringComparison.OrdinalIgnoreCase
             )
         );
 

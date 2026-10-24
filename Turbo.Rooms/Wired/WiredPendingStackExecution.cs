@@ -29,4 +29,10 @@ internal sealed class WiredPendingStackExecution
 
     /// <summary>The firing's context variable values, which its actions read and write.</summary>
     public required KeyValueStore ContextValues { get; init; }
+
+    /// <summary>
+    /// The configuration of each action that was saved while this run waited, as it was when the
+    /// trigger fired; an action not in it had no save since and runs as it is.
+    /// </summary>
+    public Dictionary<IWiredAction, IWiredData>? HeldConfigs { get; set; }
 }
