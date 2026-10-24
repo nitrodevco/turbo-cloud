@@ -478,6 +478,27 @@ public sealed class WiredGamesTimeEditorTests
             "US/Samoa"
         );
 
+    /// <summary>
+    /// The legacy names in Habbo's list resolve to the zone they link to, also on hosts whose
+    /// tzdata has no legacy links (CI's Ubuntu image). condition.28.E18 / condition.29.E17.
+    /// </summary>
+    [Theory]
+    [InlineData("US/Central", "America/Chicago")]
+    [InlineData("Canada/Newfoundland", "America/St_Johns")]
+    [InlineData("US/Samoa", "Pacific/Pago_Pago")]
+    public void A_legacy_timezone_name_reads_as_the_zone_it_links_to_condition_28_E18(
+        string legacy,
+        string target
+    )
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        TimeZoneInfo
+            .ConvertTime(now, WiredTimeZones.Find(legacy))
+            .Offset.Should()
+            .Be(TimeZoneInfo.ConvertTime(now, TimeZoneInfo.FindSystemTimeZoneById(target)).Offset);
+    }
+
     [Theory]
     [MemberData(nameof(OfficialTimezones))]
     public async Task Time_matches_reads_the_hour_in_each_official_timezone_condition_28_E18(
@@ -485,9 +506,7 @@ public sealed class WiredGamesTimeEditorTests
     )
     {
         var utc = _room.Clock.GetUtcNow();
-        var hour = TimeZoneInfo
-            .ConvertTime(utc, TimeZoneInfo.FindSystemTimeZoneById(timezone))
-            .Hour;
+        var hour = TimeZoneInfo.ConvertTime(utc, WiredTimeZones.Find(timezone)).Hour;
         var condition = _room.AddBox<WiredConditionTimeMatches>(BOX, 0, 0, "wf_cnd_match_time");
 
         (await SaveAsync(condition, [0, 0, 1, 0, 0, 0, 0, hour, hour], timezone)).Should().BeTrue();
