@@ -86,6 +86,10 @@ public class WiredActionPlaceFurni(
 
     protected override bool KeepsFurniSnapshot => true;
 
+    // The template snapshot in the editor's text, every part written (official client capture
+    // 2026-10-24: "2147418124,0,0,6,8,0").
+    protected override string GetEditorStringParam() => FormatFurniSnapshot();
+
     protected override bool HasPositionalVariableIds => true;
 
     public override int GetMaxVariableIds() => VARIABLE_COUNT;

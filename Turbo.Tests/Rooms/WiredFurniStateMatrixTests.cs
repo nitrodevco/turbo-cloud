@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -577,6 +578,54 @@ public sealed class WiredFurniStateMatrixTests
             .Any(x => x.ObjectId == chair.ObjectId)
             .Should()
             .Be(fires);
+    }
+
+    // condition.0.E13 / action.3.E13: the snapshot boxes write their snapshot into the editor's
+    // text, "id,state,rotation,x,y,altitude" per furni joined by ";", "N" for each part left out
+    // (official client capture 2026-10-24: [1,1,1,1] "2147418140,1,0,6,8,0;2147418135,0,0,8,9,0",
+    // [0,1,1,1] state "N", state only [1,0,0,0] "2147418135,0,N,N,N,N"). Ours sent "".
+    [Theory]
+    [InlineData(false, new[] { 1, 1, 1, 1 }, "30,1,0,3,3,0;31,0,0,4,4,0")]
+    [InlineData(false, new[] { 0, 1, 1, 1 }, "30,N,0,3,3,0;31,N,0,4,4,0")]
+    [InlineData(true, new[] { 1, 0, 0, 0, 0 }, "30,1,N,N,N,N;31,0,N,N,N,N")]
+    public async Task Snapshot_boxes_write_their_snapshot_for_the_editor(
+        bool action,
+        int[] flags,
+        string expected
+    )
+    {
+        var lamp = _room.AddFloorItem(LAMP_A, 3, 3);
+        _room.AddFloorItem(LAMP_B, 4, 4);
+        await lamp.Logic.SetStateAsync(1, false);
+
+        FurnitureWiredLogic box = action
+            ? _room.AddBox<WiredActionMatchToSnapshot>(BOX, 0, 0, "wf_act_match_to_sshot")
+            : _room.AddBox<WiredConditionItemMatches>(BOX, 0, 0, "wf_cnd_match_snapshot");
+
+        var saved = action
+            ? await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: flags,
+                stuffIds: [LAMP_A, LAMP_B],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+            : await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: flags,
+                stuffIds: [LAMP_A, LAMP_B],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            );
+
+        saved.Should().BeTrue();
+        box.GetSnapshot().StringParam.Should().Be(expected);
     }
 
     private WiredProcessingContext Context() =>

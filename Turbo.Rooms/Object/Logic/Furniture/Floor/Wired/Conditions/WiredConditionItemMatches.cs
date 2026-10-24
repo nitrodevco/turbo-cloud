@@ -48,6 +48,16 @@ public class WiredConditionItemMatches(
 
     protected override bool KeepsFurniSnapshot => true;
 
+    // The snapshot in the editor's text, the parts this box leaves out as "N" (official client
+    // capture 2026-10-24).
+    protected override string GetEditorStringParam() =>
+        FormatFurniSnapshot(
+            GetIntParamOrDefault(0, false),
+            GetIntParamOrDefault(1, false),
+            GetIntParamOrDefault(2, false),
+            GetIntParamOrDefault(3, false)
+        );
+
     /// <summary>
     /// The snapshot entries to compare: all of them for the picked furni, otherwise those of the
     /// slot's furni (inference: only a furni the box has a snapshot of can be compared).
