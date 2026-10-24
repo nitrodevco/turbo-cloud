@@ -42,6 +42,9 @@ public sealed class PluginManager(
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger _logger = logger;
 
+    // The host's services behind a plugin's own: never asked for the plugin's types.
+    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
+
     private readonly ConcurrentDictionary<string, PluginEnvelope> _live = new(
         StringComparer.OrdinalIgnoreCase
     );
@@ -52,6 +55,11 @@ public sealed class PluginManager(
         StringComparer.OrdinalIgnoreCase
     );
     private readonly SemaphoreSlim _reloadGate = new(1, 1);
+
+    // The waits for the contexts of failed loads. The failure's error, thrown in the plugin's own
+    // code, holds its context for as long as anyone holds the error (the load reporting it, the
+    // panel showing it), so the wait runs beside the load rather than in its way.
+    private readonly ConcurrentDictionary<Task, byte> _failedUnloads = new();
 
     // How each plugin found stands, and the folders whose manifest could not be read, as of the
     // last scan or action: what the admin panel lists.
@@ -401,7 +409,7 @@ public sealed class PluginManager(
             var disp = await processor
                 .ProcessAsync(
                     asm.Assembly,
-                    new CompositeServiceProvider(next.ServiceProvider, host),
+                    new CompositeServiceProvider(next.ServiceProvider, _hostForPlugins),
                     ct
                 )
                 .ConfigureAwait(false);
@@ -416,7 +424,7 @@ public sealed class PluginManager(
 
             next = null!;
             asm = null!;
-            await WaitForUnloadAsync(unloading, m.Key, ct).ConfigureAwait(false);
+            WaitForFailedUnload(unloading, m.Key);
 
             throw;
         }
@@ -492,7 +500,22 @@ public sealed class PluginManager(
             current = null;
         }
 
-        var next = await BuildEnvelopeAsync(asm, m, folder, fingerprint, ct).ConfigureAwait(false);
+        PluginEnvelope next;
+
+        try
+        {
+            next = await BuildEnvelopeAsync(asm, m, folder, fingerprint, ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // It never went live, so nothing else would unload its context: it stayed loaded.
+            var failed = AssemblyMemoryLoader.BeginUnload(asm.Alc);
+
+            asm = null!;
+            WaitForFailedUnload(failed, m.Key);
+
+            throw;
+        }
 
         _live[m.Key] = next;
 
@@ -588,6 +611,8 @@ public sealed class PluginManager(
                 keys.Remove(k);
             }
         }
+
+        await Task.WhenAll(_failedUnloads.Keys).ConfigureAwait(false);
     }
 
     private static LoadedAssembly GetLoadedPluginAssembly(PluginManifest manifest, string folder)
@@ -625,6 +650,7 @@ public sealed class PluginManager(
             clientModules
         );
         var disposables = new List<object> { sp };
+        var started = new List<IHostedService>();
 
         // Its client module goes when it stops, whether or not it took it away itself.
         if (clientModules is not null)
@@ -652,7 +678,11 @@ public sealed class PluginManager(
 
             // Its web routes are built (and a bad one refused) before it starts, and answer once it has.
             var web = WebRoutes is not null
-                ? PluginWebRoutes.Build(m.Key, asm.Assembly, new CompositeServiceProvider(sp, host))
+                ? PluginWebRoutes.Build(
+                    m.Key,
+                    asm.Assembly,
+                    new CompositeServiceProvider(sp, _hostForPlugins)
+                )
                 : [];
 
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
@@ -665,7 +695,7 @@ public sealed class PluginManager(
                 disposables.Add(loaded);
 
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
-            await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
+            await StartPluginAsync(inst, sp, started, ct).ConfigureAwait(false);
 
             if (admin is not null && Routes is { } routes)
                 disposables.Insert(0, routes.Live(m.Key, admin));
@@ -675,8 +705,10 @@ public sealed class PluginManager(
         }
         catch
         {
-            foreach (var disposable in disposables.OfType<IDisposable>())
-                disposable.Dispose();
+            // Its hosted services started before it failed run plugin code (timers, loops)
+            // until stopped.
+            await StopHostedServicesAsync(started, m.Key, ct).ConfigureAwait(false);
+            await DisposeAllAsync(disposables, m.Key).ConfigureAwait(false);
 
             throw;
         }
@@ -756,7 +788,9 @@ public sealed class PluginManager(
 
         services.AddSingleton(manifest);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
-        services.AddSingleton<IHostServices>(new HostServices(host, extensions, clientModules));
+        services.AddSingleton<IHostServices>(
+            new HostServices(_hostForPlugins, extensions, clientModules)
+        );
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
         if (host.GetService<IConfiguration>() is { } configuration)
@@ -1085,6 +1119,7 @@ public sealed class PluginManager(
     private async Task StartPluginAsync(
         ITurboPlugin plugin,
         IServiceProvider sp,
+        List<IHostedService> started,
         CancellationToken ct
     )
     {
@@ -1095,6 +1130,7 @@ public sealed class PluginManager(
             try
             {
                 await svc.StartAsync(ct).ConfigureAwait(false);
+                started.Add(svc);
             }
             catch (Exception ex)
             {
@@ -1147,23 +1183,12 @@ public sealed class PluginManager(
         try
         {
             if (env.ServiceProvider is { } sp)
-            {
-                foreach (var svc in sp.GetServices<IHostedService>())
-                {
-                    try
-                    {
-                        await svc.StopAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "Hosted service stop failed for {Key}",
-                            env.Manifest.Key
-                        );
-                    }
-                }
-            }
+                await StopHostedServicesAsync(
+                        sp.GetServices<IHostedService>(),
+                        env.Manifest.Key,
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
             try
             {
@@ -1174,35 +1199,7 @@ public sealed class PluginManager(
                 _logger.LogWarning(ex, "Failed to stop plugin {Key}", env.Manifest.Key);
             }
 
-            if (env.Disposables.Count > 0)
-            {
-                foreach (var inst in env.Disposables)
-                {
-                    try
-                    {
-                        switch (inst)
-                        {
-                            case IAsyncDisposable iad:
-                                await iad.DisposeAsync().ConfigureAwait(false);
-                                continue;
-                            case IDisposable d:
-                                d.Dispose();
-                                continue;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "Failed to dispose {Type} for {Key}",
-                            inst.GetType().Name,
-                            env.Manifest.Key
-                        );
-                    }
-                }
-
-                env.Disposables.Clear();
-            }
+            await DisposeAllAsync(env.Disposables, env.Manifest.Key).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1210,6 +1207,56 @@ public sealed class PluginManager(
         }
 
         return env.Alc is null ? null : AssemblyMemoryLoader.BeginUnload(env.Alc);
+    }
+
+    private async Task StopHostedServicesAsync(
+        IEnumerable<IHostedService> services,
+        string key,
+        CancellationToken ct
+    )
+    {
+        foreach (var svc in services)
+        {
+            try
+            {
+                await svc.StopAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Hosted service stop failed for {Key}", key);
+            }
+        }
+    }
+
+    /// <summary>Disposes what a plugin registered, an async disposable as one.</summary>
+    private async Task DisposeAllAsync(List<object> disposables, string key)
+    {
+        foreach (var inst in disposables)
+        {
+            try
+            {
+                switch (inst)
+                {
+                    case IAsyncDisposable iad:
+                        await iad.DisposeAsync().ConfigureAwait(false);
+                        continue;
+                    case IDisposable d:
+                        d.Dispose();
+                        continue;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to dispose {Type} for {Key}",
+                    inst.GetType().Name,
+                    key
+                );
+            }
+        }
+
+        disposables.Clear();
     }
 
     /// <summary>
@@ -1232,6 +1279,26 @@ public sealed class PluginManager(
                 "ALC for plugin {Key} did not unload within timeout. Possible memory leak from retained type references.",
                 key
             );
+    }
+
+    /// <summary>
+    /// Waits for the context of a load that failed, off the load's path; <see cref="UnloadAllAsync"/>
+    /// waits for it to be done.
+    /// </summary>
+    private void WaitForFailedUnload(WeakReference? alc, string key)
+    {
+        if (alc is null)
+            return;
+
+        var wait = Task.Run(() => WaitForUnloadAsync(alc, key, CancellationToken.None));
+
+        _failedUnloads.TryAdd(wait, 0);
+        _ = wait.ContinueWith(
+            done => _failedUnloads.TryRemove(done, out _),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
     }
 
     private SemaphoreSlim GetKeyGate(string key) =>

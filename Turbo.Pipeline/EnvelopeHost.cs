@@ -23,6 +23,9 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 )
 {
     private readonly IServiceProvider _host = host;
+
+    // What a plugin's handlers and behaviours are given of the host's services.
+    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
     private readonly EnvelopeHostOptions<TEnvelope, TMeta, TContext> _opt = options;
     private readonly ILogger _logger = logger;
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
@@ -45,7 +48,8 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     {
         ArgumentNullException.ThrowIfNull(envType);
 
-        var resolutionProvider = sp == _host ? _host : new CompositeServiceProvider(sp, _host);
+        var resolutionProvider =
+            sp == _host ? _host : new CompositeServiceProvider(sp, _hostForPlugins);
         var b = AddTo(
             envType,
             x =>
@@ -90,7 +94,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     new BehaviorReg<TContext>(
                         behaviorType,
                         sp,
-                        new CompositeServiceProvider(_host, sp),
+                        sp == _host ? _host : new CompositeServiceProvider(_hostForPlugins, sp),
                         order,
                         activator,
                         invoker

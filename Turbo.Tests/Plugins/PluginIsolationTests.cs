@@ -2,6 +2,7 @@ using System.IO;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
@@ -27,6 +28,8 @@ namespace Turbo.Tests.Plugins;
 /// </summary>
 public sealed class PluginIsolationTests : IDisposable
 {
+    private const string LEAK = "did not unload";
+
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
         "turbo-plugin-isolation-" + Guid.NewGuid().ToString("N")
@@ -73,6 +76,12 @@ public sealed class PluginIsolationTests : IDisposable
 
         nodes.IsRegistered("good.use").Should().BeTrue();
         nodes.IsRegistered("broken.use").Should().BeFalse();
+
+        await manager.UnloadAllAsync(Ct);
+
+        // The host's container kept the service it was asked for, the plugin's own IMissing, and
+        // with it the failed plugin's whole assembly context for as long as the server ran.
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
     [Fact]
@@ -104,6 +113,11 @@ public sealed class PluginIsolationTests : IDisposable
             .Current.IsRegistered("half.use")
             .Should()
             .BeTrue();
+
+        // Its first, failed version stayed loaded: the host's container kept its IMissing.
+        await manager.UnloadAllAsync(Ct);
+
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
     [Fact]
@@ -126,6 +140,29 @@ public sealed class PluginIsolationTests : IDisposable
             .Current.TryFind("grains", out _)
             .Should()
             .BeTrue();
+    }
+
+    [Fact]
+    public async Task A_plugin_command_with_an_optional_service_of_its_own_unloads_without_a_leak()
+    {
+        PluginBuilder.Write(_folder, "greet", Plugin("greet", OPTIONAL_OWN));
+
+        var (manager, host) = Create();
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var plugin = manager.Snapshot().Single();
+
+        plugin.State.Should().Be(PluginStateType.Loaded, plugin.Error);
+        host.GetRequiredService<ICommandRegistryProvider>()
+            .Current.TryFind("greet", out _)
+            .Should()
+            .BeTrue();
+
+        await manager.UnloadAllAsync(Ct);
+
+        // Its IGreeter, which it did not register, was asked of the host's container, which kept it.
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
     [Fact]
@@ -255,7 +292,10 @@ public sealed class PluginIsolationTests : IDisposable
             new PluginManager(
                 host,
                 host.GetRequiredService<AssemblyProcessor>(),
-                Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+                // A context still held after 50 collections is a leak, however slow the machine.
+                Options.Create(
+                    new PluginConfig { PluginFolderPath = _folder, UnloadMinCollections = 50 }
+                ),
                 _log
             ),
             host
@@ -303,6 +343,19 @@ public sealed class PluginIsolationTests : IDisposable
         [Command("grains")]
         [RequiresPermission("hosted.use")]
         public sealed class GrainsCommand(Orleans.IGrainFactory grains) : ICommand<NoArguments>
+        {
+            public ValueTask<CommandResult> ExecuteAsync(ICommandContext ctx, NoArguments arguments, CancellationToken ct) =>
+                ValueTask.FromResult(CommandResult.Ok);
+        }
+        """;
+
+    /// <summary>A command that takes a service of its plugin if registered, and none is.</summary>
+    private const string OPTIONAL_OWN = """
+        public interface IGreeter { }
+
+        [Command("greet")]
+        [RequiresPermission("greet.use")]
+        public sealed class GreetCommand(IGreeter? greeter = null) : ICommand<NoArguments>
         {
             public ValueTask<CommandResult> ExecuteAsync(ICommandContext ctx, NoArguments arguments, CancellationToken ct) =>
                 ValueTask.FromResult(CommandResult.Ok);
