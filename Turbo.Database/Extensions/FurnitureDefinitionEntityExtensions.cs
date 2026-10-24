@@ -35,5 +35,6 @@ public static class FurnitureDefinitionEntityExtensions
             UsagePolicy = entity.UsagePolicy,
             ExtraData = entity.ExtraData,
             CustomParams = entity.CustomParams,
+            PublicName = entity.PublicName,
         };
 }

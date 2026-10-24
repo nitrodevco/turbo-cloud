@@ -11,9 +11,9 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Replaces "$name" in the text of the stack actions with the selected furni's names. The
-/// server only knows a furni by its definition name (the furnidata class name); the localised
-/// name the client shows lives in the client's own texts.
+/// Replaces "$(name)" in the text of the stack actions with the selected furni's names: the
+/// furnidata public name ("Small Block"), as official Habbo sends it (wired matrix W3
+/// action.7.X2), or the class name for furni the hotel's furnidata has no name for.
 /// </summary>
 [RoomObjectLogic("wf_xtra_text_output_furni_name")]
 public class WiredAddonFurniNamePlaceholder(
@@ -38,5 +38,8 @@ public class WiredAddonFurniNamePlaceholder(
         ];
 
     protected override List<string> GetNames(IWiredExecutionContext ctx) =>
-        [.. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0)).Select(x => x.Definition.Name)];
+        [
+            .. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0))
+                .Select(x => x.Definition.DisplayName),
+        ];
 }

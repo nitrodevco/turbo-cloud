@@ -145,7 +145,8 @@ public sealed class WiredRoom
         bool canLay = false,
         string? customParams = null,
         int totalStates = 2,
-        string? className = null
+        string? className = null,
+        string? publicName = null
     )
     {
         var item = new RoomFloorItem
@@ -176,6 +177,7 @@ public sealed class WiredRoom
                 UsagePolicy = usagePolicy,
                 ExtraData = null,
                 CustomParams = customParams,
+                PublicName = publicName,
             },
         };
 
