@@ -129,7 +129,8 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
         var amount = giveAll ? (int?)null : ResolveAmount(ctx);
 
-        if (amount is <= 0)
+        // No amount is "everything" only in that mode: a variable with no value gives nothing.
+        if (!giveAll && amount is not > 0)
             return false;
 
         var gave = false;
