@@ -1,8 +1,8 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
-using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.WiredTrading.Enums;
+using Turbo.Primitives.WiredTrading;
+using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
@@ -22,6 +22,7 @@ public sealed class WiredContractShopTutorialTests
     private const int PLAYER_INDEX = 5;
     private const int CONTRACT = 30;
     private const int BOX = 2;
+    private const int CHEST = 20;
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -31,6 +32,24 @@ public sealed class WiredContractShopTutorialTests
     public async Task The_clicked_contract_is_the_one_offered()
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
+        var chest = (FurnitureWiredChestLogic)
+            _room
+                .AddFloorItem(
+                    CHEST,
+                    6,
+                    2,
+                    "wired_chest_coins",
+                    createLogic: (factory, ctx) => new FurnitureWiredCoinsChestLogic(factory, ctx)
+                )
+                .Logic;
+        await chest.SetMapDataAsync(
+            new Dictionary<string, string>
+            {
+                [WiredChestData.IS_WIRED_ENABLED] = WiredChestData.TRUE,
+                [WiredChestData.LOCKED] = WiredChestData.FALSE,
+            },
+            refresh: false
+        );
         _room.AddFloorItem(
             CONTRACT,
             4,
@@ -49,6 +68,7 @@ public sealed class WiredContractShopTutorialTests
             await _room.SaveAsync<UpdateActionMessage>(
                 BOX,
                 intParams: [0, 1, 0, 0, 0, 300],
+                stuffIds: [CHEST],
                 furniSources:
                 [
                     [WiredFurniSourceType.SelectedItems],
@@ -71,11 +91,10 @@ public sealed class WiredContractShopTutorialTests
 
         await action.ExecuteAsync(ctx, Ct);
 
-        // The contract is found; what stops the trade is that no chest was picked to pay into.
         _room
-            .Harness.Fakes.Sent<WiredTransactionFailMessageComposer>()
-            .Select(x => x.FailureType)
+            .Harness.Fakes.Log.Of(nameof(IWiredTradeGrain.StartContractAsync))
+            .Select(x => ((WiredContractTradeRequest)x.Args[0]!).SourceId.Value)
             .Should()
-            .Equal(WiredTransactionFailureType.NoOrLockedChests);
+            .Equal(CONTRACT);
     }
 }

@@ -98,6 +98,9 @@ public static class WiredSaveErrors
     /// <summary>"Can only select furni chests." with the same note.</summary>
     public const string REQUIRE_FURNI_CHESTS = "wiredfurni.error.require_furni_chests";
 
+    /// <summary>"Misconfigured contract": a custom contract that neither asks nor gives anything.</summary>
+    public const string MISCONFIGURED_CONTRACT = "wiredfurni.error.misconfigured_contract";
+
     /// <summary>"Can only select contracts!"</summary>
     public const string REQUIRE_CONTRACTS = "wiredfurni.error.require_contracts";
 

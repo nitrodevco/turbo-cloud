@@ -15,8 +15,9 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// As <see cref="WiredConditionChestHasItems"/>, counting only furni of the types the furni of
-/// slot 0 are; the chests are slot 1 and the variable reference slot 2.
+/// As <see cref="WiredConditionChestHasItems"/>, but the quantifier folds the item types the furni
+/// of slot 0 are, each counted over all the picked chests together; the chests are slot 1 and the
+/// variable reference slot 2.
 /// </summary>
 [RoomObjectLogic("wf_cnd_chest_has_item_type")]
 public class WiredConditionChestHasItemTypes(
@@ -48,14 +49,19 @@ public class WiredConditionChestHasItemTypes(
             ? null
             : WiredSaveErrors.REQUIRE_FURNI_CHESTS;
 
-    protected override int Count(IWiredProcessingContext ctx, FurnitureWiredChestLogic chest)
-    {
-        var types = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_ITEM_TYPES))
+    // One count per item type, summed over the chests: with no type picked "all" holds, with
+    // no chest picked each type counts 0 (official client capture 2026-10-24, wired matrix
+    // condition.46.R1b passes "> 0" 2 of 2, R1c fails it 2 of 2, R1 an empty chest counts 0).
+    protected override IEnumerable<long> Counts(
+        IWiredProcessingContext ctx,
+        List<FurnitureWiredChestLogic> chests
+    ) =>
+        GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_ITEM_TYPES))
             .Select(x => ChestItemTypes.Of(x.Definition, x.Logic.StuffData.GetSnapshot()))
-            .ToHashSet();
-
-        return types.Sum(type =>
-            chest.Summary.CountsByType.TryGetValue(type, out var count) ? count : 0
-        );
-    }
+            .Distinct()
+            .Select(type =>
+                chests.Sum(chest =>
+                    (long)(chest.Summary.CountsByType.TryGetValue(type, out var count) ? count : 0)
+                )
+            );
 }

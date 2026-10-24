@@ -42,6 +42,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Texts;
+using Turbo.Primitives.Trading;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -92,6 +93,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     internal readonly ICommandRegistryProvider _commandRegistryProvider;
     internal readonly IOperatorCommandRunner _operatorCommandRunner;
     internal readonly IPlayerNoticeService _playerNoticeService;
+    internal readonly IPlayerTradePolicy _tradePolicy;
     internal readonly IRoomEventListenerRegistry _eventListeners;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
@@ -180,6 +182,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         ICommandRegistryProvider commandRegistryProvider,
         IOperatorCommandRunner operatorCommandRunner,
         IPlayerNoticeService playerNoticeService,
+        IPlayerTradePolicy tradePolicy,
         IRoomEventListenerRegistry eventListeners,
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
@@ -216,6 +219,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         _commandRegistryProvider = commandRegistryProvider;
         _operatorCommandRunner = operatorCommandRunner;
         _playerNoticeService = playerNoticeService;
+        _tradePolicy = tradePolicy;
         _eventListeners = eventListeners;
         _eventSystem = eventSystem;
         _logger = logger;

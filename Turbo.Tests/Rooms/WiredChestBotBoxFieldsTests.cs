@@ -178,7 +178,8 @@ public sealed class WiredChestBotBoxFieldsTests
             // Custom Contract (addons/chests/_-P2o.as:53, 115-125): per side [on, coins 0 / furni
             // 1, amount is variable, amount 1..100000, amount target], payment then reward.
             var contract = typeof(WiredAddonCustomContract);
-            int[] contractFresh = [0, 0, 0, 1, -20, 0, 0, 0, 1, -20];
+            // Both sides on: with both off the save is refused (addon.20.E9).
+            int[] contractBase = [1, 0, 0, 1, -20, 1, 0, 0, 1, -20];
 
             foreach (var (side, first) in new[] { (0, 9), (5, 15) })
             {
@@ -187,7 +188,7 @@ public sealed class WiredChestBotBoxFieldsTests
                     $"addon.20.E{first}",
                     contract,
                     "wf_xtra_custom_contract",
-                    contractFresh,
+                    contractBase,
                     side,
                     [0, 1],
                     [2]
@@ -197,7 +198,7 @@ public sealed class WiredChestBotBoxFieldsTests
                     $"addon.20.E{first + 1}",
                     contract,
                     "wf_xtra_custom_contract",
-                    contractFresh,
+                    contractBase,
                     side + 1,
                     [0, 1],
                     [2]
@@ -207,7 +208,7 @@ public sealed class WiredChestBotBoxFieldsTests
                     $"addon.20.E{first + 2}",
                     contract,
                     "wf_xtra_custom_contract",
-                    contractFresh,
+                    contractBase,
                     side + 2,
                     [0, 1],
                     [2]
@@ -217,7 +218,7 @@ public sealed class WiredChestBotBoxFieldsTests
                     $"addon.20.E{first + 3}",
                     contract,
                     "wf_xtra_custom_contract",
-                    contractFresh,
+                    contractBase,
                     side + 3,
                     [1, 100000],
                     [0, 100001]
@@ -227,7 +228,7 @@ public sealed class WiredChestBotBoxFieldsTests
                     $"addon.20.E{first + 4}",
                     contract,
                     "wf_xtra_custom_contract",
-                    contractFresh,
+                    contractBase,
                     side + 4,
                     Targets,
                     [-1, 2]
@@ -499,7 +500,7 @@ public sealed class WiredChestBotBoxFieldsTests
         "addon.20.E14",
         typeof(WiredAddonCustomContract),
         "wf_xtra_custom_contract",
-        new[] { 0, 0, 0, 1, -20, 0, 0, 0, 1, -20 },
+        new[] { 1, 0, 0, 1, -20, 0, 0, 0, 1, -20 },
         2
     )]
     [InlineData(

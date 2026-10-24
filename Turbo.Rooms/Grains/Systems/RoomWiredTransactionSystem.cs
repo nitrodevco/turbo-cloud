@@ -18,6 +18,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 
@@ -165,6 +166,54 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                 ct
             )
         );
+
+    /// <summary>
+    /// Whether wired may move chest contents to or from the player. Habbo refuses a player who
+    /// may not trade before it looks at what the chests hold: an empty chest, an insufficient one
+    /// and a reward all answered 8 to an account without the trading pass (official client
+    /// capture 2026-10-24). Who may trade is the hotel's trade policy (trading pass, permission).
+    /// </summary>
+    public async Task<bool> MayTradeAsync(
+        PlayerId playerId,
+        bool givingAway,
+        CancellationToken ct
+    ) => await _roomGrain._tradePolicy.MayTradeAsync(playerId, givingAway, ct);
+
+    /// <summary>Tells the player why wired could not give to or take from them, and nothing else.</summary>
+    public Task TellFailureAsync(
+        PlayerId playerId,
+        WiredTransactionFailureType reason,
+        CancellationToken ct
+    ) =>
+        GrainFactory.SendComposerToPlayerAsync(
+            playerId,
+            new WiredTransactionFailMessageComposer { FailureType = reason },
+            ct
+        );
+
+    /// <summary>
+    /// A chest box that could not start: nothing to give from or to, no contract, or a contract
+    /// that cannot make a transaction. Habbo tells no player and fires no Transaction Failed; the
+    /// room counts a TRANSACTION_FAILURE and sends its <c>wired.error</c> bubble, at most once per
+    /// cooldown (official client capture 2026-10-24: bubbles 30 s to 79 s after the previous,
+    /// none 2.4 s to 15.6 s after, 11 fires).
+    /// </summary>
+    public void ReportMisconfigured() =>
+        WiredSystem.RecordError(WiredErrorKind.TransactionFailure, NowMs());
+
+    /// <summary>
+    /// Every picked chest is locked, or not a wired chest any more: each player is told 15 and
+    /// the room counts the misconfiguration (official client capture 2026-10-24, Give Currency
+    /// From Chest from a locked chest: WiredTransactionFail 15 on every fire, the bubble on the
+    /// first). No Transaction Failed fires: no transaction started.
+    /// </summary>
+    public async Task RefuseLockedChestsAsync(IEnumerable<PlayerId> playerIds, CancellationToken ct)
+    {
+        foreach (var playerId in playerIds)
+            await TellFailureAsync(playerId, WiredTransactionFailureType.NoOrLockedChests, ct);
+
+        ReportMisconfigured();
+    }
 
     /// <summary>The chests among these ids that stand here and wired may use.</summary>
     public List<FurnitureWiredChestLogic> UsableChests(IEnumerable<RoomObjectId> chestIds) =>

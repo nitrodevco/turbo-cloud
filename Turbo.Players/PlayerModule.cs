@@ -11,6 +11,7 @@ using Turbo.Players.Notifications;
 using Turbo.Players.Onboarding;
 using Turbo.Players.Permissions;
 using Turbo.Players.Providers;
+using Turbo.Players.Trading;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
@@ -20,6 +21,7 @@ using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Trading;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Players;
@@ -47,6 +49,7 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<IPlayerNoticeService, PlayerNoticeService>();
         services.AddSingleton<IPlayerClothingService, PlayerClothingService>();
         services.AddSingleton<IPlayerFigurePolicy, PlayerFigurePolicy>();
+        services.AddSingleton<IPlayerTradePolicy, PlayerTradePolicy>();
         services
             .AddOptions<PlayerConfig>()
             .Validate(x => x.NoticeTimeoutMs > 0, "Player notice timeout must be positive.")

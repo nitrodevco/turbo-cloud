@@ -109,15 +109,34 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var chests = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CHESTS))
+        var picked = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CHESTS))
             .Select(x => x.Logic)
             .OfType<FurnitureWiredChestLogic>()
-            .Where(x => x.Kind == Kind && x.IsUsableByWired)
+            .Where(x => x.Kind == Kind)
             .ToList();
         var receivers = GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, SLOT_RECEIVERS));
 
-        if (chests.Count == 0 || receivers.Count == 0)
+        // No chest or no user: only the room hears of it (official client capture 2026-10-24,
+        // wired matrix action.45.R1/R1b).
+        if (picked.Count == 0 || receivers.Count == 0)
+        {
+            WiredTransactionSystem.ReportMisconfigured();
+
             return false;
+        }
+
+        var chests = picked.Where(x => x.IsUsableByWired).ToList();
+
+        // Locked chests come first, before whether the users may trade (action.45.B1).
+        if (chests.Count == 0)
+        {
+            await WiredTransactionSystem.RefuseLockedChestsAsync(
+                receivers.Select(x => x.PlayerId),
+                ct
+            );
+
+            return false;
+        }
 
         var giveAll =
             GetIntParamOrDefault(PARAM_MODE, WiredChestRewardingMode.SpecifiedAmount)
@@ -136,7 +155,22 @@ public abstract class FurnitureWiredGiveFromChestLogic(
         var gave = false;
 
         foreach (var receiver in receivers)
+        {
+            // A user who may not trade is told 8 whatever the chests hold, empty ones too
+            // (action.45.B1b, action.46.B1: 6 of 6).
+            if (!await WiredTransactionSystem.MayTradeAsync(receiver.PlayerId, false, ct))
+            {
+                await WiredTransactionSystem.TellFailureAsync(
+                    receiver.PlayerId,
+                    WiredTransactionFailureType.UserCantTrade,
+                    ct
+                );
+
+                continue;
+            }
+
             gave |= await GiveToAsync(receiver, chests, amount, ct);
+        }
 
         return gave;
     }

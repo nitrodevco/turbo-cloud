@@ -155,6 +155,16 @@ public static class WiredContractOffers
         return [.. taken];
     }
 
+    /// <summary>
+    /// Whether the contract can make a transaction at all. A reward or a trade that gives nothing
+    /// cannot: Habbo started none with a fresh reward or trade contract (official client capture
+    /// 2026-10-24, wired matrix action.47.B3, 2 of 2), while a payment that asks for nothing
+    /// takes a donation of anything (action.47.B1). That a trade needs only something to give is
+    /// inferred: the fresh one asked for nothing either.
+    /// </summary>
+    public static bool CanMakeTransaction(WiredContractSnapshot contract) =>
+        contract.Type == WiredContractType.Payment || Reward(contract, 1) is not null;
+
     /// <summary>What the contract gives, the given number of times; null when it gives nothing.</summary>
     public static TradeRequirementRuleSnapshot? Reward(WiredContractSnapshot contract, int times) =>
         contract.Definition.YouGet is { Nodes.IsDefaultOrEmpty: false } rule

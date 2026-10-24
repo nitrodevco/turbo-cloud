@@ -66,6 +66,8 @@ public sealed class LiveRoomHarness
         Fakes.Handlers["get_GrainId"] = _ =>
             GrainId.Create(GrainType.Create("room"), GrainIdKeyExtensions.CreateIntegerKey(1));
         Fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult<string?>("test");
+        // Players may trade (IPlayerTradePolicy) unless a test says otherwise.
+        Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(true);
         // A denied node is looked up in the registry, as in the hotel: the room asks it of
         // every player, its owner included (room.control.any decides their level).
         var permissions = new Turbo.Primitives.Players.Permissions.PermissionRegistry([
