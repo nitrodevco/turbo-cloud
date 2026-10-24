@@ -3,7 +3,12 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-/// <summary>What each "Change Variable Value" operation makes of a value and its operand.</summary>
+/// <summary>
+/// What each "Change Variable Value" operation makes of a value and its operand. All 64 bits are
+/// kept and an overflow wraps, as Java's long arithmetic does: 2^63-1 plus 1 is -2^63 and 2 to
+/// the power 64 is 0; -5 / 2 is -2 and -7 % 3 is -1 (official client capture 2026-10-24,
+/// WIN63-202610201032, wired matrix action.41.B4d/B4e/B4h).
+/// </summary>
 public static class WiredVariableOperations
 {
     public static long Apply(WiredVariableOperationType operation, long current, long operand)
@@ -14,8 +19,11 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Add => current + operand,
             WiredVariableOperationType.Subtract => current - operand,
             WiredVariableOperationType.Multiply => current * operand,
-            WiredVariableOperationType.Divide => operand == 0 ? current : current / operand,
-            WiredVariableOperationType.Modulo => operand == 0 ? current : current % operand,
+            WiredVariableOperationType.Divide => operand == 0
+                ? DivideByZero(current)
+                : current / operand,
+            // x % 0 is 0, no error (official client capture 2026-10-24, action.41.B4g).
+            WiredVariableOperationType.Modulo => operand == 0 ? 0 : current % operand,
             WiredVariableOperationType.Power => Power(current, operand),
             // "Set minimum" makes the operand a floor, "Set maximum" a ceiling (official client capture).
             WiredVariableOperationType.SetMinimum => Math.Max(current, operand),
@@ -88,21 +96,38 @@ public static class WiredVariableOperations
         return result;
     }
 
-    /// <summary>A non-negative power, held at the 64-bit limits where it would overflow.</summary>
+    /// <summary>
+    /// A non-negative power by repeated multiplication, wrapping where it overflows: 2^40 is kept
+    /// whole, 2^63 is -2^63 and 2^64 is 0 (official client capture 2026-10-24, action.41.B4c/B4e).
+    /// A negative exponent is 1 (not measured).
+    /// </summary>
     private static long Power(long value, long exponent)
     {
-        if (exponent <= 0)
-            return 1;
+        var result = 1L;
 
-        var result = Math.Pow(value, exponent);
+        while (exponent > 0)
+        {
+            if ((exponent & 1) == 1)
+                result = unchecked(result * value);
 
-        if (result >= long.MaxValue)
-            return long.MaxValue;
-        if (result <= long.MinValue)
-            return long.MinValue;
+            value = unchecked(value * value);
+            exponent >>= 1;
+        }
 
-        return (long)result;
+        return result;
     }
+
+    /// <summary>
+    /// 10 / 0 reads 2147483647 and stays past 2^51 after a further / 2^20, so it is the largest
+    /// long (official client capture 2026-10-24, action.41.B4f, 3/3, no error). A negative value
+    /// going to the smallest and 0 staying 0 is inference: a division as a double makes those.
+    /// </summary>
+    private static long DivideByZero(long value) => value switch
+    {
+        > 0 => long.MaxValue,
+        < 0 => long.MinValue,
+        _ => 0,
+    };
 
     private static bool IsBitPosition(long position) => position is >= 0 and < 64;
 
