@@ -120,8 +120,10 @@ public class WiredChestNotificationTests
         Notices(room).Should().ContainSingle(x => (string)x.Args[1]! == "wired_chests.chest_full");
     }
 
+    // action.46.R3c (two accounts): give furni "all" emptying the chest told the owner chest_empty,
+    // then chest_wired_transaction (official client capture 2026-10-24T16-15-50, 1/1).
     [Fact]
-    public async Task A_wired_give_that_empties_a_wired_chest_says_both()
+    public async Task A_wired_give_that_empties_a_wired_chest_says_empty_then_wired()
     {
         var (room, chest) = await CreateChestAsync(
             wired: true,
@@ -146,7 +148,7 @@ public class WiredChestNotificationTests
         Notices(room)
             .Select(x => (string)x.Args[1]!)
             .Should()
-            .Equal("wired_chests.chest_wired_transaction", "wired_chests.chest_empty");
+            .Equal("wired_chests.chest_empty", "wired_chests.chest_wired_transaction");
     }
 
     [Fact]

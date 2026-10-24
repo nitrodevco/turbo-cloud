@@ -8083,12 +8083,12 @@ namespace Turbo.Database.Migrations
 
                     b.Property<int>("WiredModifyPermissionMask")
                         .HasColumnType("int")
-                        .HasDefaultValue(2)
+                        .HasDefaultValue(8)
                         .HasColumnName("wired_modify_permission_mask");
 
                     b.Property<int>("WiredReadPermissionMask")
                         .HasColumnType("int")
-                        .HasDefaultValue(2)
+                        .HasDefaultValue(8)
                         .HasColumnName("wired_read_permission_mask");
 
                     b.Property<string>("WiredTimezone")

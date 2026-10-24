@@ -17,7 +17,7 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Sorts the selector pool by a variable and keeps the first N. Params: N (literal, or 1 when
+/// Keeps the N entries of the selector pool a variable ranks first. Params: N (literal, or 1 when
 /// the operand variable is used), sort mode (value or timestamps, ascending or descending),
 /// operand mode, operand target. Variables: the sort key, then the operand supplying N.
 /// Pool entries without the variable are dropped.
@@ -103,7 +103,12 @@ public abstract class WiredAddonVariableFilter(
                 or WiredVariableSortType.UpdateNewestFirst;
         var ordered = descending ? keyed.OrderByDescending(x => x.key) : keyed.OrderBy(x => x.key);
         var keep = (int)Math.Max(0, ResolveCount(ctx));
-        var kept = ordered.Take(keep).Select(x => x.id).ToList();
+        var picked = ordered.Take(keep).Select(x => x.id).ToHashSet();
+
+        // The variable picks who stays; they stay in the selection's own order: amount 2 of the
+        // highest and of the lowest both listed the two users alike, as the selector had (official
+        // client capture 2026-10-24, two accounts, W4 lab addon.13.R1, 16-05-07 / 16-05-46).
+        var kept = keyed.Select(x => x.id).Where(picked.Contains).ToList();
 
         if (isFurni)
         {
