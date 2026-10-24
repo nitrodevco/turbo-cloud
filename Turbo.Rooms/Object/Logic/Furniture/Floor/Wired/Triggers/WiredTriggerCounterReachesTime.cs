@@ -54,6 +54,7 @@ public class WiredTriggerCounterReachesTime(
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct) =>
         Task.FromResult(
             evt is WiredClockTickEvent tick
+                && tick.IsCounted
                 && tick.HalfSeconds == GetTargetHalfSeconds()
                 && GetStuffIds().Contains(tick.ObjectId)
         );

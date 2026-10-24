@@ -24,8 +24,9 @@ public class WiredActionGiveScoreToTeam(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(-1000, 1000, 5),
-            new WiredRangeParamRule(0, 10, 0),
+            // Pulled in as Give Score's are (inference: the same two fields).
+            new WiredClampParamRule(-1000, 1000, 5),
+            new WiredClampParamRule(0, 10, 0),
             new WiredEnumParamRule<GameTeamType>(
                 GameTeamType.Red,
                 GameTeamType.Red,

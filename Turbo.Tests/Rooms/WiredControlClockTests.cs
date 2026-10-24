@@ -74,6 +74,9 @@ public sealed class WiredControlClockTests
         var heard = new List<RoomEvent>();
         _room.Harness.Module<RoomEventModule>().Register(new Recorder(heard));
 
+        // Started and stopped first: a reset does nothing to a counter never started.
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+        await clock.ControlAsync(WiredClockControlType.Stop, Ct);
         await clock.AdjustAsync(WiredOperatorType.Set, 60, Ct);
         await clock.ControlAsync(WiredClockControlType.Reset, Ct);
 

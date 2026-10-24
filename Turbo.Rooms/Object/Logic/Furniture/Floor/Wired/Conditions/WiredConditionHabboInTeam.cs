@@ -27,6 +27,11 @@ public class WiredConditionHabboInTeam(
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
+    // The users' quantifier radio (quantifierType 2 in the official Opens of codes 6 and 17).
+    // With no user, "all match" holds and "any matches" does not (official client capture
+    // 2026-10-24 under Periodically, condition.6.R2).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var wanted = GetIntParamOrDefault(0, GameTeamType.None);
@@ -39,7 +44,7 @@ public class WiredConditionHabboInTeam(
 
                 return wanted == GameTeamType.None ? team != GameTeamType.None : team == wanted;
             }),
-            true
+            QuantifierRequiresAll
         );
     }
 }

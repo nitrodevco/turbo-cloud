@@ -32,14 +32,20 @@ public class WiredTriggerPeriodically(
 
     private int _delayValue = 1;
 
+    // As many 5 s units as fit in the int of milliseconds the delay is counted in.
+    private const int MAX_LONG_UNITS = int.MaxValue / 5000;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             // A fresh box ticks every 0.5 s, the short one every 200 ms (4) and the long one
             // every 50 s (10) on the official server (2026-10-20T17-31-49-Open-wait).
+            // Out of range, the short one's 11 was stored as 10 and the long one's 121 as 121,
+            // both WiredSaveSuccess (official client capture 2026-10-24, trigger.19.E10 /
+            // trigger.12.E10).
             PeriodicType switch
             {
-                WiredPeriodicTriggerType.Short => new WiredRangeParamRule(1, 10, 4),
-                WiredPeriodicTriggerType.Long => new WiredRangeParamRule(1, 120, 10),
+                WiredPeriodicTriggerType.Short => new WiredClampParamRule(1, 10, 4),
+                WiredPeriodicTriggerType.Long => new WiredRangeParamRule(1, MAX_LONG_UNITS, 10),
                 _ => new WiredRangeParamRule(1, 120, 1),
             },
         ];
@@ -49,7 +55,7 @@ public class WiredTriggerPeriodically(
         return PeriodicType switch
         {
             WiredPeriodicTriggerType.Short => Math.Clamp(_delayValue, 1, 10) * 50,
-            WiredPeriodicTriggerType.Long => Math.Clamp(_delayValue, 1, 120) * 5000,
+            WiredPeriodicTriggerType.Long => Math.Clamp(_delayValue, 1, MAX_LONG_UNITS) * 5000,
             _ => Math.Clamp(_delayValue, 1, 120) * WiredPulses.MS,
         };
     }

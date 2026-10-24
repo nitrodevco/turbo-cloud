@@ -31,6 +31,9 @@ public class FurnitureCounterClockLogic(
     private bool _isRunning;
     private bool _started;
 
+    // Stopped by Control Clock "stop" rather than held by "pause": the next start counts afresh.
+    private bool _stopped;
+
     // When the next half second is due. Each tick is scheduled from this, not from when the room
     // tick got round to running the last one, so that lateness does not add up: rescheduling
     // 500 ms after each late run made a counter's second last ~1.1 s on a local server.
@@ -74,7 +77,7 @@ public class FurnitureCounterClockLogic(
                 await ControlAsync(WiredClockControlType.Reset, ct);
                 break;
             default:
-                await (_isRunning ? StopAsync() : StartAsync());
+                await (_isRunning ? StopAsync() : StartAsync(ct));
                 break;
         }
     }
@@ -90,16 +93,19 @@ public class FurnitureCounterClockLogic(
     public Task ControlAsync(WiredClockControlType control, CancellationToken ct) =>
         control switch
         {
-            WiredClockControlType.Start => StartAsync(),
-            WiredClockControlType.Stop => StopAsync(),
+            WiredClockControlType.Start => StartAfreshAsync(ct),
+            WiredClockControlType.Stop => StopForGoodAsync(),
             WiredClockControlType.Reset => ResetAsync(ct),
             // Pause holds the time and Resume runs on from it.
             WiredClockControlType.Pause => StopAsync(),
-            WiredClockControlType.Resume => StartAsync(),
+            WiredClockControlType.Resume => StartAsync(ct),
             _ => Task.CompletedTask,
         };
 
-    /// <summary>Sets, adds or subtracts time; the display follows on the next second.</summary>
+    /// <summary>
+    /// Sets, adds or subtracts time; the display follows on the next second. The time jumps
+    /// there: Clock Reaches Time does not fire for it (see <see cref="PublishAsync"/>).
+    /// </summary>
     public Task AdjustAsync(WiredOperatorType op, int halfSeconds, CancellationToken ct)
     {
         var next = op switch
@@ -111,16 +117,44 @@ public class FurnitureCounterClockLogic(
 
         _halfSeconds = Math.Clamp(next, 0, WiredConfig.ClockMaxHalfSeconds);
 
-        return PublishAsync(ct);
+        return PublishAsync(ct, reached: false);
     }
 
-    private Task StartAsync()
+    /// <summary>
+    /// Control Clock "start". A counter stopped before counts afresh from 0 (13, 26 and 33 went
+    /// to 0, 3/3); one never started counts on from the time Adjust Clock gave it (30 went 31,
+    /// 32, 1/1) (official client capture 2026-10-24, action.28.R8).
+    /// </summary>
+    private async Task StartAfreshAsync(CancellationToken ct)
     {
         if (_isRunning)
-            return Task.CompletedTask;
+            return;
+
+        if (_stopped)
+        {
+            _halfSeconds = 0;
+
+            await PublishAsync(ct, reached: false);
+        }
+
+        await StartAsync(ct);
+    }
+
+    private Task StopForGoodAsync()
+    {
+        _stopped = true;
+
+        return StopAsync();
+    }
+
+    private async Task StartAsync(CancellationToken ct)
+    {
+        if (_isRunning)
+            return;
 
         _isRunning = true;
         _started = true;
+        _stopped = false;
 
         // The count runs on the room's 500 ms cycle: the first cycle after the start is half a
         // second, the second shows "1", 500..1000 ms after the start (official client capture
@@ -130,7 +164,10 @@ public class FurnitureCounterClockLogic(
 
         Schedule();
 
-        return Task.CompletedTask;
+        // Starting the Wired Game Counter fired Game Starts (official client capture 2026-10-24,
+        // action.6.R1). Inference: a game already running goes on rather than restarting.
+        if (IsGameAware && !GameSystem.IsGameRunning)
+            await GameSystem.StartGameAsync(ct);
     }
 
     private Task StopAsync()
@@ -142,14 +179,23 @@ public class FurnitureCounterClockLogic(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Control Clock "reset". On a counter never started it does nothing, even one Adjust Clock
+    /// set to 30 (4/4; started and stopped first, the same 30 reset to 0, 1/1; official client
+    /// capture 2026-10-24, action.28.R7b).
+    /// </summary>
     private async Task ResetAsync(CancellationToken ct)
     {
+        if (!_started)
+            return;
+
         await StopAsync();
 
         _halfSeconds = 0;
         _started = false;
+        _stopped = false;
 
-        await PublishAsync(ct);
+        await PublishAsync(ct, reached: false);
     }
 
     // Due at the boundary itself: a delay computed from a second clock read could land 1 ms late.
@@ -170,7 +216,7 @@ public class FurnitureCounterClockLogic(
 
         _halfSeconds++;
 
-        await PublishAsync(ct);
+        await PublishAsync(ct, reached: true);
 
         _nextHalfSecondAtMs += WiredPulses.MS;
 
@@ -181,8 +227,12 @@ public class FurnitureCounterClockLogic(
     /// Shows whole seconds on the item and tells wired the clock moved. The time is written
     /// without the state-change event: a counter set to 30 by Adjust Counter did not fire
     /// "Furni state changes" (official client capture; the tick is assumed to behave the same).
+    /// Only a counted tick <paramref name="reached"/> its time: Clock Reaches Time 0:30 did not
+    /// fire when Adjust Clock set the counter to 0:30 (4/4) or added 5 s at 0:29 (2/2), and fired
+    /// on the counted 0:30 (1/1) (official client capture 2026-10-24, trigger.15.R5). Inference:
+    /// a reset is no tick either.
     /// </summary>
-    private async Task PublishAsync(CancellationToken ct)
+    private async Task PublishAsync(CancellationToken ct, bool reached)
     {
         var seconds = _halfSeconds / 2;
 
@@ -200,6 +250,7 @@ public class FurnitureCounterClockLogic(
                 CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
                 ObjectId = _ctx.ObjectId,
                 HalfSeconds = _halfSeconds,
+                IsCounted = reached,
             },
             ct
         );

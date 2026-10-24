@@ -404,6 +404,13 @@ public class RoomConfig
     public int GameDefaultDurationSeconds { get; init; } = 30;
     public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
 
+    /// <summary>
+    /// Whether points only count while a game runs, from a game counter's or game timer's start
+    /// to its end. Habbo's do: Give Score to a team with no game started added nothing (official
+    /// client capture 2026-10-24, action.6.B1). Off, wired hands out points any time.
+    /// </summary>
+    public bool GameScoreOnlyWhileGameRuns { get; init; } = true;
+
     /// <summary>The team effects of a Battle Banzai team, by team (none, red, green, blue, yellow).</summary>
     public int[] BanzaiTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
 
