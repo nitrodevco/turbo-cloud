@@ -41,6 +41,14 @@ public class WiredConfig
     public bool CallStacksOncePerExecution { get; init; } = true;
 
     /// <summary>
+    /// Whether Remote Selector runs every selector on the tile of a selector box it picks, as
+    /// Habbo does (official client capture 2026-10-24, WIN63-202610201032: picking one box of a
+    /// parked pile gave the union of all its furni and user selectors, 2/2), and counts each
+    /// tile once as a stack. Off runs only the picked boxes, each as its own stack.
+    /// </summary>
+    public bool RemoteSelectorRunsWholePile { get; init; } = true;
+
+    /// <summary>
     /// How long, in wall-clock milliseconds, one execution's signals and stack calls may keep
     /// running before it is stopped and RECURSION_TIMEOUT is counted. Habbo does not disclose its
     /// duration ("an execution taking too long is stopped", in-client error help). 0 or less is no
@@ -313,6 +321,21 @@ public class WiredConfig
     /// (<c>TextAreaParam(40, -1, 8, -1, 400)</c>).
     /// </summary>
     public int ShowMessageMaxLength { get; init; } = 400;
+
+    /// <summary>
+    /// Where Show Message cuts its text once the placeholders are filled in: 1000 characters,
+    /// without an ellipsis (official client capture 2026-10-24, WIN63-202610201032: a whisper
+    /// with a long furni name list ended at exactly 1000, 2/2). 0 or less does not cut.
+    /// </summary>
+    public int ShowMessageOutputMaxLength { get; init; } = 1000;
+
+    /// <summary>
+    /// How long after a wave, blow kiss, laugh, respect or jump Users By Action and "triggerer
+    /// performs action" still count it. 0 (the default) holds each as long as the client shows
+    /// it: a wave 5 s, as Habbo does (official client capture 2026-10-24, W4 lab selector.9.R5:
+    /// picked 1.1 s after a wave, not 5.3 s after).
+    /// </summary>
+    public int ActionExpressionHoldMs { get; init; }
 
     /// <summary>
     /// The bubble styles Show Message may be saved with: the editor's style list

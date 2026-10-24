@@ -45,6 +45,8 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public int EffectId { get; private set; } = 0;
     public long LastActiveAtMs { get; private set; } = 0;
     public bool IsIdle { get; private set; } = false;
+    public AvatarExpressionType Expression { get; private set; } = AvatarExpressionType.None;
+    public long ExpressionAtMs { get; private set; } = 0;
     public bool IsFrozen { get; private set; } = false;
     public bool ThawsOnTeleport { get; private set; } = false;
     public long WiredMoveEndsAtMs { get; private set; } = 0;
@@ -205,6 +207,12 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public void Touch(long nowMs) => LastActiveAtMs = nowMs;
 
     public void SetIdle(bool isIdle) => IsIdle = isIdle;
+
+    public void SetExpression(AvatarExpressionType expression, long atMs)
+    {
+        Expression = expression;
+        ExpressionAtMs = atMs;
+    }
 
     public void BeginWiredMove(long endsAtMs)
     {

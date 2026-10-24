@@ -89,13 +89,27 @@ public static class WiredAvatarActionMatcher
         return extra is null || extra == actualValue;
     }
 
-    /// <summary>Whether the avatar is in the state the action leaves behind (sitting, dancing...).</summary>
+    /// <summary>
+    /// Whether the avatar is in the state the action leaves behind (sitting, dancing...), or made
+    /// the expression it names (a wave, a blow kiss...) no longer ago than the expression lasts.
+    /// Users By Action picked a user 1.1 s after a wave and not 5.3 s after it (official client
+    /// capture 2026-10-24, W4 lab selector.9.R5, 1/1 each); the client shows a wave for 5 s
+    /// (<c>AvatarAction.getExpressionTime</c>, WIN63-202610201032 AvatarAction.as:103), and the
+    /// other expressions are held as long as the client shows them (inference: only the wave was
+    /// measured). <paramref name="holdMs"/> above 0 holds every expression that long instead.
+    /// </summary>
     public static bool IsPerforming(
         IRoomAvatar avatar,
         WiredAvatarActionType wanted,
-        string? stringParam
+        string? stringParam,
+        long nowMs,
+        int holdMs = 0
     )
     {
+        if (ExpressionOf(wanted) is { } expression)
+            return avatar.Expression == expression
+                && nowMs - avatar.ExpressionAtMs < (holdMs > 0 ? holdMs : ShownMs(expression));
+
         var extra = ParseExtra(wanted, stringParam);
 
         return wanted switch
@@ -108,7 +122,6 @@ public static class WiredAvatarActionMatcher
             ),
             WiredAvatarActionType.Sleep => avatar.IsIdle,
             WiredAvatarActionType.Awake => !avatar.IsIdle,
-            WiredAvatarActionType.Wave => avatar.HasStatus(AvatarStatusType.Wave),
             WiredAvatarActionType.Sign => avatar.Statuses.TryGetValue(
                 AvatarStatusType.Sign,
                 out var sign
@@ -118,4 +131,25 @@ public static class WiredAvatarActionMatcher
             _ => false,
         };
     }
+
+    private static AvatarExpressionType? ExpressionOf(WiredAvatarActionType action) =>
+        action switch
+        {
+            WiredAvatarActionType.Wave => AvatarExpressionType.Wave,
+            WiredAvatarActionType.Blow => AvatarExpressionType.Blow,
+            WiredAvatarActionType.Laugh => AvatarExpressionType.Laugh,
+            WiredAvatarActionType.Respect => AvatarExpressionType.Respect,
+            WiredAvatarActionType.Jump => AvatarExpressionType.Jump,
+            _ => null,
+        };
+
+    /// <summary>How long the client shows an expression (AvatarAction.as:103, getExpressionTime).</summary>
+    private static int ShownMs(AvatarExpressionType expression) =>
+        expression switch
+        {
+            AvatarExpressionType.Wave => 5000,
+            AvatarExpressionType.Blow => 1400,
+            AvatarExpressionType.Jump => 700,
+            _ => 2000,
+        };
 }

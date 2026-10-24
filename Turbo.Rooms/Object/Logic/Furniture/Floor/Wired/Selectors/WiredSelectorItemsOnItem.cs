@@ -76,11 +76,13 @@ public class WiredSelectorItemsOnItem(
 
                         break;
                     }
+                    // "Furni at same height" (wiredfurni.params.onfurni.2) picks the picked furni
+                    // itself too: a pile's bottom box and its 4th box each selected themselves,
+                    // with furni on top of both (official client capture 2026-10-24, W4 lab
+                    // selector.4.R5, 1/1 each).
                     case WiredFurniSelectionType.FurniHeightMatches:
                     {
-                        var sameHeightItems = floorStack.Where(i =>
-                            i.Z == floorItem.Z && i.ObjectId != floorItem.ObjectId
-                        );
+                        var sameHeightItems = floorStack.Where(i => i.Z == floorItem.Z);
 
                         foreach (var sameHeightItem in sameHeightItems)
                             output.SelectedFurniIds.Add((int)sameHeightItem.ObjectId);

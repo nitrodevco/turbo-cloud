@@ -64,4 +64,15 @@ public static class WiredNameList
                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
                 )
                 .ToHashSet(Comparer);
+
+    /// <summary>
+    /// The names in a box's text as typed, blanks dropped, compared by <see cref="Comparer"/>:
+    /// Users By Name does not trim them ("Hutch. " with a trailing space matched nobody, while
+    /// "hutch." matched Hutch. and a tab-separated list matched its names; official client capture
+    /// 2026-10-24, W4 lab selector.11.R7, 3/3).
+    /// </summary>
+    public static HashSet<string> ParseUntrimmed(string? text) =>
+        string.IsNullOrEmpty(text)
+            ? new HashSet<string>(Comparer)
+            : text.Split(SEPARATORS, StringSplitOptions.RemoveEmptyEntries).ToHashSet(Comparer);
 }

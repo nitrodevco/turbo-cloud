@@ -33,7 +33,13 @@ public class WiredConditionHabboPerformsAction(
 
         return Quantify(
             avatars.Select(x =>
-                WiredAvatarActionMatcher.IsPerforming(x, action, _wiredData.StringParam)
+                WiredAvatarActionMatcher.IsPerforming(
+                    x,
+                    action,
+                    _wiredData.StringParam,
+                    NowMs(),
+                    WiredConfig.ActionExpressionHoldMs
+                )
             ),
             true
         );

@@ -44,7 +44,7 @@ public class WiredSelectorEntitiesByName(
     )
     {
         var output = new WiredSelectionSet();
-        var names = WiredNameList.Parse(GetStringParam());
+        var names = WiredNameList.ParseUntrimmed(_wiredData.StringParam);
 
         foreach (var avatar in AvatarModule.Avatars)
         {
