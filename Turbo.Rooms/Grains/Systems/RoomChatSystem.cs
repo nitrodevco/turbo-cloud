@@ -155,7 +155,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         // A line a "hide" User Says Keyword box fires on is not shown to the room: its speaker
         // alone gets it back, as a whisper over their own avatar (hhus, 2026-10-13: Chat and
         // Shout both came back as Whisper with the speaker as receiver). The wired still fires.
-        // A box whose conditions fail does not hide it (WiredConfig.HideKeywordOnlyWhenConditionsPass).
+        // A box whose conditions fail does not hide it (official client video, nitro-tester
+        // 2026-10-22: shown to the room beside the furni, whispered back to the speaker on it).
         if (chatType != RoomChatType.Whisper && await IsHiddenByWiredAsync(evt, ct))
             await GrainFactory.SendComposerToPlayerAsync(
                 speaker.PlayerId,
@@ -374,10 +375,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             if (
                 item.Logic is WiredTriggerHabboSaysKeyword trigger
                 && await trigger.HidesAsync(evt, ct)
-                && (
-                    !WiredConfig.HideKeywordOnlyWhenConditionsPass
-                    || await WiredSystem.WouldPassAsync(trigger, evt, ct)
-                )
+                && await WiredSystem.WouldPassAsync(trigger, evt, ct)
             )
                 return true;
         }

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Tests.Support;
 using Xunit;
@@ -73,16 +72,6 @@ public sealed class WiredSaveRefusalTests
         Chase.GetStuffIds().Should().BeEquivalentTo(Picks(2, 20));
     }
 
-    [Fact]
-    public async Task A_hotel_that_turns_the_refusal_off_keeps_the_first_20_picks_action_11_E2()
-    {
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { RefuseOverLimitPicks = false });
-
-        (await SaveChaseAsync(Picks(0, 21))).IsSaved.Should().BeTrue();
-
-        Chase.GetStuffIds().Should().Equal(Picks(0, 20));
-    }
-
     [Theory]
     [InlineData(0)]
     [InlineData(5)]
@@ -97,18 +86,6 @@ public sealed class WiredSaveRefusalTests
         refused.IsSaved.Should().BeFalse();
         refused.ServerErrorCode.Should().Be(1);
         JoinTeam.GetSnapshot().IntParams.Should().Equal(2, 0);
-    }
-
-    [Fact]
-    public async Task A_hotel_that_turns_the_server_error_off_answers_with_its_own_text_action_9_E11()
-    {
-        _room.Harness.Room.UseWiredConfig(new WiredConfig { RefusalsAsServerError = false });
-
-        var refused = await SaveJoinTeamAsync(5);
-
-        refused.IsSaved.Should().BeFalse();
-        refused.ServerErrorCode.Should().BeNull();
-        refused.ErrorKey.Should().BeNull();
     }
 
     [Fact]

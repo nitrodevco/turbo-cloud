@@ -18,7 +18,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// target stack runs its actions "regardless of existing conditions or triggers" (official
 /// furnidata 2026-10-13, id 4834); so does the negative variant, which is the caller's else
 /// branch. Its own stack is never called, and a stack that already ran in the execution is
-/// skipped (<c>WiredConfig.CallStacksOncePerExecution</c>).
+/// skipped, as on Habbo (official client capture 2026-10-24: two stacks calling each other ran
+/// once each per click).
 /// </summary>
 [RoomObjectLogic("wf_act_call_stacks")]
 public class WiredActionCallStacks(

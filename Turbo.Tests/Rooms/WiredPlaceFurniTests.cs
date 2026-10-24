@@ -207,18 +207,10 @@ public sealed class WiredPlaceFurniTests
     // Official client capture 2026-10-24 (action.55.R4): the template picked up, the box still
     // lists it in its snapshot text, and a run flashes the box but places nothing and tells
     // nobody. Inference: a template still in the room is copied all the same.
-    [Theory]
-    [InlineData(true, 1)]
-    [InlineData(false, 2)]
-    public async Task Place_furni_does_not_copy_a_template_that_was_picked_up_action_55_R4(
-        bool needsTemplateInRoom,
-        int copies
-    )
+    [Fact]
+    public async Task Place_furni_does_not_copy_a_template_that_was_picked_up_action_55_R4()
     {
         await SetUpFailingPlacementAsync(offsetX: 1);
-        _room.Harness.Room.UseWiredConfig(
-            new WiredConfig { PlaceFurniNeedsTemplateInRoom = needsTemplateInRoom }
-        );
 
         (
             await _room.Harness.Room.RemoveItemByIdAsync(
@@ -233,7 +225,7 @@ public sealed class WiredPlaceFurniTests
 
         await ClickAsync(105);
 
-        Furni.Items.Count(x => x.IsTemporary).Should().Be(copies);
+        Furni.Items.Count(x => x.IsTemporary).Should().Be(1);
         Dialogs().Should().BeEmpty();
     }
 

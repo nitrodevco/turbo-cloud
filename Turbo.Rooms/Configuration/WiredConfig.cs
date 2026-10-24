@@ -33,29 +33,6 @@ public class WiredConfig
     public int StackVisitWindowMs { get; init; } = 500;
 
     /// <summary>
-    /// Whether two execution limit add-ons on one stack add up, as in Habbo (official client
-    /// capture 2026-10-24, W4 lab addon.5.R2: [1,20] and [3,20] let 4 firings in 10 s run). Off
-    /// makes every limit hold on its own, so the tightest one wins.
-    /// </summary>
-    public bool ExecutionLimitsAddUp { get; init; } = true;
-
-    /// <summary>
-    /// Whether "Call Stacks" skips a stack that already ran in the same execution, as Habbo does
-    /// (official client capture 2026-10-24, WIN63-202610201032: two stacks calling each other ran
-    /// once each per click, 2/2, with no error; a stack calling its own trigger ran once). Off lets
-    /// a call run such a stack again, up to <see cref="MaxStackVisitsPerWindow"/>.
-    /// </summary>
-    public bool CallStacksOncePerExecution { get; init; } = true;
-
-    /// <summary>
-    /// Whether Remote Selector runs every selector on the tile of a selector box it picks, as
-    /// Habbo does (official client capture 2026-10-24, WIN63-202610201032: picking one box of a
-    /// parked pile gave the union of all its furni and user selectors, 2/2), and counts each
-    /// tile once as a stack. Off runs only the picked boxes, each as its own stack.
-    /// </summary>
-    public bool RemoteSelectorRunsWholePile { get; init; } = true;
-
-    /// <summary>
     /// How long, in wall-clock milliseconds, one execution's signals and stack calls may keep
     /// running before it is stopped and RECURSION_TIMEOUT is counted. Habbo does not disclose its
     /// duration ("an execution taking too long is stopped", in-client error help). 0 or less is no
@@ -69,33 +46,6 @@ public class WiredConfig
     /// in an official client capture). 0 or less is no limit.
     /// </summary>
     public int MaxDelayedEvents { get; init; } = 5000;
-
-    /// <summary>
-    /// Whether the periodic triggers a room loads with fire on its first avatar tick with someone
-    /// in it, then every period from there, as Habbo's do: a room unloaded and loaded again had
-    /// its 2 s, 5 s and 500 ms repeaters flash together in the entering user's first UserUpdate,
-    /// about 470 ms after RoomReady, then each on its period (official client capture
-    /// 2026-10-24, WIN63-202610201032, 2/2). Off: the first firing after a load waits a period,
-    /// as for a box placed or saved later.
-    /// </summary>
-    public bool PeriodicTriggersFireOnRoomLoad { get; init; } = true;
-
-    /// <summary>
-    /// Whether an "at given time" box placed after the room timer already passed its time waits
-    /// for the timer to start again (the next room load or Reset Timers), as on Habbo: a new box
-    /// saved at 1 s in a room loaded 72 minutes earlier never fired, and fired about 1.45 s after
-    /// the next load (official client capture 2026-10-24, wired matrix trigger.3.R5, 4/4). Off
-    /// fires it at once.
-    /// </summary>
-    public bool AtGivenTimeWaitsForTimerRestart { get; init; } = true;
-
-    /// <summary>
-    /// Whether a Level Up add-on's <c>is_maxed</c> sub-variable holds no value, as Habbo's does: a
-    /// Variable Placeholder prints "null" for it below the top level and at it alike (official
-    /// client capture 2026-10-24, WIN63-202610201032, wired matrix addon.1001.R1, 18/18). Off holds
-    /// 1 at the top level and 0 below it.
-    /// </summary>
-    public bool LevelUpIsMaxedHoldsNoValue { get; init; } = true;
 
     /// <summary>Delayed executions run per tick; the rest wait for the next one.</summary>
     public int MaxScheduledPerTick { get; init; } = 64;
@@ -210,23 +160,6 @@ public class WiredConfig
     public int SelectedItemsLimit { get; init; } = 20;
 
     /// <summary>
-    /// Whether a save picking more furni than <see cref="SelectedItemsLimit"/> in a slot is refused
-    /// and stores nothing, as on Habbo (official client capture 2026-10-24: Chase saved with 21 of
-    /// 20 answered by a server error, the earlier picks kept). Off keeps the first ones up to the
-    /// limit and saves.
-    /// </summary>
-    public bool RefuseOverLimitPicks { get; init; } = true;
-
-    /// <summary>
-    /// Whether a refused save the hotel's texts have no word for (a param out of its range, too
-    /// many picks) is answered as Habbo answers it, with the server error the client shows as
-    /// "Sorry, received server error: 1" (official client capture 2026-10-24: Join Team team 0
-    /// and 5, Chase with 21 picks). Off answers with this server's own
-    /// <c>wired.validation.error</c> text in the wired editor's error dialog.
-    /// </summary>
-    public bool RefusalsAsServerError { get; init; } = true;
-
-    /// <summary>
     /// Whether "Place Temporary Furni" may copy only Builders Club furni, as on Habbo: its save is
     /// refused with <c>wiredfurni.error.furni_can_not_be_cloned</c> ("You can only select Builders
     /// Club furniture that do not have advanced functionality.") for anything else. Off lets a
@@ -234,21 +167,6 @@ public class WiredConfig
     /// (credits, presents, pets) is refused either way.
     /// </summary>
     public bool PlaceFurniBuildersClubOnly { get; init; } = true;
-
-    /// <summary>
-    /// Whether "Furni Matches" compares the kind of furni instead of the furni themselves. Habbo
-    /// compares the furni themselves: a furni matches only itself, never another of the same kind,
-    /// colour, state and direction (official client capture 2026-10-24). On keeps rooms built for
-    /// the earlier kind match working, where any lamp matched any other lamp.
-    /// </summary>
-    public bool FurniMatchesByKind { get; init; }
-
-    /// <summary>
-    /// Whether "Place Temporary Furni" copies only picked furni still in the room, as on Habbo: a
-    /// template picked up places nothing and says nothing, though the box's snapshot still lists it
-    /// (official client capture 2026-10-24). Off copies it from the snapshot as long as its kind is known.
-    /// </summary>
-    public bool PlaceFurniNeedsTemplateInRoom { get; init; } = true;
 
     /// <summary>
     /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,
@@ -324,36 +242,11 @@ public class WiredConfig
     public bool NotifyWhisperRead { get; init; }
 
     /// <summary>
-    /// Whether a Says Keyword box with "Hide the triggerer's message" hides a line only when its
-    /// stack's conditions pass, as Habbo does (official client video, nitro-tester 2026-10-22: a
-    /// "match all text" box with hide and "triggering user is on furni" showed the line to the
-    /// room while the speaker stood beside the furni, and whispered it back to the speaker alone
-    /// while they stood on it). Off, the box hides every line it picks up, whatever its
-    /// conditions decide.
-    /// </summary>
-    public bool HideKeywordOnlyWhenConditionsPass { get; init; } = true;
-
-    /// <summary>
     /// Whether wired boxes may pick wall furni at all. On, each box follows Habbo: only the boxes
     /// that work on any furni's state, position, type or variables may (the editor's
     /// <c>allowWallFurni</c>, per box); off, none may.
     /// </summary>
     public bool AllowWallFurni { get; init; } = true;
-
-    /// <summary>
-    /// Whether a save that picks a temporary furni (placed by wired) is refused with Habbo's
-    /// <c>wiredfurni.error.temp_furni_not_allowed</c> ("Can not select temporary furni in Wired.").
-    /// Temporary ids are handed out again, so a stored pick could later name another furni.
-    /// That every box refuses them is inferred from the text. Off lets them be picked.
-    /// </summary>
-    public bool RefuseTemporaryFurniPicks { get; init; } = true;
-
-    /// <summary>
-    /// Whether a save naming a furni or user source its slot does not offer is refused with
-    /// Habbo's <c>wiredfurni.error.invalid_furni_source</c> / <c>invalid_user_source</c>. Off keeps
-    /// the offered sources of the slot and falls back to its default when none is left.
-    /// </summary>
-    public bool RefuseInvalidSources { get; init; } = true;
 
     /// <summary>
     /// How far the root tile of the "in neighbourhood" selectors may sit from the centre of their
@@ -379,51 +272,6 @@ public class WiredConfig
     /// (<c>TextAreaParam(40, -1, 8, -1, 400)</c>).
     /// </summary>
     public int ShowMessageMaxLength { get; init; } = 400;
-
-    /// <summary>
-    /// Where Show Message cuts its text once the placeholders are filled in: 1000 characters,
-    /// without an ellipsis (official client capture 2026-10-24, WIN63-202610201032: a whisper
-    /// with a long furni name list ended at exactly 1000, 2/2). 0 or less does not cut.
-    /// </summary>
-    public int ShowMessageOutputMaxLength { get; init; } = 1000;
-
-    /// <summary>
-    /// How long after a wave, blow kiss, laugh, respect or jump Users By Action and "triggerer
-    /// performs action" still count it. 0 (the default) holds each as long as the client shows
-    /// it: a wave 5 s, as Habbo does (official client capture 2026-10-24, W4 lab selector.9.R5:
-    /// picked 1.1 s after a wave, not 5.3 s after).
-    /// </summary>
-    public int ActionExpressionHoldMs { get; init; }
-
-    /// <summary>
-    /// The bubble styles Show Message may be saved with: the editor's style list
-    /// (<c>NOTIFICATION_STYLES</c>, actiontypes/_-21t.as:22, AS3 WIN63-202610201032). Any other
-    /// style is refused, so a room cannot speak in a bubble its users could not pick. Empty
-    /// takes any style.
-    /// </summary>
-    public int[] ShowMessageStyleIds { get; init; } =
-    [
-        34,
-        200,
-        201,
-        202,
-        210,
-        211,
-        212,
-        220,
-        221,
-        222,
-        223,
-        224,
-        225,
-        226,
-        227,
-        228,
-        229,
-        250,
-        251,
-        252,
-    ];
 
     /// <summary>
     /// The longest text a WIRED label keeps: its bubble's input takes 1000 characters
@@ -460,51 +308,12 @@ public class WiredConfig
     public int TeleportFastEffectMs { get; init; } = 1500;
 
     /// <summary>
-    /// How many tiles away Chase notices a player; 0 is the whole room. Habbo steps toward a
-    /// player 2 or 3 tiles away in the furni's row or column every time (16/16), and takes a
-    /// random straight step when the player is 4 or 5 tiles away (23 firings) or off its row and
-    /// column (31 firings) (official client capture 2026-10-24, W1 lab action.11.R1-R3).
-    /// </summary>
-    public int ChaseRange { get; init; } = 3;
-
-    /// <summary>
-    /// How many tiles away Flee notices a player; 0 is the whole room. Habbo stepped away from a
-    /// player 2 tiles away in its row or column 8/8 and ignored one 4 tiles away (official client
-    /// capture 2026-10-24, W1 lab action.12.R1-R2); 3, as Chase, is inferred.
-    /// </summary>
-    public int FleeRange { get; init; } = 3;
-
-    /// <summary>
-    /// Whether Chase and Flee notice only a player on the furni's row or column (Habbo: a player
-    /// off them is never chased or fled, official client capture 2026-10-24, W1 lab
-    /// action.11.R3, action.12.R2). Off, they notice the nearest player in range anywhere.
-    /// </summary>
-    public bool ChaseFleeInLineOnly { get; init; } = true;
-
-    /// <summary>
-    /// How two movement add-ons of one kind on a stack combine. On, as Habbo: two Animation
-    /// Times add up, two Movement Physics add up (keep altitude when either has it) and two
-    /// Projectiles keep the lower box (official client capture 2026-10-24, W1 lab addon.9.R2
-    /// 175 + 2000 = 2175, addon.7.R2/R3 7/7, addon.21.R2).
-    /// Off, the upper box of each kind replaces the lower one.
-    /// </summary>
-    public bool DoubledAddonsAsMeasured { get; init; } = true;
-
-    /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the
     /// match is given up and logged.
     /// </summary>
     public int RegexMatchTimeoutMs { get; init; } = 50;
     public int KickMessageMaxLength { get; init; } = 100;
 
-    /// <summary>
-    /// What Kick whispers to a player the room keeps (its owner, and staff who control every
-    /// room) over their own avatar, in bubble <see cref="KickExceptionStyleId"/> (official client
-    /// capture 2026-10-24, Kick on the room owner, 2/2). Empty whispers nothing.
-    /// </summary>
-    public string KickExceptionMessage { get; init; } = "Wired kick exception: Room owner";
-
-    public int KickExceptionStyleId { get; init; } = 34;
     public int LogMessageMaxLength { get; init; } = 400;
     public int MaxRewardsPerBox { get; init; } = 20;
 
@@ -526,13 +335,6 @@ public class WiredConfig
     /// variable boxes still draw. 0 or less shows them all.
     /// </summary>
     public int VariableFxMaxPerVariable { get; init; } = 5;
-
-    /// <summary>
-    /// Whether a variable fx shows a value again when it is written unchanged, as Habbo's does
-    /// (official client capture 2026-10-24, WIN63-202610201032, wired matrix addon.1200.R1: set
-    /// 30 then 30 again sent a VariableFxStatus both times, 4/4). Off sends only real changes.
-    /// </summary>
-    public bool VariableFxShowsEveryWrite { get; init; } = true;
 
     /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
     public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
@@ -588,28 +390,6 @@ public class WiredConfig
     /// empty room is dropped, not delivered when someone enters later).
     /// </summary>
     public bool LinkDeliversToUnloadedRooms { get; init; }
-
-    /// <summary>
-    /// Whether "Timer Reset" also restarts the periodic triggers, each firing on the next avatar
-    /// tick, as Habbo's does (official client capture 2026-10-24: in its own repeater's stack it
-    /// fired that stack on every 500 ms tick). Off: it restarts only the timer "time elapsed" and
-    /// "at given time" read.
-    /// </summary>
-    public bool ResetTimersRestartsPeriodicTriggers { get; init; } = true;
-
-    /// <summary>
-    /// Whether a counter running when its room unloaded comes back stopped at 00:00, as Habbo's
-    /// does (official client capture 2026-10-24: one running at 10 s was "0" and still after the
-    /// reload). Off: it comes back paused at the time it had.
-    /// </summary>
-    public bool RunningClocksResetOnRoomLoad { get; init; } = true;
-
-    /// <summary>
-    /// Whether a box keeps naming a variable whose box was picked up, as Habbo's do (official
-    /// client capture 2026-10-24: five boxes still opened with the picked-up furni variable's id,
-    /// and Change Variable Value with the room variable's). Off: the reference is dropped.
-    /// </summary>
-    public bool KeepRemovedVariableReferences { get; init; } = true;
 }
 
 /// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>

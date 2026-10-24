@@ -34,7 +34,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// are gone when the room unloads, and <c>wf_act_remove_furni</c> takes them away sooner. What
 /// is copied is the box's snapshot of the picked furni, taken when it was saved (type, tile,
 /// altitude, rotation, state), of the picked furni still in the room: as on Habbo, a template
-/// picked up is copied no more (<see cref="WiredConfig.PlaceFurniNeedsTemplateInRoom"/>).
+/// picked up is copied no more.
 ///
 /// Int params, as the client's editor writes them: whether the custom target is a user
 /// (otherwise the second furni slot), target location, target altitude, offset x, offset y
@@ -189,10 +189,6 @@ public class WiredActionPlaceFurni(
         if (GetFurniSources()[0].Contains(WiredFurniSourceType.SnapshotItems))
         {
             var snapshot = GetFurniSnapshot().Select(x => (x.Key, x.Value));
-
-            if (!WiredConfig.PlaceFurniNeedsTemplateInRoom)
-                return [.. snapshot];
-
             var picked = GetStuffIds().ToHashSet();
 
             return [.. snapshot.Where(x => picked.Contains(x.Key))];

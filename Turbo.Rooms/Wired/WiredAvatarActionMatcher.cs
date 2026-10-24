@@ -96,19 +96,18 @@ public static class WiredAvatarActionMatcher
     /// capture 2026-10-24, W4 lab selector.9.R5, 1/1 each); the client shows a wave for 5 s
     /// (<c>AvatarAction.getExpressionTime</c>, WIN63-202610201032 AvatarAction.as:103), and the
     /// other expressions are held as long as the client shows them (inference: only the wave was
-    /// measured). <paramref name="holdMs"/> above 0 holds every expression that long instead.
+    /// measured).
     /// </summary>
     public static bool IsPerforming(
         IRoomAvatar avatar,
         WiredAvatarActionType wanted,
         string? stringParam,
-        long nowMs,
-        int holdMs = 0
+        long nowMs
     )
     {
         if (ExpressionOf(wanted) is { } expression)
             return avatar.Expression == expression
-                && nowMs - avatar.ExpressionAtMs < (holdMs > 0 ? holdMs : ShownMs(expression));
+                && nowMs - avatar.ExpressionAtMs < ShownMs(expression);
 
         var extra = ParseExtra(wanted, stringParam);
 

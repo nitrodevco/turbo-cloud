@@ -52,12 +52,13 @@ public abstract class FurnitureWiredAddonLogic(
 
     /// <summary>
     /// Records that this kind of add-on changed the firing. False when a lower box of the same
-    /// kind already did and the hotel keeps Habbo's rule for two of a kind
-    /// (<see cref="Configuration.WiredConfig.DoubledAddonsAsMeasured"/>); with it off every box
-    /// counts as the first, so the upper one replaces the lower.
+    /// kind already did: Habbo combines two of a kind instead of letting the upper replace the
+    /// lower (official client capture 2026-10-24, W1 lab: two Animation Times add up, addon.9.R2
+    /// 175 + 2000 = 2175; two Movement Physics add up, addon.7.R2/R3 7/7; two Projectiles keep
+    /// the lower box, addon.21.R2).
     /// </summary>
     protected bool IsFirstOfKind(IWiredProcessingContext ctx) =>
-        ctx.Policy.AppliedAddons.Add(WiredCode) || !WiredConfig.DoubledAddonsAsMeasured;
+        ctx.Policy.AppliedAddons.Add(WiredCode);
 
     public virtual Task BeforeEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.CompletedTask;

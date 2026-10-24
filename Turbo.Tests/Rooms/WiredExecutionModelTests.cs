@@ -719,26 +719,6 @@ public sealed class WiredExecutionModelTests
         Wired.GetErrorLogs(_now).Should().OnlyContain(e => e.ThrowCount == 0);
     }
 
-    [Fact]
-    public async Task Action18X4_AHotelMayLetCallsRunAStackAgainUpToItsVisits()
-    {
-        Configure(
-            new WiredConfig { MaxRoomLogEntries = 10_000, CallStacksOncePerExecution = false }
-        );
-        UseWallClockAdvancing(0);
-        var k = await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("k")]);
-        var x = await BuildStackAsync(0, 2, receiveAntenna: ANTENNA_B, actions: [Log("x")]);
-        await AddCallAsync(0, 0, x);
-        await AddCallAsync(0, 2, k);
-        await StartAsync();
-
-        await ClickAsync();
-        await TickAsync(1);
-
-        Logged("k").Should().Be(101, "the click, then 100 calls");
-        Logged("x").Should().Be(100);
-    }
-
     // --- builds ---
 
     private sealed record ActionSpec(Func<int, int, int, Task> AddAndSave);

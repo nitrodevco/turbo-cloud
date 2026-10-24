@@ -4,7 +4,6 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -93,19 +92,6 @@ public sealed class WiredTimersLabTests
         after.Should().ContainSingle().Which.Should().BeInRange(movedAt + 500, movedAt + 1_500);
     }
 
-    [Fact]
-    public async Task Action1R2_AHotelMayKeepRepeatersOutOfTimerReset()
-    {
-        _room.Harness.Room.UseWiredConfig(
-            new WiredConfig { ResetTimersRestartsPeriodicTriggers = false }
-        );
-        await PeriodicStackAsync(0, 0, units: 6, Log("fired"));
-        await ResetTimersAsync(0, 0);
-        await StartAsync();
-
-        Gaps(await RunAsync(12_000, "fired")).Should().AllBeEquivalentTo(3_000L);
-    }
-
     [Theory]
     // Periodically [2] (1 s), period short [10] (500 ms): an effect delayed 6 pulses (3 s).
     [InlineData("wf_trg_periodically", 2, 6, 1_000)]
@@ -153,13 +139,8 @@ public sealed class WiredTimersLabTests
         Flashes(delayed).Should().Be(flashesOnTheStack, "a delayed effect flashed when it fired");
     }
 
-    [Theory]
-    [InlineData(true, 0)]
-    [InlineData(false, 10)]
-    public async Task Action28R6_ACounterRunningWhenItsRoomUnloadedComesBackStoppedAtZero(
-        bool official,
-        int seconds
-    )
+    [Fact]
+    public async Task Action28R6_ACounterRunningWhenItsRoomUnloadedComesBackStoppedAtZero()
     {
         var counter = AddCounter(_room, COUNTER);
         await counter.ControlAsync(WiredClockControlType.Start, Ct);
@@ -169,20 +150,17 @@ public sealed class WiredTimersLabTests
         // What the room hands to persistence when it unloads, and the next load reads back.
         var stored = _room.FloorItem(COUNTER).ExtraData.GetJsonString();
         var reloaded = new WiredRoom(10, 10);
-        reloaded.Harness.Room.UseWiredConfig(
-            new WiredConfig { RunningClocksResetOnRoomLoad = official }
-        );
         var again = AddCounter(reloaded, COUNTER, stored);
         await again.OnAttachAsync(Ct);
         await CountAsync(reloaded, 4);
 
-        again.GetState().Should().Be(seconds);
+        again.GetState().Should().Be(0);
         again.IsRunning.Should().BeFalse();
 
         // Started again it counts from where it came back.
         await again.ControlAsync(WiredClockControlType.Start, Ct);
         await CountAsync(reloaded, 3);
-        again.GetState().Should().Be(seconds + 1);
+        again.GetState().Should().Be(1);
     }
 
     [Fact]

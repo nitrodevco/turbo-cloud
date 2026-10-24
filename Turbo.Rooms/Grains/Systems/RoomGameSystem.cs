@@ -201,7 +201,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Adds points to a team while a game runs (<c>RoomConfig.GameScoreOnlyWhileGameRuns</c>).
+    /// Adds points to a team while a game runs, from a game counter's or game timer's start to its
+    /// end: on Habbo, Give Score to a team with no game started added nothing (official client
+    /// capture 2026-10-24, action.6.B1).
     /// <paramref name="timesPerGame"/> caps how often one source (the
     /// furni handing out the points) may score for one player during a game; zero means
     /// unlimited.
@@ -218,7 +220,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (!IsTeam(team))
             return false;
 
-        if (RoomConfig.GameScoreOnlyWhileGameRuns && !IsGameRunning)
+        if (!IsGameRunning)
             return false;
 
         if (timesPerGame > 0)

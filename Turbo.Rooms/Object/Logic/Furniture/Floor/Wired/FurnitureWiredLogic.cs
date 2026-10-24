@@ -695,12 +695,11 @@ public abstract partial class FurnitureWiredLogic(
     /// A save naming a source its slot does not offer is refused, as Habbo does (official client
     /// capture 2026-10-22: a bot box's users slot saved with 100 or its bots slot with 900 ->
     /// <c>wiredfurni.error.invalid_user_source</c>; Condition Evaluation's furni slot with 900 ->
-    /// <c>wiredfurni.error.invalid_furni_source</c>). <see cref="Configuration.WiredConfig.RefuseInvalidSources"/>
-    /// off keeps the offered ones and falls back to the slot's default.
+    /// <c>wiredfurni.error.invalid_furni_source</c>).
     /// </summary>
     private void RefuseUnofferedSources<T>(T[] proposed, T[] offered, string errorKey)
     {
-        if (WiredConfig.RefuseInvalidSources && proposed.Any(x => !offered.Contains(x)))
+        if (proposed.Any(x => !offered.Contains(x)))
             throw new WiredSaveRefusedException(errorKey);
     }
 
@@ -767,7 +766,10 @@ public abstract partial class FurnitureWiredLogic(
             )
                 continue;
 
-            if (item.IsTemporary && WiredConfig.RefuseTemporaryFurniPicks)
+            // Temporary ids are handed out again, so a stored pick could later name another furni.
+            // That every box refuses them is inferred from Habbo's text ("Can not select
+            // temporary furni in Wired.").
+            if (item.IsTemporary)
                 throw new WiredSaveRefusedException(WiredSaveErrors.TEMP_FURNI_NOT_ALLOWED);
 
             if (!CanPickFurni(item))
@@ -796,10 +798,9 @@ public abstract partial class FurnitureWiredLogic(
     /// (official client capture 2026-10-24: Chase with 21 of 20 picks stored nothing; the editor
     /// itself stops picking at the limit, <c>UserDefinedRoomEventsCtrl.as:211</c>). Inference: the
     /// picks are counted as sent and the second slot is held to the same limit.
-    /// <see cref="Configuration.WiredConfig.RefuseOverLimitPicks"/> off keeps the first ones instead.
     /// </summary>
     private bool PicksOverLimit(List<int> proposed) =>
-        WiredConfig.RefuseOverLimitPicks && proposed.Count > WiredConfig.SelectedItemsLimit;
+        proposed.Count > WiredConfig.SelectedItemsLimit;
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {
@@ -851,7 +852,7 @@ public abstract partial class FurnitureWiredLogic(
     /// current id. With <paramref name="keepRemoved"/> (what a saved box stores and opens with) an
     /// id whose variable box was picked up stays as it was: Habbo's referencing boxes still opened
     /// with the picked-up variable's id (official client capture 2026-10-24, WIN63-202610201032,
-    /// wired matrix variable.0.R2 / variable.2.R2; <see cref="WiredConfig.KeepRemovedVariableReferences"/>).
+    /// wired matrix variable.0.R2 / variable.2.R2).
     /// </summary>
     protected virtual bool GetValidVariableIds(
         List<string> proposed,
@@ -862,8 +863,6 @@ public abstract partial class FurnitureWiredLogic(
         variableIds = [];
 
         var max = GetMaxVariableIds();
-
-        keepRemoved &= WiredConfig.KeepRemovedVariableReferences;
 
         if (HasPositionalVariableIds)
         {

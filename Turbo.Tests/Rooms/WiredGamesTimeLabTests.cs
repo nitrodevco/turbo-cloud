@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -41,10 +40,7 @@ public sealed class WiredGamesTimeLabTests
     private readonly WiredRoom _room;
     private long _now = 10_000;
 
-    public WiredGamesTimeLabTests()
-        : this(null) { }
-
-    private WiredGamesTimeLabTests(RoomConfig? config) => _room = new WiredRoom(8, 8, config);
+    public WiredGamesTimeLabTests() => _room = new WiredRoom(8, 8);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -252,23 +248,6 @@ public sealed class WiredGamesTimeLabTests
         Game.IsGameRunning.Should().BeTrue("the game counter started the game");
         await ClickAsync();
         Game.GetScore(GameTeamType.Red).Should().Be(5);
-    }
-
-    /// <summary>A hotel that turns <c>GameScoreOnlyWhileGameRuns</c> off scores without a game.</summary>
-    [Fact]
-    public async Task Give_score_counts_without_a_game_when_the_hotel_allows_it_action_6_B1()
-    {
-        var test = new WiredGamesTimeLabTests(
-            new RoomConfig { GameScoreOnlyWhileGameRuns = false }
-        );
-        await test.BuildGiveScoreAsync(points: 5, timesPerGame: 0);
-        (await test.Game.JoinTeamAsync((PlayerId)(100 + PLAYER), GameTeamType.Red, Ct))
-            .Should()
-            .BeTrue();
-
-        await test.ClickAsync();
-
-        test.Game.GetScore(GameTeamType.Red).Should().Be(5);
     }
 
     /// <summary>

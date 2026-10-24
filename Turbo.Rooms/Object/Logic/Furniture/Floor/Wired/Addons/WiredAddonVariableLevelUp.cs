@@ -190,7 +190,10 @@ public class WiredAddonVariableLevelUp(
 
         var (level, maxLevel, levelStart, nextStart, isMaxed) = reached;
 
-        if (index == 6 && WiredConfig.LevelUpIsMaxedHoldsNoValue)
+        // is_maxed holds no value: a Variable Placeholder prints "null" for it below the top level
+        // and at it alike (official client capture 2026-10-24, WIN63-202610201032, wired matrix
+        // addon.1001.R1, 18/18).
+        if (index == 6)
             return null;
 
         // XP past the top level counts as the top level's start, and a maxed level has nothing
@@ -209,7 +212,6 @@ public class WiredAddonVariableLevelUp(
             3 => required == 0 ? 0 : Math.Min(100, progress * 100 / required),
             4 => required,
             5 => Math.Max(0, required - progress),
-            6 => isMaxed ? 1 : 0,
             7 => maxLevel,
             _ => 0,
         };

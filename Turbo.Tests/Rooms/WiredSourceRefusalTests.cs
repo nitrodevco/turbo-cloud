@@ -1,8 +1,6 @@
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Tests.Support;
 using Xunit;
@@ -98,28 +96,6 @@ public sealed class WiredSourceRefusalTests
                 },
                 o => o.WithStrictOrdering()
             );
-    }
-
-    [Fact]
-    public async Task Unoffered_sources_fall_back_to_the_default_when_configured()
-    {
-        _room.Harness.Room.UseWiredConfig(
-            new ConfigurationBuilder()
-                .AddInMemoryCollection(
-                    new Dictionary<string, string?> { ["RefuseInvalidSources"] = "false" }
-                )
-                .Build()
-                .Get<WiredConfig>()!
-        );
-
-        (
-            await SaveAsync([
-                [WiredPlayerSourceType.BotByName],
-                [WiredPlayerSourceType.BotByName],
-            ])
-        ).IsSaved.Should().BeTrue();
-
-        Box.GetPlayerSources()[1].Should().Equal(WiredPlayerSourceType.TriggeredUser);
     }
 
     private Task<Turbo.Primitives.Rooms.Wired.WiredSaveResult> SaveAsync(

@@ -41,15 +41,7 @@ public class WiredSelectorEntitiesByAction(
 
         foreach (var avatar in AvatarModule.Avatars)
         {
-            if (
-                WiredAvatarActionMatcher.IsPerforming(
-                    avatar,
-                    action,
-                    _wiredData.StringParam,
-                    now,
-                    WiredConfig.ActionExpressionHoldMs
-                )
-            )
+            if (WiredAvatarActionMatcher.IsPerforming(avatar, action, _wiredData.StringParam, now))
                 output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 

@@ -21,7 +21,6 @@ using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.WiredTrading;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
@@ -291,29 +290,6 @@ public class WiredChestRoomTests
             .Last()
             .FirstItems.Should()
             .ContainSingle();
-    }
-
-    [Fact]
-    public async Task A_deposit_offer_takes_items_past_the_capacity_when_the_hotel_turns_the_check_off()
-    {
-        var fakes = new Fakes();
-        var grain = GrainHarness.Create<WiredTradeGrain>(fakes, playerId: GUEST);
-        GrainHarness.Replace(grain, new WiredChestConfig { RefuseOfferOverCapacity = false });
-        var trade = (IWiredTradeGrain)grain;
-        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("chair", 20, 21, 22));
-
-        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, 2, Ct);
-        await trade.AddItemsAsync([20, 21, 22], Ct);
-
-        fakes
-            .Sent<WiredTradeTransactionNotificationMessageComposer>(SendRoute.Direct)
-            .Should()
-            .BeEmpty();
-        fakes
-            .Sent<WiredTradeItemsUpdateMessageComposer>(SendRoute.Direct)
-            .Last()
-            .FirstItems.Should()
-            .HaveCount(3);
     }
 
     [Fact]

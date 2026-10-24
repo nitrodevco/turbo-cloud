@@ -5,7 +5,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -82,21 +81,6 @@ public sealed class WiredSaysKeywordHideConditionsTests
         await SayAsync("a");
 
         ToRoom().Select(c => c.Text).Should().Equal("a");
-    }
-
-    [Fact]
-    public async Task With_the_setting_off_the_box_hides_whatever_its_conditions_decide()
-    {
-        _room.Harness.Room.UseWiredConfig(
-            new WiredConfig { HideKeywordOnlyWhenConditionsPass = false }
-        );
-        await BuildAsync();
-        _room.Enter(SPEAKER, 2, 2);
-
-        await SayAsync("a");
-
-        ToRoom().Should().BeEmpty();
-        WhispersTo(100 + SPEAKER).Select(c => c.Text).Should().Equal("a");
     }
 
     private async Task BuildAsync()

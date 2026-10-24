@@ -74,6 +74,12 @@ public sealed partial class RoomGrain
         }
     }
 
+    /// <summary>
+    /// Saves a box. A refusal the hotel's texts have no word for (a param out of its range, too
+    /// many picks) is answered as Habbo answers it, with the server error the client shows as
+    /// "Sorry, received server error: 1" (official client capture 2026-10-24: Join Team team 0
+    /// and 5, Chase with 21 picks).
+    /// </summary>
     public async Task<WiredSaveResult> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
@@ -85,7 +91,7 @@ public sealed partial class RoomGrain
         {
             return await WiredSystem.ApplyUpdateAsync(ctx, itemId, update, ct)
                 ? WiredSaveResult.Saved
-                : RefusedWithoutText();
+                : WiredSaveResult.ServerError;
         }
         catch (WiredSaveRefusedException refused)
         {
@@ -109,16 +115,9 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return RefusedWithoutText();
+            return WiredSaveResult.ServerError;
         }
     }
-
-    /// <summary>
-    /// A refused save with no hotel text to show: Habbo's server error (<see cref="WiredSaveResult.ServerError"/>),
-    /// or this server's own text when <see cref="Configuration.WiredConfig.RefusalsAsServerError"/> is off.
-    /// </summary>
-    private WiredSaveResult RefusedWithoutText() =>
-        _wiredConfig.RefusalsAsServerError ? WiredSaveResult.ServerError : WiredSaveResult.Refused;
 
     public async Task<bool> ApplyWiredSnapshotAsync(
         ActionContext ctx,

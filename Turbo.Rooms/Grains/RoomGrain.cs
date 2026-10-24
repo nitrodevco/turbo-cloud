@@ -142,7 +142,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     private int _callsRunning;
     private bool _tickRunning;
 
-    // When the last player left the room (RoomConfig.EmptyRoomUnloadMs), or -1 while someone is in.
+    // How long a room nobody is in stays loaded before it unloads itself (its wired timers,
+    // temporary furni and available-while-active variables start over on the next load). Habbo's
+    // unloads 34-40 s after the last user left: still loaded 5/5 after 12-34 s away, unloaded 4/5
+    // after 36-40 s (36.1 yes, 38.1 two of three) and 3/3 after 42-49 s (official client capture
+    // 2026-10-24, wired matrix trigger.3.R4).
+    private const int EMPTY_ROOM_UNLOAD_MS = 35_000;
+
+    // When the last player left the room, or -1 while someone is in.
     private long _emptySinceMs = -1;
 
     public RoomId RoomId => _state.RoomId;
@@ -481,12 +488,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     public void DeactivateRoom() => DeactivateOnIdle();
 
     /// <summary>
-    /// Unloads the room once nobody has been in it for <see cref="RoomConfig.EmptyRoomUnloadMs"/>,
+    /// Unloads the room once nobody has been in it for <see cref="EMPTY_ROOM_UNLOAD_MS"/>,
     /// as Habbo's does, rather than at the directory's next check.
     /// </summary>
     private void UnloadIfLeftEmpty(long now)
     {
-        if (_roomConfig.EmptyRoomUnloadMs <= 0 || _state.AvatarsByPlayerId.Count > 0)
+        if (_state.AvatarsByPlayerId.Count > 0)
         {
             _emptySinceMs = -1;
 
@@ -500,7 +507,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             return;
         }
 
-        if (now - _emptySinceMs < _roomConfig.EmptyRoomUnloadMs)
+        if (now - _emptySinceMs < EMPTY_ROOM_UNLOAD_MS)
             return;
 
         // Asked once: the room is on its way out.

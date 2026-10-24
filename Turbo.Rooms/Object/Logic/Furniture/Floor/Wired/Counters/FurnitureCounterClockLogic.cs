@@ -71,7 +71,7 @@ public class FurnitureCounterClockLogic(
         {
             _ctx.RoomObject.ExtraData.DeleteSection(RUNNING_SECTION);
 
-            if (WiredConfig.RunningClocksResetOnRoomLoad && _halfSeconds > 0)
+            if (_halfSeconds > 0)
             {
                 _halfSeconds = 0;
                 StuffData.SetState("0");

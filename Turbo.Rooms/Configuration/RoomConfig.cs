@@ -56,16 +56,6 @@ public class RoomConfig
     public int HotRoomWindowSeconds { get; init; } = 600;
 
     public int RoomCheckMs { get; init; } = 300000;
-
-    /// <summary>
-    /// How long a room nobody is in stays loaded before it unloads itself (its wired timers,
-    /// temporary furni and available-while-active variables start over on the next load). Habbo's
-    /// unloads 34-40 s after the last user left: still loaded 5/5 after 12-34 s away, unloaded
-    /// 4/5 after 36-40 s (36.1 yes, 38.1 two of three) and 3/3 after 42-49 s (official client
-    /// capture 2026-10-24, wired matrix trigger.3.R4). 0 or less leaves it to the directory's
-    /// check every <see cref="RoomCheckMs"/>.
-    /// </summary>
-    public int EmptyRoomUnloadMs { get; init; } = 35000;
     public int RoomDeactivationDelayMs { get; init; } = 1800000;
 
     /// <summary>
@@ -419,13 +409,6 @@ public class RoomConfig
     /// official client capture 2026-10-24, red 223 and green 226 on joining).
     /// </summary>
     public int[] GameTeamEffectIds { get; init; } = [0, 223, 226, 224, 225];
-
-    /// <summary>
-    /// Whether points only count while a game runs, from a game counter's or game timer's start
-    /// to its end. Habbo's do: Give Score to a team with no game started added nothing (official
-    /// client capture 2026-10-24, action.6.B1). Off, wired hands out points any time.
-    /// </summary>
-    public bool GameScoreOnlyWhileGameRuns { get; init; } = true;
 
     /// <summary>The team effects of a Battle Banzai team, by team (none, red, green, blue, yellow).</summary>
     public int[] BanzaiTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
