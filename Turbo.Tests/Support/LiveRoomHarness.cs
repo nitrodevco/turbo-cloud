@@ -27,7 +27,8 @@ namespace Turbo.Tests.Support;
 /// host does at startup (the [RoomObjectLogic] assembly scan) into a real
 /// RoomObjectLogicProvider over a real service collection. Grain calls, the database and the
 /// room stream are fakes. The room runs on <see cref="Clock"/>, which stands still until the test
-/// advances it.
+/// advances it. Its floor is an open <c>width</c> by <c>height</c> unless a model is given (a room
+/// as a recording entered it, <see cref="RecordedRoom"/>).
 /// </summary>
 public sealed class LiveRoomHarness
 {
@@ -56,7 +57,8 @@ public sealed class LiveRoomHarness
         int height = 10,
         RoomConfig? roomConfig = null,
         Altitude[]? heights = null,
-        ManualTimeProvider? clock = null
+        ManualTimeProvider? clock = null,
+        RoomModelSnapshot? model = null
     )
     {
         _roomConfig = roomConfig ?? new RoomConfig();
@@ -117,20 +119,22 @@ public sealed class LiveRoomHarness
         Room._roomOutbound = Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>("room-stream");
 
         var size = width * height;
-        State.Model = new RoomModelSnapshot
-        {
-            Id = 1,
-            Name = "test",
-            Model = "",
-            DoorX = 0,
-            DoorY = 0,
-            DoorRotation = Rotation.North,
-            Width = width,
-            Height = height,
-            Size = size,
-            BaseHeights = heights ?? new Altitude[size],
-            BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
-        };
+        State.Model =
+            model
+            ?? new RoomModelSnapshot
+            {
+                Id = 1,
+                Name = "test",
+                Model = "",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.North,
+                Width = width,
+                Height = height,
+                Size = size,
+                BaseHeights = heights ?? new Altitude[size],
+                BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
+            };
         // Only what these tests read is set; the snapshot's other members keep their defaults.
         State.RoomSnapshot = (RoomSnapshot)
             RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot)) with
