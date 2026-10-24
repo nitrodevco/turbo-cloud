@@ -465,6 +465,14 @@ public class WiredConfig
     public bool ChaseFleeInLineOnly { get; init; } = true;
 
     /// <summary>
+    /// How two movement add-ons of one kind on a stack combine. On, as Habbo: two Animation
+    /// Times add up, two Movement Physics and two Projectiles keep the lower box (official
+    /// client capture 2026-10-24, W1 lab addon.9.R2 175 + 2000 = 2175, addon.7.R2, addon.21.R2).
+    /// Off, the upper box of each kind replaces the lower one.
+    /// </summary>
+    public bool DoubledAddonsAsMeasured { get; init; } = true;
+
+    /// <summary>
     /// How long a pattern built from player text may take to match a chat line before the
     /// match is given up and logged.
     /// </summary>

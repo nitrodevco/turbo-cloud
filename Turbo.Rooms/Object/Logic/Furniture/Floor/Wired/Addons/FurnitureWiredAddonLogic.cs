@@ -50,6 +50,15 @@ public abstract class FurnitureWiredAddonLogic(
         CancellationToken ct
     ) => Task.FromResult(true);
 
+    /// <summary>
+    /// Records that this kind of add-on changed the firing. False when a lower box of the same
+    /// kind already did and the hotel keeps Habbo's rule for two of a kind
+    /// (<see cref="Configuration.WiredConfig.DoubledAddonsAsMeasured"/>); with it off every box
+    /// counts as the first, so the upper one replaces the lower.
+    /// </summary>
+    protected bool IsFirstOfKind(IWiredProcessingContext ctx) =>
+        ctx.Policy.AppliedAddons.Add(WiredCode) || !WiredConfig.DoubledAddonsAsMeasured;
+
     public virtual Task BeforeEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 

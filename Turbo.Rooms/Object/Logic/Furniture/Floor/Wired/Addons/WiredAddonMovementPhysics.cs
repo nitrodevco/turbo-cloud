@@ -56,6 +56,12 @@ public class WiredAddonMovementPhysics(
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
+        // Two Movement Physics: the lower box's applies. Keep altitude below "drop" kept a furni
+        // at its height (official client capture 2026-10-24, W1 lab addon.7.R2, 1/1; the other
+        // order was not recorded, the lower box winning is inferred from two Projectiles).
+        if (!IsFirstOfKind(ctx))
+            return Task.FromResult(true);
+
         var flags = WiredMovePhysicsFlags.None;
 
         if (GetIntParamOrDefault(0, false))
