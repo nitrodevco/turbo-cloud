@@ -68,6 +68,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
 
     private readonly WiredRoom _room = new(8, 8);
     private readonly SqliteDb _db = new();
+    private readonly ManualTimeProvider _clock = new();
     private readonly int _port;
     private readonly IHostedService _server;
     private readonly HttpClient _http;
@@ -665,6 +666,16 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
             .Should()
             .Be((429, "wired.variables.too_many_requests"));
+
+        // The 10-second burst window runs on the server's clock, so a slow test run cannot open it.
+        limited._clock.Advance(TimeSpan.FromSeconds(9.9));
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
+            .Status.Should()
+            .Be(429);
+        limited._clock.Advance(TimeSpan.FromSeconds(0.1));
+        (await limited.SendAsync(HttpMethod.Put, path, write: write, body: body))
+            .Status.Should()
+            .Be(200);
     }
 
     [Fact]
@@ -1372,7 +1383,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         var services = new ServiceCollection();
 
         services.AddSingleton(config);
-        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<TimeProvider>(_clock);
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<IDbContextFactory<TurboDbContext>>(_db);
         services.AddSingleton(_room.Grains);

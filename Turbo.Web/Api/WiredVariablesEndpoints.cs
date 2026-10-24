@@ -1,11 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
-using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -31,13 +31,14 @@ namespace Turbo.Web.Api;
 internal sealed class WiredVariablesEndpoints(
     IGrainFactory grainFactory,
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    IOptions<WebConfig> config
+    IOptions<WebConfig> config,
+    TimeProvider timeProvider
 )
 {
     private const string READ_KEY_HEADER = "X-Wired-Read-Key";
     private const string WRITE_KEY_HEADER = "X-Wired-Write-Key";
 
-    private readonly WiredApiRateLimits _limits = new(config.Value.WiredApi);
+    private readonly WiredApiRateLimits _limits = new(config.Value.WiredApi, timeProvider);
 
     private WiredApiConfig Api => config.Value.WiredApi;
 
@@ -421,38 +422,23 @@ internal sealed class WiredVariablesEndpoints(
 /// the 10-second burst window and the 60-second sustained one. Only calls whose keys open the
 /// room count against it, so callers without them cannot use up its owner's allowance; their
 /// refused calls count against their own address instead (<see cref="WiredApiConfig.Failures"/>).
+/// The windows run on the server's <see cref="TimeProvider"/>, each from the first call it counts.
 /// </summary>
-internal sealed class WiredApiRateLimits(WiredApiConfig config)
+internal sealed class WiredApiRateLimits(WiredApiConfig config, TimeProvider timeProvider)
 {
-    private readonly PartitionedRateLimiter<(int, WiredApiLimit)> _limiter = Chained<int>();
+    private readonly FixedWindows<int> _rooms = new(timeProvider);
 
-    private readonly PartitionedRateLimiter<(string, WiredApiLimit)> _failures = Chained<string>();
+    private readonly FixedWindows<string> _failures = new(timeProvider);
 
     /// <summary>Null when the room has room for the call, else how long until it has.</summary>
-    public TimeSpan? TryAcquire(int roomId, WiredWebApiOperation operation)
-    {
-        using var lease = _limiter.AttemptAcquire((roomId, LimitOf(operation)));
-
-        return lease.IsAcquired ? null : RetryAfterOf(lease);
-    }
+    public TimeSpan? TryAcquire(int roomId, WiredWebApiOperation operation) =>
+        _rooms.TryAcquire(roomId, LimitOf(operation), 1);
 
     /// <summary>Null while <paramref name="caller"/> may still be refused, else how long until it may.</summary>
-    public TimeSpan? FailureRetryAfter(string caller)
-    {
-        using var lease = _failures.AttemptAcquire((caller, config.Failures), 0);
+    public TimeSpan? FailureRetryAfter(string caller) =>
+        _failures.TryAcquire(caller, config.Failures, 0);
 
-        return lease.IsAcquired ? null : RetryAfterOf(lease);
-    }
-
-    public void CountFailure(string caller)
-    {
-        using var lease = _failures.AttemptAcquire((caller, config.Failures));
-    }
-
-    private static TimeSpan RetryAfterOf(RateLimitLease lease) =>
-        lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
-            ? retryAfter
-            : TimeSpan.FromSeconds(10);
+    public void CountFailure(string caller) => _failures.TryAcquire(caller, config.Failures, 1);
 
     private WiredApiLimit LimitOf(WiredWebApiOperation operation) =>
         operation switch
@@ -475,25 +461,104 @@ internal sealed class WiredApiRateLimits(WiredApiConfig config)
             _ => config.SimpleReads,
         };
 
-    private static PartitionedRateLimiter<(TKey, WiredApiLimit)> Chained<TKey>() =>
-        PartitionedRateLimiter.CreateChained(
-            Window<TKey>(TimeSpan.FromSeconds(10), limit => limit.Burst),
-            Window<TKey>(TimeSpan.FromMinutes(1), limit => limit.PerMinute)
-        );
+    /// <summary>
+    /// The burst and sustained windows of each key: a call is counted in both or in neither.
+    /// Keys whose windows have all ended are dropped once a minute.
+    /// </summary>
+    private sealed class FixedWindows<TKey>
+        where TKey : notnull
+    {
+        private static readonly TimeSpan BURST = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan SUSTAINED = TimeSpan.FromMinutes(1);
 
-    private static PartitionedRateLimiter<(TKey, WiredApiLimit)> Window<TKey>(
-        TimeSpan window,
-        Func<WiredApiLimit, int> permits
-    ) =>
-        PartitionedRateLimiter.Create<(TKey, WiredApiLimit), (TKey, WiredApiLimit)>(key =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                key,
-                _ => new FixedWindowRateLimiterOptions
+        private readonly TimeProvider _timeProvider;
+        private readonly Dictionary<(TKey, WiredApiLimit), Window[]> _windows = [];
+        private long _sweptAt;
+
+        public FixedWindows(TimeProvider timeProvider)
+        {
+            _timeProvider = timeProvider;
+            _sweptAt = timeProvider.GetTimestamp();
+        }
+
+        /// <summary>Counts <paramref name="permits"/> (0 only asks), else how long until there is room.</summary>
+        public TimeSpan? TryAcquire(TKey key, WiredApiLimit limit, int permits)
+        {
+            var now = _timeProvider.GetTimestamp();
+
+            lock (_windows)
+            {
+                Sweep(now);
+
+                if (!_windows.TryGetValue((key, limit), out var windows))
                 {
-                    PermitLimit = Math.Max(1, permits(key.Item2)),
-                    Window = window,
-                    QueueLimit = 0,
+                    if (permits == 0)
+                        return null;
+
+                    windows =
+                    [
+                        new Window(BURST, limit.Burst, now),
+                        new Window(SUSTAINED, limit.PerMinute, now),
+                    ];
+                    _windows[(key, limit)] = windows;
                 }
-            )
-        );
+
+                TimeSpan? retryAfter = null;
+
+                foreach (var window in windows)
+                {
+                    if (window.HasEnded(now, _timeProvider))
+                        window.Restart(now);
+
+                    if (window.IsFull(permits) && !(retryAfter >= window.Left(now, _timeProvider)))
+                        retryAfter = window.Left(now, _timeProvider);
+                }
+
+                if (retryAfter is not null)
+                    return retryAfter;
+
+                foreach (var window in windows)
+                    window.Used += permits;
+
+                return null;
+            }
+        }
+
+        private void Sweep(long now)
+        {
+            if (_timeProvider.GetElapsedTime(_sweptAt, now) < SUSTAINED)
+                return;
+
+            _sweptAt = now;
+
+            foreach (var (key, windows) in _windows)
+            {
+                if (windows.All(x => x.HasEnded(now, _timeProvider)))
+                    _windows.Remove(key);
+            }
+        }
+    }
+
+    private sealed class Window(TimeSpan length, int permits, long startedAt)
+    {
+        private readonly int _permits = Math.Max(1, permits);
+        private long _startedAt = startedAt;
+
+        public int Used { get; set; }
+
+        public bool IsFull(int permits) =>
+            permits == 0 ? Used >= _permits : Used + permits > _permits;
+
+        public bool HasEnded(long now, TimeProvider timeProvider) =>
+            timeProvider.GetElapsedTime(_startedAt, now) >= length;
+
+        public TimeSpan Left(long now, TimeProvider timeProvider) =>
+            length - timeProvider.GetElapsedTime(_startedAt, now);
+
+        public void Restart(long now)
+        {
+            _startedAt = now;
+            Used = 0;
+        }
+    }
 }
