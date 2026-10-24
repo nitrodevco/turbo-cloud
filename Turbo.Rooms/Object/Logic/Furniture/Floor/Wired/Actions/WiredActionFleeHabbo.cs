@@ -17,8 +17,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
 /// Moves the picked furni one tile away from the nearest player within reach (WiredConfig
-/// FleeRange, ChaseFleeInLineOnly). With nobody in reach it keeps going the way it last fled,
-/// turning left when that way is blocked; an adjacent player is caught: no move, the collision
+/// FleeRange, ChaseFleeInLineOnly). With nobody in reach it keeps going the way it last fled
+/// (east if it never fled), turning left when that way is blocked; an adjacent player is caught: no move, the collision
 /// trigger fires (official client capture 2026-10-24, W1 lab: away from a player 2 tiles off
 /// 8/8, the last way N 5/5 then E 10/10, also after the furni was moved by hand; blocked E ->
 /// N 5/5, left or away from a far player not separable; adjacent 3/3).
@@ -86,9 +86,14 @@ public class WiredActionFleeHabbo(
                         candidates.Add(map.ToIdx(sideX, at.Y));
                 }
             }
-            else if (_headingByItemId.TryGetValue(item.ObjectId, out var heading))
+            else
             {
-                // The way it last fled, then each way a quarter turn further left.
+                // The way it last fled, then each way a quarter turn further left. A furni that
+                // never fled heads east (+x): a fresh box on a fresh block moved E first with
+                // nobody in line (official client capture 2026-10-24, W1 lab action.12.R11,
+                // 3/3 first moves, 11/11 moves).
+                var heading = _headingByItemId.GetValueOrDefault(item.ObjectId, Rotation.East);
+
                 candidates = [];
 
                 for (var turn = 0; turn < 4; turn++)
@@ -97,8 +102,6 @@ public class WiredActionFleeHabbo(
                         candidates.Add(next);
                 }
             }
-            else
-                continue;
 
             // Each way out is tried in turn; only finding none is a blocked move.
             var fled = candidates.FirstOrDefault(
