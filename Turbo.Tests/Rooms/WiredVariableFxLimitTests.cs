@@ -3,6 +3,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
@@ -66,6 +67,88 @@ public sealed class WiredVariableFxLimitTests
         DrawnConfigs().Should().BeEquivalentTo(Enumerable.Range(FIRST_FX, 6));
         Wired.GetErrorLogs(_now)[9].ThrowCount.Should().Be(0);
     }
+
+    // Wired matrix addon.1200.R1 (wlab4): Give Variable 50, then set 30, 30, 80: every write sent
+    // one VariableFxStatus, the unchanged 30 too (official client capture 2026-10-24, 4/4).
+    [Fact]
+    public async Task Addon_1200_R1_a_value_written_unchanged_is_shown_again()
+    {
+        var hp = await AddUserVariableAsync(HP, 5, 5, "hp");
+        await AddFxAsync(FIRST_FX, 5, 5);
+
+        _room.Enter(1, 1, 1);
+        await GiveAsync(hp, 50);
+        await ProcessAsync();
+
+        foreach (var value in new[] { 30, 30, 80 })
+        {
+            var before = Statuses().Count;
+
+            await SetAsync(hp, value);
+            await ProcessAsync();
+
+            Statuses()
+                .Skip(before)
+                .Should()
+                .ContainSingle()
+                .Which.Statuses.Should()
+                .ContainSingle()
+                .Which.Value.Should()
+                .Be(value);
+        }
+    }
+
+    // Wired matrix addon.1200.R2 (wlab4): a second hp fx placed on the stack sent its config and a
+    // VariableFxStatus {allInitialize true, isInitialize true, 80}; the next change sent ONE
+    // VariableFxStatus listing both fx (official client capture 2026-10-24, 2/2).
+    [Fact]
+    public async Task Addon_1200_R2_a_placed_fx_is_shown_as_a_sync_then_changes_list_every_fx()
+    {
+        var hp = await AddUserVariableAsync(HP, 5, 5, "hp");
+        await AddFxAsync(FIRST_FX, 5, 5);
+
+        _room.Enter(1, 1, 1);
+        await GiveAsync(hp, 80);
+        await ProcessAsync();
+
+        var before = Statuses().Count;
+        await AddFxAsync(FIRST_FX + 1, 5, 5);
+        await ProcessAsync();
+
+        var placed = Statuses().Skip(before).Should().ContainSingle().Subject;
+        placed.InitializeAll.Should().BeTrue();
+        placed.Statuses.Should().ContainSingle().Which.IsInitialize.Should().BeTrue();
+
+        before = Statuses().Count;
+        await SetAsync(hp, 60);
+        await ProcessAsync();
+
+        Statuses()
+            .Skip(before)
+            .Should()
+            .ContainSingle()
+            .Which.Statuses.Select(x => x.Key.ConfigId)
+            .Should()
+            .BeEquivalentTo([FIRST_FX, FIRST_FX + 1]);
+    }
+
+    private List<VariableFxStatusMessageComposer> Statuses() =>
+        [.. _room.Harness.Fakes.SentToPlayer<VariableFxStatusMessageComposer>(101)];
+
+    private async Task SetAsync(WiredVariableUser variable, int value) =>
+        (
+            await variable.SetValueAsync(
+                _room.Harness.Fakes.Create<IWiredExecutionContext>(),
+                new WiredVariableKey(
+                    variable.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.User,
+                    1
+                ),
+                new WiredVariableValue(value)
+            )
+        )
+            .Should()
+            .BeTrue();
 
     private async Task<WiredVariableUser> AddUserVariableAsync(int id, int x, int y, string name)
     {

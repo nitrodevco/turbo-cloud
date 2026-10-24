@@ -527,6 +527,13 @@ public class WiredConfig
     /// </summary>
     public int VariableFxMaxPerVariable { get; init; } = 5;
 
+    /// <summary>
+    /// Whether a variable fx shows a value again when it is written unchanged, as Habbo's does
+    /// (official client capture 2026-10-24, WIN63-202610201032, wired matrix addon.1200.R1: set
+    /// 30 then 30 again sent a VariableFxStatus both times, 4/4). Off sends only real changes.
+    /// </summary>
+    public bool VariableFxShowsEveryWrite { get; init; } = true;
+
     /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
     public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
 
