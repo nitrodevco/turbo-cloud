@@ -25,6 +25,8 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Vault;
+using Turbo.Primitives.Vault.Enums;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -56,6 +58,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
     private readonly IInventoryFurnitureLoader _furnitureLoader;
     private readonly IFurnitureCustody _custody;
     private readonly IAssetMovementRecorder _movements;
+    private readonly IIncomeRewardService _incomeRewards;
     private readonly ILogger<IWiredChestGrain> _logger;
 
     private static readonly IReadOnlyDictionary<ChestItemTypeSnapshot, int> NoItems =
@@ -71,6 +74,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         IInventoryFurnitureLoader furnitureLoader,
         IFurnitureCustody custody,
         IAssetMovementRecorder movements,
+        IIncomeRewardService incomeRewards,
         ILogger<IWiredChestGrain> logger
     )
     {
@@ -81,6 +85,7 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         _furnitureLoader = furnitureLoader;
         _custody = custody;
         _movements = movements;
+        _incomeRewards = incomeRewards;
         _logger = logger;
 
         _state = new() { ChestId = RoomObjectId.Parse((int)this.GetPrimaryKeyLong()) };
@@ -625,21 +630,34 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
         }
 
         // Referenced by the transaction, so a retried credit can never pay twice. One operation
-        // with the chest's side: out of the chest (seq 0), into the wallet.
-        var credited = await _grainFactory
-            .GetPlayerWalletGrain(request.ReceiverId)
-            .CreditAsync(
-                CurrencyKind.Credits,
+        // with the chest's side: out of the chest (seq 0), into the wallet. Credits wired gives
+        // wait in the receiver's earnings window instead, under the box's category: the official
+        // server leaves the purse as it is and its client says "You can claim your credits in the
+        // earnings window" (official client capture 2026-10-24, wired matrix action.45.R3;
+        // RewardNotificationView.as:41, WIN63-202610201032); the claim pays the purse.
+        var credited = request.EarningsCategory is { } category
+            ? await _incomeRewards.DepositAsync(
+                request.ReceiverId,
+                (VaultRewardCategoryType)category,
+                VaultRewardType.Credits,
                 amount,
                 CreditReference(transactionId),
-                cause.StartingAt(cause.FirstSeq + 1),
                 ct
-            );
+            )
+            : await _grainFactory
+                .GetPlayerWalletGrain(request.ReceiverId)
+                .CreditAsync(
+                    CurrencyKind.Credits,
+                    amount,
+                    CreditReference(transactionId),
+                    cause.StartingAt(cause.FirstSeq + 1),
+                    ct
+                ) != WalletCreditResult.Rejected;
 
-        if (credited == WalletCreditResult.Rejected)
+        if (!credited)
         {
             _logger.LogError(
-                "The wallet of player {PlayerId} refused {Amount} credits from wired chest {ChestId} (transaction {TransactionId}); putting them back",
+                "Player {PlayerId} could not be paid {Amount} credits from wired chest {ChestId} (transaction {TransactionId}); putting them back",
                 request.ReceiverId,
                 amount,
                 _state.ChestId,

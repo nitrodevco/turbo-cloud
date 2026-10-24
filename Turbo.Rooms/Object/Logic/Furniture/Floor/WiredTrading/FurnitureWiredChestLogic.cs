@@ -257,7 +257,8 @@ public abstract class FurnitureWiredChestLogic(
 
     /// <summary>
     /// Wired giving from this chest to a player (the give-from-chest boxes). The box has checked
-    /// <see cref="IsUsableByWired"/>; the grain checks what there is to give.
+    /// <see cref="IsUsableByWired"/>; the grain checks what there is to give. Credits go to the
+    /// receiver's earnings under <paramref name="earningsCategory"/>, or the purse when null.
     /// </summary>
     public async Task<WiredChestMoveResultSnapshot> GiveAsync(
         PlayerId receiverId,
@@ -267,6 +268,7 @@ public abstract class FurnitureWiredChestLogic(
         WiredChestIterationMode order,
         WiredTransactionType type,
         string definitionInfo,
+        WiredEarningsCategory? earningsCategory,
         CancellationToken ct
     )
     {
@@ -282,6 +284,7 @@ public abstract class FurnitureWiredChestLogic(
                 Order = order,
                 Type = type,
                 DefinitionInfo = definitionInfo,
+                EarningsCategory = earningsCategory,
             },
             ct
         );

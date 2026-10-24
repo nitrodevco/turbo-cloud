@@ -142,6 +142,7 @@ public class WiredChestNotificationTests
             WiredChestIterationMode.FirstInFirstOut,
             WiredTransactionType.Wired,
             string.Empty,
+            earningsCategory: null,
             Ct
         );
 
@@ -171,6 +172,7 @@ public class WiredChestNotificationTests
             WiredChestIterationMode.FirstInFirstOut,
             WiredTransactionType.Wired,
             string.Empty,
+            earningsCategory: null,
             Ct
         );
 
