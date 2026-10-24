@@ -67,6 +67,8 @@ public sealed class PluginManager(
     /// <summary>The admin endpoints and pages of the live plugins; none in a host without them.</summary>
     private PluginAdminRoutes? Routes => host.GetService<PluginAdminRoutes>();
 
+    private PluginWebRoutes? WebRoutes => host.GetService<PluginWebRoutes>();
+
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
         ValidateScopes = true,
@@ -473,6 +475,7 @@ public sealed class PluginManager(
         {
             // Until the new version is up, nothing of the plugin is registered: not "loaded".
             Routes?.Reloading(m.Key);
+            WebRoutes?.Reloading(m.Key);
 
             if (_status.TryGetValue(m.Key, out var was))
                 _status[m.Key] = was with
@@ -513,6 +516,9 @@ public sealed class PluginManager(
 
             if (_live.TryRemove(key, out var env))
             {
+                // Its web routes stop answering before it stops, not once it has.
+                WebRoutes?.Off(key);
+
                 var unloading = await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
 
                 env = null!;
@@ -644,6 +650,11 @@ public sealed class PluginManager(
                 ? PluginAdminRoutes.Build(m.Key, m.Name, m.Version, extension)
                 : null;
 
+            // Its web routes are built (and a bad one refused) before it starts, and answer once it has.
+            var web = WebRoutes is not null
+                ? PluginWebRoutes.Build(m.Key, asm.Assembly, new CompositeServiceProvider(sp, host))
+                : [];
+
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
@@ -658,6 +669,9 @@ public sealed class PluginManager(
 
             if (admin is not null && Routes is { } routes)
                 disposables.Insert(0, routes.Live(m.Key, admin));
+
+            if (web.Length > 0 && WebRoutes is { } webRoutes)
+                disposables.Insert(0, webRoutes.Live(m.Key, web));
         }
         catch
         {
@@ -956,7 +970,10 @@ public sealed class PluginManager(
     {
         // Turned off or failed: what it served in the panel answers "off" until it is back.
         if (state != PluginStateType.Loaded)
+        {
             Routes?.Off(m.Key);
+            WebRoutes?.Off(m.Key);
+        }
 
         _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
     }
@@ -1013,6 +1030,7 @@ public sealed class PluginManager(
             await UnloadAsync(key, ct).ConfigureAwait(false);
 
             Routes?.Off(key);
+            WebRoutes?.Off(key);
 
             if (_status.TryRemove(key, out var status) && Directory.Exists(status.Folder))
                 Directory.Delete(status.Folder, recursive: true);
@@ -1202,6 +1220,8 @@ public sealed class PluginManager(
     {
         if (alc is null)
             return;
+
+        SerializerCaches.Clear();
 
         if (!await AssemblyMemoryLoader.WaitForUnloadAsync(alc, 5000, ct).ConfigureAwait(false))
             _logger.LogWarning(

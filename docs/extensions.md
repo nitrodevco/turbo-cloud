@@ -51,8 +51,7 @@ What already works (each with its guide):
 
 ## 2. What is wrong with it today
 
-Found by building a complete retro hotel (theme, HUD, skills, economy, community, games) as plugins
-only, then reading both code bases end to end (2026-10-23). Ranked by how much internal knowledge
+Found by building a complete hotel's features as plugins only, then reading both code bases end to end (2026-10-23). Ranked by how much internal knowledge
 each forces on an author.
 
 1. **Changing an existing window means shipping a copy of its whole library.** A window's colour,
@@ -84,6 +83,7 @@ each forces on an author.
    admin API (`/api/plugins/{key}/api/...`, panel sign-in). Anything a player's client or a hotel's
    site asks a plugin for over the web - rare values, toplists, profiles, news, a shop page, a game's
    leaderboard - needs the plugin to host its own web server beside Turbo's, with its own auth.
+   (Closed by plugin web routes, §4.8.)
 
 ## 3. The primitives
 
@@ -190,24 +190,31 @@ is its own packet, sent before the module list; a `.d.ts` generator is still to 
 
 ### 4.8 Web routes (a registry)
 
-A plugin registers **player-facing HTTP routes** the way it registers commands: implement a public
-endpoint contract (or declare minimal-API style handlers in `ConfigureServices`), get found by the
-scan, get removed on unload. The host owns everything around the handler, as the admin API already
-does for staff:
+**Implemented**: `docs/plugin-web-routes.md`.
+
+A plugin registers **player-facing HTTP routes** the way it registers commands: a public class
+implementing `IPluginWebRoute` (`Turbo.Contracts.Plugins.Web`) is found by the scan and removed on
+unload. The host owns everything around the handler, as the admin API already does for staff:
 
 - **Address**: `/api/plugins/{key}/...` on the hotel's public web host (beside the gamedata host and
   the site API), so the reverse proxy that serves the hotel serves plugins too; a plugin cannot
   claim another's prefix or a core path.
-- **Who is asking**: the hotel's own player session - the same sign-in the client and site use
-  (SSO ticket or site session), resolved by the host to a `PlayerId` - or anonymous where the route
-  says so. Permission nodes (`[RequiresPermission]`) work as on packet handlers.
+- **Who is asking**: the hotel's own player session - the client's token (given over the game
+  socket, `web.session`) or the site's session cookie, resolved by the host to a `PlayerId` - or
+  anonymous where the route says so. Permission nodes (`[RequiresPermission]`) work as on packet
+  handlers.
 - **Limits**: body and time caps, rate limits per player and per address, CORS from the hotel's own
-  site settings; errors become problem responses with the plugin's key in the log.
+  site settings (`Turbo:Web:PluginRoutes`); errors are `{"error": ...}` answers with the plugin's
+  key in the log.
 - **Lifecycle**: routes go live after the plugin starts and stop answering (404) the moment it
-  unloads, as admin routes do today.
+  starts to unload; while it reloads they answer 503.
 
 The client reaches them through the module API (`api.http.get('rares/values')`, the session
 attached by the client), so a module never handles tokens itself.
+
+Beside the routes, a **play policy** (`IPlayPolicy`, a policy of §4.2) lets a plugin allow or refuse a
+player asking to play - the site's Play and the client's login - with a reason and an address to send
+them to; with none, everyone plays as before (`docs/plugin-web-routes.md` §3).
 
 ## 5. Stability
 
@@ -235,7 +242,8 @@ noted.
 3. **Named messages** (§4.7). Removes header coordination; needs nothing above. Done (`docs/plugin-messages.md`).
 4. **Plugin web routes for players** (§4.8): the hotel's session and permissions on plugin HTTP
    endpoints, `api.http` in the client. Unlocks site/API features a hotel today runs as a separate
-   web app beside the emulator (values, toplists, profiles, news, shop pages).
+   web app beside the emulator (values, toplists, profiles, news, shop pages). Done, with play
+   policies: `docs/plugin-web-routes.md`.
 5. **Extension inspector**: one host endpoint and panel page listing every plugin's contributions
    (modules, patches, overrides, messages, commands, listeners, settings) with conflicts and
    failures; the client's patch report feeds it.

@@ -3,10 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
+using Turbo.Primitives.Web;
 using Turbo.Web.Accounts;
 using Turbo.Web.Api;
 using Turbo.Web.Configuration;
 using Turbo.Web.Discord;
+using Turbo.Web.Plugins;
 using Turbo.Web.Sessions;
 
 namespace Turbo.Web;
@@ -32,6 +34,7 @@ public sealed class WebModule : IHostPluginModule
         services.AddSingleton<WebAccounts>();
         services.AddSingleton<WebSessions>();
         services.AddSingleton<PendingSignUps>();
+        services.AddSingleton<IPlayerWebTokens, PlayerWebTokens>();
         services.AddHostedService<WebApiServer>();
     }
 }

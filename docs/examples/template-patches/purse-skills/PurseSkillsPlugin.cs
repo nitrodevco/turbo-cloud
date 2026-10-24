@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Exports;
+using Turbo.Contracts.Plugins.Web;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Networking;
@@ -18,7 +20,8 @@ namespace PurseSkills;
 /// <summary>
 /// An add-on with both halves: the client module (<c>wwwroot/skills.js</c>) adds a Skills button to
 /// the purse and a window of its own; this server half keeps each player's experience and answers
-/// the window. The experience is kept in memory to keep the example small: a real plugin keeps it in
+/// the window over its packets, and serves the hotel's best players over HTTP for the window and
+/// for the site (<see cref="TopRoute"/>, <see cref="MeRoute"/>, <c>docs/plugin-web-routes.md</c>). The experience is kept in memory to keep the example small: a real plugin keeps it in
 /// its own table (<c>docs/database.md</c>).
 /// </summary>
 public sealed class PurseSkillsPlugin : ITurboPlugin
@@ -110,6 +113,16 @@ public sealed class SkillBook
     public SkillMessage Train(long playerId, int amount) =>
         Message(_experience.AddOrUpdate(playerId, amount, (_, current) => current + amount));
 
+    /// <summary>The players with the most experience, most first.</summary>
+    public IReadOnlyList<(long PlayerId, int Experience)> Top(int count) =>
+        [
+            .. _experience
+                .OrderByDescending(x => x.Value)
+                .ThenBy(x => x.Key)
+                .Take(count)
+                .Select(x => (x.Key, x.Value)),
+        ];
+
     private static SkillMessage Message(int total) =>
         new(1 + (total / PER_LEVEL), total % PER_LEVEL, PER_LEVEL);
 }
@@ -130,4 +143,58 @@ public sealed class TrainHandler(SkillBook book) : IMessageHandler<TrainMessage>
         MessageContext ctx,
         CancellationToken ct
     ) => await ctx.SendComposerAsync(book.Train(ctx.PlayerId.Value, 25), ct).ConfigureAwait(false);
+}
+
+/// <summary>
+/// <c>GET /api/plugins/skills/top</c>: the ten players with the most experience. Anyone may ask,
+/// signed in or not, so the hotel's site can show it on a page.
+/// </summary>
+public sealed class TopRoute(SkillBook book) : IPluginWebRoute
+{
+    public string Method => "GET";
+
+    public string Pattern => "top";
+
+    public bool Anonymous => true;
+
+    public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+        Task.FromResult(
+            PluginWebResult.Ok(
+                book.Top(10)
+                    .Select(x => new
+                    {
+                        playerId = x.PlayerId,
+                        level = 1 + (x.Experience / SkillBook.PER_LEVEL),
+                        experience = x.Experience,
+                    })
+                    .ToList()
+            )
+        );
+}
+
+/// <summary>
+/// <c>GET /api/plugins/skills/me</c>: the signed-in player's own skill. The host answers 401 to
+/// someone who is not signed in, so <see cref="PluginWebRequest.PlayerId"/> is always set here.
+/// </summary>
+public sealed class MeRoute(SkillBook book) : IPluginWebRoute
+{
+    public string Method => "GET";
+
+    public string Pattern => "me";
+
+    public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct)
+    {
+        var skill = book.Of(request.PlayerId!.Value);
+
+        return Task.FromResult(
+            PluginWebResult.Ok(
+                new
+                {
+                    level = skill.Level,
+                    experience = skill.Experience,
+                    needed = skill.Needed,
+                }
+            )
+        );
+    }
 }

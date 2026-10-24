@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
+using Turbo.Contracts.Plugins.Web;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Data;
 using Turbo.Plugins.Sources;
@@ -28,6 +29,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PluginManager>();
         services.AddSingleton<PluginAdminRoutes>();
         services.AddSingleton<IPluginAdminRoutes>(sp => sp.GetRequiredService<PluginAdminRoutes>());
+        services.AddSingleton<PluginWebRoutes>();
+        services.AddSingleton<IPluginWebRoutes>(sp => sp.GetRequiredService<PluginWebRoutes>());
         services.AddSingleton<PluginTables>();
         services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginTables>());
         services.AddSingleton<PluginAdministration>();

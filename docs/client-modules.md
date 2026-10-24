@@ -158,7 +158,8 @@ short, for api version 1:
   read and written from the schema `client.messages` sends: `docs/plugin-messages.md`),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
   `room.avatarOverlay(fn)`, `room.leave()`, `hotelView.addLayer(component, { replacesBackground })` (drawn in the
-  reception behind its widgets), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up
+  reception behind its widgets), `http.get/post/put/patch/delete` (the plugin's own web routes, signed in as
+  the player: `docs/plugin-web-routes.md`), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up
   until the module takes it down).
 
 ## 5. Texts and variables a plugin brings

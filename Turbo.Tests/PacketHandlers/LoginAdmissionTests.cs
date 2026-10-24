@@ -35,6 +35,14 @@ public class LoginAdmissionTests
     private static readonly DateTime NOW = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly Fakes _fakes = new();
+    private readonly Turbo.Authentication.PlayPolicies _policies = new(
+        Microsoft
+            .Extensions
+            .Logging
+            .Abstractions
+            .NullLogger<Turbo.Authentication.PlayPolicies>
+            .Instance
+    );
     private readonly Dictionary<string, string> _hotelTexts = [];
     private readonly ISessionContext _session;
     private readonly SSOTicketMessageHandler _handler;
@@ -68,7 +76,8 @@ public class LoginAdmissionTests
             _fakes.Create<Turbo.Primitives.Moderation.IModerationToolService>(),
             _fakes.Create<Turbo.Primitives.Moderation.IModerationIssueService>(),
             _fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
-            _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>()
+            _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>(),
+            _policies
         );
     }
 
@@ -189,6 +198,73 @@ public class LoginAdmissionTests
             .Single()
             .Message.Should()
             .Be("Back at six.");
+    }
+
+    [Fact]
+    public async Task APlayPolicy_RefusesTheLogin_WithItsReasonAndAddress_BeforeTheSessionKnowsWhoTheyAre()
+    {
+        var asked = new List<PlayRequest>();
+
+        _policies.Register("audit", new Policy(r => Task.FromResult(PlayDecision.Allow), asked));
+        _policies.Register(
+            "gate",
+            new Policy(
+                r =>
+                    Task.FromResult(
+                        PlayDecision.Refuse("Vote for us first.", "https://vote.example.com/")
+                    ),
+                asked
+            )
+        );
+
+        await LogInAsync();
+
+        var popup = SentToSession()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<NotificationDialogMessageComposer>()
+            .Which;
+
+        popup.NotificationType.Should().Be(SSOTicketMessageHandler.PLAY_REFUSED);
+        popup.Parameters["message"].Should().Be("Vote for us first.");
+        popup.Parameters["linkUrl"].Should().Be("https://vote.example.com/");
+        popup.Parameters["display"].Should().Be("POP_UP");
+        // Same order, so by plugin key: "audit" allows, then "gate" refuses.
+        asked
+            .Should()
+            .HaveCount(2)
+            .And.OnlyContain(x => x.PlayerId == PLAYER && x.Source == PlaySource.Login);
+        Closed.Should().BeTrue();
+        Bound.Should().BeFalse();
+        Steps.Should().Equal(Turbo.Primitives.Tracking.ClientLoginSteps.AUTH_FAIL);
+    }
+
+    [Fact]
+    public async Task APlayPolicy_ThatFails_IsPassedOver()
+    {
+        _policies.Register(
+            "broken",
+            new Policy(_ => throw new InvalidOperationException("down"), [])
+        );
+
+        await Record.ExceptionAsync(LogInAsync);
+
+        Bound.Should().BeTrue();
+        SentToSession().OfType<NotificationDialogMessageComposer>().Should().BeEmpty();
+    }
+
+    private sealed class Policy(
+        Func<PlayRequest, Task<PlayDecision>> decide,
+        List<PlayRequest> asked
+    ) : IPlayPolicy
+    {
+        public async ValueTask<PlayDecision> CheckAsync(PlayRequest request, CancellationToken ct)
+        {
+            asked.Add(request);
+
+            return await decide(request);
+        }
     }
 
     [Fact]

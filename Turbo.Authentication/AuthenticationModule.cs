@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Authentication;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Authentication;
 
@@ -16,5 +17,8 @@ public sealed class AuthenticationModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
+        services.AddSingleton<PlayPolicies>();
+        services.AddSingleton<IPlayPolicies>(sp => sp.GetRequiredService<PlayPolicies>());
+        services.AddSingleton<IAssemblyFeatureProcessor, PlayPolicyFeatureProcessor>();
     }
 }

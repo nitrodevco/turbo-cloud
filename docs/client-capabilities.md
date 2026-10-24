@@ -294,6 +294,19 @@ down by the server's clock. A client that accepts the extension while a notice i
 after the capability answer. Clients that don't (the Flash client) see only Habbo's own closing
 alerts.
 
+## `web.session` (version 1)
+
+| Direction | Header | Packet | Body |
+| --- | --- | --- | --- |
+| client → server | 30011 | `TurboWebSessionRequestMessage` | empty |
+| server → client | 30012 | `TurboWebSessionMessage` | `string baseUrl`, `string token`, `int expiresInSeconds` |
+
+A signed-in client asks for a token to call the hotel's plugin web routes as its player
+(`docs/plugin-web-routes.md`): `baseUrl` is the address before `/api/plugins/`, the token goes in
+`Authorization: Bearer`, and it lasts `expiresInSeconds`. Each request replaces the player's last
+token; a client asks again when a route answers 401. Always answered, with an empty token when the
+hotel serves no plugin routes. nitro-next asks the first time a module calls `api.http`.
+
 ## `client.modules` (version 1)
 
 The client modules the hotel's plugins bring: JavaScript ES modules the client loads and runs beside
