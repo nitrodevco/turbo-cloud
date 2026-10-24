@@ -33,6 +33,14 @@ public class WiredConfig
     public int StackVisitWindowMs { get; init; } = 500;
 
     /// <summary>
+    /// Whether "Call Stacks" skips a stack that already ran in the same execution, as Habbo does
+    /// (official client capture 2026-10-24, WIN63-202610201032: two stacks calling each other ran
+    /// once each per click, 2/2, with no error; a stack calling its own trigger ran once). Off lets
+    /// a call run such a stack again, up to <see cref="MaxStackVisitsPerWindow"/>.
+    /// </summary>
+    public bool CallStacksOncePerExecution { get; init; } = true;
+
+    /// <summary>
     /// How long, in wall-clock milliseconds, one execution's signals and stack calls may keep
     /// running before it is stopped and RECURSION_TIMEOUT is counted. Habbo does not disclose its
     /// duration ("an execution taking too long is stopped", in-client error help). 0 or less is no

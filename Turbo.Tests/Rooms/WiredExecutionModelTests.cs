@@ -491,6 +491,159 @@ public sealed class WiredExecutionModelTests
         Logged("click").Should().Be(2, "the halt ends after ten minutes");
     }
 
+    // action.30.X2: a ring of two stacks (one receives A, counts and sends to B; the other
+    // receives B and sends to A) started by one click counts exactly 100, then stops in the same
+    // execution with no error logged and no later runs (official client capture 2026-10-24,
+    // WIN63-202610201032, 2/2), at the default limits.
+    [Fact]
+    public async Task Action30X2_ATwoStackSignalRingCounts100ThenStopsWithoutAnError()
+    {
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        UseWallClockAdvancing(0);
+        await BuildStackAsync(0, 0, clickTrigger: true, actions: [Signal(ANTENNA_A)]);
+        await BuildStackAsync(
+            0,
+            2,
+            receiveAntenna: ANTENNA_A,
+            actions: [Log("count"), Signal(ANTENNA_B)]
+        );
+        await BuildStackAsync(0, 4, receiveAntenna: ANTENNA_B, actions: [Signal(ANTENNA_A)]);
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("count").Should().Be(100);
+
+        await TickAsync(4);
+
+        Logged("count").Should().Be(100);
+        Wired.GetErrorLogs(_now).Should().OnlyContain(x => x.ThrowCount == 0);
+    }
+
+    // action.30.R1: Send Signal with no antenna is a no-op: no receiver fires and no error is
+    // logged (official client capture 2026-10-24, WIN63-202610201032, 2/2).
+    [Fact]
+    public async Task Action30R1_ASignalToNoAntennaRunsNothingAndLogsNoError()
+    {
+        await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("sent"), Signal(0)]);
+        await BuildStackAsync(0, 2, receiveAntenna: ANTENNA_A, actions: [Log("received")]);
+        await BuildStackAsync(
+            0,
+            4,
+            receiveSource: WiredFurniSourceType.SignalItems,
+            actions: [Log("received")]
+        );
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("sent").Should().Be(1);
+        Logged("received").Should().Be(0);
+        Wired.GetErrorLogs(_now).Should().OnlyContain(x => x.ThrowCount == 0);
+    }
+
+    // trigger.17.R6: a receiver listening on the signal's furni (source 201) fires only when the
+    // addressed antenna is among the furni the signal forwards (official client capture
+    // 2026-10-24, WIN63-202610201032: to A forwarding A fires, forwarding B or nothing does not,
+    // to B forwarding A does not; 8/8).
+    [Theory]
+    [InlineData(ANTENNA_A, ANTENNA_A, 1)]
+    [InlineData(ANTENNA_A, ANTENNA_B, 0)]
+    [InlineData(ANTENNA_A, 0, 0)]
+    [InlineData(ANTENNA_B, ANTENNA_A, 0)]
+    public async Task Trigger17R6_AReceiverOnTheSignalsFurniFiresForAForwardedAntennaOnly(
+        int sentTo,
+        int forwarded,
+        int fired
+    )
+    {
+        await BuildStackAsync(
+            0,
+            0,
+            clickTrigger: true,
+            actions: [Signal(sentTo, forward: forwarded)]
+        );
+        await BuildStackAsync(
+            0,
+            2,
+            receiveSource: WiredFurniSourceType.SignalItems,
+            actions: [Log("received")]
+        );
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("received").Should().Be(fired);
+    }
+
+    // action.18.X2: Call Stacks picking its own stack's trigger runs the stack once per click,
+    // with no error (official client capture 2026-10-24, WIN63-202610201032, 2/2).
+    [Fact]
+    public async Task Action18X2_AStackCallingItselfRunsOncePerClick()
+    {
+        var self = await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("count")]);
+        await AddCallAsync(0, 0, self);
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("count").Should().Be(2);
+        Wired.GetErrorLogs(_now).Should().OnlyContain(x => x.ThrowCount == 0);
+    }
+
+    // action.18.X4: K calls X: each counts once; K and X calling each other: still each once per
+    // click, the call back into K dropped without an error (official client capture 2026-10-24,
+    // WIN63-202610201032, 1/1 + 2/2).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Action18X4_StacksCallingEachOtherRunOncePerEvent(bool mutual)
+    {
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        UseWallClockAdvancing(0);
+        var k = await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("k")]);
+        var x = await BuildStackAsync(0, 2, receiveAntenna: ANTENNA_B, actions: [Log("x")]);
+        await AddCallAsync(0, 0, x);
+
+        if (mutual)
+            await AddCallAsync(0, 2, k);
+
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("k").Should().Be(1);
+        Logged("x").Should().Be(1);
+        Wired.GetErrorLogs(_now).Should().OnlyContain(e => e.ThrowCount == 0);
+    }
+
+    [Fact]
+    public async Task Action18X4_AHotelMayLetCallsRunAStackAgainUpToItsVisits()
+    {
+        Configure(
+            new WiredConfig { MaxRoomLogEntries = 10_000, CallStacksOncePerExecution = false }
+        );
+        UseWallClockAdvancing(0);
+        var k = await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("k")]);
+        var x = await BuildStackAsync(0, 2, receiveAntenna: ANTENNA_B, actions: [Log("x")]);
+        await AddCallAsync(0, 0, x);
+        await AddCallAsync(0, 2, k);
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("k").Should().Be(101, "the click, then 100 calls");
+        Logged("x").Should().Be(100);
+    }
+
     // --- builds ---
 
     private sealed record ActionSpec(Func<int, int, int, Task> AddAndSave);
@@ -513,7 +666,8 @@ public sealed class WiredExecutionModelTests
         );
     }
 
-    private async Task BuildStackAsync(
+    /// <summary>Builds a stack and returns its trigger box's id.</summary>
+    private async Task<int> BuildStackAsync(
         int x,
         int y,
         bool clickTrigger = false,
@@ -521,7 +675,8 @@ public sealed class WiredExecutionModelTests
         int shortPeriodUnits = 0,
         int receiveAntenna = 0,
         ActionSpec[]? actions = null,
-        bool inOrder = false
+        bool inOrder = false,
+        WiredFurniSourceType receiveSource = WiredFurniSourceType.SelectedItems
     )
     {
         var triggerId = _nextBoxId++;
@@ -565,10 +720,10 @@ public sealed class WiredExecutionModelTests
             (
                 await _room.SaveAsync<UpdateTriggerMessage>(
                     triggerId,
-                    stuffIds: [receiveAntenna],
+                    stuffIds: receiveAntenna == 0 ? [] : [receiveAntenna],
                     furniSources:
                     [
-                        [WiredFurniSourceType.SelectedItems],
+                        [receiveSource],
                     ]
                 )
             ).Should().BeTrue();
@@ -582,6 +737,27 @@ public sealed class WiredExecutionModelTests
         }
 
         _stackIds.Add(_room.Map.ToIdx(x, y));
+
+        return triggerId;
+    }
+
+    /// <summary>Adds a "call stacks" effect to the stack at (x, y) calling the stack of the picked box.</summary>
+    private async Task AddCallAsync(int x, int y, int pickedBoxId)
+    {
+        var id = _nextBoxId++;
+
+        _room.AddBox<WiredActionCallStacks>(id, x, y, "wf_act_call_stacks");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                id,
+                stuffIds: [pickedBoxId],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
     }
 
     private ActionSpec Log(string text, int delayPulses = 0) =>
@@ -602,7 +778,8 @@ public sealed class WiredExecutionModelTests
             }
         );
 
-    private ActionSpec Signal(int antenna, int delayPulses = 0) =>
+    /// <summary>Sends to <paramref name="antenna"/> (none when 0), forwarding <paramref name="forward"/> (none when 0).</summary>
+    private ActionSpec Signal(int antenna, int delayPulses = 0, int forward = 0) =>
         new(
             async (id, x, y) =>
             {
@@ -611,11 +788,12 @@ public sealed class WiredExecutionModelTests
                     await _room.SaveAsync<UpdateActionMessage>(
                         id,
                         intParams: [0, 0],
-                        stuffIds: [antenna],
+                        stuffIds: antenna == 0 ? [] : [antenna],
+                        stuffIds2: forward == 0 ? [] : [forward],
                         furniSources:
                         [
                             [WiredFurniSourceType.SelectedItems],
-                            [WiredFurniSourceType.SelectedItems],
+                            [WiredFurniSourceType.SecondaryItems],
                         ],
                         playerSources:
                         [
