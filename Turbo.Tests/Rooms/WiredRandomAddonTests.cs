@@ -97,10 +97,33 @@ public sealed class WiredRandomAddonTests
         landed.Should().BeEquivalentTo(["5@2,6", "5@6,6"]);
     }
 
-    private async Task BuildAsync(int avoid, int picks)
+    // addon.2: the unseen add-on runs each effect once before any repeats (confidential capture,
+    // extras experiment: unseen_uses_each_effect_before_repeat, choices [1,2]).
+    [Fact]
+    public async Task Addon2_TheUnseenAddon_RunsEachEffectOnceBeforeRepeating()
+    {
+        await BuildAsync(avoid: 0, picks: 0, unseen: true);
+
+        var landed = new List<string>();
+
+        for (var i = 0; i < 6; i++)
+        {
+            await ClickAsync();
+            landed.Add(_room.Positions()[0]);
+        }
+
+        for (var i = 0; i < landed.Count; i += 2)
+            landed.Skip(i).Take(2).Should().BeEquivalentTo(["5@2,6", "5@6,6"]);
+    }
+
+    private async Task BuildAsync(int avoid, int picks, bool unseen = false)
     {
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
-        _room.AddBox<WiredAddonRandomActions>(2, 0, 0, "wf_xtra_random");
+
+        if (unseen)
+            _room.AddBox<WiredAddonUnseenActions>(2, 0, 0, "wf_xtra_unseen");
+        else
+            _room.AddBox<WiredAddonRandomActions>(2, 0, 0, "wf_xtra_random");
         _room.AddBox<WiredActionTeleportTo>(3, 0, 0, "wf_act_teleport_to");
         _room.AddBox<WiredActionTeleportTo>(4, 0, 0, "wf_act_teleport_to");
 
@@ -114,7 +137,9 @@ public sealed class WiredRandomAddonTests
                 ]
             )
         ).Should().BeTrue();
-        (await _room.SaveAsync<UpdateAddonMessage>(2, intParams: [avoid, picks])).Should().BeTrue();
+        (await _room.SaveAsync<UpdateAddonMessage>(2, intParams: unseen ? [] : [avoid, picks]))
+            .Should()
+            .BeTrue();
 
         foreach (var (box, target) in new[] { (3, LEFT), (4, RIGHT) })
         {
