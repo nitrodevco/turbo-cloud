@@ -205,7 +205,8 @@ public class WiredVariableReference(
 
     protected override bool GetValidVariableIds(
         List<string> proposed,
-        out List<WiredVariableId> variableIds
+        out List<WiredVariableId> variableIds,
+        bool keepRemoved = false
     )
     {
         variableIds = SourceVariableId is { } id && proposed.Contains(id.ToString()) ? [id] : [];

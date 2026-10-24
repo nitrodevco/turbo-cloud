@@ -846,25 +846,44 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     protected virtual bool HasPositionalVariableIds => false;
 
+    /// <summary>
+    /// The variable ids a box keeps from <paramref name="proposed"/>: known variables, by their
+    /// current id. With <paramref name="keepRemoved"/> (what a saved box stores and opens with) an
+    /// id whose variable box was picked up stays as it was: Habbo's referencing boxes still opened
+    /// with the picked-up variable's id (official client capture 2026-10-24, WIN63-202610201032,
+    /// wired matrix variable.0.R2 / variable.2.R2; <see cref="WiredConfig.KeepRemovedVariableReferences"/>).
+    /// </summary>
     protected virtual bool GetValidVariableIds(
         List<string> proposed,
-        out List<WiredVariableId> variableIds
+        out List<WiredVariableId> variableIds,
+        bool keepRemoved = false
     )
     {
         variableIds = [];
 
         var max = GetMaxVariableIds();
 
+        keepRemoved &= WiredConfig.KeepRemovedVariableReferences;
+
         if (HasPositionalVariableIds)
         {
             for (var slot = 0; slot < max; slot++)
             {
+                if (
+                    slot >= proposed.Count
+                    || !WiredVariableId.TryParse(proposed[slot], out var slotId)
+                )
+                {
+                    variableIds.Add(NO_VARIABLE);
+
+                    continue;
+                }
+
                 variableIds.Add(
-                    slot < proposed.Count
-                    && WiredVariableId.TryParse(proposed[slot], out var slotId)
-                    && WiredSystem.GetVariableById(slotId) is { } slotVariable
+                    WiredSystem.GetVariableById(slotId) is { } slotVariable
                         ? slotVariable.GetVarSnapshot().VariableId
-                        : NO_VARIABLE
+                    : keepRemoved ? slotId
+                    : NO_VARIABLE
                 );
             }
 
@@ -891,10 +910,10 @@ public abstract partial class FurnitureWiredLogic(
                 continue;
 
             // An id saved before built-in variables took Habbo's fixed ids is stored as the new one.
-            if (WiredSystem.GetVariableById(variableId) is not { } variable)
+            if (WiredSystem.GetVariableById(variableId) is { } variable)
+                variableId = variable.GetVarSnapshot().VariableId;
+            else if (!keepRemoved)
                 continue;
-
-            variableId = variable.GetVarSnapshot().VariableId;
 
             if (variableIds.Contains(variableId))
                 continue;
@@ -980,7 +999,7 @@ public abstract partial class FurnitureWiredLogic(
             }
         }
 
-        if (GetValidVariableIds(_wiredData.VariableIds, out var variableIds))
+        if (GetValidVariableIds(_wiredData.VariableIds, out var variableIds, keepRemoved: true))
         {
             var variableIdStrings = variableIds.Select(x => x.ToString()).ToList();
 
@@ -1078,7 +1097,11 @@ public abstract partial class FurnitureWiredLogic(
             Id = _ctx.ObjectId,
             StringParam = GetEditorStringParam(),
             IntParams = _wiredData.IntParams,
-            VariableIds = GetValidVariableIds(_wiredData.VariableIds, out var validVariableIds)
+            VariableIds = GetValidVariableIds(
+                _wiredData.VariableIds,
+                out var validVariableIds,
+                keepRemoved: true
+            )
                 ? validVariableIds
                 : [],
             FurniSourceTypes = GetFurniSources(),

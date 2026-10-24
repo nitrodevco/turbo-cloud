@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,11 +23,31 @@ public sealed partial class RoomWiredSystem
     private bool _restartPeriodicTriggers;
     private bool _timedTriggersStarted;
 
-    /// <summary>Restarts the timer that "time elapsed" and "at given time" wired read.</summary>
+    /// <summary>
+    /// Restarts the timer that "time elapsed" and "at given time" wired read, and with
+    /// <see cref="WiredConfig.ResetTimersRestartsPeriodicTriggers"/> the periodic triggers too.
+    /// </summary>
     public void ResetTimers(long now)
     {
         _timersEpochMs = now;
         _timersEpochVersion++;
+
+        if (!WiredConfig.ResetTimersRestartsPeriodicTriggers)
+            return;
+
+        // Habbo's Timer Reset "resets triggers that use timers" (furnidata): a repeater it resets
+        // fires on the next avatar tick. In its own 3 s repeater's stack it fired the stack on
+        // every 500 ms tick, 19 times in 9.5 s, and 3 s apart again once the box was moved off
+        // (official client capture 2026-10-24, WIN63-202610201032, wired matrix action.1.R2).
+        // That a reset restarts repeaters on other stacks too is inferred from the furnidata.
+        foreach (var (_, trigger) in _timedTriggers)
+        {
+            if (trigger is WiredTriggerPeriodically periodic)
+                _nextPeriodicAtMs[periodic.ObjectId] = ResetPeriodicAt(
+                    now,
+                    periodic.GetPeriodicDelayMs()
+                );
+        }
     }
 
     /// <summary>Milliseconds since the timers were last reset (or since wired first ran).</summary>
@@ -95,6 +116,19 @@ public sealed partial class RoomWiredSystem
         var avatarTickMs = RoomConfig.AvatarTickMs;
 
         return avatarTickMs > 0 ? _roomGrain.AlignToNextBoundary(now, avatarTickMs) : now;
+    }
+
+    /// <summary>
+    /// When a periodic trigger fires after a Timer Reset: on the next avatar tick, or a period
+    /// from now for one shorter than an avatar tick.
+    /// </summary>
+    private long ResetPeriodicAt(long now, long delayMs)
+    {
+        var avatarTickMs = RoomConfig.AvatarTickMs;
+
+        return avatarTickMs > 0
+            ? Math.Min(now + delayMs, _roomGrain.AlignToNextBoundary(now + 1, avatarTickMs))
+            : now + delayMs;
     }
 
     private async Task ProcessTimedTriggersAsync(long now, CancellationToken ct)

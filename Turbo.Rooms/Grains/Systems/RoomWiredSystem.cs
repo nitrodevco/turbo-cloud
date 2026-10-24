@@ -673,6 +673,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
+        // Habbo flashes an effect with a delay when its stack fires, not when it runs: a 3 s
+        // delayed Adjust Clock flashed with the repeater that fired it, and the runs still pending
+        // when it was moved off the stack changed the counter without a flash (official client
+        // capture 2026-10-24, WIN63-202610201032, 6/6; wired matrix action.38.R7).
+        foreach (var action in pick.Actions)
+        {
+            if (action.GetDelayMs() > 0)
+                Flash(action);
+        }
+
         ScheduleStackExecution(ctx, pick.Actions, now);
 
         foreach (var addon in ctx.Stack.Addons)
@@ -1156,9 +1166,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 )
                     break;
 
-                action
-                    .FlashActivationStateAsync(ct)
-                    .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
+                // A delayed effect flashed when its stack fired.
+                if (action.GetDelayMs() <= 0)
+                    action
+                        .FlashActivationStateAsync(ct)
+                        .LogAndForget(
+                            Logger,
+                            "flash a wired box in room {RoomId}",
+                            _roomGrain.RoomId
+                        );
 
                 var outer = _contextValues;
                 var outerRunning = _running;

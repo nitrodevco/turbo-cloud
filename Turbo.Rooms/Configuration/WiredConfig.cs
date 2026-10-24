@@ -564,6 +564,28 @@ public class WiredConfig
     /// empty room is dropped, not delivered when someone enters later).
     /// </summary>
     public bool LinkDeliversToUnloadedRooms { get; init; }
+
+    /// <summary>
+    /// Whether "Timer Reset" also restarts the periodic triggers, each firing on the next avatar
+    /// tick, as Habbo's does (official client capture 2026-10-24: in its own repeater's stack it
+    /// fired that stack on every 500 ms tick). Off: it restarts only the timer "time elapsed" and
+    /// "at given time" read.
+    /// </summary>
+    public bool ResetTimersRestartsPeriodicTriggers { get; init; } = true;
+
+    /// <summary>
+    /// Whether a counter running when its room unloaded comes back stopped at 00:00, as Habbo's
+    /// does (official client capture 2026-10-24: one running at 10 s was "0" and still after the
+    /// reload). Off: it comes back paused at the time it had.
+    /// </summary>
+    public bool RunningClocksResetOnRoomLoad { get; init; } = true;
+
+    /// <summary>
+    /// Whether a box keeps naming a variable whose box was picked up, as Habbo's do (official
+    /// client capture 2026-10-24: five boxes still opened with the picked-up furni variable's id,
+    /// and Change Variable Value with the room variable's). Off: the reference is dropped.
+    /// </summary>
+    public bool KeepRemovedVariableReferences { get; init; } = true;
 }
 
 /// <summary>Who is told when a room hits a wired limit (<see cref="WiredConfig.ErrorNoticeRecipients"/>).</summary>
