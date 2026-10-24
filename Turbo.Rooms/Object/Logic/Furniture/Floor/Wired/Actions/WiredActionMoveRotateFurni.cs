@@ -82,8 +82,12 @@ public class WiredActionMoveRotateFurni(
 
             // A user on the tiles it would move to blocks it, and raises no collision (official
             // client capture 2026-10-24, W1 lab action.4.B1, 4/4); "move through users" lets it
-            // pass (inferred from the add-on's name).
-            if (IsBlockedByUser(ctx, floorItem, targetX, targetY, moveRotation))
+            // pass (action.4.B1 with the physics add-on, addon.7.R1 1/1). Turning in place over a
+            // user is not blocked (action.4.B2b, 1/1).
+            if (
+                (targetX != at.X || targetY != at.Y)
+                && IsBlockedByUser(ctx, floorItem, targetX, targetY, moveRotation)
+            )
             {
                 plan.Block();
 
