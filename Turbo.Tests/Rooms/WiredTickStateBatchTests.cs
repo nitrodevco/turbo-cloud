@@ -146,7 +146,9 @@ public sealed class WiredTickStateBatchTests
                     createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
+        // Running, as in the capture: a reset does nothing to a counter never started.
         await counter.AdjustAsync(WiredOperatorType.Set, 10, Ct);
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
         _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 0, 0, "wf_trg_click_furni");
         _room.AddBox<WiredActionControlClock>(EFFECT_A, 0, 0, "wf_act_control_clock");
         (

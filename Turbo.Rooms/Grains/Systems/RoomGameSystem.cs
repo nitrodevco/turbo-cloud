@@ -41,6 +41,10 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     /// <summary>The kind of team each player joined, which <c>@team.type</c> reports.</summary>
     private readonly Dictionary<PlayerId, WiredTeamType> _teamTypeByPlayerId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
+
+    /// <summary>When each team's score last changed, in the order the changes came; 0 for never.</summary>
+    private readonly long[] _teamScoredAt = new long[(int)GameTeamType.Yellow + 1];
+    private long _scoreChanges;
     private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
 
     public bool IsGameRunning { get; private set; }
@@ -64,22 +68,44 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
     public int GetScore(GameTeamType team) => IsTeam(team) ? _teamScores[(int)team] : 0;
 
-    /// <summary>1 for the leading team, 4 for the last; ties share the better placement.</summary>
+    /// <summary>
+    /// 1 for the leading team, 4 for the last. A tie is not shared: the team that reached the
+    /// score first places higher (red at 30 before green reached 30: red 1st held, green 1st and
+    /// red 2nd failed; official client capture 2026-10-24, condition.31.R5), and teams that never
+    /// scored go by team number (red alone at 0 placed 1st, condition.31.R1; inference: the
+    /// order is red, green, blue, yellow).
+    /// </summary>
     public int GetPlacement(GameTeamType team)
     {
         if (!IsTeam(team))
             return (int)GameTeamType.Yellow;
 
-        var score = _teamScores[(int)team];
         var better = 0;
 
         for (var i = (int)GameTeamType.Red; i <= (int)GameTeamType.Yellow; i++)
         {
-            if (i != (int)team && _teamScores[i] > score)
+            if (i != (int)team && PlacesAbove(i, (int)team))
                 better++;
         }
 
         return better + 1;
+    }
+
+    private bool PlacesAbove(int team, int other)
+    {
+        if (_teamScores[team] != _teamScores[other])
+            return _teamScores[team] > _teamScores[other];
+
+        if (_teamScoredAt[team] != _teamScoredAt[other])
+            return _teamScoredAt[team] < _teamScoredAt[other];
+
+        return team < other;
+    }
+
+    private void SetTeamScore(GameTeamType team, int score)
+    {
+        _teamScores[(int)team] = score;
+        _teamScoredAt[(int)team] = ++_scoreChanges;
     }
 
     public IEnumerable<PlayerId> GetTeamMembers(GameTeamType team) =>
@@ -157,7 +183,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (next == previous)
             return false;
 
-        _teamScores[(int)team] = next;
+        SetTeamScore(team, next);
 
         await _roomGrain.PublishRoomEventAsync(
             new GameScoreChangedEvent
@@ -175,7 +201,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Adds points to a team. <paramref name="timesPerGame"/> caps how often one source (the
+    /// Adds points to a team while a game runs (<c>RoomConfig.GameScoreOnlyWhileGameRuns</c>).
+    /// <paramref name="timesPerGame"/> caps how often one source (the
     /// furni handing out the points) may score for one player during a game; zero means
     /// unlimited.
     /// </summary>
@@ -189,6 +216,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     )
     {
         if (!IsTeam(team))
+            return false;
+
+        if (RoomConfig.GameScoreOnlyWhileGameRuns && !IsGameRunning)
             return false;
 
         if (timesPerGame > 0)
@@ -205,7 +235,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         var previous = _teamScores[(int)team];
 
-        _teamScores[(int)team] = Math.Max(0, previous + points);
+        SetTeamScore(team, Math.Max(0, previous + points));
 
         await _roomGrain.PublishRoomEventAsync(
             new GameScoreChangedEvent
@@ -226,6 +256,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     public async Task StartGameAsync(CancellationToken ct)
     {
         Array.Clear(_teamScores);
+        Array.Clear(_teamScoredAt);
         _scoreGrants.Clear();
 
         IsGameRunning = true;

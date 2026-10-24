@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Orleans;
@@ -28,17 +29,15 @@ public class WiredConditionTeamHasRank(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<GameTeamType>(GameTeamType.None), new WiredRangeParamRule(0, 3, 0)];
 
+    // The users' quantifier radio (quantifierType 2 in every official Open of codes 6, 17, 31
+    // and 34, official client capture).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Users;
+
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var placement = GetIntParamOrDefault(1, 0) + 1;
 
-        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
-        {
-            if (GameSystem.GetPlacement(team) == placement)
-                return true;
-        }
-
-        return false;
+        return MatchesTeams(ctx, team => GameSystem.GetPlacement(team) == placement);
     }
 
     // Whose team "Triggerer's team" is: the triggering user by default, or a selector's or a
@@ -46,21 +45,25 @@ public class WiredConditionTeamHasRank(
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     /// <summary>
-    /// The configured team, or the teams of the user slot's users when set to "Triggerer's team"
-    /// (wiredfurni.params.team.triggerer).
+    /// The configured team, or when set to "Triggerer's team" (wiredfurni.params.team.triggerer)
+    /// the team of each user in the user slot, folded by the quantifier: a user in no team fails,
+    /// and with no user at all "all match" holds and "any matches" does not. A named team is no
+    /// user's, so the quantifier leaves it alone (official client capture 2026-10-24: under
+    /// Periodically, triggerer's team passed with All and failed with Any, explicit red passed
+    /// with both; a triggerer in no team failed, condition.31.R1/R2, condition.34.R1/R2).
     /// </summary>
-    protected IEnumerable<GameTeamType> ResolveTeams(
-        GameTeamType configured,
-        IWiredProcessingContext ctx
-    )
+    protected bool MatchesTeams(IWiredProcessingContext ctx, Func<GameTeamType, bool> matches)
     {
-        if (configured != GameTeamType.None)
-            return [configured];
+        var configured = GetIntParamOrDefault(0, GameTeamType.None);
 
-        return GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, 0))
-            .Select(x => GameSystem.GetTeam(x.PlayerId))
-            .Where(x => x != GameTeamType.None)
-            .Distinct()
-            .ToList();
+        if (configured != GameTeamType.None)
+            return matches(configured);
+
+        return Quantify(
+            GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, 0))
+                .Select(x => GameSystem.GetTeam(x.PlayerId))
+                .Select(team => team != GameTeamType.None && matches(team)),
+            QuantifierRequiresAll
+        );
     }
 }

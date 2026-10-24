@@ -12,4 +12,11 @@ public sealed record WiredClockTickEvent : RoomEvent
 
     [Id(1)]
     public required int HalfSeconds { get; init; }
+
+    /// <summary>
+    /// Whether the clock counted its way here; false when Adjust Clock or a reset put it there,
+    /// which Clock Reaches Time does not fire for.
+    /// </summary>
+    [Id(2)]
+    public bool IsCounted { get; init; } = true;
 }

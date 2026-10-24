@@ -26,8 +26,10 @@ public class WiredActionGiveScore(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_SCORE;
 
+    // Out of range is pulled in, not refused: points 1001 / -1001 stored 1000 / -1000 and times
+    // 11 stored 10, each WiredSaveSuccess (official client capture 2026-10-24, action.6.E11).
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(-1000, 1000, 5), new WiredRangeParamRule(0, 10, 0)];
+        [new WiredClampParamRule(-1000, 1000, 5), new WiredClampParamRule(0, 10, 0)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

@@ -36,12 +36,9 @@ public class WiredConditionTeamHasScore(
         var points = GetIntParamOrDefault(1, 0);
         var comparison = GetIntParamOrDefault(2, 0);
 
-        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
-        {
-            if (WiredComparison.CompareThreeWay(comparison, GameSystem.GetScore(team), points))
-                return true;
-        }
-
-        return false;
+        return MatchesTeams(
+            ctx,
+            team => WiredComparison.CompareThreeWay(comparison, GameSystem.GetScore(team), points)
+        );
     }
 }

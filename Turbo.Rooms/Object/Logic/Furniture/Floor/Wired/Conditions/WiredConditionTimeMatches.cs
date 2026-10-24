@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
@@ -54,11 +53,16 @@ public class WiredConditionTimeMatches(
         return true;
     }
 
+    /// <summary>
+    /// Both bounds count, and a min above the max wraps round: hours 22..2 held at 23 and failed
+    /// at 10; 10..10 is that hour alone (official client capture 2026-10-24, condition.28.B2).
+    /// Inference: seconds and minutes read their ranges the same way.
+    /// </summary>
     private bool InRange(int value, int minIndex)
     {
         var min = GetIntParamOrDefault(minIndex, 0);
         var max = GetIntParamOrDefault(minIndex + 1, 0);
 
-        return value >= Math.Min(min, max) && value <= Math.Max(min, max);
+        return min <= max ? value >= min && value <= max : value >= min || value <= max;
     }
 }

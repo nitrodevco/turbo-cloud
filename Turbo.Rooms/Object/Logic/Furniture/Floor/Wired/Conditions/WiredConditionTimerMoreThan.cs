@@ -20,8 +20,9 @@ public class WiredConditionTimerMoreThan(
     public override int WiredCode => (int)WiredConditionType.TIME_ELAPSED_MORE;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        // Flash saves the slider (1 to 1200 half seconds) plus one pulse, so 2 to 1201.
-        [new WiredRangeParamRule(1, 1201, 20)];
+        // Flash saves the slider (1 to 1200 half seconds) plus one pulse, so 2 to 1201; the
+        // server stores 1 and 1202 as sent (official client capture 2026-10-24, condition.3.E10).
+        [new WiredRangeParamRule(1, int.MaxValue, 20)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx) =>
         WiredSystem.GetElapsedTimerPulses(NowMs()) > GetIntParamOrDefault(0, 20);
