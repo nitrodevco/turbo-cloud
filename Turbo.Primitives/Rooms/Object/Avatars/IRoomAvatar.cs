@@ -81,6 +81,20 @@ public interface IRoomAvatar : IRoomObject
 
     /// <summary>Whether being teleported thaws a frozen avatar. Set with the freeze and gone with it.</summary>
     public bool ThawsOnTeleport { get; }
+
+    /// <summary>
+    /// When the slide a wired move gave the avatar ends (room clock), 0 for none. Until then its
+    /// UserUpdates carry <c>wf</c>, which tells the client to let the slide run instead of
+    /// putting the avatar down where the update says (AS3 UserUpdateMessageParser "wf" ->
+    /// skipPositionUpdate, MovingObjectLogic.processUpdateMessage).
+    /// </summary>
+    public long WiredMoveEndsAtMs { get; }
+
+    /// <summary>Starts a wired slide that ends at <paramref name="endsAtMs"/>.</summary>
+    public void BeginWiredMove(long endsAtMs);
+
+    /// <summary>Ends a wired slide; the next UserUpdate goes without <c>wf</c>.</summary>
+    public void EndWiredMove();
     public void SetGoalTileId(int tileId);
 
     /// <summary>Spends one of the current walk's re-routes round a blocked step; false once they are used up.</summary>

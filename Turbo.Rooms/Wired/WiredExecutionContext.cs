@@ -202,6 +202,13 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                     if (!MapModule.InBounds(targetX, targetY))
                         continue;
 
+                    if (dx == 0 && dy == 0)
+                    {
+                        CarryInPlace(avatar);
+
+                        continue;
+                    }
+
                     await ProcessUserMovementAsync(
                         avatar,
                         MapModule.ToIdx(targetX, targetY),
@@ -348,28 +355,21 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 return false;
 
             var (sourceX, sourceY, sourceZ) = (avatar.X, avatar.Y, avatar.Z);
+            var postureOffset = avatar.PostureOffset;
 
             // What wired decides is above: whether its movement policy lets the avatar go there.
             // Putting it there is the avatar module's; only the announcing stays here, batched
             // into the action's one packet.
             await AvatarModule.RelocateAvatarAsync(avatar, tileIdx, CancellationToken);
 
-            UserMoves.Add(
-                new()
-                {
-                    ObjectId = avatar.ObjectId,
-                    SourceX = sourceX,
-                    SourceY = sourceY,
-                    SourceZ = sourceZ,
-                    TargetX = avatar.X,
-                    TargetY = avatar.Y,
-                    TargetZ = avatar.Z,
-                    MoveType = moveType,
-                    AnimationTime = instant ? 0 : GetAnimationTime(),
-                    BodyDirection = avatar.Rotation,
-                    HeadDirection = avatar.HeadRotation,
-                    JumpPower = Policy.JumpStrength ?? avatar.JumpPower,
-                }
+            AddUserMove(
+                avatar,
+                sourceX,
+                sourceY,
+                sourceZ,
+                postureOffset,
+                moveType,
+                instant ? 0 : GetAnimationTime()
             );
 
             return true;
@@ -549,6 +549,63 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     // Wired effects run inside a room tick and carry no token of their own.
     public Task SendComposerToRoomAsync(IComposer composer) =>
         Room.SendComposerToRoomAsync(composer, CancellationToken.None);
+
+    /// <summary>
+    /// A carried avatar whose furni only went up or down rides along on its tile, as one slide
+    /// with the furni's animation time (official client capture 2026-10-17T18-25-30: a sitter's
+    /// seat raised and lowered by wired, "23,23,0.55 -> 23,23,0.65" slides 14/14); left to the next
+    /// avatar tick it was put at its new height at once, ahead of the furni.
+    /// </summary>
+    private void CarryInPlace(IRoomAvatar avatar)
+    {
+        var (x, y, z) = (avatar.X, avatar.Y, avatar.Z);
+        var postureOffset = avatar.PostureOffset;
+
+        MapModule.UpdateHeightForAvatar(avatar);
+
+        if (avatar.Z == z)
+            return;
+
+        AddUserMove(avatar, x, y, z, postureOffset, SlideAvatarMoveType.Slide, GetAnimationTime());
+    }
+
+    /// <summary>
+    /// Says a wired move of an avatar, from where it stood to where it stands now. Both heights
+    /// are where the avatar is drawn: its floor plus the posture it had when the move began, a
+    /// sitter at its seat's sit height (2026-10-17T18-25-30: a seat at 0.0 with "sit 0.55" slides
+    /// from 0.55; a stander stepping onto a seat at 0.3 slides to 0.3). Its UserUpdates say "wf"
+    /// until the slide is over.
+    /// </summary>
+    private void AddUserMove(
+        IRoomAvatar avatar,
+        int sourceX,
+        int sourceY,
+        Altitude sourceZ,
+        Altitude postureOffset,
+        SlideAvatarMoveType moveType,
+        int animationTime
+    )
+    {
+        UserMoves.Add(
+            new()
+            {
+                ObjectId = avatar.ObjectId,
+                SourceX = sourceX,
+                SourceY = sourceY,
+                SourceZ = sourceZ + postureOffset,
+                TargetX = avatar.X,
+                TargetY = avatar.Y,
+                TargetZ = avatar.Z + postureOffset,
+                MoveType = moveType,
+                AnimationTime = animationTime,
+                BodyDirection = avatar.Rotation,
+                HeadDirection = avatar.HeadRotation,
+                JumpPower = Policy.JumpStrength ?? avatar.JumpPower,
+            }
+        );
+
+        avatar.BeginWiredMove(_roomGrain.NowMs() + animationTime);
+    }
 
     private int GetAnimationTime() =>
         Policy.AnimationMode == WiredAnimationModeType.Instant ? 0 : Policy.AnimationTimeMs;
