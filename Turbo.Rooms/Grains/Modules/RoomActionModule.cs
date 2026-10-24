@@ -399,7 +399,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                     ctx.PlayerId
                 );
 
-        if (!await item.Logic.CanUseAsync(ctx))
+        if (!item.Logic.HasUse() || !await item.Logic.CanUseAsync(ctx))
             return false;
 
         var previousState = item.Logic.GetState();

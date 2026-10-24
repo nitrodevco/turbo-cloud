@@ -12,9 +12,11 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
@@ -493,6 +495,88 @@ public sealed class WiredFurniStateMatrixTests
         ).Should().BeTrue();
 
         box.GetSnapshot().IntParams.Should().Equal(storedUser, storedFurni);
+    }
+
+    // trigger.4.B1: Furni Is Used picking a stateless chair and a lamp. A player's use of the
+    // chair gets no reply at all and does not fire it; a use of the lamp does (official client
+    // capture 2026-10-24: chair 3/3 nothing, lamp 2/2 fired). Ours wrote state 0 back to the
+    // chair, sent it, and fired the stack.
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    public async Task Using_a_furni_without_states_does_nothing(int chairStates, bool fires)
+    {
+        const int CHAIR = 32;
+        const int EFFECT = 2;
+        const int AVATAR = 5;
+
+        _room.Enter(AVATAR, 4, 4);
+        var chair = _room.AddFloorItem(CHAIR, 4, 5, totalStates: chairStates);
+        var lamp = _room.AddFloorItem(LAMP_A, 6, 6);
+        _room.AddBox<WiredTriggerHabboChangesItemState>(BOX, 0, 0, "wf_trg_state_changed");
+        _room.AddBox<WiredActionToggleItemState>(EFFECT, 0, 0, "wf_act_toggle_state");
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                BOX,
+                stuffIds: [CHAIR],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [0],
+                stuffIds: [LAMP_A],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        var wired = _room.Harness.Module<RoomWiredSystem>();
+        var now = 10_000L;
+
+        async Task RunWiredAsync()
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                now += 50;
+                await wired.ProcessWiredAsync(now, dormant: false, Ct);
+            }
+        }
+
+        await wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+        await RunWiredAsync();
+
+        var updatesBefore = _room
+            .Harness.Fakes.SentToRoom<ObjectDataUpdateMessageComposer>()
+            .Count();
+
+        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), CHAIR, Ct);
+        await RunWiredAsync();
+
+        lamp.Logic.GetState().Should().Be(fires ? 1 : 0);
+        _room
+            .Harness.Fakes.SentToRoom<ObjectDataUpdateMessageComposer>()
+            .Skip(updatesBefore)
+            .Any(x => x.ObjectId == chair.ObjectId)
+            .Should()
+            .Be(fires);
     }
 
     private WiredProcessingContext Context() =>
