@@ -26,6 +26,7 @@ public class FurnitureCounterClockLogic(
 ) : FurnitureFloorLogic(stuffDataFactory, ctx), IWiredClock
 {
     private const int USE_RESET = 2;
+    private const string RUNNING_SECTION = "clockRunning";
 
     private int _halfSeconds;
     private bool _isRunning;
@@ -61,6 +62,23 @@ public class FurnitureCounterClockLogic(
     public override Task OnAttachAsync(CancellationToken ct)
     {
         _halfSeconds = Math.Max(0, GetState()) * 2;
+
+        // Habbo brings a counter that was running when its room unloaded back stopped at 0: one
+        // running at 10 s was "0" in the reload's objects and did not tick, and Control Clock
+        // started it from 0 (official client capture 2026-10-24, WIN63-202610201032, wired matrix
+        // action.28.R6). One stopped before the unload is assumed to keep its time.
+        if (WasRunning())
+        {
+            _ctx.RoomObject.ExtraData.DeleteSection(RUNNING_SECTION);
+
+            if (WiredConfig.RunningClocksResetOnRoomLoad && _halfSeconds > 0)
+            {
+                _halfSeconds = 0;
+                StuffData.SetState("0");
+                PersistStuffData(false);
+            }
+        }
+
         _started = _halfSeconds > 0;
 
         return base.OnAttachAsync(ct);
@@ -86,6 +104,7 @@ public class FurnitureCounterClockLogic(
     {
         TimerSystem.Cancel(_ctx.ObjectId);
         _isRunning = false;
+        MarkRunning(false);
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -155,6 +174,7 @@ public class FurnitureCounterClockLogic(
         _isRunning = true;
         _started = true;
         _stopped = false;
+        MarkRunning(true);
 
         // The count runs on the room's 500 ms cycle: the first cycle after the start is half a
         // second, the second shows "1", 500..1000 ms after the start (official client capture
@@ -173,6 +193,7 @@ public class FurnitureCounterClockLogic(
     private Task StopAsync()
     {
         _isRunning = false;
+        MarkRunning(false);
 
         TimerSystem.Cancel(_ctx.ObjectId);
 
@@ -197,6 +218,20 @@ public class FurnitureCounterClockLogic(
 
         await PublishAsync(ct, reached: false);
     }
+
+    /// <summary>
+    /// Keeps in the furni's extra data whether the counter runs, so the room's next load can tell
+    /// a counter left running from one stopped at the same time.
+    /// </summary>
+    private void MarkRunning(bool running)
+    {
+        if (running)
+            _ctx.RoomObject.ExtraData.UpdateSection(RUNNING_SECTION, true);
+        else if (WasRunning())
+            _ctx.RoomObject.ExtraData.DeleteSection(RUNNING_SECTION);
+    }
+
+    private bool WasRunning() => _ctx.RoomObject.ExtraData.TryGetSection(RUNNING_SECTION, out _);
 
     // Due at the boundary itself: a delay computed from a second clock read could land 1 ms late.
     private void Schedule() =>
