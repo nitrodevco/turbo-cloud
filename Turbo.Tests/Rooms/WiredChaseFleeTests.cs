@@ -25,6 +25,7 @@ public sealed class WiredChaseFleeTests
     private const int BOX = 7;
     private const int BLOCK = 30;
     private const int USER = 5;
+    private const int LAMP = 31;
 
     private readonly WiredRoom _room = new(12, 12);
 
@@ -82,6 +83,60 @@ public sealed class WiredChaseFleeTests
         await RunAsync(chase);
 
         Block().Should().Be((5, 5));
+    }
+
+    // Sheet action.11.B1 (LAB-W1 08-10-45, 6/6): the user 3 tiles north in line, a lamp on the
+    // step toward them. Chase never waits: a random straight step onto a free tile. Ours stayed.
+    [Fact]
+    public async Task Chase_blocked_toward_its_user_steps_at_random_onto_a_free_tile()
+    {
+        _room.Enter(USER, 5, 2);
+        AddLamp(LAMP, 5, 4);
+        var chase = await PlaceAsync<WiredActionChaseHabbo>("wf_act_chase", 5, 5);
+        var ways = new HashSet<(int, int)>();
+
+        for (var i = 0; i < 40; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(5, 5));
+
+            await RunAsync(chase);
+
+            ways.Add(Block());
+        }
+
+        ways.Should().BeSubsetOf([(6, 5), (5, 6), (4, 5)], "it never waits nor enters the lamp");
+        ways.Should().HaveCountGreaterThan(1);
+    }
+
+    // Sheet action.11.R10 (LAB-W1, 23 firings): nobody in reach, in a corner with two free tiles,
+    // it moved every firing. Ours drew one of four ways and waited when that one was off the map.
+    [Fact]
+    public async Task Chase_with_nobody_in_reach_moves_every_firing_even_in_a_corner()
+    {
+        var chase = await PlaceAsync<WiredActionChaseHabbo>("wf_act_chase", 0, 0);
+
+        for (var i = 0; i < 20; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(0, 0));
+
+            await RunAsync(chase);
+
+            Block().Should().BeOneOf((1, 0), (0, 1));
+        }
+    }
+
+    // Sheet action.12.R11 (LAB-W1 09-31-35, 3/3 first moves, 11/11 moves): a fresh flee box on a
+    // block that never fled, nobody in line, moves east and keeps going east. Ours did nothing.
+    [Fact]
+    public async Task Flee_that_never_fled_heads_east()
+    {
+        _room.Enter(USER, 8, 8);
+        var flee = await PlaceAsync<WiredActionFleeHabbo>("wf_act_flee", 5, 5);
+
+        await RunAsync(flee);
+        await RunAsync(flee);
+
+        Block().Should().Be((7, 5));
     }
 
     // The operator's settings: the whole room, anywhere, is what ours did before.
@@ -153,6 +208,16 @@ public sealed class WiredChaseFleeTests
         _room.Map.RemoveAvatarAtIdx(user, _room.Map.ToIdx(user.X, user.Y), false);
         user.SetPosition(x, y);
         _room.Map.AddAvatarAtIdx(user, _room.Map.ToIdx(x, y), false);
+    }
+
+    private void AddLamp(int id, int x, int y)
+    {
+        var lamp = _room.AddFloorItem(id, x, y, canWalk: false);
+
+        lamp.GetType()
+            .GetProperty(nameof(lamp.Definition))!
+            .SetValue(lamp, lamp.Definition with { CanStack = false });
+        _room.Map.ComputeTile(x, y);
     }
 
     private (int, int) Block() => (_room.FloorItem(BLOCK).X, _room.FloorItem(BLOCK).Y);

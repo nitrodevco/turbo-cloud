@@ -1,9 +1,13 @@
 using FluentAssertions;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -48,6 +52,48 @@ public sealed class MultiHeightBlockTests
             .Harness.Fakes.SentToRoom<ObjectUpdateMessageComposer>()
             .Should()
             .Contain(x => x.FloorItem.ObjectId == BLOCK && x.FloorItem.StackHeight.ToInt() == 50);
+    }
+
+    // W2 action.0.X2: Toggle Furni State on a height block a user stands on. The user follows
+    // the block's new top on the next user tick, 2.65 -> 2.4 -> 2.15 -> 1.9 -> 1.65 -> 2.65
+    // (official client capture 2026-10-24T08-07-58, 5/5).
+    [Fact]
+    public async Task A_user_on_a_block_toggled_by_wired_follows_its_new_top()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var block = AddBlock();
+        var user = _room.Enter(5, 2, 2);
+        var toggle = _room.AddBox<WiredActionToggleItemState>(7, 0, 0, "wf_act_toggle_state");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                7,
+                intParams: [0],
+                stuffIds: [BLOCK],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        _room.Map.UpdateHeightForAvatar(user);
+        user.Z.ToInt().Should().Be(100);
+
+        foreach (var height in new[] { 75, 50, 25, 0, 100 })
+        {
+            await toggle.ExecuteAsync(
+                new WiredExecutionContext(_room.Harness.Room) { CancellationToken = ct },
+                ct
+            );
+
+            user.NeedsInvoke.Should().BeTrue("the next user tick puts the user on the new top");
+
+            await _room.Map.InvokeAvatarAsync(user, ct);
+
+            user.Z.ToInt().Should().Be(height);
+        }
     }
 
     private IRoomFloorItem AddBlock()

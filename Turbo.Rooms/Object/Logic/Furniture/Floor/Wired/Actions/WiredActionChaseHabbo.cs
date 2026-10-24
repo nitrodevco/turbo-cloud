@@ -26,7 +26,6 @@ public class WiredActionChaseHabbo(
     // W1 lab action.11.B1 3/3). How far it notices one, and whether only in a straight line, is
     // WiredConfig.ChaseRange and ChaseFleeInLineOnly; nobody noticed, it steps at random.
     private const int COLLISION_RANGE = 1;
-    private const int NO_TILE = -1;
 
     public override int WiredCode => (int)WiredActionType.CHASE;
 
@@ -43,7 +42,7 @@ public class WiredActionChaseHabbo(
         {
             var at = plan.Where(floorItem);
             var floorIdx = map.ToIdx(at.X, at.Y);
-            var targetIdx = NO_TILE;
+            List<int> candidates = [];
 
             if (
                 AvatarModule.TryGetNearestPlayer(
@@ -62,36 +61,32 @@ public class WiredActionChaseHabbo(
                     continue;
                 }
 
-                // Which tile lies toward the player is the map's to say; this box only
-                // decides that the furni takes the first of them.
-                targetIdx = map.GetStepsToward(floorIdx, map.ToIdx(player.X, player.Y))
-                    .DefaultIfEmpty(NO_TILE)
-                    .First();
+                // Which tiles lie toward the player is the map's to say; this box only
+                // decides that the furni takes the first of them it can.
+                candidates.AddRange(map.GetStepsToward(floorIdx, map.ToIdx(player.X, player.Y)));
             }
-            else if (
-                map.TryGetTileInFront(
-                    floorIdx,
-                    RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)],
-                    out var wanderIdx
-                )
+
+            // Nobody near, or no way toward them: a random straight step onto a tile it can
+            // take. It never waits while one is free (official client capture 2026-10-24, W1
+            // lab: the lamp on the step toward the user, S 3 / W 3 of 6, action.11.B1; out of
+            // reach at a corner with 2 free tiles, a move every firing, action.11.R10).
+            foreach (
+                var direction in RotationExtensions.CARDINAL.OrderBy(_ => Random.Shared.Next())
             )
             {
-                // Nobody near: wander one tile in a random straight direction.
-                targetIdx = wanderIdx;
+                if (map.TryGetTileInFront(floorIdx, direction, out var wanderIdx))
+                    candidates.Add(wanderIdx);
             }
 
-            if (targetIdx == NO_TILE)
+            var moved = candidates.Any(tileIdx =>
             {
+                var (x, y) = map.GetTileXY(tileIdx);
+
+                return plan.TryMove(floorItem, x, y);
+            });
+
+            if (!moved)
                 plan.Block();
-
-                continue;
-            }
-
-            var (targetX, targetY) = map.GetTileXY(targetIdx);
-
-            // Height follows the room's move physics like every other mover (the KeepAltitude
-            // addon keeps it); this box used to pin it, where its mirror, flee, did not.
-            plan.Move(floorItem, targetX, targetY);
         }
     }
 }

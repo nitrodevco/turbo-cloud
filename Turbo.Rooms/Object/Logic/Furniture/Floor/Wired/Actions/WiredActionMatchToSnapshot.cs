@@ -41,13 +41,14 @@ public class WiredActionMatchToSnapshot(
             new WiredBoolParamRule(false), // direction
             new WiredBoolParamRule(false), // position
             new WiredBoolParamRule(false), // altitude
-            new WiredParamRule(0),
+            new WiredClampParamRule(0, 0, 0),
         ];
 
     // The official server opens a fresh box with a fifth int, 1 (defaults [0,0,0,0,1],
     // 2026-10-20T17-39-35-Open-wait), that the editor neither reads nor writes (AS3 actiontypes/
     // _-wy.as:49-66: four checkboxes); a save of the four stores it as 0 (official client capture
-    // 2026-10-24, W1 lab action.3.E6, 2/2). Neither value changed a restore (action.3.B2).
+    // 2026-10-24, W1 lab action.3.E6, 2/2), and so does a save sending it as 1 (W2 lab
+    // action.3.E13, 2/2). Neither value changed a restore (action.3.B2).
     private const int EDITOR_PARAMS = 4;
 
     public override List<int> GetDefaultIntParams() => [0, 0, 0, 0, 1];

@@ -85,4 +85,28 @@ public sealed class WiredFurniToFurniTargetTests
 
         box.GetSnapshot().IntParams.Should().Equal(0, 1, 1, 0, 0);
     }
+
+    // W2 action.3.E13 (2/2): a save that sends the fifth int as 1 stores it as 0 too. Ours kept 1.
+    [Fact]
+    public async Task Match_to_snapshot_stores_a_fifth_int_sent_as_1_as_0()
+    {
+        _room.AddFloorItem(MOVER, 1, 1);
+
+        var box = _room.AddBox<WiredActionMatchToSnapshot>(1, 0, 0, "wf_act_match_to_sshot");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                1,
+                intParams: [0, 1, 1, 1, 1],
+                stuffIds: [MOVER],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        box.GetSnapshot().IntParams.Should().Equal(0, 1, 1, 1, 0);
+    }
 }
