@@ -59,10 +59,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     // (WiredConfig.StateUpdateMs).
     private readonly HashSet<RoomObjectId> _pendingFloorStates = [];
 
-    // The furni moves of the effects run since the last state update. They follow that update's
+    // The movements of the effects run since the last state update. They follow that update's
     // ObjectsDataUpdate in the same ms: the boxes flash, then the furni move (official client
     // capture, 2026-10-22T22-02-10 and 22-09-06: 16 of 16 firings).
-    private readonly List<IComposer> _pendingFloorMoves = [];
+    private readonly List<IComposer> _pendingMoves = [];
     private bool _collectingTickStates;
     private long _nextStateUpdateMs;
     private readonly Dictionary<
@@ -1145,7 +1145,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var heldMoves = new WiredHeldFloorMoves(pending.Policy.ExecuteInOrder);
+        var heldMoves = new WiredHeldMoves(pending.Policy.ExecuteInOrder);
 
         for (var i = pending.NextActionIndex; i < pending.Actions.Count; i++)
         {
@@ -1169,7 +1169,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 if (delayMs > 0)
                 {
                     // What ran before the wait is one change; what runs after it is another.
-                    SendHeldFloorMoves(heldMoves);
+                    SendHeldMoves(heldMoves);
                     await FlushVariableChangesAsync(pending, ct);
 
                     pending.WaitingActionIndex = i;
@@ -1251,7 +1251,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
         }
 
-        SendHeldFloorMoves(heldMoves);
+        SendHeldMoves(heldMoves);
         await FlushVariableChangesAsync(pending, ct);
 
         return true;
@@ -1353,11 +1353,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// What one action moved and changed, as one room message in the order it always went out:
     /// the moves, then the floor states, then the wall states. It is one message per action, not
     /// per tick, because an action also reaches the room by other routes (a chat bubble, a furni
-    /// put down or taken away) and a later action's moves must not overtake those. The furni
-    /// moves of a stack's effects are the exception: they go into <paramref name="heldMoves"/>
-    /// and out together once the effects have run (<see cref="WiredHeldFloorMoves"/>).
+    /// put down or taken away) and a later action's moves must not overtake those. The moves of
+    /// a stack's effects are the exception: they go into <paramref name="heldMoves"/> and out
+    /// together once the effects have run (<see cref="WiredHeldMoves"/>).
     /// </summary>
-    private void FlushWiredContext(WiredExecutionContext ctx, WiredHeldFloorMoves? heldMoves = null)
+    private void FlushWiredContext(WiredExecutionContext ctx, WiredHeldMoves? heldMoves = null)
     {
         var composers = ImmutableArray.CreateBuilder<IComposer>(3);
         var shownOrHidden =
@@ -1369,7 +1369,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 )
                 : [];
 
-        heldMoves?.Hold(ctx.FloorItemMoves);
+        heldMoves?.Hold(ctx.FloorItemMoves, ctx.WallItemMoves, ctx.UserMoves, ctx.UserDirections);
 
         if (
             ctx.UserMoves.Count > 0
@@ -1411,12 +1411,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Tells the room the furni moves a stack's effects made (<see cref="WiredHeldFloorMoves"/>):
-    /// a furni only turned at once, before the boxes' flash; the moves after it, with the next
-    /// state update (official client capture, 2026-10-22T22-02-10: the turn's ObjectUpdate came
-    /// before the flash's ObjectsDataUpdate 6/6, a WiredMovements after it 16/16, same ms).
+    /// Tells the room the movements a stack's effects made (<see cref="WiredHeldMoves"/>): a
+    /// furni only turned at once, before the boxes' flash; the moves after it, with the next state
+    /// update, in one WiredMovements (official client capture, 2026-10-22T22-02-10: the turn's
+    /// ObjectUpdate came before the flash's ObjectsDataUpdate 6/6, a WiredMovements after it
+    /// 16/16, same ms; 2026-10-03: a carried user in the furni's packet, 1/1).
     /// </summary>
-    private void SendHeldFloorMoves(WiredHeldFloorMoves heldMoves)
+    private void SendHeldMoves(WiredHeldMoves heldMoves)
     {
         if (heldMoves.IsEmpty)
             return;
@@ -1429,26 +1430,29 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 turned.Add(item.GetUpdateComposer());
         }
 
-        List<WiredFloorItemMovementSnapshot> moves = [.. heldMoves.Moves];
+        var movements = new WiredMovementsMessageComposer
+        {
+            Users = [.. heldMoves.UserMoves],
+            FloorItems = [.. heldMoves.FloorMoves],
+            WallItems = [.. heldMoves.WallMoves],
+            UserDirections = [.. heldMoves.UserDirections],
+        };
 
         heldMoves.Clear();
 
         if (turned.Count > 0)
             _roomGrain.SendComposersToRoomAndForget(turned.ToImmutable());
 
-        if (moves.Count == 0)
+        if (
+            movements.Users.Count == 0
+            && movements.FloorItems.Count == 0
+            && movements.WallItems.Count == 0
+            && movements.UserDirections.Count == 0
+        )
             return;
 
-        var movements = new WiredMovementsMessageComposer
-        {
-            Users = [],
-            FloorItems = moves,
-            WallItems = [],
-            UserDirections = [],
-        };
-
         if (_collectingTickStates)
-            _pendingFloorMoves.Add(movements);
+            _pendingMoves.Add(movements);
         else
             _roomGrain.SendComposersToRoomAndForget([movements]);
     }
@@ -1743,13 +1747,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     // Sends each pending furni's state as it is now, so a change made outside wired since (a
     // player's double-click, already sent) is never overwritten by an older one.
-    // The furni moves held for the update follow it (_pendingFloorMoves).
+    // The movements held for the update follow it (_pendingMoves).
     private void FlushPendingFloorStates()
     {
-        if (_pendingFloorStates.Count == 0 && _pendingFloorMoves.Count == 0)
+        if (_pendingFloorStates.Count == 0 && _pendingMoves.Count == 0)
             return;
 
-        var composers = ImmutableArray.CreateBuilder<IComposer>(1 + _pendingFloorMoves.Count);
+        var composers = ImmutableArray.CreateBuilder<IComposer>(1 + _pendingMoves.Count);
         List<(RoomObjectId, StuffDataSnapshot)> stuffDatas = [];
 
         foreach (var objectId in _pendingFloorStates)
@@ -1763,8 +1767,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         if (stuffDatas.Count > 0)
             composers.Add(new ObjectsDataUpdateMessageComposer { StuffDatas = stuffDatas });
 
-        composers.AddRange(_pendingFloorMoves);
-        _pendingFloorMoves.Clear();
+        composers.AddRange(_pendingMoves);
+        _pendingMoves.Clear();
 
         if (composers.Count > 0)
             _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
