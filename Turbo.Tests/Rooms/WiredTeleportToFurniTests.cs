@@ -18,7 +18,8 @@ namespace Turbo.Tests.Rooms;
 /// furni. The box is saved the way the client sends it, and run with a real execution context.
 /// A teleport puts a user down without walking, so users already standing on the furni do not stop
 /// the others; a closed tile and a furni nobody can stand on still do. Without "fast teleportation"
-/// the user lands two seconds after the box fired (official client capture 2026-10-16).
+/// the user lands on the first avatar cycle 1.5 s after the box fired (official client capture
+/// 2026-10-16 to 2026-10-24).
 /// </summary>
 public sealed class WiredTeleportToFurniTests
 {
@@ -26,6 +27,7 @@ public sealed class WiredTeleportToFurniTests
     private const int TARGET = 30;
 
     private const long FIRED_AT = 10_000;
+    private const int ROOM_TICK_MS = 50;
 
     private readonly WiredRoom _room = new(8, 8);
 
@@ -181,27 +183,65 @@ public sealed class WiredTeleportToFurniTests
     // Official client capture 2026-10-16 (walk-on + Teleport To, 2 of 2 runs): AvatarEffect 4 with
     // the box flash, UserUpdate at the target +2.0 s, AvatarEffect 0 +3.5 s and no WiredMovements.
     // Ours sent a WiredMovements glide (500 ms) in the tick the box fired.
-    [Fact]
-    public async Task ATeleport_ShowsTheEffect_LandsTwoSecondsLater_AndSendsNoWiredMovement()
+    // Official client capture 2026-10-16 to 2026-10-24, every Teleport To recorded (wired matrix
+    // action.8.B3/B4): AvatarEffect 4 at the fire, one UserUpdate where the user still stands
+    // (+1.0 to +1.5 s), the landing UserUpdate one avatar cycle later and AvatarEffect 0 1.5 s
+    // after that, no WiredMovements. A walk-on fires on a cycle: +1.5 / +2.0 / +3.5 s (2026-10-16
+    // and 10-18, 16 fires); a click between two, so it all comes sooner (2026-10-24, B4 +1.15 /
+    // +1.65 / +3.15 s). Ours sent no update before the landing, landed 2.0 s after any fire and
+    // its landing went out on the cycle after that.
+    [Theory]
+    [InlineData(0, 1_500, 2_000, 3_500)]
+    [InlineData(200, 1_300, 1_800, 3_300)]
+    public async Task ATeleport_ShowsTheUserWhereTheyStandOnceMore_ThenLandsOnTheNextAvatarCycle(
+        int intoCycle,
+        int stillAt,
+        int landsAt,
+        int effectOffAt
+    )
     {
         var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers);
-        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
+        var firedAt = FIRED_AT + intoCycle;
+
+        for (var t = FIRED_AT; t <= firedAt; t += ROOM_TICK_MS)
+            await TickRoomAsync(t);
 
         var context = await RunAsync(box, signalUsers: [5]);
 
         context.UserMoves.Should().BeEmpty();
         _room.Avatars[5].EffectId.Should().Be(4);
-        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
 
-        await Wired.ProcessWiredAsync(FIRED_AT + 1_950, dormant: false, Ct);
-        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
+        var updates = new List<string>();
+        var effectOff = -1L;
 
-        await Wired.ProcessWiredAsync(FIRED_AT + 2_000, dormant: false, Ct);
-        _room.Positions().Should().Equal("5@5,5", "6@1,3", "7@3,1");
-        _room.Avatars[5].EffectId.Should().Be(4);
+        for (var t = firedAt + ROOM_TICK_MS; t <= firedAt + 4_000; t += ROOM_TICK_MS)
+        {
+            var before = _room.Harness.Fakes.AvatarUpdates().Count;
 
-        await Wired.ProcessWiredAsync(FIRED_AT + 3_500, dormant: false, Ct);
-        _room.Avatars[5].EffectId.Should().Be(0);
+            await TickRoomAsync(t);
+
+            updates.AddRange(
+                _room
+                    .Harness.Fakes.AvatarUpdates()
+                    .Skip(before)
+                    .SelectMany(x => x)
+                    .Where(x => x.ObjectId == 5)
+                    .Select(x => $"+{t - firedAt} {x.X},{x.Y}")
+            );
+
+            if (effectOff < 0 && _room.Avatars[5].EffectId == 0)
+                effectOff = t - firedAt;
+        }
+
+        updates.Should().Equal($"+{stillAt} 1,1", $"+{landsAt} 5,5");
+        effectOff.Should().Be(effectOffAt);
+    }
+
+    /// <summary>A room tick as the room runs it: the avatars on their cycle, then wired.</summary>
+    private async Task TickRoomAsync(long t)
+    {
+        await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(t, Ct);
+        await Wired.ProcessWiredAsync(t, dormant: false, Ct);
     }
 
     // Official client capture 2026-10-16 (walk-on + Teleport To with "fast teleportation", 2 of 2

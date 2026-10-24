@@ -121,14 +121,48 @@ public class WiredActionTeleportTo(
         if (effectId > 0)
             await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct);
 
+        var effectMs = fast ? config.TeleportFastEffectMs : config.TeleportEffectMs;
+
         // The step under way ends where it goes; the room sees the user stand at the next cycle.
         if (fast)
+        {
             await AvatarModule.StopWalkingAsync(avatar, ct);
 
-        WiredSystem.RunAfter(
-            fast ? config.TeleportFastDelayMs : config.TeleportDelayMs,
-            token => ArriveAsync(avatar, tileIdx, token)
-        );
+            WiredSystem.RunAfter(
+                config.TeleportFastDelayMs,
+                token => ArriveAsync(avatar, tileIdx, token)
+            );
+        }
+        else
+        {
+            // The room is told of the user where they stand one avatar cycle before they land
+            // (a sitter still sitting), and they land on the first cycle more than
+            // TeleportDelayMs less a cycle after the fire: 1.5 to 2.0 s, two seconds for a fire on
+            // a cycle (walk-on); the effect ends as long after landing as it does then (official
+            // client capture 2026-10-16 to 2026-10-24, every Teleport To recorded: the extra
+            // UserUpdate +1.0 to +1.5 s, landing 0.5 s and AvatarEffect 0 2.0 s after it; wired
+            // matrix action.8.B3/B4). Work done between two cycles goes out on the second.
+            var tickMs = RoomConfig.AvatarTickMs;
+            var now = WiredSystem.DeferredNowMs;
+            var landsAt = AvatarCycleAfter(now + config.TeleportDelayMs - tickMs);
+
+            WiredSystem.RunAfter(
+                (int)(landsAt - 2 * tickMs - now),
+                token =>
+                {
+                    if (IsInRoom(avatar))
+                        avatar.MarkDirty();
+
+                    return Task.CompletedTask;
+                }
+            );
+            WiredSystem.RunAfter(
+                (int)(landsAt - tickMs - now),
+                token => ArriveAsync(avatar, tileIdx, token)
+            );
+
+            effectMs = (int)(landsAt + config.TeleportEffectMs - config.TeleportDelayMs - now);
+        }
 
         // A user still frozen when the teleport's effect ends gets their freeze effect back; anyone
         // else none (official client capture 2026-10-24, Freeze with "cancel on teleport" off then
@@ -136,7 +170,7 @@ public class WiredActionTeleportTo(
         // thawed on landing and AvatarEffect 0 at the same point, 1/1 each).
         if (effectId > 0)
             WiredSystem.RunAfter(
-                fast ? config.TeleportFastEffectMs : config.TeleportEffectMs,
+                effectMs,
                 token =>
                     IsInRoom(avatar) && avatar.EffectId == effectId
                         ? AvatarModule.SetAvatarEffectAsync(
@@ -167,6 +201,15 @@ public class WiredActionTeleportTo(
             avatar.SetFrozen(false);
 
         await AvatarModule.RelocateAvatarAsync(avatar, tileIdx, ct);
+    }
+
+    /// <summary>The first avatar cycle after <paramref name="atMs"/>, on the room's cycle grid.</summary>
+    private long AvatarCycleAfter(long atMs)
+    {
+        var tickMs = RoomConfig.AvatarTickMs;
+        var intoCycle = ((atMs - State.NextAvatarBoundaryMs) % tickMs + tickMs) % tickMs;
+
+        return atMs - intoCycle + tickMs;
     }
 
     private bool IsInRoom(IRoomAvatar avatar) =>

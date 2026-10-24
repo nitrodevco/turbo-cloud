@@ -19,13 +19,16 @@ public sealed partial class RoomWiredSystem
     private long _deferredOrder;
     private long _lastTickMs;
 
+    /// <summary>The time <see cref="RunAfter"/> counts from.</summary>
+    public long DeferredNowMs => _execution?.Now ?? _lastTickMs;
+
     /// <summary>
     /// Runs <paramref name="work"/> once, <paramref name="delayMs"/> after the execution running
     /// now (or the last wired tick), in the order it was asked for among work due together.
     /// </summary>
     public void RunAfter(int delayMs, Func<CancellationToken, Task> work)
     {
-        var now = _execution?.Now ?? _lastTickMs;
+        var now = DeferredNowMs;
         var order = ++_deferredOrder;
 
         _deferred.Enqueue(work, (now + Math.Max(0, delayMs), order));
