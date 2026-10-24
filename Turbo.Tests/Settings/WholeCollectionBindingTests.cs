@@ -21,44 +21,37 @@ public sealed class WholeCollectionBindingTests
 {
     private const int MAX_DEPTH = 6;
 
-    public static TheoryData<string> ConfigClasses() => [.. Classes().Select(x => x.FullName!)];
-
-    [Theory]
-    [MemberData(nameof(ConfigClasses))]
-    public void every_collection_configured_with_one_item_binds_to_exactly_that_item(
-        string className
-    )
+    [Fact]
+    public void every_config_class_binds_a_configured_collection_whole_and_keeps_an_unconfigured_one()
     {
-        var type = Classes().Single(x => x.FullName == className);
-        var section = WholeCollectionBinding.SectionOf(type)!;
-        var keys = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var expected = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-        Fill(type, section, keys, expected, 0);
-
-        var bound = Bind(type, keys);
         var failures = new List<string>();
 
-        Check(bound, section, expected, failures, 0);
+        foreach (var type in Classes())
+        {
+            var section = WholeCollectionBinding.SectionOf(type)!;
+            var keys = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            var expected = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            // Each collection configured with one item binds to exactly that item.
+            Fill(type, section, keys, expected, 0);
+            Check(Bind(type, keys), section, expected, failures, 0);
+
+            // Each collection the configuration doesn't give keeps the items its class starts with.
+            Same(
+                Activator.CreateInstance(type)!,
+                Bind(type, new Dictionary<string, string?> { [$"{section}:Unrelated"] = "1" }),
+                section,
+                failures,
+                0
+            );
+        }
 
         string.Join(Environment.NewLine, failures).Should().BeEmpty();
     }
 
-    [Theory]
-    [MemberData(nameof(ConfigClasses))]
-    public void every_collection_left_unconfigured_keeps_the_items_its_class_starts_with(
-        string className
-    )
-    {
-        var type = Classes().Single(x => x.FullName == className);
-        var section = WholeCollectionBinding.SectionOf(type)!;
-        var bound = Bind(type, new Dictionary<string, string?> { [$"{section}:Unrelated"] = "1" });
-        var failures = new List<string>();
-
-        Same(Activator.CreateInstance(type)!, bound, section, failures, 0);
-
-        string.Join(Environment.NewLine, failures).Should().BeEmpty();
-    }
+    [Fact]
+    public void The_scan_finds_the_config_classes() =>
+        Classes().Should().Contain(typeof(PetConfig)).And.HaveCountGreaterThan(40);
 
     [Fact]
     public void the_breeding_rarity_chances_configured_are_the_chances_not_the_defaults_and_them()

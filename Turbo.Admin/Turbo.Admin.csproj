@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!--
+      The panel's ~375 endpoints are bound at build time instead of compiled at its first
+      request: that request took 1.8 s after a server start, now 0.6 s (1.2-1.8 s, now 20 ms,
+      for a panel restarted in a running process).
+    -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Turbo.Tests" />

@@ -29,39 +29,25 @@ public class PermissionGateTests
 
     private static readonly PermissionRegistry REGISTRY = new([new CorePermissionNodeSource()]);
 
-    public static TheoryData<Type> Handlers()
+    [Fact]
+    public void Every_handler_declares_registered_nodes_and_leaves_its_gate_to_the_pipeline()
     {
-        var data = new TheoryData<Type>();
-
-        foreach (var type in HandlerTypes())
-            data.Add(type);
-
-        return data;
-    }
-
-    [Theory]
-    [MemberData(nameof(Handlers))]
-    public void Handler_DeclaresOnlyRegisteredNodes(Type handler)
-    {
-        var declared = handler.GetCustomAttribute<RequiresPermissionAttribute>()?.Nodes ?? [];
-
-        foreach (var node in declared)
-            REGISTRY.IsRegistered(node).Should().BeTrue("{0} names {1}", handler.Name, node);
-    }
-
-    [Theory]
-    [MemberData(nameof(Handlers))]
-    public void Handler_LeavesItsGateToThePipeline(Type handler)
-    {
-        var (_, calls) = ReadHandleAsyncBody(handler);
-
-        calls
-            .Should()
-            .NotContain(
-                HAS_PERMISSION,
-                "{0} checks a permission itself; declare it with [RequiresPermission] instead",
-                handler.Name
+        var offenders = HandlerTypes()
+            .SelectMany(handler =>
+                (handler.GetCustomAttribute<RequiresPermissionAttribute>()?.Nodes ?? [])
+                    .Where(node => !REGISTRY.IsRegistered(node))
+                    .Select(node => $"{handler.Name} names {node}, which is not registered")
+                    .Concat(
+                        ReadHandleAsyncBody(handler).Calls.Contains(HAS_PERMISSION)
+                            ?
+                            [
+                                $"{handler.Name} checks a permission itself; declare it with [RequiresPermission] instead",
+                            ]
+                            : []
+                    )
             );
+
+        offenders.Should().BeEmpty();
     }
 
     [Fact]
