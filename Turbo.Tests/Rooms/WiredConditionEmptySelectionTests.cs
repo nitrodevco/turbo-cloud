@@ -172,11 +172,31 @@ public sealed class WiredConditionEmptySelectionTests
         condition.Evaluate(Context(RICH)).Should().BeTrue();
     }
 
-    // Wired matrix condition.43.R (quantifier): one fresh holder and one without the variable.
+    // Wired matrix condition.43.R5 (quantifier): one fresh holder and one without the variable
+    // (official client capture 2026-10-24: any passes 3/3, all blocks 2/2).
     [Theory]
     [InlineData(QUANTIFIER_ALL, false)]
     [InlineData(QUANTIFIER_ANY, true)]
     public async Task Variable_age_quantifier_decides_a_mixed_set(int quantifier, bool holds)
+    {
+        var condition = await VariableAgeAsync(quantifier);
+
+        condition.Evaluate(Context(HOLDER, EMPTY)).Should().Be(holds);
+    }
+
+    // Wired matrix condition.43.R1: over an empty selection "all" passes and "any" blocks
+    // (official client capture 2026-10-24, 2/2 each).
+    [Theory]
+    [InlineData(QUANTIFIER_ALL, true)]
+    [InlineData(QUANTIFIER_ANY, false)]
+    public async Task Variable_age_over_an_empty_selection(int quantifier, bool holds)
+    {
+        var condition = await VariableAgeAsync(quantifier);
+
+        condition.Evaluate(Context()).Should().Be(holds);
+    }
+
+    private async Task<WiredConditionVariableAgeMatch> VariableAgeAsync(int quantifier)
     {
         await BuildAsync();
         var condition = _room.AddBox<WiredConditionVariableAgeMatch>(
@@ -203,7 +223,7 @@ public sealed class WiredConditionEmptySelectionTests
             .Should()
             .BeTrue();
 
-        condition.Evaluate(Context(HOLDER, EMPTY)).Should().Be(holds);
+        return condition;
     }
 
     private async Task<T> HasVariableAsync<T>(string interaction, int quantifier = QUANTIFIER_ALL)
