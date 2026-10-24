@@ -21,8 +21,10 @@ public class WiredActionChaseHabbo(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredMoveActionLogic(grainFactory, stuffDataFactory, ctx)
 {
-    // How close counts as having caught a player: the furni never moves when adjacent (official
-    // client capture 2026-10-16). How far it notices one is WiredConfig.ChaseRange.
+    // How close counts as having caught a player: the furni never moves when adjacent and the
+    // collision trigger fires every firing (official client capture 2026-10-16, and 2026-10-24
+    // W1 lab action.11.B1 3/3). How far it notices one, and whether only in a straight line, is
+    // WiredConfig.ChaseRange and ChaseFleeInLineOnly; nobody noticed, it steps at random.
     private const int COLLISION_RANGE = 1;
     private const int NO_TILE = -1;
 
@@ -48,7 +50,8 @@ public class WiredActionChaseHabbo(
                     floorIdx,
                     range > 0 ? range : int.MaxValue,
                     out var player,
-                    out var distance
+                    out var distance,
+                    WiredConfig.ChaseFleeInLineOnly
                 )
             )
             {
