@@ -62,10 +62,12 @@ public class WiredActionMoveRotateUser(
             if (rotation == NONE)
                 continue;
 
+            // A turn is one eighth, 45 degrees (official client capture 2026-10-24, rotation 9
+            // fired 4x from 4: 5, 6, 7, 0; rotation 10 back: 7, 6, 5, 4, 4/4 each).
             var body = rotation switch
             {
-                ROTATE_CLOCKWISE => player.Rotation.Rotate(2),
-                ROTATE_COUNTER_CLOCKWISE => player.Rotation.Rotate(-2),
+                ROTATE_CLOCKWISE => player.Rotation.Rotate(1),
+                ROTATE_COUNTER_CLOCKWISE => player.Rotation.Rotate(-1),
                 _ => (Rotation)rotation,
             };
 
