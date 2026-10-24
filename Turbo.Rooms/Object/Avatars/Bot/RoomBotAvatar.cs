@@ -37,6 +37,7 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
     public int FollowBlockedTileIdx { get; set; } = -1;
     public long FollowRetryAtMs { get; set; }
     public RoomObjectId TargetItemId { get; set; } = -1;
+    public RoomObjectId HandOverObjectId { get; set; } = -1;
 
     public static RoomBotAvatar FromSnapshot(
         RoomObjectId objectId,

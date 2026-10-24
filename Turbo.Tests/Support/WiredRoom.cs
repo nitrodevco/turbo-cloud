@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Figures;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -48,6 +49,11 @@ public sealed class WiredRoom
         Harness.Fakes.Handlers["get_Context"] = call =>
             call.Interface == typeof(IRoomPlayerLogic)
                 ? Harness.Fakes.Create<IRoomPlayerContext>(call.Key)
+                : Fakes.NotHandled;
+        // No figure data: a figure is stored as given.
+        Harness.Fakes.Handlers["GetAsync"] = call =>
+            call.Interface == typeof(IFigureDataProvider)
+                ? Task.FromResult(FigureData.Empty)
                 : Fakes.NotHandled;
         // The room's own wired variables (user count, furni count...) are not what these tests are about.
         Harness.Fakes.Handlers["BuildVariablesForRoom"] = _ => Array.Empty<IWiredVariable>();
@@ -299,7 +305,7 @@ public sealed class WiredRoom
             y,
             logicName,
             createLogic: (factory, ctx) =>
-                box = (T)Activator.CreateInstance(typeof(T), Grains, factory, ctx)!
+                box = ActivatorUtilities.CreateInstance<T>(Harness.Services, Grains, factory, ctx)
         );
 
         return box!;

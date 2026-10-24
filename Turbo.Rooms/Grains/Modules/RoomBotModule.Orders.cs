@@ -1,10 +1,11 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -19,20 +20,16 @@ namespace Turbo.Rooms.Grains.Modules;
 /// </summary>
 public sealed partial class RoomBotModule
 {
-    /// <summary>The first bot in the room with this name, case-insensitive.</summary>
-    public bool TryGetBotByName(string name, [NotNullWhen(true)] out IRoomBot? bot)
-    {
-        bot = null;
-
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        bot = Bots.FirstOrDefault(x =>
-            string.Equals(x.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)
-        );
-
-        return bot is not null;
-    }
+    /// <summary>
+    /// Every bot in the room with this name, case ignored and nothing trimmed: a name with a
+    /// space before or after it names no bot, and two bots with the same name are both named
+    /// (official client capture 2026-10-24, bots "Frank" and "frank": "Frank", "frank" and
+    /// "FRANK" made both talk 6/6, "frank " and " Frank" neither 4/4).
+    /// </summary>
+    public List<IRoomBot> GetBotsByName(string name) =>
+        name.Length == 0
+            ? []
+            : [.. Bots.Where(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))];
 
     /// <summary>
     /// A bot speaks or shouts to the whole room; <paramref name="hideName"/> leaves its name off
@@ -87,17 +84,93 @@ public sealed partial class RoomBotModule
         bot.FollowObjectId = -1;
         bot.TargetItemId = item.ObjectId;
 
-        if (MapModule.ToIdx(bot.X, bot.Y) == MapModule.ToIdx(item.X, item.Y))
+        if (IsOnItem(bot, item))
         {
             await BotTickSystem.NotifyItemReachedAsync(bot, ct);
 
             return true;
         }
 
-        return await AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct);
+        if (await WalkTowardItemAsync(bot, item, ct))
+            return true;
+
+        bot.TargetItemId = -1;
+
+        return false;
     }
 
-    /// <summary>Places a bot on a furni tile without walking.</summary>
+    /// <summary>Whether the bot stands on any tile the furni covers.</summary>
+    public bool IsOnItem(IRoomBot bot, IRoomFloorItem item) =>
+        MapModule.TryGetTileIds(FloorFootprint.Of(item), out var tileIds)
+        && tileIds.Contains(MapModule.ToIdx(bot.X, bot.Y));
+
+    /// <summary>
+    /// Walks a bot onto a free tile of a furni, a random one of those it can reach (two bots
+    /// sent to a 2x2 furni each took a free tile of it). When every tile it could stand on is
+    /// taken by an avatar the bot walks next to it instead (a taken chair: the second bot stopped
+    /// on the tile beside it); a furni nobody can stand on, or one there is no way to, moves no
+    /// bot (official client capture 2026-10-24, Bot Move onto a 2x2 furni 4/4, a chair, a lamp
+    /// and a shelf out of reach 1/1 each). Which tile beside a taken one is inferred: the
+    /// nearest to the bot.
+    /// </summary>
+    internal async Task<bool> WalkTowardItemAsync(
+        IRoomBot bot,
+        IRoomFloorItem item,
+        CancellationToken ct
+    )
+    {
+        var map = MapModule;
+
+        if (!map.TryGetTileIds(FloorFootprint.Of(item), out var tileIds))
+            return false;
+
+        var free = tileIds.Where(x => map.CanAvatarWalk(bot, x)).ToList();
+
+        while (free.Count > 0)
+        {
+            var index = NextRandom(0, free.Count);
+            var (x, y) = map.GetTileXY(free[index]);
+
+            if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
+                return true;
+
+            free.RemoveAt(index);
+        }
+
+        var botIdx = map.ToIdx(bot.X, bot.Y);
+        var beside = tileIds
+            .Where(x => map.CanAvatarWalk(bot, x, ignoreAvatars: true))
+            .SelectMany(Neighbours)
+            .Where(x => !tileIds.Contains(x) && map.CanAvatarWalk(bot, x))
+            .Distinct()
+            .OrderBy(x => map.GetDistanceBetween(botIdx, x));
+
+        foreach (var tileIdx in beside)
+        {
+            if (tileIdx == botIdx)
+                return false;
+
+            var (x, y) = map.GetTileXY(tileIdx);
+
+            if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
+                return true;
+        }
+
+        return false;
+
+        IEnumerable<int> Neighbours(int tileIdx)
+        {
+            for (var direction = 0; direction < 8; direction++)
+                if (map.TryGetTileInFront(tileIdx, (Rotation)direction, out var next))
+                    yield return next;
+        }
+    }
+
+    /// <summary>
+    /// Places a bot on a furni's tile without walking, whatever stands there: a user on the
+    /// tile, a furni nobody can stand on, a chair it then sits on (official client capture
+    /// 2026-10-24, Bot Teleport onto a user's tile, a lamp and a chair, 2/2 each).
+    /// </summary>
     public async Task<bool> TeleportToItemAsync(
         IRoomBot bot,
         IRoomFloorItem item,
@@ -106,13 +179,89 @@ public sealed partial class RoomBotModule
     {
         var tileIdx = MapModule.ToIdx(item.X, item.Y);
 
-        if (!PetModule.IsTileFreeForNpc(tileIdx) && !CanShareTile(bot, tileIdx))
+        if (!MapModule.InBounds(tileIdx))
             return false;
 
         await AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
         Persist(bot);
 
         return true;
+    }
+
+    /// <summary>
+    /// A bot takes a hand item to an avatar: it carries the item at once, walks to a tile next
+    /// to the avatar and hands it over there, the avatar taking the item and the bot's hand
+    /// emptied in the same moment; a bot already next to the avatar hands it over at once
+    /// (official client capture 2026-10-24: CarryObject bot, a walk, ~1.4 s later CarryObject
+    /// avatar then CarryObject bot 0, 1/1; next to the user all three in one tick, 1/1).
+    /// </summary>
+    public async Task GiveHandItemAsync(
+        IRoomBot bot,
+        IRoomAvatar avatar,
+        int handItemId,
+        CancellationToken ct
+    )
+    {
+        await AvatarModule.SetHandItemAsync(bot, handItemId, ct);
+
+        bot.HandOverObjectId = avatar.ObjectId;
+
+        await ContinueHandOverAsync(bot, ct);
+    }
+
+    /// <summary>
+    /// Hands the carried item over when the bot is next to its avatar, otherwise walks it there;
+    /// the order ends once the item is handed over, the avatar has left or no way leads to it.
+    /// </summary>
+    internal async Task ContinueHandOverAsync(IRoomBot bot, CancellationToken ct)
+    {
+        if (!AvatarModule.TryGetAvatar(bot.HandOverObjectId, out var avatar) || bot.HandItemId <= 0)
+        {
+            bot.HandOverObjectId = -1;
+
+            return;
+        }
+
+        var map = MapModule;
+        var avatarIdx = map.ToIdx(avatar.X, avatar.Y);
+
+        if (map.GetDistanceBetween(map.ToIdx(bot.X, bot.Y), avatarIdx) <= 1)
+        {
+            var handItemId = bot.HandItemId;
+
+            bot.HandOverObjectId = -1;
+
+            await AvatarModule.SetHandItemAsync(avatar, handItemId, ct);
+            await AvatarModule.SetHandItemAsync(bot, 0, ct);
+
+            return;
+        }
+
+        if (!await WalkBesideAsync(bot, avatarIdx, ct))
+            bot.HandOverObjectId = -1;
+    }
+
+    /// <summary>Walks a bot to a free tile beside a tile, trying the four sides in turn.</summary>
+    internal async Task<bool> WalkBesideAsync(IRoomBot bot, int targetIdx, CancellationToken ct)
+    {
+        var map = MapModule;
+        var botIdx = map.ToIdx(bot.X, bot.Y);
+
+        foreach (var direction in RotationExtensions.CARDINAL)
+        {
+            if (!map.TryGetTileInFront(targetIdx, direction, out var nextIdx))
+                continue;
+
+            if (nextIdx != botIdx && !PetModule.IsTileFreeForNpc(nextIdx))
+                continue;
+
+            var (x, y) = map.GetTileXY(nextIdx);
+
+            if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>Starts or stops a bot trailing an avatar; the tick keeps it one step behind.</summary>
@@ -152,7 +301,4 @@ public sealed partial class RoomBotModule
 
         Persist(bot);
     }
-
-    private bool CanShareTile(IRoomBot bot, int tileIdx) =>
-        State.TileAvatarStacks[tileIdx].Contains(bot.ObjectId);
 }

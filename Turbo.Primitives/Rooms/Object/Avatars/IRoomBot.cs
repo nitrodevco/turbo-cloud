@@ -29,6 +29,9 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     /// <summary>The furni a "move" order sent the bot to, or -1.</summary>
     public RoomObjectId TargetItemId { get; set; }
 
+    /// <summary>The avatar the bot is taking the hand item it carries to, or -1.</summary>
+    public RoomObjectId HandOverObjectId { get; set; }
+
     public void SetName(string name);
     public void SetMotto(string motto);
     public void SetFigure(string figure, AvatarGenderType gender);

@@ -120,7 +120,13 @@ public sealed class WiredAllowWallFurniTests
             type.GetCustomAttribute<RoomObjectLogicAttribute>()!.Key,
             createLogic: (factory, ctx) =>
                 box = (FurnitureWiredLogic)
-                    Activator.CreateInstance(type, _room.Grains, factory, ctx)!
+                    Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(
+                        _room.Harness.Services,
+                        type,
+                        _room.Grains,
+                        factory,
+                        ctx
+                    )
         );
 
         return box!;

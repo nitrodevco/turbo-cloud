@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,31 +74,41 @@ public abstract class FurnitureWiredBotActionLogic(
     }
 
     /// <summary>
-    /// Whether the box works with no bot named. Only the hand item editor lets the bot be left
-    /// out (its "bot.usage" checkbox sends an empty name); every other bot editor asks for one.
+    /// Whether the box acts on one bot of those its name matches rather than on all of them:
+    /// follow, hand item and talk to avatar pick one, talk, move, teleport and change figure
+    /// act on every bot of that name (official client capture 2026-10-24, two bots "Frank" and
+    /// "frank"; follow start and stop each moved one bot, a different one between runs).
     /// </summary>
-    protected virtual bool IsBotOptional => false;
+    protected virtual bool ActsOnOneBot => false;
 
-    /// <summary>The bot name and the remaining text of a tab separated string param.</summary>
+    /// <summary>
+    /// The bot name, as saved (a space before or after it is part of the name), and the
+    /// remaining text of a tab separated string param.
+    /// </summary>
     protected (string botName, string text) SplitParam()
     {
         var raw = _wiredData.StringParam ?? string.Empty;
         var index = raw.IndexOf(FIELD_SEPARATOR);
 
-        return index < 0
-            ? (raw.Trim(), string.Empty)
-            : (raw[..index].Trim(), raw[(index + 1)..].Trim());
+        return index < 0 ? (raw, string.Empty) : (raw[..index], raw[(index + 1)..].Trim());
     }
 
     /// <summary>
-    /// The bots a box acts on when its bot slot can also be a user source: the bot named in the
-    /// box for "Use the bot specified by name", otherwise the bots among that slot's users (the
-    /// triggering or reached user, a selector's or a signal's).
+    /// The bots a box acts on when its bot slot can also be a user source: the bots named in
+    /// the box for "Use the bot specified by name" (one of them for <see cref="ActsOnOneBot"/>),
+    /// otherwise the bots among that slot's users (the triggering or reached user, a
+    /// selector's or a signal's).
     /// </summary>
     protected List<IRoomBot> ResolveBots(IWiredContext ctx, int slot, string name)
     {
         if (IsBotByName(slot))
-            return TryGetBot(name, out var named) ? [named] : [];
+        {
+            var named = BotModule.GetBotsByName(name);
+
+            return ActsOnOneBot && named.Count > 1
+                ? [named[Random.Shared.Next(named.Count)]]
+                : named;
+        }
 
         var users = WiredSlotSelection.ForUserSlot(this, ctx, slot).SelectedAvatarIds;
 
@@ -111,27 +121,5 @@ public abstract class FurnitureWiredBotActionLogic(
         var sources = GetPlayerSources();
 
         return slot >= sources.Count || sources[slot].Contains(WiredPlayerSourceType.BotByName);
-    }
-
-    protected bool TryGetBot(string name, [NotNullWhen(true)] out IRoomBot? bot) =>
-        BotModule.TryGetBotByName(name, out bot);
-
-    /// <summary>
-    /// The bot the box names, by the box's own rule: false when a bot is needed and none by
-    /// that name is in the room. A box whose bot is optional and unnamed resolves to null.
-    /// </summary>
-    protected bool TryResolveBot(string name, out IRoomBot? bot)
-    {
-        bot = null;
-
-        if (name.Length == 0)
-            return IsBotOptional;
-
-        if (!TryGetBot(name, out var found))
-            return false;
-
-        bot = found;
-
-        return true;
     }
 }

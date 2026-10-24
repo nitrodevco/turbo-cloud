@@ -21,6 +21,8 @@ public class WiredActionBotFollowAvatar(
 {
     public override int WiredCode => (int)WiredActionType.BOT_FOLLOW_AVATAR;
 
+    protected override bool ActsOnOneBot => true;
+
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(true)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
