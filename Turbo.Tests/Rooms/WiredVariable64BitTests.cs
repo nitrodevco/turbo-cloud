@@ -52,6 +52,11 @@ public sealed class WiredVariable64BitTests
     [InlineData("set 2 = 2; pow 64 = 0")]
     // action.41.B4f: x / 0 is past 2^51 and no error (3/3).
     [InlineData("set 10 = 10; div 0 = 2147483647; sub 1 = 2147483647; div 1048576 = 2147483647")]
+    // action.41.R11: -10 / 0 is the smallest long (still -2^31 after / 2^32), 0 / 0 is 0, -10 % 0
+    // is 0 (2026-10-24T19-20-*, 1/1 each).
+    [InlineData("set -10 = -10; div 0 = -2147483648; div 4294967296 = -2147483648")]
+    [InlineData("set 0 = 0; div 0 = 0")]
+    [InlineData("set -10 = -10; mod 0 = 0")]
     // action.41.B4g: x % 0 is 0 (1/1).
     [InlineData("set 10 = 10; mod 0 = 0")]
     // action.41.B4h: a division truncates toward zero, a remainder keeps the dividend's sign.

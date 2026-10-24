@@ -114,7 +114,17 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
         if (!canModify || controllerLevel < wiredLogic.MinimumControllerLevelToSave)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToModifyWired);
 
+        // Too many picks is refused before anything the box itself checks, by every box, a box
+        // without a pick list too (official client capture 2026-10-24, wired matrix E2: 21 picks
+        // refused on all 159 box types with the server error, none with a box's own text).
+        if (FurnitureWiredLogic.PicksOverLimit(update, WiredConfig.SelectedItemsLimit))
+            return false;
+
         await wiredLogic.EnsureWiredLoadedAsync(ct);
+
+        // A run still waiting on a delay keeps the box as it was when its trigger fired.
+        if (wiredLogic is IWiredAction action)
+            HoldConfigForPendingRuns(action, wiredLogic);
 
         return await wiredLogic.ApplyWiredUpdateAsync(ctx, update, ct);
     }

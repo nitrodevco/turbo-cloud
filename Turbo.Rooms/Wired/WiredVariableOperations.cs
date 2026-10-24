@@ -119,8 +119,8 @@ public static class WiredVariableOperations
 
     /// <summary>
     /// 10 / 0 reads 2147483647 and stays past 2^51 after a further / 2^20, so it is the largest
-    /// long (official client capture 2026-10-24, action.41.B4f, 3/3, no error). A negative value
-    /// going to the smallest and 0 staying 0 is inference: a division as a double makes those.
+    /// long (official client capture 2026-10-24, action.41.B4f, 3/3, no error); -10 / 0 is the
+    /// smallest, still the smallest after / 2^32, and 0 / 0 is 0 (action.41.R11).
     /// </summary>
     private static long DivideByZero(long value) =>
         value switch

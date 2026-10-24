@@ -25,7 +25,8 @@ namespace Turbo.Rooms.Wired;
 /// Users By Type, By Name (whatever its list order) and In Area put the user who entered or
 /// re-entered last in front (official client capture 2026-10-24, two accounts, W4 lab
 /// selector.2/11/13.R4 and R4b, 2/2 each); Users Performing Action and In Neighborhood list by
-/// ascending room index, bots included (selector.9/12.R4, 2/2 each). Where a newest-first
+/// ascending room index, bots included (selector.9/12.R4, 2/2 each); Users On Furni by the
+/// furni's tiles and Users From Signal in the sender's order (selector.8/10.R4). Where a newest-first
 /// selector puts a bot is open: ours sorts it by its room index, but Users By Name picking two
 /// bots listed the one placed first first (2026-10-24T17-24-24) and In Area put a bot placed last
 /// between two users (selector.13.R4). A pile mixing both orders following its first user
@@ -143,7 +144,8 @@ public static class WiredSelectorChain
 
     /// <summary>
     /// Rebuilds the pool in room order: furni by id, users newest first (a room index is handed out
-    /// on every entry, so the highest is the user who came in last) or by ascending room index.
+    /// on every entry, so the highest is the user who came in last), by ascending room index, or
+    /// as the selector found them.
     /// </summary>
     public static void PutInRoomOrder(IWiredSelectionSet pool, WiredUserOrderType userOrder)
     {
@@ -155,7 +157,7 @@ public static class WiredSelectorChain
             pool.SelectedFurniIds.UnionWith(furni);
         }
 
-        if (pool.SelectedAvatarIds.Count > 1)
+        if (pool.SelectedAvatarIds.Count > 1 && userOrder != WiredUserOrderType.AsSelected)
         {
             var avatars =
                 userOrder == WiredUserOrderType.RoomIndex

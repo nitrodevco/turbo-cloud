@@ -1152,7 +1152,58 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// A box about to be saved: every run still waiting to reach it keeps it as it is now. Habbo
+    /// accepts the save at once and runs it from the next firing on, while a pending delayed run
+    /// keeps what it had when its trigger fired: the effect's text and delay, the trigger's picks,
+    /// the condition and the selection (official client capture 2026-10-24, wired matrix E8: Show
+    /// Message saved with a new text and delay 0 mid-delay still showed the old text at the old
+    /// time 4/4). The trigger, conditions and selectors are asked when the stack fires, so only
+    /// the actions have anything to keep.
+    /// </summary>
+    private void HoldConfigForPendingRuns(IWiredAction action, FurnitureWiredLogic box)
+    {
+        IWiredData? held = null;
+
+        foreach (var pending in _pendingStackExecutions.Values)
+        {
+            var index = pending.Actions.IndexOf(action);
+
+            if (index < pending.NextActionIndex || pending.HeldConfigs?.ContainsKey(action) == true)
+                continue;
+
+            held ??= box.CaptureConfig();
+            (pending.HeldConfigs ??= [])[action] = held;
+        }
+    }
+
     private async Task<bool> ExecuteStackChainAsync(
+        WiredExecutionKey key,
+        WiredPendingStackExecution pending,
+        long now,
+        CancellationToken ct
+    )
+    {
+        if (pending.HeldConfigs is not { Count: > 0 })
+            return await ExecuteStackChainCoreAsync(key, pending, now, ct);
+
+        // The actions saved while the run waited run as they were when it was scheduled.
+        Func<Task<bool>> run = () => ExecuteStackChainCoreAsync(key, pending, now, ct);
+
+        foreach (var (action, held) in pending.HeldConfigs)
+        {
+            if (action is FurnitureWiredLogic box)
+            {
+                var inner = run;
+
+                run = () => box.RunWithConfigAsync(held, inner, ct);
+            }
+        }
+
+        return await run();
+    }
+
+    private async Task<bool> ExecuteStackChainCoreAsync(
         WiredExecutionKey key,
         WiredPendingStackExecution pending,
         long now,
