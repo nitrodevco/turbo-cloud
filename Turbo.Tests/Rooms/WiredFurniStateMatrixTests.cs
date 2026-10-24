@@ -5,6 +5,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -15,7 +16,8 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// Wired matrix family W2 (furni state): States Match and Stuff Type Matches with their "not"
 /// twins open with the furni quantifier radio (official client capture: codes 0, 8, 13 and 19 with
-/// quantifierType 1, codes 1 and 14 with 0) and honour it.
+/// quantifierType 1, codes 1 and 14 with 0) and honour it, and Toggle To Random State may draw the
+/// state a furni is already in, which changes nothing.
 /// </summary>
 public sealed class WiredFurniStateMatrixTests
 {
@@ -156,6 +158,65 @@ public sealed class WiredFurniStateMatrixTests
         ).Should().BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
+    }
+
+    // action.15.R3: the random draw may be the furni's current state (measured 5 of 12 draws on a
+    // 2-state lamp); Habbo then sends no state update and "Furni state changes" does not fire.
+    // A 1-state furni always draws the state it is in.
+    [Fact]
+    public async Task A_random_draw_of_the_current_state_changes_nothing()
+    {
+        var lamp = _room.AddFloorItem(LAMP_A, 3, 3, totalStates: 1);
+        var box = _room.AddBox<WiredActionToggleToRandomState>(BOX, 0, 0, "wf_act_toggle_to_rnd");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                stuffIds: [LAMP_A],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        await box.ExecuteAsync(ctx, Ct);
+
+        lamp.Logic.GetState().Should().Be(0);
+        ctx.FloorItemStateUpdates.Should().BeEmpty();
+    }
+
+    // action.15.R3 on a 2-state lamp: every update sent is a real change.
+    [Fact]
+    public async Task Each_random_state_update_is_a_change()
+    {
+        var lamp = _room.AddFloorItem(LAMP_A, 3, 3);
+        var box = _room.AddBox<WiredActionToggleToRandomState>(BOX, 0, 0, "wf_act_toggle_to_rnd");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                stuffIds: [LAMP_A],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        for (var i = 0; i < 40; i++)
+        {
+            var before = lamp.Logic.GetState();
+            var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+            await box.ExecuteAsync(ctx, Ct);
+
+            ctx.FloorItemStateUpdates.Should().HaveCount(lamp.Logic.GetState() == before ? 0 : 1);
+        }
     }
 
     private WiredProcessingContext Context() =>

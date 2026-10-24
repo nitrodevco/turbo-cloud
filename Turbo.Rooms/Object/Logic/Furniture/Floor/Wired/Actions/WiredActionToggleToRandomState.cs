@@ -12,7 +12,7 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
-/// <summary>Sets the picked furni to a random one of their states.</summary>
+/// <summary>Sets the picked furni to a random one of their states, their current one included.</summary>
 [RoomObjectLogic("wf_act_toggle_to_rnd")]
 public class WiredActionToggleToRandomState(
     IGrainFactory grainFactory,
@@ -37,8 +37,13 @@ public class WiredActionToggleToRandomState(
                 continue;
 
             var totalStates = Math.Max(1, item.Definition.TotalStates);
+            var state = Random.Shared.Next(totalStates);
 
-            await ctx.ProcessItemStateUpdateAsync(item, Random.Shared.Next(totalStates));
+            // The draw may land on the state the furni is already in: Habbo then sends no state
+            // update and "Furni state changes" does not fire (official client capture, 5 of 12
+            // draws on a 2-state lamp).
+            if (state != item.Logic.GetState())
+                await ctx.ProcessItemStateUpdateAsync(item, state);
 
             changed = true;
         }
