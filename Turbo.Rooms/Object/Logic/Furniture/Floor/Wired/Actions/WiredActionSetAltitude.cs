@@ -31,7 +31,9 @@ public class WiredActionSetAltitude(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(0, 8000, 0),
+            // Out of range is kept at the nearest end, not refused: 9000 and 20000 are stored as
+            // 8000, -300 as 0 (official client capture 2026-10-24, W1 lab action.29.E1, 3/3).
+            new WiredClampParamRule(0, 8000, 0),
             new WiredEnumParamRule<WiredOperatorType>(WiredOperatorType.Add),
         ];
 
@@ -41,10 +43,14 @@ public class WiredActionSetAltitude(
     {
         var amount = GetIntParamOrDefault(0, 0);
         var op = GetIntParamOrDefault(1, WiredOperatorType.Add);
-        var maxAltitude = RoomConfig.MaxStackHeight.ToInt();
+        var maxStackHeight = RoomConfig.MaxStackHeight.ToInt();
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
+            // The furni's top stays within the room's stack height: set 80.00 put a block 1.00
+            // high at 79.00 and a box 0.65 high at 79.35 (official client capture 2026-10-24, W1
+            // lab action.29.L1, 3/3).
+            var maxAltitude = Math.Max(0, maxStackHeight - item.Definition.StackHeight.ToInt());
             var current = plan.Where(item).Z.ToInt();
             var next = op switch
             {
