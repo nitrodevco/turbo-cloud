@@ -188,8 +188,16 @@ public class WiredAddonVariableLevelUp(
         )
             return null;
 
-        long xp = Math.Max(0, xpValue.Value);
         var (level, maxLevel, levelStart, nextStart, isMaxed) = reached;
+
+        if (index == 6 && WiredConfig.LevelUpIsMaxedHoldsNoValue)
+            return null;
+
+        // XP past the top level counts as the top level's start, and a maxed level has nothing
+        // left to progress through: xp 100 by step 10 to level 5 read current_xp 40, progress,
+        // progress_percentage, xp_required and xp_remaining 0 (official client capture
+        // 2026-10-24, wired matrix addon.1001.R1).
+        long xp = isMaxed ? levelStart : Math.Max(0, xpValue.Value);
         var required = Math.Max(0, nextStart - levelStart);
         var progress = Math.Max(0, xp - levelStart);
 
@@ -197,10 +205,10 @@ public class WiredAddonVariableLevelUp(
         {
             0 => level,
             1 => xp,
-            2 => isMaxed ? required : Math.Min(progress, required),
-            3 => isMaxed || required == 0 ? 100 : Math.Min(100, progress * 100 / required),
+            2 => Math.Min(progress, required),
+            3 => required == 0 ? 0 : Math.Min(100, progress * 100 / required),
             4 => required,
-            5 => isMaxed ? 0 : Math.Max(0, required - progress),
+            5 => Math.Max(0, required - progress),
             6 => isMaxed ? 1 : 0,
             7 => maxLevel,
             _ => 0,

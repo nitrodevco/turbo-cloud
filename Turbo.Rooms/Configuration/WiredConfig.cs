@@ -89,6 +89,14 @@ public class WiredConfig
     /// </summary>
     public bool AtGivenTimeWaitsForTimerRestart { get; init; } = true;
 
+    /// <summary>
+    /// Whether a Level Up add-on's <c>is_maxed</c> sub-variable holds no value, as Habbo's does: a
+    /// Variable Placeholder prints "null" for it below the top level and at it alike (official
+    /// client capture 2026-10-24, WIN63-202610201032, wired matrix addon.1001.R1, 18/18). Off holds
+    /// 1 at the top level and 0 below it.
+    /// </summary>
+    public bool LevelUpIsMaxedHoldsNoValue { get; init; } = true;
+
     /// <summary>Delayed executions run per tick; the rest wait for the next one.</summary>
     public int MaxScheduledPerTick { get; init; } = 64;
     public int MaxEventsPerTick { get; init; } = 64;

@@ -1,7 +1,12 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -88,5 +93,64 @@ public sealed class WiredLevelUpParamsTests
             .BeTrue();
 
         _box.GetSnapshot().StringParam.Should().Be(stored);
+    }
+
+    // Wired matrix addon.1001.R1 (wlab4): lvlup [255,1,10,5,0] on room variable "lv", read with a
+    // Variable Placeholder. xp 25: level 3, current_xp 25, progress 5, progress_percentage 50,
+    // xp_required 10, xp_remaining 5, max_level 5; xp 100: level 5, current_xp 40 (the top level's
+    // start), progress, percentage, required and remaining 0; is_maxed printed "null" both times
+    // (official client capture 2026-10-24, 18/18).
+    [Theory]
+    [InlineData(25, "3,25,5,50,10,5,null,5")]
+    [InlineData(100, "5,40,0,0,0,0,null,5")]
+    public async Task Addon_1001_R1_sub_variables_read_as_habbo_prints_them(int xp, string printed)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var variable = _room.AddBox<WiredVariableRoom>(10, 0, 0, "wf_var_room");
+
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                10,
+                intParams: [(int)WiredAvailabilityType.RoomActive],
+                stringParam: "lv"
+            )
+        )
+            .Should()
+            .BeTrue();
+        (await _room.SaveAsync<UpdateAddonMessage>(BOX, intParams: [255, 1, 10, 5, 0]))
+            .Should()
+            .BeTrue();
+        await variable.LoadWiredAsync(ct);
+        await _box.LoadWiredAsync(ct);
+
+        var key = new WiredVariableKey(
+            variable.GetVarSnapshot().VariableId,
+            WiredVariableTargetType.Global,
+            0
+        );
+        (
+            await variable.SetValueAsync(
+                _room.Harness.Fakes.Create<IWiredExecutionContext>(),
+                key,
+                xp
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        var values = new List<string>();
+
+        foreach (var sub in _box.GetSubVariables().Cast<WiredSubVariable>())
+        {
+            var subKey = key with { VariableId = sub.GetVarSnapshot().VariableId };
+
+            values.Add(
+                sub.TryGetValue(subKey, out var value) ? ((int)value).ToString()
+                : sub.HoldsNoValueFor(subKey) ? "null"
+                : "-"
+            );
+        }
+
+        string.Join(",", values).Should().Be(printed);
     }
 }

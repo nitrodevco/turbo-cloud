@@ -67,6 +67,15 @@ public sealed class WiredSubVariable(
 
     public WiredVariableSnapshot GetVarSnapshot() => _snapshot ??= Build();
 
+    /// <summary>
+    /// Whether the parent holds a value on the key's target that this sub-variable has none for
+    /// (a Level Up's <c>is_maxed</c> on Habbo), which a placeholder prints as "null".
+    /// </summary>
+    public bool HoldsNoValueFor(in WiredVariableKey key) =>
+        CanBind(key)
+        && parent.TryGetValue(new WiredVariableKey(ParentId, key.TargetType, key.TargetId), out _)
+        && !TryGetValue(key, out _);
+
     /// <summary>The variable this one is derived from.</summary>
     public WiredVariableId ParentId => parent.GetVarSnapshot().VariableId;
 
