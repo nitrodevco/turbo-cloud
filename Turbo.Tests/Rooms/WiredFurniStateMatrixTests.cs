@@ -201,6 +201,52 @@ public sealed class WiredFurniStateMatrixTests
         condition.Evaluate(ctx).Should().Be(passes);
     }
 
+    // condition.2.R1 / R5: Triggerer Is On Furni quantifies the users (quantifierType 2). Two
+    // triggering users, one on the picked block: "all of the users match" fails, "any" holds.
+    [Theory]
+    [InlineData(QUANTIFIER_ALL, false)]
+    [InlineData(QUANTIFIER_ANY, true)]
+    public async Task Triggerer_on_furni_counts_its_users_with_the_quantifier(
+        int quantifier,
+        bool passes
+    )
+    {
+        _room.AddFloorItem(LAMP_A, 3, 3);
+        var on = _room.Enter(5, 3, 3);
+        var off = _room.Enter(6, 6, 6);
+
+        var condition = _room.AddBox<WiredConditionExecutorOnItem>(
+            BOX,
+            0,
+            0,
+            "wf_cnd_trggrer_on_frn"
+        );
+
+        condition.GetQuantifierType().Should().Be((byte)WiredQuantifierType.Users);
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                stuffIds: [LAMP_A],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [quantifier]
+            )
+        ).Should().BeTrue();
+
+        var ctx = Context();
+        ctx.Selected.SelectedAvatarIds.Add(on.ObjectId);
+        ctx.Selected.SelectedAvatarIds.Add(off.ObjectId);
+
+        condition.Evaluate(ctx).Should().Be(passes);
+    }
+
     // action.15.R3: the random draw may be the furni's current state (measured 5 of 12 draws on a
     // 2-state lamp); Habbo then sends no state update and "Furni state changes" does not fire.
     // A 1-state furni always draws the state it is in.
