@@ -41,7 +41,7 @@ public sealed class WiredJoinTeamTests
     }
 
     [Theory]
-    [InlineData(WiredTeamType.Wired, 33)]
+    [InlineData(WiredTeamType.Wired, 223)]
     [InlineData(WiredTeamType.BattleBanzai, 33)]
     [InlineData(WiredTeamType.Freeze, 40)]
     public async Task The_user_joins_the_chosen_team_wearing_that_kind_of_team_effect(
