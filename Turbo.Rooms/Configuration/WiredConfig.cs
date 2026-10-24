@@ -63,6 +63,16 @@ public class WiredConfig
     /// </summary>
     public int MaxDelayedEvents { get; init; } = 5000;
 
+    /// <summary>
+    /// Whether the periodic triggers a room loads with fire on its first avatar tick with someone
+    /// in it, then every period from there, as Habbo's do: a room unloaded and loaded again had
+    /// its 2 s, 5 s and 500 ms repeaters flash together in the entering user's first UserUpdate,
+    /// about 470 ms after RoomReady, then each on its period (official client capture
+    /// 2026-10-24, WIN63-202610201032, 2/2). Off: the first firing after a load waits a period,
+    /// as for a box placed or saved later.
+    /// </summary>
+    public bool PeriodicTriggersFireOnRoomLoad { get; init; } = true;
+
     /// <summary>Delayed executions run per tick; the rest wait for the next one.</summary>
     public int MaxScheduledPerTick { get; init; } = 64;
     public int MaxEventsPerTick { get; init; } = 64;

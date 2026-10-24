@@ -20,6 +20,7 @@ public sealed partial class RoomWiredSystem
     private long _timersEpochMs = -1;
     private long _timersEpochVersion = 0;
     private bool _restartPeriodicTriggers;
+    private bool _timedTriggersStarted;
 
     /// <summary>Restarts the timer that "time elapsed" and "at given time" wired read.</summary>
     public void ResetTimers(long now)
@@ -83,12 +84,27 @@ public sealed partial class RoomWiredSystem
             : now + delayMs;
     }
 
+    /// <summary>
+    /// When a periodic trigger the room loaded with first fires: on the first avatar tick of the
+    /// room's first pass with someone in it, where the entering user is first shown
+    /// (<see cref="WiredConfig.PeriodicTriggersFireOnRoomLoad"/>). One placed since the load waits
+    /// a period (<see cref="FirstPeriodicAt"/>).
+    /// </summary>
+    private long LoadedPeriodicAt(long now)
+    {
+        var avatarTickMs = RoomConfig.AvatarTickMs;
+
+        return avatarTickMs > 0 ? _roomGrain.AlignToNextBoundary(now, avatarTickMs) : now;
+    }
+
     private async Task ProcessTimedTriggersAsync(long now, CancellationToken ct)
     {
         var elapsedMs = GetElapsedTimerMs(now);
         var restartPeriodic = _restartPeriodicTriggers;
+        var roomLoad = !_timedTriggersStarted && WiredConfig.PeriodicTriggersFireOnRoomLoad;
 
         _restartPeriodicTriggers = false;
+        _timedTriggersStarted = true;
 
         // Listed when the stacks were rebuilt, in the order the stacks and their triggers are
         // walked there, which is the order this loop used to find them in.
@@ -106,9 +122,12 @@ public sealed partial class RoomWiredSystem
 
                     if (!_nextPeriodicAtMs.TryGetValue(objectId, out var nextAt))
                     {
-                        _nextPeriodicAtMs[objectId] = FirstPeriodicAt(now, delayMs);
+                        nextAt =
+                            roomLoad && State.LoadedItemSnapshots.ContainsKey(objectId)
+                                ? LoadedPeriodicAt(now)
+                                : FirstPeriodicAt(now, delayMs);
 
-                        continue;
+                        _nextPeriodicAtMs[objectId] = nextAt;
                     }
 
                     if (now < nextAt)

@@ -149,6 +149,59 @@ public sealed class WiredRoom
         string? publicName = null
     )
     {
+        var item = NewFloorItem(
+            id,
+            x,
+            y,
+            logicName,
+            definitionId,
+            canWalk,
+            usagePolicy,
+            canSit,
+            canLay,
+            customParams,
+            totalStates,
+            className,
+            publicName: publicName
+        );
+
+        var context = new RoomFloorItemContext(Harness.Room, item);
+
+        item.SetLogic(
+            createLogic?.Invoke(StuffData, context)
+                ?? new Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic(
+                    StuffData,
+                    context
+                )
+        );
+
+        Harness.State.ItemsById.Add(id, item);
+        Map.AddItem(item);
+
+        return item;
+    }
+
+    /// <summary>
+    /// A floor furni as a row of the room holds it, with no logic yet: what <see cref="AddFloorItem"/>
+    /// stands in the room, and what a room loading its furni reads (<see cref="RoomLoads"/>).
+    /// </summary>
+    public static RoomFloorItem NewFloorItem(
+        int id,
+        int x,
+        int y,
+        string logicName = "default_floor",
+        int? definitionId = null,
+        bool canWalk = true,
+        FurnitureUsageType usagePolicy = FurnitureUsageType.Everybody,
+        bool canSit = false,
+        bool canLay = false,
+        string? customParams = null,
+        int totalStates = 2,
+        string? className = null,
+        string? extraData = null,
+        string? publicName = null
+    )
+    {
         var item = new RoomFloorItem
         {
             ObjectId = id,
@@ -181,23 +234,10 @@ public sealed class WiredRoom
             },
         };
 
-        item.SetExtraData(null);
+        item.SetExtraData(extraData);
         item.SetPosition(x, y);
         item.SetPositionZ(Altitude.Zero);
         item.SetRotation(Rotation.North);
-
-        var context = new RoomFloorItemContext(Harness.Room, item);
-
-        item.SetLogic(
-            createLogic?.Invoke(StuffData, context)
-                ?? new Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic(
-                    StuffData,
-                    context
-                )
-        );
-
-        Harness.State.ItemsById.Add(id, item);
-        Map.AddItem(item);
 
         return item;
     }
