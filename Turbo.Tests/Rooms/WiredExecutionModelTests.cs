@@ -6,11 +6,13 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -274,6 +276,97 @@ public sealed class WiredExecutionModelTests
 
         stats!.IsHeavy.Should().BeFalse();
         stats.ExecutionCostCap.Should().Be(5);
+    }
+
+    /// <summary>
+    /// Wired matrix W5 L6/L7 (confidential capture, execution limits): changing a variable on
+    /// more furni costs the room more (target_fanout_cost), and assigning the value a holder
+    /// already has costs as much as changing it (unchanged_writes_cost). Each furni an action
+    /// works on adds <see cref="WiredConfig.ExecutionCostPerTarget"/>, whatever it does to it.
+    /// </summary>
+    [Theory]
+    // The action, its furni, and the clicking user its user slot reads by default.
+    [InlineData(1, WiredVariableOperationType.Add, 3)]
+    [InlineData(20, WiredVariableOperationType.Add, 22)]
+    [InlineData(20, WiredVariableOperationType.Set, 22)]
+    public async Task Changing_a_variable_costs_per_furni_even_when_the_value_stays(
+        int furniCount,
+        WiredVariableOperationType operation,
+        double cost
+    )
+    {
+        Configure(
+            new WiredConfig
+            {
+                ExecutionCostCapPerOwnerLevel = 0,
+                ExecutionCostPerStack = 0,
+                ExecutionCostPerAction = 1,
+                ExecutionCostPerTarget = 1,
+                HeavyBusyMsPerWindow = 1_000_000,
+            }
+        );
+
+        var levelBox = _nextBoxId++;
+        var level = _room.AddBox<WiredVariableFurni>(levelBox, 9, 0, "wf_var_furni");
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                levelBox,
+                intParams: [1, (int)WiredAvailabilityType.RoomActive],
+                stringParam: "level"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await level.LoadWiredAsync(Ct);
+
+        var levelId = level.GetVarSnapshot().VariableId;
+        var holders = Enumerable.Range(100, furniCount).ToArray();
+
+        foreach (var holder in holders)
+        {
+            _room.AddFloorItem(holder, holder % 10, 3 + (holder - 100) / 10);
+            await level.GiveValueAsync(
+                new WiredVariableKey(levelId, WiredVariableTargetType.Furni, holder),
+                new WiredVariableValue(0),
+                false
+            );
+        }
+
+        await BuildStackAsync(
+            0,
+            0,
+            clickTrigger: true,
+            actions:
+            [
+                new(
+                    async (id, x, y) =>
+                    {
+                        _room.AddBox<WiredActionChangeVariable>(id, x, y, "wf_act_change_var_val");
+                        (
+                            await _room.SaveAsync<UpdateActionMessage>(
+                                id,
+                                // Furni, the operation, a literal 0 (Set 0 leaves it as it is).
+                                intParams: [0, (int)operation, 0, 0, 0, -10, 0],
+                                stuffIds: holders,
+                                furniSources:
+                                [
+                                    [WiredFurniSourceType.SelectedItems],
+                                    [WiredFurniSourceType.SelectorItems],
+                                ],
+                                definitionSpecifics: [0],
+                                variableIds: [levelId.ToString(), ""]
+                            )
+                        ).Should().BeTrue();
+                    }
+                ),
+            ]
+        );
+        await StartAsync();
+
+        await ClickAsync();
+        await TickAsync(1);
+
+        Wired.GetExecutionCost(_now).Should().Be(cost);
     }
 
     [Fact]
