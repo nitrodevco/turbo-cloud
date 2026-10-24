@@ -44,6 +44,9 @@ public class WiredConditionItemPerType(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
+        if (WiredConfig.FurniMatchesByKind)
+            return EvaluateByKind(ctx);
+
         var compareWith = Existing(WiredSlotSelection.ForSlot(this, ctx, 1)).ToHashSet();
 
         if (compareWith.Count == 0)
@@ -57,6 +60,26 @@ public class WiredConditionItemPerType(
             QuantifierRequiresAll
         );
     }
+
+    /// <summary><see cref="Configuration.WiredConfig.FurniMatchesByKind"/>: the furni's kinds are compared.</summary>
+    private bool EvaluateByKind(IWiredProcessingContext ctx)
+    {
+        var kinds = Kinds(WiredSlotSelection.ForSlot(this, ctx, 1)).ToHashSet();
+
+        if (kinds.Count == 0)
+            return false;
+
+        return Quantify(
+            Kinds(WiredSlotSelection.ForSlot(this, ctx, 0)).Select(kinds.Contains),
+            QuantifierRequiresAll
+        );
+    }
+
+    private IEnumerable<int> Kinds(IWiredSelectionSet selection) =>
+        selection
+            .SelectedFurniIds.Select(id => FurniModule.TryGetItem(id, out var item) ? item : null)
+            .Where(item => item is not null)
+            .Select(item => item!.Definition.Id);
 
     private IEnumerable<int> Existing(IWiredSelectionSet selection) =>
         selection.SelectedFurniIds.Where(id => FurniModule.TryGetItem(id, out _));
