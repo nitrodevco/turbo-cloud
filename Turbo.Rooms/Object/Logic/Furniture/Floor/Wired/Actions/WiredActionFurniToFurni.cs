@@ -33,12 +33,14 @@ public class WiredActionFurniToFurni(
 
     // One destination drawn at random each firing; a blocked one is no move, not a retry
     // (official client capture 2026-10-24, W1 lab action.34.R8, 8 firings over 3 destinations;
-    // action.34.B1, 3/3).
+    // action.34.B1, 3/3). A bot on the destination's tile blocks it too (action.34.B3, 2/2, with
+    // a control moving it once the bot was gone); a user there is inferred to do the same, as
+    // a user and a bot block the other movers alike (action.33.B3).
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         if (GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1)).Count > 0)
             PlanWallItemsInPlace(WiredSlotSelection.ForSlot(this, ctx, 0), plan);
 
-        PlanOntoTargetFurni(ctx, plan, 0, 0, anyTarget: true);
+        PlanOntoTargetFurni(ctx, plan, 0, 0, anyTarget: true, blockedByUsers: true);
     }
 }

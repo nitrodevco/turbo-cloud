@@ -39,14 +39,17 @@ public abstract class FurnitureWiredMoveActionLogic(
     /// Plans the furni in slot 0 onto the first furni in slot 1 (with
     /// <paramref name="anyTarget"/>, one of them drawn at random), offset by
     /// (<paramref name="dx"/>, <paramref name="dy"/>) tiles. "Furni to furni" is this with no
-    /// offset and "move furni to" with one; they were the same loop written twice.
+    /// offset and "move furni to" with one; they were the same loop written twice. With
+    /// <paramref name="blockedByUsers"/>, an avatar on the target tile blocks the move (see
+    /// <see cref="IsBlockedByUser"/>).
     /// </summary>
     protected void PlanOntoTargetFurni(
         IWiredContext ctx,
         WiredMovePlan plan,
         int dx,
         int dy,
-        bool anyTarget = false
+        bool anyTarget = false,
+        bool blockedByUsers = false
     )
     {
         var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
@@ -62,6 +65,18 @@ public abstract class FurnitureWiredMoveActionLogic(
         {
             if (mover.ObjectId == target.ObjectId)
                 continue;
+
+            var moverAt = plan.Where(mover);
+
+            if (
+                blockedByUsers
+                && IsBlockedByUser(ctx, mover, moverAt, at.X + dx, at.Y + dy, moverAt.Rotation)
+            )
+            {
+                plan.Block();
+
+                continue;
+            }
 
             plan.Move(mover, at.X + dx, at.Y + dy);
         }
