@@ -12,7 +12,11 @@ namespace Turbo.Rooms.Wired.VariableFx;
 /// not in this table loses the whole config message, and a renderer that is not registered for
 /// the category throws when the first status arrives. A style's extras are what its renderer
 /// reads from the config (icon, colour, number design); the client's editor merges them in for
-/// its preview, the room has to send them.
+/// its preview, the room has to send them. A colour or width the style does not offer is sent as
+/// the style's default, as the client's editor resolves it (<c>VariableFxEditorMetadata.optionIn</c>
+/// with the style's <c>defaultColor</c> / <c>defaultWidth</c>, VariableFxEditorState.as:140-142,
+/// WIN63-202610201032): a Health Points fx with colour, width and renderer -1 is sent as
+/// 1000 / 2 / 10 (official client capture 2026-10-24, wired matrix addon.1200.R2/R5).
 /// </summary>
 internal static class VariableFxStyles
 {
@@ -32,6 +36,102 @@ internal static class VariableFxStyles
     public const int RENDERER_THERMOMETER = 13;
     public const int RENDERER_LEVEL_WITH_PROGRESS = 20;
     public const int RENDERER_LEVEL_DETAILS = 21;
+
+    // VariableFxIdResolver's colour and width ids.
+    private const int COLOR_NOT_APPLICABLE = -1;
+    private const int COLOR_GREEN = 1;
+    private const int COLOR_YELLOW = 3;
+    private const int COLOR_RED = 5;
+    private const int COLOR_BLUE = 7;
+    private const int COLOR_WHITE = 19;
+    private const int COLOR_DYNAMIC_RED_TO_GREEN = 1000;
+    private const int COLOR_DYNAMIC_LEVELLING = 1001;
+    private const int COLOR_DYNAMIC_TEAM = 1002;
+
+    private const int WIDTH_NOT_APPLICABLE = -1;
+    private const int WIDTH_EXTRA_SMALL = 0;
+    private const int WIDTH_SMALL = 1;
+    private const int WIDTH_MEDIUM = 2;
+    private const int WIDTH_LARGE = 3;
+    private const int WIDTH_EXTRA_LARGE = 4;
+    private const int WIDTH_BIG_MAHOOSIVE_CHONKY = 100;
+
+    // The colour and width lists of the client's style table (normalColors and the rest).
+    private static readonly int[] NORMAL_COLORS =
+    [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        100,
+        101,
+        102,
+        103,
+        104,
+    ];
+    private static readonly int[] ALL_AND_TEAM_COLORS = [.. NORMAL_COLORS, COLOR_DYNAMIC_TEAM];
+    private static readonly int[] ALL_AND_RED_TO_GREEN_COLORS =
+    [
+        .. NORMAL_COLORS,
+        COLOR_DYNAMIC_RED_TO_GREEN,
+        COLOR_DYNAMIC_TEAM,
+    ];
+    private static readonly int[] LEVELLING_COLORS =
+    [
+        .. NORMAL_COLORS,
+        COLOR_DYNAMIC_LEVELLING,
+        COLOR_DYNAMIC_TEAM,
+    ];
+    private static readonly int[] RED_TO_GREEN_COLORS = [COLOR_DYNAMIC_RED_TO_GREEN];
+    private static readonly int[] NUMBER_TEAM_COLORS =
+    [
+        COLOR_RED,
+        COLOR_GREEN,
+        COLOR_BLUE,
+        COLOR_YELLOW,
+        COLOR_WHITE,
+        COLOR_DYNAMIC_TEAM,
+    ];
+    private static readonly int[] NO_COLORS = [COLOR_NOT_APPLICABLE];
+
+    private static readonly int[] SMALL_TO_LARGE_WIDTHS = [WIDTH_SMALL, WIDTH_MEDIUM, WIDTH_LARGE];
+    private static readonly int[] S_TO_XL_WIDTHS =
+    [
+        WIDTH_SMALL,
+        WIDTH_MEDIUM,
+        WIDTH_LARGE,
+        WIDTH_EXTRA_LARGE,
+    ];
+    private static readonly int[] XS_TO_XL_WIDTHS =
+    [
+        WIDTH_EXTRA_SMALL,
+        WIDTH_SMALL,
+        WIDTH_MEDIUM,
+        WIDTH_LARGE,
+        WIDTH_EXTRA_LARGE,
+    ];
+    private static readonly int[] L_TO_XXL_WIDTHS =
+    [
+        WIDTH_LARGE,
+        WIDTH_EXTRA_LARGE,
+        WIDTH_BIG_MAHOOSIVE_CHONKY,
+    ];
+    private static readonly int[] NO_WIDTHS = [WIDTH_NOT_APPLICABLE];
 
     private static readonly int[] STATUS_BAR_RENDERERS =
     [
@@ -76,22 +176,82 @@ internal static class VariableFxStyles
             VariableFxCategoryType category,
             int styleId,
             int[] renderers,
+            (int[] ids, int fallback) colors,
+            (int[] ids, int fallback) widths,
             params (string key, string value)[] extra
-        ) => styles[(category, styleId)] = new VariableFxStyle(styleId, renderers, extra);
+        ) =>
+            styles[(category, styleId)] = new VariableFxStyle(
+                styleId,
+                renderers,
+                colors.ids,
+                colors.fallback,
+                widths.ids,
+                widths.fallback,
+                extra
+            );
 
-        Add(VariableFxCategoryType.HealthPoints, 0, [10], (EXTRA_ICON, "misc_heart"));
-        Add(VariableFxCategoryType.HealthPoints, 1, [12]);
-        Add(VariableFxCategoryType.HealthPoints, 2, [RENDERER_THERMOMETER]);
-        Add(VariableFxCategoryType.HealthPoints, 3, [11]);
+        Add(
+            VariableFxCategoryType.HealthPoints,
+            0,
+            [10],
+            (RED_TO_GREEN_COLORS, COLOR_DYNAMIC_RED_TO_GREEN),
+            (SMALL_TO_LARGE_WIDTHS, WIDTH_MEDIUM),
+            (EXTRA_ICON, "misc_heart")
+        );
+        Add(
+            VariableFxCategoryType.HealthPoints,
+            1,
+            [12],
+            (ALL_AND_TEAM_COLORS, COLOR_RED),
+            ([WIDTH_MEDIUM, WIDTH_LARGE], WIDTH_MEDIUM)
+        );
+        Add(
+            VariableFxCategoryType.HealthPoints,
+            2,
+            [RENDERER_THERMOMETER],
+            (NO_COLORS, COLOR_NOT_APPLICABLE),
+            (XS_TO_XL_WIDTHS, WIDTH_MEDIUM)
+        );
+        Add(
+            VariableFxCategoryType.HealthPoints,
+            3,
+            [11],
+            (ALL_AND_TEAM_COLORS, COLOR_RED),
+            (NO_WIDTHS, WIDTH_NOT_APPLICABLE)
+        );
 
-        Add(VariableFxCategoryType.ProgressBar, 0, [0]);
-        Add(VariableFxCategoryType.ProgressBar, 1, [RENDERER_BLOCK]);
-        Add(VariableFxCategoryType.ProgressBar, 2, [RENDERER_STRIPED]);
-        Add(VariableFxCategoryType.ProgressBar, 3, [RENDERER_ARROW]);
-        Add(VariableFxCategoryType.ProgressBar, 4, [RENDERER_CLASSIC_MINI]);
+        int[] progressRenderers =
+        [
+            0,
+            RENDERER_BLOCK,
+            RENDERER_STRIPED,
+            RENDERER_ARROW,
+            RENDERER_CLASSIC_MINI,
+        ];
 
-        Add(VariableFxCategoryType.LevellingProgress, 0, [RENDERER_LEVEL_WITH_PROGRESS]);
-        Add(VariableFxCategoryType.LevellingProgress, 1, [RENDERER_LEVEL_DETAILS]);
+        for (var styleId = 0; styleId < progressRenderers.Length; styleId++)
+            Add(
+                VariableFxCategoryType.ProgressBar,
+                styleId,
+                [progressRenderers[styleId]],
+                (ALL_AND_TEAM_COLORS, COLOR_GREEN),
+                (XS_TO_XL_WIDTHS, WIDTH_MEDIUM)
+            );
+
+        Add(
+            VariableFxCategoryType.LevellingProgress,
+            0,
+            [RENDERER_LEVEL_WITH_PROGRESS],
+            (LEVELLING_COLORS, COLOR_DYNAMIC_LEVELLING),
+            (SMALL_TO_LARGE_WIDTHS, WIDTH_MEDIUM)
+        );
+        Add(
+            VariableFxCategoryType.LevellingProgress,
+            1,
+            [RENDERER_LEVEL_DETAILS],
+            (LEVELLING_COLORS, COLOR_DYNAMIC_LEVELLING),
+            (S_TO_XL_WIDTHS, WIDTH_MEDIUM)
+        );
 
         // Status bars: a themed icon and a baked colour. The battery runs red to green instead.
         (string icon, string? color, bool metallic)[] statusBars =
@@ -129,6 +289,8 @@ internal static class VariableFxStyles
                     VariableFxCategoryType.StatusBar,
                     styleId,
                     STATUS_BAR_RENDERERS,
+                    (RED_TO_GREEN_COLORS, COLOR_DYNAMIC_RED_TO_GREEN),
+                    (XS_TO_XL_WIDTHS, WIDTH_MEDIUM),
                     (EXTRA_ICON, icon)
                 );
             else
@@ -136,6 +298,8 @@ internal static class VariableFxStyles
                     VariableFxCategoryType.StatusBar,
                     styleId,
                     STATUS_BAR_RENDERERS,
+                    (NO_COLORS, COLOR_NOT_APPLICABLE),
+                    (XS_TO_XL_WIDTHS, WIDTH_MEDIUM),
                     (EXTRA_ICON, icon),
                     (EXTRA_COLOR, color),
                     (EXTRA_METALLIC, metallic ? "true" : "false")
@@ -146,15 +310,44 @@ internal static class VariableFxStyles
             VariableFxCategoryType.BossBar,
             0,
             [100],
+            ([COLOR_RED], COLOR_RED),
+            (L_TO_XXL_WIDTHS, WIDTH_EXTRA_LARGE),
             (EXTRA_ICON, "misc_skull"),
             (EXTRA_ICON_ALIGNMENT, "double")
         );
-        Add(VariableFxCategoryType.BossBar, 1, [100]);
+        Add(
+            VariableFxCategoryType.BossBar,
+            1,
+            [100],
+            (ALL_AND_RED_TO_GREEN_COLORS, COLOR_RED),
+            (L_TO_XXL_WIDTHS, WIDTH_EXTRA_LARGE)
+        );
 
         // A number renderer throws without a design it knows.
-        Add(VariableFxCategoryType.NumberDisplay, 0, [201], (EXTRA_DESIGN, "freeze_style"));
-        Add(VariableFxCategoryType.NumberDisplay, 1, [200], (EXTRA_DESIGN, "shalimar"));
-        Add(VariableFxCategoryType.NumberDisplay, 2, [200], (EXTRA_DESIGN, "blocky"));
+        Add(
+            VariableFxCategoryType.NumberDisplay,
+            0,
+            [201],
+            (NUMBER_TEAM_COLORS, COLOR_GREEN),
+            (NO_WIDTHS, WIDTH_NOT_APPLICABLE),
+            (EXTRA_DESIGN, "freeze_style")
+        );
+        Add(
+            VariableFxCategoryType.NumberDisplay,
+            1,
+            [200],
+            (ALL_AND_TEAM_COLORS, COLOR_GREEN),
+            (NO_WIDTHS, WIDTH_NOT_APPLICABLE),
+            (EXTRA_DESIGN, "shalimar")
+        );
+        Add(
+            VariableFxCategoryType.NumberDisplay,
+            2,
+            [200],
+            (ALL_AND_TEAM_COLORS, COLOR_GREEN),
+            (NO_WIDTHS, WIDTH_NOT_APPLICABLE),
+            (EXTRA_DESIGN, "blocky")
+        );
 
         return styles.ToFrozenDictionary();
     }

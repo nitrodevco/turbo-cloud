@@ -88,7 +88,6 @@ public abstract class FurnitureWiredVariableFxLogic(
     private const int COLOR_NOT_APPLICABLE = -1;
     private const int COLOR_MAX = 1002;
     private const int WIDTH_NOT_APPLICABLE = -1;
-    private const int WIDTH_MEDIUM = 2;
     private const int WIDTH_MAX = 100;
     private const int RENDERER_MAX = 201;
     private const int SEGMENTS_MAX = 100;
@@ -290,8 +289,8 @@ public abstract class FurnitureWiredVariableFxLogic(
             ShowDurationMs = GetIntParamOrDefault(PARAM_SHOW_DURATION, SHOW_DURATION_DEFAULT_MS),
             Category = Category,
             StyleId = style.StyleId,
-            ColorId = GetIntParamOrDefault(PARAM_COLOR, COLOR_NOT_APPLICABLE),
-            WidthId = GetIntParamOrDefault(PARAM_WIDTH, WIDTH_MEDIUM),
+            ColorId = style.ResolveColor(GetIntParamOrDefault(PARAM_COLOR, COLOR_NOT_APPLICABLE)),
+            WidthId = style.ResolveWidth(GetIntParamOrDefault(PARAM_WIDTH, WIDTH_NOT_APPLICABLE)),
             RendererId = rendererId,
             DefaultMinValue = defaultMin,
             DefaultMaxValue = defaultMax,
@@ -345,7 +344,9 @@ public abstract class FurnitureWiredVariableFxLogic(
     /// </summary>
     protected void AddColorExtra(IDictionary<string, string> extra, string? teamColor)
     {
-        var colorId = GetIntParamOrDefault(PARAM_COLOR, COLOR_NOT_APPLICABLE);
+        var colorId = VariableFxStyles
+            .Get(Category, GetIntParamOrDefault(PARAM_STYLE, 0))
+            .ResolveColor(GetIntParamOrDefault(PARAM_COLOR, COLOR_NOT_APPLICABLE));
 
         if (colorId == COLOR_DYNAMIC_TEAM && teamColor is not null)
             extra[STATUS_DELEGATED_COLOR] = teamColor;
