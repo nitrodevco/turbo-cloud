@@ -218,6 +218,13 @@ public sealed class RoomModerationModule(
     }
 
     /// <summary>
+    /// Whether a kick by the room itself leaves the player in: the owner and anyone above them.
+    /// A rights holder is kicked (official client capture 2026-10-24, Kick on a rights holder).
+    /// </summary>
+    public async Task<bool> IsKeptFromSystemKickAsync(PlayerId playerId) =>
+        await SecurityModule.GetControllerLevelAsync(playerId) >= RoomControllerType.Owner;
+
+    /// <summary>
     /// A kick by the room itself (wired): no actor and no "who can kick" setting, but the owner
     /// and anyone above them stay, as with <see cref="MutePlayerBySystemAsync"/>. It runs inside
     /// the room tick, so the player's session is told to close without being awaited: the
@@ -233,9 +240,7 @@ public sealed class RoomModerationModule(
         if (!AvatarModule.TryGetPlayer(playerId, out var player))
             return false;
 
-        var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
-
-        if (controllerLevel >= RoomControllerType.Owner)
+        if (await IsKeptFromSystemKickAsync(playerId))
             return false;
 
         if (partingWords.Length > 0)

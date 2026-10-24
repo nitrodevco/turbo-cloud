@@ -59,6 +59,10 @@ public class WiredActionFreezeUser(
 
             player.SetFrozen(true, cancelOnTeleport);
 
+            // The room hears the user is awake before it sees the effect (official client
+            // capture 2026-10-24, Freeze on a rights holder seen by the owner, 1/1).
+            AvatarModule.WakeAvatar(player);
+
             if (effectId > 0)
                 await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
 

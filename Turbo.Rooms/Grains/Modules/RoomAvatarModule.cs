@@ -1223,6 +1223,26 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     }
 
     /// <summary>
+    /// Wakes the avatar and tells the room it is awake, whether it slept or not: what a wired
+    /// freeze does before the effect (official client capture 2026-10-24, Freeze on an awake
+    /// user: Sleep false, then AvatarEffect 218, 1/1).
+    /// </summary>
+    public void WakeAvatar(IRoomAvatar avatar)
+    {
+        avatar.Touch(NowMs());
+
+        if (avatar.IsIdle)
+        {
+            avatar.SetIdle(false);
+            PublishIdleChanged(avatar);
+        }
+
+        _roomGrain.SendComposerToRoomAndForget(
+            new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = false }
+        );
+    }
+
+    /// <summary>
     /// Tells registered listeners an avatar fell asleep or woke up. Called once per transition,
     /// by the code that flips the flag. Queued, so it never blocks the caller.
     /// </summary>
