@@ -53,6 +53,37 @@ public sealed class WiredRemoteSelectionTests
         selected.Should().Equal(31, 32);
     }
 
+    // selector.19.E10: a negative stack count is stored as 0 (all stacks), a count above the
+    // picked stacks as sent (official client capture 2026-10-24, WIN63-202610201032: -1 and -5
+    // re-opened as 0, 2/2; 1 and 7 kept).
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(-5, 0)]
+    [InlineData(1, 1)]
+    [InlineData(7, 7)]
+    public async Task Selector19E10_ANegativeStackCountIsStoredAsAllStacks(int sent, int stored)
+    {
+        var remote = _room.AddBox<WiredSelectorRemoteSelection>(3, 0, 2, "wf_slc_remote");
+
+        (
+            await _room.SaveAsync<UpdateSelectorMessage>(
+                3,
+                intParams: [0, sent],
+                definitionSpecifics: [false, false]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        remote.GetSnapshot().IntParams.Should().Equal(0, stored);
+    }
+
+    // selector.19.R5: 7 stacks asked of two picked uses both (official client capture
+    // 2026-10-24, 1/1).
+    [Fact]
+    public async Task Selector19R5_MoreStacksThanPickedUsesThemAll() =>
+        (await SelectAsync(0, 7)).Should().Equal(30, 31, 32);
+
     private async Task<int[]> SelectAsync(
         int type,
         int filter,

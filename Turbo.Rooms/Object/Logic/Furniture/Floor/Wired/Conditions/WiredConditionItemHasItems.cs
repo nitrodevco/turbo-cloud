@@ -21,7 +21,10 @@ public class WiredConditionItemHasItems(
 {
     public override int WiredCode => (int)WiredConditionType.HAS_STACKED_FURNIS;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
+    // "All the selected furni" is stored as 0 or 1: a 2 (the texts also have requireall.2/.3)
+    // is stored as 1 (official client capture 2026-10-24, WIN63-202610201032, 1/1).
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [new WiredBoolParamRule(false) { Clamps = true }];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
