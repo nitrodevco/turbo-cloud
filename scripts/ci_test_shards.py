@@ -6,10 +6,14 @@ import sys
 # One list of name prefixes per shard, balanced by the test durations CI measured (the shards'
 # TRX files). A test belongs to the shard with the longest prefix it starts with; a test no
 # prefix matches runs in the last shard, so a new namespace is never left out.
+#
+# Summed test seconds on ubuntu-latest, 2026-10-24 (1344 s in all, run about three at a time):
+# Plugins 292, Admin 437 (A* and C* classes 226), Catalog 107, Achievements 75, Rooms 73,
+# Players 61, Commands 51, Assets 43, Database 43, Gamedata 40, Web 39, the rest under 35 each.
 SHARDS = (
-    ("Turbo.Tests.Rooms.Wired",),
-    ("Turbo.Tests.Rooms.",),
-    ("Turbo.Tests.PacketHandlers.", "Turbo.Tests.Commands.", "Turbo.Tests.Catalog."),
+    ("Turbo.Tests.Plugins.", "Turbo.Tests.Web.", "Turbo.Tests.Gamedata."),
+    ("Turbo.Tests.Admin.A", "Turbo.Tests.Admin.C", "Turbo.Tests.Catalog."),
+    ("Turbo.Tests.Admin.", "Turbo.Tests.Achievements.", "Turbo.Tests.Database."),
     (),
 )
 

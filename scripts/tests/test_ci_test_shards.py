@@ -28,6 +28,9 @@ NAMES = (
     "Turbo.Tests.PacketHandlers.CameraRendererTests.A_photo",
     "Turbo.Tests.Commands.OperatorTests.A_command",
     "Turbo.Tests.Catalog.CatalogPageTests.A_page",
+    "Turbo.Tests.Admin.AdminJobsTests.A_job",
+    "Turbo.Tests.Admin.PollEndpointsTests.A_poll",
+    "Turbo.Tests.Plugins.PluginUnloadTests.A_plugin",
     "Turbo.Tests.Networking.SessionLivenessTests.A_session",
     "Turbo.Tests.SomeNamespaceAddedLater.ATests.A_test",
 )
