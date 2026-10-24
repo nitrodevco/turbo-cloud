@@ -3,6 +3,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.WiredTrading;
+using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -30,6 +31,7 @@ public sealed class WiredGiveFromChestAmountTests
 
     private readonly WiredRoom _room = new(8, 8);
     private readonly List<int?> _withdrawn = [];
+    private readonly List<WiredEarningsCategory?> _categories = [];
 
     [Fact]
     public async Task A_number_amount_takes_that_many_credits_from_the_chest()
@@ -40,6 +42,18 @@ public sealed class WiredGiveFromChestAmountTests
 
         _withdrawn.Should().Equal(7);
         _room.Harness.Fakes.Sent<WiredTransactionSuccessMessageComposer>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task The_credits_wait_in_the_earnings_category_the_box_is_set_to()
+    {
+        // The official server filed a give under category 11 in the receiver's earnings window,
+        // not the purse (official client capture 2026-10-24, wired matrix action.45.R3).
+        var (box, ctx) = await SetUpAsync([0, 7, 0, -20, 1, 13]);
+
+        (await box.ExecuteAsync(ctx, Ct)).Should().BeTrue();
+
+        _categories.Should().Equal(WiredEarningsCategory.Agency);
     }
 
     [Fact]
@@ -94,9 +108,11 @@ public sealed class WiredGiveFromChestAmountTests
             .SetValue(chest, WiredChestSummarySnapshot.Empty with { Coins = CHEST_COINS });
         _room.Harness.Fakes.Handlers[nameof(IWiredChestGrain.WithdrawAsync)] = call =>
         {
-            var amount = ((WiredChestWithdrawRequest)call.Args[0]!).Amount;
+            var request = (WiredChestWithdrawRequest)call.Args[0]!;
+            var amount = request.Amount;
 
             _withdrawn.Add(amount);
+            _categories.Add(request.EarningsCategory);
 
             return Task.FromResult(
                 new WiredChestMoveResultSnapshot

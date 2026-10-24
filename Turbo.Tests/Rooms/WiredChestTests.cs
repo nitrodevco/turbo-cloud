@@ -19,6 +19,8 @@ using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Vault;
+using Turbo.Primitives.Vault.Enums;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -241,6 +243,45 @@ public sealed class WiredChestTests : IDisposable
     }
 
     [Fact]
+    public async Task Credits_wired_gives_wait_in_the_receivers_earnings_not_the_purse()
+    {
+        // Official client capture 2026-10-24, wired matrix action.45.R3: Give Currency with
+        // earnings category 11 left the receiver's purse as it was and filed the credit under
+        // the earnings window's Games row.
+        _db.Insert(Furni(20, GOLD_DEFINITION, ALICE));
+        var chest = await ChestAsync();
+        await chest.DepositAsync(Deposit(WiredChestKind.Coins, 20), Ct);
+
+        _fakes.Handlers["DepositAsync"] = call =>
+            call.Args[4] is string ? Task.FromResult(true) : Fakes.NotHandled;
+
+        var withdrawal = await chest.WithdrawAsync(
+            Withdraw(WiredChestKind.Coins, 4, WiredChestIterationMode.FirstInFirstOut) with
+            {
+                Type = WiredTransactionType.Wired,
+                EarningsCategory = WiredEarningsCategory.Games,
+            },
+            Ct
+        );
+
+        withdrawal.Failure.Should().BeNull();
+        withdrawal.Summary.Coins.Should().Be(6);
+        _fakes.Log.Of("CreditAsync").Should().BeEmpty();
+        _fakes
+            .Log.Of("DepositAsync")
+            .Single()
+            .Args.Take(5)
+            .Should()
+            .Equal(
+                (PlayerId)ALICE,
+                VaultRewardCategoryType.Games,
+                VaultRewardType.Credits,
+                4,
+                $"wiredchest:{withdrawal.TransactionId}"
+            );
+    }
+
+    [Fact]
     public async Task A_withdrawal_the_wallet_refuses_puts_the_credits_back()
     {
         _db.Insert(Furni(20, GOLD_DEFINITION, ALICE));
@@ -271,6 +312,7 @@ public sealed class WiredChestTests : IDisposable
         GrainHarness.Replace(grain, new WiredChestLiveState { ChestId = CHEST });
         GrainHarness.Replace(grain, _fakes.Create<IFurnitureDefinitionProvider>());
         GrainHarness.Replace(grain, _loader);
+        GrainHarness.Replace(grain, _fakes.Create<IIncomeRewardService>());
 
         await ((Orleans.Grain)grain).OnActivateAsync(default);
 

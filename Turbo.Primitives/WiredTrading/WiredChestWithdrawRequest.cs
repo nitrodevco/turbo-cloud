@@ -36,4 +36,11 @@ public sealed record WiredChestWithdrawRequest
 
     [Id(7)]
     public required string DefinitionInfo { get; init; }
+
+    /// <summary>
+    /// The earnings category credits wired gives are filed under: they wait in the receiver's
+    /// earnings window instead of the purse. Null pays the purse (the owner withdrawing).
+    /// </summary>
+    [Id(8)]
+    public WiredEarningsCategory? EarningsCategory { get; init; }
 }

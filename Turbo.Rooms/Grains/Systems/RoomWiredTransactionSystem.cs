@@ -75,6 +75,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                 reward,
                 WiredTransactionType.ContractReward,
                 DefinitionInfo(sourceId, times),
+                EarningsCategoryOf(contract),
                 ct
             );
 
@@ -290,7 +291,11 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                 return failure;
         }
 
-        return reward is null ? null : await GiveAsync(player, chests, reward, type, info, ct);
+        // A trade contract has no earnings category (only RewardContract.as:45-47 offers one):
+        // credits it gives are paid to the purse (inference, not recorded).
+        return reward is null
+            ? null
+            : await GiveAsync(player, chests, reward, type, info, null, ct);
     }
 
     /// <summary>Pays every element of a reward out of the chests that hold it.</summary>
@@ -300,6 +305,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         TradeRequirementRuleSnapshot reward,
         WiredTransactionType type,
         string info,
+        WiredEarningsCategory? earningsCategory,
         CancellationToken ct
     )
     {
@@ -332,6 +338,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                     WiredChestIterationMode.FirstInFirstOut,
                     type,
                     info,
+                    earningsCategory,
                     ct
                 );
 
@@ -355,6 +362,17 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
 
         return null;
     }
+
+    /// <summary>
+    /// The earnings category a reward contract's credits wait under: the one its editor offers
+    /// once the reward holds credits (RewardContract.as:45-47, WIN63-202610201032), as Give
+    /// Currency files them (action.45.R3; for a contract inferred, its credit payout is not
+    /// recorded).
+    /// </summary>
+    private static WiredEarningsCategory EarningsCategoryOf(WiredContractSnapshot contract) =>
+        Enum.IsDefined((WiredEarningsCategory)contract.RewardCategory)
+            ? (WiredEarningsCategory)contract.RewardCategory
+            : WiredEarningsCategory.Games;
 
     private static bool CanCover(
         IReadOnlyList<FurnitureWiredChestLogic> chests,

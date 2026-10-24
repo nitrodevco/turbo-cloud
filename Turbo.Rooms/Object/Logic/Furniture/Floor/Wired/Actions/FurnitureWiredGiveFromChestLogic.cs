@@ -62,6 +62,9 @@ public abstract class FurnitureWiredGiveFromChestLogic(
 
     protected virtual WiredChestIterationMode Order => WiredChestIterationMode.FirstInFirstOut;
 
+    /// <summary>The earnings category the credits given wait under; null for furni.</summary>
+    protected virtual WiredEarningsCategory? EarningsCategory => null;
+
     protected override bool HasPositionalVariableIds => true;
 
     public override int GetMaxVariableIds() => 1;
@@ -205,6 +208,7 @@ public abstract class FurnitureWiredGiveFromChestLogic(
                 Order,
                 WiredTransactionType.Wired,
                 $"{ObjectId}:{take}",
+                EarningsCategory,
                 ct
             );
 

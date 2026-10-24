@@ -289,7 +289,9 @@ public class WiredConfig
     /// Teleport To without "fast teleportation" (official client capture 2026-10-16, walk-on +
     /// Teleport To, 2 of 2 runs): the user gets this effect when the box fires, stands on the
     /// target <see cref="TeleportDelayMs"/> later and loses the effect
-    /// <see cref="TeleportEffectMs"/> after the box fired.
+    /// <see cref="TeleportEffectMs"/> after the box fired. Those are for a fire on an avatar
+    /// cycle; between two the landing is the first cycle after the delay less a cycle, and the
+    /// effect ends as long after it (2026-10-24, wired matrix action.8.B3/B4).
     /// </summary>
     public int TeleportEffectId { get; init; } = 4;
 

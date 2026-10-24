@@ -10,9 +10,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// Gives credits out of credit chests. The client files them under an earnings category; this
-/// server has no earnings to claim, so the credits go straight to the wallet and the category
-/// is kept for the editor only.
+/// Gives credits out of credit chests into the receivers' earnings window, under the category the
+/// box is set to (Games or Agency); they reach the purse when claimed there (official client
+/// capture 2026-10-24, wired matrix action.45.R3).
 /// </summary>
 [RoomObjectLogic("wf_act_give_currency")]
 public class WiredActionGiveCurrencyFromChest(
@@ -29,4 +29,7 @@ public class WiredActionGiveCurrencyFromChest(
 
     protected override IWiredParamRule KindParamRule =>
         new WiredEnumParamRule<WiredEarningsCategory>(WiredEarningsCategory.Games);
+
+    protected override WiredEarningsCategory? EarningsCategory =>
+        GetIntParamOrDefault(PARAM_KIND, WiredEarningsCategory.Games);
 }
