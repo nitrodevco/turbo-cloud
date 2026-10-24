@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
@@ -27,4 +28,11 @@ public sealed record WiredProjectileSettings
 
     /// <summary>The tiles <see cref="Distance"/> counts: past the target, or in all.</summary>
     public required int DistanceTiles { get; init; }
+
+    /// <summary>The users turned to face the way a projectile flies; empty turns nobody.</summary>
+    public IReadOnlySet<RoomObjectId> ShooterIds { get; init; } = new HashSet<RoomObjectId>();
+
+    /// <summary>The directions the shooters may be turned to.</summary>
+    public WiredDirectionalSystemType ShooterDirections { get; init; } =
+        WiredDirectionalSystemType.EightStraight;
 }

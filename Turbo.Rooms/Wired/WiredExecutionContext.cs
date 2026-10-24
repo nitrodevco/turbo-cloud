@@ -154,6 +154,9 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 return false;
 
             if (projectile is not null)
+                await TurnShootersAsync(projectile, flightX, flightY);
+
+            if (projectile is not null)
                 WiredSystem.BeginProjectileFlight(
                     floorItem.ObjectId,
                     sourceX,
@@ -441,6 +444,22 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         );
 
         return true;
+    }
+
+    /// <summary>Turns a projectile's shooters, head and body, to face the way it flies.</summary>
+    private async Task TurnShootersAsync(WiredProjectileSettings projectile, int dx, int dy)
+    {
+        if (
+            projectile.ShooterIds.Count == 0
+            || WiredDirections.Resolve(projectile.ShooterDirections, dx, dy) is not { } facing
+        )
+            return;
+
+        foreach (var shooterId in projectile.ShooterIds)
+        {
+            if (AvatarModule.TryGetAvatar(shooterId, out var shooter))
+                await ProcessUserDirectionAsync(shooter, facing, facing);
+        }
     }
 
     public Task ProcessUserDirectionAsync(IRoomAvatar avatar, Rotation body, Rotation head)
