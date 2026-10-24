@@ -27,6 +27,12 @@ public class WiredConditionItemMatches(
 
     protected override bool AllowsWallFurni => true;
 
+    /// <summary>
+    /// "All of the furni match" (0) or "any of the furni match" (1); Habbo opens the box and its
+    /// negative twin with quantifierType 1 (official client capture of codes 0 and 13).
+    /// </summary>
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Furni;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false), // state
@@ -70,24 +76,14 @@ public class WiredConditionItemMatches(
         var checkPosition = GetIntParamOrDefault(2, false);
         var checkAltitude = GetIntParamOrDefault(3, false);
 
-        foreach (var (itemId, entry) in snapshot)
-        {
-            if (!TryGetFloorItem(itemId, out var item))
-                return false;
+        // A furni no longer in the room does not match its snapshot.
+        bool Matches(int itemId, WiredFurniSnapshotEntry entry) =>
+            TryGetFloorItem(itemId, out var item)
+            && (!checkState || item.Logic.GetState() == entry.State)
+            && (!checkRotation || (int)item.Rotation == entry.Rotation)
+            && (!checkPosition || (item.X == entry.X && item.Y == entry.Y))
+            && (!checkAltitude || item.Z.ToInt() == entry.Z);
 
-            if (checkState && item.Logic.GetState() != entry.State)
-                return false;
-
-            if (checkRotation && (int)item.Rotation != entry.Rotation)
-                return false;
-
-            if (checkPosition && (item.X != entry.X || item.Y != entry.Y))
-                return false;
-
-            if (checkAltitude && item.Z.ToInt() != entry.Z)
-                return false;
-        }
-
-        return true;
+        return Quantify(snapshot.Select(x => Matches(x.Key, x.Value)), QuantifierRequiresAll);
     }
 }

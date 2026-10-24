@@ -26,6 +26,13 @@ public class WiredConditionItemPerType(
 
     protected override bool AllowsWallFurni => true;
 
+    /// <summary>
+    /// "All of the furni match" (0) or "any of the furni match" (1) over the furni to match;
+    /// Habbo opens the box and its negative twin with quantifierType 1 (official client capture
+    /// of codes 8 and 19).
+    /// </summary>
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Furni;
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             WiredSources.FurniOrSecondary.DefaultingTo(WiredFurniSourceType.TriggeredItem),
@@ -47,6 +54,14 @@ public class WiredConditionItemPerType(
 
         var subjects = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
 
-        return Quantify(subjects.Select(x => wantedDefinitions.Contains(x.Definition.Id)), false);
+        // No furni to match is no match whatever the quantifier (inference: the measured
+        // empty-set rule covers the variable conditions only).
+        if (subjects.Count == 0)
+            return false;
+
+        return Quantify(
+            subjects.Select(x => wantedDefinitions.Contains(x.Definition.Id)),
+            QuantifierRequiresAll
+        );
     }
 }
