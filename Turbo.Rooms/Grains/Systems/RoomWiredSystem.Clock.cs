@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.Logging;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -30,7 +31,7 @@ public sealed partial class RoomWiredSystem
 
         try
         {
-            _cachedTimezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            _cachedTimezone = WiredTimeZones.Find(timezoneId);
         }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
         {
