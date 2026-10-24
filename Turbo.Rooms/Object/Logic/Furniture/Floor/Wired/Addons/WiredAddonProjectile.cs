@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -28,9 +29,14 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// (switch, int, target), curve strength (zero is a straight trajectory). Variable ids are
 /// positional: time per tile, distance tiles.
 ///
+/// The shooter (by default the triggering user) is turned to face the way the projectile flies,
+/// in the same WiredMovements (official client capture 2026-10-24T07-42-18, a never-saved box
+/// with Move Furni +2,0: the block turned to 2 and the clicker, facing 4 three tiles south of
+/// it, got userDirections body 2 head 2, 1/1).
+///
 /// Not done, because the client explains them nowhere the server can read: scaling the
 /// animation time with distance (how the three differences combine, and what the speed
-/// increase takes off), the shooter's cosmetic direction and bunny hop, and the seven internal
+/// increase takes off), the bunny hop, and the seven internal
 /// variables (tiles travelled, mid-flight collisions, animated position), which need the flight
 /// simulated tile by tile. Their params are kept and ignored.
 /// </summary>
@@ -44,6 +50,7 @@ public class WiredAddonProjectile(
     private const int PARAM_ROTATE = 0;
     private const int PARAM_DIRECTIONAL_SYSTEM = 1;
     private const int PARAM_ROTATION_OFFSET = 10;
+    private const int PARAM_TURN_SHOOTER = 12;
     private const int PARAM_DISTANCE_MODE = 14;
     private const int PARAM_DISTANCE_IS_VARIABLE = 15;
     private const int PARAM_DISTANCE_TILES = 16;
@@ -54,6 +61,7 @@ public class WiredAddonProjectile(
     private const int VARIABLE_COUNT = 2;
 
     private const int SLOT_PROJECTILES = 0;
+    private const int SLOT_SHOOTERS = 1;
 
     // The bounds of the editor's inputs.
     private const int TIME_PER_TILE_MIN_MS = 1;
@@ -146,22 +154,27 @@ public class WiredAddonProjectile(
             distance = WiredProjectileDistanceType.Normal;
 
         var curveStrength = GetIntParamOrDefault(PARAM_CURVE_STRENGTH, 0);
+        var directions = GetIntParamOrDefault(
+            PARAM_DIRECTIONAL_SYSTEM,
+            WiredDirectionalSystemType.EightStraight
+        );
 
         ctx.Policy.Projectile = new WiredProjectileSettings
         {
             ProjectileIds = projectiles.Select(x => x.ObjectId.Value).ToHashSet(),
             AllMoved = allMoved,
-            RotateBy = GetIntParamOrDefault(PARAM_ROTATE, false)
-                ? GetIntParamOrDefault(
-                    PARAM_DIRECTIONAL_SYSTEM,
-                    WiredDirectionalSystemType.EightStraight
-                )
-                : null,
+            RotateBy = GetIntParamOrDefault(PARAM_ROTATE, false) ? directions : null,
             RotationOffset = GetIntParamOrDefault(PARAM_ROTATION_OFFSET, 0),
             CurveStrength = curveStrength == 0 ? null : curveStrength,
             Distance = distance,
             // A variable can hold anything; the client's input cannot.
             DistanceTiles = (int)Math.Clamp(tiles, DISTANCE_TILES_MIN, DISTANCE_TILES_MAX),
+            ShooterIds = GetIntParamOrDefault(PARAM_TURN_SHOOTER, false)
+                ? WiredSlotSelection
+                    .ForUserSlot(this, ctx, SLOT_SHOOTERS)
+                    .SelectedAvatarIds.ToHashSet()
+                : new HashSet<RoomObjectId>(),
+            ShooterDirections = directions,
         };
 
         return Task.FromResult(true);

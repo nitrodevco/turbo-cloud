@@ -598,17 +598,29 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        // A call back into a stack that already ran in this execution is dropped without an
+        // error; signals are not (a signal ring runs each receiver up to its visit limit).
+        if (
+            ctx.Event is WiredStackCalledEvent
+            && WiredConfig.CallStacksOncePerExecution
+            && _execution is { } caller
+            && caller.RanStackIds.Contains(ctx.Stack.StackId)
+        )
+            return;
+
         if (
             ctx.Event is WiredSignalEvent or WiredStackCalledEvent
             && !TryVisitReceiver(ctx.Stack.StackId, now)
         )
             return;
 
-        if (
-            _execution is { } execution
-            && !ChargeExecution(execution, WiredConfig.ExecutionCostPerStack)
-        )
-            return;
+        if (_execution is { } execution)
+        {
+            if (!ChargeExecution(execution, WiredConfig.ExecutionCostPerStack))
+                return;
+
+            execution.RanStackIds.Add(ctx.Stack.StackId);
+        }
 
         var outer = _contextValues;
         var outerRunning = _running;

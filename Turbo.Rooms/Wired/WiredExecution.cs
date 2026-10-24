@@ -22,6 +22,9 @@ internal sealed class WiredExecution(long now, long startedAtWallMs)
     public Queue<(WiredExecutionKey Key, WiredPendingStackExecution Pending)> Ready { get; } =
         new();
 
+    /// <summary>The stacks that ran in it so far, however they were started.</summary>
+    public HashSet<int> RanStackIds { get; } = [];
+
     /// <summary>Set when the execution was cancelled: nothing more of it runs.</summary>
     public bool IsStopped { get; private set; }
 

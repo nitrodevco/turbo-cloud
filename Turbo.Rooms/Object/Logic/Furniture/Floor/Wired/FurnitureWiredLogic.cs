@@ -1017,7 +1017,21 @@ public abstract partial class FurnitureWiredLogic(
         return Task.CompletedTask;
     }
 
-    public WiredDataSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
+    /// <summary>
+    /// The box as its editor shows it. A picked furni that has left the room leaves the picks at
+    /// once, firing or not: Habbo re-opened a box whose picked chair was picked up with the chair
+    /// gone (official client capture 2026-10-24T07-44-58, 1/1).
+    /// </summary>
+    public WiredDataSnapshot GetSnapshot()
+    {
+        if (_wiredData is not null)
+        {
+            GetStuffIds();
+            GetStuffIds2();
+        }
+
+        return _snapshot ??= BuildSnapshot();
+    }
 
     /// <summary>
     /// Fetches what the editor shows that the box cannot read synchronously, before its editor is

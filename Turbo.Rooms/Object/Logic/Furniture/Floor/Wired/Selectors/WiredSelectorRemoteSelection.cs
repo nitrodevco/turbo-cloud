@@ -34,8 +34,10 @@ public class WiredSelectorRemoteSelection(
 
     public override bool SelectsUsers => true;
 
+    // A negative stack count is stored as 0, all stacks (official client capture 2026-10-24,
+    // WIN63-202610201032: -1 and -5 saved, re-opened as 0, 2/2; 7 with two stacks kept as 7).
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 1, 0), WiredRules.AnyInt()];
+        [new WiredRangeParamRule(0, 1, 0), new WiredClampParamRule(0, int.MaxValue, 0)];
 
     // The selector boxes to run: the picked ones by default, or the triggering or signal furni
     // (official form contract of Remote Selector, [0,100,201], default 100).
