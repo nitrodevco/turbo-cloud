@@ -498,7 +498,9 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task Action30X2_ATwoStackSignalRingCounts100ThenStopsWithoutAnError()
     {
-        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
+        // Heavy marking reads real CPU time (Stopwatch), which a loaded test machine can push past
+        // the threshold for 100 visits; it is not what this ring is about.
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, HeavyBusyMsPerWindow = 0 });
         UseWallClockAdvancing(0);
         await BuildStackAsync(0, 0, clickTrigger: true, actions: [Signal(ANTENNA_A)]);
         await BuildStackAsync(
