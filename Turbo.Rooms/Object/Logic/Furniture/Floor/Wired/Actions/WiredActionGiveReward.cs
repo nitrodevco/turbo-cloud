@@ -38,6 +38,12 @@ public class WiredActionGiveReward(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
+    // The reward limit input is NumberInputParam(1, 1, 1000); "n =" takes four digits
+    // (TextInputParam("1", 4, null, 60, "0-9")), so every n from 1 to 9999 can be saved
+    // (actiontypes/GiveReward.as:123,133, AS3 WIN63-202610201032).
+    private const int TOTAL_LIMIT_MAX = 1000;
+    private const int INTERVAL_AMOUNT_MAX = 9999;
+
     public override int WiredCode => (int)WiredActionType.GIVE_REWARD;
 
     /// <summary>
@@ -50,8 +56,8 @@ public class WiredActionGiveReward(
         [
             new WiredEnumParamRule<WiredRewardIntervalType>(WiredRewardIntervalType.Once),
             new WiredBoolParamRule(false),
-            new WiredRangeParamRule(0, 1000, 0),
-            new WiredRangeParamRule(1, 1000, 1),
+            new WiredRangeParamRule(0, TOTAL_LIMIT_MAX, 0),
+            new WiredRangeParamRule(1, INTERVAL_AMOUNT_MAX, 1),
         ];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];

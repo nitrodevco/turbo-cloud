@@ -35,9 +35,6 @@ internal static class WiredRules
             ErrorKey = "wiredfurni.error.invalid_handitem_type",
         };
 
-    public static IWiredParamRule Effect(WiredConfig config) =>
-        new WiredRangeParamRule(0, config.MaxEffectId, 0);
-
     /// <summary>A tile coordinate or an offset between two tiles, either direction.</summary>
     public static IWiredParamRule TileOffset(WiredConfig config) =>
         new WiredRangeParamRule(-config.MaxCoordinate, config.MaxCoordinate, 0);

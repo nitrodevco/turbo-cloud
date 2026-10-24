@@ -321,6 +321,70 @@ public sealed class WiredOfficialSourcesTests
                 ],
                 [0]
             },
+            // Wired matrix W3 (the user boxes), cases <box>.E4 / .E5: one editor open each
+            // (2026-10-20T17-39-35 actions, 17-37-19 conditions, 17-31-49 triggers, 17-35-39 furni
+            // name, 2026-10-18T18-09-27 Teleport To, 2026-10-14T08-33-56 Move User,
+            // 2026-10-14T09-43-08 username, 2026-10-20T20-27-23 says, 21-51-14 enter room).
+            {
+                typeof(WiredActionTeleportTo),
+                "wf_act_teleport_to",
+                [Furni],
+                [100],
+                [Users],
+                [0]
+            },
+            { typeof(WiredActionKickUser), "wf_act_kick_user", [], [], [Users], [0] },
+            { typeof(WiredActionFreezeUser), "wf_act_freeze", [], [], [Users], [0] },
+            { typeof(WiredActionUnfreezeUser), "wf_act_unfreeze", [], [], [Users], [0] },
+            { typeof(WiredActionMoveRotateUser), "wf_act_move_rotate_user", [], [], [Users], [0] },
+            {
+                typeof(WiredActionUserToFurni),
+                "wf_act_user_to_furni",
+                [Furni],
+                [100],
+                [Users],
+                [0]
+            },
+            {
+                typeof(WiredAddonUsernamePlaceholder),
+                "wf_xtra_text_output_username",
+                [],
+                [],
+                [Users],
+                [0]
+            },
+            {
+                typeof(WiredAddonFurniNamePlaceholder),
+                "wf_xtra_text_output_furni_name",
+                [Furni],
+                [0],
+                [],
+                []
+            },
+            { typeof(WiredConditionGroupMember), "wf_cnd_actor_in_group", [], [], [Users], [0] },
+            { typeof(WiredConditionHabboHasHanditem), "wf_cnd_has_handitem", [], [], [Users], [0] },
+            {
+                typeof(WiredConditionHabboPerformsAction),
+                "wf_cnd_user_performs_action",
+                [],
+                [],
+                [Users],
+                [0]
+            },
+            { typeof(WiredConditionEntityDirection), "wf_cnd_actor_dir", [], [], [Users], [0] },
+            { typeof(WiredConditionRoomHabboCount), "wf_cnd_user_count_in", [], [], [], [] },
+            { typeof(WiredTriggerHabboSaysKeyword), "wf_trg_says_something", [], [], [], [] },
+            {
+                typeof(WiredTriggerHabboPerformsAction),
+                "wf_trg_user_performs_action",
+                [],
+                [],
+                [],
+                []
+            },
+            { typeof(WiredTriggerHabboLeaveRoom), "wf_trg_leave_room", [], [], [], [] },
+            { typeof(WiredTriggerClickUser), "wf_trg_click_user", [], [], [], [] },
+            { typeof(WiredTriggerHabboJoinRoom), "wf_trg_enter_room", [], [], [], [] },
         };
 
     [Theory]
