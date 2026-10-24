@@ -15,6 +15,7 @@ using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -105,13 +106,22 @@ public class WiredAddonVariablePlaceholder(
 
         foreach (var targetId in GetTargetIds(targetType, holders))
         {
-            if (
-                !variable.TryGetValue(
-                    new WiredVariableKey(snapshot.VariableId, targetType, targetId),
-                    out var value
-                )
-            )
+            var key = new WiredVariableKey(snapshot.VariableId, targetType, targetId);
+
+            if (!variable.TryGetValue(key, out var value))
+            {
+                // Habbo prints "null" for a sub-variable without a value, a Level Up's is_maxed
+                // (official client capture 2026-10-24, wired matrix addon.1001.R1, 18/18).
+                if (variable is not WiredSubVariable sub || !sub.HoldsNoValueFor(key))
+                    continue;
+
+                values.Add("null");
+
+                if (!GetIntParamOrDefault(0, false))
+                    break;
+
                 continue;
+            }
 
             values.Add(
                 textMode && snapshot.TextConnectors.TryGetValue(value, out var label) ? label

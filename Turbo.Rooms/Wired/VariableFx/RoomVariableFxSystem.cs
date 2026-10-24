@@ -68,6 +68,12 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
     // The fx past their variable box's limit when the bindings were last built.
     private readonly HashSet<RoomObjectId> _overLimitIds = [];
 
+    // The fx placed since the last flush, whose first statuses are drawn as a sync.
+    private readonly HashSet<int> _newConfigIds = [];
+
+    // The values written since the last flush, changed or not: each is shown again.
+    private readonly HashSet<(WiredVariableId VariableId, bool IsUser, int HolderId)> _written = [];
+
     private bool _configsDirty = true;
     private bool _statusesDirty = true;
     private long _nextFlushAtMs;
@@ -98,7 +104,23 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 _viewersByPlayerId.Remove(left.PlayerId);
                 _statusesDirty = true;
                 break;
-            case WiredVariableChangedEvent:
+            case WiredVariableChangedEvent changed:
+                if (
+                    WiredConfig.VariableFxShowsEveryWrite
+                    && changed.TargetType
+                        is WiredVariableTargetType.User
+                            or WiredVariableTargetType.Furni
+                )
+                    _written.Add(
+                        (
+                            changed.VariableId,
+                            changed.TargetType == WiredVariableTargetType.User,
+                            changed.TargetId
+                        )
+                    );
+
+                _statusesDirty = true;
+                break;
             case GameTeamChangedEvent:
                 _statusesDirty = true;
                 break;
@@ -212,6 +234,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             .Select(x => x.Config)
             .ToImmutableArray();
 
+        // Habbo sends a placed fx's first statuses as a sync (allInitialize and isInitialize),
+        // not as a change (official client capture 2026-10-24, wired matrix addon.1200.R2, 2/2).
+        _newConfigIds.UnionWith(found.Keys.Where(id => !_bindingsByConfigId.ContainsKey(id)));
         _bindingsByConfigId.Clear();
 
         foreach (var (configId, binding) in found)
@@ -283,6 +308,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         foreach (var (player, viewer) in _flushViewers)
             Send(player.PlayerId, viewer);
+
+        _newConfigIds.Clear();
+        _written.Clear();
     }
 
     /// <summary>Every holder of one fx's variable, handed to the viewers allowed to see it.</summary>
@@ -302,10 +330,16 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         var audience = GetAudience(box, players);
         var cap = WiredConfig.VariableFxMaxStatusesPerViewer;
 
+        var isNew = _newConfigIds.Contains(binding.Config.ConfigId);
+
         void Hand(VariableFxStatusSnapshot status, IRoomPlayer? holder)
         {
             // What the status says is the same for every viewer, so it is signed once.
-            var wanted = new VariableFxWantedStatus(status, VariableFxBinding.SignatureOf(status));
+            var wanted = new VariableFxWantedStatus(
+                status,
+                VariableFxBinding.SignatureOf(status),
+                _written.Contains((variableId, status.Key.IsUserEntity, status.Key.EntityId))
+            );
 
             foreach (var (player, viewer) in _flushViewers)
             {
@@ -343,7 +377,13 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                     teamColor
                 );
 
-                Hand(status with { IsInitialize = newPlayers.Contains(holder.PlayerId) }, holder);
+                Hand(
+                    status with
+                    {
+                        IsInitialize = isNew || newPlayers.Contains(holder.PlayerId),
+                    },
+                    holder
+                );
             }
 
             return;
@@ -376,7 +416,13 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 teamColor: null
             );
 
-            Hand(status with { IsInitialize = newFurni.Contains(item.ObjectId) }, holder: null);
+            Hand(
+                status with
+                {
+                    IsInitialize = isNew || newFurni.Contains(item.ObjectId),
+                },
+                holder: null
+            );
         }
     }
 
@@ -464,9 +510,12 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         var gone = viewer.Sent.Keys.Where(key => !wanted.ContainsKey(key)).ToImmutableArray();
         var updates = ImmutableArray.CreateBuilder<VariableFxStatusSnapshot>();
 
-        foreach (var (key, (status, signature)) in wanted)
+        foreach (var (key, (status, signature, written)) in wanted)
         {
-            if (viewer.Sent.TryGetValue(key, out var sent) && sent == signature)
+            // A value written again unchanged is shown again too, as Habbo does: Give Variable
+            // 50, then set 30, 30, 80 sent one VariableFxStatus each, the second 30 included
+            // (official client capture 2026-10-24, wired matrix addon.1200.R1, 4/4).
+            if (!written && viewer.Sent.TryGetValue(key, out var sent) && sent == signature)
                 continue;
 
             viewer.Sent[key] = signature;
@@ -483,8 +532,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             viewer.Outbox.Add(
                 new VariableFxStatusMessageComposer
                 {
-                    // A viewer's first batch brings them up to date; nothing in it is news.
-                    InitializeAll = !viewer.IsSynced,
+                    // A viewer's first batch brings them up to date, as does a batch of only
+                    // placed fx; nothing in it is news.
+                    InitializeAll = !viewer.IsSynced || updates.All(x => x.IsInitialize),
                     Statuses = updates.ToImmutable(),
                 }
             );

@@ -142,6 +142,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     private int _callsRunning;
     private bool _tickRunning;
 
+    // When the last player left the room (RoomConfig.EmptyRoomUnloadMs), or -1 while someone is in.
+    private long _emptySinceMs = -1;
+
     public RoomId RoomId => _state.RoomId;
 
     public RoomGrain(
@@ -346,6 +349,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             await WiredSystem.RunRaisedEventsAsync(ct);
             await FlushDirtyTilesAsync(ct);
             await HandOverToPersistenceIfDueAsync(now, ct);
+            UnloadIfLeftEmpty(now);
         }
         catch (Exception ex)
         {
@@ -476,12 +480,43 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
 
     public void DeactivateRoom() => DeactivateOnIdle();
 
+    /// <summary>
+    /// Unloads the room once nobody has been in it for <see cref="RoomConfig.EmptyRoomUnloadMs"/>,
+    /// as Habbo's does, rather than at the directory's next check.
+    /// </summary>
+    private void UnloadIfLeftEmpty(long now)
+    {
+        if (_roomConfig.EmptyRoomUnloadMs <= 0 || _state.AvatarsByPlayerId.Count > 0)
+        {
+            _emptySinceMs = -1;
+
+            return;
+        }
+
+        if (_emptySinceMs < 0)
+        {
+            _emptySinceMs = now;
+
+            return;
+        }
+
+        if (now - _emptySinceMs < _roomConfig.EmptyRoomUnloadMs)
+            return;
+
+        // Asked once: the room is on its way out.
+        _emptySinceMs = long.MaxValue;
+        DeactivateOnIdle();
+    }
+
     public void DelayRoomDeactivation() =>
         DelayDeactivation(TimeSpan.FromMilliseconds(_roomConfig.RoomDeactivationDelayMs));
 
     public async Task EnsureRoomActiveAsync(CancellationToken ct)
     {
         DelayRoomDeactivation();
+
+        // Someone is on the way in: the empty room's count starts over.
+        _emptySinceMs = -1;
 
         await RoomTelemetry.MeasureAsync(
             RoomTelemetry.LOAD_MAP,

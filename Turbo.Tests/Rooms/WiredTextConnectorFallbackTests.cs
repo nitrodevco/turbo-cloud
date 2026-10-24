@@ -130,6 +130,33 @@ public sealed class WiredTextConnectorFallbackTests
         packet.End.Should().BeTrue();
     }
 
+    // Wired matrix addon.1000.R2 (wlab4): A 2147418138 "1=one\n2=two" and B 2147418139
+    // "2=TWO\n3=three" on one variable merge, and the shared key 2 reads "two" from A, the lower
+    // item id, with A on top of the stack and with A saved after B (7/7).
+    [Fact]
+    public async Task Addon_1000_R2_two_connectors_merge_and_the_lower_id_wins_a_shared_value()
+    {
+        var variable = await UserVariableWithConnectorAsync("1=one\n2=two");
+        _room.AddBox<WiredAddonVariableTextConnector>(12, 6, 6, "wf_xtra_var_text_connector");
+
+        (await _room.SaveAsync<UpdateAddonMessage>(12, stringParam: "2=TWO\n3=three\n_=B"))
+            .Should()
+            .BeTrue();
+        (await _room.SaveAsync<UpdateAddonMessage>(11, stringParam: "1=one\n2=two\n_=A"))
+            .Should()
+            .BeTrue();
+
+        var labels = variable.GetTextConnectors();
+
+        labels[new WiredVariableValue(1)].Should().Be("one");
+        labels[new WiredVariableValue(2)].Should().Be("two");
+        labels[new WiredVariableValue(3)].Should().Be("three");
+        variable
+            .GetTextConnectorFallback()
+            .Should()
+            .Be("A", "inferred: the same rule as a shared value");
+    }
+
     [Fact]
     public async Task A_fallback_alone_still_sends_the_text_connector()
     {

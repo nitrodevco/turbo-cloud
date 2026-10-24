@@ -797,18 +797,10 @@ public abstract class FurnitureWiredVariableLogic
     /// The text a text connector addon on the same tile shows for a value it has no label for
     /// (its <c>_=</c> line), or null.
     /// </summary>
-    public virtual string? GetTextConnectorFallback()
-    {
-        string? fallback = null;
-
-        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
-        {
-            if (item.Logic is Addons.WiredAddonVariableTextConnector connector)
-                fallback = connector.GetFallback() ?? fallback;
-        }
-
-        return fallback;
-    }
+    public virtual string? GetTextConnectorFallback() =>
+        TextConnectorsOnTile()
+            .Select(connector => connector.GetFallback())
+            .FirstOrDefault(fallback => fallback is not null);
 
     /// <summary>
     /// Whether a text connector addon applies to the variable: one stands on its tile. Habbo
@@ -823,29 +815,36 @@ public abstract class FurnitureWiredVariableLogic
 
     /// <summary>The value a text connector on the same tile gives empty text ("0="), if any.</summary>
     public WiredVariableValue? GetEmptyTextValue() =>
-        FurniModule
-            .GetFloorItemsOnTile(_ctx.GetTileIdx())
-            .Select(item =>
-                (item.Logic as Addons.WiredAddonVariableTextConnector)?.GetEmptyTextValue()
-            )
+        TextConnectorsOnTile()
+            .Select(connector => connector.GetEmptyTextValue())
             .FirstOrDefault(value => value is not null);
 
-    /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
+    /// <summary>
+    /// The labels the text connector addons on the same tile give the values. Several merge, and
+    /// on a value two of them label the one with the lower item id wins, wherever it stands in
+    /// the stack and whichever was saved last (official client capture 2026-10-24, wired matrix
+    /// addon.1000.R2, 7/7).
+    /// </summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
         var connectors = new Dictionary<WiredVariableValue, string>();
 
-        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        foreach (var connector in TextConnectorsOnTile())
         {
-            if (item.Logic is not Addons.WiredAddonVariableTextConnector connector)
-                continue;
-
             foreach (var (value, label) in connector.GetConnectors())
-                connectors[value] = label;
+                connectors.TryAdd(value, label);
         }
 
         return connectors;
     }
+
+    /// <summary>The text connector addons on the same tile, lowest item id first.</summary>
+    private IEnumerable<Addons.WiredAddonVariableTextConnector> TextConnectorsOnTile() =>
+        FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<Addons.WiredAddonVariableTextConnector>()
+            .OrderBy(connector => connector.ObjectId.Value);
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {

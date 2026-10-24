@@ -12,7 +12,9 @@ namespace Turbo.Tests.Rooms;
 /// time) for one it has no text for, which the client shows as "Sorry, received server error: 1"
 /// (<c>HabboCommunicationDemo.handleErrorMessage</c>), or <c>WiredValidationError</c> with a text
 /// (official client capture 2026-10-24: {errorCode 1, messageId 3051, "10/24/26, 7:40 AM"} for an
-/// action, 2026-10-20: 3059 for a variable).
+/// action, 2026-10-20: 3059 for a variable; 2026-10-24, 21 picks: 3050 for a trigger, 3052 for a
+/// condition, 3055 for an add-on, 3058 for a selector, wired matrix trigger.4.E2, condition.0.E2,
+/// addon.19.E2, selector.1.E2, 1/1 each).
 /// </summary>
 public sealed class WiredSaveRefusalPacketTests
 {
@@ -31,7 +33,11 @@ public sealed class WiredSaveRefusalPacketTests
     }
 
     [Theory]
+    [InlineData(WiredKind.Trigger, 3050)]
     [InlineData(WiredKind.Action, 3051)]
+    [InlineData(WiredKind.Condition, 3052)]
+    [InlineData(WiredKind.Addon, 3055)]
+    [InlineData(WiredKind.Selector, 3058)]
     [InlineData(WiredKind.Variable, 3059)]
     public async Task A_refusal_without_a_text_is_answered_with_server_error_1_action_11_E2(
         WiredKind kind,

@@ -291,6 +291,36 @@ public sealed class WiredGamesTimeLabTests
     }
 
     /// <summary>
+    /// action.14.R2 / action.6.R3 (wlab4): Give Score To Team [2,0,1] on a periodic stack added 2
+    /// each firing while the game ran (0 -> 6 after 3), nothing after Game Ends (8 stays, 2/2); the
+    /// score was kept after the end and back to 0 at the next start (official client capture
+    /// 2026-10-24, 1/1 each).
+    /// </summary>
+    [Fact]
+    public async Task Action_14_R2_team_score_counts_while_the_game_runs_and_is_kept_until_the_next_start()
+    {
+        await Game.StartGameAsync(Ct);
+
+        for (var i = 0; i < 4; i++)
+            (await Game.GiveScoreAsync(GameTeamType.Red, 2, default, default, 0, Ct))
+                .Should()
+                .BeTrue();
+
+        await Game.EndGameAsync(Ct);
+
+        for (var i = 0; i < 2; i++)
+            (await Game.GiveScoreAsync(GameTeamType.Red, 2, default, default, 0, Ct))
+                .Should()
+                .BeFalse("the game ended");
+
+        Game.GetScore(GameTeamType.Red).Should().Be(8, "kept after the end");
+
+        await Game.StartGameAsync(Ct);
+
+        Game.GetScore(GameTeamType.Red).Should().Be(0, "the next start resets it");
+    }
+
+    /// <summary>
     /// condition.31.R5 / R1: red reached 30, then green reached 30: red 1st held, green 1st and red
     /// 2nd failed, an empty blue at 0 was not 1st; green at 31 was 1st and red 2nd (8/8). With
     /// nobody scored, red is 1st (2/2).

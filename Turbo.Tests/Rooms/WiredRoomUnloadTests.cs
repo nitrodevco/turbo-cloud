@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Tests.Support;
 using Xunit;
@@ -162,6 +163,36 @@ public sealed class WiredRoomUnloadTests
 
         after.Should().ContainSingle("every load starts it again");
         after[0].Should().BeInRange(entered + 2_000, entered + 2_100);
+    }
+
+    // trigger.3.R5 (wlab4): a NEW at_given_time placed in a room loaded 72 min earlier and saved
+    // [2] (1 s) never fired, within 5 s of the placement nor 4.5 s of the save (2/2 each); it
+    // fired once ~1.45 s after the next load's RoomReady (4/4).
+    [Fact]
+    public async Task A_new_at_given_time_past_its_time_waits_for_the_next_load()
+    {
+        _loads.AddFloorItem(EFFECT, 0, 0, "wf_act_toggle_state");
+        _loads.AddFloorItem(PAD, 3, 3, "default_floor");
+        await _loads.LoadAsync(Ct);
+        await EnterAsync(1);
+        await RunAsync(10_000);
+
+        Room.AddBox<WiredTriggerAtTime>(TRIGGER, 0, 0, "wf_trg_at_given_time");
+        _loads.AddFloorItem(TRIGGER, 0, 0, "wf_trg_at_given_time");
+        await RunAsync(100);
+        await SaveTimerStackAsync(2);
+
+        (await RunAsync(5_000)).Should().BeEmpty("the room timer passed 1 s long ago");
+
+        await UnloadForAsync(49_000);
+        await RunAsync(300);
+        // The test furni rows keep no wired data over the reload: the room's copy is saved again.
+        await SaveTimerStackAsync(2);
+        var entered = await EnterAsync(2);
+        var after = await RunAsync(4_000);
+
+        after.Should().ContainSingle("the next load starts the timer again");
+        after[0].Should().BeInRange(entered + 1_000, entered + 1_100);
     }
 
     // trigger.18.R4: Click Furni on the lamp fires before and after the reload (2/2);

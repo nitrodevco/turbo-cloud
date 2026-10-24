@@ -183,6 +183,20 @@ public sealed partial class RoomWiredSystem
                 {
                     var objectId = atTime.ObjectId;
 
+                    // A box new to the room whose time the timer has passed already missed it
+                    // (WiredConfig.AtGivenTimeWaitsForTimerRestart).
+                    if (
+                        WiredConfig.AtGivenTimeWaitsForTimerRestart
+                        && !_atTimeFiredVersion.ContainsKey(objectId)
+                        && !State.LoadedItemSnapshots.ContainsKey(objectId)
+                        && elapsedMs >= atTime.GetTargetMs()
+                    )
+                    {
+                        _atTimeFiredVersion[objectId] = _timersEpochVersion;
+
+                        continue;
+                    }
+
                     if (
                         _atTimeFiredVersion.TryGetValue(objectId, out var firedVersion)
                         && firedVersion == _timersEpochVersion
